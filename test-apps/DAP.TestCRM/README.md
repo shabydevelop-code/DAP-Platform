@@ -67,14 +67,15 @@ The rule applies to all server-backed CRM actions, including search, sorting, Fi
 
 ## PeopleSoft Web runtime scenario coverage
 
-The permanent CRM flow now includes concrete business-shaped scenarios for DAP target resolution and bubble behavior:
+The permanent CRM flow now includes concrete business-shaped scenarios for DAP Web target/context resolution:
 
 - Case Status FieldChange can remove and restore the conditional Close Reason target.
 - Treatment Notes is disabled while a Case is Open and becomes enabled after a server-backed status transition.
-- The Cases grid contains repeated identical Open actions, each bound to a different business record.
+- The Cases grid contains repeated identical Open actions, each bound to a different business record.\n- Case-grid Open actions receive transient generated DOM IDs on each render; stable resolution must use business identity/context rather than those IDs.\n- Server-side Case sorting rebuilds and reorders the grid; the same Case is resolved again after it moves to another row.
 - Case history makes the record screen vertically scrollable and provides legitimate off-screen targets.
 - Conditional Close Reason and validation summaries change layout and move downstream targets.
-- Opening a Case from the grid replaces the Content iframe element, requiring frame and target re-resolution.
+- Opening a Case from the grid replaces the Content iframe element, requiring frame and target re-resolution.\n- Case FieldChange performs a full Content-document reload while preserving the same logical Case route/context; reload alone is not a context transition.\n- The representative E2E leaves the created Case context for Leads and later returns to that exact Case by stable business identity.
 - Server validation inserts a validation summary, marks rejected fields, preserves working values, and then presents the server error modal.
 
 These are permanent regression/demo scenarios. They must remain realistic CRM behavior rather than test-only controls.
+\nThe representative E2E now asserts generated-ID churn, server grid reorder, full Content-document reload with preserved Case context, frame re-resolution, and leave/return re-resolution. Duplicate-event/idempotency behavior is intentionally not claimed yet; it requires a production runtime event model rather than an artificial CRM-only control.\n
