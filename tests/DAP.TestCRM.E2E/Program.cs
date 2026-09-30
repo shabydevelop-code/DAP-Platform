@@ -109,20 +109,42 @@ async Task Select(string selector,string value)
     var f=await Content(); var target=f.Locator(selector);
     await MoveTo(target);
     await target.ClickAsync();
-    await HumanPause(250);
-    await page.Keyboard.PressAsync("Alt+ArrowDown");
-    await HumanPause(700);
+    await HumanPause(300);
 
-    // Keep the dropdown opening visible, but commit the value deterministically.
-    // SelectOption fires the real change event, so the CRM FieldChange path remains real.
-    await target.SelectOptionAsync(value);
-    await HumanPause(650);
+    // Use the native select with keyboard navigation so the opened dropdown and
+    // the movement through its options are visible during the demonstration.
+    var options=await target.Locator("option").AllTextContentsAsync();
+    var index=options.ToList().FindIndex(x=>x.Trim()==value);
+    if(index<0) throw new Exception($"Dropdown option not found: {value}");
+    var current=await target.EvaluateAsync<int>("e=>e.selectedIndex");
+    await page.Keyboard.PressAsync("Alt+ArrowDown");
+    await HumanPause(900);
+    var delta=index-current;
+    var key=delta>=0 ? "ArrowDown" : "ArrowUp";
+    for(var i=0;i<Math.Abs(delta);i++)
+    {
+        await page.Keyboard.PressAsync(key);
+        await HumanPause(300);
+    }
+    await HumanPause(550);
+    await page.Keyboard.PressAsync("Enter");
+    await HumanPause(800);
     await WaitReady();
 }
 async Task HumanScrollTo(ILocator target)
 {
-    for(var i=0;i<8 && !await target.IsVisibleAsync();i++){await page.Mouse.WheelAsync(0,240);await HumanPause(120);}
-    await target.ScrollIntoViewIfNeededAsync(); await HumanPause();
+    // Scroll in small visible wheel steps. Do not jump directly to the target
+    // unless the browser still needs a final minimal alignment.
+    for(var i=0;i<18;i++)
+    {
+        var box=await target.BoundingBoxAsync();
+        var viewport=page.ViewportSize;
+        if(box is not null && viewport is not null && box.Y>=70 && box.Y+box.Height<=viewport.Height-35) break;
+        await page.Mouse.WheelAsync(0,110);
+        await HumanPause(180);
+    }
+    if(!await target.IsVisibleAsync()) await target.ScrollIntoViewIfNeededAsync();
+    await HumanPause(500);
 }
 async Task SaveExpectValidation(string field)
 {
