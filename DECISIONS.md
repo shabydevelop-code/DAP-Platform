@@ -71,3 +71,16 @@ Action Steps advance automatically only after their validation succeeds. Informa
 Previous is not a universal navigation control. It may be exposed only when the active runtime can determine that the previous Step is safely renderable in the current application context. DAP must not assume that `StepOrder - 1` can be displayed after page navigation, context replacement, application changes, or Web/Windows runtime transitions.
 
 The shared Step model therefore includes advance behavior and sufficient context/navigation metadata for runtime-aware navigation decisions.
+
+
+## ADR-012 — Server-backed Web refresh preserves logical context
+
+**Status:** Accepted
+
+In server-backed Web applications, including PeopleSoft-style applications, a server round trip may refresh or rebuild the DOM without changing the user's logical business context.
+
+DAP must treat DOM references as transient across server calls. DOM replacement alone does not mean that the application context changed and does not mean that a Step completed.
+
+After a server-triggered refresh, the Web Runtime must re-evaluate the current logical context, re-resolve the active Step target, and continue the same Step when the business context is still valid. Step advancement remains governed by validation success.
+
+This behavior is a general Web Runtime rule for server-backed application mode and must not be implemented as application-specific logic for TestCRM or PeopleSoft.
