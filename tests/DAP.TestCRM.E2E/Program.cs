@@ -13,7 +13,12 @@ await page.AddInitScriptAsync(@"(() => {
     Object.assign(c.style,{position:'fixed',left:'24px',top:'24px',width:'24px',height:'32px',zIndex:'2147483647',pointerEvents:'none',transition:'left .22s ease-out, top .22s ease-out, transform .08s ease-out',filter:'drop-shadow(1px 2px 1px rgba(0,0,0,.25))'});
     document.documentElement.appendChild(c);
     window.__dapE2ECursor={
-      move:(x,y)=>{c.style.left=x+'px';c.style.top=y+'px'},
+      move:async(x,y)=>{
+        const from={left:c.style.left||'24px',top:c.style.top||'24px'};
+        const to={left:x+'px',top:y+'px'};
+        const a=c.animate([from,to],{duration:650,easing:'ease-in-out',fill:'forwards'});
+        await a.finished; c.style.left=to.left; c.style.top=to.top; a.cancel();
+      },
       down:()=>{c.style.transform='scale(.82)'},
       up:()=>{c.style.transform='scale(1)'}
     };
@@ -45,7 +50,7 @@ async Task MoveTo(ILocator target)
     var y=box.Y+Math.Min(12,box.Height/2);
     await page.EvaluateAsync("(p)=>window.__dapE2ECursor?.move(p.x,p.y)",new { x,y });
     await target.HoverAsync(new() { Position = new() { X = Math.Min(14,box.Width/2), Y = Math.Min(12,box.Height/2) } });
-    await HumanPause(520);
+    await HumanPause(120);
 }
 async Task Click(string selector)
 {
@@ -106,8 +111,10 @@ await Click("tbody tr.clickable:first-child");
 await WaitReady();
 
 // 2. Cases grid: server sorting + repeated identical Open targets.
-await Click("button[data-go$='/cases']");
+await Click("nav.tabs button:has-text('פניות')");
 await WaitReady();
+frame=await Content();
+await frame.Locator("h2:has-text('פניות')").WaitForAsync();
 await Click("th button[data-sort='status']");
 await WaitReady();
 
@@ -155,9 +162,13 @@ if(pos<0) throw new Exception("Unexpected site breadcrumb href: "+siteHref);
 var tail=siteHref[(pos+marker.Length)..];
 var siteId=tail.Split('/')[0];
 await MoveTo(siteCrumb);
-await page.EvaluateAsync("(hash) => document.querySelector('#content-frame').contentWindow.location.hash = hash", $"#/site/{siteId}/leads");
-await page.WaitForTimeoutAsync(700);
+await siteCrumb.ClickAsync();
+await page.WaitForTimeoutAsync(500);
 await WaitReady();
+await Click("nav.tabs button:has-text('לידים')");
+await WaitReady();
+frame=await Content();
+await frame.Locator("h2:has-text('לידים')").WaitForAsync();
 await Click("tbody tr.clickable:first-child");
 await WaitReady();
 
