@@ -110,38 +110,9 @@ async Task Select(string selector,string value)
     await MoveTo(target);
     await HumanPause(300);
 
-    // Do not open the native Chromium dropdown: it is an OS/browser popup and
-    // would overlap the visual demonstration. Render one temporary visual mirror
-    // so every traversed option is visible, then commit through the real <select>.
-    var options=await target.Locator("option").AllTextContentsAsync();
-    var index=options.ToList().FindIndex(x=>x.Trim()==value);
-    if(index<0) throw new Exception($"Dropdown option not found: {value}");
-    var current=await target.EvaluateAsync<int>("e=>e.selectedIndex");
-    await target.EvaluateAsync(@"(e)=>{
-      const r=e.getBoundingClientRect(),m=document.createElement('div');
-      m.id='dap-e2e-select-visual';
-      Object.assign(m.style,{position:'fixed',left:r.left+'px',top:(r.bottom+2)+'px',
-        minWidth:r.width+'px',background:'#fff',border:'1px solid #7d8d9c',
-        boxShadow:'0 3px 10px rgba(0,0,0,.22)',zIndex:'2147483646',direction:'rtl'});
-      [...e.options].forEach((o,i)=>{const d=document.createElement('div');d.textContent=o.text||' ';
-        d.dataset.index=i;Object.assign(d.style,{padding:'6px 10px',minHeight:'28px'});m.appendChild(d)});
-      document.body.appendChild(m);
-    }");
-    async Task Highlight(int i)
-    {
-        await target.EvaluateAsync(@"(e,i)=>{const m=document.querySelector('#dap-e2e-select-visual');if(!m)return;
-          [...m.children].forEach((x,n)=>{x.style.background=n===i?'#d9e9f7':'#fff';x.style.color=n===i?'#111':'#222'});
-        }",i);
-        await HumanPause(420);
-    }
-    await Highlight(current);
-    var step=index>=current ? 1 : -1;
-    for(var i=current+step; step>0 ? i<=index : i>=index; i+=step) await Highlight(i);
-    await HumanPause(450);
-
-    // Commit the exact value through the real select and real change event.
+    // Keep the system test deterministic: select the real option directly.
+    // SelectOption fires the real change event and therefore the real CRM FieldChange flow.
     await target.SelectOptionAsync(value);
-    try { await target.EvaluateAsync("(e)=>document.querySelector('#dap-e2e-select-visual')?.remove()"); } catch(PlaywrightException) { }
     await HumanPause(800);
     await WaitReady();
 }
