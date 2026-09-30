@@ -33,7 +33,7 @@ These results inform the product architecture but are not part of the production
 
 A permanent server-backed test application now exists at `test-apps/DAP.TestCRM`.
 
-It models Customer -> Sites -> Cases / Leads and supports opening and creating records. It deliberately includes asynchronous server round-trips, dynamic DOM replacement, tabs, grids, navigation, and create/edit/save flows so production DAP runtime behavior can be derived and tested against realistic application behavior.
+It models Customer -> Sites -> Cases / Leads and supports opening and creating records. Data is persisted in SQLite. Browser operations use HTTP API requests, grids are sorted server-side through explicit sort parameters, and breadcrumbs provide navigation back to the customer portal from all record screens. It deliberately includes asynchronous server round-trips, dynamic DOM replacement, tabs, grids, navigation, and create/edit/save flows so production DAP runtime behavior can be derived and tested against realistic application behavior.
 
 ## Not implemented yet
 
