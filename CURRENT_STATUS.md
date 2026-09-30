@@ -29,6 +29,12 @@ Earlier isolated experiments validated important Web runtime behaviors including
 
 These results inform the product architecture but are not part of the production implementation and must not define production packaging or dependencies.
 
+## Test target application
+
+A permanent server-backed test application now exists at `test-apps/DAP.TestCRM`.
+
+It models Customer -> Sites -> Cases / Leads and supports opening and creating records. It deliberately includes asynchronous server round-trips, dynamic DOM replacement, tabs, grids, navigation, and create/edit/save flows so production DAP runtime behavior can be derived and tested against realistic application behavior.
+
 ## Not implemented yet
 
 - Solution/project structure.
@@ -46,4 +52,4 @@ These results inform the product architecture but are not part of the production
 
 ## Next milestone
 
-Create the production .NET solution structure and shared Core contracts, followed by the desktop shell and runtime interfaces.
+Run and validate DAP.TestCRM locally, then use concrete Learner/runtime scenarios against it to derive the production Web Runtime contracts and shared guide model before building the Editor.
