@@ -195,3 +195,14 @@ This rule applies consistently to search, grid sorting, save/update operations, 
 Validation decisions and validation messages originate on the server. On validation failure, DAP.TestCRM must preserve the user's unsaved values across the server-style refresh and then present the server-returned message in the PeopleSoft-style modal.
 
 Client-only SPA updates must not be introduced for server-backed operations when they would bypass this interaction model.
+
+
+### Server interaction feedback
+
+During a DAP.TestCRM server round trip, the current business content remains visible whenever possible. The application must not replace the content with a generic loading placeholder or visually blank the current screen merely because a server request is in progress.
+
+While the request is active, DAP.TestCRM displays a compact activity indicator (spinner + "מעבד...") and prevents duplicate interaction as needed. When the server response causes the Content iframe/document to be rebuilt, no intermediate "טוען..." placeholder is shown.
+
+After the refreshed business context is established, operation feedback is presented in that context: successful save operations may show a transient success message, while server validation and other failures use the server-returned message in the standard modal.
+
+This behavior is part of the permanent PeopleSoft interaction contract and applies consistently to server-backed search, sorting, FieldChange, save/update, delete, validation, and similar operations.
