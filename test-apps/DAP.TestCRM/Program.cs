@@ -10,11 +10,20 @@ var dbPath = Path.Combine(builder.Environment.ContentRootPath, "testcrm.db");
 var connectionString = $"Data Source={dbPath}";
 InitializeDatabase(connectionString);
 
-app.MapGet("/api/customers", (string? sort, string? dir) =>
+app.MapGet("/api/customers", (string? name, string? phone, string? email, string? sort, string? dir) =>
 {
     var order = Sort(sort, dir, new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     { ["id"]="Id", ["name"]="Name", ["phone"]="Phone", ["email"]="Email" }, "Id");
-    return Query<Customer>($"SELECT Id,Name,Phone,Email FROM Customers ORDER BY {order}", r => new(r.GetInt32(0),r.GetString(1),r.GetString(2),r.GetString(3)));
+    var where = new List<string>();
+    if(!string.IsNullOrWhiteSpace(name)) where.Add("Name LIKE $name COLLATE NOCASE");
+    if(!string.IsNullOrWhiteSpace(phone)) where.Add("Phone LIKE $phone COLLATE NOCASE");
+    if(!string.IsNullOrWhiteSpace(email)) where.Add("Email LIKE $email COLLATE NOCASE");
+    var sql=$"SELECT Id,Name,Phone,Email FROM Customers{(where.Count>0?" WHERE "+string.Join(" AND ",where):"")} ORDER BY {order}";
+    using var c=new SqliteConnection(connectionString);c.Open();using var cmd=c.CreateCommand();cmd.CommandText=sql;
+    if(!string.IsNullOrWhiteSpace(name))cmd.Parameters.AddWithValue("$name","%"+name.Trim()+"%");
+    if(!string.IsNullOrWhiteSpace(phone))cmd.Parameters.AddWithValue("$phone","%"+phone.Trim()+"%");
+    if(!string.IsNullOrWhiteSpace(email))cmd.Parameters.AddWithValue("$email","%"+email.Trim()+"%");
+    using var r=cmd.ExecuteReader();var list=new List<Customer>();while(r.Read())list.Add(new(r.GetInt32(0),r.GetString(1),r.GetString(2),r.GetString(3)));return list;
 });
 app.MapPost("/api/customers", (CustomerInput x) =>
 {
