@@ -204,6 +204,23 @@ var casesCrumb=frame.Locator(".breadcrumb a").Nth(2);
 await MoveTo(casesCrumb); await casesCrumb.ClickAsync(); await WaitReady();
 frame=await Content();
 await frame.Locator("h2:has-text('פניות')").WaitForAsync();
+
+// The Cases grid is server-rendered. Re-sort by id so the freshly created Case
+// moves to a different row. Its generated DOM id must also change across the
+// full document reload, while its stable business route continues to resolve it.
+var createdCaseTarget=frame.Locator($"button.grid-open[data-go='#/case/{createdCaseId}']");
+var beforeSortId=await createdCaseTarget.GetAttributeAsync("id") ?? throw new Exception("Generated Case action id missing before sort.");
+var beforeSortRow=await createdCaseTarget.EvaluateAsync<int>("e=>e.closest('tr').rowIndex");
+await Click("th button[data-sort='id']");
+await WaitReady();
+frame=await Content();
+createdCaseTarget=frame.Locator($"button.grid-open[data-go='#/case/{createdCaseId}']");
+await createdCaseTarget.WaitForAsync();
+var afterSortId=await createdCaseTarget.GetAttributeAsync("id") ?? throw new Exception("Generated Case action id missing after sort.");
+var afterSortRow=await createdCaseTarget.EvaluateAsync<int>("e=>e.closest('tr').rowIndex");
+if(beforeSortId==afterSortId) throw new Exception("Generated Case action id survived a server rerender.");
+if(beforeSortRow==afterSortRow) throw new Exception("Created Case did not move after server-side grid reorder.");
+
 await Click($"button.grid-open[data-go='#/case/{createdCaseId}']");
 await WaitReady();
 
@@ -212,8 +229,14 @@ await WaitReady();
 frame=await Content();
 var notes=frame.Locator("[name='resolutionNotes']");
 if(!await notes.IsDisabledAsync()) throw new Exception("Treatment Notes should start disabled for an open case.");
+var caseRouteBeforeFieldChange=frame.Url;
+await frame.EvaluateAsync("()=>window.__dapE2EDocumentMarker='before-fieldchange'");
 await Select("[name='status']","בטיפול");
-frame=await Content(); notes=frame.Locator("[name='resolutionNotes']");
+frame=await Content();
+if(frame.Url!=caseRouteBeforeFieldChange) throw new Exception("Case FieldChange changed logical route/context.");
+var oldDocumentMarker=await frame.EvaluateAsync<string?>("()=>window.__dapE2EDocumentMarker||null");
+if(oldDocumentMarker is not null) throw new Exception("Case FieldChange did not perform a full Content document reload.");
+notes=frame.Locator("[name='resolutionNotes']");
 if(await notes.IsDisabledAsync()) throw new Exception("Treatment Notes did not become enabled.");
 await Fill("[name='resolutionNotes']","בוצעה בדיקת שירות מול הלקוח והתקלה טופלה.");
 
