@@ -21,6 +21,7 @@ Production repository initialization and implementation planning.
 - SQLite as the first database provider.
 - .NET 8 Desktop Runtime is assumed on target machines.
 - Markdown files are the persistent source for project context, architecture, decisions, requirements, and progress.
+- Guide navigation is context-aware: action Steps advance on successful validation; informational Steps may use manual Next; Previous is available only when the prior Step is safely renderable in the current runtime/application context.
 
 ## Historical validation
 
