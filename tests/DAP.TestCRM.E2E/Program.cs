@@ -2,8 +2,9 @@ using Microsoft.Playwright;
 
 const string baseUrl = "http://localhost:5200";
 using var playwright = await Playwright.CreateAsync();
-await using var browser = await playwright.Chromium.LaunchAsync(new() { Headless = false, SlowMo = 180 });
-var page = await browser.NewPageAsync(new() { ViewportSize = new() { Width = 1280, Height = 820 } });
+await using var browser = await playwright.Chromium.LaunchAsync(new() { Headless = false, SlowMo = 180, Args = new[] { "--start-maximized" } });
+var context = await browser.NewContextAsync(new() { ViewportSize = ViewportSize.NoViewport });
+var page = await context.NewPageAsync();
 await page.AddInitScriptAsync(@"(() => {
   const install=()=>{
     if(window !== window.top) return;
