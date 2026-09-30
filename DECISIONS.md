@@ -95,3 +95,14 @@ Server-backed Web applications may split application chrome and active business 
 DAP must be able to resolve the appropriate frame and then the target within that frame. If a server action reloads or replaces a frame, both the frame and target references are considered transient and must be re-resolved while preserving the logical business context when applicable.
 
 This is a general Web Runtime requirement and is validated by DAP.TestCRM using separate header and content frames.
+
+
+## ADR-014 — Web context includes transient working state
+
+**Status:** Accepted
+
+For application-triggered server round trips, preserving Web context includes relevant unsaved working values in addition to the logical record, screen, tab, and navigation state.
+
+A server refresh may rebuild the iframe/document and restore values that have not yet been persisted to the database. DAP must treat the restored post-refresh UI as the current state and must not equate persistence with context preservation.
+
+DAP.TestCRM preserves transient form values across its simulated PeopleSoft-style server refreshes so this behavior can be validated independently from database saves. A user-initiated browser reload is not required to preserve unsaved working state.
