@@ -134,3 +134,14 @@ While a server request is in progress, the existing content remains visible when
 After the server round trip and context restoration complete, the application presents the operation result in the restored context. Successful saves may use a transient success message; validation and server errors continue to use the authoritative server message in the standard modal.
 
 This rule applies system-wide to TestCRM server-backed actions, including search, sorting, FieldChange, save/update, delete, and validation flows.
+
+
+## ADR-017 — Server validation identifies and marks invalid fields
+
+**Status:** Accepted
+
+Server-side validation remains authoritative. Validation responses must identify the fields that failed validation in addition to returning the validation message.
+
+After the PeopleSoft-style server round trip restores the working context, DAP.TestCRM marks each server-rejected field with a red error border and `aria-invalid="true"`, while also presenting the server-returned message in the standard error modal. The client must not infer invalid fields independently from the server rules.
+
+A subsequent successful validation/refresh clears the error state because the rebuilt screen has no server validation result to restore.
