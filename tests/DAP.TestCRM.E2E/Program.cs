@@ -132,9 +132,17 @@ await SaveSuccess();
 
 // 7. Continue legitimate agent work into Leads.
 frame=await Content();
-var siteCrumb=frame.Locator(".breadcrumb a").Nth(1); await MoveTo(siteCrumb); await siteCrumb.ClickAsync();
-await page.WaitForTimeoutAsync(500);
-await Click("button[data-go$='/leads']");
+// The second breadcrumb link is the site and already points to the Cases tab.
+// Navigate directly to the site's Leads tab using the stable site id encoded in that href.
+var siteCrumb=frame.Locator(".breadcrumb a").Nth(1);
+var siteHref=await siteCrumb.GetAttributeAsync("href") ?? throw new Exception("Site breadcrumb href missing.");
+var marker="#/site/"; var pos=siteHref.IndexOf(marker,StringComparison.Ordinal);
+if(pos<0) throw new Exception("Unexpected site breadcrumb href: "+siteHref);
+var tail=siteHref[(pos+marker.Length)..];
+var siteId=tail.Split('/')[0];
+await MoveTo(siteCrumb);
+await page.EvaluateAsync("(hash) => document.querySelector('#content-frame').contentWindow.location.hash = hash", $"#/site/{siteId}/leads");
+await page.WaitForTimeoutAsync(700);
 await WaitReady();
 await Click("tbody tr.clickable:first-child");
 await WaitReady();
