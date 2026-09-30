@@ -4,6 +4,18 @@ const string baseUrl = "http://localhost:5200";
 using var playwright = await Playwright.CreateAsync();
 await using var browser = await playwright.Chromium.LaunchAsync(new() { Headless = false, SlowMo = 180 });
 var page = await browser.NewPageAsync(new() { ViewportSize = new() { Width = 1280, Height = 820 } });
+await page.AddInitScriptAsync(@"(() => {
+  const install=()=>{
+    if(document.getElementById('dap-e2e-cursor')) return;
+    const c=document.createElement('div'); c.id='dap-e2e-cursor';
+    Object.assign(c.style,{position:'fixed',left:'0',top:'0',width:'18px',height:'18px',border:'2px solid #111',borderRadius:'50%',background:'rgba(255,255,255,.8)',zIndex:'2147483647',pointerEvents:'none',transform:'translate(-50%,-50%)',transition:'left .12s linear, top .12s linear'});
+    document.documentElement.appendChild(c);
+    document.addEventListener('mousemove',e=>{c.style.left=e.clientX+'px';c.style.top=e.clientY+'px'},true);
+    document.addEventListener('mousedown',()=>{c.style.transform='translate(-50%,-50%) scale(.7)'},true);
+    document.addEventListener('mouseup',()=>{c.style.transform='translate(-50%,-50%) scale(1)'},true);
+  };
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',install); else install();
+})()");
 
 async Task<IFrame> Content()
 {
@@ -106,6 +118,10 @@ await more.ClickAsync();
 
 // 5. Conditional target appears and moves layout.
 await Select("[name='status']","סגורה");
+frame=await Content();
+// Case status FieldChange intentionally clears Subject. The agent re-enters it
+// before exercising the Close Reason validation scenario.
+await Fill("[name='subject']","תקלה בחיבור לאינטרנט");
 frame=await Content();
 await frame.Locator("[name='closeReason']").WaitForAsync();
 
