@@ -84,3 +84,14 @@ DAP must treat DOM references as transient across server calls. DOM replacement 
 After a server-triggered refresh, the Web Runtime must re-evaluate the current logical context, re-resolve the active Step target, and continue the same Step when the business context is still valid. Step advancement remains governed by validation success.
 
 This behavior is a general Web Runtime rule for server-backed application mode and must not be implemented as application-specific logic for TestCRM or PeopleSoft.
+
+
+## ADR-013 — Web target context includes iframe hierarchy
+
+**Status:** Accepted
+
+Server-backed Web applications may split application chrome and active business content across separate iframes. The Web Runtime must treat iframe/frame hierarchy as part of target context rather than assuming all targets belong to the top-level document.
+
+DAP must be able to resolve the appropriate frame and then the target within that frame. If a server action reloads or replaces a frame, both the frame and target references are considered transient and must be re-resolved while preserving the logical business context when applicable.
+
+This is a general Web Runtime requirement and is validated by DAP.TestCRM using separate header and content frames.
