@@ -136,7 +136,10 @@ await Fill("[name='name']","אלפא");
 await Click("#customer-search button.primary");
 await WaitReady();
 
-// One-result search navigates to customer. Open first site.
+// Search always renders a result grid, including a single match.
+await Click("#search-results tbody tr.clickable:first-child");
+await WaitReady();
+// Open first site.
 await Click("tbody tr.clickable:first-child");
 await WaitReady();
 
