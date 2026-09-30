@@ -13,4 +13,4 @@ input.validation-error,select.validation-error,textarea.validation-error{border:
 .grid-open{min-width:64px}
 
 /* During real content-frame replacement, keep the current screen visible until the new frame is ready. */
-.shell #content-frame,.shell .content-frame-next{grid-row:2;grid-column:1;height:100%}.shell .content-frame-next{z-index:2;background:#eef1f5}
+.shell #content-frame,.shell .content-frame-next{grid-row:2;grid-column:1;height:100%}.shell .content-frame-next{z-index:2;visibility:hidden}
