@@ -103,6 +103,24 @@ Responsibilities include:
 - Handle frames and browser context changes.
 - Provide Web recording/target-capture capabilities required by Editor.
 
+### Server-backed Web context rule
+
+For server-backed Web applications, DAP must assume that any server round trip may refresh, replace, or rebuild the relevant page DOM while preserving the user's business context.
+
+A preserved business context means the user may remain on the same logical record, tab, transaction, or process even though the DOM nodes that existed before the server call no longer exist.
+
+Therefore the Web Runtime must:
+
+- Treat DOM element identity as transient across server calls.
+- Never infer a context change solely from DOM replacement or re-rendering.
+- Re-resolve the active Step target after a server response/refresh.
+- Determine context from stable application signals such as URL/navigation state, record identifiers, page state, and runtime context metadata rather than retained DOM references.
+- Keep the active guide Step attached to the same logical business context when that context survives the refresh.
+- Advance only when the Step validation succeeds; a server round trip or DOM refresh by itself is not completion.
+- Support PeopleSoft-style flows in which a field action invokes the server, the page is refreshed/rebuilt, and the same record/context is restored.
+
+This is the default design assumption for the Web Runtime's server-backed application mode, not a TestCRM-specific workaround.
+
 Browser/Playwright deployment dependencies must be packaged or validated explicitly by the product installer/startup process; they must not be left as an undocumented machine assumption.
 
 ## Windows Runtime
