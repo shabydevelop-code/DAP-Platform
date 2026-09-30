@@ -62,7 +62,7 @@ async Task MoveTo(ILocator target)
     var tag=await target.EvaluateAsync<string>("e=>e.tagName");
     var type=await target.EvaluateAsync<string>("e=>e.getAttribute('type')||''");
     var isSelect=tag=="SELECT";
-    var localX=isSelect ? Math.Max(8,box.Width-16) : box.Width/2;
+    var localX=isSelect ? Math.Min(16,box.Width/2) : box.Width/2;
     var localY=box.Height/2;
     var x=box.X+localX;
     var y=box.Y+localY;
@@ -134,7 +134,6 @@ async Task HumanScrollTo(ILocator target)
         await HumanPause(180);
     }
     if(!await target.IsVisibleAsync()) await target.ScrollIntoViewIfNeededAsync();
-    await HumanPause(500);
 }
 async Task SaveExpectValidation(string field)
 {
@@ -256,5 +255,29 @@ await SaveExpectValidation("selectedService");
 await Select("[name='selectedService']","תמיכה מורחבת");
 await SaveSuccess();
 
-Console.WriteLine("PASS: representative Customer -> Site -> Case -> Lead workflow completed.");
+// 9. Delete the Case created by this run through the real UI.
+// Navigate back to the Site, open Cases, reopen the exact transient test Case,
+// confirm deletion, and verify it is gone from the server-backed grid.
+frame=await Content();
+siteCrumb=frame.Locator(".breadcrumb a").Nth(2);
+await MoveTo(siteCrumb);
+await siteCrumb.ClickAsync();
+await WaitReady();
+await Click("nav.tabs button:has-text('פניות')");
+await WaitReady();
+await Click($"button.grid-open[data-go='#/case/{createdCaseId}']");
+await WaitReady();
+await Click("#delete-case");
+frame=await Content();
+var confirmDelete=frame.Locator("#ps-confirm [data-answer='yes']");
+await confirmDelete.WaitForAsync();
+await MoveTo(confirmDelete);
+await confirmDelete.ClickAsync();
+await WaitReady();
+frame=await Content();
+await frame.Locator("h2:has-text('פניות')").WaitForAsync();
+if(await frame.Locator($"button.grid-open[data-go='#/case/{createdCaseId}']").CountAsync()!=0)
+    throw new Exception($"Deleted Case {createdCaseId} is still present in the Cases grid.");
+
+Console.WriteLine("PASS: representative Customer -> Site -> Case -> Lead workflow, including Case deletion, completed.");
 await page.WaitForTimeoutAsync(1500);
