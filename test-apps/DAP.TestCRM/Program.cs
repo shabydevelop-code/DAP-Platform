@@ -53,6 +53,15 @@ app.MapPut("/api/sites/{id:int}", async (int id, SiteInput x) =>
     Exec("UPDATE Sites SET Name=$a,Type=$b,Address=$c WHERE Id=$id",id,x.Name,x.Type,x.Address);
     return Results.Ok(new Site(id,GetInt("SELECT CustomerId FROM Sites WHERE Id=$id",id),x.Name,x.Type,x.Address));
 });
+app.MapDelete("/api/sites/{id:int}", (int id) =>
+{
+    if (!Exists("SELECT 1 FROM Sites WHERE Id=$id", id)) return Results.NotFound();
+    if (Exists("SELECT 1 FROM Cases WHERE SiteId=$id LIMIT 1", id) || Exists("SELECT 1 FROM Leads WHERE SiteId=$id LIMIT 1", id))
+        return Results.Conflict(new { title = "לא ניתן למחוק אתר שיש בו פניות או לידים." });
+    var customerId=GetInt("SELECT CustomerId FROM Sites WHERE Id=$id",id);
+    Exec("DELETE FROM Sites WHERE Id=$id",id);
+    return Results.Ok(new { customerId });
+});
 
 app.MapGet("/api/sites/{siteId:int}/cases", (int siteId,string? sort,string? dir) =>
 {
