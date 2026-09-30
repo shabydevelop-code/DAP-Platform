@@ -77,10 +77,23 @@ async Task MoveTo(ILocator target)
 async Task Click(string selector)
 {
     var f=await Content(); var target=f.Locator(selector);
+    var replacesFrame=await target.GetAttributeAsync("data-frame-nav")=="replace";
     await MoveTo(target);
     await page.EvaluateAsync("()=>window.__dapE2ECursor?.down()");
     await target.ClickAsync();
     await page.EvaluateAsync("()=>window.__dapE2ECursor?.up()");
+
+    if(replacesFrame)
+    {
+        // Do not let the next assertion bind to the still-visible retiring
+        // iframe. Wait for the replacement lifecycle to start and finish.
+        await page.Locator("#content-frame-next").WaitForAsync(new() {
+            State = WaitForSelectorState.Attached, Timeout = 10000
+        });
+        await page.Locator("#content-frame-next").WaitForAsync(new() {
+            State = WaitForSelectorState.Detached, Timeout = 10000
+        });
+    }
     await HumanPause(420);
 }
 async Task Fill(string selector,string value)
