@@ -101,6 +101,8 @@ Responsibilities include:
 - Validate actions/state.
 - Re-resolve targets after DOM changes and navigation.
 - Handle frames and browser context changes.
+- Treat the frame path as part of Web target context. A target may live in a different iframe from surrounding application chrome, and both the frame and target must be re-resolved after refresh/replacement.
+- Support multi-frame server applications where persistent header/navigation and active business content are hosted in separate iframes.
 - Provide Web recording/target-capture capabilities required by Editor.
 
 ### Server-backed Web context rule
@@ -172,4 +174,4 @@ All other runtime dependencies required by Playwright/UIA integration must be ha
 
 `test-apps/DAP.TestCRM` is the repository's server-backed CRM target for integration and end-to-end testing. It is intentionally separate from DAP product runtime code.
 
-The application models Customer -> Sites -> Cases / Leads and provides server-backed grids, record navigation, create/edit/save flows, asynchronous requests, and DOM replacement. Production Web Runtime contracts and guide-model requirements should be validated against this target rather than designed only from static examples.
+The application models Customer -> Sites -> Cases / Leads and provides server-backed grids, record navigation, create/edit/save flows, asynchronous requests, DOM replacement, and separate header/content iframes. Clicking the header returns the content frame to the customer portal. Production Web Runtime contracts and guide-model requirements should be validated against this target rather than designed only from static examples.
