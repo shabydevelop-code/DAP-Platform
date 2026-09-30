@@ -178,10 +178,11 @@ await Click("tbody tr.clickable:first-child");
 await WaitReady();
 
 // 2. Cases grid: server sorting + repeated identical Open targets.
+// Same-frame hash navigation has no document/frame readiness transition.
+// Wait for the destination business screen itself before continuing.
 await Click("nav.tabs button:has-text('פניות')");
-await WaitReady();
 var frame=await Content();
-await frame.Locator("h2:has-text('פניות')").WaitForAsync();
+await frame.Locator("h2:has-text('פניות')").WaitForAsync(new() { Timeout = 10000 });
 await Click("th button[data-sort='status']");
 await WaitReady();
 
