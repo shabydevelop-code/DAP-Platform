@@ -50,3 +50,16 @@ Reference flow: search for a customer, open a site, enter a server-backed grid, 
 The CRM should progressively cover iframe/document replacement, server round trips, transient DOM replacement, repeated grid targets, conditional fields, targets that appear or disappear, scrolling to off-screen targets, modal overlays, server validation, target movement/re-sizing, and navigation between business contexts.
 
 Do not add test-only buttons or obviously artificial screens merely to exercise DAP. New runtime test cases should receive a plausible CRM business scenario whenever practical, so the same flows can be reused for regression testing, live demonstrations, and recorded customer-facing videos.
+
+
+## Server round-trip feedback
+
+Server activity uses one consistent system-wide behavior:
+
+- Keep the current CRM content visible whenever possible.
+- Show a compact spinner with "מעבד..." while the server request is active.
+- Do not show a generic "טוען..." placeholder during Content iframe reload/reconstruction.
+- Temporarily block duplicate interaction when necessary without visually hiding the business screen.
+- After context restoration, show transient success feedback for successful saves and the server-returned modal for validation/errors.
+
+The rule applies to all server-backed CRM actions, including search, sorting, FieldChange, save/update, delete, and validation.
