@@ -7,10 +7,18 @@ const crumb=(items=[])=>`<div class="breadcrumb"><a data-go="#/">פורטל לק
 const sortHead=(label,field,state)=>{const dir=state.sort===field&&state.dir==='asc'?'desc':'asc';const mark=state.sort===field?(state.dir==='asc'?' ▲':' ▼'):'';return `<th><button data-sort="${field}" data-dir="${dir}">${label}${mark}</button></th>`};
 document.addEventListener('click',e=>{const n=e.target.closest('[data-go]');if(n)go(n.dataset.go)});
 
-async function customers(sort='id',dir='asc'){
- const data=await api(`/api/customers?sort=${sort}&dir=${dir}`),state={sort,dir};
- app.innerHTML=`${crumb()}<section class="panel"><div class="toolbar"><h1>לקוחות</h1><button class="primary" data-go="#/customer/new">לקוח חדש</button></div><table><thead><tr>${sortHead('מספר','id',state)}${sortHead('שם','name',state)}${sortHead('טלפון','phone',state)}${sortHead('דוא"ל','email',state)}</tr></thead><tbody>${data.map(x=>row([x.id,x.name,x.phone,x.email],`#/customer/${x.id}`)).join('')}</tbody></table></section>`;
- bindSort((s,d)=>customers(s,d));
+async function customers(criteria=null,sort='id',dir='asc'){
+ const q=criteria?new URLSearchParams({...criteria,sort,dir}).toString():'';
+ app.innerHTML=`${crumb()}<section class="panel"><div class="toolbar"><h1>חיפוש לקוח</h1><button class="primary" data-go="#/customer/new">לקוח חדש</button></div><form id="customer-search" class="form-grid"><label class="field">שם לקוח<input name="name" value="${esc(criteria?.name||'')}"></label><label class="field">טלפון<input name="phone" value="${esc(criteria?.phone||'')}"></label><label class="field full">דוא"ל<input name="email" type="text" value="${esc(criteria?.email||'')}"></label><div><button class="primary">חיפוש</button></div></form><div id="search-results"></div></section>`;
+ const form=document.querySelector('#customer-search');form.onsubmit=async e=>{e.preventDefault();const c=Object.fromEntries(new FormData(form));await customerSearch(c)};
+ if(criteria)await customerSearch(criteria,sort,dir);
+}
+async function customerSearch(criteria,sort='id',dir='asc'){
+ const params=new URLSearchParams({...criteria,sort,dir}),data=await api(`/api/customers?${params}`),box=document.querySelector('#search-results'),state={sort,dir};
+ if(data.length===0){box.innerHTML='<div class="notice">לא נמצאו לקוחות התואמים לחיפוש.</div>';return}
+ if(data.length===1){go(`#/customer/${data[0].id}`);return}
+ box.innerHTML=`<h2>תוצאות חיפוש</h2><table><thead><tr>${sortHead('מספר','id',state)}${sortHead('שם','name',state)}${sortHead('טלפון','phone',state)}${sortHead('דוא"ל','email',state)}</tr></thead><tbody>${data.map(x=>row([x.id,x.name,x.phone,x.email],`#/customer/${x.id}`)).join('')}</tbody></table>`;
+ bindSort((s,d)=>customerSearch(criteria,s,d));
 }
 function customerForm(){app.innerHTML=`${crumb([{text:'לקוח חדש'}])}<section class="panel"><h1>לקוח חדש</h1><form id="customer-form" class="form-grid"><label class="field">שם <span class="required">*</span><input name="name"></label><label class="field">טלפון <span class="required">*</span><input name="phone"></label><label class="field full">דוא"ל <span class="required">*</span><input name="email" type="text"></label><div><button class="primary">שמור</button> <button type="button" data-go="#/">ביטול</button></div><div id="form-error"></div></form></section>`;document.querySelector('#customer-form').onsubmit=async e=>{e.preventDefault();try{const x=await api('/api/customers',{method:'POST',body:JSON.stringify(Object.fromEntries(new FormData(e.target)))});go(`#/customer/${x.id}`)}catch(err){document.querySelector('#form-error').innerHTML=`<div class="notice">${esc(err.message)}</div>`}}}
 async function customer(id,sort='id',dir='asc'){
