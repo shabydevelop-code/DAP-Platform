@@ -8,11 +8,14 @@ await page.AddInitScriptAsync(@"(() => {
   const install=()=>{
     if(document.getElementById('dap-e2e-cursor')) return;
     const c=document.createElement('div'); c.id='dap-e2e-cursor';
-    Object.assign(c.style,{position:'fixed',left:'0',top:'0',width:'18px',height:'18px',border:'2px solid #111',borderRadius:'50%',background:'rgba(255,255,255,.8)',zIndex:'2147483647',pointerEvents:'none',transform:'translate(-50%,-50%)',transition:'left .12s linear, top .12s linear'});
+    c.innerHTML='<svg width=""24"" height=""32"" viewBox=""0 0 24 32"" xmlns=""http://www.w3.org/2000/svg""><path d=""M2 2 L2 25 L8 19 L13 30 L17 28 L12 17 L21 17 Z"" fill=""white"" stroke=""#111"" stroke-width=""1.7"" stroke-linejoin=""round""/></svg>';
+    Object.assign(c.style,{position:'fixed',left:'24px',top:'24px',width:'24px',height:'32px',zIndex:'2147483647',pointerEvents:'none',transition:'left .22s ease-out, top .22s ease-out, transform .08s ease-out',filter:'drop-shadow(1px 2px 1px rgba(0,0,0,.25))'});
     document.documentElement.appendChild(c);
-    document.addEventListener('mousemove',e=>{c.style.left=e.clientX+'px';c.style.top=e.clientY+'px'},true);
-    document.addEventListener('mousedown',()=>{c.style.transform='translate(-50%,-50%) scale(.7)'},true);
-    document.addEventListener('mouseup',()=>{c.style.transform='translate(-50%,-50%) scale(1)'},true);
+    window.__dapE2ECursor={
+      move:(x,y)=>{c.style.left=x+'px';c.style.top=y+'px'},
+      down:()=>{c.style.transform='scale(.82)'},
+      up:()=>{c.style.transform='scale(1)'}
+    };
   };
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',install); else install();
 })()");
@@ -34,13 +37,20 @@ async Task HumanPause(int ms=320) => await page.WaitForTimeoutAsync(ms);
 async Task MoveTo(ILocator target)
 {
     await target.ScrollIntoViewIfNeededAsync();
-    await target.HoverAsync(new() { Position = new() { X = 12, Y = 12 } });
-    await HumanPause();
+    var box=await target.BoundingBoxAsync() ?? throw new Exception("Target has no bounding box.");
+    var x=box.X+Math.Min(14,box.Width/2), y=box.Y+Math.Min(12,box.Height/2);
+    await target.Page.EvaluateAsync("(p)=>window.__dapE2ECursor?.move(p.x,p.y)",new { x,y });
+    await target.HoverAsync(new() { Position = new() { X = Math.Min(14,box.Width/2), Y = Math.Min(12,box.Height/2) } });
+    await HumanPause(360);
 }
 async Task Click(string selector)
 {
     var f=await Content(); var target=f.Locator(selector);
-    await MoveTo(target); await target.ClickAsync(); await HumanPause(420);
+    await MoveTo(target);
+    await target.Page.EvaluateAsync("()=>window.__dapE2ECursor?.down()");
+    await target.ClickAsync();
+    await target.Page.EvaluateAsync("()=>window.__dapE2ECursor?.up()");
+    await HumanPause(420);
 }
 async Task Fill(string selector,string value)
 {
