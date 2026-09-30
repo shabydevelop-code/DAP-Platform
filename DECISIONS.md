@@ -106,3 +106,18 @@ For application-triggered server round trips, preserving Web context includes re
 A server refresh may rebuild the iframe/document and restore values that have not yet been persisted to the database. DAP must treat the restored post-refresh UI as the current state and must not equate persistence with context preservation.
 
 DAP.TestCRM preserves transient form values across its simulated PeopleSoft-style server refreshes so this behavior can be validated independently from database saves. A user-initiated browser reload is not required to preserve unsaved working state.
+
+
+## ADR-015 — DAP.TestCRM permanently follows a PeopleSoft-style server interaction model
+
+**Status:** Accepted
+
+DAP.TestCRM is a permanent production-runtime test application and must consistently model PeopleSoft-style server-backed behavior.
+
+Any action that logically requires the server must be implemented as a server round trip with content refresh/reconstruction rather than as a purely client-side SPA mutation. The application must preserve logical business context and relevant transient unsaved working state across that refresh unless the action intentionally navigates to a different context.
+
+This applies to search, grid sorting, saves, updates, validation failures, and future server-backed interactions.
+
+Server-side validation remains authoritative. Validation errors and their message text originate on the server; after the server-style refresh restores the user's working context, the client presents the returned error in the PeopleSoft-style modal.
+
+Future TestCRM changes must preserve this contract unless this ADR is explicitly superseded.
