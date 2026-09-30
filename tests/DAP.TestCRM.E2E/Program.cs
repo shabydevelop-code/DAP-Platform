@@ -89,32 +89,12 @@ async Task Select(string selector,string value)
     await MoveTo(target);
     await target.ClickAsync();
     await HumanPause(250);
-
-    // Open the native dropdown so the selection is visible in the demo.
     await page.Keyboard.PressAsync("Alt+ArrowDown");
-    await HumanPause(650);
-    var options=await target.Locator("option").AllTextContentsAsync();
-    var index=options.ToList().FindIndex(x=>x.Trim()==value);
-    if(index<0) throw new Exception($"Dropdown option not found: {value}");
-    await page.Keyboard.PressAsync("Home");
-    await HumanPause(180);
-    for(var i=0;i<index;i++){await page.Keyboard.PressAsync("ArrowDown");await HumanPause(140);}
-    await page.Keyboard.PressAsync("Enter");
-    await HumanPause(250);
+    await HumanPause(700);
 
-    // Native-select keyboard behavior varies between Chromium/Windows builds.
-    // If the requested value was not committed, use Playwright's select API as
-    // a deterministic fallback; it still fires the real change/FieldChange path.
-    try
-    {
-        if(await target.InputValueAsync()!=value)
-            await target.SelectOptionAsync(value);
-    }
-    catch(PlaywrightException)
-    {
-        // The onchange handler may already have started the server refresh and
-        // detached the old select, which means the keyboard selection succeeded.
-    }
+    // Keep the dropdown opening visible, but commit the value deterministically.
+    // SelectOption fires the real change event, so the CRM FieldChange path remains real.
+    await target.SelectOptionAsync(value);
     await HumanPause(650);
     await WaitReady();
 }
