@@ -149,3 +149,9 @@ Prerequisite:
 DAP.exe does not require Python.
 
 All other runtime dependencies required by Playwright/UIA integration must be handled or validated as part of the production deployment design.
+
+## Permanent Web test target
+
+`test-apps/DAP.TestCRM` is the repository's server-backed CRM target for integration and end-to-end testing. It is intentionally separate from DAP product runtime code.
+
+The application models Customer -> Sites -> Cases / Leads and provides server-backed grids, record navigation, create/edit/save flows, asynchronous requests, and DOM replacement. Production Web Runtime contracts and guide-model requirements should be validated against this target rather than designed only from static examples.
