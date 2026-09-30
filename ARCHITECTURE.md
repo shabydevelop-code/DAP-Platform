@@ -176,3 +176,22 @@ All other runtime dependencies required by Playwright/UIA integration must be ha
 `test-apps/DAP.TestCRM` is the repository's server-backed CRM target for integration and end-to-end testing. It is intentionally separate from DAP product runtime code.
 
 The application models Customer -> Sites -> Cases / Leads and provides server-backed grids, record navigation, create/edit/save flows, asynchronous requests, DOM replacement, and separate header/content iframes. Clicking the header returns the content frame to the customer portal. Production Web Runtime contracts and guide-model requirements should be validated against this target rather than designed only from static examples.
+
+
+## DAP.TestCRM PeopleSoft interaction contract
+
+DAP.TestCRM must preserve a PeopleSoft-style server-backed interaction model as a permanent test constraint, not merely a visual style.
+
+For operations that logically execute on the server, the expected flow is:
+
+1. Capture the current logical context and transient working state.
+2. Perform the server round trip.
+3. Rebuild/reload the Content iframe/document as appropriate.
+4. Restore the same logical context and unsaved working values when the operation does not intentionally navigate elsewhere.
+5. Present the server result only after the refreshed context is established.
+
+This rule applies consistently to search, grid sorting, save/update operations, server-side validation failures, and other server-backed actions.
+
+Validation decisions and validation messages originate on the server. On validation failure, DAP.TestCRM must preserve the user's unsaved values across the server-style refresh and then present the server-returned message in the PeopleSoft-style modal.
+
+Client-only SPA updates must not be introduced for server-backed operations when they would bypass this interaction model.
