@@ -3,6 +3,8 @@ using Microsoft.Data.Sqlite;
 var builder = WebApplication.CreateBuilder(args);
 var app = builder.Build();
 
+app.Use(async (context,next)=>{if(context.Request.Path.StartsWithSegments("/api"))await Task.Delay(650);await next();});
+
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
