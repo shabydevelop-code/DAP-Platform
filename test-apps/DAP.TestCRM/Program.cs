@@ -47,6 +47,12 @@ app.MapGet("/api/sites/{siteId:int}/cases", (int siteId,string? sort,string? dir
 app.MapGet("/api/cases/{id:int}", (int id) => One("SELECT Id,SiteId,Status,Subject,Description FROM Cases WHERE Id=$id",id,r=>new Case(r.GetInt32(0),r.GetInt32(1),r.GetString(2),r.GetString(3),r.GetString(4))));
 app.MapPost("/api/sites/{siteId:int}/cases", (int siteId,CaseInput x) => {if(!Exists("SELECT 1 FROM Sites WHERE Id=$id",siteId))return Results.NotFound();var errors=ValidateCase(x);if(errors.Count>0)return Results.ValidationProblem(errors);var id=Insert("INSERT INTO Cases(SiteId,Status,Subject,Description) VALUES($parent,$a,$b,$c)",siteId,x.Status,x.Subject,x.Description);return Results.Created($"/api/cases/{id}",new Case(id,siteId,x.Status,x.Subject,x.Description));});
 app.MapPut("/api/cases/{id:int}", (int id,CaseInput x) => {if(!Exists("SELECT 1 FROM Cases WHERE Id=$id",id))return Results.NotFound();var errors=ValidateCase(x);if(errors.Count>0)return Results.ValidationProblem(errors);Exec("UPDATE Cases SET Status=$a,Subject=$b,Description=$c WHERE Id=$id",id,x.Status,x.Subject,x.Description);return Results.Ok(new Case(id,GetInt("SELECT SiteId FROM Cases WHERE Id=$id",id),x.Status,x.Subject,x.Description));});
+app.MapDelete("/api/cases/{id:int}", (int id) =>
+{
+    if(!Exists("SELECT 1 FROM Cases WHERE Id=$id",id)) return Results.NotFound();
+    Exec("DELETE FROM Cases WHERE Id=$id",id);
+    return Results.NoContent();
+});
 
 app.MapGet("/api/sites/{siteId:int}/leads", (int siteId,string? sort,string? dir) =>
 {
