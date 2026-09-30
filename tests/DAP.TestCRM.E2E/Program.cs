@@ -5,6 +5,7 @@ using var playwright = await Playwright.CreateAsync();
 await using var browser = await playwright.Chromium.LaunchAsync(new() { Headless = false, Args = new[] { "--start-maximized" } });
 var context = await browser.NewContextAsync(new() { ViewportSize = ViewportSize.NoViewport });
 var page = await context.NewPageAsync();
+page.SetDefaultTimeout(5000);
 await page.AddInitScriptAsync(@"(() => {
   const install=()=>{
     if(window !== window.top) return;
@@ -286,13 +287,9 @@ frame=await Content();
 await frame.Locator("h2:has-text('לידים')").WaitForAsync();
 
 // 9. Delete the Case created by this run through the real UI.
-// Navigate back to the Site, open Cases, reopen the exact transient test Case,
-// confirm deletion, and verify it is gone from the server-backed grid.
+// Lead deletion already returns to the Site's Leads grid, so switch directly
+// to Cases, reopen the exact transient test Case, confirm deletion, and verify it is gone.
 frame=await Content();
-siteCrumb=frame.Locator(".breadcrumb a").Nth(2);
-await MoveTo(siteCrumb);
-await siteCrumb.ClickAsync();
-await WaitReady();
 await Click("nav.tabs button:has-text('פניות')");
 await WaitReady();
 await Click($"button.grid-open[data-go='#/case/{createdCaseId}']");
