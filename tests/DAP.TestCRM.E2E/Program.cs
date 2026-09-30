@@ -113,7 +113,7 @@ await WaitReady();
 // 2. Cases grid: server sorting + repeated identical Open targets.
 await Click("nav.tabs button:has-text('פניות')");
 await WaitReady();
-frame=await Content();
+var frame=await Content();
 await frame.Locator("h2:has-text('פניות')").WaitForAsync();
 await Click("th button[data-sort='status']");
 await WaitReady();
@@ -123,7 +123,7 @@ await Click("tbody tr:has-text('פתוחה') button.grid-open");
 await WaitReady();
 
 // 3. Case FieldChange: disabled -> enabled and DOM reconstruction.
-var frame=await Content();
+frame=await Content();
 var notes=frame.Locator("[name='resolutionNotes']");
 if(!await notes.IsDisabledAsync()) throw new Exception("Treatment Notes should start disabled for an open case.");
 await Select("[name='status']","בטיפול");
