@@ -18,7 +18,7 @@ async function customerSearch(criteria,sort='id',dir='asc'){
  if(data.length===0){box.innerHTML='<div class="notice">לא נמצאו לקוחות התואמים לחיפוש.</div>';return}
  if(data.length===1){go(`#/customer/${data[0].id}`);return}
  box.innerHTML=`<h2>תוצאות חיפוש</h2><table><thead><tr>${sortHead('מספר','id',state)}${sortHead('שם','name',state)}${sortHead('טלפון','phone',state)}${sortHead('דוא"ל','email',state)}</tr></thead><tbody>${data.map(x=>row([x.id,x.name,x.phone,x.email],`#/customer/${x.id}`)).join('')}</tbody></table>`;
- bindSort((s,d)=>{const q=new URLSearchParams({...criteria,sort:s,dir:d});serverRefresh('#/search?'+q)})
+ bindSort((s,d)=>{const form=document.querySelector('#customer-search');const current=Object.fromEntries(new FormData(form));const q=new URLSearchParams({...current,sort:s,dir:d});serverRefresh('#/search?'+q)})
 }
 function customerForm(){app.innerHTML=`${crumb([{text:'לקוח חדש'}])}<section class="panel"><h1>לקוח חדש</h1><form id="customer-form" class="form-grid"><label class="field">שם <span class="required">*</span><input name="name"></label><label class="field">טלפון <span class="required">*</span><input name="phone"></label><label class="field full">דוא"ל <span class="required">*</span><input name="email" type="text"></label><div><button class="primary">שמור</button> <button type="button" data-go="#/">ביטול</button></div><div id="form-error"></div></form></section>`;document.querySelector('#customer-form').onsubmit=async e=>{e.preventDefault();try{const x=await api('/api/customers',{method:'POST',body:JSON.stringify(Object.fromEntries(new FormData(e.target)))});go(`#/customer/${x.id}`)}catch(err){document.querySelector('#form-error').innerHTML=`<div class="notice">${esc(err.message)}</div>`}}}
 async function customer(id,sort='id',dir='asc'){
@@ -26,7 +26,7 @@ async function customer(id,sort='id',dir='asc'){
  app.innerHTML=`${crumb([{text:c.name}])}<section class="panel"><h1>${esc(c.name)}</h1><p>${esc(c.phone)} · ${esc(c.email)}</p></section><section class="panel"><div class="toolbar"><h2>אתרים</h2><button class="primary" data-go="#/customer/${id}/site/new">אתר חדש</button></div><table><thead><tr>${sortHead('מספר','id',state)}${sortHead('שם אתר','name',state)}${sortHead('סוג','type',state)}${sortHead('כתובת','address',state)}</tr></thead><tbody>${s.map(x=>row([x.id,x.name,x.type,x.address],`#/site/${x.id}/details`)).join('')}</tbody></table></section>`;
  bindSort((s,d)=>serverRefresh(`#/customer/${id}?sort=${s}&dir=${d}`));
 }
-function workingContextId(hash){const raw=(hash||location.hash).slice(2);const path=raw.split('?')[0];return path||'search'}
+function workingContextId(hash){const raw=(hash||location.hash).slice(2);const path=raw.split('?')[0];return !path||path==='search'?'search':path}
 function captureWorkingContext(nextHash){const values={};document.querySelectorAll('input[name],select[name],textarea[name]').forEach(x=>values[x.name]=x.value);sessionStorage.setItem('dap-working-context',JSON.stringify({context:workingContextId(nextHash),values}))}
 function restoreWorkingContext(){const raw=sessionStorage.getItem('dap-working-context');if(!raw)return;try{const x=JSON.parse(raw);if(x.context!==workingContextId(location.hash))return;for(const [name,value] of Object.entries(x.values||{})){const el=document.querySelector(`[name="${CSS.escape(name)}"]`);if(el)el.value=value}sessionStorage.removeItem('dap-working-context')}catch{sessionStorage.removeItem('dap-working-context')}}
 function serverRefresh(hash){captureWorkingContext(hash);location.replace(hash);location.reload()}
