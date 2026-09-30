@@ -38,7 +38,8 @@ async Task MoveTo(ILocator target)
 {
     await target.ScrollIntoViewIfNeededAsync();
     var box=await target.BoundingBoxAsync() ?? throw new Exception("Target has no bounding box.");
-    var x=box.X+Math.Min(14,box.Width/2), y=box.Y+Math.Min(12,box.Height/2);
+    var x=box.X+Math.Min(14,box.Width/2);
+    var y=box.Y+Math.Min(12,box.Height/2);
     await target.Page.EvaluateAsync("(p)=>window.__dapE2ECursor?.move(p.x,p.y)",new { x,y });
     await target.HoverAsync(new() { Position = new() { X = Math.Min(14,box.Width/2), Y = Math.Min(12,box.Height/2) } });
     await HumanPause(360);
