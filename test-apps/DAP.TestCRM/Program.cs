@@ -25,11 +25,15 @@ app.MapGet("/api/customers/{id:int}/sites", (int id, string? sort, string? dir) 
 app.MapGet("/api/sites/{id:int}", (int id) => One("SELECT Id,CustomerId,Name,Type,Address FROM Sites WHERE Id=$id",id,r=>new Site(r.GetInt32(0),r.GetInt32(1),r.GetString(2),r.GetString(3),r.GetString(4))));
 app.MapPost("/api/customers/{customerId:int}/sites", (int customerId, SiteInput x) =>
 {
+    if (!Exists("SELECT 1 FROM Customers WHERE Id=$id", customerId)) return Results.NotFound();
+    var errors=ValidateSite(x); if(errors.Count>0)return Results.ValidationProblem(errors);
     var id=Insert("INSERT INTO Sites(CustomerId,Name,Type,Address) VALUES($parent,$a,$b,$c)",customerId,x.Name,x.Type,x.Address);
     return Results.Created($"/api/sites/{id}",new Site(id,customerId,x.Name,x.Type,x.Address));
 });
 app.MapPut("/api/sites/{id:int}", async (int id, SiteInput x) =>
 {
+    if (!Exists("SELECT 1 FROM Sites WHERE Id=$id", id)) return Results.NotFound();
+    var errors=ValidateSite(x); if(errors.Count>0)return Results.ValidationProblem(errors);
     await Task.Delay(450);
     Exec("UPDATE Sites SET Name=$a,Type=$b,Address=$c WHERE Id=$id",id,x.Name,x.Type,x.Address);
     return Results.Ok(new Site(id,GetInt("SELECT CustomerId FROM Sites WHERE Id=$id",id),x.Name,x.Type,x.Address));
@@ -41,8 +45,8 @@ app.MapGet("/api/sites/{siteId:int}/cases", (int siteId,string? sort,string? dir
     return Query<Case>($"SELECT Id,SiteId,Status,Subject,Description FROM Cases WHERE SiteId=$id ORDER BY {order}",r=>new(r.GetInt32(0),r.GetInt32(1),r.GetString(2),r.GetString(3),r.GetString(4)),siteId);
 });
 app.MapGet("/api/cases/{id:int}", (int id) => One("SELECT Id,SiteId,Status,Subject,Description FROM Cases WHERE Id=$id",id,r=>new Case(r.GetInt32(0),r.GetInt32(1),r.GetString(2),r.GetString(3),r.GetString(4))));
-app.MapPost("/api/sites/{siteId:int}/cases", (int siteId,CaseInput x) => {var id=Insert("INSERT INTO Cases(SiteId,Status,Subject,Description) VALUES($parent,$a,$b,$c)",siteId,x.Status,x.Subject,x.Description);return Results.Created($"/api/cases/{id}",new Case(id,siteId,x.Status,x.Subject,x.Description));});
-app.MapPut("/api/cases/{id:int}", (int id,CaseInput x) => {Exec("UPDATE Cases SET Status=$a,Subject=$b,Description=$c WHERE Id=$id",id,x.Status,x.Subject,x.Description);return Results.Ok(new Case(id,GetInt("SELECT SiteId FROM Cases WHERE Id=$id",id),x.Status,x.Subject,x.Description));});
+app.MapPost("/api/sites/{siteId:int}/cases", (int siteId,CaseInput x) => {if(!Exists("SELECT 1 FROM Sites WHERE Id=$id",siteId))return Results.NotFound();var errors=ValidateCase(x);if(errors.Count>0)return Results.ValidationProblem(errors);var id=Insert("INSERT INTO Cases(SiteId,Status,Subject,Description) VALUES($parent,$a,$b,$c)",siteId,x.Status,x.Subject,x.Description);return Results.Created($"/api/cases/{id}",new Case(id,siteId,x.Status,x.Subject,x.Description));});
+app.MapPut("/api/cases/{id:int}", (int id,CaseInput x) => {if(!Exists("SELECT 1 FROM Cases WHERE Id=$id",id))return Results.NotFound();var errors=ValidateCase(x);if(errors.Count>0)return Results.ValidationProblem(errors);Exec("UPDATE Cases SET Status=$a,Subject=$b,Description=$c WHERE Id=$id",id,x.Status,x.Subject,x.Description);return Results.Ok(new Case(id,GetInt("SELECT SiteId FROM Cases WHERE Id=$id",id),x.Status,x.Subject,x.Description));});
 
 app.MapGet("/api/sites/{siteId:int}/leads", (int siteId,string? sort,string? dir) =>
 {
@@ -50,11 +54,22 @@ app.MapGet("/api/sites/{siteId:int}/leads", (int siteId,string? sort,string? dir
     return Query<Lead>($"SELECT Id,SiteId,Source,ContactName,Status,Notes FROM Leads WHERE SiteId=$id ORDER BY {order}",r=>new(r.GetInt32(0),r.GetInt32(1),r.GetString(2),r.GetString(3),r.GetString(4),r.GetString(5)),siteId);
 });
 app.MapGet("/api/leads/{id:int}", (int id) => One("SELECT Id,SiteId,Source,ContactName,Status,Notes FROM Leads WHERE Id=$id",id,r=>new Lead(r.GetInt32(0),r.GetInt32(1),r.GetString(2),r.GetString(3),r.GetString(4),r.GetString(5))));
-app.MapPost("/api/sites/{siteId:int}/leads", (int siteId,LeadInput x) => {var id=Insert("INSERT INTO Leads(SiteId,Source,ContactName,Status,Notes) VALUES($parent,$a,$b,$c,$d)",siteId,x.Source,x.ContactName,x.Status,x.Notes);return Results.Created($"/api/leads/{id}",new Lead(id,siteId,x.Source,x.ContactName,x.Status,x.Notes));});
-app.MapPut("/api/leads/{id:int}", (int id,LeadInput x) => {Exec("UPDATE Leads SET Source=$a,ContactName=$b,Status=$c,Notes=$d WHERE Id=$id",id,x.Source,x.ContactName,x.Status,x.Notes);return Results.Ok(new Lead(id,GetInt("SELECT SiteId FROM Leads WHERE Id=$id",id),x.Source,x.ContactName,x.Status,x.Notes));});
+app.MapPost("/api/sites/{siteId:int}/leads", (int siteId,LeadInput x) => {if(!Exists("SELECT 1 FROM Sites WHERE Id=$id",siteId))return Results.NotFound();var errors=ValidateLead(x);if(errors.Count>0)return Results.ValidationProblem(errors);var id=Insert("INSERT INTO Leads(SiteId,Source,ContactName,Status,Notes) VALUES($parent,$a,$b,$c,$d)",siteId,x.Source,x.ContactName,x.Status,x.Notes);return Results.Created($"/api/leads/{id}",new Lead(id,siteId,x.Source,x.ContactName,x.Status,x.Notes));});
+app.MapPut("/api/leads/{id:int}", (int id,LeadInput x) => {if(!Exists("SELECT 1 FROM Leads WHERE Id=$id",id))return Results.NotFound();var errors=ValidateLead(x);if(errors.Count>0)return Results.ValidationProblem(errors);Exec("UPDATE Leads SET Source=$a,ContactName=$b,Status=$c,Notes=$d WHERE Id=$id",id,x.Source,x.ContactName,x.Status,x.Notes);return Results.Ok(new Lead(id,GetInt("SELECT SiteId FROM Leads WHERE Id=$id",id),x.Source,x.ContactName,x.Status,x.Notes));});
+
+app.MapDelete("/api/leads/{id:int}", (int id) =>
+{
+    if(!Exists("SELECT 1 FROM Leads WHERE Id=$id",id)) return Results.NotFound();
+    Exec("DELETE FROM Leads WHERE Id=$id",id);
+    return Results.NoContent();
+});
 
 app.Run();
 
+Dictionary<string,string[]> ValidateSite(SiteInput x){var e=new Dictionary<string,string[]>();if(string.IsNullOrWhiteSpace(x.Name))e["name"]=["שם האתר הוא שדה חובה."];if(x.Name?.Trim().Length>80)e["name"]=["שם האתר מוגבל ל-80 תווים."];if(!new[]{"משרד","סניף","מחסן"}.Contains(x.Type))e["type"]=["סוג האתר אינו תקין."];if(string.IsNullOrWhiteSpace(x.Address))e["address"]=["כתובת היא שדה חובה."];return e;}
+Dictionary<string,string[]> ValidateCase(CaseInput x){var e=new Dictionary<string,string[]>();if(!new[]{"פתוחה","בטיפול","סגורה"}.Contains(x.Status))e["status"]=["סטטוס הפנייה אינו תקין."];if(string.IsNullOrWhiteSpace(x.Subject))e["subject"]=["נושא הפנייה הוא שדה חובה."];if(x.Subject?.Trim().Length>120)e["subject"]=["נושא הפנייה מוגבל ל-120 תווים."];return e;}
+Dictionary<string,string[]> ValidateLead(LeadInput x){var e=new Dictionary<string,string[]>();if(!new[]{"אתר אינטרנט","הפניה","קמפיין","טלפון"}.Contains(x.Source))e["source"]=["מקור הליד אינו תקין."];if(string.IsNullOrWhiteSpace(x.ContactName))e["contactName"]=["שם איש הקשר הוא שדה חובה."];if(x.ContactName?.Trim().Length>100)e["contactName"]=["שם איש הקשר מוגבל ל-100 תווים."];if(!new[]{"חדש","בתהליך","נסגר בהצלחה","נסגר ללא עסקה"}.Contains(x.Status))e["status"]=["סטטוס הליד אינו תקין."];return e;}
+bool Exists(string sql,int id){using var c=new SqliteConnection(connectionString);c.Open();using var cmd=c.CreateCommand();cmd.CommandText=sql;cmd.Parameters.AddWithValue("$id",id);return cmd.ExecuteScalar()!=null;}
 string Sort(string? field,string? dir,Dictionary<string,string> allowed,string fallback,string fallbackDir="ASC"){var col=field!=null&&allowed.TryGetValue(field,out var c)?c:allowed[fallback];var d=string.Equals(dir,"desc",StringComparison.OrdinalIgnoreCase)?"DESC":string.Equals(dir,"asc",StringComparison.OrdinalIgnoreCase)?"ASC":fallbackDir;return $"{col} {d}";}
 List<T> Query<T>(string sql,Func<SqliteDataReader,T> map,int? id=null){using var c=new SqliteConnection(connectionString);c.Open();using var cmd=c.CreateCommand();cmd.CommandText=sql;if(id.HasValue)cmd.Parameters.AddWithValue("$id",id.Value);using var r=cmd.ExecuteReader();var list=new List<T>();while(r.Read())list.Add(map(r));return list;}
 IResult One<T>(string sql,int id,Func<SqliteDataReader,T> map){using var c=new SqliteConnection(connectionString);c.Open();using var cmd=c.CreateCommand();cmd.CommandText=sql;cmd.Parameters.AddWithValue("$id",id);using var r=cmd.ExecuteReader();return r.Read()?Results.Ok(map(r)):Results.NotFound();}
