@@ -63,3 +63,18 @@ Server activity uses one consistent system-wide behavior:
 - After context restoration, show transient success feedback for successful saves and the server-returned modal for validation/errors.
 
 The rule applies to all server-backed CRM actions, including search, sorting, FieldChange, save/update, delete, and validation.
+
+
+## PeopleSoft Web runtime scenario coverage
+
+The permanent CRM flow now includes concrete business-shaped scenarios for DAP target resolution and bubble behavior:
+
+- Case Status FieldChange can remove and restore the conditional Close Reason target.
+- Treatment Notes is disabled while a Case is Open and becomes enabled after a server-backed status transition.
+- The Cases grid contains repeated identical Open actions, each bound to a different business record.
+- Case history makes the record screen vertically scrollable and provides legitimate off-screen targets.
+- Conditional Close Reason and validation summaries change layout and move downstream targets.
+- Opening a Case from the grid replaces the Content iframe element, requiring frame and target re-resolution.
+- Server validation inserts a validation summary, marks rejected fields, preserves working values, and then presents the server error modal.
+
+These are permanent regression/demo scenarios. They must remain realistic CRM behavior rather than test-only controls.
