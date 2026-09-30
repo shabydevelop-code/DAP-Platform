@@ -109,7 +109,7 @@ Responsibilities include:
 
 For server-backed Web applications, DAP must assume that any server round trip may refresh, replace, or rebuild the relevant page DOM while preserving the user's business context.
 
-A preserved business context means the user may remain on the same logical record, tab, transaction, or process even though the DOM nodes that existed before the server call no longer exist.
+A preserved business context means the user may remain on the same logical record, tab, transaction, or process even though the DOM nodes that existed before the server call no longer exist. Context also includes relevant transient working state, such as unsaved form values, when the application performs its own server round trip and restores the same logical screen.
 
 Therefore the Web Runtime must:
 
@@ -118,6 +118,7 @@ Therefore the Web Runtime must:
 - Re-resolve the active Step target after a server response/refresh.
 - Determine context from stable application signals such as URL/navigation state, record identifiers, page state, and runtime context metadata rather than retained DOM references.
 - Keep the active guide Step attached to the same logical business context when that context survives the refresh.
+- Distinguish persisted database state from transient working state. Application-triggered server refreshes may rebuild the document while restoring unsaved values; DAP must evaluate the post-refresh state actually presented to the user.
 - Advance only when the Step validation succeeds; a server round trip or DOM refresh by itself is not completion.
 - Support PeopleSoft-style flows in which a field action invokes the server, the page is refreshed/rebuilt, and the same record/context is restored.
 
