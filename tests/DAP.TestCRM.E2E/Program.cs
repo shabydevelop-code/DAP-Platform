@@ -131,6 +131,14 @@ async Task HumanScrollTo(ILocator target)
         var viewport=page.ViewportSize;
         if(box is not null && viewport is not null && box.Y>=70 && box.Y+box.Height<=viewport.Height-35) break;
         await page.Mouse.WheelAsync(0,110);
+
+        // Pause only when another wheel step is actually needed. Previously the
+        // final wheel step always paid 180 ms before MoveTo could even begin.
+        var after=await target.BoundingBoxAsync();
+        var afterViewport=page.ViewportSize;
+        var reached=after is not null && afterViewport is not null &&
+                    after.Y>=70 && after.Y+after.Height<=afterViewport.Height-35;
+        if(reached) break;
         await HumanPause(180);
     }
     if(!await target.IsVisibleAsync()) await target.ScrollIntoViewIfNeededAsync();
