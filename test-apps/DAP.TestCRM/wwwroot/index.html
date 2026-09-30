@@ -4,6 +4,24 @@
 <body class="shell">
 <iframe id="header-frame" name="dap-header" src="/header.html" title="כותרת המערכת"></iframe>
 <iframe id="content-frame" name="dap-content" src="/content.html" title="תוכן המערכת"></iframe>
-<script>function replaceContentFrame(hash){const old=document.querySelector('#content-frame');const next=document.createElement('iframe');next.id='content-frame';next.name='dap-content';next.title='תוכן המערכת';next.src='/content.html'+hash;old.replaceWith(next)}</script>
+<script>
+function replaceContentFrame(hash){
+  const old=document.querySelector('#content-frame');
+  if(!old)return;
+  const next=document.createElement('iframe');
+  next.id='content-frame-next';
+  next.name='dap-content-next';
+  next.title='תוכן המערכת';
+  next.className='content-frame-next';
+  next.src='/content.html'+hash;
+  next.addEventListener('load',()=>{
+    old.remove();
+    next.id='content-frame';
+    next.name='dap-content';
+    next.classList.remove('content-frame-next');
+  },{once:true});
+  old.insertAdjacentElement('afterend',next);
+}
+</script>
 </body>
 </html>
