@@ -32,7 +32,15 @@ async Task<IFrame> Content()
     {
         var handle=await element.ElementHandleAsync();
         var frame=handle is null ? null : await handle.ContentFrameAsync();
-        if(frame is not null && !frame.IsDetached) return frame;
+        if(frame is not null && !frame.IsDetached)
+        {
+            try
+            {
+                if(await frame.Locator("html[data-dap-ready='1']").CountAsync()>0)
+                    return frame;
+            }
+            catch(PlaywrightException) { }
+        }
         await page.WaitForTimeoutAsync(100);
     }
     throw new Exception("Stable content iframe not found.");
@@ -164,6 +172,7 @@ await Click($"button.grid-open[data-go='#/case/{createdCaseId}']");
 await WaitReady();
 
 // 3. Case FieldChange: disabled -> enabled and DOM reconstruction.
+// Reacquire only after the promoted replacement frame reports app-level readiness.
 frame=await Content();
 var notes=frame.Locator("[name='resolutionNotes']");
 if(!await notes.IsDisabledAsync()) throw new Exception("Treatment Notes should start disabled for an open case.");
