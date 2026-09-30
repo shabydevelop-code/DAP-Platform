@@ -19,7 +19,6 @@ async function customers(criteria=null,sort='id',dir='asc'){
 async function customerSearch(criteria,sort='id',dir='asc'){
  const params=new URLSearchParams({...criteria,sort,dir}),data=await api(`/api/customers?${params}`),box=document.querySelector('#search-results'),state={sort,dir};
  if(data.length===0){box.innerHTML='<div class="notice">לא נמצאו לקוחות התואמים לחיפוש.</div>';return}
- if(data.length===1){go(`#/customer/${data[0].id}`);return}
  box.innerHTML=`<h2>תוצאות חיפוש</h2><table><thead><tr>${sortHead('מספר','id',state)}${sortHead('שם','name',state)}${sortHead('טלפון','phone',state)}${sortHead('דוא"ל','email',state)}</tr></thead><tbody>${data.map(x=>row([x.id,x.name,x.phone,x.email],`#/customer/${x.id}`)).join('')}</tbody></table>`;
  bindSort((s,d)=>{const q=new URLSearchParams({...criteria,sort:s,dir:d});serverRefresh('#/search?'+q)})
 }
