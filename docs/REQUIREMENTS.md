@@ -28,6 +28,11 @@
 4. Maintain learner progress.
 5. Support runtime-specific target descriptors behind a common Step model.
 6. Support validations that prevent advancement until the required learner action/state is satisfied.
+7. Distinguish Step ordering from application/browser navigation.
+8. Support an explicit Step advance mode: automatic after successful validation or manual for informational Steps.
+9. Do not expose Previous as unconditional StepOrder navigation.
+10. Expose Previous only when the active runtime determines that the previous Step can be safely rendered in the current context.
+11. Preserve sufficient context/navigation metadata to support page changes, application changes, and Web/Windows runtime transitions.
 
 ## Web
 
