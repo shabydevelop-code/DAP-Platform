@@ -71,6 +71,21 @@ A Step identifies its runtime and contains:
 
 Runtime-specific target descriptors are interpreted by the corresponding runtime adapter.
 
+### Guide navigation and context
+
+Guide navigation must not assume that the previous or next Step is renderable in the current application context.
+
+A guide may cross page navigations, DOM replacements, browser contexts, Windows applications, or runtime boundaries such as Web -> Windows -> Web. Therefore, Step order and physical application navigation are separate concerns.
+
+Each Step defines an advance mode:
+
+- `AutomaticOnValidation` — the learner performs the required action and DAP advances only after validation succeeds.
+- `Manual` — informational/non-action Step; the bubble exposes a Next action.
+
+A global Previous button is not guaranteed. Previous may be exposed only when the runtime can determine that the previous Step is safely renderable in the current context. DAP must not implement Previous as an unconditional `StepOrder - 1`.
+
+The Step model must carry sufficient context/navigation metadata for runtimes to determine whether a Step can be rendered in the current context. This rule applies equally to Web, Windows, and hybrid guides.
+
 ## Web Runtime
 
 The production Web Runtime uses Microsoft Playwright for .NET directly from the .NET application.
