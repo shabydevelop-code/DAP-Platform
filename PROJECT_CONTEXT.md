@@ -2,7 +2,9 @@
 
 ## Product
 
-DAP Platform is a Digital Adoption Platform for creating and running interactive guides across Web and Windows applications.
+DAP Platform is a production-target Digital Adoption Platform for creating and running interactive guides across Web and Windows applications.
+
+The architecture documented in this repository is the product architecture. It must not be described or implemented as a proof of concept.
 
 ## Application
 
@@ -11,7 +13,7 @@ The product is a single Windows desktop application with two user modes:
 - Learner — discovers, starts, continues, and completes guides.
 - Editor — creates, records, edits, previews, and manages guides.
 
-The application should not couple the core guide model to the GUI technology.
+The application must not couple the core guide model to the GUI technology.
 
 ## Runtime scope
 
@@ -25,11 +27,13 @@ Web and Windows runtimes share the same Guide / Step / Validation / Progress mod
 
 ## Runtime technologies
 
-- Web: Playwright-based runtime.
+- Web: Microsoft Playwright for .NET.
 - Windows: Microsoft UI Automation (UIA).
-- Desktop GUI: .NET 8 + WPF for the initial implementation.
+- Desktop GUI: .NET 8 + WPF.
 
-Playwright and UIA are runtime adapters; they are not the product architecture.
+Playwright and UIA are production runtime components behind DAP runtime contracts; they are not temporary POC technologies.
+
+The production application must not require Python. DAP.exe uses the .NET Web Runtime directly.
 
 ## Localization
 
@@ -44,7 +48,7 @@ The GUI must support Hebrew and English by user choice.
 
 The data layer must be provider-independent.
 
-- SQLite is the initial database provider.
+- SQLite is the default/first database provider.
 - Core/domain logic must not depend directly on SQLite.
 - Additional database providers must be possible without rewriting guide/runtime logic.
 
@@ -52,9 +56,9 @@ The data layer must be provider-independent.
 
 The target Windows machine is assumed to have the .NET 8 Desktop Runtime installed.
 
-Initial distribution is framework-dependent rather than self-contained.
+Distribution is framework-dependent.
 
-The application should detect a missing required runtime during installation/startup and fail with a clear message.
+The application must detect a missing required runtime during installation/startup and fail with a clear message.
 
 ## Documentation rule
 
