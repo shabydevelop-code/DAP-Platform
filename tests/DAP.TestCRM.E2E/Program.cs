@@ -57,7 +57,7 @@ await Click("th button[data-sort='status']");
 await WaitReady();
 
 // Opening through repeated Open buttons replaces the content iframe itself.
-await Click("tbody tr:first-child button.grid-open");
+await Click("tbody tr:has-text('פתוחה') button.grid-open");
 await WaitReady();
 
 // 3. Case FieldChange: disabled -> enabled and DOM reconstruction.
