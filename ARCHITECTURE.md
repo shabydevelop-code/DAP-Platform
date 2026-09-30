@@ -1,9 +1,11 @@
 # Architecture
 
+This document defines the production architecture of DAP Platform.
+
 ## High-level structure
 
 ```text
-DAP Desktop
+DAP.exe (.NET 8 / WPF)
     |
     +-- Learner
     |
@@ -16,17 +18,17 @@ DAP Desktop
           +-- Progress
           +-- Localization contracts
           |
-          +-- Web Runtime -------- Playwright
+          +-- Web Runtime -------- Microsoft Playwright for .NET
           |
-          +-- Windows Runtime ---- UI Automation
+          +-- Windows Runtime ---- Microsoft UI Automation
           |
           +-- Data abstractions
                   |
                   +-- SQLite
-                  +-- Future providers
+                  +-- Additional providers
 ```
 
-## Initial repository direction
+## Repository structure
 
 ```text
 src/
@@ -46,19 +48,19 @@ tests/
 docs/
 ```
 
-The exact project split may evolve as implementation begins. Dependencies must continue to point inward toward Core abstractions.
+Dependencies must point inward toward Core abstractions.
 
 ## Desktop application
 
-Initial GUI technology: WPF on .NET 8.
+GUI technology: WPF on .NET 8.
 
-One executable hosts both Learner and Editor experiences. Access to each mode can later be controlled by roles/permissions.
+One executable, DAP.exe, hosts both Learner and Editor experiences. Access to each mode can be controlled by roles/permissions.
 
 The application orchestrates runtime transitions but does not implement Web or Windows target resolution itself.
 
 ## Shared guide model
 
-Web and Windows steps must use a common logical model.
+Web and Windows steps use a common logical model.
 
 A Step identifies its runtime and contains:
 
@@ -71,20 +73,26 @@ Runtime-specific target descriptors are interpreted by the corresponding runtime
 
 ## Web Runtime
 
-The Web Runtime is Playwright-based.
+The production Web Runtime uses Microsoft Playwright for .NET directly from the .NET application.
+
+Python is not a deployment dependency.
 
 Responsibilities include:
 
+- Connect to/control the supported browser context required by DAP.
 - Resolve Web targets.
 - Render or coordinate guide UI for Web targets.
-- Observe learner actions rather than automate them during guide execution.
+- Observe learner actions rather than automate them during normal guide execution.
 - Validate actions/state.
 - Re-resolve targets after DOM changes and navigation.
 - Handle frames and browser context changes.
+- Provide Web recording/target-capture capabilities required by Editor.
+
+Browser/Playwright deployment dependencies must be packaged or validated explicitly by the product installer/startup process; they must not be left as an undocumented machine assumption.
 
 ## Windows Runtime
 
-The Windows Runtime is based on Microsoft UI Automation.
+The production Windows Runtime uses Microsoft UI Automation.
 
 Responsibilities include:
 
@@ -93,18 +101,17 @@ Responsibilities include:
 - Render/coordinate overlay guidance.
 - Observe and validate learner interaction.
 - Re-discover targets when applications/windows change.
+- Provide Windows target-selection capabilities required by Editor.
 
 ## Data architecture
 
 Core code depends on data abstractions, not on a specific database engine.
 
-SQLite is the first provider. Future providers can be added behind the same contracts.
+SQLite is the first provider. Additional providers can be added behind the same contracts.
 
 ## Localization
 
 GUI localization is resource-based.
-
-Initial resources:
 
 ```text
 Resources/
@@ -118,10 +125,12 @@ Guide-content language is independent of application GUI language.
 
 ## Deployment
 
-Initial deployment is framework-dependent.
+Deployment is framework-dependent.
 
 Prerequisite:
 
 - .NET 8 Desktop Runtime installed on the target Windows machine.
 
-A self-contained distribution may be added later without changing the core architecture.
+DAP.exe does not require Python.
+
+All other runtime dependencies required by Playwright/UIA integration must be handled or validated as part of the production deployment design.
