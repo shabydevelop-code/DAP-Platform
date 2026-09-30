@@ -129,15 +129,21 @@ await WaitReady();
 await Fill("[name='subject']","תקלה בחיבור לאינטרנט");
 await Fill("[name='description']","הלקוח מדווח על חיבור לא יציב.");
 await SaveSuccess();
+frame=await Content();
+var createdCaseUrl=frame.Url;
+var caseMarker="#/case/";
+var casePos=createdCaseUrl.IndexOf(caseMarker,StringComparison.Ordinal);
+if(casePos<0) throw new Exception("Created Case id missing from route: "+createdCaseUrl);
+var createdCaseId=createdCaseUrl[(casePos+caseMarker.Length)..].Split('?', '/', '#')[0];
 
-// Return to the Cases grid, then open the freshly-created open Case through one
-// of the repeated identical Open targets. This also replaces the content iframe.
+// Return to the Cases grid, then open exactly the Case created by this run.
+// This also verifies repeated identical Open targets without relying on unique status text.
 frame=await Content();
 var casesCrumb=frame.Locator(".breadcrumb a").Nth(2);
 await MoveTo(casesCrumb); await casesCrumb.ClickAsync(); await WaitReady();
 frame=await Content();
 await frame.Locator("h2:has-text('פניות')").WaitForAsync();
-await Click("tbody tr:has-text('פתוחה') button.grid-open");
+await Click($"button.grid-open[data-go='#/case/{createdCaseId}']");
 await WaitReady();
 
 // 3. Case FieldChange: disabled -> enabled and DOM reconstruction.
