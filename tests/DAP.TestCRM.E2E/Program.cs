@@ -77,9 +77,22 @@ async Task Fill(string selector,string value)
 async Task Select(string selector,string value)
 {
     var f=await Content(); var target=f.Locator(selector);
-    await MoveTo(target); await target.ClickAsync();
-    await target.SelectOptionAsync(value);
-    await HumanPause(650); await WaitReady();
+    await MoveTo(target);
+    await target.ClickAsync();
+    await HumanPause(250);
+    // Drive the native HTML select through the keyboard so the demo visibly
+    // opens the dropdown and selects an option instead of setting it directly.
+    await target.PressAsync("Alt+ArrowDown");
+    await HumanPause(650);
+    await target.PressAsync("Home");
+    await HumanPause(180);
+    var options=await target.Locator("option").AllTextContentsAsync();
+    var index=options.ToList().FindIndex(x=>x.Trim()==value);
+    if(index<0) throw new Exception($"Dropdown option not found: {value}");
+    for(var i=0;i<index;i++){await target.PressAsync("ArrowDown");await HumanPause(140);}
+    await target.PressAsync("Enter");
+    await HumanPause(650);
+    await WaitReady();
 }
 async Task HumanScrollTo(ILocator target)
 {
