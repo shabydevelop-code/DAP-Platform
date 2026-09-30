@@ -85,10 +85,18 @@ async Task Click(string selector)
 {
     var f=await Content(); var target=f.Locator(selector);
     var replacesFrame=await target.GetAttributeAsync("data-frame-nav")=="replace";
+    var destination=await target.GetAttributeAsync("data-go");
     await MoveTo(target);
     await page.EvaluateAsync("()=>window.__dapE2ECursor?.down()");
     await target.ClickAsync();
     await page.EvaluateAsync("()=>window.__dapE2ECursor?.up()");
+
+    // App-controlled anchors/buttons navigate by data-go. For same-document
+    // navigation, wait for the hash itself to change before any caller
+    // re-resolves the business screen. This closes the race where Content()
+    // could return the still-ready pre-navigation document.
+    if(!replacesFrame && !string.IsNullOrEmpty(destination))
+        await f.WaitForURLAsync(url=>url.Contains(destination, StringComparison.Ordinal), new() { Timeout = 10000 });
 
     if(replacesFrame)
     {
