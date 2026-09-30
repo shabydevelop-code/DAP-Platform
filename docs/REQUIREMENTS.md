@@ -1,8 +1,13 @@
 # Requirements
 
+## Product quality
+
+1. DAP-Platform is a production-target product, not a proof of concept.
+2. Production architecture must not depend on temporary POC infrastructure or legacy GWTP implementation details.
+
 ## Application
 
-1. Provide a Windows desktop application.
+1. Provide a Windows desktop application named DAP.exe.
 2. Provide Learner and Editor modes in the same product.
 3. Keep application/core contracts independent from WPF where practical.
 
@@ -26,23 +31,27 @@
 
 ## Web
 
-1. Use Playwright for the initial Web Runtime.
-2. Observe learner actions; do not execute guide actions on behalf of the learner during normal guide execution.
-3. Support dynamic DOM updates and target re-resolution.
-4. Support frames and navigation.
-5. Support asynchronous application/server behavior.
+1. Use Microsoft Playwright for .NET as the production Web Runtime.
+2. Integrate Playwright directly into the .NET product; Python must not be required on target machines.
+3. Observe learner actions; do not execute guide actions on behalf of the learner during normal guide execution.
+4. Support dynamic DOM updates and target re-resolution.
+5. Support frames and navigation.
+6. Support asynchronous application/server behavior.
+7. Support Editor recording/target capture.
+8. Explicitly package or validate required browser/Playwright deployment dependencies.
 
 ## Windows
 
-1. Use UI Automation for the initial Windows Runtime.
+1. Use Microsoft UI Automation for the production Windows Runtime.
 2. Support target discovery and re-discovery.
 3. Support guide overlays/bubbles associated with native targets.
 4. Support observation and validation of learner actions.
+5. Support Editor target selection.
 
 ## Data
 
 1. Keep Core independent of the concrete database.
-2. Provide SQLite as the initial provider.
+2. Provide SQLite as the first database provider.
 3. Allow additional database providers without rewriting Core/runtime business logic.
 
 ## Deployment
@@ -50,8 +59,10 @@
 1. Target Windows.
 2. Target .NET 8.
 3. Assume .NET 8 Desktop Runtime is installed on target machines.
-4. Initial application distribution is framework-dependent.
+4. Application distribution is framework-dependent.
 5. Detect a missing required runtime and present a clear installation/startup error.
+6. Do not require Python.
+7. Handle or validate all additional production runtime dependencies explicitly.
 
 ## Documentation
 
