@@ -121,3 +121,16 @@ This applies to search, grid sorting, saves, updates, validation failures, and f
 Server-side validation remains authoritative. Validation errors and their message text originate on the server; after the server-style refresh restores the user's working context, the client presents the returned error in the PeopleSoft-style modal.
 
 Future TestCRM changes must preserve this contract unless this ADR is explicitly superseded.
+
+
+## ADR-016 — Server round trips keep the current business screen visible
+
+**Status:** Accepted
+
+DAP.TestCRM must provide consistent feedback for server-backed operations without replacing the active business screen with a generic loading state.
+
+While a server request is in progress, the existing content remains visible whenever possible and a compact activity indicator displays a spinner with "מעבד...". Interaction may be temporarily blocked to prevent duplicate operations. The Content iframe must not display an intermediate "טוען..." placeholder during reconstruction.
+
+After the server round trip and context restoration complete, the application presents the operation result in the restored context. Successful saves may use a transient success message; validation and server errors continue to use the authoritative server message in the standard modal.
+
+This rule applies system-wide to TestCRM server-backed actions, including search, sorting, FieldChange, save/update, delete, and validation flows.
