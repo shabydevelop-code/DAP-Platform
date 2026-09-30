@@ -108,12 +108,11 @@ async Task Select(string selector,string value)
 {
     var f=await Content(); var target=f.Locator(selector);
     await MoveTo(target);
-    await target.ClickAsync();
     await HumanPause(300);
 
-    // Native Windows/Chromium select popups are not reliably captured in the
-    // browser recording. Render a temporary visual mirror so every traversed
-    // option is visible, while keyboard input still drives the real <select>.
+    // Do not open the native Chromium dropdown: it is an OS/browser popup and
+    // would overlap the visual demonstration. Render one temporary visual mirror
+    // so every traversed option is visible, then commit through the real <select>.
     var options=await target.Locator("option").AllTextContentsAsync();
     var index=options.ToList().FindIndex(x=>x.Trim()==value);
     if(index<0) throw new Exception($"Dropdown option not found: {value}");
