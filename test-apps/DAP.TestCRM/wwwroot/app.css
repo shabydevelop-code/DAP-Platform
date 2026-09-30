@@ -11,3 +11,6 @@ input.validation-error,select.validation-error,textarea.validation-error{border:
 .activity-row{display:flex;justify-content:space-between;gap:20px;padding:9px 8px;border-bottom:1px solid #d8dee4;min-height:34px}
 .activity-row:nth-child(even){background:#f6f8fa}
 .grid-open{min-width:64px}
+
+/* During real content-frame replacement, keep the current screen visible until the new frame is ready. */
+.shell #content-frame,.shell .content-frame-next{grid-row:2;grid-column:1;height:100%}.shell .content-frame-next{z-index:2;background:#eef1f5}
