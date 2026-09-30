@@ -24,10 +24,20 @@ await page.AddInitScriptAsync(@"(() => {
 
 async Task<IFrame> Content()
 {
-    await page.WaitForSelectorAsync("#content-frame");
-    var frame = page.Frames.FirstOrDefault(f => f.Name == "dap-content");
-    if (frame is null) throw new Exception("Content iframe not found.");
-    return frame;
+    // Frame replacement is intentionally asynchronous: during the hand-off the
+    // new iframe exists as dap-content-next before it becomes dap-content.
+    // Wait for the stable frame instead of failing in that transition window.
+    await page.WaitForFunctionAsync(@"() => {
+        const el=document.querySelector('#content-frame');
+        return !!el && el.name==='dap-content' && !!el.contentWindow;
+    }", null, new() { Timeout = 10000 });
+    for(var i=0;i<50;i++)
+    {
+        var frame=page.Frames.FirstOrDefault(f=>f.Name=="dap-content");
+        if(frame is not null) return frame;
+        await page.WaitForTimeoutAsync(100);
+    }
+    throw new Exception("Stable content iframe not found.");
 }
 async Task WaitReady()
 {
