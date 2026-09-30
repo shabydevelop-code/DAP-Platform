@@ -59,3 +59,15 @@ Persistent project context, architecture, decisions, requirements, and current p
 **Status:** Accepted
 
 DAP-Platform is developed as the production product. POCs may be used as historical evidence or isolated experiments, but production code and architecture must not depend on POC packaging, Python scripts, temporary test harnesses, or legacy GWTP implementation details.
+
+## ADR-011 — Guide bubble navigation is context-aware
+
+**Status:** Accepted
+
+Step order is not treated as application navigation.
+
+Action Steps advance automatically only after their validation succeeds. Informational Steps may expose a manual Next action.
+
+Previous is not a universal navigation control. It may be exposed only when the active runtime can determine that the previous Step is safely renderable in the current application context. DAP must not assume that `StepOrder - 1` can be displayed after page navigation, context replacement, application changes, or Web/Windows runtime transitions.
+
+The shared Step model therefore includes advance behavior and sufficient context/navigation metadata for runtime-aware navigation decisions.
