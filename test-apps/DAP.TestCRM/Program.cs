@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+using Microsoft.Data.Sqlite;
 
 var builder = WebApplication.CreateBuilder(args);
 var app = builder.Build();
@@ -6,87 +6,67 @@ var app = builder.Build();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
-var customers = new ConcurrentDictionary<int, Customer>();
-var sites = new ConcurrentDictionary<int, Site>();
-var cases = new ConcurrentDictionary<int, Case>();
-var leads = new ConcurrentDictionary<int, Lead>();
+var dbPath = Path.Combine(builder.Environment.ContentRootPath, "testcrm.db");
+var connectionString = $"Data Source={dbPath}";
+InitializeDatabase(connectionString);
 
-customers[1] = new(1, "Northwind Israel", "03-5550100", "contact@northwind.test");
-customers[2] = new(2, "Contoso Services", "03-5550200", "office@contoso.test");
-sites[1] = new(1, 1, "Tel Aviv HQ", "Office", "HaArba'a 10, Tel Aviv");
-sites[2] = new(2, 1, "Haifa Branch", "Branch", "HaNamal 20, Haifa");
-sites[3] = new(3, 2, "Jerusalem Office", "Office", "Jaffa 50, Jerusalem");
-cases[1] = new(1, 1, "Open", "Internet connectivity", "Connection is unstable");
-cases[2] = new(2, 1, "Closed", "Access card", "Replacement completed");
-cases[3] = new(3, 2, "Open", "Printer", "Printer is unavailable");
-leads[1] = new(1, 1, "Website", "Dana Levi", "New", "Requested product information");
-leads[2] = new(2, 1, "Referral", "Avi Cohen", "Qualified", "Follow-up scheduled");
-leads[3] = new(3, 2, "Campaign", "Noa Bar", "New", "Interested in upgrade");
-
-app.MapGet("/api/customers", () => customers.Values.OrderBy(x => x.Id));
-app.MapGet("/api/customers/{id:int}", (int id) => customers.TryGetValue(id, out var x) ? Results.Ok(x) : Results.NotFound());
-app.MapGet("/api/customers/{id:int}/sites", (int id) => sites.Values.Where(x => x.CustomerId == id).OrderBy(x => x.Id));
-
-app.MapGet("/api/sites/{id:int}", (int id) => sites.TryGetValue(id, out var x) ? Results.Ok(x) : Results.NotFound());
-app.MapPost("/api/customers/{customerId:int}/sites", (int customerId, SiteInput input) =>
+app.MapGet("/api/customers", (string? sort, string? dir) =>
 {
-    if (!customers.ContainsKey(customerId)) return Results.NotFound();
-    var id = sites.Keys.DefaultIfEmpty().Max() + 1;
-    var site = new Site(id, customerId, input.Name, input.Type, input.Address);
-    sites[id] = site;
-    return Results.Created($"/api/sites/{id}", site);
+    var order = Sort(sort, dir, new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    { ["id"]="Id", ["name"]="Name", ["phone"]="Phone", ["email"]="Email" }, "Id");
+    return Query<Customer>($"SELECT Id,Name,Phone,Email FROM Customers ORDER BY {order}", r => new(r.GetInt32(0),r.GetString(1),r.GetString(2),r.GetString(3)));
 });
-app.MapPut("/api/sites/{id:int}", async (int id, SiteInput input) =>
+app.MapGet("/api/customers/{id:int}", (int id) => One("SELECT Id,Name,Phone,Email FROM Customers WHERE Id=$id", id, r => new Customer(r.GetInt32(0),r.GetString(1),r.GetString(2),r.GetString(3))));
+app.MapGet("/api/customers/{id:int}/sites", (int id, string? sort, string? dir) =>
 {
-    if (!sites.TryGetValue(id, out var old)) return Results.NotFound();
-    await Task.Delay(450); // deliberate server round-trip for DAP runtime testing
-    var updated = old with { Name = input.Name, Type = input.Type, Address = input.Address };
-    sites[id] = updated;
-    return Results.Ok(updated);
+    var order=Sort(sort,dir,new(StringComparer.OrdinalIgnoreCase){{"id","Id"},{"name","Name"},{"type","Type"},{"address","Address"}},"Id");
+    return Query<Site>($"SELECT Id,CustomerId,Name,Type,Address FROM Sites WHERE CustomerId=$id ORDER BY {order}",r=>new(r.GetInt32(0),r.GetInt32(1),r.GetString(2),r.GetString(3),r.GetString(4)),id);
+});
+app.MapGet("/api/sites/{id:int}", (int id) => One("SELECT Id,CustomerId,Name,Type,Address FROM Sites WHERE Id=$id",id,r=>new Site(r.GetInt32(0),r.GetInt32(1),r.GetString(2),r.GetString(3),r.GetString(4))));
+app.MapPost("/api/customers/{customerId:int}/sites", (int customerId, SiteInput x) =>
+{
+    var id=Insert("INSERT INTO Sites(CustomerId,Name,Type,Address) VALUES($parent,$a,$b,$c)",customerId,x.Name,x.Type,x.Address);
+    return Results.Created($"/api/sites/{id}",new Site(id,customerId,x.Name,x.Type,x.Address));
+});
+app.MapPut("/api/sites/{id:int}", async (int id, SiteInput x) =>
+{
+    await Task.Delay(450);
+    Exec("UPDATE Sites SET Name=$a,Type=$b,Address=$c WHERE Id=$id",id,x.Name,x.Type,x.Address);
+    return Results.Ok(new Site(id,GetInt("SELECT CustomerId FROM Sites WHERE Id=$id",id),x.Name,x.Type,x.Address));
 });
 
-app.MapGet("/api/sites/{siteId:int}/cases", (int siteId) => cases.Values.Where(x => x.SiteId == siteId).OrderByDescending(x => x.Id));
-app.MapGet("/api/cases/{id:int}", (int id) => cases.TryGetValue(id, out var x) ? Results.Ok(x) : Results.NotFound());
-app.MapPost("/api/sites/{siteId:int}/cases", (int siteId, CaseInput input) =>
+app.MapGet("/api/sites/{siteId:int}/cases", (int siteId,string? sort,string? dir) =>
 {
-    if (!sites.ContainsKey(siteId)) return Results.NotFound();
-    var id = cases.Keys.DefaultIfEmpty().Max() + 1;
-    var item = new Case(id, siteId, input.Status, input.Subject, input.Description);
-    cases[id] = item;
-    return Results.Created($"/api/cases/{id}", item);
+    var order=Sort(sort,dir,new(StringComparer.OrdinalIgnoreCase){{"id","Id"},{"status","Status"},{"subject","Subject"}},"Id","DESC");
+    return Query<Case>($"SELECT Id,SiteId,Status,Subject,Description FROM Cases WHERE SiteId=$id ORDER BY {order}",r=>new(r.GetInt32(0),r.GetInt32(1),r.GetString(2),r.GetString(3),r.GetString(4)),siteId);
 });
-app.MapPut("/api/cases/{id:int}", (int id, CaseInput input) =>
-{
-    if (!cases.TryGetValue(id, out var old)) return Results.NotFound();
-    var item = old with { Status = input.Status, Subject = input.Subject, Description = input.Description };
-    cases[id] = item;
-    return Results.Ok(item);
-});
+app.MapGet("/api/cases/{id:int}", (int id) => One("SELECT Id,SiteId,Status,Subject,Description FROM Cases WHERE Id=$id",id,r=>new Case(r.GetInt32(0),r.GetInt32(1),r.GetString(2),r.GetString(3),r.GetString(4))));
+app.MapPost("/api/sites/{siteId:int}/cases", (int siteId,CaseInput x) => {var id=Insert("INSERT INTO Cases(SiteId,Status,Subject,Description) VALUES($parent,$a,$b,$c)",siteId,x.Status,x.Subject,x.Description);return Results.Created($"/api/cases/{id}",new Case(id,siteId,x.Status,x.Subject,x.Description));});
+app.MapPut("/api/cases/{id:int}", (int id,CaseInput x) => {Exec("UPDATE Cases SET Status=$a,Subject=$b,Description=$c WHERE Id=$id",id,x.Status,x.Subject,x.Description);return Results.Ok(new Case(id,GetInt("SELECT SiteId FROM Cases WHERE Id=$id",id),x.Status,x.Subject,x.Description));});
 
-app.MapGet("/api/sites/{siteId:int}/leads", (int siteId) => leads.Values.Where(x => x.SiteId == siteId).OrderByDescending(x => x.Id));
-app.MapGet("/api/leads/{id:int}", (int id) => leads.TryGetValue(id, out var x) ? Results.Ok(x) : Results.NotFound());
-app.MapPost("/api/sites/{siteId:int}/leads", (int siteId, LeadInput input) =>
+app.MapGet("/api/sites/{siteId:int}/leads", (int siteId,string? sort,string? dir) =>
 {
-    if (!sites.ContainsKey(siteId)) return Results.NotFound();
-    var id = leads.Keys.DefaultIfEmpty().Max() + 1;
-    var item = new Lead(id, siteId, input.Source, input.ContactName, input.Status, input.Notes);
-    leads[id] = item;
-    return Results.Created($"/api/leads/{id}", item);
+    var order=Sort(sort,dir,new(StringComparer.OrdinalIgnoreCase){{"id","Id"},{"source","Source"},{"contactName","ContactName"},{"status","Status"}},"Id","DESC");
+    return Query<Lead>($"SELECT Id,SiteId,Source,ContactName,Status,Notes FROM Leads WHERE SiteId=$id ORDER BY {order}",r=>new(r.GetInt32(0),r.GetInt32(1),r.GetString(2),r.GetString(3),r.GetString(4),r.GetString(5)),siteId);
 });
-app.MapPut("/api/leads/{id:int}", (int id, LeadInput input) =>
-{
-    if (!leads.TryGetValue(id, out var old)) return Results.NotFound();
-    var item = old with { Source = input.Source, ContactName = input.ContactName, Status = input.Status, Notes = input.Notes };
-    leads[id] = item;
-    return Results.Ok(item);
-});
+app.MapGet("/api/leads/{id:int}", (int id) => One("SELECT Id,SiteId,Source,ContactName,Status,Notes FROM Leads WHERE Id=$id",id,r=>new Lead(r.GetInt32(0),r.GetInt32(1),r.GetString(2),r.GetString(3),r.GetString(4),r.GetString(5))));
+app.MapPost("/api/sites/{siteId:int}/leads", (int siteId,LeadInput x) => {var id=Insert("INSERT INTO Leads(SiteId,Source,ContactName,Status,Notes) VALUES($parent,$a,$b,$c,$d)",siteId,x.Source,x.ContactName,x.Status,x.Notes);return Results.Created($"/api/leads/{id}",new Lead(id,siteId,x.Source,x.ContactName,x.Status,x.Notes));});
+app.MapPut("/api/leads/{id:int}", (int id,LeadInput x) => {Exec("UPDATE Leads SET Source=$a,ContactName=$b,Status=$c,Notes=$d WHERE Id=$id",id,x.Source,x.ContactName,x.Status,x.Notes);return Results.Ok(new Lead(id,GetInt("SELECT SiteId FROM Leads WHERE Id=$id",id),x.Source,x.ContactName,x.Status,x.Notes));});
 
 app.Run();
 
-record Customer(int Id, string Name, string Phone, string Email);
-record Site(int Id, int CustomerId, string Name, string Type, string Address);
-record Case(int Id, int SiteId, string Status, string Subject, string Description);
-record Lead(int Id, int SiteId, string Source, string ContactName, string Status, string Notes);
-record SiteInput(string Name, string Type, string Address);
-record CaseInput(string Status, string Subject, string Description);
-record LeadInput(string Source, string ContactName, string Status, string Notes);
+string Sort(string? field,string? dir,Dictionary<string,string> allowed,string fallback,string fallbackDir="ASC"){var col=field!=null&&allowed.TryGetValue(field,out var c)?c:allowed[fallback];var d=string.Equals(dir,"desc",StringComparison.OrdinalIgnoreCase)?"DESC":string.Equals(dir,"asc",StringComparison.OrdinalIgnoreCase)?"ASC":fallbackDir;return $"{col} {d}";}
+List<T> Query<T>(string sql,Func<SqliteDataReader,T> map,int? id=null){using var c=new SqliteConnection(connectionString);c.Open();using var cmd=c.CreateCommand();cmd.CommandText=sql;if(id.HasValue)cmd.Parameters.AddWithValue("$id",id.Value);using var r=cmd.ExecuteReader();var list=new List<T>();while(r.Read())list.Add(map(r));return list;}
+IResult One<T>(string sql,int id,Func<SqliteDataReader,T> map){using var c=new SqliteConnection(connectionString);c.Open();using var cmd=c.CreateCommand();cmd.CommandText=sql;cmd.Parameters.AddWithValue("$id",id);using var r=cmd.ExecuteReader();return r.Read()?Results.Ok(map(r)):Results.NotFound();}
+int GetInt(string sql,int id){using var c=new SqliteConnection(connectionString);c.Open();using var cmd=c.CreateCommand();cmd.CommandText=sql;cmd.Parameters.AddWithValue("$id",id);return Convert.ToInt32(cmd.ExecuteScalar());}
+int Insert(string sql,int parent,params string[] values){using var c=new SqliteConnection(connectionString);c.Open();using var cmd=c.CreateCommand();cmd.CommandText=sql+"; SELECT last_insert_rowid();";cmd.Parameters.AddWithValue("$parent",parent);for(var i=0;i<values.Length;i++)cmd.Parameters.AddWithValue("$"+(char)('a'+i),values[i]);return Convert.ToInt32((long)cmd.ExecuteScalar()!);}
+void Exec(string sql,int id,params string[] values){using var c=new SqliteConnection(connectionString);c.Open();using var cmd=c.CreateCommand();cmd.CommandText=sql;cmd.Parameters.AddWithValue("$id",id);for(var i=0;i<values.Length;i++)cmd.Parameters.AddWithValue("$"+(char)('a'+i),values[i]);cmd.ExecuteNonQuery();}
+void InitializeDatabase(string cs){using var c=new SqliteConnection(cs);c.Open();using var cmd=c.CreateCommand();cmd.CommandText=@"CREATE TABLE IF NOT EXISTS Customers(Id INTEGER PRIMARY KEY,Name TEXT NOT NULL,Phone TEXT NOT NULL,Email TEXT NOT NULL);CREATE TABLE IF NOT EXISTS Sites(Id INTEGER PRIMARY KEY AUTOINCREMENT,CustomerId INTEGER NOT NULL,Name TEXT NOT NULL,Type TEXT NOT NULL,Address TEXT NOT NULL);CREATE TABLE IF NOT EXISTS Cases(Id INTEGER PRIMARY KEY AUTOINCREMENT,SiteId INTEGER NOT NULL,Status TEXT NOT NULL,Subject TEXT NOT NULL,Description TEXT NOT NULL);CREATE TABLE IF NOT EXISTS Leads(Id INTEGER PRIMARY KEY AUTOINCREMENT,SiteId INTEGER NOT NULL,Source TEXT NOT NULL,ContactName TEXT NOT NULL,Status TEXT NOT NULL,Notes TEXT NOT NULL);";cmd.ExecuteNonQuery();cmd.CommandText="SELECT COUNT(*) FROM Customers";if(Convert.ToInt32(cmd.ExecuteScalar())>0)return;cmd.CommandText=@"INSERT INTO Customers VALUES(1,'Northwind Israel','03-5550100','contact@northwind.test'),(2,'Contoso Services','03-5550200','office@contoso.test');INSERT INTO Sites(CustomerId,Name,Type,Address) VALUES(1,'Tel Aviv HQ','Office','HaArba''a 10, Tel Aviv'),(1,'Haifa Branch','Branch','HaNamal 20, Haifa'),(2,'Jerusalem Office','Office','Jaffa 50, Jerusalem');INSERT INTO Cases(SiteId,Status,Subject,Description) VALUES(1,'Open','Internet connectivity','Connection is unstable'),(1,'Closed','Access card','Replacement completed'),(2,'Open','Printer','Printer is unavailable');INSERT INTO Leads(SiteId,Source,ContactName,Status,Notes) VALUES(1,'Website','Dana Levi','New','Requested product information'),(1,'Referral','Avi Cohen','Qualified','Follow-up scheduled'),(2,'Campaign','Noa Bar','New','Interested in upgrade');";cmd.ExecuteNonQuery();}
+
+record Customer(int Id,string Name,string Phone,string Email);
+record Site(int Id,int CustomerId,string Name,string Type,string Address);
+record Case(int Id,int SiteId,string Status,string Subject,string Description);
+record Lead(int Id,int SiteId,string Source,string ContactName,string Status,string Notes);
+record SiteInput(string Name,string Type,string Address);
+record CaseInput(string Status,string Subject,string Description);
+record LeadInput(string Source,string ContactName,string Status,string Notes);
