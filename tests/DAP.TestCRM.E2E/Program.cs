@@ -9,8 +9,8 @@ await page.AddInitScriptAsync(@"(() => {
     if(window !== window.top) return;
     if(document.getElementById('dap-e2e-cursor')) return;
     const c=document.createElement('div'); c.id='dap-e2e-cursor';
-    c.innerHTML='<svg width=""24"" height=""32"" viewBox=""0 0 24 32"" xmlns=""http://www.w3.org/2000/svg""><path d=""M2 2 L2 25 L8 19 L13 30 L17 28 L12 17 L21 17 Z"" fill=""white"" stroke=""#111"" stroke-width=""1.7"" stroke-linejoin=""round""/></svg>';
-    Object.assign(c.style,{position:'fixed',left:'24px',top:'24px',width:'24px',height:'32px',zIndex:'2147483647',pointerEvents:'none',transition:'left .22s ease-out, top .22s ease-out, transform .08s ease-out',filter:'drop-shadow(1px 2px 1px rgba(0,0,0,.25))'});
+    c.innerHTML='<svg width=""18"" height=""24"" viewBox=""0 0 24 32"" xmlns=""http://www.w3.org/2000/svg""><path d=""M2 2 L2 25 L8 19 L13 30 L17 28 L12 17 L21 17 Z"" fill=""#2F80ED"" stroke=""white"" stroke-width=""2"" stroke-linejoin=""round""/></svg>';
+    Object.assign(c.style,{position:'fixed',left:'24px',top:'24px',width:'18px',height:'24px',zIndex:'2147483647',pointerEvents:'none',transition:'left .22s ease-out, top .22s ease-out, transform .08s ease-out',filter:'drop-shadow(1px 2px 1px rgba(0,0,0,.25))'});
     document.documentElement.appendChild(c);
     window.__dapE2ECursor={
       move:(x,y)=>{c.style.left=x+'px';c.style.top=y+'px'},
