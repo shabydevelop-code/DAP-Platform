@@ -133,8 +133,10 @@ await SaveSuccess();
 // Return to the Cases grid, then open the freshly-created open Case through one
 // of the repeated identical Open targets. This also replaces the content iframe.
 frame=await Content();
-var casesCrumb=frame.Locator(".breadcrumb a").Nth(1);
+var casesCrumb=frame.Locator(".breadcrumb a").Nth(2);
 await MoveTo(casesCrumb); await casesCrumb.ClickAsync(); await WaitReady();
+frame=await Content();
+await frame.Locator("h2:has-text('פניות')").WaitForAsync();
 await Click("tbody tr:has-text('פתוחה') button.grid-open");
 await WaitReady();
 
