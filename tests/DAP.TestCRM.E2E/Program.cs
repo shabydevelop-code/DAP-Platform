@@ -83,6 +83,17 @@ async Task Click(string selector)
     await target.ClickAsync();
     await page.EvaluateAsync("()=>window.__dapE2ECursor?.up()");
 
+    // Normal SPA navigation rebuilds the tab DOM after the click. The synthetic
+    // cursor is only a visual aid, so hide it briefly after the completed click
+    // rather than leaving it over the newly rendered active-tab layout.
+    var isTab=selector.StartsWith("nav.tabs ",StringComparison.Ordinal);
+    if(isTab)
+    {
+        await page.EvaluateAsync("()=>{const c=document.getElementById('dap-e2e-cursor');if(c)c.style.visibility='hidden'}");
+        await page.WaitForTimeoutAsync(180);
+        await page.EvaluateAsync("()=>{const c=document.getElementById('dap-e2e-cursor');if(c)c.style.visibility='visible'}");
+    }
+
     if(replacesFrame)
     {
         // Do not let the next assertion bind to the still-visible retiring
