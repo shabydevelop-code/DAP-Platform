@@ -6,6 +6,7 @@ await using var browser = await playwright.Chromium.LaunchAsync(new() { Headless
 var page = await browser.NewPageAsync(new() { ViewportSize = new() { Width = 1280, Height = 820 } });
 await page.AddInitScriptAsync(@"(() => {
   const install=()=>{
+    if(window !== window.top) return;
     if(document.getElementById('dap-e2e-cursor')) return;
     const c=document.createElement('div'); c.id='dap-e2e-cursor';
     c.innerHTML='<svg width=""24"" height=""32"" viewBox=""0 0 24 32"" xmlns=""http://www.w3.org/2000/svg""><path d=""M2 2 L2 25 L8 19 L13 30 L17 28 L12 17 L21 17 Z"" fill=""white"" stroke=""#111"" stroke-width=""1.7"" stroke-linejoin=""round""/></svg>';
@@ -38,19 +39,21 @@ async Task MoveTo(ILocator target)
 {
     await target.ScrollIntoViewIfNeededAsync();
     var box=await target.BoundingBoxAsync() ?? throw new Exception("Target has no bounding box.");
+    // Playwright returns frame-element coordinates relative to the main viewport.
+    // The visual cursor lives only in the top-level document.
     var x=box.X+Math.Min(14,box.Width/2);
     var y=box.Y+Math.Min(12,box.Height/2);
-    await target.Page.EvaluateAsync("(p)=>window.__dapE2ECursor?.move(p.x,p.y)",new { x,y });
+    await page.EvaluateAsync("(p)=>window.__dapE2ECursor?.move(p.x,p.y)",new { x,y });
     await target.HoverAsync(new() { Position = new() { X = Math.Min(14,box.Width/2), Y = Math.Min(12,box.Height/2) } });
-    await HumanPause(360);
+    await HumanPause(520);
 }
 async Task Click(string selector)
 {
     var f=await Content(); var target=f.Locator(selector);
     await MoveTo(target);
-    await target.Page.EvaluateAsync("()=>window.__dapE2ECursor?.down()");
+    await page.EvaluateAsync("()=>window.__dapE2ECursor?.down()");
     await target.ClickAsync();
-    await target.Page.EvaluateAsync("()=>window.__dapE2ECursor?.up()");
+    await page.EvaluateAsync("()=>window.__dapE2ECursor?.up()");
     await HumanPause(420);
 }
 async Task Fill(string selector,string value)
