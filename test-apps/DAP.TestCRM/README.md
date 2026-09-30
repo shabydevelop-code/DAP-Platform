@@ -39,3 +39,14 @@ dotnet run
 ```
 
 Open `http://localhost:5200`.
+
+
+## Realistic DAP demo and runtime scenarios
+
+DAP.TestCRM serves both as a permanent runtime test target and a credible customer-facing demo environment. Technical edge cases must be represented through realistic CRM behavior rather than artificial test controls.
+
+Reference flow: search for a customer, open a site, enter a server-backed grid, sort it, open a business record, trigger a server FieldChange, handle dependent fields and validation, save, return to the grid, and continue to another record.
+
+The CRM should progressively cover iframe/document replacement, server round trips, transient DOM replacement, repeated grid targets, conditional fields, targets that appear or disappear, scrolling to off-screen targets, modal overlays, server validation, target movement/re-sizing, and navigation between business contexts.
+
+Do not add test-only buttons or obviously artificial screens merely to exercise DAP. New runtime test cases should receive a plausible CRM business scenario whenever practical, so the same flows can be reused for regression testing, live demonstrations, and recorded customer-facing videos.
