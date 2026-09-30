@@ -56,7 +56,9 @@ async Task HumanPause(int ms=320) => await page.WaitForTimeoutAsync(ms);
 double cursorX=24,cursorY=24;
 async Task MoveTo(ILocator target)
 {
-    await target.ScrollIntoViewIfNeededAsync();
+    // When a real interaction target is outside the viewport, reach it with
+    // visible wheel scrolling instead of Playwright's instantaneous jump.
+    await HumanScrollTo(target);
     var box=await target.BoundingBoxAsync() ?? throw new Exception("Target has no bounding box.");
     // Aim at a natural interaction point instead of a fixed left-edge offset.
     // Text fields/buttons/rows use their center; selects use the dropdown-arrow side.
