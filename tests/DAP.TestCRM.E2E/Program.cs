@@ -57,10 +57,15 @@ async Task MoveTo(ILocator target)
 {
     await target.ScrollIntoViewIfNeededAsync();
     var box=await target.BoundingBoxAsync() ?? throw new Exception("Target has no bounding box.");
-    // Playwright returns frame-element coordinates relative to the main viewport.
-    // The visual cursor lives only in the top-level document.
-    var x=box.X+Math.Min(14,box.Width/2);
-    var y=box.Y+Math.Min(12,box.Height/2);
+    // Aim at a natural interaction point instead of a fixed left-edge offset.
+    // Text fields/buttons/rows use their center; selects use the dropdown-arrow side.
+    var tag=await target.EvaluateAsync<string>("e=>e.tagName");
+    var type=await target.EvaluateAsync<string>("e=>e.getAttribute('type')||''");
+    var isSelect=tag=="SELECT";
+    var localX=isSelect ? Math.Max(8,box.Width-16) : box.Width/2;
+    var localY=box.Height/2;
+    var x=box.X+localX;
+    var y=box.Y+localY;
     const int steps=14;
     for(var i=1;i<=steps;i++)
     {
@@ -71,7 +76,7 @@ async Task MoveTo(ILocator target)
         await page.WaitForTimeoutAsync(35);
     }
     cursorX=x; cursorY=y;
-    await target.HoverAsync(new() { Position = new() { X = Math.Min(14,box.Width/2), Y = Math.Min(12,box.Height/2) } });
+    await target.HoverAsync(new() { Position = new() { X = localX, Y = localY } });
     await HumanPause(120);
 }
 async Task Click(string selector)
