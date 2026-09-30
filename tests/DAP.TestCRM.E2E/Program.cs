@@ -252,8 +252,16 @@ await Click("nav.tabs button:has-text('לידים')");
 await WaitReady();
 frame=await Content();
 await frame.Locator("h2:has-text('לידים')").WaitForAsync();
-await Click("tbody tr.clickable:first-child");
+
+// Create a Lead in this run. After the first save the same workflow changes
+// from "new" to a persisted Lead and the Delete button is rendered dynamically.
+await Click("button.primary:has-text('ליד חדש')");
 await WaitReady();
+await Fill("[name='contactName']","לקוח בדיקת מערכת");
+await SaveSuccess();
+frame=await Content();
+var dynamicDeleteLead=frame.Locator("#delete-lead");
+await dynamicDeleteLead.WaitForAsync();
 
 // 8. Lead server FieldChange + conditional required business field.
 await Select("[name='status']","נסגר בהצלחה");
@@ -262,6 +270,20 @@ await frame.Locator("[name='selectedService']").WaitForAsync();
 await SaveExpectValidation("selectedService");
 await Select("[name='selectedService']","תמיכה מורחבת");
 await SaveSuccess();
+
+// Exercise the dynamically rendered Delete target in the same Lead context:
+// no navigation away and no reopening of the record.
+frame=await Content();
+dynamicDeleteLead=frame.Locator("#delete-lead");
+await MoveTo(dynamicDeleteLead);
+await dynamicDeleteLead.ClickAsync();
+var confirmDeleteLead=frame.Locator("#ps-confirm [data-answer='yes']");
+await confirmDeleteLead.WaitForAsync();
+await MoveTo(confirmDeleteLead);
+await confirmDeleteLead.ClickAsync();
+await WaitReady();
+frame=await Content();
+await frame.Locator("h2:has-text('לידים')").WaitForAsync();
 
 // 9. Delete the Case created by this run through the real UI.
 // Navigate back to the Site, open Cases, reopen the exact transient test Case,
@@ -287,5 +309,5 @@ await frame.Locator("h2:has-text('פניות')").WaitForAsync();
 if(await frame.Locator($"button.grid-open[data-go='#/case/{createdCaseId}']").CountAsync()!=0)
     throw new Exception($"Deleted Case {createdCaseId} is still present in the Cases grid.");
 
-Console.WriteLine("PASS: representative Customer -> Site -> Case -> Lead workflow, including Case deletion, completed.");
+Console.WriteLine("PASS: representative Customer -> Site -> Case -> Lead workflow, including dynamic Lead deletion and Case deletion, completed.");
 await page.WaitForTimeoutAsync(1500);
