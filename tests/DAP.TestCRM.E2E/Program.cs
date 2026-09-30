@@ -57,15 +57,10 @@ async Task MoveTo(ILocator target)
 {
     await target.ScrollIntoViewIfNeededAsync();
     var box=await target.BoundingBoxAsync() ?? throw new Exception("Target has no bounding box.");
-    // Locator.BoundingBoxAsync() is relative to the frame viewport here.
-    // The synthetic cursor lives in the top-level document, so translate the
-    // point through the owning iframe before drawing it.
-    var localX=box.X+Math.Min(14,box.Width/2);
-    var localY=box.Y+Math.Min(12,box.Height/2);
-    var contentElement=page.Locator("#content-frame");
-    var frameBox=await contentElement.BoundingBoxAsync() ?? throw new Exception("Content iframe has no bounding box.");
-    var x=frameBox.X+localX;
-    var y=frameBox.Y+localY;
+    // Playwright returns frame-element coordinates relative to the main viewport.
+    // The visual cursor lives only in the top-level document.
+    var x=box.X+Math.Min(14,box.Width/2);
+    var y=box.Y+Math.Min(12,box.Height/2);
     const int steps=14;
     for(var i=1;i<=steps;i++)
     {
