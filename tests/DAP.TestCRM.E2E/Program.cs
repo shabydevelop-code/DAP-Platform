@@ -18,16 +18,45 @@ async Task WaitReady()
     await f.WaitForLoadStateAsync(LoadState.DOMContentLoaded);
     await f.Locator("#server-busy").WaitForAsync(new() { State = WaitForSelectorState.Hidden, Timeout = 10000 });
 }
-async Task Click(string selector) { var f=await Content(); await f.Locator(selector).ClickAsync(); await page.WaitForTimeoutAsync(250); }
-async Task Fill(string selector,string value) { var f=await Content(); await f.Locator(selector).FillAsync(value); }
-async Task Select(string selector,string value) { var f=await Content(); await f.Locator(selector).SelectOptionAsync(value); await page.WaitForTimeoutAsync(900); await WaitReady(); }
+async Task HumanPause(int ms=320) => await page.WaitForTimeoutAsync(ms);
+async Task MoveTo(ILocator target)
+{
+    await target.ScrollIntoViewIfNeededAsync();
+    await target.HoverAsync(new() { Position = new() { X = 12, Y = 12 } });
+    await HumanPause();
+}
+async Task Click(string selector)
+{
+    var f=await Content(); var target=f.Locator(selector);
+    await MoveTo(target); await target.ClickAsync(); await HumanPause(420);
+}
+async Task Fill(string selector,string value)
+{
+    var f=await Content(); var target=f.Locator(selector);
+    await MoveTo(target); await target.ClickAsync();
+    await page.Keyboard.PressAsync("Control+A");
+    await page.Keyboard.TypeAsync(value,new() { Delay = 75 });
+    await HumanPause();
+}
+async Task Select(string selector,string value)
+{
+    var f=await Content(); var target=f.Locator(selector);
+    await MoveTo(target); await target.ClickAsync();
+    await target.SelectOptionAsync(value);
+    await HumanPause(650); await WaitReady();
+}
+async Task HumanScrollTo(ILocator target)
+{
+    for(var i=0;i<8 && !await target.IsVisibleAsync();i++){await page.Mouse.WheelAsync(0,240);await HumanPause(120);}
+    await target.ScrollIntoViewIfNeededAsync(); await HumanPause();
+}
 async Task SaveExpectValidation(string field)
 {
     await Click("button.primary:has-text('שמור')");
     await WaitReady();
     var f=await Content();
     await f.Locator($"[name='{field}'].validation-error").WaitForAsync();
-    await f.Locator("#ps-alert button").ClickAsync();
+    var ok=f.Locator("#ps-alert button"); await MoveTo(ok); await ok.ClickAsync(); await HumanPause();
 }
 async Task SaveSuccess()
 {
@@ -67,11 +96,12 @@ if(!await notes.IsDisabledAsync()) throw new Exception("Treatment Notes should s
 await Select("[name='status']","בטיפול");
 frame=await Content(); notes=frame.Locator("[name='resolutionNotes']");
 if(await notes.IsDisabledAsync()) throw new Exception("Treatment Notes did not become enabled.");
-await notes.FillAsync("בוצעה בדיקת שירות מול הלקוח והתקלה טופלה.");
+await Fill("[name='resolutionNotes']","בוצעה בדיקת שירות מול הלקוח והתקלה טופלה.");
 
 // 4. Real off-screen target / scrolling through activity history.
 var more=frame.Locator("#activity-more");
-await more.ScrollIntoViewIfNeededAsync();
+await HumanScrollTo(more);
+await MoveTo(more);
 await more.ClickAsync();
 
 // 5. Conditional target appears and moves layout.
@@ -86,7 +116,7 @@ await SaveSuccess();
 
 // 7. Continue legitimate agent work into Leads.
 frame=await Content();
-await frame.Locator(".breadcrumb a").Nth(1).ClickAsync();
+var siteCrumb=frame.Locator(".breadcrumb a").Nth(1); await MoveTo(siteCrumb); await siteCrumb.ClickAsync();
 await page.WaitForTimeoutAsync(500);
 await Click("button[data-go$='/leads']");
 await WaitReady();
