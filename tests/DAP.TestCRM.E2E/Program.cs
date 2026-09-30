@@ -13,12 +13,7 @@ await page.AddInitScriptAsync(@"(() => {
     Object.assign(c.style,{position:'fixed',left:'24px',top:'24px',width:'24px',height:'32px',zIndex:'2147483647',pointerEvents:'none',transition:'left .22s ease-out, top .22s ease-out, transform .08s ease-out',filter:'drop-shadow(1px 2px 1px rgba(0,0,0,.25))'});
     document.documentElement.appendChild(c);
     window.__dapE2ECursor={
-      move:async(x,y)=>{
-        const from={left:c.style.left||'24px',top:c.style.top||'24px'};
-        const to={left:x+'px',top:y+'px'};
-        const a=c.animate([from,to],{duration:650,easing:'ease-in-out',fill:'forwards'});
-        await a.finished; c.style.left=to.left; c.style.top=to.top; a.cancel();
-      },
+      move:(x,y)=>{c.style.left=x+'px';c.style.top=y+'px'},
       down:()=>{c.style.transform='scale(.82)'},
       up:()=>{c.style.transform='scale(1)'}
     };
@@ -40,6 +35,7 @@ async Task WaitReady()
     await f.Locator("#server-busy").WaitForAsync(new() { State = WaitForSelectorState.Hidden, Timeout = 10000 });
 }
 async Task HumanPause(int ms=320) => await page.WaitForTimeoutAsync(ms);
+double cursorX=24,cursorY=24;
 async Task MoveTo(ILocator target)
 {
     await target.ScrollIntoViewIfNeededAsync();
@@ -48,7 +44,16 @@ async Task MoveTo(ILocator target)
     // The visual cursor lives only in the top-level document.
     var x=box.X+Math.Min(14,box.Width/2);
     var y=box.Y+Math.Min(12,box.Height/2);
-    await page.EvaluateAsync("(p)=>window.__dapE2ECursor?.move(p.x,p.y)",new { x,y });
+    const int steps=14;
+    for(var i=1;i<=steps;i++)
+    {
+        var t=(double)i/steps;
+        var sx=cursorX+(x-cursorX)*t;
+        var sy=cursorY+(y-cursorY)*t;
+        await page.EvaluateAsync("(p)=>window.__dapE2ECursor?.move(p.x,p.y)",new { x=sx,y=sy });
+        await page.WaitForTimeoutAsync(35);
+    }
+    cursorX=x; cursorY=y;
     await target.HoverAsync(new() { Position = new() { X = Math.Min(14,box.Width/2), Y = Math.Min(12,box.Height/2) } });
     await HumanPause(120);
 }
@@ -118,7 +123,18 @@ await frame.Locator("h2:has-text('פניות')").WaitForAsync();
 await Click("th button[data-sort='status']");
 await WaitReady();
 
-// Opening through repeated Open buttons replaces the content iframe itself.
+// Create a fresh open Case so repeated runs never depend on mutated seed data.
+await Click("button.primary:has-text('פניה חדשה')");
+await WaitReady();
+await Fill("[name='subject']","תקלה בחיבור לאינטרנט");
+await Fill("[name='description']","הלקוח מדווח על חיבור לא יציב.");
+await SaveSuccess();
+
+// Return to the Cases grid, then open the freshly-created open Case through one
+// of the repeated identical Open targets. This also replaces the content iframe.
+frame=await Content();
+var casesCrumb=frame.Locator(".breadcrumb a").Nth(1);
+await MoveTo(casesCrumb); await casesCrumb.ClickAsync(); await WaitReady();
 await Click("tbody tr:has-text('פתוחה') button.grid-open");
 await WaitReady();
 
