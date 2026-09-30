@@ -4,5 +4,6 @@
 <body class="shell">
 <iframe id="header-frame" name="dap-header" src="/header.html" title="כותרת המערכת"></iframe>
 <iframe id="content-frame" name="dap-content" src="/content.html" title="תוכן המערכת"></iframe>
+<script>function replaceContentFrame(hash){const old=document.querySelector('#content-frame');const next=document.createElement('iframe');next.id='content-frame';next.name='dap-content';next.title='תוכן המערכת';next.src='/content.html'+hash;old.replaceWith(next)}</script>
 </body>
 </html>
