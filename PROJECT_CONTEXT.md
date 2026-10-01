@@ -159,3 +159,14 @@ A target is represented by a runtime-neutral TargetDescriptor rather than a sing
 - Fire-and-forget Playwright binding calls are not considered durable merely because the binding is re-exposed after navigation; an in-flight call can race document teardown.
 - For anchors and form submit controls with cancelable browser default actions, the presenter temporarily prevents that default action, awaits DAP's validation binding acknowledgement, then replays the native navigation/submission action.
 - Application event handlers are not replaced by DAP. This mechanism only gates cancelable browser default behavior and does not tailor the target application.
+
+
+## Validated full 53-Step Web Guide baseline — 2026-10-01
+- Fast E2E now completes the full persisted 53-Step TestCRM Guide and all ten representative PeopleSoft-style scenarios.
+- Verified terminal result: `PASS: representative Customer -> Site -> Case -> Lead workflow, including dynamic Lead deletion and Case deletion, completed.`
+- Fast mode exposed a production lifecycle defect when the same live DOM element was reused by later Guide Steps. Validation listeners were previously effectively element-owned and could retain the earlier Step ID.
+- Concrete evidence: Step 16 (`testcrm-case-closed`) initially reported completion for Step 13 (`testcrm-case-in-progress`), and Step 21 (`testcrm-save-closed-case`) reported completion for Step 18 (`testcrm-attempt-close-save`).
+- WebBubblePresenter now treats both value-validation and click-validation handlers as Step-owned lifecycle state: when a reused target is presented for a later Step, the previous handler is removed and a handler bound to the active Step is installed.
+- This is a generic Web Runtime fix, not a TestCRM workaround. No target-application behavior or business data was changed.
+- Guide lifecycle diagnostics remain available in E2E timeout output through `[DAP guide]`, `[DAP validation]`, `[DAP bubble]`, and `[DAP runtime]` lines.
+- Current regression baseline: the full 53-Step Fast E2E must remain passing.
