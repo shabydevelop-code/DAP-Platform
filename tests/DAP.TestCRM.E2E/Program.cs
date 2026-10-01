@@ -30,12 +30,24 @@ var dapCdpPort = ReserveTcpPort();
 StartupMark("CDP port reserved");
 using var playwright = await Playwright.CreateAsync();
 StartupMark("Playwright created");
+
+var e2eBrowser = Environment.GetEnvironmentVariable("DAP_E2E_BROWSER")?.Trim().ToLowerInvariant() ?? "chromium";
+var browserChannel = e2eBrowser switch
+{
+    "chrome" => "chrome",
+    "edge" => "msedge",
+    "chromium" => null,
+    _ => throw new ArgumentException(
+        $"Unsupported DAP_E2E_BROWSER '{e2eBrowser}'. Supported values: chromium, chrome, edge.")
+};
+
 await using var browser = await playwright.Chromium.LaunchAsync(new()
 {
+    Channel = browserChannel,
     Headless = false,
     Args = new[] { "--start-maximized", $"--remote-debugging-port={dapCdpPort}" }
 });
-StartupMark("Chromium launched");
+StartupMark($"{e2eBrowser} launched");
 var context = await browser.NewContextAsync(new() { ViewportSize = ViewportSize.NoViewport, ExtraHTTPHeaders = new Dictionary<string,string> { ["X-DAP-E2E-Mode"] = (Environment.GetEnvironmentVariable("DAP_E2E_MODE")?.Trim().ToLowerInvariant() ?? "fast") } });
 var page = await context.NewPageAsync();
 page.SetDefaultTimeout(5000);
