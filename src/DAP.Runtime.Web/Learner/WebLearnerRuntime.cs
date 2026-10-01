@@ -36,6 +36,8 @@ public sealed class WebLearnerRuntime
     private async Task<bool> IsStableForPresentationAsync(
         IPage page,
         GuideStep step,
+        int stepNumber,
+        int totalSteps,
         CancellationToken cancellationToken)
     {
         var resolution = await _bubbles.ResolveTargetAsync(page, step, cancellationToken);
@@ -142,7 +144,7 @@ public sealed class WebLearnerRuntime
                 }
 
                 var presentation = Stopwatch.StartNew();
-                var resolution = await _bubbles.EnsureShownAsync(page, step, cancellationToken);
+                var resolution = await _bubbles.EnsureShownAsync(page, step, stepNumber, totalSteps, cancellationToken);
 
                 if (resolution.Status == TargetResolutionStatus.Resolved
                     && resolution.Target is not null)
