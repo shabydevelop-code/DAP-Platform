@@ -157,6 +157,21 @@ public sealed class WebBubblePresenter
     if (b.ensureOnly && existing?.__dapTarget === el && existing?.dataset.dapStepId === b.stepId)
         return;
 
+    // A newly resolved Step can legitimately target an element below/above the
+    // current viewport. Bring the target into view before creating/placing its
+    // bubble. Do this only for a new presentation: reconciliation must not keep
+    // forcing the learner back if they intentionally scroll while the Step is active.
+    const initialRect = el.getBoundingClientRect();
+    const initiallyInViewport =
+        initialRect.width > 0 &&
+        initialRect.height > 0 &&
+        initialRect.bottom > 0 &&
+        initialRect.right > 0 &&
+        initialRect.top < root.defaultView.innerHeight &&
+        initialRect.left < root.defaultView.innerWidth;
+    if (!initiallyInViewport)
+        el.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'nearest' });
+
     existing?.__dapCleanup?.();
     existing?.remove();
     const previousHighlight = {
