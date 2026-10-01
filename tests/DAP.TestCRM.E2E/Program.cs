@@ -228,16 +228,20 @@ await WaitReady();
 StartupMark("TestCRM ready");
 
 // First real DAP Web bubble: persist -> reload -> resolve -> present.
+// The Case subject is unique per run so the later Cases-grid Step can identify
+// the exact business row without depending on a generated database id or row order.
+var runCaseSubject=$"תקלה בחיבור לאינטרנט E2E-{Guid.NewGuid():N}";
+var guideSteps=DapTestCrmGuideSeed.CreateSteps(runCaseSubject);
 var dapDbPath=Path.Combine(Path.GetTempPath(),"DAP.TestCRM.E2E",Guid.NewGuid()+".db");
 var dapFactory=new SqliteConnectionFactory(new SqliteDatabaseOptions(dapDbPath));
 await new SqliteDatabaseInitializer(dapFactory).InitializeAsync();
 var dapRepository=new SqliteGuideStepRepository(dapFactory);
-foreach(var guideStep in DapTestCrmGuideSeed.Steps)
+foreach(var guideStep in guideSteps)
     await dapRepository.SaveStepAsync(DapTestCrmGuideSeed.GuideId,guideStep);
 var dapSteps=await dapRepository.GetStepsAsync(DapTestCrmGuideSeed.GuideId);
 StartupMark("temporary DAP guide database seeded");
-if(dapSteps.Count!=DapTestCrmGuideSeed.Steps.Count)
-    throw new Exception($"Expected {DapTestCrmGuideSeed.Steps.Count} persisted DAP Steps, found {dapSteps.Count}.");
+if(dapSteps.Count!=guideSteps.Count)
+    throw new Exception($"Expected {guideSteps.Count} persisted DAP Steps, found {dapSteps.Count}.");
 var dapStep=dapSteps[0];
 var dapSecondStep=dapSteps[1];
 
@@ -480,7 +484,7 @@ await Click("button.primary:has-text('פניה חדשה')");
 await WaitReady();
 
 await WaitForGuideStep(8);
-await Fill("[name='subject']","תקלה בחיבור לאינטרנט");
+await Fill("[name='subject']",runCaseSubject);
 
 await WaitForGuideStep(9);
 await Fill("[name='description']","הלקוח מדווח על חיבור לא יציב.");
@@ -520,7 +524,7 @@ for(var rowIndex=0;rowIndex<await step12CaseRows.CountAsync();rowIndex++)
     Console.WriteLine($"[Step 12 diagnostic] row {rowIndex}: text=[{rowText}] open=[{string.Join(", ",openTargets)}]");
 }
 Console.WriteLine($"[Step 12 diagnostic] exact created Case button count: {await frame.Locator($"button.grid-open[data-go='#/case/{createdCaseId}']").CountAsync()}");
-Console.WriteLine($"[Step 12 diagnostic] subject-scoped Guide target count: {await frame.Locator("tr:has-text('תקלה בחיבור לאינטרנט') button.grid-open").CountAsync()}");
+Console.WriteLine($"[Step 12 diagnostic] subject-scoped Guide target count: {await frame.Locator($"tr:has-text('{runCaseSubject}') button.grid-open").CountAsync()}");
 
 await WaitForGuideStep(12);
 // The E2E clicks the exact Case created in this run so its data assertion remains deterministic.
