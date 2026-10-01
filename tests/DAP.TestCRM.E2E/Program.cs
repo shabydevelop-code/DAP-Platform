@@ -537,10 +537,10 @@ Console.WriteLine("DAP complete customer -> Case treatment Guide segment: PASS")
 // 4. Real off-screen target / scrolling through activity history.
 // Step 15 is deliberately off-screen: the production presenter keeps its bubble
 // hidden until the target enters the viewport, while the learner scrolls to it.
-await WaitForGuideStep(15);
 frame=await Content();
 var more=frame.Locator("#activity-more");
 await HumanScrollTo(more);
+await WaitForGuideStep(15);
 await MoveTo(more);
 await more.ClickAsync();
 
