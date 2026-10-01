@@ -230,7 +230,7 @@ if(!File.Exists(dapAppProject))
 
 // Build into an E2E-owned output directory. A DAP process orphaned by an
 // interrupted earlier run can then only lock its own old output, never this run.
-var dapBuildOutput=Path.Combine(Path.GetTempPath(),"DAP","E2E","app",Guid.NewGuid().ToString("N"));
+var dapBuildOutput=Path.Combine(Path.GetTempPath(),"DAP","E2E","app");
 Directory.CreateDirectory(dapBuildOutput);
 
 // Build is deliberately outside the measured DAP startup path. The product
@@ -698,10 +698,5 @@ await page.WaitForTimeoutAsync(visualMode ? 1500 : 0);
 finally
 {
     KillOwnedDapProcess();
-    try
-    {
-        Directory.Delete(dapBuildOutput,recursive:true);
-    }
-    catch(IOException) { }
-    catch(UnauthorizedAccessException) { }
+
 }
