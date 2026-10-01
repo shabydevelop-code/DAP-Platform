@@ -9,6 +9,9 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 $testCrmProject = Join-Path $repoRoot "test-apps\DAP.TestCRM\DAP.TestCRM.csproj"
 $dapProject = Join-Path $repoRoot "src\DAP.App\DAP.App.csproj"
 $testCrmUrl = "http://localhost:5200"
+$manualOutputRoot = Join-Path $env:TEMP "DAP\ManualLearner"
+$testCrmOutput = Join-Path $manualOutputRoot "TestCRM"
+$testCrmExe = Join-Path $testCrmOutput "DAP.TestCRM.exe"
 
 function Get-FreeTcpPort {
     $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 0)
@@ -63,8 +66,17 @@ $browserProcess = $null
 $dap = $null
 
 try {
+    # Build TestCRM into a Manual-Learner-owned output. Never execute it from
+    # the project's normal bin\Debug directory: an interrupted prior manual run
+    # must not lock normal development builds.
+    New-Item -ItemType Directory -Force -Path $testCrmOutput | Out-Null
+    Write-Host "Building TestCRM for manual learner run..."
+    & dotnet build $testCrmProject --nologo --verbosity quiet --output $testCrmOutput
+    if ($LASTEXITCODE -ne 0) { throw "TestCRM build failed." }
+    if (-not (Test-Path $testCrmExe)) { throw "TestCRM executable not found: $testCrmExe" }
+
     Write-Host "Starting TestCRM..."
-    $crm = Start-Process dotnet -ArgumentList @("run", "--project", $testCrmProject, "--no-launch-profile") -PassThru
+    $crm = Start-Process $testCrmExe -WorkingDirectory $testCrmOutput -PassThru
 
     $deadline = (Get-Date).AddSeconds(30)
     $ready = $false
