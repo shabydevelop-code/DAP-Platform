@@ -437,3 +437,10 @@ Web `clicked` validation no longer stores completion in the guided application's
 - Visual mode preserves the demonstration-oriented cursor/typing behavior and TestCRM artificial server-processing delay, while the same production Learner Web Runtime, persisted Guide, readiness rules, target re-resolution, validation, and bubble lifecycle remain active.
 - Together with the fast-mode regression runs, Chrome and Edge are now validated in both fast and visual execution modes; Chromium remains validated in fast mode on the current code baseline.
 
+## Learner Web Runtime baseline complete — 2026-10-01
+
+- The current Learner Web Runtime baseline is considered complete for this phase. The validated baseline is the persisted 53-Step TestCRM Guide, covering representative PeopleSoft/CRM behavior, with fast-mode PASS on Chromium, Chrome, and Edge and visual-mode PASS on Chrome and Edge.
+- Remaining Web topics are intentionally separated from this baseline: future Instructor/Editor Target Capture semantics, author intent for repeated/Grid elements, and learner-facing handling of a Step whose target never becomes available.
+- No permanent Learner dashboard is currently planned. The intended learner flow is external organizational launch/shortcut -> specific Guide -> Learner Runtime -> in-application bubbles -> completion. Organizations may own Guide/icon distribution and authorization through their existing mechanisms.
+- No generic between-Step loading/progress GUI is currently planned. After a learner action, the bubble may disappear while the Runtime silently re-resolves the next target; the next bubble appears when its target is available. This avoids competing with the target application's own loading/status UI.
+- A missing target is not, by itself, proof of Guide failure. Enterprise applications may legitimately take a variable time to produce the next screen or element. The Runtime must not skip to a different target or infer a substitute merely because the intended target is currently NotFound.
