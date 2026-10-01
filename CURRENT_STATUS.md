@@ -9,14 +9,14 @@ Active E2E validation and stabilization of the permanent DAP.TestCRM PeopleSoft-
 ## Current E2E baseline
 
 - `tests/DAP.TestCRM.E2E/Program.cs` contains the representative Customer -> Site -> Case -> Lead workflow.
-- The workflow currently passes end-to-end, including seven validated business-facing scenarios, dynamic Lead deletion, and Case deletion.
+- The workflow currently passes end-to-end, including eight validated business-facing scenarios, dynamic Lead deletion, and Case deletion.
 - Playwright default timeout is 5 seconds for the E2E runner.
 - E2E execution supports two modes through `DAP_E2E_MODE`:
   - `fast` (default): skips artificial human/visual delays and TestCRM's artificial server-thinking delay.
   - `visual`: preserves cursor movement, typing delays, processing feedback, and artificial server delay for demonstration.
 - Real readiness conditions remain active in both modes. The E2E does not replace actual server/DOM/frame readiness with fixed sleeps.
 - PeopleSoft-style Content iframe replacement is handled by re-resolving the active frame and waiting for real route readiness.
-- Scenario coverage now includes Case FieldChange + iframe replacement, server validation with unsaved-value preservation, Grid rerender/reorder + target re-resolution, Content-document reload with preserved Case context, CRM tab switching with preserved business context, conditional target disappearance/reappearance with re-resolution, and cross-frame Header-to-Content navigation.
+- Scenario coverage now includes Case FieldChange + iframe replacement, server validation with unsaved-value preservation, Grid rerender/reorder + target re-resolution, Content-document reload with preserved Case context, CRM tab switching with preserved business context, conditional target disappearance/reappearance with re-resolution, cross-frame Header-to-Content navigation, and Layout Shift + target re-resolution.
 - The E2E scenarios use real UI/application behavior; no TestCRM-specific route-persistence workaround is used for the validated baseline.
 - The permanent TestCRM server still exposes the `מעבד...` activity indicator and artificial server delay in normal/visual behavior; the E2E fast mode bypasses those artificial delays only for test execution.
 - Frame polling remains 100ms.
