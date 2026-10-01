@@ -17,5 +17,5 @@ public static class DapTestCrmGuideSeed
         new BubbleDefinition("הקלד את שם הלקוח", BubblePlacement.Bottom),
         new ValidationDefinition("value-not-empty"),
         StepAdvanceMode.AutomaticOnValidation,
-        new StepContextDefinition("url-fragment-equals", "#/"));
+        new StepContextDefinition("css-exists", "#customer-search"));
 }
