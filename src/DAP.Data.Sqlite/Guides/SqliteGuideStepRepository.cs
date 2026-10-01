@@ -23,7 +23,7 @@ public sealed class SqliteGuideStepRepository : IGuideStepRepository
         {
             command.CommandText = """
 SELECT Id, StepOrder, AdvanceMode, Runtime, LocatorStrategy, LocatorValue, FrameContextJson,
-       BubbleContent, BubblePlacement, ValidationKind, ValidationExpectedValue, ValidationOptionsJson
+       ContextKind, ContextValue, BubbleContent, BubblePlacement, ValidationKind, ValidationExpectedValue, ValidationOptionsJson
 FROM GuideSteps WHERE GuideId = $guideId ORDER BY StepOrder;
 """;
             command.Parameters.AddWithValue("$guideId", guideId);
@@ -56,12 +56,12 @@ FROM GuideSteps WHERE GuideId = $guideId ORDER BY StepOrder;
         {
             command.Transaction = (SqliteTransaction)transaction;
             command.CommandText = """
-INSERT INTO GuideSteps(Id,GuideId,StepOrder,AdvanceMode,Runtime,LocatorStrategy,LocatorValue,FrameContextJson,
+INSERT INTO GuideSteps(Id,GuideId,StepOrder,AdvanceMode,Runtime,LocatorStrategy,LocatorValue,FrameContextJson,ContextKind,ContextValue,
  BubbleContent,BubblePlacement,ValidationKind,ValidationExpectedValue,ValidationOptionsJson)
-VALUES($id,$guideId,$order,$advance,$runtime,$strategy,$value,$frame,$content,$placement,$validation,$expected,$options)
+VALUES($id,$guideId,$order,$advance,$runtime,$strategy,$value,$frame,$contextKind,$contextValue,$content,$placement,$validation,$expected,$options)
 ON CONFLICT(Id) DO UPDATE SET GuideId=excluded.GuideId, StepOrder=excluded.StepOrder, AdvanceMode=excluded.AdvanceMode,
  Runtime=excluded.Runtime, LocatorStrategy=excluded.LocatorStrategy, LocatorValue=excluded.LocatorValue,
- FrameContextJson=excluded.FrameContextJson, BubbleContent=excluded.BubbleContent, BubblePlacement=excluded.BubblePlacement,
+ FrameContextJson=excluded.FrameContextJson, ContextKind=excluded.ContextKind, ContextValue=excluded.ContextValue, BubbleContent=excluded.BubbleContent, BubblePlacement=excluded.BubblePlacement,
  ValidationKind=excluded.ValidationKind, ValidationExpectedValue=excluded.ValidationExpectedValue,
  ValidationOptionsJson=excluded.ValidationOptionsJson;
 """;
@@ -69,6 +69,7 @@ ON CONFLICT(Id) DO UPDATE SET GuideId=excluded.GuideId, StepOrder=excluded.StepO
             Add(command,"$advance",step.AdvanceMode.ToString()); Add(command,"$runtime",step.Target?.Runtime.ToString());
             Add(command,"$strategy",step.Target?.Locator.Strategy); Add(command,"$value",step.Target?.Locator.Value);
             Add(command,"$frame",step.Target?.FrameContext is null ? null : JsonSerializer.Serialize(step.Target.FrameContext.Path));
+            Add(command,"$contextKind",step.Context?.Kind); Add(command,"$contextValue",step.Context?.Value);
             Add(command,"$content",step.Bubble.Content); Add(command,"$placement",step.Bubble.Placement.ToString());
             Add(command,"$validation",step.Validation?.Kind); Add(command,"$expected",step.Validation?.ExpectedValue);
             Add(command,"$options",step.Validation?.Options is null ? null : JsonSerializer.Serialize(step.Validation.Options));
@@ -99,7 +100,7 @@ ON CONFLICT(Id) DO UPDATE SET GuideId=excluded.GuideId, StepOrder=excluded.StepO
     private static void Add(SqliteCommand c,string name,object? value)=>c.Parameters.AddWithValue(name,value??DBNull.Value);
 
     private static StepRow ReadStep(SqliteDataReader r)=>new(
-        r.GetString(0),r.GetInt32(1),r.GetString(2),N(r,3),N(r,4),N(r,5),N(r,6),r.GetString(7),r.GetString(8),N(r,9),N(r,10),N(r,11));
+        r.GetString(0),r.GetInt32(1),r.GetString(2),N(r,3),N(r,4),N(r,5),N(r,6),N(r,7),N(r,8),r.GetString(9),r.GetString(10),N(r,11),N(r,12),N(r,13));
     private static string? N(SqliteDataReader r,int i)=>r.IsDBNull(i)?null:r.GetString(i);
 
     private static async Task<GuideStep> MaterializeAsync(SqliteConnection connection,StepRow row,CancellationToken ct)
@@ -117,8 +118,9 @@ ON CONFLICT(Id) DO UPDATE SET GuideId=excluded.GuideId, StepOrder=excluded.StepO
             target=new TargetDescriptor(Enum.Parse<TargetRuntime>(row.Runtime),new Locator(row.Strategy,row.Value),anchors,framePath is null?null:new FrameContext(framePath));
         }
         var validation=row.ValidationKind is null?null:new ValidationDefinition(row.ValidationKind,row.Expected,row.OptionsJson is null?null:JsonSerializer.Deserialize<Dictionary<string,string>>(row.OptionsJson));
-        return new GuideStep(row.Id,row.Order,target,new BubbleDefinition(row.BubbleContent,Enum.Parse<BubblePlacement>(row.Placement)),validation,Enum.Parse<StepAdvanceMode>(row.AdvanceMode));
+        var context=row.ContextKind is null || row.ContextValue is null ? null : new StepContextDefinition(row.ContextKind,row.ContextValue);
+        return new GuideStep(row.Id,row.Order,target,new BubbleDefinition(row.BubbleContent,Enum.Parse<BubblePlacement>(row.Placement)),validation,Enum.Parse<StepAdvanceMode>(row.AdvanceMode),context);
     }
 
-    private sealed record StepRow(string Id,int Order,string AdvanceMode,string? Runtime,string? Strategy,string? Value,string? FrameJson,string BubbleContent,string Placement,string? ValidationKind,string? Expected,string? OptionsJson);
+    private sealed record StepRow(string Id,int Order,string AdvanceMode,string? Runtime,string? Strategy,string? Value,string? FrameJson,string? ContextKind,string? ContextValue,string BubbleContent,string Placement,string? ValidationKind,string? Expected,string? OptionsJson);
 }
