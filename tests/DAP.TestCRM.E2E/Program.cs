@@ -29,7 +29,7 @@ await page.AddInitScriptAsync(@"(() => {
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',install); else install();
 })()");
 
-await page.AddInitScriptAsync("document.documentElement.dataset.dapE2eMode = '" + e2eMode + "'");
+await page.AddInitScriptAsync("localStorage.setItem('dap-e2e-mode', '" + e2eMode + "'); document.documentElement.dataset.dapE2eMode = '" + e2eMode + "';");
 
 async Task<IFrame> Content()
 {
