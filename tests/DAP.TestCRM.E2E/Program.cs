@@ -71,9 +71,9 @@ async Task<IFrame> Content()
     // Re-query the current DOM iframe on every attempt. A locator/element handle
     // captured before a PeopleSoft-style reload/replacement can point at a
     // retiring frame and must never be treated as the active content context.
-    // Fast mode fails quickly on a missing production transition; visual/demo
-    // mode keeps the longer observation window for human-paced presentation.
-    var attempts=fastMode ? 50 : 300;
+    // Guide-step timeout detects a technical transition failure. Human-paced
+    // visual/demo timing is handled separately by HumanPause.
+    const int attempts=50;
     for(var i=0;i<attempts;i++)
     {
         try
