@@ -34,19 +34,14 @@ public sealed class WebBubblePresenter
     const existing = root.getElementById('dap-guide-bubble');
     existing?.__dapCleanup?.();
     existing?.remove();
-    root.getElementById('dap-target-highlight')?.remove();
-
-    const highlight = root.createElement('div');
-    highlight.id = 'dap-target-highlight';
-    highlight.setAttribute('aria-hidden', 'true');
-    Object.assign(highlight.style, {
-        position: 'fixed',
-        zIndex: '2147483645',
-        pointerEvents: 'none',
-        boxSizing: 'border-box',
-        border: b.theme.targetHighlightWidth + 'px solid ' + b.theme.targetHighlightColor,
-        boxShadow: b.theme.targetHighlightShadow
-    });
+    const previousHighlight = {
+        outline: el.style.outline,
+        outlineOffset: el.style.outlineOffset,
+        boxShadow: el.style.boxShadow
+    };
+    el.style.outline = b.theme.targetHighlightWidth + 'px solid ' + b.theme.targetHighlightColor;
+    el.style.outlineOffset = '0px';
+    el.style.boxShadow = b.theme.targetHighlightShadow;
 
     const bubble = root.createElement('div');
     bubble.id = 'dap-guide-bubble';
@@ -83,7 +78,6 @@ public sealed class WebBubblePresenter
         direction: b.theme.direction
     });
 
-    root.body.appendChild(highlight);
     root.body.appendChild(bubble);
 
     const placePointer = (side) => {
@@ -124,15 +118,6 @@ public sealed class WebBubblePresenter
     const place = () => {
         const r = el.getBoundingClientRect();
         const q = bubble.getBoundingClientRect();
-        const targetStyle = root.defaultView.getComputedStyle(el);
-        Object.assign(highlight.style, {
-            left: r.left + 'px',
-            top: r.top + 'px',
-            width: r.width + 'px',
-            height: r.height + 'px',
-            borderRadius: targetStyle.borderRadius
-        });
-
         const gap = b.theme.pointerSize + 8;
         let side = b.placement === 'Auto' ? 'Bottom' : b.placement;
         let x;
@@ -181,7 +166,9 @@ public sealed class WebBubblePresenter
         ro.disconnect();
         root.defaultView.removeEventListener('scroll', place, true);
         root.defaultView.removeEventListener('resize', place);
-        highlight.remove();
+        el.style.outline = previousHighlight.outline;
+        el.style.outlineOffset = previousHighlight.outlineOffset;
+        el.style.boxShadow = previousHighlight.boxShadow;
     };
 }
 """;
@@ -225,7 +212,6 @@ public sealed class WebBubblePresenter
         bubble.__dapCleanup?.();
         bubble.remove();
     }
-    document.getElementById('dap-target-highlight')?.remove();
 }
 """;
 
