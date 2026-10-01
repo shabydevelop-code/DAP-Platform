@@ -216,3 +216,10 @@ Web `clicked` validation no longer stores completion in the guided application's
 - The temporary Step 12 row-by-row Playwright diagnostics were removed after identifying the ambiguity; they must not remain in the visual E2E because the repeated cross-process DOM calls noticeably degrade demo responsiveness.
 - A separate visual defect was confirmed in the presenter path: a newly appended bubble could paint once before `place()` assigned coordinates, appearing briefly at the top-left.
 - New Web bubbles now start with `visibility:hidden` and become visible only after placement and pointer calculation complete.
+
+
+## Visual Guide pacing
+- Verified that Step 14 (`testcrm-resolution-notes`) was not skipped: `WaitForGuideStep(14)` only returns after the exact Step 14 bubble text exists in the live Content frame.
+- The visual harness previously began `Fill()` immediately after observing a new bubble, making short-lived instructions difficult to perceive before cursor movement/scrolling started.
+- In visual mode, `WaitForGuideStep` now gives every newly observed Guide instruction a 500 ms presentation beat before the learner action begins. Fast mode is unchanged.
+- This is E2E presentation pacing, not a production Learner Runtime delay.
