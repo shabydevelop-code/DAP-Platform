@@ -1,7 +1,9 @@
 param(
     [ValidateSet("chrome", "edge")]
     [string]$Browser = "chrome",
-    [string]$GuideId = "testcrm-create-case"
+    [string]$GuideId = "testcrm-create-case",
+    [ValidateRange(1, 2147483647)]
+    [int]$StartStep = 1
 )
 
 $ErrorActionPreference = "Stop"
@@ -124,17 +126,23 @@ try {
     Write-Host "Manual learner run started."
     Write-Host "Guide: $GuideId"
     Write-Host "Browser: $Browser"
+    Write-Host "Start step: $StartStep"
     Write-Host "Perform every learner action yourself in the browser."
     Write-Host "Close DAP or press Ctrl+C here to stop."
     Write-Host ""
 
-    $dap = Start-Process dotnet -ArgumentList @(
+    $dapArgs = @(
         "run", "--project", $dapProject, "--",
         "--learner-web", $GuideId,
         "--cdp", $cdpEndpoint,
         "--page-url-contains", "localhost:5200",
         "--show-completion"
-    ) -PassThru -NoNewWindow
+    )
+    if ($StartStep -gt 1) {
+        $dapArgs += @("--start-step", [string]$StartStep)
+    }
+
+    $dap = Start-Process dotnet -ArgumentList $dapArgs -PassThru -NoNewWindow
 
     # Do not block in Process.WaitForExit(): a blocking .NET call prevents
     # PowerShell from handling Ctrl+C promptly and therefore delays finally.
