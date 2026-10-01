@@ -228,10 +228,7 @@ await WaitReady();
 StartupMark("TestCRM ready");
 
 // First real DAP Web bubble: persist -> reload -> resolve -> present.
-// The Case subject is unique per run so the later Cases-grid Step can identify
-// the exact business row without depending on a generated database id or row order.
-var runCaseSubject=$"תקלה בחיבור לאינטרנט E2E-{Guid.NewGuid():N}";
-var guideSteps=DapTestCrmGuideSeed.CreateSteps(runCaseSubject);
+var guideSteps=DapTestCrmGuideSeed.CreateSteps();
 var dapDbPath=Path.Combine(Path.GetTempPath(),"DAP.TestCRM.E2E",Guid.NewGuid()+".db");
 var dapFactory=new SqliteConnectionFactory(new SqliteDatabaseOptions(dapDbPath));
 await new SqliteDatabaseInitializer(dapFactory).InitializeAsync();
@@ -490,7 +487,7 @@ await Click("button.primary:has-text('פניה חדשה')");
 await WaitReady();
 
 await WaitForGuideStep(8);
-await Fill("[name='subject']",runCaseSubject);
+await Fill("[name=\'subject\']","\u05ea\u05e7\u05dc\u05d4 \u05d1\u05d7\u05d9\u05d1\u05d5\u05e8 \u05dc\u05d0\u05d9\u05e0\u05d8\u05e8\u05e0\u05d8");
 
 await WaitForGuideStep(9);
 await Fill("[name='description']","הלקוח מדווח על חיבור לא יציב.");
