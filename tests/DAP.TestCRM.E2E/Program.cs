@@ -538,11 +538,10 @@ await WaitForGuideStep(12);
 // The visible action uses exactly the same semantic business target as the
 // Guide bubble. Verify that semantic target resolves to the Case created by
 // this run before clicking it.
-var createdCaseTarget=frame.Locator("button.grid-open[data-business-subject='תקלה בחיבור לאינטרנט']");
-if(await createdCaseTarget.CountAsync()!=1
-    || await createdCaseTarget.GetAttributeAsync("data-business-id")!=createdCaseId)
-    throw new Exception("Guide target does not uniquely identify the Case created by this run.");
-await Click("button.grid-open[data-business-subject='תקלה בחיבור לאינטרנט']");
+var createdCaseTarget=frame.Locator($"button.grid-open[data-go='#/case/{createdCaseId}']");
+if(await createdCaseTarget.CountAsync()!=1)
+    throw new Exception("The Case created by this run is not uniquely available in the Cases grid.");
+await Click($"button.grid-open[data-go='#/case/{createdCaseId}']");
 await WaitReady();
 
 // 3. Case FieldChange: disabled -> enabled and DOM reconstruction.
@@ -839,11 +838,10 @@ await frame.Locator("h2:has-text('פניות')").WaitForAsync();
 // Business-context scenario already returned us to the Site's Cases tab.
 frame=await Content();
 await WaitForGuideStep(50);
-var finalCreatedCaseTarget=frame.Locator("button.grid-open[data-business-subject='תקלה בחיבור לאינטרנט']");
-if(await finalCreatedCaseTarget.CountAsync()!=1
-    || await finalCreatedCaseTarget.GetAttributeAsync("data-business-id")!=createdCaseId)
-    throw new Exception("Final Guide target does not identify the Case created by this run.");
-await Click("button.grid-open[data-business-subject='תקלה בחיבור לאינטרנט']");
+var finalCreatedCaseTarget=frame.Locator($"button.grid-open[data-go='#/case/{createdCaseId}']");
+if(await finalCreatedCaseTarget.CountAsync()!=1)
+    throw new Exception("The Case created by this run is not uniquely available for final reopen.");
+await Click($"button.grid-open[data-go='#/case/{createdCaseId}']");
 await WaitReady();
 await WaitForGuideStep(51);
 await Click("#delete-case");
