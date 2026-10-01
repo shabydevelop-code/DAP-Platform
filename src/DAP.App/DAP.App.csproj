@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>DAP</AssemblyName>
+    <RootNamespace>DAP.App</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../DAP.Core/DAP.Core.csproj" />
+    <ProjectReference Include="../DAP.Data/DAP.Data.csproj" />
+    <ProjectReference Include="../DAP.Data.Sqlite/DAP.Data.Sqlite.csproj" />
+    <ProjectReference Include="../DAP.Runtime.Web/DAP.Runtime.Web.csproj" />
+  </ItemGroup>
+</Project>
