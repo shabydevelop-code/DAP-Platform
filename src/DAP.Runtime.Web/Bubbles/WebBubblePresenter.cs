@@ -431,21 +431,19 @@ public sealed class WebBubblePresenter
                 .sort((a, b) => a.overflow - b.overflow);
             chosen = safe[0];
         }
-        // A non-overlapping candidate is useful only when the complete bubble
-        // is actually visible in this document's viewport. A child frame clips
-        // its document at the iframe boundary even when CSS overflow is visible.
-        // Therefore an overflowing candidate must never be exposed as if it
-        // were a valid placement.
-        if (chosen && !chosen.inside)
-            chosen = null;
-
         if (!chosen) {
-            // This document cannot physically contain the bubble. Keep it
-            // hidden instead of placing it outside a child-frame viewport.
-            // The presenter will promote it to the top-level document below.
-            bubble.dataset.actualPlacement = 'NeedsTopLevel';
+            // A small iframe can be physically too small to place a bubble
+            // beside its target. Preserve the established fallback/lifecycle;
+            // cross-frame promotion is handled separately after presentation.
+            const x = Math.max(margin, (viewportWidth - q.width) / 2);
+            const y = Math.max(margin, (viewportHeight - q.height) / 2);
+            bubble.style.left = Math.min(x, Math.max(margin, viewportWidth - q.width - margin)) + 'px';
+            bubble.style.top = Math.min(y, Math.max(margin, viewportHeight - q.height - margin)) + 'px';
+            bubble.dataset.actualPlacement = 'Overlay';
             bubble.style.pointerEvents = 'none';
+            bubble.style.cursor = 'default';
             pointer.style.display = 'none';
+            bubble.style.visibility = 'visible';
             return;
         }
 
@@ -518,7 +516,14 @@ public sealed class WebBubblePresenter
         // presentation-only and uses page coordinates derived through the
         // iframe chain.
         var needsTopLevel = await resolution.Target.EvaluateAsync<bool>(
-            "el => document.getElementById('dap-guide-bubble')?.dataset.actualPlacement === 'NeedsTopLevel'");
+            @"el => {
+                if (window === window.top) return false;
+                const bubble=document.getElementById('dap-guide-bubble');
+                if (!bubble || bubble.dataset.dapStepId !== el.ownerDocument.getElementById('dap-guide-bubble')?.dataset.dapStepId)
+                    return false;
+                const q=bubble.getBoundingClientRect();
+                return q.left < 0 || q.top < 0 || q.right > innerWidth || q.bottom > innerHeight;
+            }");
         if (needsTopLevel)
         {
             var targetBox = await resolution.Target.BoundingBoxAsync();
