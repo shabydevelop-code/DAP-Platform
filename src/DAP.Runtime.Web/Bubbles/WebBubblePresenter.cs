@@ -637,7 +637,7 @@ public sealed class WebBubblePresenter
             ? Task.FromResult(TargetResolution<ILocator>.NotFound())
             : _targets.ResolveAsync(page, step.Target, cancellationToken);
 
-    public async Task ShowGuideCompletedAsync(IPage page, CancellationToken cancellationToken = default)
+    public async Task WaitForGuideCompletedDismissalAsync(IPage page, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         await HideAsync(page);
@@ -648,7 +648,20 @@ public sealed class WebBubblePresenter
                 const bubble=document.createElement('div');
                 bubble.id='dap-guide-completed';
                 bubble.setAttribute('role','status');
-                bubble.textContent='המדריך הושלם בהצלחה';
+                const message=document.createElement('div');
+                message.textContent='המדריך הושלם בהצלחה';
+                bubble.appendChild(message);
+                const finishButton=document.createElement('button');
+                finishButton.type='button';
+                finishButton.textContent='סיום';
+                finishButton.dataset.dapGuideFinish='1';
+                Object.assign(finishButton.style,{
+                    marginTop:'12px',padding:'6px 18px',cursor:'pointer',
+                    font:'inherit',borderRadius:'6px',
+                    border:b.borderWidth+'px solid '+b.borderColor,
+                    background:b.textColor,color:b.backgroundColor
+                });
+                bubble.appendChild(finishButton);
                 Object.assign(bubble.style,{
                     position:'fixed',zIndex:'2147483647',left:'50%',top:'24px',
                     transform:'translateX(-50%)',maxWidth:b.maxWidth+'px',
@@ -670,7 +683,7 @@ public sealed class WebBubblePresenter
                     };
                 };
                 bubble.addEventListener('pointerdown',event=>{
-                    if(event.button!==0) return;
+                    if(event.button!==0 || event.target.closest('button')) return;
                     const q=bubble.getBoundingClientRect();
                     drag={id:event.pointerId,x:event.clientX,y:event.clientY,left:q.left,top:q.top};
                     bubble.style.transform='none';
@@ -694,7 +707,10 @@ public sealed class WebBubblePresenter
                 };
                 bubble.addEventListener('pointerup',finish);
                 bubble.addEventListener('pointercancel',finish);
-                bubble.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();});
+                bubble.addEventListener('click',event=>{
+                    if(event.target===finishButton) return;
+                    event.preventDefault();event.stopPropagation();
+                });
             }",
             new {
                 maxWidth = _theme.MaxWidth,
@@ -710,6 +726,10 @@ public sealed class WebBubblePresenter
                 lineHeight = _theme.LineHeight,
                 direction = _theme.Direction
             });
+
+        var finishButton = page.MainFrame.Locator("#dap-guide-completed [data-dap-guide-finish='1']");
+        await finishButton.ClickAsync(new LocatorClickOptions { Timeout = 0 });
+        await page.MainFrame.EvaluateAsync("() => document.getElementById('dap-guide-completed')?.remove()");
     }
 
     public async Task HideAsync(IPage page)
