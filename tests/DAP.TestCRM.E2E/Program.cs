@@ -185,6 +185,7 @@ Console.WriteLine("Scenario 5: CRM tab switching + business context preservation
 Console.WriteLine("Scenario 6: Conditional target disappearance/reappearance + re-resolution");
 Console.WriteLine("Scenario 7: Cross-frame navigation from Header to Content");
 Console.WriteLine("Scenario 8: Layout shift + target re-resolution");
+Console.WriteLine("Scenario 9: Consecutive server updates + final-state re-resolution");
 await page.GotoAsync(baseUrl);
 await WaitReady();
 
@@ -412,6 +413,24 @@ if(Math.Abs(afterBox.Y-beforeBox.Y)<1)
     throw new Exception("Expected the dependent field to move the Delete Lead target, but its position did not change.");
 await MoveTo(deleteTarget);
 await deleteTarget.WaitForAsync();
+
+// 9. Consecutive server updates / race resilience.
+// Business scenario: an agent changes the same Lead status twice while the CRM is
+// rebuilding the dependent form. DAP must not retain the first update's Frame or
+// target and must settle on the final business state.
+await Select("[name='status']","חדש");
+frame=await Content();
+var statusTarget=frame.Locator("[name='status']");
+await statusTarget.SelectOptionAsync("נסגר בהצלחה");
+await WaitReady();
+frame=await Content();
+await frame.Locator("[name='status']").WaitForAsync();
+if(await frame.Locator("[name='status']").InputValueAsync()!="נסגר בהצלחה")
+    throw new Exception("Consecutive status updates did not settle on the final status.");
+await frame.Locator("[name='selectedService']").WaitForAsync();
+if(await frame.Locator("[name='selectedService']").CountAsync()!=1)
+    throw new Exception("Final status did not re-render the dependent business target.");
+await MoveTo(frame.Locator("[name='selectedService']"));
 
 // 10. Delete the Case created by this run through the real UI.
 // Layout Scenario 8 opens a Lead record, so return to the Site through the
