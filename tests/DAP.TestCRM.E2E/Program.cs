@@ -242,6 +242,8 @@ if(!dapProcess.Start())
 var dapStdOutTask=dapProcess.StandardOutput.ReadToEndAsync();
 var dapStdErrTask=dapProcess.StandardError.ReadToEndAsync();
 
+try
+{
 var dapContent=await Content();
 var dapBubble=dapContent.Locator("#dap-guide-bubble");
 var dapStartupDeadline=DateTime.UtcNow.AddSeconds(30);
@@ -615,11 +617,14 @@ if(!new Uri(frame.Url).Fragment.Equals("#/",StringComparison.Ordinal))
     throw new Exception("Header navigation did not return Content to the customer workspace.");
 await frame.Locator("h1:has-text('חיפוש לקוח')").WaitForAsync();
 
-if(!dapProcess.HasExited)
-{
-    dapProcess.Kill(entireProcessTree:true);
-    await dapProcess.WaitForExitAsync();
-}
-
 Console.WriteLine("PASS: representative Customer -> Site -> Case -> Lead workflow, including dynamic Lead deletion and Case deletion, completed.");
 await page.WaitForTimeoutAsync(visualMode ? 1500 : 0);
+}
+finally
+{
+    if(!dapProcess.HasExited)
+    {
+        dapProcess.Kill(entireProcessTree:true);
+        await dapProcess.WaitForExitAsync();
+    }
+}
