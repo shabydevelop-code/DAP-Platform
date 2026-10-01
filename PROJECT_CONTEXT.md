@@ -67,6 +67,17 @@ Project progress and architectural configuration are maintained in Markdown in t
 After significant implementation changes, update the relevant Markdown documentation in the same change.
 
 
+## Repository identity and test isolation
+
+- The canonical and only repository for this project is `shabydevelop-code/DAP-Platform` (`DAP-Platform`). Do not use or modify `Generic-Web-Training-Platform` when working on DAP Platform, including in a new chat/session.
+- Bubble behavior, target resolution, and their shared domain/runtime contracts are production product code and must remain isolated from the test projects.
+- Tests may consume public production contracts and verify behavior, but must not contain the production implementation of Bubble, TargetDescriptor, Locator, Anchor, FrameContext, Validation, or runtime resolution logic.
+- The Bubble/target model must support both Web and Windows through shared runtime-neutral Core contracts, with runtime-specific adapters behind those contracts.
+- Learner Runtime and Instructor Runtime are separate consumers/modes. Build the Learner Runtime first; Instructor/Editor support follows later.
+- SQLite is only the current persistence provider. Core models, including TargetDescriptor, must remain persistence-independent.
+- A target may require multiple anchors for unique identification. Ambiguous target resolution must return an explicit ambiguous result and must never guess or silently select the first candidate.
+- The current ten-scenario E2E baseline must remain passing while production bubble/runtime capabilities are introduced.
+
 ## Current E2E validation baseline
 
 The permanent DAP.TestCRM target is used to validate the Web Runtime against a PeopleSoft-style server-backed CRM model. The current validated E2E flow includes:
