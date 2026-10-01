@@ -7,5 +7,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Playwright" Version="1.55.0" />
+    <ProjectReference Include="../../src/DAP.Data.Sqlite/DAP.Data.Sqlite.csproj" />
+    <ProjectReference Include="../../src/DAP.Runtime.Web/DAP.Runtime.Web.csproj" />
   </ItemGroup>
 </Project>
