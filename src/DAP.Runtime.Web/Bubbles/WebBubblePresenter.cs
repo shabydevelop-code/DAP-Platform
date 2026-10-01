@@ -16,10 +16,23 @@ public sealed class WebBubblePresenter
         _theme = theme ?? WebBubbleTheme.Default;
     }
 
-    public async Task<TargetResolution<ILocator>> ShowAsync(
+    public Task<TargetResolution<ILocator>> ShowAsync(
         IPage page,
         GuideStep step,
         CancellationToken cancellationToken = default)
+        => PresentAsync(page, step, ensureOnly: false, cancellationToken);
+
+    public Task<TargetResolution<ILocator>> EnsureShownAsync(
+        IPage page,
+        GuideStep step,
+        CancellationToken cancellationToken = default)
+        => PresentAsync(page, step, ensureOnly: true, cancellationToken);
+
+    private async Task<TargetResolution<ILocator>> PresentAsync(
+        IPage page,
+        GuideStep step,
+        bool ensureOnly,
+        CancellationToken cancellationToken)
     {
         if (step.Target is null)
             return TargetResolution<ILocator>.NotFound();
@@ -32,6 +45,9 @@ public sealed class WebBubblePresenter
 (el, b) => {
     const root = el.ownerDocument;
     const existing = root.getElementById('dap-guide-bubble');
+    if (b.ensureOnly && existing?.__dapTarget === el && existing?.dataset.dapStepId === b.stepId)
+        return;
+
     existing?.__dapCleanup?.();
     existing?.remove();
     const previousHighlight = {
@@ -47,6 +63,8 @@ public sealed class WebBubblePresenter
     bubble.id = 'dap-guide-bubble';
     bubble.setAttribute('role', 'status');
     bubble.dataset.placement = b.placement;
+    bubble.dataset.dapStepId = b.stepId;
+    bubble.__dapTarget = el;
 
     const content = root.createElement('div');
     content.textContent = b.content;
@@ -179,6 +197,8 @@ public sealed class WebBubblePresenter
             {
                 content = step.Bubble.Content,
                 placement = step.Bubble.Placement.ToString(),
+                stepId = step.Id,
+                ensureOnly,
                 theme = new
                 {
                     backgroundColor = _theme.BackgroundColor,
