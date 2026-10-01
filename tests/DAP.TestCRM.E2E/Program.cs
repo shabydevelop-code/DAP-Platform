@@ -183,6 +183,7 @@ Console.WriteLine("Scenario 3: Grid rerender/reorder + target re-resolution");
 Console.WriteLine("Scenario 4: Full page reload + business context preservation");
 Console.WriteLine("Scenario 5: CRM tab switching + business context preservation");
 Console.WriteLine("Scenario 6: Conditional target disappearance/reappearance + re-resolution");
+Console.WriteLine("Scenario 7: Cross-frame navigation from Header to Content");
 await page.GotoAsync(baseUrl);
 await WaitReady();
 
@@ -385,6 +386,20 @@ frame=await Content();
 await frame.Locator("h2:has-text('פניות')").WaitForAsync();
 if(await frame.Locator($"button.grid-open[data-go='#/case/{createdCaseId}']").CountAsync()!=0)
     throw new Exception($"Deleted Case {createdCaseId} is still present in the Cases grid.");
+
+// 11. Cross-frame navigation: a user action in the Header frame changes the active
+// Content document. This is a real user-facing interaction and intentionally does not
+// call internal TestCRM navigation functions.
+var headerFrame=page.Frames.FirstOrDefault(x=>x.Name=="dap-header")
+    ?? throw new Exception("Header frame was not found.");
+var header=headerFrame.Locator("#portal-header");
+await MoveTo(header);
+await header.ClickAsync();
+await WaitReady();
+frame=await Content();
+if(!new Uri(frame.Url).Fragment.Equals("#/",StringComparison.Ordinal))
+    throw new Exception("Header navigation did not return Content to the customer workspace.");
+await frame.Locator("h2:has-text('לקוחות')").WaitForAsync();
 
 Console.WriteLine("PASS: representative Customer -> Site -> Case -> Lead workflow, including dynamic Lead deletion and Case deletion, completed.");
 await page.WaitForTimeoutAsync(visualMode ? 1500 : 0);
