@@ -46,6 +46,7 @@ var visualMode = e2eMode is "visual" or "demo";
 var fastMode = !visualMode;
 
 Console.WriteLine($"E2E mode: {(visualMode ? "visual" : "fast")}");
+if (visualMode)
 await page.AddInitScriptAsync(@"(() => {
   const install=()=>{
     if(window !== window.top) return;
@@ -578,11 +579,15 @@ await more.ClickAsync();
 // 5. Continue the guided business flow into Case closure.
 await WaitForGuideStep(16);
 await Select("[name='status']","סגורה");
+
+// The status change performs a real server-backed Content replacement. Wait
+// for the production Guide to observe the completed learner interaction and
+// present Step 17 before the harness performs any additional assertions.
+await WaitForGuideStep(17);
 frame=await Content();
 
 // Case status FieldChange intentionally clears Subject. The Guide explicitly
 // instructs the learner to restore it before closure.
-await WaitForGuideStep(17);
 await Fill("[name='subject']","תקלה בחיבור לאינטרנט");
 frame=await Content();
 await frame.Locator("[name='closeReason']").WaitForAsync();
