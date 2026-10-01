@@ -76,6 +76,20 @@ public sealed class WebBubblePresenter
     }
 
     const existing = root.getElementById('dap-guide-bubble');
+
+    // Never recreate presentation for a click Step whose event has already
+    // been captured. The runtime will consume the recorded validation state
+    // immediately after this ensure call.
+    if (b.validationKind === 'clicked'
+        && root.__dapValidationState?.stepId === b.stepId
+        && root.__dapValidationState?.clicked === true) {
+        if (existing?.dataset.dapStepId === b.stepId) {
+            existing.__dapCleanup?.();
+            existing.remove();
+        }
+        return;
+    }
+
     if (b.ensureOnly && existing?.__dapTarget === el && existing?.dataset.dapStepId === b.stepId)
         return;
 
