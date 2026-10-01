@@ -444,3 +444,13 @@ Web `clicked` validation no longer stores completion in the guided application's
 - No permanent Learner dashboard is currently planned. The intended learner flow is external organizational launch/shortcut -> specific Guide -> Learner Runtime -> in-application bubbles -> completion. Organizations may own Guide/icon distribution and authorization through their existing mechanisms.
 - No generic between-Step loading/progress GUI is currently planned. After a learner action, the bubble may disappear while the Runtime silently re-resolves the next target; the next bubble appears when its target is available. This avoids competing with the target application's own loading/status UI.
 - A missing target is not, by itself, proof of Guide failure. Enterprise applications may legitimately take a variable time to produce the next screen or element. The Runtime must not skip to a different target or infer a substitute merely because the intended target is currently NotFound.
+
+## Manual Learner Run — 2026-10-01
+
+- Added `scripts/run-testcrm-learner.ps1` for a real manual learner walkthrough of the persisted TestCRM Guide.
+- The launcher starts TestCRM, opens Chrome by default with an isolated temporary browser profile and CDP enabled, waits for the browser endpoint, and starts the production `DAP.App --learner-web testcrm-create-case` path against that browser.
+- The launcher performs no Guide actions. There is no E2E Click/Fill/Select automation in this mode; the human learner must perform every action and production validation drives all Step advancement.
+- The same persistent DAP database/Guide ownership rules apply. The launcher does not seed or rewrite the Guide.
+- Edge can be selected with `-Browser edge`; Chrome is the default.
+- Manual command from repository root: `powershell -ExecutionPolicy Bypass -File .\scripts\run-testcrm-learner.ps1`.
+
