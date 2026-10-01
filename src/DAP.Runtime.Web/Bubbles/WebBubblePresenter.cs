@@ -337,7 +337,7 @@ public sealed class WebBubblePresenter
     const onPointerDown = (event) => {
         // Preserve normal interaction if future bubble content contains an
         // actual interactive control.
-        if (event.button !== 0 || !event.target.closest('[data-dap-drag-handle="1"]'))
+        if (event.button !== 0 || !event.target.closest('[data-dap-drag-handle=""1""]'))
             return;
         const q = bubble.getBoundingClientRect();
         dragState = {
@@ -599,7 +599,7 @@ public sealed class WebBubblePresenter
                             };
                         };
                         bubble.addEventListener('pointerdown',event=>{
-                            if(event.button!==0 || !event.target.closest('[data-dap-drag-handle="1"]')) return;
+                            if(event.button!==0 || !event.target.closest('[data-dap-drag-handle=""1""]')) return;
                             const q=bubble.getBoundingClientRect();
                             drag={id:event.pointerId,x:event.clientX,y:event.clientY,left:q.left,top:q.top};
                             bubble.setPointerCapture(event.pointerId);
@@ -709,7 +709,7 @@ public sealed class WebBubblePresenter
                     };
                 };
                 bubble.addEventListener('pointerdown',event=>{
-                    if(event.button!==0 || !event.target.closest('[data-dap-drag-handle="1"]')) return;
+                    if(event.button!==0 || !event.target.closest('[data-dap-drag-handle=""1""]')) return;
                     const q=bubble.getBoundingClientRect();
                     drag={id:event.pointerId,x:event.clientX,y:event.clientY,left:q.left,top:q.top};
                     bubble.style.transform='none';
