@@ -108,7 +108,11 @@ public sealed class WebLearnerRuntime
                     // Click validation is itself satisfied by the click event.
                     if (isClickedValidation)
                     {
-                        await _bubbles.HideAsync(page);
+                        // The browser click handler removes the active bubble
+                        // synchronously before reporting completion. Do not run a
+                        // second cross-frame cleanup here: the validating click
+                        // may already be replacing its frame, and evaluating a
+                        // retiring frame can block Guide advancement.
                         return;
                     }
 
