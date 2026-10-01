@@ -36,8 +36,6 @@ public sealed class WebLearnerRuntime
     private async Task<bool> IsStableForPresentationAsync(
         IPage page,
         GuideStep step,
-        int stepNumber,
-        int totalSteps,
         CancellationToken cancellationToken)
     {
         var resolution = await _bubbles.ResolveTargetAsync(page, step, cancellationToken);
@@ -79,6 +77,8 @@ public sealed class WebLearnerRuntime
     public async Task RunActiveStepAsync(
         IPage page,
         GuideStep step,
+        int stepNumber,
+        int totalSteps,
         CancellationToken cancellationToken)
     {
         var hasAutomaticValidation = step.AdvanceMode == StepAdvanceMode.AutomaticOnValidation
