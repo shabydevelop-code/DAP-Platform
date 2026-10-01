@@ -49,7 +49,7 @@ async Task<IFrame> Content()
             }
         }
         catch(PlaywrightException) { }
-        await page.WaitForTimeoutAsync(50);
+        await page.WaitForTimeoutAsync(100);
     }
     throw new Exception("Stable content iframe not found.");
 }
