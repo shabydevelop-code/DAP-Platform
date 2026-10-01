@@ -241,3 +241,11 @@ Web `clicked` validation no longer stores completion in the guided application's
 - The validation condition and the interaction-completion event are now conceptually separate: the event decides when to evaluate; ValidationDefinition decides whether the completed interaction is acceptable.
 - This prevents a free-text Step such as treatment notes from advancing after the first character and is a prerequisite for safe viewport/navigation behavior between Steps.
 - The current implementation derives the Web completion event from the resolved control type so existing persisted Guides and SQLite schema remain compatible. A future explicit per-Step completion-trigger override can be added with schema migration/versioning if product requirements need it.
+
+
+## Non-overlapping Web bubble placement
+- Web bubble placement now evaluates Bottom, Top, Right and Left against both the viewport and the actionable target rectangle.
+- A requested placement remains the first preference, but the presenter can choose another side when the preferred side would not fit.
+- Clamping is restricted to the axis parallel to the target; it no longer slides a bubble across the target-facing axis and over the control.
+- Fully visible, non-overlapping candidates are preferred. If none fully fit, the least-overflow non-overlapping candidate is used.
+- If no side can avoid covering the actionable target, the bubble remains hidden rather than blocking the required learner action.
