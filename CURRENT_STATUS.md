@@ -77,6 +77,8 @@ The current representative E2E is the validated baseline for further test expans
 Architecture/Core scope is Web + Windows. The active implementation scope is Web only: Learner Web Runtime, Playwright target resolution, and Web bubbles against DAP.TestCRM. Windows/UIA bubble implementation is intentionally deferred; it will later implement the same shared Core contracts.
 
 ## Persistence foundation
+SQLite default database location on Windows is `%ProgramData%\DAP\Data\DAP.db` (normally `C:\ProgramData\DAP\Data\DAP.db`). The application/provider may override this with `DAP_DATABASE_PATH`; Core must not depend on either the path or SQLite.
+
 
 The shared Core now includes initial runtime-neutral `ValidationDefinition`, `BubbleDefinition`, and `GuideStep` models. `DAP.Data` defines the guide-step repository abstraction, and `DAP.Data.Sqlite` now contains the first provider project plus an initial schema for Guides, GuideSteps, and ordered TargetAnchors. Multiple anchors are persisted explicitly. Core remains independent from SQLite.
 
