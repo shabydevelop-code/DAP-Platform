@@ -474,17 +474,8 @@ frame=await Content();
 await frame.Locator("h2:has-text('פניות')").WaitForAsync();
 
 // 10. Delete the Case created by this run through the real UI.
-// Layout Scenario 8 opens a Lead record, so return to the Site through the
-// real breadcrumb before switching to Cases.
+// Business-context scenario already returned us to the Site's Cases tab.
 frame=await Content();
-var siteLeadsCrumb=frame.Locator(".breadcrumb a[data-go^='#/site/'][data-go$='/leads']").First;
-await siteLeadsCrumb.WaitForAsync();
-await MoveTo(siteLeadsCrumb);
-await siteLeadsCrumb.ClickAsync();
-await WaitReady();
-frame=await Content();
-await Click("nav.tabs button:has-text('פניות')");
-await WaitReady();
 await Click($"button.grid-open[data-go='#/case/{createdCaseId}']");
 await WaitReady();
 await Click("#delete-case");
