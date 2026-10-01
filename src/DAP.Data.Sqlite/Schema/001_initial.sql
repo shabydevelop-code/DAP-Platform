@@ -14,6 +14,8 @@ CREATE TABLE IF NOT EXISTS GuideSteps (
     LocatorStrategy TEXT NULL,
     LocatorValue TEXT NULL,
     FrameContextJson TEXT NULL,
+    ContextKind TEXT NULL,
+    ContextValue TEXT NULL,
     BubbleContent TEXT NOT NULL,
     BubblePlacement TEXT NOT NULL,
     ValidationKind TEXT NULL,
