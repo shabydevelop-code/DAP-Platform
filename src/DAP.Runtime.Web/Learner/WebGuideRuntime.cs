@@ -82,8 +82,9 @@ public sealed class WebGuideRuntime
             Console.Error.WriteLine($"[DAP guide] completed Step {stepIndex + 1}/{orderedSteps.Length} '{step.Id}'.");
         }
 
-        await _steps.ShowGuideCompletedAsync(page, cancellationToken);
-        Console.Error.WriteLine("[DAP guide] completion bubble presented.");
+        Console.Error.WriteLine("[DAP guide] presenting completion bubble.");
+        await _steps.WaitForGuideCompletedDismissalAsync(page, cancellationToken);
+        Console.Error.WriteLine("[DAP guide] completion bubble dismissed; Guide finished.");
     }
 
     private static IEnumerable<string> ReferencedRuntimeValueSteps(GuideStep step)
