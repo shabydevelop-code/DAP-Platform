@@ -48,7 +48,7 @@ public static class DapTestCrmGuideSeed
     {
         ValueStep(
             "testcrm-customer-name", 1,
-            "[name='name']", "חפש את הלקוח \"אלפא פתרונות בע\\\"מ\"", "#customer-search",
+            "[name='name']", "חפש את הלקוח: אלפא פתרונות בע\"מ", "#customer-search",
             "value-equals", "אלפא פתרונות בע\"מ"),
 
         ClickStep(
