@@ -305,7 +305,7 @@ await Click("nav.tabs button:has-text('פניות')");
 await WaitReady();
 frame=await Content();
 await frame.Locator("h2:has-text('פניות')").WaitForAsync();
-if(await frame.Locator(`button.grid-open[data-go='#/case/${createdCaseId}']`).CountAsync()==0)
+if(await frame.Locator($"button.grid-open[data-go='#/case/{createdCaseId}']").CountAsync()==0)
     throw new Exception("Created Case was not preserved after Site tab switching.");
 
 // 8. Continue legitimate agent work into Leads.
