@@ -74,3 +74,7 @@ The current representative E2E is the validated baseline for further test expans
 ## Next milestone
 
 The current ten-scenario E2E baseline is validated. Further expansion should be driven by concrete coverage gaps rather than adding scenarios for their own sake. Use these scenarios to derive production Web Runtime contracts before building the Editor.
+
+
+### Validation coverage
+The validated E2E baseline already includes a real CRM value-validation flow in the Case workflow: changing status to `סגורה` makes `closeReason` required; an attempted save without that value is rejected by server validation while unsaved Subject and Description values are preserved; supplying `closeReason` (`טופל`) then allows the save to succeed. This validation currently runs without DAP bubbles and is part of the underlying CRM/E2E behavior, not a bubble-specific test.
