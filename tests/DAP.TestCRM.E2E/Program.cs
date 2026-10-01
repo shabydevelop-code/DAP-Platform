@@ -232,14 +232,28 @@ var dapDbPath=Path.Combine(Path.GetTempPath(),"DAP.TestCRM.E2E",Guid.NewGuid()+"
 var dapFactory=new SqliteConnectionFactory(new SqliteDatabaseOptions(dapDbPath));
 await new SqliteDatabaseInitializer(dapFactory).InitializeAsync();
 var dapRepository=new SqliteGuideStepRepository(dapFactory);
-await dapRepository.SaveStepAsync(DapTestCrmGuideSeed.GuideId,DapTestCrmGuideSeed.CustomerNameStep);
-await dapRepository.SaveStepAsync(DapTestCrmGuideSeed.GuideId,DapTestCrmGuideSeed.CustomerSearchButtonStep);
+foreach(var guideStep in DapTestCrmGuideSeed.Steps)
+    await dapRepository.SaveStepAsync(DapTestCrmGuideSeed.GuideId,guideStep);
 var dapSteps=await dapRepository.GetStepsAsync(DapTestCrmGuideSeed.GuideId);
 StartupMark("temporary DAP guide database seeded");
-if(dapSteps.Count!=2)
-    throw new Exception($"Expected two persisted DAP Steps, found {dapSteps.Count}.");
+if(dapSteps.Count!=DapTestCrmGuideSeed.Steps.Count)
+    throw new Exception($"Expected {DapTestCrmGuideSeed.Steps.Count} persisted DAP Steps, found {dapSteps.Count}.");
 var dapStep=dapSteps[0];
 var dapSecondStep=dapSteps[1];
+
+async Task WaitForGuideStep(int order)
+{
+    var expected=dapSteps.Single(step=>step.Order==order);
+    for(var i=0;i<100;i++)
+    {
+        var content=await Content();
+        var bubble=content.Locator("#dap-guide-bubble");
+        if(await bubble.CountAsync()==1 && await bubble.TextContentAsync()==expected.Bubble.Content)
+            return;
+        await page.WaitForTimeoutAsync(100);
+    }
+    throw new TimeoutException($"DAP Guide did not present Step {order}: {expected.Id}.");
+}
 
 var dapAppProject=Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","..","..","..","..","src","DAP.App","DAP.App.csproj"));
 if(!File.Exists(dapAppProject))
@@ -437,18 +451,18 @@ Console.WriteLine("DAP Guide Runtime Step 1 -> Step 2 transition: PASS");
 await Click("#customer-search button.primary");
 await WaitReady();
 
-// Search always renders a result grid, including a single match.
+// From here the production Guide continues across real CRM navigation. The E2E
+// waits for each instruction before acting, so the same Guide can be followed
+// manually without any test-only bubble behavior.
+await WaitForGuideStep(3);
 await Click("#search-results tbody tr.clickable:first-child");
 await WaitReady();
-if(await (await Content()).Locator("#dap-guide-bubble").CountAsync()!=0)
-    throw new Exception("Completed DAP Step bubble reappeared after leaving its logical context.");
-Console.WriteLine("DAP completed Step remains inactive after route change: PASS");
-// Open first site.
+
+await WaitForGuideStep(4);
 await Click("tbody tr.clickable:first-child");
 await WaitReady();
 
-// 2. Cases grid: server sorting + repeated identical Open targets.
-// This is the business-facing "find and open the right case after the grid changes" scenario.
+await WaitForGuideStep(5);
 await Click("nav.tabs button:has-text('פניות')");
 await WaitReady();
 var frame=await Content();
@@ -458,11 +472,25 @@ await Click("th button[data-sort='status']");
 await WaitReady();
 
 // Create a fresh open Case so repeated runs never depend on mutated seed data.
+await WaitForGuideStep(6);
 await Click("button.primary:has-text('פניה חדשה')");
 await WaitReady();
+
+await WaitForGuideStep(7);
 await Fill("[name='subject']","תקלה בחיבור לאינטרנט");
+
+await WaitForGuideStep(8);
 await Fill("[name='description']","הלקוח מדווח על חיבור לא יציב.");
+
+await WaitForGuideStep(9);
 await SaveSuccess();
+
+// The first complete business Guide ends here. Everything below remains the
+// broader CRM resilience suite and must not depend on an active Guide bubble.
+await page.WaitForTimeoutAsync(250);
+if(await (await Content()).Locator("#dap-guide-bubble").CountAsync()!=0)
+    throw new Exception("Completed case-creation Guide still has an active bubble.");
+Console.WriteLine("DAP complete customer -> new Case Guide: PASS");
 frame=await Content();
 var createdCaseUrl=frame.Url;
 var caseMarker="#/case/";
