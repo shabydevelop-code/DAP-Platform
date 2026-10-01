@@ -117,3 +117,13 @@ A target is represented by a runtime-neutral TargetDescriptor rather than a sing
 - Do not alter TestCRM business content, seed records, labels, workflow behavior, DOM semantics or application behavior solely to remove a DAP targeting/testing difficulty.
 - A target-application change is allowed only when it is independently required by the target application's product/demo scenario, not as a workaround for DAP.
 - Target ambiguity must be solved in DAP targeting semantics (for example stable locators, multiple anchors, context or other production-capable identity), or exposed as a genuine limitation. Never manufacture uniqueness in the target system for the test.
+
+
+## Runtime-created business identity
+- A Guide may need to revisit an entity whose stable identity is created during the learner session (for example a CRM Case ID returned after Save).
+- Do not modify the target application or manufacture test-only DOM metadata to make such targets unique.
+- Web Guide locator/anchor values may reference a previously captured Step frame URL fragment with `{{step:<step-id>:frame-url-fragment}}`.
+- Capture is transient learner-runtime state, not persisted business data and requires no SQLite schema change.
+- Only Steps referenced by such tokens are navigation-sensitive capture sources. Before capture, the Web Guide Runtime waits for their target frame to leave the preceding Step URL, preventing a validating click from capturing the pre-navigation route.
+- Runtime values are materialized into a per-run GuideStep copy; persisted Guide definitions remain unchanged.
+- TestCRM Steps 12 and 50 use the real existing `data-go` route plus the runtime-captured Case fragment. TestCRM itself is not changed for DAP targeting.
