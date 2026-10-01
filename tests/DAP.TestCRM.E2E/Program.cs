@@ -186,6 +186,7 @@ Console.WriteLine("Scenario 6: Conditional target disappearance/reappearance + r
 Console.WriteLine("Scenario 7: Cross-frame navigation from Header to Content");
 Console.WriteLine("Scenario 8: Layout shift + target re-resolution");
 Console.WriteLine("Scenario 9: Consecutive server updates + final-state re-resolution");
+Console.WriteLine("Scenario 10: Business context switch + target isolation");
 await page.GotoAsync(baseUrl);
 await WaitReady();
 
@@ -431,6 +432,39 @@ await frame.Locator("[name='selectedService']").WaitForAsync();
 if(await frame.Locator("[name='selectedService']").CountAsync()!=1)
     throw new Exception("Final status did not re-render the dependent business target.");
 await MoveTo(frame.Locator("[name='selectedService']"));
+
+// 10. Business-context isolation.
+// Business scenario: after working in the current Lead, the agent opens another
+// Case under the same Site. DAP must resolve the new record's live target and
+// never retain the previous Lead/Case DOM context.
+await Click("nav.tabs button:has-text('פניות')");
+await WaitReady();
+frame=await Content();
+await frame.Locator("h2:has-text('פניות')").WaitForAsync();
+var caseRows=frame.Locator("button.grid-open");
+if(await caseRows.CountAsync()<1)
+    throw new Exception("No Case rows available for business-context switch.");
+await caseRows.First.ClickAsync();
+await WaitReady();
+frame=await Content();
+await frame.Locator("h1:has-text('פניה')").WaitForAsync();
+var switchedCaseRoute=frame.Url;
+if(!switchedCaseRoute.Contains("#/case/",StringComparison.Ordinal))
+    throw new Exception("Business-context switch did not open a Case record.");
+var switchedCaseStatus=frame.Locator("[name='status']");
+await switchedCaseStatus.WaitForAsync();
+await MoveTo(switchedCaseStatus);
+if(await switchedCaseStatus.CountAsync()!=1)
+    throw new Exception("Case target resolution is ambiguous after business-context switch.");
+
+// 10b. Return to the Site through the real breadcrumb; this proves the active
+// context can leave and re-enter without relying on a stale record reference.
+var switchedSiteCrumb=frame.Locator(".breadcrumb a[data-go^='#/site/']").First;
+await switchedSiteCrumb.WaitForAsync();
+await switchedSiteCrumb.ClickAsync();
+await WaitReady();
+frame=await Content();
+await frame.Locator("h2:has-text('פניות')").WaitForAsync();
 
 // 10. Delete the Case created by this run through the real UI.
 // Layout Scenario 8 opens a Lead record, so return to the Site through the
