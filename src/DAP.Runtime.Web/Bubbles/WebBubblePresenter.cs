@@ -637,6 +637,81 @@ public sealed class WebBubblePresenter
             ? Task.FromResult(TargetResolution<ILocator>.NotFound())
             : _targets.ResolveAsync(page, step.Target, cancellationToken);
 
+    public async Task ShowGuideCompletedAsync(IPage page, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        await HideAsync(page);
+
+        await page.MainFrame.EvaluateAsync(
+            @"b => {
+                document.getElementById('dap-guide-completed')?.remove();
+                const bubble=document.createElement('div');
+                bubble.id='dap-guide-completed';
+                bubble.setAttribute('role','status');
+                bubble.textContent='המדריך הושלם בהצלחה';
+                Object.assign(bubble.style,{
+                    position:'fixed',zIndex:'2147483647',left:'50%',top:'24px',
+                    transform:'translateX(-50%)',maxWidth:b.maxWidth+'px',
+                    padding:b.padding,background:b.backgroundColor,color:b.textColor,
+                    border:b.borderWidth+'px solid '+b.borderColor,
+                    borderRadius:b.borderRadius+'px',boxShadow:b.boxShadow,
+                    fontFamily:b.fontFamily,fontSize:b.fontSize+'px',
+                    lineHeight:String(b.lineHeight),direction:b.direction,
+                    pointerEvents:'auto',cursor:'grab',touchAction:'none',userSelect:'none'
+                });
+                document.body.appendChild(bubble);
+
+                let drag=null;
+                const clamp=(x,y)=>{
+                    const q=bubble.getBoundingClientRect(),m=8;
+                    return {
+                        x:Math.max(m,Math.min(x,Math.max(m,innerWidth-q.width-m))),
+                        y:Math.max(m,Math.min(y,Math.max(m,innerHeight-q.height-m)))
+                    };
+                };
+                bubble.addEventListener('pointerdown',event=>{
+                    if(event.button!==0) return;
+                    const q=bubble.getBoundingClientRect();
+                    drag={id:event.pointerId,x:event.clientX,y:event.clientY,left:q.left,top:q.top};
+                    bubble.style.transform='none';
+                    bubble.style.left=q.left+'px';
+                    bubble.style.top=q.top+'px';
+                    bubble.setPointerCapture(event.pointerId);
+                    bubble.style.cursor='grabbing';
+                    event.preventDefault(); event.stopPropagation();
+                });
+                bubble.addEventListener('pointermove',event=>{
+                    if(!drag || event.pointerId!==drag.id) return;
+                    const p=clamp(drag.left+event.clientX-drag.x,drag.top+event.clientY-drag.y);
+                    bubble.style.left=p.x+'px'; bubble.style.top=p.y+'px';
+                    event.preventDefault(); event.stopPropagation();
+                });
+                const finish=event=>{
+                    if(!drag || event.pointerId!==drag.id) return;
+                    drag=null; bubble.style.cursor='grab';
+                    try{bubble.releasePointerCapture(event.pointerId);}catch{}
+                    event.preventDefault(); event.stopPropagation();
+                };
+                bubble.addEventListener('pointerup',finish);
+                bubble.addEventListener('pointercancel',finish);
+                bubble.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();});
+            }",
+            new {
+                maxWidth = _theme.MaxWidth,
+                padding = _theme.Padding,
+                backgroundColor = _theme.BackgroundColor,
+                textColor = _theme.TextColor,
+                borderColor = _theme.BorderColor,
+                borderWidth = _theme.BorderWidth,
+                borderRadius = _theme.BorderRadius,
+                boxShadow = _theme.BoxShadow,
+                fontFamily = _theme.FontFamily,
+                fontSize = _theme.FontSize,
+                lineHeight = _theme.LineHeight,
+                direction = _theme.Direction
+            });
+    }
+
     public async Task HideAsync(IPage page)
     {
         const string script = """
