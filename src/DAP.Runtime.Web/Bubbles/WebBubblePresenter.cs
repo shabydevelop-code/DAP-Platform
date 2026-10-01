@@ -8,10 +8,12 @@ namespace DAP.Runtime.Web.Bubbles;
 public sealed class WebBubblePresenter
 {
     private readonly WebTargetResolver _targets;
+    private readonly WebBubbleTheme _theme;
 
-    public WebBubblePresenter(WebTargetResolver targets)
+    public WebBubblePresenter(WebTargetResolver targets, WebBubbleTheme? theme = null)
     {
         _targets = targets;
+        _theme = theme ?? WebBubbleTheme.Default;
     }
 
     public async Task<TargetResolution<ILocator>> ShowAsync(
@@ -29,7 +31,9 @@ public sealed class WebBubblePresenter
         const string script = """
 (el, b) => {
     const root = el.ownerDocument;
-    root.getElementById('dap-guide-bubble')?.remove();
+    const existing = root.getElementById('dap-guide-bubble');
+    existing?.__dapCleanup?.();
+    existing?.remove();
 
     const bubble = root.createElement('div');
     bubble.id = 'dap-guide-bubble';
@@ -40,17 +44,17 @@ public sealed class WebBubblePresenter
     Object.assign(bubble.style, {
         position: 'fixed',
         zIndex: '2147483646',
-        maxWidth: '320px',
-        padding: '12px 16px',
-        background: '#fff',
-        color: '#1f2937',
-        border: '1px solid #cbd5e1',
-        borderRadius: '10px',
-        boxShadow: '0 8px 24px rgba(0,0,0,.18)',
-        fontFamily: 'Arial,sans-serif',
-        fontSize: '14px',
-        lineHeight: '1.4',
-        direction: 'rtl'
+        maxWidth: b.theme.maxWidth + 'px',
+        padding: b.theme.padding,
+        background: b.theme.backgroundColor,
+        color: b.theme.textColor,
+        border: b.theme.borderWidth + 'px solid ' + b.theme.borderColor,
+        borderRadius: b.theme.borderRadius + 'px',
+        boxShadow: b.theme.boxShadow,
+        fontFamily: b.theme.fontFamily,
+        fontSize: b.theme.fontSize + 'px',
+        lineHeight: String(b.theme.lineHeight),
+        direction: b.theme.direction
     });
 
     root.body.appendChild(bubble);
@@ -99,7 +103,22 @@ public sealed class WebBubblePresenter
             new
             {
                 content = step.Bubble.Content,
-                placement = step.Bubble.Placement.ToString()
+                placement = step.Bubble.Placement.ToString(),
+                theme = new
+                {
+                    backgroundColor = _theme.BackgroundColor,
+                    textColor = _theme.TextColor,
+                    borderColor = _theme.BorderColor,
+                    borderWidth = _theme.BorderWidth,
+                    borderRadius = _theme.BorderRadius,
+                    maxWidth = _theme.MaxWidth,
+                    padding = _theme.Padding,
+                    boxShadow = _theme.BoxShadow,
+                    fontFamily = _theme.FontFamily,
+                    fontSize = _theme.FontSize,
+                    lineHeight = _theme.LineHeight,
+                    direction = _theme.Direction
+                }
             });
 
         return resolution;
