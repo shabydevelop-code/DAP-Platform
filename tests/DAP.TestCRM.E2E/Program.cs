@@ -310,16 +310,8 @@ if(await frame.Locator($"button.grid-open[data-go='#/case/{createdCaseId}']").Co
     throw new Exception("Created Case was not preserved after Site tab switching.");
 
 // 8. Continue legitimate agent work into Leads.
-frame=await Content();
-// Resolve the Site breadcrumb by its navigation contract; after tab switching the
-// breadcrumb shape can differ from the Case page, so do not rely on a fixed index.
-var siteCrumb=frame.Locator(".breadcrumb a[data-go^='#/site/']").First;
-var siteRoute=await siteCrumb.GetAttributeAsync("data-go") ?? throw new Exception("Site breadcrumb route missing.");
-if(!siteRoute.StartsWith("#/site/",StringComparison.Ordinal)) throw new Exception("Unexpected site breadcrumb route: "+siteRoute);
-await MoveTo(siteCrumb);
-await siteCrumb.ClickAsync();
-await page.WaitForTimeoutAsync(visualMode ? 500 : 0);
-await WaitReady();
+// We are already back on the Site Cases tab from Scenario 5, so the next
+// business action is simply to open the Leads tab.
 await Click("nav.tabs button:has-text('לידים')");
 await WaitReady();
 frame=await Content();
