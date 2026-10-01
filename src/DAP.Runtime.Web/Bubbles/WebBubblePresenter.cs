@@ -116,7 +116,8 @@ public sealed class WebBubblePresenter
         fontFamily: b.theme.fontFamily,
         fontSize: b.theme.fontSize + 'px',
         lineHeight: String(b.theme.lineHeight),
-        direction: b.theme.direction
+        direction: b.theme.direction,
+        visibility: 'hidden'
     });
 
     root.body.appendChild(bubble);
@@ -194,6 +195,7 @@ public sealed class WebBubblePresenter
         bubble.style.top = y + 'px';
         bubble.dataset.actualPlacement = side;
         placePointer(side);
+        bubble.style.visibility = 'visible';
     };
 
     place();
