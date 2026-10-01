@@ -196,6 +196,10 @@ public sealed class WebBubblePresenter
     dragHandle.title = 'גרור להזזת הבועה';
     dragHandle.textContent = '⠿';
     Object.assign(dragHandle.style, {
+        display: 'block',
+        width: 'fit-content',
+        marginLeft: 'auto',
+        marginRight: 'auto',
         textAlign: 'center',
         fontSize: '18px',
         lineHeight: '14px',
@@ -331,6 +335,7 @@ public sealed class WebBubblePresenter
             return;
         manuallyPositioned = true;
         dragState = null;
+        bubble.style.cursor = 'default';
         dragHandle.style.cursor = 'grab';
         pointer.style.display = 'none';
         bubble.dataset.manualPosition = 'true';
@@ -351,6 +356,7 @@ public sealed class WebBubblePresenter
             top: q.top
         };
         bubble.setPointerCapture(event.pointerId);
+        bubble.style.cursor = 'grabbing';
         dragHandle.style.cursor = 'grabbing';
         event.preventDefault();
     };
@@ -573,6 +579,17 @@ public sealed class WebBubblePresenter
                         const bubble=document.createElement('div');
                         bubble.id='dap-guide-bubble-proxy';
                         bubble.dataset.dapStepId=b.stepId;
+                        const dragHandle=document.createElement('div');
+                        dragHandle.dataset.dapDragHandle='1';
+                        dragHandle.setAttribute('aria-label','גרור להזזת הבועה');
+                        dragHandle.title='גרור להזזת הבועה';
+                        dragHandle.textContent='⠿';
+                        Object.assign(dragHandle.style,{
+                            display:'block',width:'fit-content',marginLeft:'auto',marginRight:'auto',
+                            textAlign:'center',fontSize:'18px',lineHeight:'14px',
+                            opacity:'0.72',marginBottom:'6px',cursor:'grab',touchAction:'none'
+                        });
+                        bubble.appendChild(dragHandle);
                         if(b.stepNumber && b.totalSteps) {
                             const progress=document.createElement('div');
                             progress.textContent='שלב '+b.stepNumber+' מתוך '+b.totalSteps;
@@ -607,6 +624,7 @@ public sealed class WebBubblePresenter
                             const q=bubble.getBoundingClientRect();
                             drag={id:event.pointerId,x:event.clientX,y:event.clientY,left:q.left,top:q.top};
                             bubble.setPointerCapture(event.pointerId);
+                            bubble.style.cursor='grabbing';
                             const handle=bubble.querySelector('[data-dap-drag-handle=""1""]'); if(handle) handle.style.cursor='grabbing';
                             event.preventDefault();
                             event.stopPropagation();
@@ -619,7 +637,7 @@ public sealed class WebBubblePresenter
                         });
                         const finish=event=>{
                             if(!drag || event.pointerId!==drag.id) return;
-                            drag=null; const handle=bubble.querySelector('[data-dap-drag-handle=""1""]'); if(handle) handle.style.cursor='grab';
+                            drag=null; bubble.style.cursor='default'; const handle=bubble.querySelector('[data-dap-drag-handle=""1""]'); if(handle) handle.style.cursor='grab';
                             try{bubble.releasePointerCapture(event.pointerId);}catch{}
                             event.preventDefault(); event.stopPropagation();
                         };
@@ -674,6 +692,7 @@ public sealed class WebBubblePresenter
                 dragHandle.title='גרור להזזת הבועה';
                 dragHandle.textContent='⠿';
                 Object.assign(dragHandle.style,{
+                    display:'block',width:'fit-content',marginLeft:'auto',marginRight:'auto',
                     textAlign:'center',fontSize:'18px',lineHeight:'14px',
                     opacity:'0.72',marginBottom:'6px',cursor:'grab',touchAction:'none'
                 });
@@ -721,6 +740,7 @@ public sealed class WebBubblePresenter
                     bubble.style.left=q.left+'px';
                     bubble.style.top=q.top+'px';
                     bubble.setPointerCapture(event.pointerId);
+                    bubble.style.cursor='grabbing';
                     const handle=bubble.querySelector('[data-dap-drag-handle=""1""]'); if(handle) handle.style.cursor='grabbing';
                     event.preventDefault(); event.stopPropagation();
                 });
@@ -732,7 +752,7 @@ public sealed class WebBubblePresenter
                 });
                 const finish=event=>{
                     if(!drag || event.pointerId!==drag.id) return;
-                    drag=null; const handle=bubble.querySelector('[data-dap-drag-handle=""1""]'); if(handle) handle.style.cursor='grab';
+                    drag=null; bubble.style.cursor='default'; const handle=bubble.querySelector('[data-dap-drag-handle=""1""]'); if(handle) handle.style.cursor='grab';
                     try{bubble.releasePointerCapture(event.pointerId);}catch{}
                     event.preventDefault(); event.stopPropagation();
                 };
