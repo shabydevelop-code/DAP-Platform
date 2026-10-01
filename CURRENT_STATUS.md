@@ -156,3 +156,8 @@ The 6.4-second Playwright.CreateAsync measurements were recorded after E2E proce
 ## E2E orphan recovery for stable output
 
 The stable E2E DAP output exposed one remaining interruption case: an orphaned DAP.exe can survive a prior parent termination and lock `%TEMP%\DAP\E2E\app` before the next run reaches its own process cleanup. The E2E now performs ownership-scoped recovery before build: it enumerates processes named DAP and terminates a candidate only when its executable path exactly matches the harness-owned `%TEMP%\DAP\E2E\app\DAP.exe`. Other installed/development DAP processes are never terminated by this recovery. Normal finally/process-exit cleanup remains in place as the first line of defense.
+
+
+## Immediate learner feedback for click validation
+
+For Web Steps using `ValidationDefinition("clicked")`, the browser-side capture listener now removes the active Step bubble immediately when the target is clicked, after recording the click validation state. The Learner Runtime still owns validation completion and ordered Step advancement on its reconciliation loop; immediate removal is presentation feedback only. This prevents a completed `לחץ כאן` instruction from remaining visibly attached to the target during the interval before the next runtime poll or while the host application begins its own server/DOM update. The behavior is generic to clicked validation and contains no TestCRM-specific logic. Local visual verification is required.
