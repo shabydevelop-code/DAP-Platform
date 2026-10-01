@@ -47,6 +47,16 @@ public sealed class WebBubblePresenter
         const string script = """
 (el, b) => {
     const root = el.ownerDocument;
+
+    // Event-based validation must be armed before the user can act on the
+    // instruction. Installing this only in the later validation poll creates
+    // a race where a fast click is lost.
+    if (b.validationKind === 'clicked' && !el.__dapValidationClickInstalled) {
+        el.__dapValidationClickInstalled = true;
+        el.__dapValidationClicked = false;
+        el.addEventListener('click', () => { el.__dapValidationClicked = true; }, { capture: true });
+    }
+
     const existing = root.getElementById('dap-guide-bubble');
     if (b.ensureOnly && existing?.__dapTarget === el && existing?.dataset.dapStepId === b.stepId)
         return;
@@ -202,6 +212,7 @@ public sealed class WebBubblePresenter
                 placement = step.Bubble.Placement.ToString(),
                 stepId = step.Id,
                 ensureOnly,
+                validationKind = step.Validation?.Kind,
                 theme = new
                 {
                     backgroundColor = _theme.BackgroundColor,
@@ -225,8 +236,8 @@ public sealed class WebBubblePresenter
         var presentedAt = timing.Elapsed.TotalMilliseconds;
         if (!ensureOnly)
             Console.Error.WriteLine($"[DAP bubble] Step '{step.Id}' target resolved in {resolvedAt:F0} ms; DOM presentation completed in {presentedAt:F0} ms.");
-        else if (presentedAt >= 250)
-            Console.Error.WriteLine($"[DAP bubble] Step '{step.Id}' first/reconcile presentation: resolve {resolvedAt:F0} ms; total {presentedAt:F0} ms.");
+        else
+            Console.Error.WriteLine($"[DAP bubble] Step '{step.Id}' ensure presentation: resolve {resolvedAt:F0} ms; total {presentedAt:F0} ms.");
 
         return resolution;
     }
