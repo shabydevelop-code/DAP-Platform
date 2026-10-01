@@ -375,6 +375,8 @@ await frame.Locator("h2:has-text('לידים')").WaitForAsync();
 frame=await Content();
 // Scenario 7 leaves us on the Customer workspace. Re-enter the same Site through
 // the user-facing Customer -> Site navigation, rather than using an internal route.
+await frame.Locator("h1:has-text('חיפוש לקוח')").WaitForAsync(new() { Timeout = 10000 });
+await frame.Locator("[name='name']").WaitForAsync(new() { Timeout = 10000 });
 await Fill("[name='name']","אלפא");
 await Click("#customer-search button.primary");
 await WaitReady();
