@@ -230,3 +230,12 @@ The representative PeopleSoft-Web workflow currently validates Customer -> Site 
 
 ### Target resolution model
 A target is represented by a runtime-neutral TargetDescriptor rather than a single selector. It identifies the target through a primary locator plus zero or more anchors/context constraints. Resolution must discover candidates, apply the anchors, verify uniqueness, and return an explicit ambiguous/not-found result rather than guessing. The descriptor also carries the runtime and frame context required by the corresponding Web or Windows adapter. This model is intended to support re-resolution after DOM changes, iframe replacement, grid rerender/reorder, layout shifts, target disappearance/reappearance, and equivalent Windows UI changes.
+
+
+## DAP.exe process boundary
+
+`src/DAP.App` is the production Windows executable host (`AssemblyName=DAP`, .NET 8 WPF). It is the composition root for persistence and runtime services. Learner bubble lifecycle belongs inside this process; there is no separate Bubble.exe.
+
+The current E2E still hosts `WebLearnerRuntime` in-process for behavioral regression coverage. That is test harness wiring, not the final process topology.
+
+An independent DAP.exe cannot consume an `IPage` created inside another process. Production Web execution therefore requires DAP.exe to own or explicitly attach to a browser/Playwright connection. The browser-attachment contract is the next implementation boundary; until it exists, `--learner-web <guide-id>` fails explicitly rather than silently falling back to an in-process test runtime.
