@@ -217,7 +217,12 @@ var dapFactory=new SqliteConnectionFactory(new SqliteDatabaseOptions(dapDbPath))
 await new SqliteDatabaseInitializer(dapFactory).InitializeAsync();
 var dapRepository=new SqliteGuideStepRepository(dapFactory);
 await dapRepository.SaveStepAsync(DapTestCrmGuideSeed.GuideId,DapTestCrmGuideSeed.CustomerNameStep);
-var dapStep=(await dapRepository.GetStepsAsync(DapTestCrmGuideSeed.GuideId)).Single();
+await dapRepository.SaveStepAsync(DapTestCrmGuideSeed.GuideId,DapTestCrmGuideSeed.CustomerSearchButtonStep);
+var dapSteps=await dapRepository.GetStepsAsync(DapTestCrmGuideSeed.GuideId);
+if(dapSteps.Count!=2)
+    throw new Exception($"Expected two persisted DAP Steps, found {dapSteps.Count}.");
+var dapStep=dapSteps[0];
+var dapSecondStep=dapSteps[1];
 
 var dapAppProject=Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","..","..","..","..","src","DAP.App","DAP.App.csproj"));
 if(!File.Exists(dapAppProject))
@@ -300,7 +305,14 @@ for(var i=0;i<50;i++)
 }
 if(!dapValidationCompleted)
     throw new Exception("DAP Step did not complete after value-not-empty validation succeeded.");
+
+dapContent=await Content();
+var dapSecondBubble=dapContent.Locator("#dap-guide-bubble");
+await dapSecondBubble.WaitForAsync(new() { Timeout = 5000 });
+if(await dapSecondBubble.TextContentAsync()!=dapSecondStep.Bubble.Content)
+    throw new Exception("DAP Guide Runtime did not advance to the second Step.");
 Console.WriteLine("DAP Learner Web Runtime automatic validation completion: PASS");
+Console.WriteLine("DAP Guide Runtime Step 1 -> Step 2 transition: PASS");
 
 await Click("#customer-search button.primary");
 await WaitReady();
