@@ -44,7 +44,7 @@ public static class DapTestCrmGuideSeed
             StepAdvanceMode.AutomaticOnValidation,
             new StepContextDefinition("css-exists", contextCss));
 
-    public static IReadOnlyList<GuideStep> CreateSteps(string createdCaseId) => new GuideStep[]
+    public static IReadOnlyList<GuideStep> CreateSteps() => new GuideStep[]
     {
         ValueStep(
             "testcrm-customer-name", 1,
@@ -99,7 +99,7 @@ public static class DapTestCrmGuideSeed
 
         ClickStep(
             "testcrm-open-created-case", 12,
-            $"button.grid-open[data-go='#/case/{createdCaseId}']",
+            "tbody tr:first-child button.grid-open",
             "פתח את הפנייה שיצרת", "h2:has-text('פניות')"),
 
         ValueStep(
