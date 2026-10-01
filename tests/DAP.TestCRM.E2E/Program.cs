@@ -609,6 +609,12 @@ await WaitForGuideStep(21);
 Console.WriteLine("DAP guided Case closure through validation alert and Close Reason: PASS");
 await SaveSuccess();
 
+// Step 21's Save click is the learner action that advances the production
+// Guide. Do not start a technical E2E document reload until DAP has completed
+// that transition and presented Step 22. Otherwise the harness can destroy the
+// document while the Runtime is still reconciling the validating click.
+await WaitForGuideStep(22);
+
 // 4. Content-document reload while remaining on the persisted Case.
 // Business scenario: the active CRM document is rebuilt, and DAP must reacquire
 // the replacement frame without losing the current business record.
