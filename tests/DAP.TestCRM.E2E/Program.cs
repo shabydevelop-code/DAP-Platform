@@ -9,6 +9,23 @@ using DAP.Data.Sqlite.Guides;
 
 const string baseUrl = "http://localhost:5200";
 
+int? manualFromStep = null;
+for (var i = 0; i < args.Length; i++)
+{
+    if (!args[i].Equals("--manual-from-step", StringComparison.OrdinalIgnoreCase))
+        continue;
+
+    if (i + 1 >= args.Length || !int.TryParse(args[++i], out var parsedManualStep) || parsedManualStep < 1)
+        throw new ArgumentException("--manual-from-step requires a positive Guide Step order.");
+
+    manualFromStep = parsedManualStep;
+}
+
+if (manualFromStep is not null && manualFromStep != 53)
+    throw new ArgumentException(
+        "The current representative TestCRM scenario supports manual handoff at Step 53. " +
+        "Additional handoff points must be added at their real scenario boundary.");
+
 if (args.Contains("--reset-guide", StringComparer.OrdinalIgnoreCase))
 {
     var resetOptions = SqliteDatabaseOptions.CreateDefault();
@@ -938,6 +955,17 @@ if(await frame.Locator($"button.grid-open[data-go='#/case/{createdCaseId}']").Co
 // 11. Cross-frame navigation: a user action in the Header frame changes the active
 // Content document. This is a real user-facing interaction and intentionally does not
 // call internal TestCRM navigation functions.
+if (manualFromStep == 53)
+{
+    await WaitForGuideStep(53);
+    Console.WriteLine();
+    Console.WriteLine("MANUAL HANDOFF: Step 53 is active and visible.");
+    Console.WriteLine("Automation is paused. Test Step 53 manually in the open browser.");
+    Console.WriteLine("Press ENTER here when you are finished to close the run.");
+    Console.ReadLine();
+    return;
+}
+
 var headerFrame=page.Frames.FirstOrDefault(x=>x.Name=="dap-header")
     ?? throw new Exception("Header frame was not found.");
 var header=headerFrame.Locator("#portal-header");
