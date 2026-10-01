@@ -297,3 +297,13 @@ Web `clicked` validation no longer stores completion in the guided application's
 - Central theme tokens: bubble background `#312E5A`, white text `#FFFFFF`, muted lavender border `#8B83C7`, target highlight `#A99FE8`, with matching restrained shadow/highlight alpha values.
 - The palette remains centralized in `WebBubbleTheme.Default`; no Guide Step stores presentation colors and the host application's colors do not influence DAP guidance.
 - Placement, dragging, validation, target highlighting mechanics and the 53-Step Guide structure are unchanged.
+
+
+## Web Step presentation settling
+- A newly active Web Step is no longer presented merely because its selector can already resolve during a server-driven render.
+- Before presentation, `WebLearnerRuntime` now samples the next target across a short settling window (default 250 ms).
+- The Step is eligible for presentation only when resolution remains unique, the same DOM node survives the window, the node remains connected/non-zero, and its bounding geometry remains stable within a small tolerance.
+- DOM/frame replacement or layout movement during the settling window causes presentation to remain hidden and the normal reconciliation loop retries from a fresh resolution.
+- This is a generic Web Runtime rule, not TestCRM/PeopleSoft-specific logic and not a fixed post-action sleep.
+- Existing bubbles continue to use the normal reconciliation path; validation, context guards, target ambiguity rules, dragging and placement semantics are unchanged.
+- The previously verified 53-Step baseline predates this settling change; local visual E2E must be rerun after pull.
