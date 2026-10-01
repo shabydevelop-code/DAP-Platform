@@ -594,6 +594,7 @@ await page.WaitForTimeoutAsync(250);
 if(await (await Content()).Locator("#dap-guide-bubble").CountAsync()!=0)
     throw new Exception("Completed guided Case closure segment still has an active bubble.");
 Console.WriteLine("DAP guided Case closure through validation alert and Close Reason: PASS");
+await WaitForGuideStep(21);
 await SaveSuccess();
 
 // 4. Content-document reload while remaining on the persisted Case.
@@ -623,14 +624,17 @@ if(await frame.Locator("[name='closeReason']").InputValueAsync()!="טופל")
 // Click() handles the real Content iframe replacement lifecycle; the test does
 // not call internal TestCRM navigation APIs or bypass the UI.
 frame=await Content();
+await WaitForGuideStep(22);
 await Click(".breadcrumb a[data-go^='#/site/']");
 await WaitReady();
 frame=await Content();
 await frame.Locator("h2:has-text('פניות')").WaitForAsync();
+await WaitForGuideStep(23);
 await Click("nav.tabs button:has-text('לידים')");
 await WaitReady();
 frame=await Content();
 await frame.Locator("h2:has-text('לידים')").WaitForAsync();
+await WaitForGuideStep(24);
 await Click("nav.tabs button:has-text('פניות')");
 await WaitReady();
 frame=await Content();
@@ -641,6 +645,7 @@ if(await frame.Locator($"button.grid-open[data-go='#/case/{createdCaseId}']").Co
 // 8. Continue legitimate agent work into Leads.
 // We are already back on the Site Cases tab from Scenario 5, so the next
 // business action is simply to open the Leads tab.
+await WaitForGuideStep(25);
 await Click("nav.tabs button:has-text('לידים')");
 await WaitReady();
 frame=await Content();
@@ -648,9 +653,12 @@ await frame.Locator("h2:has-text('לידים')").WaitForAsync();
 
 // Create a Lead in this run. After the first save the same workflow changes
 // from "new" to a persisted Lead and the Delete button is rendered dynamically.
+await WaitForGuideStep(26);
 await Click("button.primary:has-text('ליד חדש')");
 await WaitReady();
+await WaitForGuideStep(27);
 await Fill("[name='contactName']","לקוח בדיקת מערכת");
+await WaitForGuideStep(28);
 await SaveSuccess();
 frame=await Content();
 var dynamicDeleteLead=frame.Locator("#delete-lead");
@@ -659,35 +667,47 @@ await dynamicDeleteLead.WaitForAsync();
 // 9. Conditional Lead target disappearance/reappearance.
 // Business scenario: changing the Lead status changes which dependent business field
 // exists in the DOM. DAP must not keep a stale reference to the old target.
+await WaitForGuideStep(29);
 await Select("[name='status']","נסגר בהצלחה");
 frame=await Content();
 await frame.Locator("[name='selectedService']").WaitForAsync();
 if(await frame.Locator("[name='selectedService']").CountAsync()!=1)
     throw new Exception("Selected Service target did not appear after successful-close status.");
 
+await WaitForGuideStep(30);
 await Select("[name='status']","חדש");
 frame=await Content();
 if(await frame.Locator("[name='selectedService']").CountAsync()!=0)
     throw new Exception("Selected Service target did not disappear after returning Lead to New status.");
 
+await WaitForGuideStep(31);
 await Select("[name='status']","נסגר בהצלחה");
 frame=await Content();
 await frame.Locator("[name='selectedService']").WaitForAsync();
 if(await frame.Locator("[name='selectedService']").CountAsync()!=1)
     throw new Exception("Selected Service target did not reappear after returning to successful-close status.");
 
-await SaveExpectValidationUnguided("selectedService");
+await WaitForGuideStep(32);
+await Click("button.primary:has-text('שמור')");
+await WaitForSaveValidation("selectedService");
+await WaitForGuideStep(33);
+await Click("#ps-alert button");
+await HumanPause();
+await WaitForGuideStep(34);
 await Select("[name='selectedService']","תמיכה מורחבת");
+await WaitForGuideStep(35);
 await SaveSuccess();
 
 // Exercise the dynamically rendered Delete target in the same Lead context:
 // no navigation away and no reopening of the record.
 frame=await Content();
 dynamicDeleteLead=frame.Locator("#delete-lead");
+await WaitForGuideStep(36);
 await MoveTo(dynamicDeleteLead);
 await dynamicDeleteLead.ClickAsync();
 var confirmDeleteLead=frame.Locator("#ps-confirm [data-answer='yes']");
 await confirmDeleteLead.WaitForAsync();
+await WaitForGuideStep(37);
 await MoveTo(confirmDeleteLead);
 await confirmDeleteLead.ClickAsync();
 await WaitReady();
@@ -702,11 +722,13 @@ frame=await Content();
 // Re-enter the Site through the user-facing breadcrumb and Site list.
 var customerCrumb=frame.Locator(".breadcrumb a[data-go^='#/customer/']").First;
 await customerCrumb.WaitForAsync();
+await WaitForGuideStep(38);
 await MoveTo(customerCrumb);
 await customerCrumb.ClickAsync();
 await WaitReady();
 frame=await Content();
 await frame.Locator("h2:has-text('אתרים')").WaitForAsync();
+await WaitForGuideStep(39);
 await Click("tbody tr.clickable:first-child");
 await WaitReady();
 frame=await Content();
