@@ -454,3 +454,10 @@ Web `clicked` validation no longer stores completion in the guided application's
 - Edge can be selected with `-Browser edge`; Chrome is the default.
 - Manual command from repository root: `powershell -ExecutionPolicy Bypass -File .\scripts\run-testcrm-learner.ps1`.
 
+
+
+### Focused manual learner runs
+- The manual TestCRM learner launcher supports `-StartStep <order>` for focused UX/debug runs without replaying the whole Guide.
+- DAP still loads the complete persisted Guide from SQLite; the requested order only selects where execution begins, so progress remains the original Guide position (for example, Step 53 of 53).
+- This is a diagnostic entry point, not synthetic Guide state. Steps that depend on runtime values captured by earlier Steps still fail explicitly if those values are unavailable.
+- The E2E Guide synchronization now requires the active bubble to be visibly rendered, not merely present in the DOM.
