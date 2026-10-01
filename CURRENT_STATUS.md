@@ -71,6 +71,11 @@ The current representative E2E is the validated baseline for further test expans
 - Production deployment/bootstrap validation.
 - Automated tests.
 
+
+## Current implementation scope
+
+Architecture/Core scope is Web + Windows. The active implementation scope is Web only: Learner Web Runtime, Playwright target resolution, and Web bubbles against DAP.TestCRM. Windows/UIA bubble implementation is intentionally deferred; it will later implement the same shared Core contracts.
+
 ## Next milestone
 
 The runtime-neutral target-resolution Core has now been started in `src/DAP.Core`. It defines `TargetDescriptor`, `Locator`, `Anchor`, `FrameContext`, runtime identity, and explicit `Resolved` / `NotFound` / `Ambiguous` resolution results. The Core has no Playwright, UIA, SQLite, or test-project dependency.
