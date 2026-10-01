@@ -206,3 +206,15 @@ While the request is active, DAP.TestCRM displays a compact activity indicator (
 After the refreshed business context is established, operation feedback is presented in that context: successful save operations may show a transient success message, while server validation and other failures use the server-returned message in the standard modal.
 
 This behavior is part of the permanent PeopleSoft interaction contract and applies consistently to server-backed search, sorting, FieldChange, save/update, delete, validation, and similar operations.
+
+
+## E2E execution modes and synchronization
+
+The permanent DAP.TestCRM E2E suite supports two execution modes through the `DAP_E2E_MODE` environment variable:
+
+- `fast` — default for validation. Artificial human-like cursor movement, typing delays, and demonstration pauses are skipped. TestCRM's artificial server-thinking delay is also bypassed for the E2E request. Real server, DOM, route, iframe, and validation readiness conditions remain enforced.
+- `visual` — demonstration mode. Human-like cursor movement, typing delays, processing feedback, and the artificial server-thinking delay are retained.
+
+The E2E runner uses a 5-second default Playwright timeout. Frame discovery polls every 100ms. Fixed delays must not be used as substitutes for actual application readiness; synchronization should use route, DOM, frame, server-state, or validation signals.
+
+The representative PeopleSoft-Web workflow currently validates Customer -> Site -> Case -> Lead, dynamic Lead deletion, and Case deletion. During server-backed navigation, the active Content iframe and route readiness are re-resolved after replacement/rebuild.
