@@ -200,13 +200,12 @@ async Task HumanScrollTo(ILocator target)
     }
     if(!await target.IsVisibleAsync()) await target.ScrollIntoViewIfNeededAsync();
 }
-async Task SaveExpectValidation(string field)
+async Task WaitForSaveValidation(string field)
 {
-    await Click("button.primary:has-text('שמור')");
     await WaitReady();
     var f=await Content();
     await f.Locator($"[name='{field}'].validation-error").WaitForAsync();
-    var ok=f.Locator("#ps-alert button"); await MoveTo(ok); await ok.ClickAsync(); await HumanPause();
+    await f.Locator("#ps-alert button").WaitForAsync();
 }
 async Task SaveSuccess()
 {
@@ -562,21 +561,28 @@ await Fill("[name='subject']","תקלה בחיבור לאינטרנט");
 frame=await Content();
 await frame.Locator("[name='closeReason']").WaitForAsync();
 
-// Keep the existing server-validation scenario before selecting a Close Reason.
-// A click-based Guide Step must not falsely advance on a rejected save.
-await SaveExpectValidation("closeReason");
+// The rejected save is an intentional learner action in this scenario.
+// Guide it explicitly, then guide dismissal of the resulting validation alert.
+await WaitForGuideStep(18);
+await Click("button.primary:has-text('שמור')");
+await WaitForSaveValidation("closeReason");
+
+await WaitForGuideStep(19);
+await Click("#ps-alert button");
+await HumanPause();
+
 frame=await Content();
 if(await frame.Locator("[name='subject']").InputValueAsync()!="תקלה בחיבור לאינטרנט")
     throw new Exception("Unsaved Subject was not preserved after server validation refresh.");
 if(await frame.Locator("[name='description']").InputValueAsync()!="הלקוח מדווח על חיבור לא יציב.")
     throw new Exception("Unsaved Description was not preserved after server validation refresh.");
 
-await WaitForGuideStep(18);
+await WaitForGuideStep(20);
 await Select("[name='closeReason']","טופל");
 await page.WaitForTimeoutAsync(250);
 if(await (await Content()).Locator("#dap-guide-bubble").CountAsync()!=0)
     throw new Exception("Completed guided Case closure segment still has an active bubble.");
-Console.WriteLine("DAP guided Case closure through Close Reason: PASS");
+Console.WriteLine("DAP guided Case closure through validation alert and Close Reason: PASS");
 await SaveSuccess();
 
 // 4. Content-document reload while remaining on the persisted Case.
