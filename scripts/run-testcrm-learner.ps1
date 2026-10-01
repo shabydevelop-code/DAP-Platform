@@ -71,7 +71,7 @@ try {
     # must not lock normal development builds.
     New-Item -ItemType Directory -Force -Path $testCrmOutput | Out-Null
     Write-Host "Building TestCRM for manual learner run..."
-    & dotnet build $testCrmProject --nologo --verbosity quiet --output $testCrmOutput
+    & dotnet publish $testCrmProject --nologo --verbosity quiet --output $testCrmOutput --no-self-contained
     if ($LASTEXITCODE -ne 0) { throw "TestCRM build failed." }
     if (-not (Test-Path $testCrmExe)) { throw "TestCRM executable not found: $testCrmExe" }
 
