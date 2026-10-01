@@ -62,6 +62,20 @@ public sealed class WebValidationSession : IAsyncDisposable
             .Token;
     }
 
+    public Task WaitForCompletionAsync(string stepId)
+    {
+        if (IsCompleted(stepId))
+            return Task.CompletedTask;
+
+        var token = GetCompletionToken(stepId);
+        return Task.Delay(Timeout.InfiniteTimeSpan, token)
+            .ContinueWith(
+                _ => { },
+                CancellationToken.None,
+                TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
+    }
+
     public void Trace(string message)
     {
         Console.Error.WriteLine(message);
