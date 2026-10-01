@@ -181,6 +181,7 @@ Console.WriteLine("Scenario 1: Case status FieldChange + Content iframe replacem
 Console.WriteLine("Scenario 2: Case validation failure + preservation of unsaved values");
 Console.WriteLine("Scenario 3: Grid rerender/reorder + target re-resolution");
 Console.WriteLine("Scenario 4: Full page reload + business context preservation");
+Console.WriteLine("Scenario 5: CRM tab switching + business context preservation");
 await page.GotoAsync(baseUrl);
 await WaitReady();
 
@@ -284,7 +285,30 @@ if(await frame.Locator("[name='subject']").InputValueAsync()!="תקלה בחיב
 if(await frame.Locator("[name='closeReason']").InputValueAsync()!="טופל")
     throw new Exception("Full page reload did not preserve the saved Close Reason.");
 
-// 7. Continue legitimate agent work into Leads.
+// 7. CRM tab switching: leave the Case, switch between Site tabs, and return to Cases.
+// Business scenario: an agent checks Leads and then returns to the Cases workspace
+// without losing the current Site context or accidentally leaving the customer.
+frame=await Content();
+var siteCrumbAfterReload=frame.Locator(".breadcrumb a").Nth(2);
+var siteRouteAfterReload=await siteCrumbAfterReload.GetAttributeAsync("data-go") ?? throw new Exception("Site breadcrumb route missing after reload.");
+if(!siteRouteAfterReload.StartsWith("#/site/",StringComparison.Ordinal)) throw new Exception("Unexpected Site route after reload: "+siteRouteAfterReload);
+await MoveTo(siteCrumbAfterReload);
+await siteCrumbAfterReload.ClickAsync();
+await WaitReady();
+frame=await Content();
+await frame.Locator("h2:has-text('פניות')").WaitForAsync();
+await Click("nav.tabs button:has-text('לידים')");
+await WaitReady();
+frame=await Content();
+await frame.Locator("h2:has-text('לידים')").WaitForAsync();
+await Click("nav.tabs button:has-text('פניות')");
+await WaitReady();
+frame=await Content();
+await frame.Locator("h2:has-text('פניות')").WaitForAsync();
+if(await frame.Locator(`button.grid-open[data-go='#/case/${createdCaseId}']`).CountAsync()==0)
+    throw new Exception("Created Case was not preserved after Site tab switching.");
+
+// 8. Continue legitimate agent work into Leads.
 frame=await Content();
 // On a Case page the breadcrumb is Portal -> Customer -> Site -> Case.
 // Use the actual Site breadcrumb (Nth(2)); data-go is the navigation contract,
@@ -311,7 +335,7 @@ frame=await Content();
 var dynamicDeleteLead=frame.Locator("#delete-lead");
 await dynamicDeleteLead.WaitForAsync();
 
-// 8. Lead server FieldChange + conditional required business field.
+// 9. Lead server FieldChange + conditional required business field.
 await Select("[name='status']","נסגר בהצלחה");
 frame=await Content();
 await frame.Locator("[name='selectedService']").WaitForAsync();
@@ -333,7 +357,7 @@ await WaitReady();
 frame=await Content();
 await frame.Locator("h2:has-text('לידים')").WaitForAsync();
 
-// 9. Delete the Case created by this run through the real UI.
+// 10. Delete the Case created by this run through the real UI.
 // We are already on the Site's Leads tab after Lead deletion, so switch tabs
 // directly. The Site name on a Site page is plain breadcrumb text, not a link.
 frame=await Content();
