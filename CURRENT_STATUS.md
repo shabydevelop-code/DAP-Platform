@@ -387,3 +387,11 @@ Web `clicked` validation no longer stores completion in the guided application's
 - Default path on Windows: `C:\ProgramData\DAP\Data\DAP.db`. `DAP_DATABASE_PATH` still overrides it explicitly.
 - The run prints `DAP persistent guide database: <path>` so the inspected file is unambiguous.
 - Dedicated SQLite repository tests continue to use isolated temporary databases; this change applies to the visual system demonstration.
+
+
+## DB is now authoritative for TestCRM Guide
+- Normal TestCRM E2E no longer calls `DapTestCrmGuideSeed.CreateSteps()` and no longer writes every Step before each run.
+- It initializes only the SQLite schema if needed, loads `testcrm-create-case` directly from the persistent DAP database, and runs that persisted definition.
+- If the Guide is missing, E2E fails with an explicit initialization/reset-required error rather than silently recreating it.
+- `DapTestCrmGuideSeed` is retained as the known baseline for a future explicit initialize/reset command; it is not the normal runtime Source of Truth.
+- This protects future Instructor/Editor changes from being overwritten by E2E.
