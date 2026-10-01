@@ -15,6 +15,8 @@ public sealed class WebValidationEvaluator
         return validation.Kind switch
         {
             "value-not-empty" => !string.IsNullOrWhiteSpace(await target.InputValueAsync()),
+            "value-equals" => validation.ExpectedValue is not null
+                && string.Equals(await target.InputValueAsync(), validation.ExpectedValue, StringComparison.Ordinal),
             "clicked" => throw new InvalidOperationException("Clicked validation is event-based and must be evaluated by WebValidationSession."),
             _ => throw new NotSupportedException($"Unsupported Web validation kind '{validation.Kind}'.")
         };
