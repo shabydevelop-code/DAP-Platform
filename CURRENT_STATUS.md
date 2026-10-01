@@ -192,3 +192,11 @@ Web `clicked` validation no longer stores completion in the guided application's
 - Cases status sort is now its own persisted clicked Step. The initial guided segment is now 10 Steps.
 - The E2E explicitly waits for Step 6 before sorting, then Steps 7-10 before create/fill/fill/save.
 - Visible business actions must not be inserted between guided Steps without either a corresponding Step or an explicit decision that the Guide segment has ended.
+
+
+## Demo Guide extended through Case treatment
+- The visual Guide no longer ends immediately after saving the new Case.
+- Steps 11-14 now guide: return to Cases grid -> open the created Case -> change status to In Progress -> enter treatment notes.
+- This specifically covers the previously unguided area around the Cases grid/Open action and makes the active bubble/action relationship observable.
+- No second Cases sort click exists in this segment; the only explicit Cases status sort remains guided earlier.
+- The E2E keeps its exact created-Case selector for deterministic assertions, while the persisted Step targets the visible Open action in the Cases business context.
