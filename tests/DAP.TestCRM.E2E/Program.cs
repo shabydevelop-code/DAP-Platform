@@ -5,6 +5,7 @@ using var playwright = await Playwright.CreateAsync();
 await using var browser = await playwright.Chromium.LaunchAsync(new() { Headless = false, Args = new[] { "--start-maximized" } });
 var context = await browser.NewContextAsync(new() { ViewportSize = ViewportSize.NoViewport });
 var page = await context.NewPageAsync();
+page.SetDefaultTimeout(5000);
 await page.AddInitScriptAsync(@"(() => {
   const install=()=>{
     if(window !== window.top) return;
