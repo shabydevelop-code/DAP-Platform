@@ -395,16 +395,22 @@ async Task WaitForGuideStep(int order)
         {
             try
             {
-                var bubble=liveFrame.Locator("#dap-guide-bubble");
-                if(await bubble.CountAsync()==1 && await bubble.IsVisibleAsync())
+                // Normal bubbles live with their target frame. A constrained
+                // child frame can instead use the presentation-only top-level
+                // proxy, so the harness must recognize both production surfaces.
+                foreach(var selector in new[] { "#dap-guide-bubble", "#dap-guide-bubble-proxy" })
                 {
-                    var bubbleText=await bubble.TextContentAsync() ?? string.Empty;
-                    var expectedProgress=$"שלב {order} מתוך {dapSteps.Count}";
-                    if(bubbleText.Contains(expected.Bubble.Content,StringComparison.Ordinal)
-                        && bubbleText.Contains(expectedProgress,StringComparison.Ordinal))
+                    var bubble=liveFrame.Locator(selector);
+                    if(await bubble.CountAsync()==1 && await bubble.IsVisibleAsync())
                     {
-                        await HumanPause(500);
-                        return;
+                        var bubbleText=await bubble.TextContentAsync() ?? string.Empty;
+                        var expectedProgress=$"שלב {order} מתוך {dapSteps.Count}";
+                        if(bubbleText.Contains(expected.Bubble.Content,StringComparison.Ordinal)
+                            && bubbleText.Contains(expectedProgress,StringComparison.Ordinal))
+                        {
+                            await HumanPause(500);
+                            return;
+                        }
                     }
                 }
             }
