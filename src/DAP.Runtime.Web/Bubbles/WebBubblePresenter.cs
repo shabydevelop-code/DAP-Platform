@@ -51,10 +51,16 @@ public sealed class WebBubblePresenter
     // Event-based validation must be armed before the user can act on the
     // instruction. Installing this only in the later validation poll creates
     // a race where a fast click is lost.
-    if (b.validationKind === 'clicked' && !el.__dapValidationClickInstalled) {
-        el.__dapValidationClickInstalled = true;
-        el.__dapValidationClicked = false;
-        el.addEventListener('click', () => { el.__dapValidationClicked = true; }, { capture: true });
+    if (b.validationKind === 'clicked') {
+        const current = root.__dapValidationState;
+        if (!current || current.stepId !== b.stepId || current.target !== el) {
+            const state = { stepId: b.stepId, target: el, clicked: false };
+            root.__dapValidationState = state;
+            el.addEventListener('click', () => {
+                if (root.__dapValidationState === state)
+                    state.clicked = true;
+            }, { capture: true });
+        }
     }
 
     const existing = root.getElementById('dap-guide-bubble');
