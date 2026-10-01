@@ -431,19 +431,15 @@ public sealed class WebBubblePresenter
                 .sort((a, b) => a.overflow - b.overflow);
             chosen = safe[0];
         }
-        if (!chosen) {
-            // A small iframe can be physically too small to place a bubble
-            // beside its target. Preserve the established fallback/lifecycle;
-            // cross-frame promotion is handled separately after presentation.
-            const x = Math.max(margin, (viewportWidth - q.width) / 2);
-            const y = Math.max(margin, (viewportHeight - q.height) / 2);
-            bubble.style.left = Math.min(x, Math.max(margin, viewportWidth - q.width - margin)) + 'px';
-            bubble.style.top = Math.min(y, Math.max(margin, viewportHeight - q.height - margin)) + 'px';
+        if (!chosen || !chosen.inside) {
+            // A constrained child frame cannot paint outside its own viewport.
+            // Mark the presentation for a top-level visual proxy instead of
+            // exposing a clipped bubble inside the child document.
             bubble.dataset.actualPlacement = 'Overlay';
             bubble.style.pointerEvents = 'none';
             bubble.style.cursor = 'default';
             pointer.style.display = 'none';
-            bubble.style.visibility = 'visible';
+            bubble.style.visibility = 'hidden';
             return;
         }
 
@@ -521,8 +517,7 @@ public sealed class WebBubblePresenter
                 const bubble=document.getElementById('dap-guide-bubble');
                 if (!bubble || bubble.__dapTarget !== el || bubble.dataset.actualPlacement !== 'Overlay')
                     return false;
-                const q=bubble.getBoundingClientRect();
-                return q.left < 0 || q.top < 0 || q.right > innerWidth || q.bottom > innerHeight;
+                return true;
             }");
         if (needsTopLevel)
         {
