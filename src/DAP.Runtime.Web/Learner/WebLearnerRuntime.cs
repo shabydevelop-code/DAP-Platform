@@ -246,8 +246,8 @@ public sealed class WebLearnerRuntime
         }
     }
 
-    public Task ShowGuideCompletedAsync(IPage page, CancellationToken cancellationToken)
-        => _bubbles.ShowGuideCompletedAsync(page, cancellationToken);
+    public Task WaitForGuideCompletedDismissalAsync(IPage page, CancellationToken cancellationToken)
+        => _bubbles.WaitForGuideCompletedDismissalAsync(page, cancellationToken);
 
     public async Task StopAsync(IPage page)
     {
