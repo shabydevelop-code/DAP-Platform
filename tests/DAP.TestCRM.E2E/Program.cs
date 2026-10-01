@@ -6,6 +6,12 @@ await using var browser = await playwright.Chromium.LaunchAsync(new() { Headless
 var context = await browser.NewContextAsync(new() { ViewportSize = ViewportSize.NoViewport });
 var page = await context.NewPageAsync();
 page.SetDefaultTimeout(5000);
+
+var e2eMode = Environment.GetEnvironmentVariable("DAP_E2E_MODE")?.Trim().ToLowerInvariant() ?? "visual";
+var visualMode = e2eMode is "visual" or "demo";
+var fastMode = !visualMode;
+
+Console.WriteLine($"E2E mode: {(visualMode ? "visual" : "fast")}");
 await page.AddInitScriptAsync(@"(() => {
   const install=()=>{
     if(window !== window.top) return;
@@ -53,19 +59,26 @@ async Task WaitReady()
     await f.WaitForLoadStateAsync(LoadState.DOMContentLoaded);
     await f.Locator("#server-busy").WaitForAsync(new() { State = WaitForSelectorState.Hidden, Timeout = 10000 });
 }
-async Task HumanPause(int ms=320) => await page.WaitForTimeoutAsync(ms);
+async Task HumanPause(int ms=320)
+{
+    if (visualMode) await page.WaitForTimeoutAsync(ms);
+}
 double cursorX=24,cursorY=24;
 async Task MoveTo(ILocator target)
 {
     await target.ScrollIntoViewIfNeededAsync();
     var box=await target.BoundingBoxAsync() ?? throw new Exception("Target has no bounding box.");
-    // Aim at a natural interaction point instead of a fixed left-edge offset.
-    // Text fields/buttons/rows use their center; selects use the dropdown-arrow side.
     var tag=await target.EvaluateAsync<string>("e=>e.tagName");
-    var type=await target.EvaluateAsync<string>("e=>e.getAttribute('type')||''");
     var isSelect=tag=="SELECT";
     var localX=isSelect ? Math.Min(16,box.Width/2) : box.Width/2;
     var localY=box.Height/2;
+
+    if (fastMode)
+    {
+        await target.HoverAsync(new() { Position = new() { X = localX, Y = localY } });
+        return;
+    }
+
     var x=box.X+localX;
     var y=box.Y+localY;
     const int steps=14;
@@ -108,14 +121,14 @@ async Task Fill(string selector,string value)
     var f=await Content(); var target=f.Locator(selector);
     await MoveTo(target); await target.ClickAsync();
     await page.Keyboard.PressAsync("Control+A");
-    await page.Keyboard.TypeAsync(value,new() { Delay = 75 });
+    await page.Keyboard.TypeAsync(value,new() { Delay = visualMode ? 75 : 0 });
     await HumanPause();
 }
 async Task Select(string selector,string value)
 {
     var f=await Content(); var target=f.Locator(selector);
     await MoveTo(target);
-    await HumanPause(300);
+    if (visualMode) await HumanPause(300);
 
     // Keep the system test deterministic: select the real option directly.
     // SelectOption fires the real change event and therefore the real CRM FieldChange flow.
@@ -248,7 +261,7 @@ var siteRoute=await siteCrumb.GetAttributeAsync("data-go") ?? throw new Exceptio
 if(!siteRoute.StartsWith("#/site/",StringComparison.Ordinal)) throw new Exception("Unexpected site breadcrumb route: "+siteRoute);
 await MoveTo(siteCrumb);
 await siteCrumb.ClickAsync();
-await page.WaitForTimeoutAsync(500);
+await page.WaitForTimeoutAsync(visualMode ? 500 : 0);
 await WaitReady();
 await Click("nav.tabs button:has-text('לידים')");
 await WaitReady();
