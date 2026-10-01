@@ -15,6 +15,7 @@ public sealed class WebValidationSession : IAsyncDisposable
     private readonly SemaphoreSlim _bridgeLock = new(1, 1);
     private IPage? _boundPage;
     private readonly ConcurrentQueue<string> _diagnostics = new();
+    private readonly ConcurrentDictionary<string, CancellationTokenSource> _completionSignals = new(StringComparer.Ordinal);
 
     public async Task EnsureBridgeAsync(IPage page)
     {
@@ -34,6 +35,8 @@ public sealed class WebValidationSession : IAsyncDisposable
                     if (!string.IsNullOrWhiteSpace(stepId))
                     {
                         _completedSteps[stepId] = 0;
+                        if (_completionSignals.TryGetValue(stepId, out var signal))
+                            signal.Cancel();
                         Trace($"[DAP validation] completion event received for Step '{stepId}'.");
                     }
                 });
@@ -48,6 +51,16 @@ public sealed class WebValidationSession : IAsyncDisposable
 
     public bool IsCompleted(string stepId)
         => _completedSteps.ContainsKey(stepId);
+
+    public CancellationToken GetCompletionToken(string stepId)
+    {
+        if (IsCompleted(stepId))
+            return new CancellationToken(canceled: true);
+
+        return _completionSignals
+            .GetOrAdd(stepId, _ => new CancellationTokenSource())
+            .Token;
+    }
 
     public void Trace(string message)
     {
@@ -64,6 +77,9 @@ public sealed class WebValidationSession : IAsyncDisposable
     {
         _boundPage = null;
         _completedSteps.Clear();
+        foreach (var signal in _completionSignals.Values)
+            signal.Dispose();
+        _completionSignals.Clear();
         _bridgeLock.Dispose();
         return ValueTask.CompletedTask;
     }
