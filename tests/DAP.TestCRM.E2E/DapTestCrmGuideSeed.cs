@@ -3,6 +3,8 @@ using DAP.Core.Targets;
 
 namespace DAP.TestCRM.E2E;
 
+// Test-only fixture consumed by the top-level E2E runner.
+
 public static class DapTestCrmGuideSeed
 {
     public const string GuideId = "testcrm-customer-search";
