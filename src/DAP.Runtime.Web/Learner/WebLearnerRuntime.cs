@@ -155,7 +155,42 @@ public sealed class WebLearnerRuntime
 
                 _validationSession.Trace($"[DAP runtime trace] Step '{step.Id}' entering EnsureShown.");
                 var presentation = Stopwatch.StartNew();
-                var resolution = await _bubbles.EnsureShownAsync(page, step, stepNumber, totalSteps, cancellationToken);
+
+                TargetResolution<ILocator> resolution;
+                if (isClickedValidation)
+                {
+                    using var presentationCancellation =
+                        CancellationTokenSource.CreateLinkedTokenSource(
+                            cancellationToken,
+                            _validationSession.GetCompletionToken(step.Id));
+                    try
+                    {
+                        resolution = await _bubbles.EnsureShownAsync(
+                            page,
+                            step,
+                            stepNumber,
+                            totalSteps,
+                            presentationCancellation.Token);
+                    }
+                    catch (OperationCanceledException)
+                        when (!cancellationToken.IsCancellationRequested
+                              && _validationSession.IsCompleted(step.Id))
+                    {
+                        _validationSession.Trace(
+                            $"[DAP runtime] click completion canceled in-flight EnsureShown for Step '{step.Id}'.");
+                        return;
+                    }
+                }
+                else
+                {
+                    resolution = await _bubbles.EnsureShownAsync(
+                        page,
+                        step,
+                        stepNumber,
+                        totalSteps,
+                        cancellationToken);
+                }
+
                 _validationSession.Trace($"[DAP runtime trace] Step '{step.Id}' EnsureShown completed with {resolution.Status}.");
 
                 if (resolution.Status == TargetResolutionStatus.Resolved
