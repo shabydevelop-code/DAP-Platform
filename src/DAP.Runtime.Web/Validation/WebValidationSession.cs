@@ -14,6 +14,7 @@ public sealed class WebValidationSession : IAsyncDisposable
     private readonly ConcurrentDictionary<string, byte> _completedSteps = new(StringComparer.Ordinal);
     private readonly SemaphoreSlim _bridgeLock = new(1, 1);
     private IPage? _boundPage;
+    private readonly ConcurrentQueue<string> _diagnostics = new();
 
     public async Task EnsureBridgeAsync(IPage page)
     {
@@ -33,7 +34,7 @@ public sealed class WebValidationSession : IAsyncDisposable
                     if (!string.IsNullOrWhiteSpace(stepId))
                     {
                         _completedSteps[stepId] = 0;
-                        Console.Error.WriteLine($"[DAP validation] completion event received for Step '{stepId}'.");
+                        Trace($"[DAP validation] completion event received for Step '{stepId}'.");
                     }
                 });
 
@@ -47,6 +48,17 @@ public sealed class WebValidationSession : IAsyncDisposable
 
     public bool IsCompleted(string stepId)
         => _completedSteps.ContainsKey(stepId);
+
+    public void Trace(string message)
+    {
+        Console.Error.WriteLine(message);
+        _diagnostics.Enqueue(message);
+        while (_diagnostics.Count > 200)
+            _diagnostics.TryDequeue(out _);
+    }
+
+    public IReadOnlyList<string> GetDiagnostics()
+        => _diagnostics.ToArray();
 
     public ValueTask DisposeAsync()
     {
