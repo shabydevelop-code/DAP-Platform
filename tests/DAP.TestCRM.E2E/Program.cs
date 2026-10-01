@@ -228,12 +228,40 @@ var dapAppProject=Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..",".
 if(!File.Exists(dapAppProject))
     throw new Exception($"DAP.App project not found at {dapAppProject}");
 
+// Build is deliberately outside the measured DAP startup path. The product
+// starts an already-built executable; E2E should measure the same boundary.
+using(var dapBuildProcess=Process.Start(new ProcessStartInfo
+{
+    FileName="dotnet",
+    Arguments=$"build \"{dapAppProject}\" --nologo --verbosity quiet",
+    UseShellExecute=false,
+    CreateNoWindow=true,
+    RedirectStandardOutput=true,
+    RedirectStandardError=true
+}) ?? throw new Exception("DAP.App build process could not be started."))
+{
+    var buildStdOutTask=dapBuildProcess.StandardOutput.ReadToEndAsync();
+    var buildStdErrTask=dapBuildProcess.StandardError.ReadToEndAsync();
+    await dapBuildProcess.WaitForExitAsync();
+    if(dapBuildProcess.ExitCode!=0)
+        throw new Exception(
+            $"DAP.App build failed. ExitCode={dapBuildProcess.ExitCode}.{Environment.NewLine}" +
+            $"STDOUT:{Environment.NewLine}{await buildStdOutTask}{Environment.NewLine}" +
+            $"STDERR:{Environment.NewLine}{await buildStdErrTask}");
+}
+
+var dapExecutable=Path.Combine(
+    Path.GetDirectoryName(dapAppProject)!,
+    "bin","Debug","net8.0-windows","DAP.exe");
+if(!File.Exists(dapExecutable))
+    throw new Exception($"Built DAP executable not found at {dapExecutable}");
+
 using var dapProcess=new Process
 {
     StartInfo=new ProcessStartInfo
     {
-        FileName="dotnet",
-        Arguments=$"run --project \"{dapAppProject}\" -- --learner-web {DapTestCrmGuideSeed.GuideId} --cdp http://127.0.0.1:{dapCdpPort} --page-url-contains localhost:5200",
+        FileName=dapExecutable,
+        Arguments=$"--learner-web {DapTestCrmGuideSeed.GuideId} --cdp http://127.0.0.1:{dapCdpPort} --page-url-contains localhost:5200",
         UseShellExecute=false,
         CreateNoWindow=true,
         RedirectStandardOutput=true,
@@ -241,6 +269,7 @@ using var dapProcess=new Process
     }
 };
 dapProcess.StartInfo.Environment["DAP_DATABASE_PATH"]=dapDbPath;
+var dapStartupTimer=Stopwatch.StartNew();
 if(!dapProcess.Start())
     throw new Exception("DAP.exe process could not be started.");
 
@@ -273,6 +302,8 @@ if(await dapBubble.CountAsync()==0)
 await dapBubble.WaitForAsync(new() { Timeout = 5000 });
 if(await dapBubble.TextContentAsync()!=dapStep.Bubble.Content)
     throw new Exception("DAP Web bubble content mismatch.");
+dapStartupTimer.Stop();
+Console.WriteLine($"DAP.exe startup to first bubble: {dapStartupTimer.Elapsed.TotalMilliseconds:F0} ms");
 Console.WriteLine("DAP production Web bubble from SQLite: PASS");
 
 // Prove the production Learner lifecycle, not a test-only re-presentation:
