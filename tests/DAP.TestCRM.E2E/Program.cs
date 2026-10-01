@@ -405,6 +405,15 @@ if(!string.IsNullOrWhiteSpace(dapStartupDiagnostics))
     Console.WriteLine(dapStartupDiagnostics);
 Console.WriteLine("DAP production Web bubble from SQLite: PASS");
 
+// In visual mode, let the first production bubble remain visibly stable before
+// deliberately replacing its document. Without this separation the intentional
+// re-resolution test looks like the bubble flickered or rendered twice.
+if(visualMode)
+{
+    Console.WriteLine("Visual check: first bubble stable; Content reload/re-resolution follows.");
+    await page.WaitForTimeoutAsync(900);
+}
+
 // Prove the production Learner lifecycle, not a test-only re-presentation:
 // reload the active Content document and require the runtime to reacquire the
 // replacement DOM target and recreate the active Step bubble by itself.
