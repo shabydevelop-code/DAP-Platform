@@ -124,8 +124,18 @@ public static class DapTestCrmGuideSeed
             "testcrm-case-subject-after-close", 17,
             "[name='subject']", "הזן מחדש את נושא הפנייה", "[name='subject']"),
 
+        ClickStep(
+            "testcrm-attempt-close-save", 18,
+            "button.primary:has-text('שמור')",
+            "נסה לשמור את הפנייה", "[name='closeReason']"),
+
+        ClickStep(
+            "testcrm-confirm-close-validation", 19,
+            "#ps-alert button",
+            "אשר את הודעת השגיאה", "#ps-alert"),
+
         ValueStep(
-            "testcrm-close-reason", 18,
+            "testcrm-close-reason", 20,
             "[name='closeReason']", "בחר סיבת סגירה", "[name='closeReason']",
             "value-equals", "טופל")
     };
