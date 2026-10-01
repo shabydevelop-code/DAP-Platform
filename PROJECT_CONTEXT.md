@@ -146,3 +146,9 @@ A target is represented by a runtime-neutral TargetDescriptor rather than a sing
 - Keep a known factory-default Guide definition so an explicit reset can restore a known baseline when requested.
 - Dedicated isolated repository/unit tests may still seed their own temporary databases because their purpose is persistence testing, not product Guide ownership.
 - Product rule: **Seed initializes. DB owns. Runtime consumes.**
+
+
+## Guided transition vs technical E2E actions
+- After a learner action completes a Guide Step, E2E must observe the next production Guide Step before performing any technical scenario action that can replace/reload the guided document.
+- Technical reload/frame-lifecycle scenarios may then run and must verify that the already-active Step is reconciled/re-presented afterward.
+- This prevents the harness from racing DAP's event-driven Step transition and preserves the invariant that Guide progression is driven by learner actions, not test timing.
