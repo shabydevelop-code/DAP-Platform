@@ -8,14 +8,6 @@ using DAP.Data.Sqlite;
 using DAP.Data.Sqlite.Guides;
 
 const string baseUrl = "http://localhost:5200";
-static async Task<string> ReadAvailableProcessOutputAsync(StreamReader reader)
-{
-    var output=new System.Text.StringBuilder();
-    while(reader.Peek()>=0)
-        output.AppendLine(await reader.ReadLineAsync());
-    return output.ToString();
-}
-
 static int ReserveTcpPort()
 {
     var listener = new TcpListener(IPAddress.Loopback, 0);
@@ -303,7 +295,13 @@ void KillOwnedDapProcess()
 AppDomain.CurrentDomain.ProcessExit+=(_,_)=>KillOwnedDapProcess();
 
 var dapStdOutTask=dapProcess.StandardOutput.ReadToEndAsync();
-var dapStdErrTask=dapProcess.StandardError.ReadToEndAsync();
+var dapStdErrLines=new System.Collections.Concurrent.ConcurrentQueue<string>();
+dapProcess.ErrorDataReceived+=(_,eventArgs)=>
+{
+    if(eventArgs.Data is not null)
+        dapStdErrLines.Enqueue(eventArgs.Data);
+};
+dapProcess.BeginErrorReadLine();
 
 try
 {
@@ -315,7 +313,7 @@ while(await dapBubble.CountAsync()==0 && DateTime.UtcNow<dapStartupDeadline)
     if(dapProcess.HasExited)
     {
         var dapStdOut=await dapStdOutTask;
-        var dapStdErr=await dapStdErrTask;
+        var dapStdErr=string.Join(Environment.NewLine,dapStdErrLines);
         throw new Exception(
             $"DAP.exe exited before presenting the first bubble. ExitCode={dapProcess.ExitCode}.{Environment.NewLine}" +
             $"STDOUT:{Environment.NewLine}{dapStdOut}{Environment.NewLine}" +
@@ -333,9 +331,9 @@ if(await dapBubble.TextContentAsync()!=dapStep.Bubble.Content)
     throw new Exception("DAP Web bubble content mismatch.");
 dapStartupTimer.Stop();
 Console.WriteLine($"DAP.exe startup to first bubble: {dapStartupTimer.Elapsed.TotalMilliseconds:F0} ms");
-var dapStartupDiagnostics=await ReadAvailableProcessOutputAsync(dapProcess.StandardError);
+var dapStartupDiagnostics=string.Join(Environment.NewLine,dapStdErrLines);
 if(!string.IsNullOrWhiteSpace(dapStartupDiagnostics))
-    Console.Write(dapStartupDiagnostics);
+    Console.WriteLine(dapStartupDiagnostics);
 Console.WriteLine("DAP production Web bubble from SQLite: PASS");
 
 // Prove the production Learner lifecycle, not a test-only re-presentation:
