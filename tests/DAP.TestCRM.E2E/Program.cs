@@ -107,9 +107,20 @@ async Task<IFrame> Content()
 }
 async Task WaitReady()
 {
+    // Content() already proves that the current live Content frame reached the
+    // TestCRM application-ready marker. Waiting for DOMContentLoaded after that
+    // introduces a browser-dependent lifecycle race: Chrome can complete (or
+    // replace) the document before this waiter is registered.
+    //
+    // Reacquire the live frame and use the application's own readiness contract
+    // instead. This is also the state DAP actually cares about after a
+    // PeopleSoft-style server update.
     var f = await Content();
-    await f.WaitForLoadStateAsync(LoadState.DOMContentLoaded);
-    await f.Locator("#server-busy").WaitForAsync(new() { State = WaitForSelectorState.Hidden, Timeout = 10000 });
+    await f.Locator("#server-busy").WaitForAsync(new()
+    {
+        State = WaitForSelectorState.Hidden,
+        Timeout = 10000
+    });
 }
 async Task HumanPause(int ms=320)
 {
