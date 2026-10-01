@@ -239,7 +239,19 @@ if(!dapProcess.Start())
 
 var dapContent=await Content();
 var dapBubble=dapContent.Locator("#dap-guide-bubble");
-await dapBubble.WaitForAsync();
+var dapStartupDeadline=DateTime.UtcNow.AddSeconds(30);
+while(await dapBubble.CountAsync()==0 && DateTime.UtcNow<dapStartupDeadline)
+{
+    if(dapProcess.HasExited)
+        throw new Exception($"DAP.exe exited before presenting the first bubble. ExitCode={dapProcess.ExitCode}.");
+
+    await page.WaitForTimeoutAsync(100);
+    dapContent=await Content();
+    dapBubble=dapContent.Locator("#dap-guide-bubble");
+}
+if(await dapBubble.CountAsync()==0)
+    throw new TimeoutException("DAP.exe did not present the first bubble within 30 seconds.");
+await dapBubble.WaitForAsync(new() { Timeout = 5000 });
 if(await dapBubble.TextContentAsync()!=dapStep.Bubble.Content)
     throw new Exception("DAP Web bubble content mismatch.");
 Console.WriteLine("DAP production Web bubble from SQLite: PASS");
