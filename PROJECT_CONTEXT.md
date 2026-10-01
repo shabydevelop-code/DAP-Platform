@@ -78,6 +78,7 @@ The permanent DAP.TestCRM target is used to validate the Web Runtime against a P
 5. CRM tab switching between Cases and Leads while preserving the business context.
 6. Conditional business target disappearance/reappearance with target re-resolution.
 7. Cross-frame navigation from the Header frame to the Content frame through a real user action.
+8. Layout Shift caused by an existing dependent business field, followed by target re-resolution.
 
 The same run also covers Lead creation, Lead FieldChange/conditional validation, dynamic Lead deletion, and Case deletion. The E2E runner has fast and visual modes; fast is the default validation mode.
 
