@@ -190,6 +190,22 @@ public sealed class WebBubblePresenter
     bubble.dataset.dapStepId = b.stepId;
     bubble.__dapTarget = el;
 
+    const dragHandle = root.createElement('div');
+    dragHandle.dataset.dapDragHandle = '1';
+    dragHandle.setAttribute('aria-label', 'גרור להזזת הבועה');
+    dragHandle.title = 'גרור להזזת הבועה';
+    dragHandle.textContent = '⠿';
+    Object.assign(dragHandle.style, {
+        textAlign: 'center',
+        fontSize: '18px',
+        lineHeight: '14px',
+        opacity: '0.72',
+        marginBottom: '6px',
+        cursor: 'grab',
+        touchAction: 'none'
+    });
+    bubble.appendChild(dragHandle);
+
     if (b.stepNumber && b.totalSteps) {
         const progress = root.createElement('div');
         progress.textContent = 'שלב ' + b.stepNumber + ' מתוך ' + b.totalSteps;
@@ -321,7 +337,7 @@ public sealed class WebBubblePresenter
     const onPointerDown = (event) => {
         // Preserve normal interaction if future bubble content contains an
         // actual interactive control.
-        if (event.button !== 0 || event.target.closest('button,a,input,select,textarea'))
+        if (event.button !== 0 || !event.target.closest('[data-dap-drag-handle="1"]'))
             return;
         const q = bubble.getBoundingClientRect();
         dragState = {
@@ -583,7 +599,7 @@ public sealed class WebBubblePresenter
                             };
                         };
                         bubble.addEventListener('pointerdown',event=>{
-                            if(event.button!==0 || event.target.closest('button,a,input,select,textarea')) return;
+                            if(event.button!==0 || !event.target.closest('[data-dap-drag-handle="1"]')) return;
                             const q=bubble.getBoundingClientRect();
                             drag={id:event.pointerId,x:event.clientX,y:event.clientY,left:q.left,top:q.top};
                             bubble.setPointerCapture(event.pointerId);
@@ -648,6 +664,16 @@ public sealed class WebBubblePresenter
                 const bubble=document.createElement('div');
                 bubble.id='dap-guide-completed';
                 bubble.setAttribute('role','status');
+                const dragHandle=document.createElement('div');
+                dragHandle.dataset.dapDragHandle='1';
+                dragHandle.setAttribute('aria-label','גרור להזזת הבועה');
+                dragHandle.title='גרור להזזת הבועה';
+                dragHandle.textContent='⠿';
+                Object.assign(dragHandle.style,{
+                    textAlign:'center',fontSize:'18px',lineHeight:'14px',
+                    opacity:'0.72',marginBottom:'6px',cursor:'grab',touchAction:'none'
+                });
+                bubble.appendChild(dragHandle);
                 const message=document.createElement('div');
                 message.textContent='המדריך הושלם בהצלחה';
                 bubble.appendChild(message);
@@ -683,7 +709,7 @@ public sealed class WebBubblePresenter
                     };
                 };
                 bubble.addEventListener('pointerdown',event=>{
-                    if(event.button!==0 || event.target.closest('button')) return;
+                    if(event.button!==0 || !event.target.closest('[data-dap-drag-handle="1"]')) return;
                     const q=bubble.getBoundingClientRect();
                     drag={id:event.pointerId,x:event.clientX,y:event.clientY,left:q.left,top:q.top};
                     bubble.style.transform='none';
