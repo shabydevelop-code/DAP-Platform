@@ -17,16 +17,29 @@ static int ReserveTcpPort()
     return port;
 }
 
+var harnessStartupTimer=Stopwatch.StartNew();
+var harnessLastMark=TimeSpan.Zero;
+void StartupMark(string stage)
+{
+    var now=harnessStartupTimer.Elapsed;
+    Console.WriteLine($"[E2E startup] {now.TotalMilliseconds:F0} ms total (+{(now-harnessLastMark).TotalMilliseconds:F0} ms) - {stage}");
+    harnessLastMark=now;
+}
+
 var dapCdpPort = ReserveTcpPort();
+StartupMark("CDP port reserved");
 using var playwright = await Playwright.CreateAsync();
+StartupMark("Playwright created");
 await using var browser = await playwright.Chromium.LaunchAsync(new()
 {
     Headless = false,
     Args = new[] { "--start-maximized", $"--remote-debugging-port={dapCdpPort}" }
 });
+StartupMark("Chromium launched");
 var context = await browser.NewContextAsync(new() { ViewportSize = ViewportSize.NoViewport, ExtraHTTPHeaders = new Dictionary<string,string> { ["X-DAP-E2E-Mode"] = (Environment.GetEnvironmentVariable("DAP_E2E_MODE")?.Trim().ToLowerInvariant() ?? "fast") } });
 var page = await context.NewPageAsync();
 page.SetDefaultTimeout(5000);
+StartupMark("browser context and page created");
 
 var e2eMode = Environment.GetEnvironmentVariable("DAP_E2E_MODE")?.Trim().ToLowerInvariant() ?? "fast";
 var visualMode = e2eMode is "visual" or "demo";
@@ -208,8 +221,11 @@ Console.WriteLine("Scenario 7: Cross-frame navigation from Header to Content");
 Console.WriteLine("Scenario 8: Layout shift + target re-resolution");
 Console.WriteLine("Scenario 9: Consecutive server updates + final-state re-resolution");
 Console.WriteLine("Scenario 10: Business context switch + target isolation");
+StartupMark("scenario harness initialized");
 await page.GotoAsync(baseUrl);
+StartupMark("TestCRM navigation completed");
 await WaitReady();
+StartupMark("TestCRM ready");
 
 // First real DAP Web bubble: persist -> reload -> resolve -> present.
 var dapDbPath=Path.Combine(Path.GetTempPath(),"DAP.TestCRM.E2E",Guid.NewGuid()+".db");
@@ -219,6 +235,7 @@ var dapRepository=new SqliteGuideStepRepository(dapFactory);
 await dapRepository.SaveStepAsync(DapTestCrmGuideSeed.GuideId,DapTestCrmGuideSeed.CustomerNameStep);
 await dapRepository.SaveStepAsync(DapTestCrmGuideSeed.GuideId,DapTestCrmGuideSeed.CustomerSearchButtonStep);
 var dapSteps=await dapRepository.GetStepsAsync(DapTestCrmGuideSeed.GuideId);
+StartupMark("temporary DAP guide database seeded");
 if(dapSteps.Count!=2)
     throw new Exception($"Expected two persisted DAP Steps, found {dapSteps.Count}.");
 var dapStep=dapSteps[0];
@@ -262,6 +279,7 @@ foreach(var candidate in Process.GetProcessesByName("DAP"))
 
 // Build is deliberately outside the measured DAP startup path. The product
 // starts an already-built executable; E2E should measure the same boundary.
+StartupMark("orphan cleanup completed; DAP.App build starting");
 using(var dapBuildProcess=Process.Start(new ProcessStartInfo
 {
     FileName="dotnet",
@@ -281,6 +299,7 @@ using(var dapBuildProcess=Process.Start(new ProcessStartInfo
             $"STDOUT:{Environment.NewLine}{await buildStdOutTask}{Environment.NewLine}" +
             $"STDERR:{Environment.NewLine}{await buildStdErrTask}");
 }
+StartupMark("DAP.App build completed");
 
 if(!File.Exists(dapExecutable))
     throw new Exception($"Built DAP executable not found at {dapExecutable}");
@@ -301,6 +320,7 @@ dapProcess.StartInfo.Environment["DAP_DATABASE_PATH"]=dapDbPath;
 var dapStartupTimer=Stopwatch.StartNew();
 if(!dapProcess.Start())
     throw new Exception("DAP.exe process could not be started.");
+StartupMark("DAP.exe process started");
 
 // Ctrl+C can terminate the E2E before async finally cleanup gets a chance to
 // run. Register a synchronous process-exit safety net scoped only to the DAP
@@ -357,6 +377,7 @@ if(await dapBubble.TextContentAsync()!=dapStep.Bubble.Content)
     throw new Exception("DAP Web bubble content mismatch.");
 dapStartupTimer.Stop();
 Console.WriteLine($"DAP.exe startup to first bubble: {dapStartupTimer.Elapsed.TotalMilliseconds:F0} ms");
+StartupMark("first DAP bubble observed; Scenario 1 can proceed");
 var dapStartupDiagnostics=string.Join(Environment.NewLine,dapStdErrLines);
 if(!string.IsNullOrWhiteSpace(dapStartupDiagnostics))
     Console.WriteLine(dapStartupDiagnostics);
