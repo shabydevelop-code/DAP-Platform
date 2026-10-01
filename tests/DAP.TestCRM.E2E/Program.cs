@@ -467,24 +467,28 @@ await WaitReady();
 var frame=await Content();
 var siteCasesRoute=new Uri(frame.Url).Fragment;
 await frame.Locator("h2:has-text('פניות')").WaitForAsync();
+
+// Sorting is a visible learner action in the demo, so it has its own Guide Step.
+// Never perform it while the next bubble is already instructing another action.
+await WaitForGuideStep(6);
 await Click("th button[data-sort='status']");
 await WaitReady();
 
 // Create a fresh open Case so repeated runs never depend on mutated seed data.
-await WaitForGuideStep(6);
+await WaitForGuideStep(7);
 await Click("button.primary:has-text('פניה חדשה')");
 await WaitReady();
 
-await WaitForGuideStep(7);
+await WaitForGuideStep(8);
 await Fill("[name='subject']","תקלה בחיבור לאינטרנט");
 
-await WaitForGuideStep(8);
+await WaitForGuideStep(9);
 await Fill("[name='description']","הלקוח מדווח על חיבור לא יציב.");
 
-await WaitForGuideStep(9);
+await WaitForGuideStep(10);
 await SaveSuccess();
 
-// The first complete business Guide ends here. Everything below remains the
+// The first synchronized demo Guide segment ends here. Everything below remains the
 // broader CRM resilience suite and must not depend on an active Guide bubble.
 await page.WaitForTimeoutAsync(250);
 if(await (await Content()).Locator("#dap-guide-bubble").CountAsync()!=0)
