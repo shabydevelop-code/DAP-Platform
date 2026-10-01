@@ -126,6 +126,12 @@ This is the default design assumption for the Web Runtime's server-backed applic
 
 Browser/Playwright deployment dependencies must be packaged or validated explicitly by the product installer/startup process; they must not be left as an undocumented machine assumption.
 
+### Bubble visual theme
+
+Bubble content and per-step placement are guide data. The product's default visual language (colors, typography, border, radius, spacing, shadow, and equivalent presentation defaults) is runtime/theme configuration and is not duplicated in each GuideStep or persisted as per-step SQLite data.
+
+The Web Runtime currently exposes this through a central `WebBubbleTheme`, consumed by `WebBubblePresenter`. This keeps presentation policy separate from guide content and persistence. A future Windows Runtime should map the corresponding product theme to its native presentation technology rather than storing Web CSS in Core or in the guide database. Per-guide/per-step visual overrides should be introduced only if they become an explicit product requirement.
+
 ## Windows Runtime
 
 The production Windows Runtime uses Microsoft UI Automation.
