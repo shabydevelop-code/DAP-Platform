@@ -8,6 +8,14 @@ using DAP.Data.Sqlite;
 using DAP.Data.Sqlite.Guides;
 
 const string baseUrl = "http://localhost:5200";
+static async Task<string> ReadAvailableProcessOutputAsync(StreamReader reader)
+{
+    var output=new System.Text.StringBuilder();
+    while(reader.Peek()>=0)
+        output.AppendLine(await reader.ReadLineAsync());
+    return output.ToString();
+}
+
 static int ReserveTcpPort()
 {
     var listener = new TcpListener(IPAddress.Loopback, 0);
@@ -304,6 +312,9 @@ if(await dapBubble.TextContentAsync()!=dapStep.Bubble.Content)
     throw new Exception("DAP Web bubble content mismatch.");
 dapStartupTimer.Stop();
 Console.WriteLine($"DAP.exe startup to first bubble: {dapStartupTimer.Elapsed.TotalMilliseconds:F0} ms");
+var dapStartupDiagnostics=await ReadAvailableProcessOutputAsync(dapProcess.StandardError);
+if(!string.IsNullOrWhiteSpace(dapStartupDiagnostics))
+    Console.Write(dapStartupDiagnostics);
 Console.WriteLine("DAP production Web bubble from SQLite: PASS");
 
 // Prove the production Learner lifecycle, not a test-only re-presentation:
