@@ -127,3 +127,11 @@ A target is represented by a runtime-neutral TargetDescriptor rather than a sing
 - Only Steps referenced by such tokens are navigation-sensitive capture sources. Before capture, the Web Guide Runtime waits for their target frame to leave the preceding Step URL, preventing a validating click from capturing the pre-navigation route.
 - Runtime values are materialized into a per-run GuideStep copy; persisted Guide definitions remain unchanged.
 - TestCRM Steps 12 and 50 use the real existing `data-go` route plus the runtime-captured Case fragment. TestCRM itself is not changed for DAP targeting.
+
+
+## Persistent Guide database rule
+- The TestCRM visual system demonstration uses the same persistent DAP SQLite database as DAP.exe: `SqliteDatabaseOptions.CreateDefault()`, normally `C:\ProgramData\DAP\Data\DAP.db`, with `DAP_DATABASE_PATH` remaining the supported explicit override.
+- Do not hide the production Guide used by the visual demonstration in a random per-run temporary database.
+- The E2E harness may seed/update the known TestCRM Guide fixture in the persistent DAP database, then must launch DAP.exe against that exact database path.
+- This makes persisted Guides/GuideSteps/TargetAnchors inspectable and keeps the visual demonstration aligned with the real DAP persistence boundary.
+- Isolated temporary databases remain appropriate for dedicated repository/unit tests where persistence isolation is the subject of the test.
