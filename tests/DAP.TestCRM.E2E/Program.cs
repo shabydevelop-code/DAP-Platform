@@ -180,6 +180,7 @@ Console.WriteLine("DAP TestCRM representative PeopleSoft-Web scenario");
 Console.WriteLine("Scenario 1: Case status FieldChange + Content iframe replacement");
 Console.WriteLine("Scenario 2: Case validation failure + preservation of unsaved values");
 Console.WriteLine("Scenario 3: Grid rerender/reorder + target re-resolution");
+Console.WriteLine("Scenario 4: Full page reload + business context preservation");
 await page.GotoAsync(baseUrl);
 await WaitReady();
 
@@ -263,6 +264,25 @@ if(await frame.Locator("[name='description']").InputValueAsync()!="הלקוח מ
     throw new Exception("Unsaved Description was not preserved after server validation refresh.");
 await Select("[name='closeReason']","טופל");
 await SaveSuccess();
+
+// 4. Full page reload while remaining on the persisted Case.
+// Business scenario: an agent refreshes the browser after saving and must return
+// to the same Case with its saved business state intact.
+var beforeReloadUrl=page.Url;
+if(!beforeReloadUrl.Contains($"#/case/{createdCaseId}",StringComparison.Ordinal))
+    throw new Exception("Expected to remain on the created Case before full page reload.");
+await page.ReloadAsync();
+await WaitReady();
+frame=await Content();
+await frame.Locator("h2:has-text('פנייה')").WaitForAsync();
+if(!page.Url.Contains($"#/case/{createdCaseId}",StringComparison.Ordinal))
+    throw new Exception("Full page reload did not preserve the active Case route.");
+if(await frame.Locator("[name='status']").InputValueAsync()!="סגורה")
+    throw new Exception("Full page reload did not preserve the saved Case status.");
+if(await frame.Locator("[name='subject']").InputValueAsync()!="תקלה בחיבור לאינטרנט")
+    throw new Exception("Full page reload did not preserve the saved Case subject.");
+if(await frame.Locator("[name='closeReason']").InputValueAsync()!="טופל")
+    throw new Exception("Full page reload did not preserve the saved Close Reason.");
 
 // 7. Continue legitimate agent work into Leads.
 frame=await Content();
