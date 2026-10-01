@@ -189,7 +189,7 @@ await page.GotoAsync(baseUrl);
 await WaitReady();
 
 // 1. Legitimate customer lookup: server round trip + working context.
-frame=await Content(); await frame.Locator("[name='name']").WaitForAsync(); await Fill("[name='name']","אלפא");
+await (await Content()).Locator("[name='name']").WaitForAsync(); await Fill("[name='name']","אלפא");
 await Click("#customer-search button.primary");
 await WaitReady();
 
