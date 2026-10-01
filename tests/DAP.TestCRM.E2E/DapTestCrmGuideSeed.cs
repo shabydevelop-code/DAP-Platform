@@ -84,7 +84,25 @@ public static class DapTestCrmGuideSeed
         ClickStep(
             "testcrm-save-new-case", 10,
             "button.primary:has-text('שמור')",
-            "שמור את הפנייה החדשה", "[name='subject']")
+            "שמור את הפנייה החדשה", "[name='subject']"),
+
+        ClickStep(
+            "testcrm-back-to-cases", 11,
+            ".breadcrumb a:nth-of-type(3)",
+            "חזור לרשימת הפניות", "h1:has-text('פניה')"),
+
+        ClickStep(
+            "testcrm-open-created-case", 12,
+            "button.grid-open",
+            "פתח את הפנייה שיצרת", "h2:has-text('פניות')"),
+
+        ValueStep(
+            "testcrm-case-in-progress", 13,
+            "[name='status']", "שנה את סטטוס הפנייה לבטיפול", "[name='resolutionNotes']"),
+
+        ValueStep(
+            "testcrm-resolution-notes", 14,
+            "[name='resolutionNotes']", "הוסף הערות טיפול", "[name='resolutionNotes']")
     };
 
     public static GuideStep CustomerNameStep => Steps[0];
