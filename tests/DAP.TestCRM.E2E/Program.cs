@@ -268,14 +268,14 @@ await SaveSuccess();
 // 4. Full page reload while remaining on the persisted Case.
 // Business scenario: an agent refreshes the browser after saving and must return
 // to the same Case with its saved business state intact.
-var beforeReloadUrl=page.Url;
+var beforeReloadUrl=frame.Url;
 if(!beforeReloadUrl.Contains($"#/case/{createdCaseId}",StringComparison.Ordinal))
     throw new Exception("Expected to remain on the created Case before full page reload.");
 await page.ReloadAsync();
 await WaitReady();
 frame=await Content();
 await frame.Locator("h2:has-text('פנייה')").WaitForAsync();
-if(!page.Url.Contains($"#/case/{createdCaseId}",StringComparison.Ordinal))
+if(!frame.Url.Contains($"#/case/{createdCaseId}",StringComparison.Ordinal))
     throw new Exception("Full page reload did not preserve the active Case route.");
 if(await frame.Locator("[name='status']").InputValueAsync()!="סגורה")
     throw new Exception("Full page reload did not preserve the saved Case status.");
