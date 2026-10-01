@@ -177,3 +177,20 @@ The Learner Web Runtime representative 53-Step DAP.TestCRM E2E is validated on P
 
 Cross-browser navigation durability is a Runtime responsibility. Application readiness must be based on the current live application/frame readiness contract rather than a browser lifecycle event that may already have completed before a waiter is registered. Likewise, click completion is DAP-owned state: when completion is reported while the validating action is replacing/navigating its document or frame, Learner reconciliation must be able to observe that completion and advance without depending on another operation against the retiring document. Browser-specific or target-application-specific timing workarounds are not acceptable substitutes for this behavior.
 
+## Instructor Target Capture vs Learner Runtime robustness
+
+The cross-browser click/navigation race fix belongs to the Learner Web Runtime engine. It is not Guide-specific data and must not be encoded as a TestCRM, browser, or individual Guide workaround. Runtime responsibilities include surviving DOM/frame replacement, re-resolving targets, observing DAP-owned validation completion, and advancing safely when the source document is retiring.
+
+A separate risk exists when a newly authored Guide captures insufficient or unstable target identity. A robust Learner Runtime cannot infer the author's intended target if the persisted definition is inherently weak or ambiguous. Therefore the future Instructor/Editor Target Capture flow must capture and persist a rich runtime-neutral `TargetDescriptor`, not merely a single CSS selector.
+
+Target Capture should collect candidate identity evidence appropriate to the runtime, including the primary locator, stable attributes/identity signals, frame hierarchy/context, useful anchors, and applicable business/screen context. Multiple anchors must be supported when one locator/anchor is not sufficient for unique identification.
+
+The Instructor must validate the captured descriptor using the same production target-resolution semantics consumed by the Learner Runtime. At authoring/preview time the expected result is exactly one `Resolved` target. A `NotFound` result means the captured identity is insufficient or no longer valid; an `Ambiguous` result means additional identity/context/anchors are required. The Instructor must not silently accept ambiguity by selecting the first match.
+
+Architectural separation:
+- **Instructor/Editor responsibility:** capture enough stable target evidence and validate that the persisted descriptor identifies the intended target uniquely.
+- **Persistence responsibility:** store the runtime-neutral descriptor, ordered anchors, frame/context information, and related Step definition without coupling Core to a database provider.
+- **Learner Runtime responsibility:** consume that persisted identity, re-resolve it against the current live application state, tolerate lifecycle races and DOM/frame replacement, and return explicit resolution failure/ambiguity rather than guessing.
+
+This separation is required so Guides created in the future benefit automatically from engine-level lifecycle fixes while target-quality problems are detected during authoring instead of being hidden by Guide-specific runtime workarounds.
+
