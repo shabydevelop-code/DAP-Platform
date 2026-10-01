@@ -1,3 +1,4 @@
+using DAP.TestCRM.E2E;
 using Microsoft.Playwright;
 using DAP.Core.Targets;
 using DAP.Data.Sqlite;
