@@ -65,3 +65,18 @@ The application must detect a missing required runtime during installation/start
 Project progress and architectural configuration are maintained in Markdown in this repository.
 
 After significant implementation changes, update the relevant Markdown documentation in the same change.
+
+
+## Current E2E validation baseline
+
+The permanent DAP.TestCRM target is used to validate the Web Runtime against a PeopleSoft-style server-backed CRM model. The current validated E2E flow includes:
+
+1. Case FieldChange followed by Content iframe replacement.
+2. Server validation failure with preservation of unsaved working values.
+3. Server-side Grid rerender/reorder with target re-resolution.
+4. Content-document reload with preservation of the logical Case context and saved values.
+5. CRM tab switching between Cases and Leads while preserving the business context.
+
+The same run also covers Lead creation, Lead FieldChange/conditional validation, dynamic Lead deletion, and Case deletion. The E2E runner has fast and visual modes; fast is the default validation mode.
+
+These scenarios must exercise user-visible application behavior and generic runtime mechanisms. TestCRM-specific workarounds must not be introduced merely to make an E2E scenario pass when the corresponding behavior would not exist in an independent target CRM.
