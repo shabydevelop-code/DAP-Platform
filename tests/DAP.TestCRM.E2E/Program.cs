@@ -42,10 +42,11 @@ page.SetDefaultTimeout(5000);
 StartupMark("browser context and page created");
 
 var e2eMode = Environment.GetEnvironmentVariable("DAP_E2E_MODE")?.Trim().ToLowerInvariant() ?? "fast";
-var visualMode = e2eMode is "visual" or "demo";
+var manualMode = e2eMode == "manual";
+var visualMode = manualMode || e2eMode is "visual" or "demo";
 var fastMode = !visualMode;
 
-Console.WriteLine($"E2E mode: {(visualMode ? "visual" : "fast")}");
+Console.WriteLine($"E2E mode: {(manualMode ? "manual" : visualMode ? "visual" : "fast")}");
 await page.AddInitScriptAsync(@"(() => {
   const install=()=>{
     if(window !== window.top) return;
@@ -418,6 +419,22 @@ var dapStartupDiagnostics=string.Join(Environment.NewLine,dapStdErrLines);
 if(!string.IsNullOrWhiteSpace(dapStartupDiagnostics))
     Console.WriteLine(dapStartupDiagnostics);
 Console.WriteLine("DAP production Web bubble from SQLite: PASS");
+
+if(manualMode)
+{
+    Console.WriteLine("MANUAL LEARNER RUN: DAP is now guiding the browser. Perform the Guide actions yourself.");
+    Console.WriteLine($"Guide: {DapTestCrmGuideSeed.GuideId} ({dapSteps.Count} Steps).");
+    Console.WriteLine("The harness will not click, type, navigate or advance any Step.");
+    Console.WriteLine("Complete the Guide in the browser. Close DAP/browser or press Ctrl+C when finished.");
+
+    // Keep the harness, browser and CDP endpoint alive while the human learner
+    // drives the exact same production Guide. No E2E action helpers run here.
+    while(!dapProcess.HasExited)
+        await Task.Delay(500);
+
+    Console.WriteLine($"Manual Learner DAP process ended with ExitCode={dapProcess.ExitCode}.");
+    return;
+}
 
 
 // Automatic validation belongs to DAP.exe. With guide orchestration active,
