@@ -1032,9 +1032,53 @@ if(await frame.Locator($"button.grid-open[data-go='#/case/{createdCaseId}']").Co
 if (manualFromStep == 53)
 {
     await WaitForGuideStep(53);
+
+    var step53Frame = page.Frames.FirstOrDefault(candidate =>
+        !candidate.IsDetached && candidate.Name == "dap-header")
+        ?? throw new Exception("Step 53 Header frame was not found.");
+    var step53Bubble = step53Frame.Locator("#dap-guide-bubble");
+    var step53Target = step53Frame.Locator("#portal-header");
+
+    var bubbleDiagnostics = await step53Bubble.EvaluateAsync<string>(
+        @"el => {
+            const r=el.getBoundingClientRect();
+            const s=getComputedStyle(el);
+            return JSON.stringify({
+                rect:{x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom},
+                viewport:{width:innerWidth,height:innerHeight},
+                display:s.display,visibility:s.visibility,opacity:s.opacity,
+                position:s.position,zIndex:s.zIndex,pointerEvents:s.pointerEvents,
+                overflowX:getComputedStyle(document.documentElement).overflowX,
+                overflowY:getComputedStyle(document.documentElement).overflowY
+            });
+        }");
+    var targetDiagnostics = await step53Target.EvaluateAsync<string>(
+        @"el => {
+            const r=el.getBoundingClientRect();
+            return JSON.stringify({
+                rect:{x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom},
+                viewport:{width:innerWidth,height:innerHeight}
+            });
+        }");
+    var iframeDiagnostics = await page.Locator("iframe[name='dap-header']").EvaluateAsync<string>(
+        @"el => {
+            const r=el.getBoundingClientRect();
+            const s=getComputedStyle(el);
+            return JSON.stringify({
+                rect:{x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom},
+                display:s.display,visibility:s.visibility,opacity:s.opacity,
+                viewport:{width:innerWidth,height:innerHeight}
+            });
+        }");
+
     Console.WriteLine();
-    Console.WriteLine("MANUAL HANDOFF: Step 53 is active and visible.");
-    Console.WriteLine("Automation is paused. Test Step 53 manually in the open browser.");
+    Console.WriteLine("STEP 53 VISIBILITY DIAGNOSTICS");
+    Console.WriteLine($"Header iframe: {iframeDiagnostics}");
+    Console.WriteLine($"Target:        {targetDiagnostics}");
+    Console.WriteLine($"Bubble:        {bubbleDiagnostics}");
+    Console.WriteLine();
+    Console.WriteLine("MANUAL HANDOFF: Step 53 exists and Playwright reports it visible.");
+    Console.WriteLine("Automation is paused. Inspect the open browser now.");
     Console.WriteLine("Press ENTER here when you are finished to close the run.");
     Console.ReadLine();
     return;
