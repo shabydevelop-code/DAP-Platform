@@ -451,7 +451,7 @@ await frame.Locator("h2:has-text('פניות')").WaitForAsync();
 var caseRows=frame.Locator("button.grid-open");
 if(await caseRows.CountAsync()<1)
     throw new Exception("No Case rows available for business-context switch.");
-await Click("button.grid-open:first-child");
+await Click("tbody tr:first-child button.grid-open");
 await WaitReady();
 frame=await Content();
 await frame.Locator("h1:has-text('פניה')").WaitForAsync();
