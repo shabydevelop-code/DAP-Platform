@@ -101,12 +101,25 @@ try {
     } until ($ready -or (Get-Date) -ge $deadline)
     if (-not $ready) { throw "TestCRM did not become ready at $testCrmUrl." }
 
+    # A focused manual run must put the target application into a state in
+    # which the requested Step can actually resolve. Step 53 is deliberately
+    # in the persistent shell Header iframe, so no business records need to be
+    # synthesized; navigating Content to the post-delete Cases screen mirrors
+    # the state immediately after Step 52 while keeping the real Header intact.
+    $startUrl = $testCrmUrl
+    if ($GuideId -eq "testcrm-create-case" -and $StartStep -eq 53) {
+        $startUrl = "$testCrmUrl/#/site/1/cases"
+        Write-Host "Preparing TestCRM state for Step 53: site Cases screen."
+    } elseif ($StartStep -gt 1) {
+        throw "Focused TestCRM setup is not defined for Guide '$GuideId' Step $StartStep. Refusing to start from an unrelated application state."
+    }
+
     Write-Host "Opening $Browser for manual learner run..."
     $browserProcess = Start-Process $browserPath -ArgumentList @(
         "--remote-debugging-port=$cdpPort",
         "--user-data-dir=$profileDir",
         "--start-maximized",
-        $testCrmUrl
+        $startUrl
     ) -PassThru
 
     $cdpEndpoint = "http://127.0.0.1:$cdpPort"
