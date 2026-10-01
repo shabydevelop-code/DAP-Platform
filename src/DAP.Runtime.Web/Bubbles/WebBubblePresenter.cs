@@ -26,14 +26,18 @@ public sealed class WebBubblePresenter
     public Task<TargetResolution<ILocator>> EnsureShownAsync(
         IPage page,
         GuideStep step,
+        int stepNumber,
+        int totalSteps,
         CancellationToken cancellationToken = default)
-        => PresentAsync(page, step, ensureOnly: true, cancellationToken);
+        => PresentAsync(page, step, ensureOnly: true, cancellationToken, stepNumber, totalSteps);
 
     private async Task<TargetResolution<ILocator>> PresentAsync(
         IPage page,
         GuideStep step,
         bool ensureOnly,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        int? stepNumber = null,
+        int? totalSteps = null)
     {
         if (step.Target is null)
             return TargetResolution<ILocator>.NotFound();
@@ -152,6 +156,18 @@ public sealed class WebBubblePresenter
     bubble.dataset.placement = b.placement;
     bubble.dataset.dapStepId = b.stepId;
     bubble.__dapTarget = el;
+
+    if (b.stepNumber && b.totalSteps) {
+        const progress = root.createElement('div');
+        progress.textContent = 'שלב ' + b.stepNumber + ' מתוך ' + b.totalSteps;
+        Object.assign(progress.style, {
+            fontSize: '12px',
+            opacity: '0.78',
+            marginBottom: '5px',
+            fontWeight: '600'
+        });
+        bubble.appendChild(progress);
+    }
 
     const content = root.createElement('div');
     content.textContent = b.content;
@@ -422,6 +438,8 @@ public sealed class WebBubblePresenter
                 content = step.Bubble.Content,
                 placement = step.Bubble.Placement.ToString(),
                 stepId = step.Id,
+                stepNumber,
+                totalSteps,
                 ensureOnly,
                 validationKind = step.Validation?.Kind,
                 theme = new
