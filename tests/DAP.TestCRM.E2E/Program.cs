@@ -246,14 +246,21 @@ StartupMark("TestCRM ready");
 
 // First real DAP Web bubble: persist -> reload -> resolve -> present.
 var guideSteps=DapTestCrmGuideSeed.CreateSteps();
-var dapDbPath=Path.Combine(Path.GetTempPath(),"DAP.TestCRM.E2E",Guid.NewGuid()+".db");
-var dapFactory=new SqliteConnectionFactory(new SqliteDatabaseOptions(dapDbPath));
+
+// The visual system demonstration uses DAP's real persistent database. The
+// harness may seed/update its Guide definition, but it must not hide the Guide
+// in an unrelated per-run temporary database. DAP.exe below receives this exact
+// same path, so what the learner sees is what is persisted in DAP.db.
+var dapDatabaseOptions=SqliteDatabaseOptions.CreateDefault();
+var dapDbPath=dapDatabaseOptions.DatabasePath;
+var dapFactory=new SqliteConnectionFactory(dapDatabaseOptions);
 await new SqliteDatabaseInitializer(dapFactory).InitializeAsync();
 var dapRepository=new SqliteGuideStepRepository(dapFactory);
 foreach(var guideStep in guideSteps)
     await dapRepository.SaveStepAsync(DapTestCrmGuideSeed.GuideId,guideStep);
 var dapSteps=await dapRepository.GetStepsAsync(DapTestCrmGuideSeed.GuideId);
-StartupMark("temporary DAP guide database seeded");
+Console.WriteLine($"DAP persistent guide database: {dapDbPath}");
+StartupMark("persistent DAP guide database seeded");
 if(dapSteps.Count!=guideSteps.Count)
     throw new Exception($"Expected {guideSteps.Count} persisted DAP Steps, found {dapSteps.Count}.");
 var dapStep=dapSteps[0];
