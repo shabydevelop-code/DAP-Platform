@@ -48,6 +48,68 @@ static int ReserveTcpPort()
     return port;
 }
 
+Process? ownedTestCrmProcess = null;
+if (manualFromStep is not null)
+{
+    var repoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+    var testCrmProject = Path.Combine(repoRoot, "test-apps", "DAP.TestCRM", "DAP.TestCRM.csproj");
+    if (!File.Exists(testCrmProject))
+        throw new FileNotFoundException("TestCRM project was not found.", testCrmProject);
+
+    // Manual handoff is intentionally self-contained: unlike a normal E2E run,
+    // the tester should not have to start a second process in another terminal.
+    var psi = new ProcessStartInfo
+    {
+        FileName = "dotnet",
+        Arguments = $"run --project \"{testCrmProject}\" --no-launch-profile",
+        WorkingDirectory = repoRoot,
+        UseShellExecute = false,
+        CreateNoWindow = true,
+        RedirectStandardOutput = true,
+        RedirectStandardError = true
+    };
+    psi.Environment["ASPNETCORE_URLS"] = baseUrl;
+    ownedTestCrmProcess = Process.Start(psi)
+        ?? throw new InvalidOperationException("Could not start TestCRM for manual handoff.");
+
+    var crmReadyDeadline = DateTime.UtcNow.AddSeconds(30);
+    using var http = new HttpClient();
+    while (DateTime.UtcNow < crmReadyDeadline)
+    {
+        if (ownedTestCrmProcess.HasExited)
+        {
+            var stdout = await ownedTestCrmProcess.StandardOutput.ReadToEndAsync();
+            var stderr = await ownedTestCrmProcess.StandardError.ReadToEndAsync();
+            throw new Exception(
+                $"TestCRM exited before becoming ready. ExitCode={ownedTestCrmProcess.ExitCode}.{Environment.NewLine}" +
+                $"STDOUT:{Environment.NewLine}{stdout}{Environment.NewLine}STDERR:{Environment.NewLine}{stderr}");
+        }
+
+        try
+        {
+            using var response = await http.GetAsync(baseUrl);
+            if ((int)response.StatusCode < 500)
+                break;
+        }
+        catch (HttpRequestException) { }
+
+        await Task.Delay(200);
+    }
+
+    try
+    {
+        using var response = await http.GetAsync(baseUrl);
+        if ((int)response.StatusCode >= 500)
+            throw new Exception($"TestCRM readiness returned HTTP {(int)response.StatusCode}.");
+    }
+    catch (HttpRequestException ex)
+    {
+        throw new Exception($"TestCRM did not become ready at {baseUrl} within 30 seconds.", ex);
+    }
+
+    Console.WriteLine($"Manual handoff TestCRM started at {baseUrl} (PID {ownedTestCrmProcess.Id}).");
+}
+
 var harnessStartupTimer=Stopwatch.StartNew();
 var harnessLastMark=TimeSpan.Zero;
 void StartupMark(string stage)
@@ -985,4 +1047,21 @@ finally
 {
     KillOwnedDapProcess();
 
+    if (ownedTestCrmProcess is not null)
+    {
+        try
+        {
+            if (!ownedTestCrmProcess.HasExited)
+            {
+                ownedTestCrmProcess.Kill(entireProcessTree: true);
+                ownedTestCrmProcess.WaitForExit(5000);
+            }
+        }
+        catch (InvalidOperationException) { }
+        catch (System.ComponentModel.Win32Exception) { }
+        finally
+        {
+            ownedTestCrmProcess.Dispose();
+        }
+    }
 }
