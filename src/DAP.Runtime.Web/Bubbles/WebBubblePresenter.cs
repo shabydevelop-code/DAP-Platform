@@ -727,9 +727,18 @@ public sealed class WebBubblePresenter
                 direction = _theme.Direction
             });
 
-        var finishButton = page.MainFrame.Locator("#dap-guide-completed [data-dap-guide-finish='1']");
-        await finishButton.ClickAsync(new LocatorClickOptions { Timeout = 0 });
-        await page.MainFrame.EvaluateAsync("() => document.getElementById('dap-guide-completed')?.remove()");
+        await page.MainFrame.EvaluateAsync(
+            @"() => new Promise(resolve => {
+                const bubble=document.getElementById('dap-guide-completed');
+                const finishButton=bubble?.querySelector('[data-dap-guide-finish=\"1\"]');
+                if(!bubble || !finishButton) { resolve(); return; }
+                finishButton.addEventListener('click', event => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    bubble.remove();
+                    resolve();
+                }, { once:true });
+            })");
     }
 
     public async Task HideAsync(IPage page)
