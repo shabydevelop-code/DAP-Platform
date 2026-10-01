@@ -57,8 +57,20 @@ public sealed class WebBubblePresenter
             const state = { stepId: b.stepId, target: el, clicked: false };
             root.__dapValidationState = state;
             el.addEventListener('click', () => {
-                if (root.__dapValidationState === state)
-                    state.clicked = true;
+                if (root.__dapValidationState !== state)
+                    return;
+
+                state.clicked = true;
+
+                // A click-validation action is complete from the learner's
+                // perspective at the click itself. Remove its instruction
+                // immediately instead of leaving stale UI visible until the
+                // runtime's next reconciliation poll.
+                const activeBubble = root.getElementById('dap-guide-bubble');
+                if (activeBubble?.dataset.dapStepId === state.stepId) {
+                    activeBubble.__dapCleanup?.();
+                    activeBubble.remove();
+                }
             }, { capture: true });
         }
     }
