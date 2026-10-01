@@ -184,3 +184,11 @@ Web `clicked` validation no longer stores completion in the guided application's
 - Current target is the polished visual TestCRM system demonstration, not a separate manual-run harness.
 - The persisted 9-Step Guide remains the first guided business segment of that demonstration.
 - Next bubble work should extend the visual demo only where guidance is meaningful, especially across real CRM server/DOM transitions, validation and business-state changes; avoid adding bubbles merely for test coverage.
+
+
+## Demo Guide/action synchronization
+- Visual demo invariant: while a Guide Step is active, the next visible learner action performed by the E2E must be exactly the action instructed by that Step.
+- Found and fixed a concrete mismatch after entering the Cases tab: E2E sorted the grid while the active next bubble instructed the learner to create a Case.
+- Cases status sort is now its own persisted clicked Step. The initial guided segment is now 10 Steps.
+- The E2E explicitly waits for Step 6 before sorting, then Steps 7-10 before create/fill/fill/save.
+- Visible business actions must not be inserted between guided Steps without either a corresponding Step or an explicit decision that the Guide segment has ended.
