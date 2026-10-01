@@ -4,7 +4,6 @@
 <body class="shell">
 <iframe id="header-frame" name="dap-header" src="/header.html" title="כותרת המערכת"></iframe>
 <iframe id="content-frame" name="dap-content" src="/content.html" title="תוכן המערכת"></iframe>
-<script>const savedContentHash=sessionStorage.getItem("dap-active-route");if(savedContentHash)document.getElementById("content-frame").src="/content.html"+savedContentHash;</script>
 <script>
 function replaceContentFrame(hash){
   const old=document.querySelector('#content-frame');
