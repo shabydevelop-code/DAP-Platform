@@ -431,9 +431,26 @@ public sealed class WebBubblePresenter
                 .sort((a, b) => a.overflow - b.overflow);
             chosen = safe[0];
         }
-        if (!chosen)
+        if (!chosen) {
+            // A small iframe (for example an application header frame) can be
+            // physically too small to place a bubble beside its target. Keeping
+            // the bubble hidden makes a valid Step invisible to the learner.
+            // Fall back to an in-viewport overlay that does not consume pointer
+            // events, so the underlying target remains actionable.
+            const x = Math.max(margin, (viewportWidth - q.width) / 2);
+            const y = Math.max(margin, (viewportHeight - q.height) / 2);
+            bubble.style.left = Math.min(x, Math.max(margin, viewportWidth - q.width - margin)) + 'px';
+            bubble.style.top = Math.min(y, Math.max(margin, viewportHeight - q.height - margin)) + 'px';
+            bubble.dataset.actualPlacement = 'Overlay';
+            bubble.style.pointerEvents = 'none';
+            bubble.style.cursor = 'default';
+            pointer.style.display = 'none';
+            bubble.style.visibility = 'visible';
             return;
+        }
 
+        bubble.style.pointerEvents = '';
+        bubble.style.cursor = 'grab';
         bubble.style.left = chosen.x + 'px';
         bubble.style.top = chosen.y + 'px';
         bubble.dataset.actualPlacement = chosen.side;
