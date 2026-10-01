@@ -15,5 +15,7 @@ public static class DapTestCrmGuideSeed
             new Locator("css", "[name='name']"),
             frameContext: new FrameContext(new[] { new Locator("css", "#content-frame") })),
         new BubbleDefinition("הקלד את שם הלקוח", BubblePlacement.Bottom),
-        new ValidationDefinition("value-not-empty"));
+        new ValidationDefinition("value-not-empty"),
+        StepAdvanceMode.AutomaticOnValidation,
+        new StepContextDefinition("url-fragment-equals", "#/"));
 }
