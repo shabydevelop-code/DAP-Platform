@@ -21,7 +21,8 @@ public sealed class WebGuideRuntime
     public async Task RunAsync(
         IPage page,
         IReadOnlyList<GuideStep> guideSteps,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        int? startStepOrder = null)
     {
         var frameUrlFragments = new Dictionary<string, string>(StringComparer.Ordinal);
         var captureSourceStepIds = guideSteps
@@ -30,7 +31,16 @@ public sealed class WebGuideRuntime
         string? previousStepFragment = null;
 
         var orderedSteps = guideSteps.OrderBy(step => step.Order).ToArray();
-        for (var stepIndex = 0; stepIndex < orderedSteps.Length; stepIndex++)
+        var startIndex = 0;
+        if (startStepOrder is not null)
+        {
+            startIndex = Array.FindIndex(orderedSteps, step => step.Order == startStepOrder.Value);
+            if (startIndex < 0)
+                throw new InvalidOperationException(
+                    $"Guide does not contain Step order {startStepOrder.Value}.");
+        }
+
+        for (var stepIndex = startIndex; stepIndex < orderedSteps.Length; stepIndex++)
         {
             var persistedStep = orderedSteps[stepIndex];
             cancellationToken.ThrowIfCancellationRequested();
