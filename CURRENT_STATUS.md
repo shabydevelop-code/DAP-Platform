@@ -178,8 +178,9 @@ Web `clicked` validation no longer stores completion in the guided application's
 - No TestCRM-specific validation kind was added; this flow is covered by the generic `clicked` and `value-not-empty` validations already owned by the Web runtime.
 
 
-## Manual Learner verification mode
-- `DAP_E2E_MODE=manual` prepares the same TestCRM browser/CDP endpoint, SQLite Guide and independent `DAP.exe` used by automated E2E.
-- After the first production bubble is observed, the harness performs no learner actions: no click, fill, navigation or Step advancement.
-- The human learner follows the same 9-Step production Guide manually while the harness only keeps the browser/CDP lifetime alive.
-- This is a verification harness mode, not a second Learner Runtime; bubble presentation, target resolution and validation remain owned by `DAP.exe`.
+
+
+## Demo direction
+- Current target is the polished visual TestCRM system demonstration, not a separate manual-run harness.
+- The persisted 9-Step Guide remains the first guided business segment of that demonstration.
+- Next bubble work should extend the visual demo only where guidance is meaningful, especially across real CRM server/DOM transitions, validation and business-state changes; avoid adding bubbles merely for test coverage.
