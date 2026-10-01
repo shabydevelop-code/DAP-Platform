@@ -290,3 +290,10 @@ Web `clicked` validation no longer stores completion in the guided application's
 - Pointer dragging ignores interactive descendants so future controls inside a bubble remain usable.
 - The existing target highlight, validation lifecycle, target re-resolution and non-overlap auto-placement remain unchanged before manual movement.
 - The verified 53-Step baseline predates this drag enhancement; rerun the visual E2E after pulling to regression-check the new presenter behavior.
+
+
+## DAP bubble visual identity
+- The default Web bubble palette now uses a DAP-owned indigo/lavender identity instead of the previous generic enterprise blue.
+- Central theme tokens: bubble background `#312E5A`, white text `#FFFFFF`, muted lavender border `#8B83C7`, target highlight `#A99FE8`, with matching restrained shadow/highlight alpha values.
+- The palette remains centralized in `WebBubbleTheme.Default`; no Guide Step stores presentation colors and the host application's colors do not influence DAP guidance.
+- Placement, dragging, validation, target highlighting mechanics and the 53-Step Guide structure are unchanged.
