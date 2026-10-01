@@ -538,11 +538,11 @@ await WaitForGuideStep(12);
 // The visible action uses exactly the same semantic business target as the
 // Guide bubble. Verify that semantic target resolves to the Case created by
 // this run before clicking it.
-var createdCaseTarget=frame.Locator("button.grid-open[data-business-subject='תקלה בחיבור לאינטרנט']");
+var createdCaseTarget=frame.Locator("button.grid-open[data-business-subject='תקלה בחיבור לאינטרנט - בדיקת DAP']");
 if(await createdCaseTarget.CountAsync()!=1
     || await createdCaseTarget.GetAttributeAsync("data-business-id")!=createdCaseId)
     throw new Exception("Guide target does not uniquely identify the Case created by this run.");
-await Click("button.grid-open[data-business-subject='תקלה בחיבור לאינטרנט']");
+await Click("button.grid-open[data-business-subject='תקלה בחיבור לאינטרנט - בדיקת DAP']");
 await WaitReady();
 
 // 3. Case FieldChange: disabled -> enabled and DOM reconstruction.
@@ -580,7 +580,7 @@ frame=await Content();
 // Case status FieldChange intentionally clears Subject. The Guide explicitly
 // instructs the learner to restore it before closure.
 await WaitForGuideStep(17);
-await Fill("[name='subject']","תקלה בחיבור לאינטרנט");
+await Fill("[name='subject']","תקלה בחיבור לאינטרנט - בדיקת DAP");
 frame=await Content();
 await frame.Locator("[name='closeReason']").WaitForAsync();
 
@@ -595,7 +595,7 @@ await Click("#ps-alert button");
 await HumanPause();
 
 frame=await Content();
-if(await frame.Locator("[name='subject']").InputValueAsync()!="תקלה בחיבור לאינטרנט")
+if(await frame.Locator("[name='subject']").InputValueAsync()!="תקלה בחיבור לאינטרנט - בדיקת DAP")
     throw new Exception("Unsaved Subject was not preserved after server validation refresh.");
 if(await frame.Locator("[name='description']").InputValueAsync()!="הלקוח מדווח על חיבור לא יציב.")
     throw new Exception("Unsaved Description was not preserved after server validation refresh.");
@@ -620,7 +620,7 @@ if(!frame.Url.Contains($"#/case/{createdCaseId}",StringComparison.Ordinal))
     throw new Exception("Content reload did not preserve the active Case route.");
 if(await frame.Locator("[name='status']").InputValueAsync()!="סגורה")
     throw new Exception("Content reload did not preserve the saved Case status.");
-if(await frame.Locator("[name='subject']").InputValueAsync()!="תקלה בחיבור לאינטרנט")
+if(await frame.Locator("[name='subject']").InputValueAsync()!="תקלה בחיבור לאינטרנט - בדיקת DAP")
     throw new Exception("Content reload did not preserve the saved Case subject.");
 if(await frame.Locator("[name='closeReason']").InputValueAsync()!="טופל")
     throw new Exception("Content reload did not preserve the saved Close Reason.");
@@ -839,11 +839,11 @@ await frame.Locator("h2:has-text('פניות')").WaitForAsync();
 // Business-context scenario already returned us to the Site's Cases tab.
 frame=await Content();
 await WaitForGuideStep(50);
-var finalCreatedCaseTarget=frame.Locator("button.grid-open[data-business-subject='תקלה בחיבור לאינטרנט']");
+var finalCreatedCaseTarget=frame.Locator("button.grid-open[data-business-subject='תקלה בחיבור לאינטרנט - בדיקת DAP']");
 if(await finalCreatedCaseTarget.CountAsync()!=1
     || await finalCreatedCaseTarget.GetAttributeAsync("data-business-id")!=createdCaseId)
     throw new Exception("Final Guide target does not identify the Case created by this run.");
-await Click("button.grid-open[data-business-subject='תקלה בחיבור לאינטרנט']");
+await Click("button.grid-open[data-business-subject='תקלה בחיבור לאינטרנט - בדיקת DAP']");
 await WaitReady();
 await WaitForGuideStep(51);
 await Click("#delete-case");
