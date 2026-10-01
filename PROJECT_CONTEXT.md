@@ -135,3 +135,14 @@ A target is represented by a runtime-neutral TargetDescriptor rather than a sing
 - The E2E harness may seed/update the known TestCRM Guide fixture in the persistent DAP database, then must launch DAP.exe against that exact database path.
 - This makes persisted Guides/GuideSteps/TargetAnchors inspectable and keeps the visual demonstration aligned with the real DAP persistence boundary.
 - Isolated temporary databases remain appropriate for dedicated repository/unit tests where persistence isolation is the subject of the test.
+
+
+## Guide persistence ownership — Seed initializes, DB owns, Runtime consumes
+- **Persistent DAP database is the Source of Truth for Guides once initialized.**
+- A Guide seed/factory is an initialization/reset definition only. It must never silently overwrite an existing persistent Guide during normal Learner, E2E, or visual-demo execution.
+- Normal execution flow: open DAP database -> load persisted Guide -> run exactly that persisted Guide.
+- If the required Guide is absent, normal E2E must fail clearly and require an explicit initialization/reset operation; it must not silently seed.
+- Future Instructor/Editor changes are written to the database and immediately become authoritative for Learner and E2E.
+- Keep a known factory-default Guide definition so an explicit reset can restore a known baseline when requested.
+- Dedicated isolated repository/unit tests may still seed their own temporary databases because their purpose is persistence testing, not product Guide ownership.
+- Product rule: **Seed initializes. DB owns. Runtime consumes.**
