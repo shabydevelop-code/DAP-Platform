@@ -131,3 +131,8 @@ The first production validation path is now implemented. `ValidationDefinition` 
 ## Ordered Web guide lifecycle
 
 `WebGuideRuntime` now owns ordered guide orchestration while `WebLearnerRuntime` remains responsible for one active Step. `DAP.exe` passes the complete persisted Step list to the guide runtime instead of running only `steps[0]`. The TestCRM fixture now contains two persisted Steps: customer-name (`value-not-empty`) followed by customer-search-button (`clicked`). The E2E requires the second bubble to appear after Step 1 completes. This new two-Step transition requires local execution before being marked passing.
+
+
+## Direct DAP.exe E2E startup
+
+The TestCRM E2E now separates build time from runtime startup. It builds `DAP.App` explicitly, then launches the resulting `DAP.exe` directly instead of using `dotnet run` as the learner process. The test reports elapsed time from starting the executable until the first production bubble is observed. This matches the deployed product process boundary more closely and prevents MSBuild time from being mistaken for DAP runtime startup latency. Local timing is not yet recorded; rerun the E2E to establish the baseline.
