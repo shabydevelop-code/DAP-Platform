@@ -351,7 +351,7 @@ public sealed class WebBubblePresenter
             top: q.top
         };
         bubble.setPointerCapture(event.pointerId);
-        dragHandle.style.cursor = 'grab';
+        dragHandle.style.cursor = 'grabbing';
         event.preventDefault();
     };
 
@@ -607,7 +607,7 @@ public sealed class WebBubblePresenter
                             const q=bubble.getBoundingClientRect();
                             drag={id:event.pointerId,x:event.clientX,y:event.clientY,left:q.left,top:q.top};
                             bubble.setPointerCapture(event.pointerId);
-                            const handle=bubble.querySelector('[data-dap-drag-handle=""1""]'); if(handle) handle.style.cursor='grab';
+                            const handle=bubble.querySelector('[data-dap-drag-handle=""1""]'); if(handle) handle.style.cursor='grabbing';
                             event.preventDefault();
                             event.stopPropagation();
                         });
@@ -721,7 +721,7 @@ public sealed class WebBubblePresenter
                     bubble.style.left=q.left+'px';
                     bubble.style.top=q.top+'px';
                     bubble.setPointerCapture(event.pointerId);
-                    const handle=bubble.querySelector('[data-dap-drag-handle=""1""]'); if(handle) handle.style.cursor='grab';
+                    const handle=bubble.querySelector('[data-dap-drag-handle=""1""]'); if(handle) handle.style.cursor='grabbing';
                     event.preventDefault(); event.stopPropagation();
                 });
                 bubble.addEventListener('pointermove',event=>{
