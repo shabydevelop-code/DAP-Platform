@@ -170,3 +170,10 @@ A target is represented by a runtime-neutral TargetDescriptor rather than a sing
 - This is a generic Web Runtime fix, not a TestCRM workaround. No target-application behavior or business data was changed.
 - Guide lifecycle diagnostics remain available in E2E timeout output through `[DAP guide]`, `[DAP validation]`, `[DAP bubble]`, and `[DAP runtime]` lines.
 - Current regression baseline: the full 53-Step Fast E2E must remain passing.
+
+## Validated Web browser baseline — 2026-10-01
+
+The Learner Web Runtime representative 53-Step DAP.TestCRM E2E is validated on Playwright Chromium, installed Google Chrome, and installed Microsoft Edge. The E2E runner selects the browser with `DAP_E2E_BROWSER=chromium|chrome|edge`, with Chromium as the default. The same production Runtime and persisted Guide are used across all three browser runs, and the 5-second E2E default timeout remains unchanged.
+
+Cross-browser navigation durability is a Runtime responsibility. Application readiness must be based on the current live application/frame readiness contract rather than a browser lifecycle event that may already have completed before a waiter is registered. Likewise, click completion is DAP-owned state: when completion is reported while the validating action is replacing/navigating its document or frame, Learner reconciliation must be able to observe that completion and advance without depending on another operation against the retiring document. Browser-specific or target-application-specific timing workarounds are not acceptable substitutes for this behavior.
+
