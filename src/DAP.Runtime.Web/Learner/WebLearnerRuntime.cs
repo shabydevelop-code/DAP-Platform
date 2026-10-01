@@ -3,6 +3,7 @@ using DAP.Core.Targets;
 using DAP.Runtime.Web.Bubbles;
 using DAP.Runtime.Web.Validation;
 using Microsoft.Playwright;
+using System.Diagnostics;
 
 namespace DAP.Runtime.Web.Learner;
 
@@ -12,6 +13,7 @@ public sealed class WebLearnerRuntime
     private readonly WebStepContextGuard _contextGuard;
     private readonly WebValidationEvaluator _validation;
     private readonly TimeSpan _reconcileInterval;
+    private bool _firstBubbleReported;
 
     public WebLearnerRuntime(
         WebBubblePresenter bubbles,
@@ -41,7 +43,16 @@ public sealed class WebLearnerRuntime
                     continue;
                 }
 
+                var presentation = Stopwatch.StartNew();
                 var resolution = await _bubbles.EnsureShownAsync(page, step, cancellationToken);
+
+                if (!_firstBubbleReported
+                    && resolution.Status == TargetResolutionStatus.Resolved
+                    && resolution.Target is not null)
+                {
+                    _firstBubbleReported = true;
+                    Console.Error.WriteLine($"[DAP runtime] first bubble presentation completed ({presentation.Elapsed.TotalMilliseconds:F0} ms active-step work).");
+                }
 
                 if (resolution.Status != TargetResolutionStatus.Resolved || resolution.Target is null)
                 {
