@@ -48,47 +48,25 @@ public sealed class WebBubblePresenter
 (el, b) => {
     const root = el.ownerDocument;
 
-    // Event-based validation must be armed before the user can act on the
-    // instruction. Installing this only in the later validation poll creates
-    // a race where a fast click is lost.
-    if (b.validationKind === 'clicked') {
-        const current = root.__dapValidationState;
-        if (!current || current.stepId !== b.stepId || current.target !== el) {
-            const state = { stepId: b.stepId, target: el, clicked: false };
-            root.__dapValidationState = state;
-            el.addEventListener('click', () => {
-                if (root.__dapValidationState !== state)
-                    return;
+    // Event completion is owned by DAP.exe, not by this document. The
+    // Playwright binding survives navigation/document replacement, so a click
+    // that starts a server round trip cannot be forgotten when this DOM dies.
+    if (b.validationKind === 'clicked' && !el.__dapValidationClickInstalled) {
+        el.__dapValidationClickInstalled = true;
+        el.addEventListener('click', () => {
+            const activeBubble = root.getElementById('dap-guide-bubble');
+            if (activeBubble?.dataset.dapStepId === b.stepId) {
+                activeBubble.__dapCleanup?.();
+                activeBubble.remove();
+            }
 
-                state.clicked = true;
-
-                // A click-validation action is complete from the learner's
-                // perspective at the click itself. Remove its instruction
-                // immediately instead of leaving stale UI visible until the
-                // runtime's next reconciliation poll.
-                const activeBubble = root.getElementById('dap-guide-bubble');
-                if (activeBubble?.dataset.dapStepId === state.stepId) {
-                    activeBubble.__dapCleanup?.();
-                    activeBubble.remove();
-                }
-            }, { capture: true });
-        }
+            const report = root.defaultView?.__dapReportValidation;
+            if (typeof report === 'function')
+                void report(b.stepId);
+        }, { capture: true });
     }
 
     const existing = root.getElementById('dap-guide-bubble');
-
-    // Never recreate presentation for a click Step whose event has already
-    // been captured. The runtime will consume the recorded validation state
-    // immediately after this ensure call.
-    if (b.validationKind === 'clicked'
-        && root.__dapValidationState?.stepId === b.stepId
-        && root.__dapValidationState?.clicked === true) {
-        if (existing?.dataset.dapStepId === b.stepId) {
-            existing.__dapCleanup?.();
-            existing.remove();
-        }
-        return;
-    }
 
     if (b.ensureOnly && existing?.__dapTarget === el && existing?.dataset.dapStepId === b.stepId)
         return;
