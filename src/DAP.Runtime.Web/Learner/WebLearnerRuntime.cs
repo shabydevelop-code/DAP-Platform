@@ -108,7 +108,7 @@ public sealed class WebLearnerRuntime
                     // Click validation is itself satisfied by the click event.
                     if (isClickedValidation)
                     {
-                        Console.Error.WriteLine($"[DAP runtime] click completion at loop entry for Step '{step.Id}'.");
+                        _validationSession.Trace($"[DAP runtime] click completion at loop entry for Step '{step.Id}'.");
                         // The browser click handler removes the active bubble
                         // synchronously before reporting completion. Do not run a
                         // second cross-frame cleanup here: the validating click
@@ -127,22 +127,22 @@ public sealed class WebLearnerRuntime
                     }
                 }
 
-                Console.Error.WriteLine($"[DAP runtime trace] Step '{step.Id}' entering context check.");
+                _validationSession.Trace($"[DAP runtime trace] Step '{step.Id}' entering context check.");
                 if (!await _contextGuard.IsActiveAsync(page, step, cancellationToken))
                 {
-                    Console.Error.WriteLine($"[DAP runtime trace] Step '{step.Id}' context inactive; hiding bubble.");
+                    _validationSession.Trace($"[DAP runtime trace] Step '{step.Id}' context inactive; hiding bubble.");
                     await _bubbles.HideAsync(page);
                     await Task.Delay(_reconcileInterval, cancellationToken);
                     continue;
                 }
-                Console.Error.WriteLine($"[DAP runtime trace] Step '{step.Id}' context check completed active.");
+                _validationSession.Trace($"[DAP runtime trace] Step '{step.Id}' context check completed active.");
 
                 // The first Step has no preceding learner transition to settle.
                 // For later Steps, wait until the target document has been quiet
                 // before presenting the next instruction.
                 if (!presentationGatePassed)
                 {
-                    Console.Error.WriteLine($"[DAP runtime trace] Step '{step.Id}' entering presentation stability check.");
+                    _validationSession.Trace($"[DAP runtime trace] Step '{step.Id}' entering presentation stability check.");
                     if (!await IsStableForPresentationAsync(page, step, cancellationToken))
                     {
                         await Task.Delay(_reconcileInterval, cancellationToken);
@@ -150,13 +150,13 @@ public sealed class WebLearnerRuntime
                     }
 
                     presentationGatePassed = true;
-                    Console.Error.WriteLine($"[DAP runtime trace] Step '{step.Id}' presentation stability check completed.");
+                    _validationSession.Trace($"[DAP runtime trace] Step '{step.Id}' presentation stability check completed.");
                 }
 
-                Console.Error.WriteLine($"[DAP runtime trace] Step '{step.Id}' entering EnsureShown.");
+                _validationSession.Trace($"[DAP runtime trace] Step '{step.Id}' entering EnsureShown.");
                 var presentation = Stopwatch.StartNew();
                 var resolution = await _bubbles.EnsureShownAsync(page, step, stepNumber, totalSteps, cancellationToken);
-                Console.Error.WriteLine($"[DAP runtime trace] Step '{step.Id}' EnsureShown completed with {resolution.Status}.");
+                _validationSession.Trace($"[DAP runtime trace] Step '{step.Id}' EnsureShown completed with {resolution.Status}.");
 
                 if (resolution.Status == TargetResolutionStatus.Resolved
                     && resolution.Target is not null)
@@ -197,7 +197,7 @@ public sealed class WebLearnerRuntime
             // the retiring document.
             if (isClickedValidation && _validationSession.IsCompleted(step.Id))
             {
-                Console.Error.WriteLine($"[DAP runtime] click completion after reconciliation for Step '{step.Id}'.");
+                _validationSession.Trace($"[DAP runtime] click completion after reconciliation for Step '{step.Id}'.");
                 return;
             }
 
