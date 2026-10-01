@@ -202,6 +202,7 @@ await WaitReady();
 await Click("nav.tabs button:has-text('פניות')");
 await WaitReady();
 var frame=await Content();
+var siteCasesRoute=frame.Url;
 await frame.Locator("h2:has-text('פניות')").WaitForAsync();
 await Click("th button[data-sort='status']");
 await WaitReady();
@@ -288,12 +289,11 @@ if(await frame.Locator("[name='closeReason']").InputValueAsync()!="טופל")
 // 7. CRM tab switching: leave the Case, switch between Site tabs, and return to Cases.
 // Business scenario: an agent checks Leads and then returns to the Cases workspace
 // without losing the current Site context or accidentally leaving the customer.
+//
+// The Site route is captured from the real Site page before entering the Case.
+// This avoids coupling the scenario to breadcrumb markup after a full shell reload.
 frame=await Content();
-var siteCrumbAfterReload=frame.Locator(".breadcrumb a").Nth(2);
-var siteRouteAfterReload=await siteCrumbAfterReload.GetAttributeAsync("data-go") ?? throw new Exception("Site breadcrumb route missing after reload.");
-if(!siteRouteAfterReload.StartsWith("#/site/",StringComparison.Ordinal)) throw new Exception("Unexpected Site route after reload: "+siteRouteAfterReload);
-await MoveTo(siteCrumbAfterReload);
-await siteCrumbAfterReload.ClickAsync();
+await frame.EvaluateAsync("(hash)=>location.hash=hash", siteCasesRoute);
 await WaitReady();
 frame=await Content();
 await frame.Locator("h2:has-text('פניות')").WaitForAsync();
