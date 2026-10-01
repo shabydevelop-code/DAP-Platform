@@ -31,7 +31,10 @@ public sealed class WebValidationSession : IAsyncDisposable
                 (_, stepId) =>
                 {
                     if (!string.IsNullOrWhiteSpace(stepId))
+                    {
                         _completedSteps[stepId] = 0;
+                        Console.Error.WriteLine($"[DAP validation] completion event received for Step '{stepId}'.");
+                    }
                 });
 
             _boundPage = page;
