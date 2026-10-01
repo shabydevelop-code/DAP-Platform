@@ -414,8 +414,14 @@ await MoveTo(deleteTarget);
 await deleteTarget.WaitForAsync();
 
 // 10. Delete the Case created by this run through the real UI.
-// We are already on the Site's Leads tab after Lead deletion, so switch tabs
-// directly. The Site name on a Site page is plain breadcrumb text, not a link.
+// Layout Scenario 8 opens a Lead record, so return to the Site through the
+// real breadcrumb before switching to Cases.
+frame=await Content();
+var siteLeadsCrumb=frame.Locator(".breadcrumb a[data-go^='#/site/'][data-go$='/leads']").First;
+await siteLeadsCrumb.WaitForAsync();
+await MoveTo(siteLeadsCrumb);
+await siteLeadsCrumb.ClickAsync();
+await WaitReady();
 frame=await Content();
 await Click("nav.tabs button:has-text('פניות')");
 await WaitReady();
