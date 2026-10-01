@@ -14,6 +14,7 @@ public sealed class WebLearnerRuntime
     private readonly WebValidationEvaluator _validation;
     private readonly WebValidationSession _validationSession;
     private readonly TimeSpan _reconcileInterval;
+    private readonly TimeSpan _presentationSettleInterval;
     private bool _firstBubbleReported;
 
     public WebLearnerRuntime(
@@ -21,14 +22,59 @@ public sealed class WebLearnerRuntime
         WebStepContextGuard? contextGuard = null,
         WebValidationEvaluator? validation = null,
         WebValidationSession? validationSession = null,
-        TimeSpan? reconcileInterval = null)
+        TimeSpan? reconcileInterval = null,
+        TimeSpan? presentationSettleInterval = null)
     {
         _bubbles = bubbles;
         _contextGuard = contextGuard ?? new WebStepContextGuard();
         _validation = validation ?? new WebValidationEvaluator();
         _validationSession = validationSession ?? new WebValidationSession();
         _reconcileInterval = reconcileInterval ?? TimeSpan.FromMilliseconds(100);
+        _presentationSettleInterval = presentationSettleInterval ?? TimeSpan.FromMilliseconds(250);
     }
+
+    private async Task<bool> IsStableForPresentationAsync(
+        IPage page,
+        GuideStep step,
+        CancellationToken cancellationToken)
+    {
+        var first = await _bubbles.ResolveTargetAsync(page, step, cancellationToken);
+        if (first.Status != TargetResolutionStatus.Resolved || first.Target is null)
+            return false;
+
+        var firstState = await first.Target.EvaluateAsync<TargetVisualState>(
+            "(el) => { const r = el.getBoundingClientRect(); return { connected: el.isConnected, x: r.x, y: r.y, width: r.width, height: r.height }; }");
+        if (!firstState.Connected || firstState.Width <= 0 || firstState.Height <= 0)
+            return false;
+
+        await Task.Delay(_presentationSettleInterval, cancellationToken);
+
+        var second = await _bubbles.ResolveTargetAsync(page, step, cancellationToken);
+        if (second.Status != TargetResolutionStatus.Resolved || second.Target is null)
+            return false;
+
+        // The target must still be the same DOM node after the settling window.
+        // A selector matching a replacement node while a server render is in
+        // progress is intentionally treated as unstable.
+        var sameNode = await second.Target.EvaluateAsync<bool>(
+            "(el, previous) => el === previous",
+            await first.Target.ElementHandleAsync());
+        if (!sameNode)
+            return false;
+
+        var secondState = await second.Target.EvaluateAsync<TargetVisualState>(
+            "(el) => { const r = el.getBoundingClientRect(); return { connected: el.isConnected, x: r.x, y: r.y, width: r.width, height: r.height }; }");
+        if (!secondState.Connected)
+            return false;
+
+        const double tolerance = 0.5;
+        return Math.Abs(firstState.X - secondState.X) <= tolerance
+            && Math.Abs(firstState.Y - secondState.Y) <= tolerance
+            && Math.Abs(firstState.Width - secondState.Width) <= tolerance
+            && Math.Abs(firstState.Height - secondState.Height) <= tolerance;
+    }
+
+    private sealed record TargetVisualState(bool Connected, double X, double Y, double Width, double Height);
 
     public async Task RunActiveStepAsync(
         IPage page,
@@ -72,6 +118,17 @@ public sealed class WebLearnerRuntime
                 }
 
                 if (!await _contextGuard.IsActiveAsync(page, step, cancellationToken))
+                {
+                    await _bubbles.HideAsync(page);
+                    await Task.Delay(_reconcileInterval, cancellationToken);
+                    continue;
+                }
+
+                // A newly active Step is not presented merely because its selector
+                // already exists. Server-backed UIs can expose that selector while
+                // replacing/reflowing the document. Require the same DOM node and
+                // geometry to survive a short settling window first.
+                if (!await IsStableForPresentationAsync(page, step, cancellationToken))
                 {
                     await _bubbles.HideAsync(page);
                     await Task.Delay(_reconcileInterval, cancellationToken);
