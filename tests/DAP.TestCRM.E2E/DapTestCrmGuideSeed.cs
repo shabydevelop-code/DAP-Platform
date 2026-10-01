@@ -109,7 +109,25 @@ public static class DapTestCrmGuideSeed
 
         ValueStep(
             "testcrm-resolution-notes", 14,
-            "[name='resolutionNotes']", "הוסף הערות טיפול", "[name='resolutionNotes']")
+            "[name='resolutionNotes']", "הוסף הערות טיפול", "[name='resolutionNotes']"),
+
+        ClickStep(
+            "testcrm-activity-more", 15,
+            "#activity-more", "הצג פעילויות נוספות", "#activity-more"),
+
+        ValueStep(
+            "testcrm-case-closed", 16,
+            "[name='status']", "שנה את סטטוס הפנייה לסגורה", "[name='status']",
+            "value-equals", "סגורה"),
+
+        ValueStep(
+            "testcrm-case-subject-after-close", 17,
+            "[name='subject']", "הזן מחדש את נושא הפנייה", "[name='subject']"),
+
+        ValueStep(
+            "testcrm-close-reason", 18,
+            "[name='closeReason']", "בחר סיבת סגירה", "[name='closeReason']",
+            "value-equals", "טופל")
     };
 
 
