@@ -177,6 +177,9 @@ async Task SaveSuccess()
 }
 
 Console.WriteLine("DAP TestCRM representative PeopleSoft-Web scenario");
+Console.WriteLine("Scenario 1: Case status FieldChange + Content iframe replacement");
+Console.WriteLine("Scenario 2: Case validation failure + preservation of unsaved values");
+Console.WriteLine("Scenario 3: Grid rerender/reorder + target re-resolution");
 await page.GotoAsync(baseUrl);
 await WaitReady();
 
@@ -193,6 +196,7 @@ await Click("tbody tr.clickable:first-child");
 await WaitReady();
 
 // 2. Cases grid: server sorting + repeated identical Open targets.
+// This is the business-facing "find and open the right case after the grid changes" scenario.
 await Click("nav.tabs button:has-text('פניות')");
 await WaitReady();
 var frame=await Content();
@@ -224,6 +228,8 @@ await Click($"button.grid-open[data-go='#/case/{createdCaseId}']");
 await WaitReady();
 
 // 3. Case FieldChange: disabled -> enabled and DOM reconstruction.
+// Business scenario: an agent moves a customer case from Open to In Progress; the server
+// recalculates the form and DAP continues on the same logical case.
 // Reacquire only after the promoted replacement frame reports app-level readiness.
 frame=await Content();
 var notes=frame.Locator("[name='resolutionNotes']");
@@ -250,6 +256,11 @@ await frame.Locator("[name='closeReason']").WaitForAsync();
 
 // 6. Server validation changes layout, highlights field and opens modal.
 await SaveExpectValidation("closeReason");
+frame=await Content();
+if(await frame.Locator("[name='subject']").InputValueAsync()!="תקלה בחיבור לאינטרנט")
+    throw new Exception("Unsaved Subject was not preserved after server validation refresh.");
+if(await frame.Locator("[name='description']").InputValueAsync()!="הלקוח מדווח על חיבור לא יציב.")
+    throw new Exception("Unsaved Description was not preserved after server validation refresh.");
 await Select("[name='closeReason']","טופל");
 await SaveSuccess();
 
