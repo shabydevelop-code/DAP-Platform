@@ -288,29 +288,31 @@ if(await dapContent.Locator("[name='name']").CountAsync()!=1)
     throw new Exception("DAP Learner Runtime target was not uniquely re-resolved after Content reload.");
 Console.WriteLine("DAP Learner Web Runtime re-resolution after Content reload: PASS");
 
-// Automatic validation belongs to DAP.exe. Filling the active target must
-// complete this Step and remove its bubble before CRM navigation changes context.
+// Automatic validation belongs to DAP.exe. With guide orchestration active,
+// Step 1 can be replaced by Step 2 between polling intervals; absence of any
+// bubble is therefore not a valid completion signal. Require the persisted
+// second Step to become the active bubble instead.
 await (await Content()).Locator("[name='name']").WaitForAsync();
 await Fill("[name='name']","אלפא");
-var dapValidationCompleted=false;
+var dapAdvancedToSecondStep=false;
 for(var i=0;i<50;i++)
 {
-    var activeContent=await Content();
-    if(await activeContent.Locator("#dap-guide-bubble").CountAsync()==0)
+    dapContent=await Content();
+    var activeBubble=dapContent.Locator("#dap-guide-bubble");
+    if(await activeBubble.CountAsync()==1
+        && await activeBubble.TextContentAsync()==dapSecondStep.Bubble.Content)
     {
-        dapValidationCompleted=true;
+        dapAdvancedToSecondStep=true;
         break;
     }
     await page.WaitForTimeoutAsync(100);
 }
-if(!dapValidationCompleted)
-    throw new Exception("DAP Step did not complete after value-not-empty validation succeeded.");
+if(!dapAdvancedToSecondStep)
+    throw new Exception("DAP Guide Runtime did not advance to the second Step after value-not-empty validation succeeded.");
 
-dapContent=await Content();
 var dapSecondBubble=dapContent.Locator("#dap-guide-bubble");
-await dapSecondBubble.WaitForAsync(new() { Timeout = 5000 });
 if(await dapSecondBubble.TextContentAsync()!=dapSecondStep.Bubble.Content)
-    throw new Exception("DAP Guide Runtime did not advance to the second Step.");
+    throw new Exception("DAP Guide Runtime second Step bubble content mismatch.");
 Console.WriteLine("DAP Learner Web Runtime automatic validation completion: PASS");
 Console.WriteLine("DAP Guide Runtime Step 1 -> Step 2 transition: PASS");
 
