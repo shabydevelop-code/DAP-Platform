@@ -1,0 +1,38 @@
+using Microsoft.Data.Sqlite;
+
+namespace DAP.Data.Sqlite;
+
+public sealed class SqliteDatabaseInitializer
+{
+    private readonly SqliteConnectionFactory _connections;
+
+    public SqliteDatabaseInitializer(SqliteConnectionFactory connections)
+    {
+        _connections = connections ?? throw new ArgumentNullException(nameof(connections));
+    }
+
+    public async Task InitializeAsync(CancellationToken cancellationToken = default)
+    {
+        await using var connection = await _connections.OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = Schema001;
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private const string Schema001 = """
+PRAGMA foreign_keys = ON;
+CREATE TABLE IF NOT EXISTS Guides (Id TEXT PRIMARY KEY, Name TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS GuideSteps (
+ Id TEXT PRIMARY KEY, GuideId TEXT NOT NULL, StepOrder INTEGER NOT NULL, AdvanceMode TEXT NOT NULL,
+ Runtime TEXT NULL, LocatorStrategy TEXT NULL, LocatorValue TEXT NULL, FrameContextJson TEXT NULL,
+ BubbleContent TEXT NOT NULL, BubblePlacement TEXT NOT NULL, ValidationKind TEXT NULL,
+ ValidationExpectedValue TEXT NULL, ValidationOptionsJson TEXT NULL,
+ FOREIGN KEY (GuideId) REFERENCES Guides(Id) ON DELETE CASCADE, UNIQUE (GuideId, StepOrder));
+CREATE TABLE IF NOT EXISTS TargetAnchors (
+ Id INTEGER PRIMARY KEY AUTOINCREMENT, GuideStepId TEXT NOT NULL, AnchorOrder INTEGER NOT NULL,
+ Relation TEXT NOT NULL, LocatorStrategy TEXT NOT NULL, LocatorValue TEXT NOT NULL,
+ FOREIGN KEY (GuideStepId) REFERENCES GuideSteps(Id) ON DELETE CASCADE, UNIQUE (GuideStepId, AnchorOrder));
+CREATE INDEX IF NOT EXISTS IX_GuideSteps_GuideId_StepOrder ON GuideSteps(GuideId, StepOrder);
+CREATE INDEX IF NOT EXISTS IX_TargetAnchors_GuideStepId ON TargetAnchors(GuideStepId);
+""";
+}
