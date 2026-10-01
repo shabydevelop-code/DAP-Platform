@@ -269,3 +269,11 @@ Web `clicked` validation no longer stores completion in the guided application's
 - `WaitForGuideStep` now searches all live page frames so the final Header-frame bubble can be observed without assuming all bubbles belong to the Content iframe.
 - Guide continuation after Close Reason no longer asserts that the bubble disappears at Step 20; Step 21 is the guided successful save.
 - The full 53-Step visual run still requires local execution after pull to validate all dynamic selectors and frame transitions end-to-end.
+
+
+## Verified full 53-Step visual run
+- Local visual E2E execution was completed successfully after the full Guide expansion.
+- DAP.exe loaded all 53 persisted Steps and the representative Customer -> Site -> Case -> Lead workflow completed with no exception or timeout.
+- Verified in the successful run: automatic validation completion, Step 1 -> Step 2 transition, complete Case treatment, expected validation alert acknowledgement, Case closure, Lead workflow, dynamic Lead deletion, Case deletion, business-context transitions and final cross-frame navigation.
+- All visible learner actions in the current representative E2E flow are now Guide-driven; assertions, readiness checks, DOM measurements and deliberate programmatic reload mechanics remain test-only.
+- The obsolete `SaveExpectValidationUnguided` helper was removed after full Guide coverage made it unused.
