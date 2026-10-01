@@ -166,3 +166,13 @@ For Web Steps using `ValidationDefinition("clicked")`, the browser-side capture 
 ## DAP-side event validation state
 
 Web `clicked` validation no longer stores completion in the guided application's DOM. `WebValidationSession` exposes a Playwright page binding (`__dapReportValidation`) and records completed Step IDs in DAP.exe memory. Page bindings are available to frames and survive navigation, so a click can be retained even when the application immediately performs a server round trip and replaces the target iframe/document. `WebBubblePresenter` arms the target capture listener and reports the Step ID through the binding while dismissing the visible instruction immediately. `WebLearnerRuntime` checks DAP-side event completion before Step context evaluation and before presentation; therefore a validating action that itself leaves/replaces the Step context can still complete the Step and cannot cause the old bubble to be recreated. DOM-backed `clicked` polling was removed from `WebValidationEvaluator`. Local visual/E2E verification is required before marking this behavior verified.
+
+
+## Complete TestCRM learner Guide
+- The first production-backed Web Guide now spans one complete business flow instead of only the initial search.
+- Guide: customer search -> open customer -> open first site -> Cases tab -> create Case -> enter subject -> enter description -> save.
+- The Guide contains 9 persisted Steps using production Core contracts and the production Learner Runtime.
+- The E2E runner waits for the relevant production bubble before each guided action; it does not create or advance bubbles itself.
+- The same Guide is therefore suitable for a future/manual learner run: automation is only acting as the learner.
+- Existing broader CRM resilience scenarios continue after the Guide completes and remain independent of an active Guide.
+- No TestCRM-specific validation kind was added; this flow is covered by the generic `clicked` and `value-not-empty` validations already owned by the Web runtime.
