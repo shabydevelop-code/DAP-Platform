@@ -49,7 +49,7 @@ async Task<IFrame> Content()
             }
         }
         catch(PlaywrightException) { }
-        await page.WaitForTimeoutAsync(100);
+        await page.WaitForTimeoutAsync(50);
     }
     throw new Exception("Stable content iframe not found.");
 }
@@ -301,13 +301,9 @@ frame=await Content();
 await frame.Locator("h2:has-text('לידים')").WaitForAsync();
 
 // 9. Delete the Case created by this run through the real UI.
-// Navigate back to the Site, open Cases, reopen the exact transient test Case,
-// confirm deletion, and verify it is gone from the server-backed grid.
+// We are already on the Site's Leads tab after Lead deletion, so switch tabs
+// directly. The Site name on a Site page is plain breadcrumb text, not a link.
 frame=await Content();
-siteCrumb=frame.Locator(".breadcrumb a").Nth(2);
-await MoveTo(siteCrumb);
-await siteCrumb.ClickAsync();
-await WaitReady();
 await Click("nav.tabs button:has-text('פניות')");
 await WaitReady();
 await Click($"button.grid-open[data-go='#/case/{createdCaseId}']");
