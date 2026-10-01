@@ -402,3 +402,10 @@ Web `clicked` validation no longer stores completion in the guided application's
 - The clicked validation already reports completion to DAP.exe; the harness was destroying/reloading the document while DAP was reconciling the transition.
 - E2E now waits for Step 22 immediately after the Step 21 Save action, then performs the technical Content reload, and later verifies Step 22 again on the replacement document.
 - No TestCRM or production Runtime behavior was changed for this fix.
+
+
+## Step 21 click/reload race root cause
+- Fast run isolated the Step 21 -> 22 failure before the technical E2E reload.
+- TestCRM's existing Case submit performs its server PUT and then a real `serverRefresh(location.hash)` / `location.reload()`.
+- Production bubble click validation previously called `__dapReportValidation(stepId)` fire-and-forget. The document could be torn down before the Playwright binding invocation reached DAP.exe.
+- WebBubblePresenter now gates cancelable native anchor/form-submit default actions until the DAP binding acknowledges the click completion, then replays the default navigation/submission. No TestCRM change or timing sleep was introduced.
