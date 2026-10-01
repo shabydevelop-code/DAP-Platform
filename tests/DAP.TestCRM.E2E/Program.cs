@@ -1,4 +1,9 @@
 using Microsoft.Playwright;
+using DAP.Core.Targets;
+using DAP.Data.Sqlite;
+using DAP.Data.Sqlite.Guides;
+using DAP.Runtime.Web.Bubbles;
+using DAP.Runtime.Web.Targets;
 
 const string baseUrl = "http://localhost:5200";
 using var playwright = await Playwright.CreateAsync();
@@ -189,6 +194,24 @@ Console.WriteLine("Scenario 9: Consecutive server updates + final-state re-resol
 Console.WriteLine("Scenario 10: Business context switch + target isolation");
 await page.GotoAsync(baseUrl);
 await WaitReady();
+
+// First real DAP Web bubble: persist -> reload -> resolve -> present.
+var dapDbPath=Path.Combine(Path.GetTempPath(),"DAP.TestCRM.E2E",Guid.NewGuid()+".db");
+var dapFactory=new SqliteConnectionFactory(new SqliteDatabaseOptions(dapDbPath));
+await new SqliteDatabaseInitializer(dapFactory).InitializeAsync();
+var dapRepository=new SqliteGuideStepRepository(dapFactory);
+await dapRepository.SaveStepAsync(DapTestCrmGuideSeed.GuideId,DapTestCrmGuideSeed.CustomerNameStep);
+var dapStep=(await dapRepository.GetStepsAsync(DapTestCrmGuideSeed.GuideId)).Single();
+var dapBubbles=new WebBubblePresenter(new WebTargetResolver());
+var dapResolution=await dapBubbles.ShowAsync(page,dapStep);
+if(dapResolution.Status!=TargetResolutionStatus.Resolved)
+    throw new Exception("DAP first Web bubble target was not resolved: "+dapResolution.Status);
+var dapContent=await Content();
+var dapBubble=dapContent.Locator("#dap-guide-bubble");
+await dapBubble.WaitForAsync();
+if(await dapBubble.TextContentAsync()!=dapStep.Bubble.Content)
+    throw new Exception("DAP Web bubble content mismatch.");
+Console.WriteLine("DAP production Web bubble from SQLite: PASS");
 
 // 1. Legitimate customer lookup: server round trip + working context.
 await (await Content()).Locator("[name='name']").WaitForAsync(); await Fill("[name='name']","אלפא");
