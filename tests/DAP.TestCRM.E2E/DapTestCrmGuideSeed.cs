@@ -48,7 +48,8 @@ public static class DapTestCrmGuideSeed
     {
         ValueStep(
             "testcrm-customer-name", 1,
-            "[name='name']", "הקלד את שם הלקוח", "#customer-search"),
+            "[name='name']", "חפש את הלקוח אלפא פתרונות בע\"מ", "#customer-search",
+            "value-equals", "אלפא פתרונות בע\"מ"),
 
         ClickStep(
             "testcrm-customer-search-button", 2,
@@ -136,7 +137,7 @@ public static class DapTestCrmGuideSeed
 
         ValueStep(
             "testcrm-close-reason", 20,
-            "[name='closeReason']", "בחר סיבת סגירה", "[name='closeReason']",
+            "[name='closeReason']", "בחר בסיבת הסגירה טופל", "[name='closeReason']",
             "value-equals", "טופל"),
 
         ClickStep("testcrm-save-closed-case", 21, "button.primary:has-text('שמור')", "שמור את הפנייה הסגורה", "[name='closeReason']"),
@@ -152,7 +153,7 @@ public static class DapTestCrmGuideSeed
         ValueStep("testcrm-lead-close-success-2", 31, "[name='status']", "שנה שוב את סטטוס הליד לנסגר בהצלחה", "[name='status']", "value-equals", "נסגר בהצלחה"),
         ClickStep("testcrm-lead-invalid-save", 32, "button.primary:has-text('שמור')", "נסה לשמור את הליד", "[name='selectedService']"),
         ClickStep("testcrm-lead-validation-ok", 33, "#ps-alert button", "אשר את הודעת השגיאה", "#ps-alert"),
-        ValueStep("testcrm-lead-service", 34, "[name='selectedService']", "בחר שירות", "[name='selectedService']", "value-equals", "תמיכה מורחבת"),
+        ValueStep("testcrm-lead-service", 34, "[name='selectedService']", "בחר בשירות תמיכה מורחבת", "[name='selectedService']", "value-equals", "תמיכה מורחבת"),
         ClickStep("testcrm-save-lead", 35, "button.primary:has-text('שמור')", "שמור את הליד", "[name='selectedService']"),
         ClickStep("testcrm-delete-lead", 36, "#delete-lead", "מחק את הליד", "#delete-lead"),
         ClickStep("testcrm-confirm-delete-lead", 37, "#ps-confirm [data-answer='yes']", "אשר את מחיקת הליד", "#ps-confirm"),
