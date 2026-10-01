@@ -430,3 +430,10 @@ Web `clicked` validation no longer stores completion in the guided application's
 - Click-validation advancement was hardened for navigation/frame-replacement races. The browser-side click handler removes the active bubble synchronously before reporting completion, so the Learner Runtime does not perform a redundant cross-frame bubble cleanup for that completed click. The reconciliation loop also rechecks DAP-owned click completion after Playwright reconciliation work and before delaying/reconciling again, allowing the Step to advance when completion arrives while the clicked document/frame is being replaced.
 - This behavior is generic Runtime behavior; no Google-, Chrome-, Edge-, Chromium-, or TestCRM-specific progression workaround was introduced.
 
+## Visual browser validation — 2026-10-01
+
+- The full representative 53-Step DAP.TestCRM E2E also passes in `DAP_E2E_MODE=visual` on installed Google Chrome.
+- The same full visual-mode E2E passes on installed Microsoft Edge.
+- Visual mode preserves the demonstration-oriented cursor/typing behavior and TestCRM artificial server-processing delay, while the same production Learner Web Runtime, persisted Guide, readiness rules, target re-resolution, validation, and bubble lifecycle remain active.
+- Together with the fast-mode regression runs, Chrome and Edge are now validated in both fast and visual execution modes; Chromium remains validated in fast mode on the current code baseline.
+
