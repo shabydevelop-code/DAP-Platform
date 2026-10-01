@@ -4,6 +4,7 @@ using DAP.Core.Targets;
 using DAP.Data.Sqlite;
 using DAP.Data.Sqlite.Guides;
 using DAP.Runtime.Web.Bubbles;
+using DAP.Runtime.Web.Learner;
 using DAP.Runtime.Web.Targets;
 
 const string baseUrl = "http://localhost:5200";
@@ -204,15 +205,29 @@ var dapRepository=new SqliteGuideStepRepository(dapFactory);
 await dapRepository.SaveStepAsync(DapTestCrmGuideSeed.GuideId,DapTestCrmGuideSeed.CustomerNameStep);
 var dapStep=(await dapRepository.GetStepsAsync(DapTestCrmGuideSeed.GuideId)).Single();
 var dapBubbles=new WebBubblePresenter(new WebTargetResolver());
-var dapResolution=await dapBubbles.ShowAsync(page,dapStep);
-if(dapResolution.Status!=TargetResolutionStatus.Resolved)
-    throw new Exception("DAP first Web bubble target was not resolved: "+dapResolution.Status);
+var dapRuntime=new WebLearnerRuntime(dapBubbles);
+using var dapRuntimeCancellation=new CancellationTokenSource();
+var dapRuntimeTask=dapRuntime.RunActiveStepAsync(page,dapStep,dapRuntimeCancellation.Token);
+
 var dapContent=await Content();
 var dapBubble=dapContent.Locator("#dap-guide-bubble");
 await dapBubble.WaitForAsync();
 if(await dapBubble.TextContentAsync()!=dapStep.Bubble.Content)
     throw new Exception("DAP Web bubble content mismatch.");
 Console.WriteLine("DAP production Web bubble from SQLite: PASS");
+
+// Prove the production Learner lifecycle, not a test-only re-presentation:
+// reload the active Content document and require the runtime to reacquire the
+// replacement DOM target and recreate the active Step bubble by itself.
+await dapContent.EvaluateAsync("() => location.reload()");
+dapContent=await Content();
+dapBubble=dapContent.Locator("#dap-guide-bubble");
+await dapBubble.WaitForAsync(new() { Timeout = 10000 });
+if(await dapBubble.TextContentAsync()!=dapStep.Bubble.Content)
+    throw new Exception("DAP Learner Runtime did not restore the active bubble after Content reload.");
+if(await dapContent.Locator("[name='name']").CountAsync()!=1)
+    throw new Exception("DAP Learner Runtime target was not uniquely re-resolved after Content reload.");
+Console.WriteLine("DAP Learner Web Runtime re-resolution after Content reload: PASS");
 
 // 1. Legitimate customer lookup: server round trip + working context.
 await (await Content()).Locator("[name='name']").WaitForAsync(); await Fill("[name='name']","אלפא");
@@ -527,6 +542,10 @@ frame=await Content();
 if(!new Uri(frame.Url).Fragment.Equals("#/",StringComparison.Ordinal))
     throw new Exception("Header navigation did not return Content to the customer workspace.");
 await frame.Locator("h1:has-text('חיפוש לקוח')").WaitForAsync();
+
+dapRuntimeCancellation.Cancel();
+try { await dapRuntimeTask; } catch (OperationCanceledException) { }
+await dapRuntime.StopAsync(page);
 
 Console.WriteLine("PASS: representative Customer -> Site -> Case -> Lead workflow, including dynamic Lead deletion and Case deletion, completed.");
 await page.WaitForTimeoutAsync(visualMode ? 1500 : 0);
