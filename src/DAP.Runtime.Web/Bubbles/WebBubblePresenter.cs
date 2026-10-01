@@ -110,8 +110,17 @@ public sealed class WebBubblePresenter
     // not merely when polling first observes a non-empty/intermediate value.
     // Text editing commits on blur after a real edit; discrete controls commit
     // on change. DAP.exe remains the owner of completion state.
-    if (b.validationKind && b.validationKind !== 'clicked' && !el.__dapValidationCommitInstalled) {
-        el.__dapValidationCommitInstalled = true;
+    if (b.validationKind && b.validationKind !== 'clicked') {
+        // A live DOM control can participate in multiple Guide Steps. The
+        // validation listener therefore belongs to the active Step, not merely
+        // to the element. Replace the prior Step listener when the same element
+        // is reused later in the Guide.
+        if (el.__dapValidationCommitHandler)
+            el.removeEventListener(el.__dapValidationCommitEvent, el.__dapValidationCommitHandler, true);
+        if (el.__dapValidationInputHandler)
+            el.removeEventListener('input', el.__dapValidationInputHandler, true);
+        if (el.__dapValidationChangeHandler)
+            el.removeEventListener('change', el.__dapValidationChangeHandler, true);
         const tag = el.tagName?.toLowerCase();
         const type = (el.getAttribute?.('type') || '').toLowerCase();
         const isTextEditor = tag === 'textarea' ||
@@ -120,18 +129,24 @@ public sealed class WebBubblePresenter
         let changed = false;
 
         if (isTextEditor) {
-            el.addEventListener('input', () => { changed = true; }, { capture: true });
-            el.addEventListener('change', () => { changed = true; }, { capture: true });
+            const markChanged = () => { changed = true; };
+            el.__dapValidationInputHandler = markChanged;
+            el.__dapValidationChangeHandler = markChanged;
+            el.addEventListener('input', markChanged, { capture: true });
+            el.addEventListener('change', markChanged, { capture: true });
         }
 
-        el.addEventListener(eventName, () => {
+        const commit = () => {
             if (isTextEditor && !changed)
                 return;
 
             const report = root.defaultView?.__dapReportValidation;
             if (typeof report === 'function')
                 void report(b.stepId);
-        }, { capture: true });
+        };
+        el.__dapValidationCommitHandler = commit;
+        el.__dapValidationCommitEvent = eventName;
+        el.addEventListener(eventName, commit, { capture: true });
     }
 
     const existing = root.getElementById('dap-guide-bubble');
