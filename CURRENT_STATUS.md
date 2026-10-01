@@ -259,3 +259,13 @@ Web `clicked` validation no longer stores completion in the guided application's
 - The E2E no longer dismisses this visible validation alert inside a helper. It waits for the production Guide instruction before clicking the alert confirmation.
 - This preserves the visual-guide invariant: while a Guide Step is active, visible learner actions are the actions instructed by that Step.
 - This is an expected business-validation branch, not a generic rule that every unexpected application error must automatically become a Guide Step.
+
+
+## Full visual TestCRM Guide coverage
+- The persisted TestCRM Guide now contains 53 ordered Steps and continues from the Case flow through the remainder of the visible E2E workflow.
+- Guided visible actions now include: final Case save; Site/Case/Lead tab navigation; Lead creation; contact entry; Lead save; repeated server-driven Lead status changes; selected-service validation failure; validation alert acknowledgement; service selection; Lead deletion and confirmation; breadcrumb navigation; re-entry into Site/Leads; layout-shift status transitions; consecutive status transitions; business-context switch into Cases; Case deletion and confirmation; and the final Header-frame navigation back to customer search.
+- Assertions, DOM measurements, readiness waits and the deliberate programmatic Content-document reload remain E2E mechanics and are not represented as learner Steps.
+- The E2E waits for each corresponding Guide Step before each visible learner action in the guided sequence.
+- `WaitForGuideStep` now searches all live page frames so the final Header-frame bubble can be observed without assuming all bubbles belong to the Content iframe.
+- Guide continuation after Close Reason no longer asserts that the bubble disappears at Step 20; Step 21 is the guided successful save.
+- The full 53-Step visual run still requires local execution after pull to validate all dynamic selectors and frame transitions end-to-end.
