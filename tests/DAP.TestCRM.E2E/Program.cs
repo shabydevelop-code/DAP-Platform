@@ -373,17 +373,17 @@ await frame.Locator("h2:has-text('לידים')").WaitForAsync();
 // The logical Delete target remains the same, but its screen position changes.
 // DAP must resolve the target from the live DOM rather than retaining old coordinates.
 frame=await Content();
-// Scenario 7 leaves us on the Customer workspace. Re-enter the same Site through
-// the user-facing Customer -> Site navigation, rather than using an internal route.
-await frame.Locator("h1:has-text('חיפוש לקוח')").WaitForAsync(new() { Timeout = 10000 });
-await frame.Locator("[name='name']").WaitForAsync(new() { Timeout = 10000 });
-await Fill("[name='name']","אלפא");
-await Click("#customer-search button.primary");
+// Re-enter the Site through the user-facing breadcrumb and Site list.
+var customerCrumb=frame.Locator(".breadcrumb a[data-go^='#/customer/']").First;
+await customerCrumb.WaitForAsync();
+await MoveTo(customerCrumb);
+await customerCrumb.ClickAsync();
 await WaitReady();
-await Click("#search-results tbody tr.clickable:first-child");
-await WaitReady();
+frame=await Content();
+await frame.Locator("h2:has-text('אתרים')").WaitForAsync();
 await Click("tbody tr.clickable:first-child");
 await WaitReady();
+frame=await Content();
 await Click("nav.tabs button:has-text('לידים')");
 await WaitReady();
 frame=await Content();
