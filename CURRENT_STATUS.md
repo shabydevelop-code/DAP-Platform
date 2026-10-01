@@ -230,3 +230,14 @@ Web `clicked` validation no longer stores completion in the guided application's
 - Step 15 guides the real off-screen Activity More action. Because production bubbles remain hidden for off-screen targets, the visual learner scrolls first, then the E2E requires the Step 15 bubble to be visible before clicking.
 - Step 16 requires Case status = Closed, Step 17 guides restoring Subject after the CRM FieldChange clears it, and Step 18 requires Close Reason = Resolved.
 - The intentionally rejected Save with missing Close Reason remains an unguided validation exercise for now. A click-only Step would advance incorrectly on the rejected save; final Save guidance is deferred until the Guide can validate successful persistence rather than click occurrence.
+
+
+## Interaction-completion semantics
+- Automatic value Steps no longer advance merely because 100 ms polling observes an intermediate valid value.
+- Web controls now report a natural interaction-completion event to the existing DAP.exe validation session.
+- Text input/textarea: the learner must actually edit the control and then leave it (blur); only then is the validation condition evaluated.
+- Select, checkbox, radio and other discrete value controls: completion is reported on change, then the validation condition is evaluated.
+- Button/click Steps retain event-based clicked completion.
+- The validation condition and the interaction-completion event are now conceptually separate: the event decides when to evaluate; ValidationDefinition decides whether the completed interaction is acceptable.
+- This prevents a free-text Step such as treatment notes from advancing after the first character and is a prerequisite for safe viewport/navigation behavior between Steps.
+- The current implementation derives the Web completion event from the resolved control type so existing persisted Guides and SQLite schema remain compatible. A future explicit per-Step completion-trigger override can be added with schema migration/versioning if product requirements need it.
