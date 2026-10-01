@@ -310,10 +310,9 @@ if(await frame.Locator($"button.grid-open[data-go='#/case/{createdCaseId}']").Co
 
 // 8. Continue legitimate agent work into Leads.
 frame=await Content();
-// On a Case page the breadcrumb is Portal -> Customer -> Site -> Case.
-// Use the actual Site breadcrumb (Nth(2)); data-go is the navigation contract,
-// while href is intentionally absent because these are app-controlled anchors.
-var siteCrumb=frame.Locator(".breadcrumb a").Nth(2);
+// Resolve the Site breadcrumb by its navigation contract; after tab switching the
+// breadcrumb shape can differ from the Case page, so do not rely on a fixed index.
+var siteCrumb=frame.Locator(".breadcrumb a[data-go^='#/site/']").First;
 var siteRoute=await siteCrumb.GetAttributeAsync("data-go") ?? throw new Exception("Site breadcrumb route missing.");
 if(!siteRoute.StartsWith("#/site/",StringComparison.Ordinal)) throw new Exception("Unexpected site breadcrumb route: "+siteRoute);
 await MoveTo(siteCrumb);
