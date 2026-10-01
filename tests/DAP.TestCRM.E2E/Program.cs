@@ -7,7 +7,7 @@ var context = await browser.NewContextAsync(new() { ViewportSize = ViewportSize.
 var page = await context.NewPageAsync();
 page.SetDefaultTimeout(5000);
 
-var e2eMode = Environment.GetEnvironmentVariable("DAP_E2E_MODE")?.Trim().ToLowerInvariant() ?? "visual";
+var e2eMode = Environment.GetEnvironmentVariable("DAP_E2E_MODE")?.Trim().ToLowerInvariant() ?? "fast";
 var visualMode = e2eMode is "visual" or "demo";
 var fastMode = !visualMode;
 
@@ -325,4 +325,4 @@ if(await frame.Locator($"button.grid-open[data-go='#/case/{createdCaseId}']").Co
     throw new Exception($"Deleted Case {createdCaseId} is still present in the Cases grid.");
 
 Console.WriteLine("PASS: representative Customer -> Site -> Case -> Lead workflow, including dynamic Lead deletion and Case deletion, completed.");
-await page.WaitForTimeoutAsync(1500);
+await page.WaitForTimeoutAsync(visualMode ? 1500 : 0);
