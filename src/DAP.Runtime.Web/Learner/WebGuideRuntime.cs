@@ -24,6 +24,10 @@ public sealed class WebGuideRuntime
         CancellationToken cancellationToken)
     {
         var frameUrlFragments = new Dictionary<string, string>(StringComparer.Ordinal);
+        var captureSourceStepIds = guideSteps
+            .SelectMany(ReferencedRuntimeValueSteps)
+            .ToHashSet(StringComparer.Ordinal);
+        string? previousStepFragment = null;
 
         foreach (var persistedStep in guideSteps.OrderBy(step => step.Order))
         {
@@ -36,10 +40,46 @@ public sealed class WebGuideRuntime
             var step = MaterializeRuntimeValues(persistedStep, frameUrlFragments);
             var frame = await ResolveTargetFrameAsync(page, step.Target!.FrameContext, cancellationToken);
             if (frame is not null)
-                frameUrlFragments[step.Id] = new Uri(frame.Url).Fragment;
+            {
+                var fragment = new Uri(frame.Url).Fragment;
+
+                if (captureSourceStepIds.Contains(step.Id) && previousStepFragment is not null)
+                {
+                    var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(10);
+                    while (string.Equals(fragment, previousStepFragment, StringComparison.Ordinal)
+                           && DateTime.UtcNow < deadline)
+                    {
+                        await Task.Delay(50, cancellationToken);
+                        frame = await ResolveTargetFrameAsync(page, step.Target.FrameContext, cancellationToken);
+                        if (frame is null)
+                            continue;
+                        fragment = new Uri(frame.Url).Fragment;
+                    }
+
+                    if (string.Equals(fragment, previousStepFragment, StringComparison.Ordinal))
+                        throw new InvalidOperationException(
+                            $"Guide Step '{step.Id}' is a runtime URL capture source, but its target frame did not leave the previous Step URL.");
+                }
+
+                frameUrlFragments[step.Id] = fragment;
+                previousStepFragment = fragment;
+            }
 
             await _steps.RunActiveStepAsync(page, step, cancellationToken);
         }
+    }
+
+    private static IEnumerable<string> ReferencedRuntimeValueSteps(GuideStep step)
+    {
+        if (step.Target is null)
+            yield break;
+
+        foreach (Match match in RuntimeValueToken.Matches(step.Target.Locator.Value))
+            yield return match.Groups["step"].Value;
+
+        foreach (var anchor in step.Target.Anchors)
+            foreach (Match match in RuntimeValueToken.Matches(anchor.Locator.Value))
+                yield return match.Groups["step"].Value;
     }
 
     private static GuideStep MaterializeRuntimeValues(
