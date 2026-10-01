@@ -1,3 +1,5 @@
+using System.Windows;
+
 namespace DAP.App;
 
 public enum DapLaunchMode
@@ -6,17 +8,45 @@ public enum DapLaunchMode
     LearnerWeb
 }
 
-public sealed record DapLaunchOptions(DapLaunchMode Mode, string? GuideId)
+public sealed record DapLaunchOptions(
+    DapLaunchMode Mode,
+    string? GuideId,
+    string? CdpEndpoint,
+    string? PageUrlContains)
 {
     public static DapLaunchOptions? Parse(string[] args)
     {
         if (args.Length == 1 && args[0] == "--check")
-            return new(DapLaunchMode.InfrastructureCheck, null);
+            return new(DapLaunchMode.InfrastructureCheck, null, null, null);
 
-        if (args.Length == 2 && args[0] == "--learner-web" && !string.IsNullOrWhiteSpace(args[1]))
-            return new(DapLaunchMode.LearnerWeb, args[1]);
+        if (args.Length >= 4 && args[0] == "--learner-web" && !string.IsNullOrWhiteSpace(args[1]))
+        {
+            string? cdp = null;
+            string? pageUrlContains = null;
+            for (var i = 2; i < args.Length; i++)
+            {
+                if (args[i] == "--cdp" && i + 1 < args.Length)
+                    cdp = args[++i];
+                else if (args[i] == "--page-url-contains" && i + 1 < args.Length)
+                    pageUrlContains = args[++i];
+                else
+                    return Usage();
+            }
 
-        Console.Error.WriteLine("Usage: DAP.exe --check | --learner-web <guide-id>");
+            if (!string.IsNullOrWhiteSpace(cdp))
+                return new(DapLaunchMode.LearnerWeb, args[1], cdp, pageUrlContains);
+        }
+
+        return Usage();
+    }
+
+    private static DapLaunchOptions? Usage()
+    {
+        MessageBox.Show(
+            "Usage:\nDAP.exe --check\nDAP.exe --learner-web <guide-id> --cdp <endpoint> [--page-url-contains <text>]",
+            "DAP",
+            MessageBoxButton.OK,
+            MessageBoxImage.Information);
         return null;
     }
 }
