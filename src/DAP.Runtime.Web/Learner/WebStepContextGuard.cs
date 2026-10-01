@@ -27,6 +27,7 @@ public sealed class WebStepContextGuard
             "url-contains" => frame.Url.Contains(step.Context.Value, StringComparison.Ordinal),
             "url-fragment-equals" => Uri.TryCreate(frame.Url, UriKind.Absolute, out var uri)
                 && string.Equals(uri.Fragment, step.Context.Value, StringComparison.Ordinal),
+            "css-exists" => await frame.Locator(step.Context.Value).CountAsync() > 0,
             _ => throw new NotSupportedException($"Unsupported Web Step context kind '{step.Context.Kind}'.")
         };
     }
@@ -50,9 +51,14 @@ public sealed class WebStepContextGuard
                 return null;
 
             var handle = await locator.ElementHandleAsync();
-            current = handle is null ? null! : await handle.ContentFrameAsync()!;
-            if (current is null || current.IsDetached)
+            if (handle is null)
                 return null;
+
+            var childFrame = await handle.ContentFrameAsync();
+            if (childFrame is null || childFrame.IsDetached)
+                return null;
+
+            current = childFrame;
         }
 
         cancellationToken.ThrowIfCancellationRequested();
