@@ -108,6 +108,7 @@ public sealed class WebLearnerRuntime
                     // Click validation is itself satisfied by the click event.
                     if (isClickedValidation)
                     {
+                        Console.Error.WriteLine($"[DAP runtime] click completion at loop entry for Step '{step.Id}'.");
                         // The browser click handler removes the active bubble
                         // synchronously before reporting completion. Do not run a
                         // second cross-frame cleanup here: the validating click
@@ -188,7 +189,10 @@ public sealed class WebLearnerRuntime
             // sleeping/reconciling so click Steps can advance independently of
             // the retiring document.
             if (isClickedValidation && _validationSession.IsCompleted(step.Id))
+            {
+                Console.Error.WriteLine($"[DAP runtime] click completion after reconciliation for Step '{step.Id}'.");
                 return;
+            }
 
             await Task.Delay(_reconcileInterval, cancellationToken);
         }
