@@ -505,9 +505,25 @@ await MoveTo(casesCrumb); await casesCrumb.ClickAsync(); await WaitReady();
 frame=await Content();
 await frame.Locator("h2:has-text('פניות')").WaitForAsync();
 
+// Diagnostic for the first guided return to the Cases grid. Keep this close to
+// Step 12 so a failed target resolution reports the live DOM that DAP actually saw.
+var caseRows=frame.Locator("tbody tr");
+Console.WriteLine($"[Step 12 diagnostic] Cases rows: {await caseRows.CountAsync()}");
+for(var rowIndex=0;rowIndex<await caseRows.CountAsync();rowIndex++)
+{
+    var row=caseRows.Nth(rowIndex);
+    var rowText=(await row.InnerTextAsync()).Replace("\r"," ").Replace("\n"," | ");
+    var openButtons=row.Locator("button.grid-open");
+    var openTargets=new List<string>();
+    for(var buttonIndex=0;buttonIndex<await openButtons.CountAsync();buttonIndex++)
+        openTargets.Add(await openButtons.Nth(buttonIndex).GetAttributeAsync("data-go") ?? "<no data-go>");
+    Console.WriteLine($"[Step 12 diagnostic] row {rowIndex}: text=[{rowText}] open=[{string.Join(", ",openTargets)}]");
+}
+Console.WriteLine($"[Step 12 diagnostic] exact created Case button count: {await frame.Locator($"button.grid-open[data-go='#/case/{createdCaseId}']").CountAsync()}");
+Console.WriteLine($"[Step 12 diagnostic] subject-scoped Guide target count: {await frame.Locator("tr:has-text('תקלה בחיבור לאינטרנט') button.grid-open").CountAsync()}");
+
 await WaitForGuideStep(12);
-// Step 12 intentionally resolves the generic visible Open button. The E2E still
-// clicks the exact Case created in this run so its data assertion remains deterministic.
+// The E2E clicks the exact Case created in this run so its data assertion remains deterministic.
 await Click($"button.grid-open[data-go='#/case/{createdCaseId}']");
 await WaitReady();
 
