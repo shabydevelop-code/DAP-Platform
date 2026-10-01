@@ -64,20 +64,25 @@ public static class DapTestCrmGuideSeed
             "עבור ללשונית פניות", "nav.tabs"),
 
         ClickStep(
-            "testcrm-new-case", 6,
+            "testcrm-sort-cases", 6,
+            "th button[data-sort='status']",
+            "מיין את הפניות לפי סטטוס", "h2:has-text('פניות')"),
+
+        ClickStep(
+            "testcrm-new-case", 7,
             "button.primary:has-text('פניה חדשה')",
             "צור פנייה חדשה", "h2:has-text('פניות')"),
 
         ValueStep(
-            "testcrm-case-subject", 7,
+            "testcrm-case-subject", 8,
             "[name='subject']", "הקלד את נושא הפנייה", "[name='subject']"),
 
         ValueStep(
-            "testcrm-case-description", 8,
+            "testcrm-case-description", 9,
             "[name='description']", "תאר את הפנייה", "[name='description']"),
 
         ClickStep(
-            "testcrm-save-new-case", 9,
+            "testcrm-save-new-case", 10,
             "button.primary:has-text('שמור')",
             "שמור את הפנייה החדשה", "[name='subject']")
     };
