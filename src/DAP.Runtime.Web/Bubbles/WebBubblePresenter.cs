@@ -55,9 +55,10 @@ public sealed class WebBubblePresenter
     // Event completion is owned by DAP.exe, not by this document. The
     // Playwright binding survives navigation/document replacement, so a click
     // that starts a server round trip cannot be forgotten when this DOM dies.
-    if (b.validationKind === 'clicked' && !el.__dapValidationClickInstalled) {
-        el.__dapValidationClickInstalled = true;
-        el.addEventListener('click', event => {
+    if (b.validationKind === 'clicked') {
+        if (el.__dapValidationClickHandler)
+            el.removeEventListener('click', el.__dapValidationClickHandler, true);
+        const clickHandler = event => {
             const activeBubble = root.getElementById('dap-guide-bubble');
             if (activeBubble?.dataset.dapStepId === b.stepId) {
                 activeBubble.__dapCleanup?.();
@@ -103,7 +104,9 @@ public sealed class WebBubblePresenter
                 if (form)
                     form.requestSubmit(el);
             });
-        }, { capture: true });
+        };
+        el.__dapValidationClickHandler = clickHandler;
+        el.addEventListener('click', clickHandler, { capture: true });
     }
 
     // Value validations complete on the interaction's natural commit event,
