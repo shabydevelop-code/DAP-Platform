@@ -207,17 +207,6 @@ async Task WaitForSaveValidation(string field)
     await f.Locator($"[name='{field}'].validation-error").WaitForAsync();
     await f.Locator("#ps-alert button").WaitForAsync();
 }
-async Task SaveExpectValidationUnguided(string field)
-{
-    await Click("button.primary:has-text('שמור')");
-    await WaitForSaveValidation(field);
-    var f=await Content();
-    var ok=f.Locator("#ps-alert button");
-    await MoveTo(ok);
-    await ok.ClickAsync();
-    await HumanPause();
-}
-
 async Task SaveSuccess()
 {
     await Click("button.primary:has-text('שמור')");
