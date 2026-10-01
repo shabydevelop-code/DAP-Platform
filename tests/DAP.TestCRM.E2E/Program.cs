@@ -245,24 +245,21 @@ await WaitReady();
 StartupMark("TestCRM ready");
 
 // First real DAP Web bubble: persist -> reload -> resolve -> present.
-var guideSteps=DapTestCrmGuideSeed.CreateSteps();
-
-// The visual system demonstration uses DAP's real persistent database. The
-// harness may seed/update its Guide definition, but it must not hide the Guide
-// in an unrelated per-run temporary database. DAP.exe below receives this exact
-// same path, so what the learner sees is what is persisted in DAP.db.
+// The persistent DAP database is the Source of Truth. The E2E never rewrites
+// the Guide during a normal run. DapTestCrmGuideSeed remains only as an explicit
+// initialization/reset definition and must be invoked by a dedicated reset path.
 var dapDatabaseOptions=SqliteDatabaseOptions.CreateDefault();
 var dapDbPath=dapDatabaseOptions.DatabasePath;
 var dapFactory=new SqliteConnectionFactory(dapDatabaseOptions);
 await new SqliteDatabaseInitializer(dapFactory).InitializeAsync();
 var dapRepository=new SqliteGuideStepRepository(dapFactory);
-foreach(var guideStep in guideSteps)
-    await dapRepository.SaveStepAsync(DapTestCrmGuideSeed.GuideId,guideStep);
 var dapSteps=await dapRepository.GetStepsAsync(DapTestCrmGuideSeed.GuideId);
 Console.WriteLine($"DAP persistent guide database: {dapDbPath}");
-StartupMark("persistent DAP guide database seeded");
-if(dapSteps.Count!=guideSteps.Count)
-    throw new Exception($"Expected {guideSteps.Count} persisted DAP Steps, found {dapSteps.Count}.");
+StartupMark("persistent DAP guide loaded");
+if(dapSteps.Count==0)
+    throw new Exception(
+        $"DAP Guide '{DapTestCrmGuideSeed.GuideId}' does not exist in the persistent database. " +
+        "Initialize/reset the Guide explicitly before running the E2E.");
 var dapStep=dapSteps[0];
 var dapSecondStep=dapSteps[1];
 
