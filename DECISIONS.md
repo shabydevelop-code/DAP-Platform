@@ -145,3 +145,24 @@ Server-side validation remains authoritative. Validation responses must identify
 After the PeopleSoft-style server round trip restores the working context, DAP.TestCRM marks each server-rejected field with a red error border and `aria-invalid="true"`, while also presenting the server-returned message in the standard error modal. The client must not infer invalid fields independently from the server rules.
 
 A subsequent successful validation/refresh clears the error state because the rebuilt screen has no server validation result to restore.
+
+
+## ADR-018 — Separate fast validation from visual E2E demonstration
+
+**Status:** Accepted
+
+The permanent DAP.TestCRM E2E runner supports two execution modes through `DAP_E2E_MODE`.
+
+`fast` is the default validation mode. It skips artificial human-like interaction delays and bypasses TestCRM's artificial server-thinking delay for E2E requests. It does not bypass real application readiness: server responses, route completion, DOM/frame replacement, validation, and other actual synchronization conditions remain required.
+
+`visual` is demonstration mode and retains cursor movement, typing delays, processing feedback, and the artificial server-thinking delay.
+
+The two modes must share the same test logic. Maintaining separate test implementations is not permitted merely to support visual demonstration.
+
+## ADR-019 — Real readiness over fixed synchronization delays
+
+**Status:** Accepted
+
+E2E synchronization must use real application signals wherever possible. Fixed delays such as the TestCRM artificial server-thinking delay or human-like pauses must not be used as a substitute for route, DOM, iframe, server-state, or validation readiness.
+
+The DAP.TestCRM PeopleSoft-Web flow therefore re-resolves the active Content iframe and exposes route readiness after each route transition. The E2E frame polling interval remains 100ms and is considered polling infrastructure, not a demonstration delay.
