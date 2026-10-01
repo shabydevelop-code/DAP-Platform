@@ -182,6 +182,7 @@ Console.WriteLine("Scenario 2: Case validation failure + preservation of unsaved
 Console.WriteLine("Scenario 3: Grid rerender/reorder + target re-resolution");
 Console.WriteLine("Scenario 4: Full page reload + business context preservation");
 Console.WriteLine("Scenario 5: CRM tab switching + business context preservation");
+Console.WriteLine("Scenario 6: Conditional target disappearance/reappearance + re-resolution");
 await page.GotoAsync(baseUrl);
 await WaitReady();
 
@@ -327,10 +328,26 @@ frame=await Content();
 var dynamicDeleteLead=frame.Locator("#delete-lead");
 await dynamicDeleteLead.WaitForAsync();
 
-// 9. Lead server FieldChange + conditional required business field.
+// 9. Conditional Lead target disappearance/reappearance.
+// Business scenario: changing the Lead status changes which dependent business field
+// exists in the DOM. DAP must not keep a stale reference to the old target.
 await Select("[name='status']","נסגר בהצלחה");
 frame=await Content();
 await frame.Locator("[name='selectedService']").WaitForAsync();
+if(await frame.Locator("[name='selectedService']").CountAsync()!=1)
+    throw new Exception("Selected Service target did not appear after successful-close status.");
+
+await Select("[name='status']","חדש");
+frame=await Content();
+if(await frame.Locator("[name='selectedService']").CountAsync()!=0)
+    throw new Exception("Selected Service target did not disappear after returning Lead to New status.");
+
+await Select("[name='status']","נסגר בהצלחה");
+frame=await Content();
+await frame.Locator("[name='selectedService']").WaitForAsync();
+if(await frame.Locator("[name='selectedService']").CountAsync()!=1)
+    throw new Exception("Selected Service target did not reappear after returning to successful-close status.");
+
 await SaveExpectValidation("selectedService");
 await Select("[name='selectedService']","תמיכה מורחבת");
 await SaveSuccess();
