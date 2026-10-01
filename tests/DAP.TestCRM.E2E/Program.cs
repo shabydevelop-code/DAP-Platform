@@ -267,6 +267,7 @@ if(dapSteps.Count==0)
 var dapStep=dapSteps[0];
 var dapSecondStep=dapSteps[1];
 
+var dapStdErrLines=new System.Collections.Concurrent.ConcurrentQueue<string>();
 async Task WaitForGuideStep(int order)
 {
     var expected=dapSteps.Single(step=>step.Order==order);
@@ -429,7 +430,6 @@ void KillOwnedDapProcess()
 AppDomain.CurrentDomain.ProcessExit+=(_,_)=>KillOwnedDapProcess();
 
 var dapStdOutTask=dapProcess.StandardOutput.ReadToEndAsync();
-var dapStdErrLines=new System.Collections.Concurrent.ConcurrentQueue<string>();
 dapProcess.ErrorDataReceived+=(_,eventArgs)=>
 {
     if(eventArgs.Data is not null)
