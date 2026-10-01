@@ -277,3 +277,16 @@ Web `clicked` validation no longer stores completion in the guided application's
 - Verified in the successful run: automatic validation completion, Step 1 -> Step 2 transition, complete Case treatment, expected validation alert acknowledgement, Case closure, Lead workflow, dynamic Lead deletion, Case deletion, business-context transitions and final cross-frame navigation.
 - All visible learner actions in the current representative E2E flow are now Guide-driven; assertions, readiness checks, DOM measurements and deliberate programmatic reload mechanics remain test-only.
 - The obsolete `SaveExpectValidationUnguided` helper was removed after full Guide coverage made it unused.
+
+
+## Learner-movable Web bubbles
+- The learner can now drag the active Web bubble with pointer/mouse input when it obscures useful application content.
+- Dragging is transient learner UI state only; it is not persisted in SQLite and does not change the authored Step placement.
+- Once the learner manually moves a bubble, automatic placement is suspended for the remainder of that Step.
+- The manually moved bubble is clamped to the current viewport and remains clamped after scroll/resize.
+- The directional pointer is hidden after manual movement so it cannot visually claim an incorrect target direction.
+- Cursor feedback uses `grab` / `grabbing`.
+- Moving to another Step recreates the bubble and resets manual positioning, returning the new Step to normal automatic placement.
+- Pointer dragging ignores interactive descendants so future controls inside a bubble remain usable.
+- The existing target highlight, validation lifecycle, target re-resolution and non-overlap auto-placement remain unchanged before manual movement.
+- The verified 53-Step baseline predates this drag enhancement; rerun the visual E2E after pulling to regression-check the new presenter behavior.
