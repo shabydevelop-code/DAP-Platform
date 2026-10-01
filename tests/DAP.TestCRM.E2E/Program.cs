@@ -488,12 +488,7 @@ await Fill("[name='description']","הלקוח מדווח על חיבור לא י
 await WaitForGuideStep(10);
 await SaveSuccess();
 
-// The first synchronized demo Guide segment ends here. Everything below remains the
-// broader CRM resilience suite and must not depend on an active Guide bubble.
-await page.WaitForTimeoutAsync(250);
-if(await (await Content()).Locator("#dap-guide-bubble").CountAsync()!=0)
-    throw new Exception("Completed case-creation Guide still has an active bubble.");
-Console.WriteLine("DAP complete customer -> new Case Guide: PASS");
+// The Guide deliberately continues into treatment of the Case just created.
 frame=await Content();
 var createdCaseUrl=frame.Url;
 var caseMarker="#/case/";
@@ -504,10 +499,15 @@ var createdCaseId=createdCaseUrl[(casePos+caseMarker.Length)..].Split('?', '/', 
 // Return to the Cases grid, then open exactly the Case created by this run.
 // This also verifies repeated identical Open targets without relying on unique status text.
 frame=await Content();
+await WaitForGuideStep(11);
 var casesCrumb=frame.Locator(".breadcrumb a").Nth(2);
 await MoveTo(casesCrumb); await casesCrumb.ClickAsync(); await WaitReady();
 frame=await Content();
 await frame.Locator("h2:has-text('פניות')").WaitForAsync();
+
+await WaitForGuideStep(12);
+// Step 12 intentionally resolves the generic visible Open button. The E2E still
+// clicks the exact Case created in this run so its data assertion remains deterministic.
 await Click($"button.grid-open[data-go='#/case/{createdCaseId}']");
 await WaitReady();
 
@@ -518,10 +518,18 @@ await WaitReady();
 frame=await Content();
 var notes=frame.Locator("[name='resolutionNotes']");
 if(!await notes.IsDisabledAsync()) throw new Exception("Treatment Notes should start disabled for an open case.");
+await WaitForGuideStep(13);
 await Select("[name='status']","בטיפול");
 frame=await Content(); notes=frame.Locator("[name='resolutionNotes']");
 if(await notes.IsDisabledAsync()) throw new Exception("Treatment Notes did not become enabled.");
+
+await WaitForGuideStep(14);
 await Fill("[name='resolutionNotes']","בוצעה בדיקת שירות מול הלקוח והתקלה טופלה.");
+
+await page.WaitForTimeoutAsync(250);
+if(await (await Content()).Locator("#dap-guide-bubble").CountAsync()!=0)
+    throw new Exception("Completed customer-to-treatment Guide still has an active bubble.");
+Console.WriteLine("DAP complete customer -> Case treatment Guide: PASS");
 
 // 4. Real off-screen target / scrolling through activity history.
 var more=frame.Locator("#activity-more");
