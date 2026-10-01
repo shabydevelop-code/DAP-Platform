@@ -369,3 +369,13 @@ Web `clicked` validation no longer stores completion in the guided application's
 - The temporary change that renamed the E2E-created Case subject to manufacture selector uniqueness was reverted. The original business scenario remains `תקלה בחיבור לאינטרנט`.
 - Permanent rule: never change TestCRM/business data or workflow merely to make DAP Guide/E2E targeting pass. Ambiguity must be solved by DAP production targeting/anchors/context, not by tailoring the target application to the test.
 - Steps 12/50 therefore require a proper target-identity solution before the full compatibility run can pass; the subject-only selector is intentionally not treated as an acceptable final solution because the real target application contains duplicate subjects.
+
+
+## Runtime identity fix for created Case
+- Removed the DAP-added `data-business-subject` attribute from TestCRM. Commit `32d4bd3`; target application is no longer tailored for this Guide.
+- Added transient Web Guide runtime URL-fragment capture/materialization. Syntax: `{{step:<step-id>:frame-url-fragment}}` in locator or anchor values.
+- Capture-source Steps wait for their frame URL to transition away from the preceding Step URL before capture, closing the Save-click/navigation race without fixed sleeps or TestCRM-specific route knowledge.
+- Step 11 captures the persisted created-Case route. Steps 12 and 50 target `button.grid-open[data-go='<captured route>']`.
+- E2E learner actions independently use the Case ID observed from the real post-Save route. The existing exact DOM identity invariant therefore verifies that DAP's runtime-bound target and the learner action resolve to the same element.
+- No SQLite schema change and no TestCRM business/DOM adaptation were introduced for runtime identity.
+- Full 53-Step local visual run is required after pull.
