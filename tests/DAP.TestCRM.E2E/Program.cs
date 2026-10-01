@@ -159,6 +159,12 @@ async Task Fill(string selector,string value)
     await page.Keyboard.PressAsync("Control+A");
     await page.Keyboard.TypeAsync(value,new() { Delay = visualMode ? 75 : 0 });
     await HumanPause();
+
+    // Finishing text entry is a distinct learner action. Move focus away so
+    // the production Runtime receives the natural blur completion event; the
+    // value validation is evaluated only after this point.
+    await page.Keyboard.PressAsync("Tab");
+    await HumanPause(120);
 }
 async Task Select(string selector,string value)
 {
