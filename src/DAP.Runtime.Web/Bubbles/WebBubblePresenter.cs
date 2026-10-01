@@ -242,8 +242,8 @@ public sealed class WebBubblePresenter
         var presentedAt = timing.Elapsed.TotalMilliseconds;
         if (!ensureOnly)
             Console.Error.WriteLine($"[DAP bubble] Step '{step.Id}' target resolved in {resolvedAt:F0} ms; DOM presentation completed in {presentedAt:F0} ms.");
-        else
-            Console.Error.WriteLine($"[DAP bubble] Step '{step.Id}' ensure presentation: resolve {resolvedAt:F0} ms; total {presentedAt:F0} ms.");
+        else if (presentedAt >= 250)
+            Console.Error.WriteLine($"[DAP bubble] Step '{step.Id}' slow ensure presentation: resolve {resolvedAt:F0} ms; total {presentedAt:F0} ms.");
 
         return resolution;
     }
