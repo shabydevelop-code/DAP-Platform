@@ -76,7 +76,16 @@ try {
     if (-not (Test-Path $testCrmExe)) { throw "TestCRM executable not found: $testCrmExe" }
 
     Write-Host "Starting TestCRM..."
-    $crm = Start-Process $testCrmExe -WorkingDirectory $testCrmOutput -PassThru
+    # The executable is launched directly, so launchSettings.json is not
+    # applied. Pin the same URL the manual launcher probes and opens.
+    $previousAspNetCoreUrls = $env:ASPNETCORE_URLS
+    $env:ASPNETCORE_URLS = $testCrmUrl
+    try {
+        $crm = Start-Process $testCrmExe -WorkingDirectory $testCrmOutput -PassThru
+    }
+    finally {
+        $env:ASPNETCORE_URLS = $previousAspNetCoreUrls
+    }
 
     $deadline = (Get-Date).AddSeconds(30)
     $ready = $false
