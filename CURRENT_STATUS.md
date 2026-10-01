@@ -325,3 +325,12 @@ Web `clicked` validation no longer stores completion in the guided application's
 - At the end of the quiet window the target must still be connected and have non-zero geometry.
 - This replaces both failed settling implementations that caused the first bubble to time out.
 - Local 53-Step visual E2E remains required after pull.
+
+
+## One-time Step presentation gate
+- DOM settling is now a one-time gate before the first visible presentation of each Web Step, rather than a condition re-evaluated on every 100 ms reconciliation cycle.
+- Step 1 bypasses the gate as before. Each subsequent Step waits for its quiet DOM window while no new bubble is created.
+- Once a Step is successfully presented, normal `EnsureShownAsync` reconciliation owns it for the remainder of that Step; later rerenders no longer force the already-active Step back through settling.
+- The settling-wait path no longer calls `HideAsync` repeatedly, eliminating the show/hide churn that amplified bubble flicker during rendering.
+- If the target disappears in the small gap between passing the gate and its first presentation, the gate is reset and must pass again.
+- Local 53-Step visual E2E and visual observation of server-render transitions remain required after pull.
