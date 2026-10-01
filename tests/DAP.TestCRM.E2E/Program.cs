@@ -507,11 +507,11 @@ await frame.Locator("h2:has-text('פניות')").WaitForAsync();
 
 // Diagnostic for the first guided return to the Cases grid. Keep this close to
 // Step 12 so a failed target resolution reports the live DOM that DAP actually saw.
-var caseRows=frame.Locator("tbody tr");
-Console.WriteLine($"[Step 12 diagnostic] Cases rows: {await caseRows.CountAsync()}");
-for(var rowIndex=0;rowIndex<await caseRows.CountAsync();rowIndex++)
+var step12CaseRows=frame.Locator("tbody tr");
+Console.WriteLine($"[Step 12 diagnostic] Cases rows: {await step12CaseRows.CountAsync()}");
+for(var rowIndex=0;rowIndex<await step12CaseRows.CountAsync();rowIndex++)
 {
-    var row=caseRows.Nth(rowIndex);
+    var row=step12CaseRows.Nth(rowIndex);
     var rowText=(await row.InnerTextAsync()).Replace("\r"," ").Replace("\n"," | ");
     var openButtons=row.Locator("button.grid-open");
     var openTargets=new List<string>();
