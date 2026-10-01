@@ -151,3 +151,8 @@ A local visual E2E run exposed a race in the first event-based Web validation. S
 ## Startup timing harness correction
 
 The 6.4-second Playwright.CreateAsync measurements were recorded after E2E process isolation changed DAP.App to a brand-new GUID-named temporary output directory on every run. Earlier direct-executable measurement from a stable build location was about 2.2 seconds total to first bubble. Because Playwright starts its packaged driver/runtime from the application output, repeatedly copying it to a never-before-used path can distort cold-start measurements (for example through first-use filesystem/security scanning). The E2E now uses a stable isolated `%TEMP%\DAP\E2E\app` output directory: it remains separate from the normal DAP.App bin directory, while the existing owned-process Ctrl+C cleanup protects subsequent builds. The directory is intentionally retained between runs. A local rerun is required before deciding whether Playwright lifecycle architecture needs optimization based on the previous 6.4-second measurements.
+
+
+## E2E orphan recovery for stable output
+
+The stable E2E DAP output exposed one remaining interruption case: an orphaned DAP.exe can survive a prior parent termination and lock `%TEMP%\DAP\E2E\app` before the next run reaches its own process cleanup. The E2E now performs ownership-scoped recovery before build: it enumerates processes named DAP and terminates a candidate only when its executable path exactly matches the harness-owned `%TEMP%\DAP\E2E\app\DAP.exe`. Other installed/development DAP processes are never terminated by this recovery. Normal finally/process-exit cleanup remains in place as the first line of defense.
