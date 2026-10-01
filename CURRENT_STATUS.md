@@ -200,3 +200,11 @@ Web `clicked` validation no longer stores completion in the guided application's
 - This specifically covers the previously unguided area around the Cases grid/Open action and makes the active bubble/action relationship observable.
 - No second Cases sort click exists in this segment; the only explicit Cases status sort remains guided earlier.
 - The E2E keeps its exact created-Case selector for deterministic assertions, while the persisted Step targets the visible Open action in the Cases business context.
+
+
+## Step 12 ambiguity / exact-value validation fix
+- Visual run exposed Step 12 timeout after returning to the Cases grid.
+- Root cause: persisted target `button.grid-open` matched multiple Case rows; production resolver correctly returned Ambiguous and refused to guess.
+- Step 12 now scopes the Open button to the row containing the known Case subject `תקלה בחיבור לאינטרנט`, making the target unique without relying on row order.
+- Also found Step 13 could auto-complete incorrectly because `value-not-empty` is already true for the initial status `פתוחה`.
+- Added generic Web validation kind `value-equals` using persisted `ValidationExpectedValue`; Step 13 now completes only when status equals `בטיפול`.
