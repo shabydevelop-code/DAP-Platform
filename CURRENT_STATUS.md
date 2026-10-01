@@ -419,3 +419,14 @@ Web `clicked` validation no longer stores completion in the guided application's
 - Production `WebBubblePresenter` now rebinds both value and click validation handlers to the active Step when a target element is reused.
 - Fast mode remains intentionally strict; do not mask future lifecycle/race defects by increasing waits without evidence.
 - The 53-Step Fast run is now the current validated regression baseline.
+
+## Cross-browser Web Runtime validation — 2026-10-01
+
+- The representative 53-Step DAP.TestCRM Learner Web Runtime E2E now passes end-to-end on Playwright Chromium, installed Google Chrome, and installed Microsoft Edge using the same production Runtime and persistent Guide.
+- The E2E runner supports `DAP_E2E_BROWSER=chromium|chrome|edge`; Chromium remains the default when the variable is unset.
+- The final cross-browser regression sequence produced the same terminal PASS on Chrome, Edge, and Chromium: the complete Customer -> Site -> Case -> Lead workflow, including dynamic Lead deletion and Case deletion, completed successfully.
+- The E2E default Playwright timeout remains 5 seconds. Cross-browser stability was achieved without increasing that timeout.
+- Browser-dependent readiness was stabilized by relying on the TestCRM application-ready marker/current live Content frame rather than registering a redundant `DOMContentLoaded` wait after readiness had already been established.
+- Click-validation advancement was hardened for navigation/frame-replacement races. The browser-side click handler removes the active bubble synchronously before reporting completion, so the Learner Runtime does not perform a redundant cross-frame bubble cleanup for that completed click. The reconciliation loop also rechecks DAP-owned click completion after Playwright reconciliation work and before delaying/reconciling again, allowing the Step to advance when completion arrives while the clicked document/frame is being replaced.
+- This behavior is generic Runtime behavior; no Google-, Chrome-, Edge-, Chromium-, or TestCRM-specific progression workaround was introduced.
+
