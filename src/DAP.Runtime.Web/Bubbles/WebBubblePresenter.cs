@@ -299,6 +299,14 @@ public sealed class WebBubblePresenter
         return resolution;
     }
 
+    public Task<TargetResolution<ILocator>> ResolveTargetAsync(
+        IPage page,
+        GuideStep step,
+        CancellationToken cancellationToken = default)
+        => step.Target is null
+            ? Task.FromResult(TargetResolution<ILocator>.NotFound())
+            : _targets.ResolveAsync(page, step.Target, cancellationToken);
+
     public async Task HideAsync(IPage page)
     {
         const string script = """
