@@ -596,7 +596,19 @@ Console.WriteLine("DAP production Web bubble from SQLite: PASS");
 // bubble is therefore not a valid completion signal. Require the persisted
 // second Step to become the active bubble instead.
 await (await Content()).Locator("[name='name']").WaitForAsync();
+
+// Regression guard: Step 1 now requires the exact customer name. A committed
+// wrong value must keep Step 1 active; interaction alone is not completion.
 await Fill("[name='name']","אלפא");
+await page.WaitForTimeoutAsync(350);
+dapContent=await Content();
+var wrongValueBubble=dapContent.Locator("#dap-guide-bubble");
+if(await wrongValueBubble.CountAsync()!=1
+    || !(await wrongValueBubble.TextContentAsync() ?? string.Empty).Contains(dapStep.Bubble.Content,StringComparison.Ordinal))
+    throw new Exception("Step 1 advanced even though its exact value validation was not satisfied.");
+Console.WriteLine("DAP exact-value validation rejects a committed wrong value: PASS");
+
+await Fill("[name='name']","אלפא פתרונות בע\"מ");
 var dapAdvancedToSecondStep=false;
 for(var i=0;i<50;i++)
 {
@@ -611,7 +623,7 @@ for(var i=0;i<50;i++)
     await page.WaitForTimeoutAsync(100);
 }
 if(!dapAdvancedToSecondStep)
-    throw new Exception("DAP Guide Runtime did not advance to the second Step after value-not-empty validation succeeded.");
+    throw new Exception("DAP Guide Runtime did not advance to the second Step after exact value validation succeeded.");
 
 var dapSecondBubble=dapContent.Locator("#dap-guide-bubble");
 var dapSecondBubbleText=await dapSecondBubble.TextContentAsync() ?? string.Empty;
