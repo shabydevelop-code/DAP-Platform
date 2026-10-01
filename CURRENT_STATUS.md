@@ -249,3 +249,13 @@ Web `clicked` validation no longer stores completion in the guided application's
 - Clamping is restricted to the axis parallel to the target; it no longer slides a bubble across the target-facing axis and over the control.
 - Fully visible, non-overlapping candidates are preferred. If none fully fit, the least-overflow non-overlapping candidate is used.
 - If no side can avoid covering the actionable target, the bubble remains hidden rather than blocking the required learner action.
+
+
+## Guided expected validation alert
+- The Case closure Guide now has 20 Steps.
+- Step 18 explicitly instructs the learner to attempt the close save.
+- The intentionally rejected server save produces the real TestCRM `#ps-alert`; Step 19 targets its confirmation button and instructs the learner to acknowledge the error.
+- Step 20 then instructs selection of the required Close Reason (`טופל`).
+- The E2E no longer dismisses this visible validation alert inside a helper. It waits for the production Guide instruction before clicking the alert confirmation.
+- This preserves the visual-guide invariant: while a Guide Step is active, visible learner actions are the actions instructed by that Step.
+- This is an expected business-validation branch, not a generic rule that every unexpected application error must automatically become a Guide Step.
