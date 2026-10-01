@@ -230,12 +230,17 @@ using var dapProcess=new Process
         FileName="dotnet",
         Arguments=$"run --project \"{dapAppProject}\" -- --learner-web {DapTestCrmGuideSeed.GuideId} --cdp http://127.0.0.1:{dapCdpPort} --page-url-contains localhost:5200",
         UseShellExecute=false,
-        CreateNoWindow=true
+        CreateNoWindow=true,
+        RedirectStandardOutput=true,
+        RedirectStandardError=true
     }
 };
 dapProcess.StartInfo.Environment["DAP_DATABASE_PATH"]=dapDbPath;
 if(!dapProcess.Start())
     throw new Exception("DAP.exe process could not be started.");
+
+var dapStdOutTask=dapProcess.StandardOutput.ReadToEndAsync();
+var dapStdErrTask=dapProcess.StandardError.ReadToEndAsync();
 
 var dapContent=await Content();
 var dapBubble=dapContent.Locator("#dap-guide-bubble");
@@ -243,7 +248,14 @@ var dapStartupDeadline=DateTime.UtcNow.AddSeconds(30);
 while(await dapBubble.CountAsync()==0 && DateTime.UtcNow<dapStartupDeadline)
 {
     if(dapProcess.HasExited)
-        throw new Exception($"DAP.exe exited before presenting the first bubble. ExitCode={dapProcess.ExitCode}.");
+    {
+        var dapStdOut=await dapStdOutTask;
+        var dapStdErr=await dapStdErrTask;
+        throw new Exception(
+            $"DAP.exe exited before presenting the first bubble. ExitCode={dapProcess.ExitCode}.{Environment.NewLine}" +
+            $"STDOUT:{Environment.NewLine}{dapStdOut}{Environment.NewLine}" +
+            $"STDERR:{Environment.NewLine}{dapStdErr}");
+    }
 
     await page.WaitForTimeoutAsync(100);
     dapContent=await Content();
