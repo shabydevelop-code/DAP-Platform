@@ -334,3 +334,13 @@ Web `clicked` validation no longer stores completion in the guided application's
 - The settling-wait path no longer calls `HideAsync` repeatedly, eliminating the show/hide churn that amplified bubble flicker during rendering.
 - If the target disappears in the small gap between passing the gate and its first presentation, the gate is reset and must pass again.
 - Local 53-Step visual E2E and visual observation of server-render transitions remain required after pull.
+
+
+## Guide/E2E target synchronization near end of visual flow
+- A concrete Guide/E2E mismatch was found for the created Case: Steps 12 and 50 pointed the bubble at the first Case row, while the E2E visibly clicked the exact Case created during the run.
+- TestCRM Case grid buttons now expose a semantic `data-business-subject` attribute in addition to their dynamic business ID.
+- Steps 12 and 50 now target the created Case by the known business subject (`תקלה בחיבור לאינטרנט`) rather than by row position.
+- The corresponding E2E clicks now use exactly the same semantic selector as the Guide. Before each click, the E2E asserts that the semantic target is unique and that its `data-business-id` equals the dynamically captured `createdCaseId`.
+- This preserves deterministic business-record verification without embedding a runtime-generated ID into the persisted Guide and removes the known case where the bubble arrow and visual E2E cursor could point at different Case rows.
+- The remaining late-flow Steps were reviewed against their visible E2E actions; Steps 41 and 48 intentionally use the first row on both sides, while breadcrumb/tab/delete/confirm/Header actions resolve the same logical controls.
+- Local visual E2E should be rerun after pull, with particular observation of Steps 41-53.
