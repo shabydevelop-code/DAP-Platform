@@ -461,3 +461,5 @@ Web `clicked` validation no longer stores completion in the guided application's
 - DAP still loads the complete persisted Guide from SQLite; the requested order only selects where execution begins, so progress remains the original Guide position (for example, Step 53 of 53).
 - This is a diagnostic entry point, not synthetic Guide state. Steps that depend on runtime values captured by earlier Steps still fail explicitly if those values are unavailable.
 - The E2E Guide synchronization now requires the active bubble to be visibly rendered, not merely present in the DOM.
+
+- For integration-state UX debugging, the representative TestCRM E2E supports `--manual-from-step 53`: automation follows the real Guide through Step 52, waits until the production Step 53 bubble is visible, then hands control to the tester while browser and DAP remain alive. This is preferred over synthetic state reconstruction when the Step depends on the complete prior workflow.
