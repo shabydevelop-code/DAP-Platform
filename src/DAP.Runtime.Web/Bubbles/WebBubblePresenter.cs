@@ -66,6 +66,34 @@ public sealed class WebBubblePresenter
         }, { capture: true });
     }
 
+    // Value validations complete on the interaction's natural commit event,
+    // not merely when polling first observes a non-empty/intermediate value.
+    // Text editing commits on blur after a real edit; discrete controls commit
+    // on change. DAP.exe remains the owner of completion state.
+    if (b.validationKind && b.validationKind !== 'clicked' && !el.__dapValidationCommitInstalled) {
+        el.__dapValidationCommitInstalled = true;
+        const tag = el.tagName?.toLowerCase();
+        const type = (el.getAttribute?.('type') || '').toLowerCase();
+        const isTextEditor = tag === 'textarea' ||
+            (tag === 'input' && !['checkbox','radio','button','submit','reset'].includes(type));
+        const eventName = isTextEditor ? 'blur' : 'change';
+        let changed = false;
+
+        if (isTextEditor) {
+            el.addEventListener('input', () => { changed = true; }, { capture: true });
+            el.addEventListener('change', () => { changed = true; }, { capture: true });
+        }
+
+        el.addEventListener(eventName, () => {
+            if (isTextEditor && !changed)
+                return;
+
+            const report = root.defaultView?.__dapReportValidation;
+            if (typeof report === 'function')
+                void report(b.stepId);
+        }, { capture: true });
+    }
+
     const existing = root.getElementById('dap-guide-bubble');
 
     if (b.ensureOnly && existing?.__dapTarget === el && existing?.dataset.dapStepId === b.stepId)
