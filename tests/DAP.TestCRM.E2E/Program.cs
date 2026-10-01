@@ -446,8 +446,12 @@ while(await dapBubble.CountAsync()==0 && DateTime.UtcNow<dapStartupDeadline)
 if(await dapBubble.CountAsync()==0)
     throw new TimeoutException("DAP.exe did not present the first bubble within 30 seconds.");
 await dapBubble.WaitForAsync(new() { Timeout = 5000 });
-if(await dapBubble.TextContentAsync()!=dapStep.Bubble.Content)
-    throw new Exception("DAP Web bubble content mismatch.");
+var dapBubbleText=await dapBubble.TextContentAsync() ?? string.Empty;
+if(!dapBubbleText.Contains(dapStep.Bubble.Content,StringComparison.Ordinal))
+    throw new Exception("DAP Web bubble instruction content mismatch.");
+var expectedProgress=$"שלב 1 מתוך {dapSteps.Count}";
+if(!dapBubbleText.Contains(expectedProgress,StringComparison.Ordinal))
+    throw new Exception($"DAP Web bubble progress mismatch. Expected '{expectedProgress}'.");
 dapStartupTimer.Stop();
 Console.WriteLine($"DAP.exe startup to first bubble: {dapStartupTimer.Elapsed.TotalMilliseconds:F0} ms");
 StartupMark("first DAP bubble observed; Scenario 1 can proceed");
