@@ -29,8 +29,10 @@ public sealed class WebGuideRuntime
             .ToHashSet(StringComparer.Ordinal);
         string? previousStepFragment = null;
 
-        foreach (var persistedStep in guideSteps.OrderBy(step => step.Order))
+        var orderedSteps = guideSteps.OrderBy(step => step.Order).ToArray();
+        for (var stepIndex = 0; stepIndex < orderedSteps.Length; stepIndex++)
         {
+            var persistedStep = orderedSteps[stepIndex];
             cancellationToken.ThrowIfCancellationRequested();
 
             if (persistedStep.Target?.Runtime != TargetRuntime.Web)
@@ -65,7 +67,7 @@ public sealed class WebGuideRuntime
                 previousStepFragment = fragment;
             }
 
-            await _steps.RunActiveStepAsync(page, step, cancellationToken);
+            await _steps.RunActiveStepAsync(page, step, stepIndex + 1, orderedSteps.Length, cancellationToken);
         }
     }
 
