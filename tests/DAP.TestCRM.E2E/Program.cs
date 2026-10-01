@@ -732,16 +732,19 @@ await WaitForGuideStep(39);
 await Click("tbody tr.clickable:first-child");
 await WaitReady();
 frame=await Content();
+await WaitForGuideStep(40);
 await Click("nav.tabs button:has-text('לידים')");
 await WaitReady();
 frame=await Content();
 await frame.Locator("h2:has-text('לידים')").WaitForAsync();
 await frame.Locator("tbody tr.clickable").First.WaitForAsync();
+await WaitForGuideStep(41);
 await frame.Locator("tbody tr.clickable").First.ClickAsync();
 await WaitReady();
 frame=await Content();
 await frame.Locator("#delete-lead").WaitForAsync();
 // First remove the dependent field so the target is measured in the compact layout.
+await WaitForGuideStep(42);
 await Select("[name='status']","חדש");
 frame=await Content();
 if(await frame.Locator("[name='selectedService']").CountAsync()!=0)
@@ -750,6 +753,7 @@ var deleteTarget=frame.Locator("#delete-lead");
 var beforeBox=await deleteTarget.BoundingBoxAsync();
 if(beforeBox is null) throw new Exception("Could not resolve Delete Lead target before layout shift.");
 // Now trigger the existing server-driven status change that inserts the dependent field.
+await WaitForGuideStep(43);
 await Select("[name='status']","נסגר בהצלחה");
 frame=await Content();
 await frame.Locator("[name='selectedService']").WaitForAsync();
@@ -765,9 +769,11 @@ await deleteTarget.WaitForAsync();
 // Business scenario: an agent changes the same Lead status twice while the CRM is
 // rebuilding the dependent form. DAP must not retain the first update's Frame or
 // target and must settle on the final business state.
+await WaitForGuideStep(44);
 await Select("[name='status']","חדש");
 frame=await Content();
 var statusTarget=frame.Locator("[name='status']");
+await WaitForGuideStep(45);
 await statusTarget.SelectOptionAsync("נסגר בהצלחה");
 await WaitReady();
 frame=await Content();
@@ -785,11 +791,13 @@ await MoveTo(frame.Locator("[name='selectedService']"));
 // never retain the previous Lead/Case DOM context.
 var leadSiteCrumb=frame.Locator(".breadcrumb a[data-go^='#/site/'][data-go$='/leads']").First;
 await leadSiteCrumb.WaitForAsync();
+await WaitForGuideStep(46);
 await MoveTo(leadSiteCrumb);
 await leadSiteCrumb.ClickAsync();
 await WaitReady();
 frame=await Content();
 await frame.Locator("h2:has-text('לידים')").WaitForAsync();
+await WaitForGuideStep(47);
 await Click("nav.tabs button:has-text('פניות')");
 await WaitReady();
 frame=await Content();
@@ -797,6 +805,7 @@ await frame.Locator("h2:has-text('פניות')").WaitForAsync();
 var caseRows=frame.Locator("button.grid-open");
 if(await caseRows.CountAsync()<1)
     throw new Exception("No Case rows available for business-context switch.");
+await WaitForGuideStep(48);
 await Click("tbody tr:first-child button.grid-open");
 await WaitReady();
 frame=await Content();
@@ -814,6 +823,7 @@ if(await switchedCaseStatus.CountAsync()!=1)
 // context can leave and re-enter without relying on a stale record reference.
 var switchedSiteCrumb=frame.Locator(".breadcrumb a[data-go^='#/site/']").First;
 await switchedSiteCrumb.WaitForAsync();
+await WaitForGuideStep(49);
 await switchedSiteCrumb.ClickAsync();
 await WaitReady();
 frame=await Content();
@@ -822,12 +832,15 @@ await frame.Locator("h2:has-text('פניות')").WaitForAsync();
 // 10. Delete the Case created by this run through the real UI.
 // Business-context scenario already returned us to the Site's Cases tab.
 frame=await Content();
+await WaitForGuideStep(50);
 await Click($"button.grid-open[data-go='#/case/{createdCaseId}']");
 await WaitReady();
+await WaitForGuideStep(51);
 await Click("#delete-case");
 frame=await Content();
 var confirmDelete=frame.Locator("#ps-confirm [data-answer='yes']");
 await confirmDelete.WaitForAsync();
+await WaitForGuideStep(52);
 await MoveTo(confirmDelete);
 await confirmDelete.ClickAsync();
 await WaitReady();
@@ -842,6 +855,7 @@ if(await frame.Locator($"button.grid-open[data-go='#/case/{createdCaseId}']").Co
 var headerFrame=page.Frames.FirstOrDefault(x=>x.Name=="dap-header")
     ?? throw new Exception("Header frame was not found.");
 var header=headerFrame.Locator("#portal-header");
+await WaitForGuideStep(53);
 await MoveTo(header);
 await header.ClickAsync();
 await WaitReady();
