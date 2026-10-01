@@ -58,11 +58,11 @@ The current representative E2E is the validated baseline for further test expans
 
 ## Not implemented yet
 
-- Solution/project structure.
+- Solution/project structure (partially started: `src/DAP.Core` now exists; full solution structure is not yet created).
 - WPF shell.
 - Learner UI.
 - Editor UI.
-- Shared guide domain model.
+- Shared guide domain model (target-resolution foundation started; Guide/Step/Bubble/Validation model still pending).
 - Data abstraction and SQLite provider.
 - Web Runtime integration using Playwright for .NET.
 - Windows Runtime integration.
@@ -73,7 +73,9 @@ The current representative E2E is the validated baseline for further test expans
 
 ## Next milestone
 
-The current ten-scenario E2E baseline is validated. Further expansion should be driven by concrete coverage gaps rather than adding scenarios for their own sake. Use these scenarios to derive production Web Runtime contracts before building the Editor.
+The runtime-neutral target-resolution Core has now been started in `src/DAP.Core`. It defines `TargetDescriptor`, `Locator`, `Anchor`, `FrameContext`, runtime identity, and explicit `Resolved` / `NotFound` / `Ambiguous` resolution results. The Core has no Playwright, UIA, SQLite, or test-project dependency.
+
+Next: define the target-resolver contract and then implement the Web adapter behind it. Bubble rendering remains production runtime code and must not be implemented inside the E2E project. The existing ten-scenario E2E baseline remains the regression baseline while this production runtime is introduced.
 
 
 ### Validation coverage
