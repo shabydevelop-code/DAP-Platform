@@ -145,7 +145,10 @@ public sealed class WebBubblePresenter
         fontSize: b.theme.fontSize + 'px',
         lineHeight: String(b.theme.lineHeight),
         direction: b.theme.direction,
-        visibility: 'hidden'
+        visibility: 'hidden',
+        cursor: 'grab',
+        touchAction: 'none',
+        userSelect: 'none'
     });
 
     root.body.appendChild(bubble);
@@ -185,7 +188,80 @@ public sealed class WebBubblePresenter
         }
     };
 
+    let manuallyPositioned = false;
+    let dragState = null;
+    const margin = 8;
+
+    const clampManualPosition = (x, y) => {
+        const q = bubble.getBoundingClientRect();
+        const viewportWidth = root.defaultView.innerWidth;
+        const viewportHeight = root.defaultView.innerHeight;
+        return {
+            x: Math.max(margin, Math.min(x, Math.max(margin, viewportWidth - q.width - margin))),
+            y: Math.max(margin, Math.min(y, Math.max(margin, viewportHeight - q.height - margin)))
+        };
+    };
+
+    const keepManualPositionInViewport = () => {
+        if (!manuallyPositioned)
+            return;
+        const q = bubble.getBoundingClientRect();
+        const next = clampManualPosition(q.left, q.top);
+        bubble.style.left = next.x + 'px';
+        bubble.style.top = next.y + 'px';
+        bubble.style.visibility = 'visible';
+    };
+
+    const onPointerMove = (event) => {
+        if (!dragState || event.pointerId !== dragState.pointerId)
+            return;
+        const next = clampManualPosition(
+            dragState.left + event.clientX - dragState.clientX,
+            dragState.top + event.clientY - dragState.clientY);
+        bubble.style.left = next.x + 'px';
+        bubble.style.top = next.y + 'px';
+    };
+
+    const finishDrag = (event) => {
+        if (!dragState || event.pointerId !== dragState.pointerId)
+            return;
+        manuallyPositioned = true;
+        dragState = null;
+        bubble.style.cursor = 'grab';
+        pointer.style.display = 'none';
+        bubble.dataset.manualPosition = 'true';
+        try { bubble.releasePointerCapture(event.pointerId); } catch { }
+    };
+
+    const onPointerDown = (event) => {
+        // Preserve normal interaction if future bubble content contains an
+        // actual interactive control.
+        if (event.button !== 0 || event.target.closest('button,a,input,select,textarea'))
+            return;
+        const q = bubble.getBoundingClientRect();
+        dragState = {
+            pointerId: event.pointerId,
+            clientX: event.clientX,
+            clientY: event.clientY,
+            left: q.left,
+            top: q.top
+        };
+        bubble.setPointerCapture(event.pointerId);
+        bubble.style.cursor = 'grabbing';
+        event.preventDefault();
+    };
+
+    bubble.addEventListener('pointerdown', onPointerDown);
+    bubble.addEventListener('pointermove', onPointerMove);
+    bubble.addEventListener('pointerup', finishDrag);
+    bubble.addEventListener('pointercancel', finishDrag);
+
     const place = () => {
+        if (manuallyPositioned) {
+            keepManualPositionInViewport();
+            return;
+        }
+
         // Never expose a stale/clamped bubble while its target is being
         // replaced, laid out, or is still outside the viewport. Reconciliation
         // and scroll/resize observers will call place again when it is stable.
@@ -206,7 +282,6 @@ public sealed class WebBubblePresenter
 
         const q = bubble.getBoundingClientRect();
         const gap = b.theme.pointerSize + 8;
-        const margin = 8;
         const viewportWidth = root.defaultView.innerWidth;
         const viewportHeight = root.defaultView.innerHeight;
 
@@ -277,6 +352,7 @@ public sealed class WebBubblePresenter
         bubble.style.left = chosen.x + 'px';
         bubble.style.top = chosen.y + 'px';
         bubble.dataset.actualPlacement = chosen.side;
+        pointer.style.display = '';
         placePointer(chosen.side);
         bubble.style.visibility = 'visible';
     };
@@ -292,6 +368,10 @@ public sealed class WebBubblePresenter
         ro.disconnect();
         root.defaultView.removeEventListener('scroll', place, true);
         root.defaultView.removeEventListener('resize', place);
+        bubble.removeEventListener('pointerdown', onPointerDown);
+        bubble.removeEventListener('pointermove', onPointerMove);
+        bubble.removeEventListener('pointerup', finishDrag);
+        bubble.removeEventListener('pointercancel', finishDrag);
         el.style.outline = previousHighlight.outline;
         el.style.outlineOffset = previousHighlight.outlineOffset;
         el.style.boxShadow = previousHighlight.boxShadow;
