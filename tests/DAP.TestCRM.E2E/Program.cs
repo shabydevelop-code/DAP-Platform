@@ -269,32 +269,34 @@ if(await dapContent.Locator("[name='name']").CountAsync()!=1)
     throw new Exception("DAP Learner Runtime target was not uniquely re-resolved after Content reload.");
 Console.WriteLine("DAP Learner Web Runtime re-resolution after Content reload: PASS");
 
-// The active Step belongs only to the customer-search business context. After
-// navigation leaves that route, its bubble must disappear and must not attach
-// to a matching element elsewhere in the CRM.
-var dapContextGuardVerified=false;
+// Automatic validation belongs to DAP.exe. Filling the active target must
+// complete this Step and remove its bubble before CRM navigation changes context.
+await (await Content()).Locator("[name='name']").WaitForAsync();
+await Fill("[name='name']","אלפא");
+var dapValidationCompleted=false;
+for(var i=0;i<50;i++)
+{
+    var activeContent=await Content();
+    if(await activeContent.Locator("#dap-guide-bubble").CountAsync()==0)
+    {
+        dapValidationCompleted=true;
+        break;
+    }
+    await page.WaitForTimeoutAsync(100);
+}
+if(!dapValidationCompleted)
+    throw new Exception("DAP Step did not complete after value-not-empty validation succeeded.");
+Console.WriteLine("DAP Learner Web Runtime automatic validation completion: PASS");
 
-// 1. Legitimate customer lookup: server round trip + working context.
-await (await Content()).Locator("[name='name']").WaitForAsync(); await Fill("[name='name']","אלפא");
 await Click("#customer-search button.primary");
 await WaitReady();
 
 // Search always renders a result grid, including a single match.
 await Click("#search-results tbody tr.clickable:first-child");
 await WaitReady();
-for(var i=0;i<50;i++)
-{
-    var activeContent=await Content();
-    if(await activeContent.Locator("#dap-guide-bubble").CountAsync()==0)
-    {
-        dapContextGuardVerified=true;
-        break;
-    }
-    await page.WaitForTimeoutAsync(100);
-}
-if(!dapContextGuardVerified)
-    throw new Exception("DAP Step bubble remained visible after leaving its logical customer-search context.");
-Console.WriteLine("DAP Learner Web Runtime context guard after route change: PASS");
+if(await (await Content()).Locator("#dap-guide-bubble").CountAsync()!=0)
+    throw new Exception("Completed DAP Step bubble reappeared after leaving its logical context.");
+Console.WriteLine("DAP completed Step remains inactive after route change: PASS");
 // Open first site.
 await Click("tbody tr.clickable:first-child");
 await WaitReady();
