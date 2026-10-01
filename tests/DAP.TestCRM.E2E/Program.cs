@@ -21,11 +21,6 @@ for (var i = 0; i < args.Length; i++)
     manualFromStep = parsedManualStep;
 }
 
-if (manualFromStep is not null && manualFromStep != 53)
-    throw new ArgumentException(
-        "The current representative TestCRM scenario supports manual handoff at Step 53. " +
-        "Additional handoff points must be added at their real scenario boundary.");
-
 if (args.Contains("--reset-guide", StringComparer.OrdinalIgnoreCase))
 {
     var resetOptions = SqliteDatabaseOptions.CreateDefault();
@@ -380,6 +375,11 @@ if(dapSteps.Count==0)
     throw new Exception(
         $"DAP Guide '{DapTestCrmGuideSeed.GuideId}' does not exist in the persistent database. " +
         "Initialize/reset the Guide explicitly before running the E2E.");
+if(manualFromStep is not null && !dapSteps.Any(step => step.Order == manualFromStep.Value))
+    throw new ArgumentOutOfRangeException(
+        nameof(manualFromStep),
+        manualFromStep,
+        $"Guide '{DapTestCrmGuideSeed.GuideId}' does not contain Step {manualFromStep}.");
 var dapStep=dapSteps[0];
 var dapSecondStep=dapSteps[1];
 
@@ -409,6 +409,18 @@ async Task WaitForGuideStep(int order)
                             && bubbleText.Contains(expectedProgress,StringComparison.Ordinal))
                         {
                             await HumanPause(500);
+                            if(manualFromStep == order)
+                            {
+                                Console.WriteLine();
+                                Console.WriteLine($"MANUAL HANDOFF: Step {order} is ready.");
+                                Console.WriteLine("Automation is paused. Inspect and interact with the open browser now.");
+                                Console.WriteLine("Press ENTER here when you are finished to close the run.");
+                                Console.ReadLine();
+                                await browser.CloseAsync();
+                                if(ownedTestCrmProcess is { HasExited: false })
+                                    ownedTestCrmProcess.Kill(entireProcessTree: true);
+                                Environment.Exit(0);
+                            }
                             return;
                         }
                     }
@@ -1036,61 +1048,6 @@ if(await frame.Locator($"button.grid-open[data-go='#/case/{createdCaseId}']").Co
 // 11. Cross-frame navigation: a user action in the Header frame changes the active
 // Content document. This is a real user-facing interaction and intentionally does not
 // call internal TestCRM navigation functions.
-if (manualFromStep == 53)
-{
-    await WaitForGuideStep(53);
-
-    var step53Frame = page.Frames.FirstOrDefault(candidate =>
-        !candidate.IsDetached && candidate.Name == "dap-header")
-        ?? throw new Exception("Step 53 Header frame was not found.");
-    var step53Bubble = step53Frame.Locator("#dap-guide-bubble");
-    var step53Target = step53Frame.Locator("#portal-header");
-
-    var bubbleDiagnostics = await step53Bubble.EvaluateAsync<string>(
-        @"el => {
-            const r=el.getBoundingClientRect();
-            const s=getComputedStyle(el);
-            return JSON.stringify({
-                rect:{x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom},
-                viewport:{width:innerWidth,height:innerHeight},
-                display:s.display,visibility:s.visibility,opacity:s.opacity,
-                position:s.position,zIndex:s.zIndex,pointerEvents:s.pointerEvents,
-                overflowX:getComputedStyle(document.documentElement).overflowX,
-                overflowY:getComputedStyle(document.documentElement).overflowY
-            });
-        }");
-    var targetDiagnostics = await step53Target.EvaluateAsync<string>(
-        @"el => {
-            const r=el.getBoundingClientRect();
-            return JSON.stringify({
-                rect:{x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom},
-                viewport:{width:innerWidth,height:innerHeight}
-            });
-        }");
-    var iframeDiagnostics = await page.Locator("iframe[name='dap-header']").EvaluateAsync<string>(
-        @"el => {
-            const r=el.getBoundingClientRect();
-            const s=getComputedStyle(el);
-            return JSON.stringify({
-                rect:{x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom},
-                display:s.display,visibility:s.visibility,opacity:s.opacity,
-                viewport:{width:innerWidth,height:innerHeight}
-            });
-        }");
-
-    Console.WriteLine();
-    Console.WriteLine("STEP 53 VISIBILITY DIAGNOSTICS");
-    Console.WriteLine($"Header iframe: {iframeDiagnostics}");
-    Console.WriteLine($"Target:        {targetDiagnostics}");
-    Console.WriteLine($"Bubble:        {bubbleDiagnostics}");
-    Console.WriteLine();
-    Console.WriteLine("MANUAL HANDOFF: Step 53 exists and Playwright reports it visible.");
-    Console.WriteLine("Automation is paused. Inspect the open browser now.");
-    Console.WriteLine("Press ENTER here when you are finished to close the run.");
-    Console.ReadLine();
-    return;
-}
-
 var headerFrame=page.Frames.FirstOrDefault(x=>x.Name=="dap-header")
     ?? throw new Exception("Header frame was not found.");
 var header=headerFrame.Locator("#portal-header");
