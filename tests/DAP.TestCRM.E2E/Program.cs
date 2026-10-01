@@ -373,6 +373,15 @@ await frame.Locator("h2:has-text('לידים')").WaitForAsync();
 // The logical Delete target remains the same, but its screen position changes.
 // DAP must resolve the target from the live DOM rather than retaining old coordinates.
 frame=await Content();
+// Scenario 7 leaves us on the Customer workspace. Re-enter the same Site through
+// the user-facing Customer -> Site navigation, rather than using an internal route.
+await Fill("[name='name']","אלפא");
+await Click("#customer-search button.primary");
+await WaitReady();
+await Click("#search-results tbody tr.clickable:first-child");
+await WaitReady();
+await Click("tbody tr.clickable:first-child");
+await WaitReady();
 await Click("nav.tabs button:has-text('לידים')");
 await WaitReady();
 frame=await Content();
