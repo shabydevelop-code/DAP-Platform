@@ -166,3 +166,14 @@ The two modes must share the same test logic. Maintaining separate test implemen
 E2E synchronization must use real application signals wherever possible. Fixed delays such as the TestCRM artificial server-thinking delay or human-like pauses must not be used as a substitute for route, DOM, iframe, server-state, or validation readiness.
 
 The DAP.TestCRM PeopleSoft-Web flow therefore re-resolves the active Content iframe and exposes route readiness after each route transition. The E2E frame polling interval remains 100ms and is considered polling infrastructure, not a demonstration delay.
+
+
+## ADR-020 — E2E scenarios must validate target-independent runtime behavior
+
+**Status:** Accepted
+
+The permanent DAP.TestCRM E2E suite is a representative server-backed CRM target, not the production CRM itself. E2E scenarios must exercise behavior that a separate real CRM could reasonably expose through its user-visible Web application.
+
+Test-specific workarounds, hidden navigation APIs, route persistence added solely for tests, or application-specific hooks must not be introduced merely to make an E2E scenario pass. When a scenario requires such a workaround, the scenario or the generic DAP Web Runtime contract must be reconsidered.
+
+Validated scenarios currently cover server-driven FieldChange and Content iframe replacement, validation with preserved unsaved working values, Grid rerender/reorder and target re-resolution, Content-document reload with preserved logical context, and CRM tab switching. The existing baseline workflow and deletion coverage must remain regression-protected as new scenarios are added.
