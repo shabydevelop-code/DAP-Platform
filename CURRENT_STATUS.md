@@ -379,3 +379,11 @@ Web `clicked` validation no longer stores completion in the guided application's
 - E2E learner actions independently use the Case ID observed from the real post-Save route. The existing exact DOM identity invariant therefore verifies that DAP's runtime-bound target and the learner action resolve to the same element.
 - No SQLite schema change and no TestCRM business/DOM adaptation were introduced for runtime identity.
 - Full 53-Step local visual run is required after pull.
+
+
+## Persistent TestCRM Guide database
+- The visual TestCRM E2E no longer creates a random `%TEMP%\DAP.TestCRM.E2E\<guid>.db`.
+- It resolves DAP's real database through `SqliteDatabaseOptions.CreateDefault()`, seeds/updates Guide `testcrm-create-case` there, reloads the 53 Steps from that repository, and launches DAP.exe with the exact same database path.
+- Default path on Windows: `C:\ProgramData\DAP\Data\DAP.db`. `DAP_DATABASE_PATH` still overrides it explicitly.
+- The run prints `DAP persistent guide database: <path>` so the inspected file is unambiguous.
+- Dedicated SQLite repository tests continue to use isolated temporary databases; this change applies to the visual system demonstration.
