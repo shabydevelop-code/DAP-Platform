@@ -18,4 +18,14 @@ public static class DapTestCrmGuideSeed
         new ValidationDefinition("value-not-empty"),
         StepAdvanceMode.AutomaticOnValidation,
         new StepContextDefinition("css-exists", "#customer-search"));
+
+    public static GuideStep CustomerSearchButtonStep => new(
+        "testcrm-customer-search-button", 2,
+        TargetDescriptor.Create(TargetRuntime.Web,
+            new Locator("css", "#customer-search button.primary"),
+            frameContext: new FrameContext(new[] { new Locator("css", "#content-frame") })),
+        new BubbleDefinition("לחץ על חיפוש", BubblePlacement.Bottom),
+        new ValidationDefinition("clicked"),
+        StepAdvanceMode.AutomaticOnValidation,
+        new StepContextDefinition("css-exists", "#customer-search"));
 }
