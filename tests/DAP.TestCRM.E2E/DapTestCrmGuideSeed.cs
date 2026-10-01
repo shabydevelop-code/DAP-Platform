@@ -31,10 +31,16 @@ public static class DapTestCrmGuideSeed
     private static GuideStep ValueStep(
         string id, int order, string css, string instruction, string contextCss,
         BubblePlacement placement = BubblePlacement.Bottom) =>
+        ValueStep(id, order, css, instruction, contextCss, "value-not-empty", null, placement);
+
+    private static GuideStep ValueStep(
+        string id, int order, string css, string instruction, string contextCss,
+        string validationKind, string? expectedValue,
+        BubblePlacement placement = BubblePlacement.Bottom) =>
         new(
             id, order, WebTarget(css),
             new BubbleDefinition(instruction, placement),
-            new ValidationDefinition("value-not-empty"),
+            new ValidationDefinition(validationKind, expectedValue),
             StepAdvanceMode.AutomaticOnValidation,
             new StepContextDefinition("css-exists", contextCss));
 
@@ -93,12 +99,13 @@ public static class DapTestCrmGuideSeed
 
         ClickStep(
             "testcrm-open-created-case", 12,
-            "button.grid-open",
+            "tr:has-text('תקלה בחיבור לאינטרנט') button.grid-open",
             "פתח את הפנייה שיצרת", "h2:has-text('פניות')"),
 
         ValueStep(
             "testcrm-case-in-progress", 13,
-            "[name='status']", "שנה את סטטוס הפנייה לבטיפול", "[name='resolutionNotes']"),
+            "[name='status']", "שנה את סטטוס הפנייה לבטיפול", "[name='resolutionNotes']",
+            "value-equals", "בטיפול"),
 
         ValueStep(
             "testcrm-resolution-notes", 14,
