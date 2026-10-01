@@ -207,6 +207,17 @@ async Task WaitForSaveValidation(string field)
     await f.Locator($"[name='{field}'].validation-error").WaitForAsync();
     await f.Locator("#ps-alert button").WaitForAsync();
 }
+async Task SaveExpectValidationUnguided(string field)
+{
+    await Click("button.primary:has-text('שמור')");
+    await WaitForSaveValidation(field);
+    var f=await Content();
+    var ok=f.Locator("#ps-alert button");
+    await MoveTo(ok);
+    await ok.ClickAsync();
+    await HumanPause();
+}
+
 async Task SaveSuccess()
 {
     await Click("button.primary:has-text('שמור')");
@@ -665,7 +676,7 @@ await frame.Locator("[name='selectedService']").WaitForAsync();
 if(await frame.Locator("[name='selectedService']").CountAsync()!=1)
     throw new Exception("Selected Service target did not reappear after returning to successful-close status.");
 
-await SaveExpectValidation("selectedService");
+await SaveExpectValidationUnguided("selectedService");
 await Select("[name='selectedService']","תמיכה מורחבת");
 await SaveSuccess();
 
