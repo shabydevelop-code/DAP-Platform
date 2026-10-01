@@ -184,6 +184,7 @@ Console.WriteLine("Scenario 4: Full page reload + business context preservation"
 Console.WriteLine("Scenario 5: CRM tab switching + business context preservation");
 Console.WriteLine("Scenario 6: Conditional target disappearance/reappearance + re-resolution");
 Console.WriteLine("Scenario 7: Cross-frame navigation from Header to Content");
+Console.WriteLine("Scenario 8: Layout shift + target re-resolution");
 await page.GotoAsync(baseUrl);
 await WaitReady();
 
@@ -366,6 +367,34 @@ await confirmDeleteLead.ClickAsync();
 await WaitReady();
 frame=await Content();
 await frame.Locator("h2:has-text('לידים')").WaitForAsync();
+
+// 10. Layout shift: a dependent Lead field is inserted into the form.
+// Business scenario: changing a status adds a business field above the action row.
+// The logical Delete target remains the same, but its screen position changes.
+// DAP must resolve the target from the live DOM rather than retaining old coordinates.
+frame=await Content();
+await Click("nav.tabs button:has-text('לידים')");
+await WaitReady();
+frame=await Content();
+await frame.Locator("h2:has-text('לידים')").WaitForAsync();
+await frame.Locator("button.grid-open").First.WaitForAsync();
+await frame.Locator("button.grid-open").First.ClickAsync();
+await WaitReady();
+frame=await Content();
+await frame.Locator("#delete-lead").WaitForAsync();
+var deleteTarget=frame.Locator("#delete-lead");
+var beforeBox=await deleteTarget.BoundingBoxAsync();
+if(beforeBox is null) throw new Exception("Could not resolve Delete Lead target before layout shift.");
+await Select("[name='status']","נסגר בהצלחה");
+frame=await Content();
+await frame.Locator("[name='selectedService']").WaitForAsync();
+deleteTarget=frame.Locator("#delete-lead");
+var afterBox=await deleteTarget.BoundingBoxAsync();
+if(afterBox is null) throw new Exception("Could not re-resolve Delete Lead target after layout shift.");
+if(Math.Abs(afterBox.Y-beforeBox.Y)<1)
+    throw new Exception("Expected the dependent field to move the Delete Lead target, but its position did not change.");
+await MoveTo(deleteTarget);
+await deleteTarget.WaitForAsync();
 
 // 10. Delete the Case created by this run through the real UI.
 // We are already on the Site's Leads tab after Lead deletion, so switch tabs
