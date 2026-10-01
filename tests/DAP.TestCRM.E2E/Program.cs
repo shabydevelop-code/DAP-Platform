@@ -102,6 +102,18 @@ async Task HumanPause(int ms=320)
 double cursorX=24,cursorY=24;
 async Task MoveTo(ILocator target)
 {
+    // Every visible learner action must operate on the exact DOM element owned
+    // by the active production bubble. This turns Guide/E2E synchronization
+    // into an executable invariant instead of relying on visually similar
+    // selectors in two separate places.
+    var matchesActiveGuideTarget=await target.EvaluateAsync<bool>(
+        @"el => {
+            const bubble=el.ownerDocument.getElementById('dap-guide-bubble');
+            return !!bubble && bubble.__dapTarget === el;
+        }");
+    if(!matchesActiveGuideTarget)
+        throw new Exception("Visible E2E action target does not match the active DAP Guide target.");
+
     await target.ScrollIntoViewIfNeededAsync();
     var box=await target.BoundingBoxAsync() ?? throw new Exception("Target has no bounding box.");
     var tag=await target.EvaluateAsync<string>("e=>e.tagName");
@@ -736,7 +748,7 @@ frame=await Content();
 await frame.Locator("h2:has-text('לידים')").WaitForAsync();
 await frame.Locator("tbody tr.clickable").First.WaitForAsync();
 await WaitForGuideStep(41);
-await frame.Locator("tbody tr.clickable").First.ClickAsync();
+await Click("tbody tr.clickable:first-child");
 await WaitReady();
 frame=await Content();
 await frame.Locator("#delete-lead").WaitForAsync();
@@ -768,10 +780,8 @@ await deleteTarget.WaitForAsync();
 await WaitForGuideStep(44);
 await Select("[name='status']","חדש");
 frame=await Content();
-var statusTarget=frame.Locator("[name='status']");
 await WaitForGuideStep(45);
-await statusTarget.SelectOptionAsync("נסגר בהצלחה");
-await WaitReady();
+await Select("[name='status']","נסגר בהצלחה");
 frame=await Content();
 await frame.Locator("[name='status']").WaitForAsync();
 if(await frame.Locator("[name='status']").InputValueAsync()!="נסגר בהצלחה")
@@ -820,7 +830,7 @@ if(await switchedCaseStatus.CountAsync()!=1)
 var switchedSiteCrumb=frame.Locator(".breadcrumb a[data-go^='#/site/']").First;
 await switchedSiteCrumb.WaitForAsync();
 await WaitForGuideStep(49);
-await switchedSiteCrumb.ClickAsync();
+await Click(".breadcrumb a[data-go^='#/site/']");
 await WaitReady();
 frame=await Content();
 await frame.Locator("h2:has-text('פניות')").WaitForAsync();
