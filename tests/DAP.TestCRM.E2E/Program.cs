@@ -532,34 +532,45 @@ if(await notes.IsDisabledAsync()) throw new Exception("Treatment Notes did not b
 await WaitForGuideStep(14);
 await Fill("[name='resolutionNotes']","בוצעה בדיקת שירות מול הלקוח והתקלה טופלה.");
 
-await page.WaitForTimeoutAsync(250);
-if(await (await Content()).Locator("#dap-guide-bubble").CountAsync()!=0)
-    throw new Exception("Completed customer-to-treatment Guide still has an active bubble.");
-Console.WriteLine("DAP complete customer -> Case treatment Guide: PASS");
+Console.WriteLine("DAP complete customer -> Case treatment Guide segment: PASS");
 
 // 4. Real off-screen target / scrolling through activity history.
+// Step 15 is deliberately off-screen: the production presenter keeps its bubble
+// hidden until the target enters the viewport, while the learner scrolls to it.
+await WaitForGuideStep(15);
+frame=await Content();
 var more=frame.Locator("#activity-more");
 await HumanScrollTo(more);
 await MoveTo(more);
 await more.ClickAsync();
 
-// 5. Conditional target appears and moves layout.
+// 5. Continue the guided business flow into Case closure.
+await WaitForGuideStep(16);
 await Select("[name='status']","סגורה");
 frame=await Content();
-// Case status FieldChange intentionally clears Subject. The agent re-enters it
-// before exercising the Close Reason validation scenario.
+
+// Case status FieldChange intentionally clears Subject. The Guide explicitly
+// instructs the learner to restore it before closure.
+await WaitForGuideStep(17);
 await Fill("[name='subject']","תקלה בחיבור לאינטרנט");
 frame=await Content();
 await frame.Locator("[name='closeReason']").WaitForAsync();
 
-// 6. Server validation changes layout, highlights field and opens modal.
+// Keep the existing server-validation scenario before selecting a Close Reason.
+// A click-based Guide Step must not falsely advance on a rejected save.
 await SaveExpectValidation("closeReason");
 frame=await Content();
 if(await frame.Locator("[name='subject']").InputValueAsync()!="תקלה בחיבור לאינטרנט")
     throw new Exception("Unsaved Subject was not preserved after server validation refresh.");
 if(await frame.Locator("[name='description']").InputValueAsync()!="הלקוח מדווח על חיבור לא יציב.")
     throw new Exception("Unsaved Description was not preserved after server validation refresh.");
+
+await WaitForGuideStep(18);
 await Select("[name='closeReason']","טופל");
+await page.WaitForTimeoutAsync(250);
+if(await (await Content()).Locator("#dap-guide-bubble").CountAsync()!=0)
+    throw new Exception("Completed guided Case closure segment still has an active bubble.");
+Console.WriteLine("DAP guided Case closure through Close Reason: PASS");
 await SaveSuccess();
 
 // 4. Content-document reload while remaining on the persisted Case.
