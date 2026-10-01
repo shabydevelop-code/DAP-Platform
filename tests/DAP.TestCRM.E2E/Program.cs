@@ -293,7 +293,7 @@ if(await frame.Locator("[name='closeReason']").InputValueAsync()!="טופל")
 // The Site route is captured from the real Site page before entering the Case.
 // This avoids coupling the scenario to breadcrumb markup after a full shell reload.
 frame=await Content();
-await frame.EvaluateAsync("(hash)=>parent.replaceContentFrame(hash)", siteCasesRoute);
+await page.EvaluateAsync("(hash)=>replaceContentFrame(hash)", siteCasesRoute);
 await WaitReady();
 frame=await Content();
 await frame.Locator("h2:has-text('פניות')").WaitForAsync();
