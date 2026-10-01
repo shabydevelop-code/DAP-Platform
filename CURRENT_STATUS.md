@@ -208,3 +208,11 @@ Web `clicked` validation no longer stores completion in the guided application's
 - Step 12 now scopes the Open button to the row containing the known Case subject `תקלה בחיבור לאינטרנט`, making the target unique without relying on row order.
 - Also found Step 13 could auto-complete incorrectly because `value-not-empty` is already true for the initial status `פתוחה`.
 - Added generic Web validation kind `value-equals` using persisted `ValidationExpectedValue`; Step 13 now completes only when status equals `בטיפול`.
+
+
+## Step 12 deterministic business target + bubble first-frame fix
+- Live diagnostics showed 61 Case rows and 60 rows sharing the old subject `תקלה בחיבור לאינטרנט`; subject-only Step 12 resolution was therefore correctly Ambiguous.
+- The visual E2E now creates a unique Case subject before seeding the Guide. The same run-specific business value is entered in Step 8 and persisted into Step 12's row-scoped target, so the created Case can be identified without generated database IDs or row-order assumptions.
+- Step 12 diagnostics remain temporarily available to verify the target count is exactly 1.
+- A separate visual defect was confirmed in the presenter path: a newly appended bubble could paint once before `place()` assigned coordinates, appearing briefly at the top-left.
+- New Web bubbles now start with `visibility:hidden` and become visible only after placement and pointer calculation complete.
