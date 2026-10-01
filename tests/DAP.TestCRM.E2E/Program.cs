@@ -399,7 +399,7 @@ await WaitReady();
 frame=await Content();
 if(!new Uri(frame.Url).Fragment.Equals("#/",StringComparison.Ordinal))
     throw new Exception("Header navigation did not return Content to the customer workspace.");
-await frame.Locator("h2:has-text('לקוחות')").WaitForAsync();
+await frame.Locator("h1:has-text('חיפוש לקוח')").WaitForAsync();
 
 Console.WriteLine("PASS: representative Customer -> Site -> Case -> Lead workflow, including dynamic Lead deletion and Case deletion, completed.");
 await page.WaitForTimeoutAsync(visualMode ? 1500 : 0);
