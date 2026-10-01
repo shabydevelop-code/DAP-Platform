@@ -344,3 +344,14 @@ Web `clicked` validation no longer stores completion in the guided application's
 - This preserves deterministic business-record verification without embedding a runtime-generated ID into the persisted Guide and removes the known case where the bubble arrow and visual E2E cursor could point at different Case rows.
 - The remaining late-flow Steps were reviewed against their visible E2E actions; Steps 41 and 48 intentionally use the first row on both sides, while breadcrumb/tab/delete/confirm/Header actions resolve the same logical controls.
 - Local visual E2E should be rerun after pull, with particular observation of Steps 41-53.
+
+
+## Full Guide/E2E compatibility audit
+- All 53 persisted TestCRM Guide Steps were reviewed against the visible E2E workflow, including instruction intent, target selector, validation kind/value, context guard, frame and corresponding learner action.
+- A second class of late-flow mismatch was found: several technical E2E assertions moved the visual cursor to re-resolved targets even though those cursor moves were not learner actions and had no Guide Step. The unguided moves to the Lead Delete target, selected-service field and switched-Case status field were removed; the underlying assertions remain non-visual.
+- Direct visible actions that bypassed the common learner-action helpers were normalized: Step 41 now opens the first Lead through `Click`, Step 45 changes status through `Select`, and Step 49 returns through the same Site breadcrumb selector used by the Guide.
+- `MoveTo` now enforces a runtime synchronization invariant before every visible learner action: the action target must be the exact DOM element stored as `__dapTarget` by the currently active production bubble. A bubble pointing to element A while the E2E cursor acts on element B now fails immediately instead of producing a misleading visual demo.
+- This identity check works inside the target's own document, so it also covers Content-frame actions and the final Header-frame action.
+- Together with the semantic created-Case target check, the visual E2E now verifies both business-record identity where required and exact bubble/action DOM identity for visible learner actions.
+- The audit found no reason to turn technical assertions, measurements, readiness checks or the deliberate programmatic reload into Guide Steps; they remain non-visual E2E mechanics.
+- A local full 53-Step visual run is required after pull to execute the new invariant against the complete workflow.
