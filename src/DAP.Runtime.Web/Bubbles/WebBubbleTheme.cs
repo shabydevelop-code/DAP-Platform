@@ -15,7 +15,6 @@ public sealed record WebBubbleTheme(
     string Direction,
     string TargetHighlightColor,
     int TargetHighlightWidth,
-    int TargetHighlightOffset,
     string TargetHighlightShadow,
     int PointerSize)
 {
@@ -34,7 +33,6 @@ public sealed record WebBubbleTheme(
         Direction: "rtl",
         TargetHighlightColor: "#2563eb",
         TargetHighlightWidth: 2,
-        TargetHighlightOffset: 3,
         TargetHighlightShadow: "0 0 0 3px rgba(37,99,235,.18)",
         PointerSize: 9);
 }
