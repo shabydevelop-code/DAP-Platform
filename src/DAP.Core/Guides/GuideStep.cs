@@ -14,4 +14,5 @@ public sealed record GuideStep(
     TargetDescriptor? Target,
     BubbleDefinition Bubble,
     ValidationDefinition? Validation = null,
-    StepAdvanceMode AdvanceMode = StepAdvanceMode.AutomaticOnValidation);
+    StepAdvanceMode AdvanceMode = StepAdvanceMode.AutomaticOnValidation,
+    StepContextDefinition? Context = null);
