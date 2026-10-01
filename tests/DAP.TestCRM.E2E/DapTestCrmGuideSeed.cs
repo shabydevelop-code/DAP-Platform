@@ -44,7 +44,7 @@ public static class DapTestCrmGuideSeed
             StepAdvanceMode.AutomaticOnValidation,
             new StepContextDefinition("css-exists", contextCss));
 
-    public static IReadOnlyList<GuideStep> Steps { get; } = new GuideStep[]
+    public static IReadOnlyList<GuideStep> CreateSteps(string caseSubject) => new GuideStep[]
     {
         ValueStep(
             "testcrm-customer-name", 1,
@@ -99,7 +99,7 @@ public static class DapTestCrmGuideSeed
 
         ClickStep(
             "testcrm-open-created-case", 12,
-            "tr:has-text('תקלה בחיבור לאינטרנט') button.grid-open",
+            $"tr:has-text('{caseSubject}') button.grid-open",
             "פתח את הפנייה שיצרת", "h2:has-text('פניות')"),
 
         ValueStep(
@@ -112,6 +112,5 @@ public static class DapTestCrmGuideSeed
             "[name='resolutionNotes']", "הוסף הערות טיפול", "[name='resolutionNotes']")
     };
 
-    public static GuideStep CustomerNameStep => Steps[0];
-    public static GuideStep CustomerSearchButtonStep => Steps[1];
+
 }
