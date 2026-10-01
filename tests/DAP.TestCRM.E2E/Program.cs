@@ -437,6 +437,13 @@ await MoveTo(frame.Locator("[name='selectedService']"));
 // Business scenario: after working in the current Lead, the agent opens another
 // Case under the same Site. DAP must resolve the new record's live target and
 // never retain the previous Lead/Case DOM context.
+var leadSiteCrumb=frame.Locator(".breadcrumb a[data-go^='#/site/'][data-go$='/leads']").First;
+await leadSiteCrumb.WaitForAsync();
+await MoveTo(leadSiteCrumb);
+await leadSiteCrumb.ClickAsync();
+await WaitReady();
+frame=await Content();
+await frame.Locator("h2:has-text('לידים')").WaitForAsync();
 await Click("nav.tabs button:has-text('פניות')");
 await WaitReady();
 frame=await Content();
