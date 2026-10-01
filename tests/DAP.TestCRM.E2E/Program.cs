@@ -472,7 +472,7 @@ for(var i=0;i<50;i++)
     dapContent=await Content();
     var activeBubble=dapContent.Locator("#dap-guide-bubble");
     if(await activeBubble.CountAsync()==1
-        && await activeBubble.TextContentAsync()==dapSecondStep.Bubble.Content)
+        && (await activeBubble.TextContentAsync() ?? string.Empty).Contains(dapSecondStep.Bubble.Content,StringComparison.Ordinal))
     {
         dapAdvancedToSecondStep=true;
         break;
@@ -483,8 +483,12 @@ if(!dapAdvancedToSecondStep)
     throw new Exception("DAP Guide Runtime did not advance to the second Step after value-not-empty validation succeeded.");
 
 var dapSecondBubble=dapContent.Locator("#dap-guide-bubble");
-if(await dapSecondBubble.TextContentAsync()!=dapSecondStep.Bubble.Content)
-    throw new Exception("DAP Guide Runtime second Step bubble content mismatch.");
+var dapSecondBubbleText=await dapSecondBubble.TextContentAsync() ?? string.Empty;
+if(!dapSecondBubbleText.Contains(dapSecondStep.Bubble.Content,StringComparison.Ordinal))
+    throw new Exception("DAP Guide Runtime second Step bubble instruction content mismatch.");
+var expectedSecondProgress=$"שלב 2 מתוך {dapSteps.Count}";
+if(!dapSecondBubbleText.Contains(expectedSecondProgress,StringComparison.Ordinal))
+    throw new Exception($"DAP Guide Runtime second Step progress mismatch. Expected '{expectedSecondProgress}'.");
 Console.WriteLine("DAP Learner Web Runtime automatic validation completion: PASS");
 Console.WriteLine("DAP Guide Runtime Step 1 -> Step 2 transition: PASS");
 
