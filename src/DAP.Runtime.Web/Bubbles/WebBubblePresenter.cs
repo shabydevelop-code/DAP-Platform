@@ -519,7 +519,7 @@ public sealed class WebBubblePresenter
             @"el => {
                 if (window === window.top) return false;
                 const bubble=document.getElementById('dap-guide-bubble');
-                if (!bubble || bubble.dataset.dapStepId !== el.ownerDocument.getElementById('dap-guide-bubble')?.dataset.dapStepId)
+                if (!bubble || bubble.__dapTarget !== el || bubble.dataset.actualPlacement !== 'Overlay')
                     return false;
                 const q=bubble.getBoundingClientRect();
                 return q.left < 0 || q.top < 0 || q.right > innerWidth || q.bottom > innerHeight;
