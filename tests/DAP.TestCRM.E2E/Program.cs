@@ -317,7 +317,7 @@ async Task WaitForGuideStep(int order)
             try
             {
                 var bubble=liveFrame.Locator("#dap-guide-bubble");
-                if(await bubble.CountAsync()==1)
+                if(await bubble.CountAsync()==1 && await bubble.IsVisibleAsync())
                 {
                     var bubbleText=await bubble.TextContentAsync() ?? string.Empty;
                     var expectedProgress=$"שלב {order} מתוך {dapSteps.Count}";
