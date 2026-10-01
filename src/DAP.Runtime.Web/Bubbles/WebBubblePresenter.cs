@@ -570,8 +570,42 @@ public sealed class WebBubblePresenter
                             borderRadius:b.theme.borderRadius+'px',boxShadow:b.theme.boxShadow,
                             fontFamily:b.theme.fontFamily,fontSize:b.theme.fontSize+'px',
                             lineHeight:String(b.theme.lineHeight),direction:b.theme.direction,
-                            pointerEvents:'none',visibility:'hidden'
+                            pointerEvents:'auto',visibility:'hidden',cursor:'grab',
+                            touchAction:'none',userSelect:'none'
                         });
+
+                        let drag=null;
+                        const clamp=(x,y)=>{
+                            const q=bubble.getBoundingClientRect(),m=8;
+                            return {
+                                x:Math.max(m,Math.min(x,Math.max(m,innerWidth-q.width-m))),
+                                y:Math.max(m,Math.min(y,Math.max(m,innerHeight-q.height-m)))
+                            };
+                        };
+                        bubble.addEventListener('pointerdown',event=>{
+                            if(event.button!==0 || event.target.closest('button,a,input,select,textarea')) return;
+                            const q=bubble.getBoundingClientRect();
+                            drag={id:event.pointerId,x:event.clientX,y:event.clientY,left:q.left,top:q.top};
+                            bubble.setPointerCapture(event.pointerId);
+                            bubble.style.cursor='grabbing';
+                            event.preventDefault();
+                            event.stopPropagation();
+                        });
+                        bubble.addEventListener('pointermove',event=>{
+                            if(!drag || event.pointerId!==drag.id) return;
+                            const p=clamp(drag.left+event.clientX-drag.x,drag.top+event.clientY-drag.y);
+                            bubble.style.left=p.x+'px'; bubble.style.top=p.y+'px';
+                            event.preventDefault(); event.stopPropagation();
+                        });
+                        const finish=event=>{
+                            if(!drag || event.pointerId!==drag.id) return;
+                            drag=null; bubble.style.cursor='grab';
+                            try{bubble.releasePointerCapture(event.pointerId);}catch{}
+                            event.preventDefault(); event.stopPropagation();
+                        };
+                        bubble.addEventListener('pointerup',finish);
+                        bubble.addEventListener('pointercancel',finish);
+                        bubble.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();});
                         document.body.appendChild(bubble);
                         const q=bubble.getBoundingClientRect(), margin=8, gap=8;
                         const left=Math.max(margin,Math.min(b.x-q.width/2,innerWidth-q.width-margin));
