@@ -759,7 +759,6 @@ var afterBox=await deleteTarget.BoundingBoxAsync();
 if(afterBox is null) throw new Exception("Could not re-resolve Delete Lead target after layout shift.");
 if(Math.Abs(afterBox.Y-beforeBox.Y)<1)
     throw new Exception("Expected the dependent field to move the Delete Lead target, but its position did not change.");
-await MoveTo(deleteTarget);
 await deleteTarget.WaitForAsync();
 
 // 9. Consecutive server updates / race resilience.
@@ -780,7 +779,8 @@ if(await frame.Locator("[name='status']").InputValueAsync()!="נסגר בהצל�
 await frame.Locator("[name='selectedService']").WaitForAsync();
 if(await frame.Locator("[name='selectedService']").CountAsync()!=1)
     throw new Exception("Final status did not re-render the dependent business target.");
-await MoveTo(frame.Locator("[name='selectedService']"));
+if(await frame.Locator("[name='selectedService']").CountAsync()!=1)
+    throw new Exception("Final dependent business target is not uniquely resolved.");
 
 // 10. Business-context isolation.
 // Business scenario: after working in the current Lead, the agent opens another
@@ -812,7 +812,6 @@ if(!switchedCaseRoute.Contains("#/case/",StringComparison.Ordinal))
     throw new Exception("Business-context switch did not open a Case record.");
 var switchedCaseStatus=frame.Locator("[name='status']");
 await switchedCaseStatus.WaitForAsync();
-await MoveTo(switchedCaseStatus);
 if(await switchedCaseStatus.CountAsync()!=1)
     throw new Exception("Case target resolution is ambiguous after business-context switch.");
 
