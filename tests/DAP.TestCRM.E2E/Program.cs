@@ -253,7 +253,13 @@ async Task WaitForGuideStep(int order)
         var content=await Content();
         var bubble=content.Locator("#dap-guide-bubble");
         if(await bubble.CountAsync()==1 && await bubble.TextContentAsync()==expected.Bubble.Content)
+        {
+            // In visual mode the learner must have a chance to perceive a newly
+            // presented instruction before the harness starts carrying it out.
+            // This is presentation pacing only; fast mode remains unchanged.
+            await HumanPause(500);
             return;
+        }
         await page.WaitForTimeoutAsync(100);
     }
     throw new TimeoutException($"DAP Guide did not present Step {order}: {expected.Id}.");
