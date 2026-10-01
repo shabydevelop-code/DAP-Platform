@@ -53,13 +53,15 @@ public sealed class WebLearnerRuntime
         if (second.Status != TargetResolutionStatus.Resolved || second.Target is null)
             return false;
 
-        // The target must still be the same DOM node after the settling window.
-        // A selector matching a replacement node while a server render is in
-        // progress is intentionally treated as unstable.
-        var sameNode = await second.Target.EvaluateAsync<bool>(
-            "(el, previous) => el === previous",
-            await first.Target.ElementHandleAsync());
-        if (!sameNode)
+        // Re-check the original resolved node itself after the settling
+        // window. If a server render replaced/detached it, isConnected becomes
+        // false (or Playwright throws and the reconciliation loop retries).
+        // Avoid passing an ElementHandle as an Evaluate argument: Playwright
+        // serializes ordinary arguments and that is not a reliable DOM identity
+        // comparison between independently resolved Locators.
+        var originalState = await first.Target.EvaluateAsync<TargetVisualState>(
+            "(el) => { const r = el.getBoundingClientRect(); return { connected: el.isConnected, x: r.x, y: r.y, width: r.width, height: r.height }; }");
+        if (!originalState.Connected)
             return false;
 
         var secondState = await second.Target.EvaluateAsync<TargetVisualState>(
@@ -68,10 +70,14 @@ public sealed class WebLearnerRuntime
             return false;
 
         const double tolerance = 0.5;
-        return Math.Abs(firstState.X - secondState.X) <= tolerance
-            && Math.Abs(firstState.Y - secondState.Y) <= tolerance
-            && Math.Abs(firstState.Width - secondState.Width) <= tolerance
-            && Math.Abs(firstState.Height - secondState.Height) <= tolerance;
+        return Math.Abs(firstState.X - originalState.X) <= tolerance
+            && Math.Abs(firstState.Y - originalState.Y) <= tolerance
+            && Math.Abs(firstState.Width - originalState.Width) <= tolerance
+            && Math.Abs(firstState.Height - originalState.Height) <= tolerance
+            && Math.Abs(originalState.X - secondState.X) <= tolerance
+            && Math.Abs(originalState.Y - secondState.Y) <= tolerance
+            && Math.Abs(originalState.Width - secondState.Width) <= tolerance
+            && Math.Abs(originalState.Height - secondState.Height) <= tolerance;
     }
 
     private sealed record TargetVisualState(bool Connected, double X, double Y, double Width, double Height);
