@@ -730,7 +730,7 @@ public sealed class WebBubblePresenter
         await page.MainFrame.EvaluateAsync(
             @"() => new Promise(resolve => {
                 const bubble=document.getElementById('dap-guide-completed');
-                const finishButton=bubble?.querySelector('[data-dap-guide-finish=\"1\"]');
+                const finishButton=bubble?.querySelector('[data-dap-guide-finish=""1""]');
                 if(!bubble || !finishButton) { resolve(); return; }
                 finishButton.addEventListener('click', event => {
                     event.preventDefault();
