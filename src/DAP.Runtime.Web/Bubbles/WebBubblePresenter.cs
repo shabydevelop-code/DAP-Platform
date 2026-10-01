@@ -209,6 +209,14 @@ public sealed class WebBubblePresenter
         touchAction: 'none'
     });
     bubble.appendChild(dragHandle);
+    dragHandle.addEventListener('pointerenter', () => {
+        if (!dragState)
+            dragHandle.style.cursor = 'grab';
+    });
+    dragHandle.addEventListener('pointerleave', () => {
+        if (!dragState)
+            dragHandle.style.cursor = 'grab';
+    });
 
     if (b.stepNumber && b.totalSteps) {
         const progress = root.createElement('div');
@@ -254,11 +262,11 @@ public sealed class WebBubblePresenter
         lineHeight: String(b.theme.lineHeight),
         direction: b.theme.direction,
         visibility: 'hidden',
-        cursor: 'default',
         touchAction: 'none',
         userSelect: 'none'
     });
 
+    bubble.style.setProperty('cursor', 'default', 'important');
     root.body.appendChild(bubble);
 
     const placePointer = (side) => {
@@ -335,8 +343,8 @@ public sealed class WebBubblePresenter
             return;
         manuallyPositioned = true;
         dragState = null;
-        bubble.style.cursor = 'default';
-        dragHandle.style.cursor = 'grab';
+        bubble.style.setProperty('cursor', 'default', 'important');
+        dragHandle.style.setProperty('cursor', 'grab', 'important');
         pointer.style.display = 'none';
         bubble.dataset.manualPosition = 'true';
         try { bubble.releasePointerCapture(event.pointerId); } catch { }
@@ -356,8 +364,8 @@ public sealed class WebBubblePresenter
             top: q.top
         };
         bubble.setPointerCapture(event.pointerId);
-        bubble.style.cursor = 'grabbing';
-        dragHandle.style.cursor = 'grabbing';
+        bubble.style.setProperty('cursor', 'grabbing', 'important');
+        dragHandle.style.setProperty('cursor', 'grabbing', 'important');
         event.preventDefault();
     };
 
@@ -470,6 +478,7 @@ public sealed class WebBubblePresenter
 
         bubble.style.pointerEvents = '';
         bubble.style.cursor = 'grab';
+        bubble.style.cursor = 'default';
         bubble.style.left = chosen.x + 'px';
         bubble.style.top = chosen.y + 'px';
         bubble.dataset.actualPlacement = chosen.side;
