@@ -431,21 +431,21 @@ public sealed class WebBubblePresenter
                 .sort((a, b) => a.overflow - b.overflow);
             chosen = safe[0];
         }
+        // A non-overlapping candidate is useful only when the complete bubble
+        // is actually visible in this document's viewport. A child frame clips
+        // its document at the iframe boundary even when CSS overflow is visible.
+        // Therefore an overflowing candidate must never be exposed as if it
+        // were a valid placement.
+        if (chosen && !chosen.inside)
+            chosen = null;
+
         if (!chosen) {
-            // A small iframe (for example an application header frame) can be
-            // physically too small to place a bubble beside its target. Keeping
-            // the bubble hidden makes a valid Step invisible to the learner.
-            // Fall back to an in-viewport overlay that does not consume pointer
-            // events, so the underlying target remains actionable.
-            const x = Math.max(margin, (viewportWidth - q.width) / 2);
-            const y = Math.max(margin, (viewportHeight - q.height) / 2);
-            bubble.style.left = Math.min(x, Math.max(margin, viewportWidth - q.width - margin)) + 'px';
-            bubble.style.top = Math.min(y, Math.max(margin, viewportHeight - q.height - margin)) + 'px';
-            bubble.dataset.actualPlacement = 'Overlay';
+            // This document cannot physically contain the bubble. Keep it
+            // hidden instead of placing it outside a child-frame viewport.
+            // The presenter will promote it to the top-level document below.
+            bubble.dataset.actualPlacement = 'NeedsTopLevel';
             bubble.style.pointerEvents = 'none';
-            bubble.style.cursor = 'default';
             pointer.style.display = 'none';
-            bubble.style.visibility = 'visible';
             return;
         }
 
@@ -512,6 +512,80 @@ public sealed class WebBubblePresenter
                     pointerSize = _theme.PointerSize
                 }
             });
+        // If the target lives in a frame that is too small to contain the
+        // bubble, render a visual proxy in the top-level document. The target
+        // remains the validation owner in its original frame; this proxy is
+        // presentation-only and uses page coordinates derived through the
+        // iframe chain.
+        var needsTopLevel = await resolution.Target.EvaluateAsync<bool>(
+            "el => document.getElementById('dap-guide-bubble')?.dataset.actualPlacement === 'NeedsTopLevel'");
+        if (needsTopLevel)
+        {
+            var targetBox = await resolution.Target.BoundingBoxAsync();
+            if (targetBox is not null)
+            {
+                var topLevelArgs = new
+                {
+                    content = step.Bubble.Content,
+                    stepId = step.Id,
+                    stepNumber,
+                    totalSteps,
+                    x = targetBox.X + targetBox.Width / 2,
+                    y = targetBox.Y + targetBox.Height,
+                    theme = new
+                    {
+                        backgroundColor = _theme.BackgroundColor,
+                        textColor = _theme.TextColor,
+                        borderColor = _theme.BorderColor,
+                        borderWidth = _theme.BorderWidth,
+                        borderRadius = _theme.BorderRadius,
+                        maxWidth = _theme.MaxWidth,
+                        padding = _theme.Padding,
+                        boxShadow = _theme.BoxShadow,
+                        fontFamily = _theme.FontFamily,
+                        fontSize = _theme.FontSize,
+                        lineHeight = _theme.LineHeight,
+                        direction = _theme.Direction
+                    }
+                };
+                await page.MainFrame.EvaluateAsync(
+                    @"b => {
+                        document.getElementById('dap-guide-bubble-proxy')?.remove();
+                        const bubble=document.createElement('div');
+                        bubble.id='dap-guide-bubble-proxy';
+                        bubble.dataset.dapStepId=b.stepId;
+                        if(b.stepNumber && b.totalSteps) {
+                            const progress=document.createElement('div');
+                            progress.textContent='שלב '+b.stepNumber+' מתוך '+b.totalSteps;
+                            Object.assign(progress.style,{fontSize:'12px',opacity:'0.78',marginBottom:'5px',fontWeight:'600'});
+                            bubble.appendChild(progress);
+                        }
+                        const content=document.createElement('div');
+                        content.textContent=b.content;
+                        bubble.appendChild(content);
+                        Object.assign(bubble.style,{
+                            position:'fixed',zIndex:'2147483647',maxWidth:b.theme.maxWidth+'px',
+                            padding:b.theme.padding,background:b.theme.backgroundColor,color:b.theme.textColor,
+                            border:b.theme.borderWidth+'px solid '+b.theme.borderColor,
+                            borderRadius:b.theme.borderRadius+'px',boxShadow:b.theme.boxShadow,
+                            fontFamily:b.theme.fontFamily,fontSize:b.theme.fontSize+'px',
+                            lineHeight:String(b.theme.lineHeight),direction:b.theme.direction,
+                            pointerEvents:'none',visibility:'hidden'
+                        });
+                        document.body.appendChild(bubble);
+                        const q=bubble.getBoundingClientRect(), margin=8, gap=8;
+                        const left=Math.max(margin,Math.min(b.x-q.width/2,innerWidth-q.width-margin));
+                        let top=b.y+gap;
+                        if(top+q.height>innerHeight-margin)
+                            top=Math.max(margin,b.y-q.height-gap);
+                        bubble.style.left=left+'px';
+                        bubble.style.top=Math.max(margin,Math.min(top,innerHeight-q.height-margin))+'px';
+                        bubble.style.visibility='visible';
+                    }",
+                    topLevelArgs);
+            }
+        }
+
         var presentedAt = timing.Elapsed.TotalMilliseconds;
         if (!ensureOnly)
             Console.Error.WriteLine($"[DAP bubble] Step '{step.Id}' target resolved in {resolvedAt:F0} ms; DOM presentation completed in {presentedAt:F0} ms.");
@@ -533,6 +607,8 @@ public sealed class WebBubblePresenter
     {
         const string script = """
 () => {
+    const proxy = document.getElementById('dap-guide-bubble-proxy');
+    if (proxy) proxy.remove();
     const bubble = document.getElementById('dap-guide-bubble');
     if (bubble) {
         bubble.__dapCleanup?.();
