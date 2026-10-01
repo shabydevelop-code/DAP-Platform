@@ -355,3 +355,11 @@ Web `clicked` validation no longer stores completion in the guided application's
 - Together with the semantic created-Case target check, the visual E2E now verifies both business-record identity where required and exact bubble/action DOM identity for visible learner actions.
 - The audit found no reason to turn technical assertions, measurements, readiness checks or the deliberate programmatic reload into Guide Steps; they remain non-visual E2E mechanics.
 - A local full 53-Step visual run is required after pull to execute the new invariant against the complete workflow.
+
+
+## Step 12 ambiguity found by full compatibility run
+- The first local run after the compatibility audit timed out at Step 12. The semantic selector introduced for the created Case used subject `תקלה בחיבור לאינטרנט`, but TestCRM seed data already contains a Case with that exact subject.
+- The resulting two matches correctly produced an ambiguous target; DAP did not guess and therefore did not present Step 12.
+- The E2E-created Case now uses the unique stable business subject `תקלה בחיבור לאינטרנט - בדיקת DAP` throughout creation, post-close restoration, assertions and Steps 12/50 semantic selectors.
+- This preserves the intended resolver invariant: Guide targets must resolve uniquely without relying on row position or injecting the runtime-generated Case ID into a Guide that was loaded before creation.
+- Full 53-Step local rerun remains required; the new exact DOM identity invariant will then validate each visible action against its active bubble target.
