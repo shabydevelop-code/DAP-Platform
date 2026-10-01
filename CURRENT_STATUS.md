@@ -315,3 +315,13 @@ Web `clicked` validation no longer stores completion in the guided application's
 - Geometry is compared across the original node before/after the settling window and against the fresh resolution.
 - No E2E timeout was increased; the fix addresses the settling implementation itself.
 - Local 53-Step visual E2E must be rerun to verify this regression fix.
+
+
+## Transition settling correction
+- The prior target-identity settling approach was removed. Playwright `ILocator` is a live query and must not be treated as a frozen DOM-node identity token.
+- The first Guide Step now bypasses transition settling because there is no preceding learner action/server transition to wait for.
+- Subsequent Web Steps resolve their target and observe that target document for a quiet DOM window (default 250 ms). Subtree, child-list, attribute or text mutations reset the quiet timer.
+- The quiet-window rule is independent of network activity: a local JavaScript rerender and a server-backed rerender are treated the same, while a genuinely quiet transition continues after the short window.
+- At the end of the quiet window the target must still be connected and have non-zero geometry.
+- This replaces both failed settling implementations that caused the first bubble to time out.
+- Local 53-Step visual E2E remains required after pull.
