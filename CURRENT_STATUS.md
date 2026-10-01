@@ -88,7 +88,9 @@ The schema is a provider implementation detail, not the domain contract. Current
 
 Production `DAP.Runtime.Web` now contains the first `WebBubblePresenter`. It resolves a GuideStep target through `WebTargetResolver`, injects the bubble into the resolved target document/frame, and keeps it positioned on scroll/resize. It does not live in the E2E project. A TestCRM-specific first-step definition exists only as an E2E fixture and is intentionally excluded from production Data/Runtime code.
 
-The next integration step is to wire the E2E harness to the production Data.Sqlite + Runtime.Web projects, persist/load that fixture through SQLite, show the production bubble, and assert its attachment before continuing the existing CRM workflow.
+The TestCRM E2E harness is now wired to the production `DAP.Data.Sqlite` and `DAP.Runtime.Web` projects. Before the existing CRM workflow starts, it initializes a temporary DAP SQLite database, persists the first TestCRM GuideStep, reloads it through `SqliteGuideStepRepository`, resolves its real target through `WebTargetResolver`, presents it through `WebBubblePresenter`, and asserts the rendered bubble content. The fixture definition remains test-only; the persistence and bubble implementation are production code.
+
+Next: introduce the Learner Web Runtime lifecycle that owns the active GuideStep and re-presents/re-resolves its bubble after iframe/document replacement until validation succeeds. This is required because a bubble injected into a replaced iframe correctly disappears with that document; persistence/presentation alone must not own Step lifecycle.
 
 ## Next milestone
 
