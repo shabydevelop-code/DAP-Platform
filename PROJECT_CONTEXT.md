@@ -194,3 +194,22 @@ Architectural separation:
 
 This separation is required so Guides created in the future benefit automatically from engine-level lifecycle fixes while target-quality problems are detected during authoring instead of being hidden by Guide-specific runtime workarounds.
 
+## Learner surface and unavailable-target policy — 2026-10-01
+
+The current product direction is intentionally minimal for learners. DAP Learner is primarily a Runtime, not a management dashboard. A learner is expected to launch a specific Guide from an organization-provided icon, shortcut, portal, or other distribution mechanism; DAP then runs that Guide and presents its in-application bubbles. DAP should not duplicate an organization's existing application/shortcut distribution or authorization surface unless a future product requirement explicitly calls for an optional launcher/catalog.
+
+Do not add a persistent Learner dashboard or generic between-Step progress/loading indicator to the current baseline. Between bubbles the Runtime should remain visually quiet and continue target re-resolution. This avoids visually competing with or impersonating the target application's own loading and status UI. If later user testing demonstrates a need for learner-visible waiting/error UX, treat that as a separate product decision rather than a prerequisite for Web Runtime correctness.
+
+A NotFound target is not sufficient evidence that a Guide is broken. The same observation can mean that the intended element is temporarily absent during server processing, FieldChange, navigation, iframe replacement, conditional rendering, or a genuinely invalid/stale Guide. Therefore the Runtime must not automatically skip, select a similar element, or declare failure solely from a short fixed target wait. The unresolved case where the intended target never appears remains an explicit future learner-UX/diagnostics decision.
+
+## Repeated collections, Grid identity, and author intent
+
+Selecting a DOM element during Instructor capture does not fully define its runtime identity, especially inside a repeated collection or Grid. The future Instructor must preserve the author's identification intent rather than assuming that the element's current DOM position is its identity.
+
+At minimum, repeated/Grid capture must distinguish:
+- **Positional identity:** for example, "the first row" or "the cell in the first row." Reordering may intentionally change which business record is targeted.
+- **Business/content identity:** for example, "Case Number = 7." Reordering must not change the business record targeted; the Runtime must re-resolve the matching record at its new position.
+
+The author may select the business-key cell itself (for example the cell containing Case Number 7), or select another control in that record's row (for example an Open button). In the latter case the business-key evidence can act as an anchor/context constraint for resolving the actual target within the same repeated record. Do not reduce this to unrestricted text matching such as generic has-text("7"); target evidence should be scoped to the appropriate collection/record/field structure so unrelated text cannot satisfy the identity accidentally.
+
+These are authoring semantics, not TestCRM/Grid-specific Runtime concepts. Core/Runtime should continue to operate through runtime-neutral target descriptors, locators, anchors, frame/context constraints, and explicit Resolved / NotFound / Ambiguous outcomes. Before building the Instructor UI, verify that the shared TargetDescriptor model can cleanly represent both positional and business-identity cases without introducing target-application-specific concepts.
