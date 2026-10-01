@@ -13,30 +13,27 @@ public sealed class WebValidationSession : IAsyncDisposable
 
     private readonly ConcurrentDictionary<string, byte> _completedSteps = new(StringComparer.Ordinal);
     private readonly SemaphoreSlim _bridgeLock = new(1, 1);
-    private IAsyncDisposable? _binding;
     private IPage? _boundPage;
 
     public async Task EnsureBridgeAsync(IPage page)
     {
-        if (ReferenceEquals(_boundPage, page) && _binding is not null)
+        if (ReferenceEquals(_boundPage, page))
             return;
 
         await _bridgeLock.WaitAsync();
         try
         {
-            if (ReferenceEquals(_boundPage, page) && _binding is not null)
+            if (ReferenceEquals(_boundPage, page))
                 return;
 
-            if (_binding is not null)
-                await _binding.DisposeAsync();
-
-            _binding = await page.ExposeBindingAsync<string>(
+            await page.ExposeBindingAsync<string>(
                 BrowserBindingName,
                 (_, stepId) =>
                 {
                     if (!string.IsNullOrWhiteSpace(stepId))
                         _completedSteps[stepId] = 0;
                 });
+
             _boundPage = page;
         }
         finally
@@ -48,11 +45,11 @@ public sealed class WebValidationSession : IAsyncDisposable
     public bool IsCompleted(string stepId)
         => _completedSteps.ContainsKey(stepId);
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        if (_binding is not null)
-            await _binding.DisposeAsync();
-
+        _boundPage = null;
+        _completedSteps.Clear();
         _bridgeLock.Dispose();
+        return ValueTask.CompletedTask;
     }
 }
