@@ -267,24 +267,24 @@ if(await frame.Locator("[name='description']").InputValueAsync()!="הלקוח מ
 await Select("[name='closeReason']","טופל");
 await SaveSuccess();
 
-// 4. Full page reload while remaining on the persisted Case.
-// Business scenario: an agent refreshes the browser after saving and must return
-// to the same Case with its saved business state intact.
-var beforeReloadUrl=frame.Url;
-if(!beforeReloadUrl.Contains($"#/case/{createdCaseId}",StringComparison.Ordinal))
-    throw new Exception("Expected to remain on the created Case before full page reload.");
-await page.ReloadAsync();
-await WaitReady();
+// 4. Content-document reload while remaining on the persisted Case.
+// Business scenario: the active CRM document is rebuilt, and DAP must reacquire
+// the replacement frame without losing the current business record.
+var beforeReloadRoute=frame.Url;
+if(!beforeReloadRoute.Contains($"#/case/{createdCaseId}",StringComparison.Ordinal))
+    throw new Exception("Expected to remain on the created Case before Content reload.");
+await frame.EvaluateAsync("() => location.reload()");
+await page.Locator("#content-frame").WaitForAsync(new() { State = WaitForSelectorState.Attached, Timeout = 10000 });
 frame=await Content();
 await frame.Locator("h1:has-text('פניה')").WaitForAsync();
 if(!frame.Url.Contains($"#/case/{createdCaseId}",StringComparison.Ordinal))
-    throw new Exception("Full page reload did not preserve the active Case route.");
+    throw new Exception("Content reload did not preserve the active Case route.");
 if(await frame.Locator("[name='status']").InputValueAsync()!="סגורה")
-    throw new Exception("Full page reload did not preserve the saved Case status.");
+    throw new Exception("Content reload did not preserve the saved Case status.");
 if(await frame.Locator("[name='subject']").InputValueAsync()!="תקלה בחיבור לאינטרנט")
-    throw new Exception("Full page reload did not preserve the saved Case subject.");
+    throw new Exception("Content reload did not preserve the saved Case subject.");
 if(await frame.Locator("[name='closeReason']").InputValueAsync()!="טופל")
-    throw new Exception("Full page reload did not preserve the saved Close Reason.");
+    throw new Exception("Content reload did not preserve the saved Close Reason.");
 
 // 7. CRM tab switching: leave the Case, switch between Site tabs, and return to Cases.
 // Business scenario: an agent checks Leads and then returns to the Cases workspace
