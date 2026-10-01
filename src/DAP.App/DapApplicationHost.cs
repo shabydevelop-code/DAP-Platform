@@ -81,14 +81,15 @@ public static class DapApplicationHost
             return 5;
         }
 
-        var runtime = new WebLearnerRuntime(bubbles);
+        var stepRuntime = new WebLearnerRuntime(bubbles);
+        var guideRuntime = new WebGuideRuntime(stepRuntime);
         try
         {
-            await runtime.RunActiveStepAsync(matchingPages[0], steps[0], cancellationToken);
+            await guideRuntime.RunAsync(matchingPages[0], steps, cancellationToken);
         }
         finally
         {
-            await runtime.StopAsync(matchingPages[0]);
+            await stepRuntime.StopAsync(matchingPages[0]);
         }
 
         return 0;
