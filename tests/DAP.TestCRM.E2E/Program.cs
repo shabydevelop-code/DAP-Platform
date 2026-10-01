@@ -279,10 +279,16 @@ async Task WaitForGuideStep(int order)
             try
             {
                 var bubble=liveFrame.Locator("#dap-guide-bubble");
-                if(await bubble.CountAsync()==1 && await bubble.TextContentAsync()==expected.Bubble.Content)
+                if(await bubble.CountAsync()==1)
                 {
-                    await HumanPause(500);
-                    return;
+                    var bubbleText=await bubble.TextContentAsync() ?? string.Empty;
+                    var expectedProgress=$"שלב {order} מתוך {dapSteps.Count}";
+                    if(bubbleText.Contains(expected.Bubble.Content,StringComparison.Ordinal)
+                        && bubbleText.Contains(expectedProgress,StringComparison.Ordinal))
+                    {
+                        await HumanPause(500);
+                        return;
+                    }
                 }
             }
             catch(PlaywrightException) { }
