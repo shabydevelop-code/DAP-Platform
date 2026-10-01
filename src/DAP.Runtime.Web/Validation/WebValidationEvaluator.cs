@@ -24,12 +24,8 @@ public sealed class WebValidationEvaluator
     {
         const string script = """
 el => {
-    if (!el.__dapValidationClickInstalled) {
-        el.__dapValidationClickInstalled = true;
-        el.__dapValidationClicked = false;
-        el.addEventListener('click', () => { el.__dapValidationClicked = true; }, { capture: true });
-    }
-    return el.__dapValidationClicked === true;
+    const state = el.ownerDocument.__dapValidationState;
+    return state?.clicked === true;
 }
 """;
         return await target.EvaluateAsync<bool>(script);
