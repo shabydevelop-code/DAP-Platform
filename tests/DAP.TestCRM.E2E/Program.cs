@@ -1,15 +1,29 @@
+using System.Diagnostics;
+using System.Net;
+using System.Net.Sockets;
 using DAP.TestCRM.E2E;
 using Microsoft.Playwright;
 using DAP.Core.Targets;
 using DAP.Data.Sqlite;
 using DAP.Data.Sqlite.Guides;
-using DAP.Runtime.Web.Bubbles;
-using DAP.Runtime.Web.Learner;
-using DAP.Runtime.Web.Targets;
 
 const string baseUrl = "http://localhost:5200";
+static int ReserveTcpPort()
+{
+    var listener = new TcpListener(IPAddress.Loopback, 0);
+    listener.Start();
+    var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+    listener.Stop();
+    return port;
+}
+
+var dapCdpPort = ReserveTcpPort();
 using var playwright = await Playwright.CreateAsync();
-await using var browser = await playwright.Chromium.LaunchAsync(new() { Headless = false, Args = new[] { "--start-maximized" } });
+await using var browser = await playwright.Chromium.LaunchAsync(new()
+{
+    Headless = false,
+    Args = new[] { "--start-maximized", $"--remote-debugging-port={dapCdpPort}" }
+});
 var context = await browser.NewContextAsync(new() { ViewportSize = ViewportSize.NoViewport, ExtraHTTPHeaders = new Dictionary<string,string> { ["X-DAP-E2E-Mode"] = (Environment.GetEnvironmentVariable("DAP_E2E_MODE")?.Trim().ToLowerInvariant() ?? "fast") } });
 var page = await context.NewPageAsync();
 page.SetDefaultTimeout(5000);
@@ -204,10 +218,24 @@ await new SqliteDatabaseInitializer(dapFactory).InitializeAsync();
 var dapRepository=new SqliteGuideStepRepository(dapFactory);
 await dapRepository.SaveStepAsync(DapTestCrmGuideSeed.GuideId,DapTestCrmGuideSeed.CustomerNameStep);
 var dapStep=(await dapRepository.GetStepsAsync(DapTestCrmGuideSeed.GuideId)).Single();
-var dapBubbles=new WebBubblePresenter(new WebTargetResolver());
-var dapRuntime=new WebLearnerRuntime(dapBubbles);
-using var dapRuntimeCancellation=new CancellationTokenSource();
-var dapRuntimeTask=dapRuntime.RunActiveStepAsync(page,dapStep,dapRuntimeCancellation.Token);
+
+var dapAppProject=Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","..","..","..","..","src","DAP.App","DAP.App.csproj"));
+if(!File.Exists(dapAppProject))
+    throw new Exception($"DAP.App project not found at {dapAppProject}");
+
+using var dapProcess=new Process
+{
+    StartInfo=new ProcessStartInfo
+    {
+        FileName="dotnet",
+        Arguments=$"run --project \"{dapAppProject}\" -- --learner-web {DapTestCrmGuideSeed.GuideId} --cdp http://127.0.0.1:{dapCdpPort} --page-url-contains localhost:5200",
+        UseShellExecute=false,
+        CreateNoWindow=true
+    }
+};
+dapProcess.StartInfo.Environment["DAP_DATABASE_PATH"]=dapDbPath;
+if(!dapProcess.Start())
+    throw new Exception("DAP.exe process could not be started.");
 
 var dapContent=await Content();
 var dapBubble=dapContent.Locator("#dap-guide-bubble");
@@ -561,9 +589,11 @@ if(!new Uri(frame.Url).Fragment.Equals("#/",StringComparison.Ordinal))
     throw new Exception("Header navigation did not return Content to the customer workspace.");
 await frame.Locator("h1:has-text('חיפוש לקוח')").WaitForAsync();
 
-dapRuntimeCancellation.Cancel();
-try { await dapRuntimeTask; } catch (OperationCanceledException) { }
-await dapRuntime.StopAsync(page);
+if(!dapProcess.HasExited)
+{
+    dapProcess.Kill(entireProcessTree:true);
+    await dapProcess.WaitForExitAsync();
+}
 
 Console.WriteLine("PASS: representative Customer -> Site -> Case -> Lead workflow, including dynamic Lead deletion and Case deletion, completed.");
 await page.WaitForTimeoutAsync(visualMode ? 1500 : 0);
