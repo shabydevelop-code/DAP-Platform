@@ -84,6 +84,12 @@ The shared Core now includes initial runtime-neutral `ValidationDefinition`, `Bu
 
 The schema is a provider implementation detail, not the domain contract. Current implementation work remains Web-only even though persisted Runtime/Target data is designed to support both Web and Windows.
 
+## First Web bubble presenter
+
+Production `DAP.Runtime.Web` now contains the first `WebBubblePresenter`. It resolves a GuideStep target through `WebTargetResolver`, injects the bubble into the resolved target document/frame, and keeps it positioned on scroll/resize. It does not live in the E2E project. A TestCRM-specific first-step definition exists only as an E2E fixture and is intentionally excluded from production Data/Runtime code.
+
+The next integration step is to wire the E2E harness to the production Data.Sqlite + Runtime.Web projects, persist/load that fixture through SQLite, show the production bubble, and assert its attachment before continuing the existing CRM workflow.
+
 ## Next milestone
 
 The runtime-neutral target-resolution Core has now been started in `src/DAP.Core`. It defines `TargetDescriptor`, `Locator`, `Anchor`, `FrameContext`, runtime identity, and explicit `Resolved` / `NotFound` / `Ambiguous` resolution results. The Core has no Playwright, UIA, SQLite, or test-project dependency.
