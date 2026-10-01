@@ -247,7 +247,7 @@ public sealed class WebBubblePresenter
         lineHeight: String(b.theme.lineHeight),
         direction: b.theme.direction,
         visibility: 'hidden',
-        cursor: 'grab',
+        cursor: 'default',
         touchAction: 'none',
         userSelect: 'none'
     });
@@ -328,7 +328,7 @@ public sealed class WebBubblePresenter
             return;
         manuallyPositioned = true;
         dragState = null;
-        bubble.style.cursor = 'grab';
+        dragHandle.style.cursor = 'grab';
         pointer.style.display = 'none';
         bubble.dataset.manualPosition = 'true';
         try { bubble.releasePointerCapture(event.pointerId); } catch { }
@@ -337,7 +337,7 @@ public sealed class WebBubblePresenter
     const onPointerDown = (event) => {
         // Preserve normal interaction if future bubble content contains an
         // actual interactive control.
-        if (event.button !== 0 || !event.target.closest('[data-dap-drag-handle=""1""]'))
+        if (event.button !== 0 || !event.target.closest('[data-dap-drag-handle="1"]'))
             return;
         const q = bubble.getBoundingClientRect();
         dragState = {
@@ -348,7 +348,7 @@ public sealed class WebBubblePresenter
             top: q.top
         };
         bubble.setPointerCapture(event.pointerId);
-        bubble.style.cursor = 'grabbing';
+        dragHandle.style.cursor = 'grabbing';
         event.preventDefault();
     };
 
@@ -586,7 +586,7 @@ public sealed class WebBubblePresenter
                             borderRadius:b.theme.borderRadius+'px',boxShadow:b.theme.boxShadow,
                             fontFamily:b.theme.fontFamily,fontSize:b.theme.fontSize+'px',
                             lineHeight:String(b.theme.lineHeight),direction:b.theme.direction,
-                            pointerEvents:'auto',visibility:'hidden',cursor:'grab',
+                            pointerEvents:'auto',visibility:'hidden',cursor:'default',
                             touchAction:'none',userSelect:'none'
                         });
 
@@ -603,7 +603,7 @@ public sealed class WebBubblePresenter
                             const q=bubble.getBoundingClientRect();
                             drag={id:event.pointerId,x:event.clientX,y:event.clientY,left:q.left,top:q.top};
                             bubble.setPointerCapture(event.pointerId);
-                            bubble.style.cursor='grabbing';
+                            const handle=bubble.querySelector('[data-dap-drag-handle=""1""]'); if(handle) handle.style.cursor='grabbing';
                             event.preventDefault();
                             event.stopPropagation();
                         });
@@ -615,7 +615,7 @@ public sealed class WebBubblePresenter
                         });
                         const finish=event=>{
                             if(!drag || event.pointerId!==drag.id) return;
-                            drag=null; bubble.style.cursor='grab';
+                            drag=null; const handle=bubble.querySelector('[data-dap-drag-handle=""1""]'); if(handle) handle.style.cursor='grab';
                             try{bubble.releasePointerCapture(event.pointerId);}catch{}
                             event.preventDefault(); event.stopPropagation();
                         };
@@ -696,7 +696,7 @@ public sealed class WebBubblePresenter
                     borderRadius:b.borderRadius+'px',boxShadow:b.boxShadow,
                     fontFamily:b.fontFamily,fontSize:b.fontSize+'px',
                     lineHeight:String(b.lineHeight),direction:b.direction,
-                    pointerEvents:'auto',cursor:'grab',touchAction:'none',userSelect:'none'
+                    pointerEvents:'auto',cursor:'default',touchAction:'none',userSelect:'none'
                 });
                 document.body.appendChild(bubble);
 
@@ -716,7 +716,7 @@ public sealed class WebBubblePresenter
                     bubble.style.left=q.left+'px';
                     bubble.style.top=q.top+'px';
                     bubble.setPointerCapture(event.pointerId);
-                    bubble.style.cursor='grabbing';
+                    const handle=bubble.querySelector('[data-dap-drag-handle=""1""]'); if(handle) handle.style.cursor='grabbing';
                     event.preventDefault(); event.stopPropagation();
                 });
                 bubble.addEventListener('pointermove',event=>{
@@ -727,7 +727,7 @@ public sealed class WebBubblePresenter
                 });
                 const finish=event=>{
                     if(!drag || event.pointerId!==drag.id) return;
-                    drag=null; bubble.style.cursor='grab';
+                    drag=null; const handle=bubble.querySelector('[data-dap-drag-handle=""1""]'); if(handle) handle.style.cursor='grab';
                     try{bubble.releasePointerCapture(event.pointerId);}catch{}
                     event.preventDefault(); event.stopPropagation();
                 };
