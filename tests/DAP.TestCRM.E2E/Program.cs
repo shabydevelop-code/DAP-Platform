@@ -232,6 +232,33 @@ if(!File.Exists(dapAppProject))
 // interrupted earlier run can then only lock its own old output, never this run.
 var dapBuildOutput=Path.Combine(Path.GetTempPath(),"DAP","E2E","app");
 Directory.CreateDirectory(dapBuildOutput);
+var dapExecutable=Path.Combine(dapBuildOutput,"DAP.exe");
+
+// Ctrl+C or a hard parent-process termination can leave the E2E-owned DAP
+// process alive. Before rebuilding the stable output, remove only an orphan
+// whose executable path is exactly this harness-owned DAP.exe. Never kill
+// unrelated product DAP processes.
+foreach(var candidate in Process.GetProcessesByName("DAP"))
+{
+    using(candidate)
+    {
+        try
+        {
+            var candidatePath=candidate.MainModule?.FileName;
+            if(!string.Equals(
+                Path.GetFullPath(candidatePath ?? string.Empty),
+                Path.GetFullPath(dapExecutable),
+                StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            Console.WriteLine($"Cleaning orphaned E2E DAP process {candidate.Id}.");
+            candidate.Kill(entireProcessTree:true);
+            candidate.WaitForExit(5000);
+        }
+        catch(InvalidOperationException) { }
+        catch(System.ComponentModel.Win32Exception) { }
+    }
+}
 
 // Build is deliberately outside the measured DAP startup path. The product
 // starts an already-built executable; E2E should measure the same boundary.
@@ -255,7 +282,6 @@ using(var dapBuildProcess=Process.Start(new ProcessStartInfo
             $"STDERR:{Environment.NewLine}{await buildStdErrTask}");
 }
 
-var dapExecutable=Path.Combine(dapBuildOutput,"DAP.exe");
 if(!File.Exists(dapExecutable))
     throw new Exception($"Built DAP executable not found at {dapExecutable}");
 
