@@ -2,6 +2,7 @@ using DAP.Core.Guides;
 using DAP.Core.Targets;
 using DAP.Runtime.Web.Targets;
 using Microsoft.Playwright;
+using System.Diagnostics;
 
 namespace DAP.Runtime.Web.Bubbles;
 
@@ -37,7 +38,9 @@ public sealed class WebBubblePresenter
         if (step.Target is null)
             return TargetResolution<ILocator>.NotFound();
 
+        var timing = Stopwatch.StartNew();
         var resolution = await _targets.ResolveAsync(page, step.Target, cancellationToken);
+        var resolvedAt = timing.Elapsed.TotalMilliseconds;
         if (resolution.Status != TargetResolutionStatus.Resolved || resolution.Target is null)
             return resolution;
 
@@ -219,6 +222,11 @@ public sealed class WebBubblePresenter
                     pointerSize = _theme.PointerSize
                 }
             });
+        var presentedAt = timing.Elapsed.TotalMilliseconds;
+        if (!ensureOnly)
+            Console.Error.WriteLine($"[DAP bubble] Step '{step.Id}' target resolved in {resolvedAt:F0} ms; DOM presentation completed in {presentedAt:F0} ms.");
+        else if (presentedAt >= 250)
+            Console.Error.WriteLine($"[DAP bubble] Step '{step.Id}' first/reconcile presentation: resolve {resolvedAt:F0} ms; total {presentedAt:F0} ms.");
 
         return resolution;
     }
