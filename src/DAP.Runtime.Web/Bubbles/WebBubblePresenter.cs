@@ -45,7 +45,6 @@ public sealed class WebBubblePresenter
         pointerEvents: 'none',
         boxSizing: 'border-box',
         border: b.theme.targetHighlightWidth + 'px solid ' + b.theme.targetHighlightColor,
-        borderRadius: '6px',
         boxShadow: b.theme.targetHighlightShadow
     });
 
@@ -125,12 +124,13 @@ public sealed class WebBubblePresenter
     const place = () => {
         const r = el.getBoundingClientRect();
         const q = bubble.getBoundingClientRect();
-        const offset = b.theme.targetHighlightOffset;
+        const targetStyle = root.defaultView.getComputedStyle(el);
         Object.assign(highlight.style, {
-            left: (r.left - offset) + 'px',
-            top: (r.top - offset) + 'px',
-            width: (r.width + offset * 2) + 'px',
-            height: (r.height + offset * 2) + 'px'
+            left: r.left + 'px',
+            top: r.top + 'px',
+            width: r.width + 'px',
+            height: r.height + 'px',
+            borderRadius: targetStyle.borderRadius
         });
 
         const gap = b.theme.pointerSize + 8;
@@ -208,7 +208,6 @@ public sealed class WebBubblePresenter
                     direction = _theme.Direction,
                     targetHighlightColor = _theme.TargetHighlightColor,
                     targetHighlightWidth = _theme.TargetHighlightWidth,
-                    targetHighlightOffset = _theme.TargetHighlightOffset,
                     targetHighlightShadow = _theme.TargetHighlightShadow,
                     pointerSize = _theme.PointerSize
                 }
