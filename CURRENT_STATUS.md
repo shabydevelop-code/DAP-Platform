@@ -463,3 +463,17 @@ Web `clicked` validation no longer stores completion in the guided application's
 - The E2E Guide synchronization now requires the active bubble to be visibly rendered, not merely present in the DOM.
 
 - For integration-state UX debugging, the representative TestCRM E2E supports `--manual-from-step 53`: automation follows the real Guide through Step 52, waits until the production Step 53 bubble is visible, then hands control to the tester while browser and DAP remain alive. This is preferred over synthetic state reconstruction when the Step depends on the complete prior workflow.
+
+
+## Web Bubble iframe promotion, completion UX, drag handle, and generic manual handoff — 2026-10-02
+- Step 53 exposed a real presentation constraint: the target `#portal-header` lives inside the 52px-high `dap-header` iframe, so a correctly resolved child-frame bubble could be DOM-visible while its geometry was entirely clipped outside the iframe viewport.
+- The production Web bubble presenter now keeps target resolution/validation in the owning child frame but promotes a clipped Overlay presentation to a top-level `#dap-guide-bubble-proxy`. This is a generic constrained-frame mechanism, not a TestCRM/Step-53 special case.
+- Click-validation reconciliation was hardened against retiring-document/frame races. Validation completion is now awaitable and raced against in-flight bubble reconciliation so a completed click can advance even when Playwright work against the old document has not returned yet.
+- The E2E Guide wait recognizes both the normal `#dap-guide-bubble` and promoted `#dap-guide-bubble-proxy` surfaces.
+- Guide completion is now a production top-level `#dap-guide-completed` bubble with an explicit `סיום` action. It remains visible until the learner actually clicks `סיום`; DAP does not auto-click it and the intended product behavior is to finish the Guide/runtime without closing the learner's business browser.
+- Regular bubbles, promoted iframe bubbles, and the completion bubble now expose an explicit `⠿` drag handle. Drag initiation is restricted to the visible handle hit area rather than the whole top row/bubble.
+- Cursor behavior was corrected and manually verified: outside the handle the bubble uses the normal cursor from first presentation; over the handle it uses `grab`; during an active drag it uses `grabbing`; release returns the handle to `grab`.
+- `--manual-from-step` in the representative E2E harness is now generic. It accepts any Step order present in the persisted Guide, automates the real preceding workflow, then pauses when the requested production bubble is ready. The old hard-coded Step-53 restriction and Step-53-only handoff diagnostics were removed.
+- Manual verification after the cursor stabilization confirmed the drag interaction works as intended.
+- Relevant commits in this sequence: `81d2ae2`, `bb49a06`, `e2abeac`, `2d766c0`, `d6b0383`, `70af73f`, `afe49cd`, `b753033`, `4523342`, `2c688dc`, `5099256`, `ea9dbeb`, `d0ba364`, `29a07af`, `ab82b10`.
+- Full normal automated 53-Step E2E has not yet been re-run after this complete UX/drag-handle sequence; the earlier cross-browser baseline remains historical until that regression run is repeated.
