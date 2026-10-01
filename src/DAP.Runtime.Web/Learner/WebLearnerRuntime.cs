@@ -87,6 +87,11 @@ public sealed class WebLearnerRuntime
         if (hasAutomaticValidation)
             await _validationSession.EnsureBridgeAsync(page);
 
+        // Settling is a one-time presentation gate for this Step. Once the
+        // Step has actually been presented, normal reconciliation owns it and
+        // must not repeatedly send the bubble back through transition settling.
+        var presentationGatePassed = !_firstBubbleReported;
+
         while (!cancellationToken.IsCancellationRequested)
         {
             try
@@ -125,23 +130,36 @@ public sealed class WebLearnerRuntime
                 // The first Step has no preceding learner transition to settle.
                 // For later Steps, wait until the target document has been quiet
                 // before presenting the next instruction.
-                if (_firstBubbleReported
-                    && !await IsStableForPresentationAsync(page, step, cancellationToken))
+                if (!presentationGatePassed)
                 {
-                    await _bubbles.HideAsync(page);
-                    await Task.Delay(_reconcileInterval, cancellationToken);
-                    continue;
+                    if (!await IsStableForPresentationAsync(page, step, cancellationToken))
+                    {
+                        await Task.Delay(_reconcileInterval, cancellationToken);
+                        continue;
+                    }
+
+                    presentationGatePassed = true;
                 }
 
                 var presentation = Stopwatch.StartNew();
                 var resolution = await _bubbles.EnsureShownAsync(page, step, cancellationToken);
 
-                if (!_firstBubbleReported
-                    && resolution.Status == TargetResolutionStatus.Resolved
+                if (resolution.Status == TargetResolutionStatus.Resolved
                     && resolution.Target is not null)
                 {
-                    _firstBubbleReported = true;
-                    Console.Error.WriteLine($"[DAP runtime] first bubble presentation completed ({presentation.Elapsed.TotalMilliseconds:F0} ms active-step work).");
+                    if (!_firstBubbleReported)
+                    {
+                        _firstBubbleReported = true;
+                        Console.Error.WriteLine($"[DAP runtime] first bubble presentation completed ({presentation.Elapsed.TotalMilliseconds:F0} ms active-step work).");
+                    }
+                }
+                else if (presentationGatePassed)
+                {
+                    // The gate only counts as passed once a presentation can
+                    // actually resolve. If the target disappeared in the small
+                    // gap between settling and presentation, require settling
+                    // again before its first visible presentation.
+                    presentationGatePassed = false;
                 }
 
                 if (resolution.Status != TargetResolutionStatus.Resolved || resolution.Target is null)
