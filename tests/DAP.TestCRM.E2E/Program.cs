@@ -274,7 +274,7 @@ if(!beforeReloadUrl.Contains($"#/case/{createdCaseId}",StringComparison.Ordinal)
 await page.ReloadAsync();
 await WaitReady();
 frame=await Content();
-await frame.Locator("h2:has-text('פנייה')").WaitForAsync();
+await frame.Locator("h1:has-text('פניה')").WaitForAsync();
 if(!frame.Url.Contains($"#/case/{createdCaseId}",StringComparison.Ordinal))
     throw new Exception("Full page reload did not preserve the active Case route.");
 if(await frame.Locator("[name='status']").InputValueAsync()!="סגורה")
