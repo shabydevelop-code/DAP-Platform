@@ -1,3 +1,4 @@
+using System.Windows;
 using DAP.Data.Sqlite;
 using DAP.Data.Sqlite.Guides;
 using DAP.Runtime.Web.Bubbles;
@@ -27,7 +28,23 @@ public static class DapApplicationHost
 
         if (options.Mode == DapLaunchMode.InfrastructureCheck)
         {
-            Console.WriteLine($"DAP.exe ready. Database: {databaseOptions.DatabasePath}");
+            var diagnosticsPath = Path.Combine(
+                Path.GetTempPath(),
+                "DAP",
+                "dap-check.txt");
+
+            Directory.CreateDirectory(Path.GetDirectoryName(diagnosticsPath)!);
+            await File.WriteAllTextAsync(
+                diagnosticsPath,
+                $"DAP.exe ready.{Environment.NewLine}Database: {databaseOptions.DatabasePath}{Environment.NewLine}UTC: {DateTimeOffset.UtcNow:O}{Environment.NewLine}",
+                cancellationToken);
+
+            MessageBox.Show(
+                $"DAP.exe ready.\n\nDatabase: {databaseOptions.DatabasePath}\n\nDiagnostics: {diagnosticsPath}",
+                "DAP Infrastructure Check",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+
             return 0;
         }
 
