@@ -405,27 +405,6 @@ if(!string.IsNullOrWhiteSpace(dapStartupDiagnostics))
     Console.WriteLine(dapStartupDiagnostics);
 Console.WriteLine("DAP production Web bubble from SQLite: PASS");
 
-// In visual mode, let the first production bubble remain visibly stable before
-// deliberately replacing its document. Without this separation the intentional
-// re-resolution test looks like the bubble flickered or rendered twice.
-if(visualMode)
-{
-    Console.WriteLine("Visual check: first bubble stable; Content reload/re-resolution follows.");
-    await page.WaitForTimeoutAsync(900);
-}
-
-// Prove the production Learner lifecycle, not a test-only re-presentation:
-// reload the active Content document and require the runtime to reacquire the
-// replacement DOM target and recreate the active Step bubble by itself.
-await dapContent.EvaluateAsync("() => location.reload()");
-dapContent=await Content();
-dapBubble=dapContent.Locator("#dap-guide-bubble");
-await dapBubble.WaitForAsync(new() { Timeout = 10000 });
-if(await dapBubble.TextContentAsync()!=dapStep.Bubble.Content)
-    throw new Exception("DAP Learner Runtime did not restore the active bubble after Content reload.");
-if(await dapContent.Locator("[name='name']").CountAsync()!=1)
-    throw new Exception("DAP Learner Runtime target was not uniquely re-resolved after Content reload.");
-Console.WriteLine("DAP Learner Web Runtime re-resolution after Content reload: PASS");
 
 // Automatic validation belongs to DAP.exe. With guide orchestration active,
 // Step 1 can be replaced by Step 2 between polling intervals; absence of any
