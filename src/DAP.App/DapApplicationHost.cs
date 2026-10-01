@@ -99,7 +99,7 @@ public static class DapApplicationHost
         try
         {
             StartupMark(startup, "guide runtime starting");
-            await guideRuntime.RunAsync(matchingPages[0], steps, cancellationToken);
+            await guideRuntime.RunAsync(matchingPages[0], steps, cancellationToken, options.StartStep);
 
             if (options.ShowCompletion)
             {
