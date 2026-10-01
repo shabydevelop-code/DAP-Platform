@@ -100,6 +100,15 @@ public static class DapApplicationHost
         {
             StartupMark(startup, "guide runtime starting");
             await guideRuntime.RunAsync(matchingPages[0], steps, cancellationToken);
+
+            if (options.ShowCompletion)
+            {
+                MessageBox.Show(
+                    "הלומדה הסתיימה בהצלחה.",
+                    "DAP Learner",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
         }
         finally
         {
