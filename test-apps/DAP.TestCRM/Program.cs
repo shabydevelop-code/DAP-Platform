@@ -3,7 +3,7 @@ using Microsoft.Data.Sqlite;
 var builder = WebApplication.CreateBuilder(args);
 var app = builder.Build();
 
-app.Use(async (context,next)=>{if(context.Request.Path.StartsWithSegments("/api"))await Task.Delay(650);await next();});
+app.Use(async (context,next)=>{if(context.Request.Path.StartsWithSegments("/api") && context.Request.Headers["X-DAP-E2E-Mode"]!="fast")await Task.Delay(650);await next();});
 
 app.UseDefaultFiles();
 app.UseStaticFiles();
@@ -47,11 +47,11 @@ app.MapPost("/api/customers/{customerId:int}/sites", (int customerId, SiteInput 
     var id=Insert("INSERT INTO Sites(CustomerId,Name,Type,Address) VALUES($parent,$a,$b,$c)",customerId,x.Name,x.Type,x.Address);
     return Results.Created($"/api/sites/{id}",new Site(id,customerId,x.Name,x.Type,x.Address));
 });
-app.MapPut("/api/sites/{id:int}", async (int id, SiteInput x) =>
+app.MapPut("/api/sites/{id:int}", async (HttpContext context, int id, SiteInput x) =>
 {
     if (!Exists("SELECT 1 FROM Sites WHERE Id=$id", id)) return Results.NotFound();
     var errors=ValidateSite(x); if(errors.Count>0)return Results.ValidationProblem(errors);
-    await Task.Delay(450);
+    if (context.Request.Headers["X-DAP-E2E-Mode"]!="fast") await Task.Delay(450);
     Exec("UPDATE Sites SET Name=$a,Type=$b,Address=$c WHERE Id=$id",id,x.Name,x.Type,x.Address);
     return Results.Ok(new Site(id,GetInt("SELECT CustomerId FROM Sites WHERE Id=$id",id),x.Name,x.Type,x.Address));
 });
