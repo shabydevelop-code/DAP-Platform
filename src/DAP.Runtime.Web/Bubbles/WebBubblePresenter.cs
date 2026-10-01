@@ -213,13 +213,15 @@ public sealed class WebBubblePresenter
             fontSize: '12px',
             opacity: '0.78',
             marginBottom: '5px',
-            fontWeight: '600'
+            fontWeight: '600',
+            cursor: 'default'
         });
         bubble.appendChild(progress);
     }
 
     const content = root.createElement('div');
     content.textContent = b.content;
+    content.style.cursor = 'default';
     bubble.appendChild(content);
 
     const pointer = root.createElement('div');
@@ -228,7 +230,8 @@ public sealed class WebBubblePresenter
     Object.assign(pointer.style, {
         position: 'absolute',
         width: '0',
-        height: '0'
+        height: '0',
+        cursor: 'default'
     });
     bubble.appendChild(pointer);
 
@@ -348,7 +351,7 @@ public sealed class WebBubblePresenter
             top: q.top
         };
         bubble.setPointerCapture(event.pointerId);
-        dragHandle.style.cursor = 'grabbing';
+        dragHandle.style.cursor = 'grab';
         event.preventDefault();
     };
 
@@ -573,11 +576,12 @@ public sealed class WebBubblePresenter
                         if(b.stepNumber && b.totalSteps) {
                             const progress=document.createElement('div');
                             progress.textContent='שלב '+b.stepNumber+' מתוך '+b.totalSteps;
-                            Object.assign(progress.style,{fontSize:'12px',opacity:'0.78',marginBottom:'5px',fontWeight:'600'});
+                            Object.assign(progress.style,{fontSize:'12px',opacity:'0.78',marginBottom:'5px',fontWeight:'600',cursor:'default'});
                             bubble.appendChild(progress);
                         }
                         const content=document.createElement('div');
                         content.textContent=b.content;
+                        content.style.cursor='default';
                         bubble.appendChild(content);
                         Object.assign(bubble.style,{
                             position:'fixed',zIndex:'2147483647',maxWidth:b.theme.maxWidth+'px',
@@ -603,7 +607,7 @@ public sealed class WebBubblePresenter
                             const q=bubble.getBoundingClientRect();
                             drag={id:event.pointerId,x:event.clientX,y:event.clientY,left:q.left,top:q.top};
                             bubble.setPointerCapture(event.pointerId);
-                            const handle=bubble.querySelector('[data-dap-drag-handle=""1""]'); if(handle) handle.style.cursor='grabbing';
+                            const handle=bubble.querySelector('[data-dap-drag-handle=""1""]'); if(handle) handle.style.cursor='grab';
                             event.preventDefault();
                             event.stopPropagation();
                         });
@@ -676,6 +680,7 @@ public sealed class WebBubblePresenter
                 bubble.appendChild(dragHandle);
                 const message=document.createElement('div');
                 message.textContent='המדריך הושלם בהצלחה';
+                message.style.cursor='default';
                 bubble.appendChild(message);
                 const finishButton=document.createElement('button');
                 finishButton.type='button';
@@ -716,7 +721,7 @@ public sealed class WebBubblePresenter
                     bubble.style.left=q.left+'px';
                     bubble.style.top=q.top+'px';
                     bubble.setPointerCapture(event.pointerId);
-                    const handle=bubble.querySelector('[data-dap-drag-handle=""1""]'); if(handle) handle.style.cursor='grabbing';
+                    const handle=bubble.querySelector('[data-dap-drag-handle=""1""]'); if(handle) handle.style.cursor='grab';
                     event.preventDefault(); event.stopPropagation();
                 });
                 bubble.addEventListener('pointermove',event=>{
