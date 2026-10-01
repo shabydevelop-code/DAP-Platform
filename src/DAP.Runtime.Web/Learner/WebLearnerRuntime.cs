@@ -182,6 +182,14 @@ public sealed class WebLearnerRuntime
                 // resolution and presentation. The next reconciliation resolves it again.
             }
 
+            // A browser callback can report completion while this iteration is
+            // already awaiting a Playwright operation against a document that is
+            // being replaced. Check the DAP-owned completion state again before
+            // sleeping/reconciling so click Steps can advance independently of
+            // the retiring document.
+            if (isClickedValidation && _validationSession.IsCompleted(step.Id))
+                return;
+
             await Task.Delay(_reconcileInterval, cancellationToken);
         }
     }
