@@ -69,7 +69,7 @@ After significant implementation changes, update the relevant Markdown documenta
 
 ## Repository identity and test isolation
 
-- The canonical and only repository for this project is `shabydevelop-code/DAP-Platform` (`DAP-Platform`). Do not use or modify `Generic-Web-Training-Platform` when working on DAP Platform, including in a new chat/session.
+- The canonical Source of Truth and primary repository for this project is `shabydevelop-code/DAP-Platform` (`DAP-Platform`). `Generic-Web-Training-Platform` may be inspected as a reference for prior ideas, implementations, and proven behaviors, but it is not the primary DAP repository, its architecture must not be assumed to apply to DAP, and DAP development changes must be made in `DAP-Platform` unless explicitly requested otherwise.
 - Bubble behavior, target resolution, and their shared domain/runtime contracts are production product code and must remain isolated from the test projects.
 - Tests may consume public production contracts and verify behavior, but must not contain the production implementation of Bubble, TargetDescriptor, Locator, Anchor, FrameContext, Validation, or runtime resolution logic.
 - The Bubble/target model must support both Web and Windows through shared runtime-neutral Core contracts, with runtime-specific adapters behind those contracts.
