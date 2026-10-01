@@ -25,23 +25,24 @@ await page.AddInitScriptAsync(@"(() => {
 
 async Task<IFrame> Content()
 {
-    // Resolve the active Playwright frame from the current DOM iframe element.
-    // This stays deterministic even while the old and new content frames overlap.
-    var element=page.Locator("#content-frame");
-    await element.WaitForAsync(new() { State = WaitForSelectorState.Attached, Timeout = 10000 });
+    // Re-query the current DOM iframe on every attempt. A locator/element handle
+    // captured before a PeopleSoft-style reload/replacement can point at a
+    // retiring frame and must never be treated as the active content context.
     for(var i=0;i<100;i++)
     {
-        var handle=await element.ElementHandleAsync();
-        var frame=handle is null ? null : await handle.ContentFrameAsync();
-        if(frame is not null && !frame.IsDetached)
+        try
         {
-            try
+            var element=page.Locator("#content-frame");
+            if(await element.CountAsync()==1)
             {
-                if(await frame.Locator("html[data-dap-ready='1']").CountAsync()>0)
+                var handle=await element.ElementHandleAsync();
+                var frame=handle is null ? null : await handle.ContentFrameAsync();
+                if(frame is not null && !frame.IsDetached &&
+                   await frame.Locator("html[data-dap-ready='1']").CountAsync()>0)
                     return frame;
             }
-            catch(PlaywrightException) { }
         }
+        catch(PlaywrightException) { }
         await page.WaitForTimeoutAsync(100);
     }
     throw new Exception("Stable content iframe not found.");
