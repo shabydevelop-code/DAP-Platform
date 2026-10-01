@@ -1,5 +1,6 @@
 using Microsoft.Playwright;
 using System.IO;
+using System.Diagnostics;
 using System.Windows;
 using DAP.Data.Sqlite;
 using DAP.Data.Sqlite.Guides;
@@ -13,13 +14,20 @@ public static class DapApplicationHost
 {
     public static async Task<int> RunAsync(string[] args, CancellationToken cancellationToken = default)
     {
+        var startup = Stopwatch.StartNew();
+        static void StartupMark(Stopwatch timer, string stage)
+            => Console.Error.WriteLine($"[DAP startup] {timer.Elapsed.TotalMilliseconds:F0} ms - {stage}");
+
+        StartupMark(startup, "host entered");
         var options = DapLaunchOptions.Parse(args);
         if (options is null)
             return 2;
+        StartupMark(startup, "launch options parsed");
 
         var databaseOptions = SqliteDatabaseOptions.CreateDefault();
         var connections = new SqliteConnectionFactory(databaseOptions);
         await new SqliteDatabaseInitializer(connections).InitializeAsync(cancellationToken);
+        StartupMark(startup, "SQLite initialized");
 
         // Production composition root. These objects now belong to DAP.exe rather
         // than to a target application or test process.
@@ -27,6 +35,7 @@ public static class DapApplicationHost
         var resolver = new WebTargetResolver();
         var bubbles = new WebBubblePresenter(resolver);
         _ = new WebLearnerRuntime(bubbles);
+        StartupMark(startup, "composition root created");
 
         if (options.Mode == DapLaunchMode.InfrastructureCheck)
         {
@@ -51,15 +60,18 @@ public static class DapApplicationHost
         }
 
         using var playwright = await Playwright.CreateAsync();
+        StartupMark(startup, "Playwright created");
         await using var browser = await playwright.Chromium.ConnectOverCDPAsync(
             options.CdpEndpoint!,
             new BrowserTypeConnectOverCDPOptions { Timeout = 10_000 });
+        StartupMark(startup, "Chromium CDP connected");
 
         var pages = browser.Contexts.SelectMany(context => context.Pages).ToArray();
         var matchingPages = string.IsNullOrWhiteSpace(options.PageUrlContains)
             ? pages
             : pages.Where(page => page.Url.Contains(options.PageUrlContains, StringComparison.OrdinalIgnoreCase)).ToArray();
 
+        StartupMark(startup, $"browser page selected ({matchingPages.Length} match)");
         if (matchingPages.Length != 1)
         {
             MessageBox.Show(
@@ -71,6 +83,7 @@ public static class DapApplicationHost
         }
 
         var steps = await repository.GetStepsAsync(options.GuideId!, cancellationToken);
+        StartupMark(startup, $"guide loaded ({steps.Count} steps)");
         if (steps.Count == 0)
         {
             MessageBox.Show(
@@ -85,6 +98,7 @@ public static class DapApplicationHost
         var guideRuntime = new WebGuideRuntime(stepRuntime);
         try
         {
+            StartupMark(startup, "guide runtime starting");
             await guideRuntime.RunAsync(matchingPages[0], steps, cancellationToken);
         }
         finally
