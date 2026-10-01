@@ -53,7 +53,7 @@ public sealed class WebBubblePresenter
     // that starts a server round trip cannot be forgotten when this DOM dies.
     if (b.validationKind === 'clicked' && !el.__dapValidationClickInstalled) {
         el.__dapValidationClickInstalled = true;
-        el.addEventListener('click', () => {
+        el.addEventListener('click', event => {
             const activeBubble = root.getElementById('dap-guide-bubble');
             if (activeBubble?.dataset.dapStepId === b.stepId) {
                 activeBubble.__dapCleanup?.();
@@ -61,8 +61,44 @@ public sealed class WebBubblePresenter
             }
 
             const report = root.defaultView?.__dapReportValidation;
-            if (typeof report === 'function')
+            if (typeof report !== 'function')
+                return;
+
+            // A click may synchronously/quickly start navigation or document
+            // replacement. A fire-and-forget Playwright binding call can be
+            // destroyed with that document before DAP.exe receives it. For
+            // navigation-capable clicks, hold the browser's default action only
+            // until DAP acknowledges the completion event, then replay it.
+            //
+            // Programmatic application handlers still run for this click. The
+            // guard is therefore used only when the browser itself has a
+            // cancelable default navigation/submission action to defer.
+            const tag = el.tagName?.toLowerCase();
+            const type = (el.getAttribute?.('type') || '').toLowerCase();
+            const form = el.form;
+            const defersDefault =
+                event.cancelable &&
+                ((tag === 'a' && !!el.getAttribute('href')) ||
+                 (tag === 'button' && form && (!type || type === 'submit')) ||
+                 (tag === 'input' && form && (type === 'submit' || type === 'image')));
+
+            if (!defersDefault) {
                 void report(b.stepId);
+                return;
+            }
+
+            event.preventDefault();
+            void report(b.stepId).then(() => {
+                if (!el.isConnected)
+                    return;
+                if (tag === 'a') {
+                    const href = el.getAttribute('href');
+                    if (href) root.defaultView.location.href = href;
+                    return;
+                }
+                if (form)
+                    form.requestSubmit(el);
+            });
         }, { capture: true });
     }
 
