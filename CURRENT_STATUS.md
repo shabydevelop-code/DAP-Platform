@@ -395,3 +395,10 @@ Web `clicked` validation no longer stores completion in the guided application's
 - If the Guide is missing, E2E fails with an explicit initialization/reset-required error rather than silently recreating it.
 - `DapTestCrmGuideSeed` is retained as the known baseline for a future explicit initialize/reset command; it is not the normal runtime Source of Truth.
 - This protects future Instructor/Editor changes from being overwritten by E2E.
+
+
+## Step 21 -> 22 fast-run race fixed
+- Fast E2E exposed a harness race after `testcrm-save-closed-case`: `SaveSuccess()` was immediately followed by the Scenario 4 technical `location.reload()`, before E2E had observed Step 22.
+- The clicked validation already reports completion to DAP.exe; the harness was destroying/reloading the document while DAP was reconciling the transition.
+- E2E now waits for Step 22 immediately after the Step 21 Save action, then performs the technical Content reload, and later verifies Step 22 again on the replacement document.
+- No TestCRM or production Runtime behavior was changed for this fix.
