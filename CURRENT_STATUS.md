@@ -141,3 +141,8 @@ The TestCRM E2E now separates build time from runtime startup. It builds `DAP.Ap
 ## Interrupted E2E process isolation
 
 The TestCRM E2E now builds DAP.App into a unique temporary E2E-owned output directory for each run instead of the project's normal bin directory. This prevents an orphaned DAP.exe from an interrupted run from locking the next build. The E2E also registers a process-exit cleanup safety net that terminates only the DAP process tree created by that test run, covering Ctrl+C/process termination paths in addition to the normal finally cleanup. The temporary output is removed on normal cleanup when possible.
+
+
+## Click-validation event race
+
+A local visual E2E run exposed a race in the first event-based Web validation. Step 2 could present its bubble and the user/test could click the target before the next 100ms validation reconciliation installed the clicked listener. That click was then lost, leaving Step 2 active and allowing its bubble to reappear after DOM/context movement. WebBubblePresenter now arms clicked validation on the uniquely resolved target as part of bubble presentation, before the instruction becomes actionable; WebValidationEvaluator continues to consume the recorded state. This fix requires a local E2E rerun before the regression is marked closed. Bubble timing diagnostics now print every ensure-presentation call rather than suppressing calls below 250ms.
