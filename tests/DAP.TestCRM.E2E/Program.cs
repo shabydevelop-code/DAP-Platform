@@ -236,12 +236,17 @@ var dapAppProject=Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..",".
 if(!File.Exists(dapAppProject))
     throw new Exception($"DAP.App project not found at {dapAppProject}");
 
+// Build into an E2E-owned output directory. A DAP process orphaned by an
+// interrupted earlier run can then only lock its own old output, never this run.
+var dapBuildOutput=Path.Combine(Path.GetTempPath(),"DAP","E2E","app",Guid.NewGuid().ToString("N"));
+Directory.CreateDirectory(dapBuildOutput);
+
 // Build is deliberately outside the measured DAP startup path. The product
 // starts an already-built executable; E2E should measure the same boundary.
 using(var dapBuildProcess=Process.Start(new ProcessStartInfo
 {
     FileName="dotnet",
-    Arguments=$"build \"{dapAppProject}\" --nologo --verbosity quiet",
+    Arguments=$"build \"{dapAppProject}\" --nologo --verbosity quiet --output \"{dapBuildOutput}\"",
     UseShellExecute=false,
     CreateNoWindow=true,
     RedirectStandardOutput=true,
@@ -258,9 +263,7 @@ using(var dapBuildProcess=Process.Start(new ProcessStartInfo
             $"STDERR:{Environment.NewLine}{await buildStdErrTask}");
 }
 
-var dapExecutable=Path.Combine(
-    Path.GetDirectoryName(dapAppProject)!,
-    "bin","Debug","net8.0-windows","DAP.exe");
+var dapExecutable=Path.Combine(dapBuildOutput,"DAP.exe");
 if(!File.Exists(dapExecutable))
     throw new Exception($"Built DAP executable not found at {dapExecutable}");
 
@@ -280,6 +283,24 @@ dapProcess.StartInfo.Environment["DAP_DATABASE_PATH"]=dapDbPath;
 var dapStartupTimer=Stopwatch.StartNew();
 if(!dapProcess.Start())
     throw new Exception("DAP.exe process could not be started.");
+
+// Ctrl+C can terminate the E2E before async finally cleanup gets a chance to
+// run. Register a synchronous process-exit safety net scoped only to the DAP
+// process created by this test.
+void KillOwnedDapProcess()
+{
+    try
+    {
+        if(!dapProcess.HasExited)
+        {
+            dapProcess.Kill(entireProcessTree:true);
+            dapProcess.WaitForExit(5000);
+        }
+    }
+    catch(InvalidOperationException) { }
+    catch(System.ComponentModel.Win32Exception) { }
+}
+AppDomain.CurrentDomain.ProcessExit+=(_,_)=>KillOwnedDapProcess();
 
 var dapStdOutTask=dapProcess.StandardOutput.ReadToEndAsync();
 var dapStdErrTask=dapProcess.StandardError.ReadToEndAsync();
@@ -678,9 +699,11 @@ await page.WaitForTimeoutAsync(visualMode ? 1500 : 0);
 }
 finally
 {
-    if(!dapProcess.HasExited)
+    KillOwnedDapProcess();
+    try
     {
-        dapProcess.Kill(entireProcessTree:true);
-        await dapProcess.WaitForExitAsync();
+        Directory.Delete(dapBuildOutput,recursive:true);
     }
+    catch(IOException) { }
+    catch(UnauthorizedAccessException) { }
 }
