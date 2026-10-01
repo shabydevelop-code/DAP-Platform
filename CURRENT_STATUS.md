@@ -307,3 +307,11 @@ Web `clicked` validation no longer stores completion in the guided application's
 - This is a generic Web Runtime rule, not TestCRM/PeopleSoft-specific logic and not a fixed post-action sleep.
 - Existing bubbles continue to use the normal reconciliation path; validation, context guards, target ambiguity rules, dragging and placement semantics are unchanged.
 - The previously verified 53-Step baseline predates this settling change; local visual E2E must be rerun after pull.
+
+
+## Settling regression fix
+- The first implementation of Web presentation settling caused the first bubble to time out because it attempted DOM identity comparison by passing an `ElementHandle` as an ordinary `EvaluateAsync` argument.
+- The settling check now keeps the first resolved Locator and re-evaluates that original node after the settling window. A replaced/detached node fails through `isConnected` (or transient Playwright failure), while a fresh second resolution independently confirms the uniquely resolved target and stable geometry.
+- Geometry is compared across the original node before/after the settling window and against the fresh resolution.
+- No E2E timeout was increased; the fix addresses the settling implementation itself.
+- Local 53-Step visual E2E must be rerun to verify this regression fix.
