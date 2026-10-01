@@ -158,7 +158,24 @@ public sealed class WebBubblePresenter
     };
 
     const place = () => {
+        // Never expose a stale/clamped bubble while its target is being
+        // replaced, laid out, or is still outside the viewport. Reconciliation
+        // and scroll/resize observers will call place again when it is stable.
+        bubble.style.visibility = 'hidden';
+        if (!el.isConnected)
+            return;
+
         const r = el.getBoundingClientRect();
+        const targetInViewport =
+            r.width > 0 &&
+            r.height > 0 &&
+            r.bottom > 0 &&
+            r.right > 0 &&
+            r.top < root.defaultView.innerHeight &&
+            r.left < root.defaultView.innerWidth;
+        if (!targetInViewport)
+            return;
+
         const q = bubble.getBoundingClientRect();
         const gap = b.theme.pointerSize + 8;
         let side = b.placement === 'Auto' ? 'Bottom' : b.placement;
