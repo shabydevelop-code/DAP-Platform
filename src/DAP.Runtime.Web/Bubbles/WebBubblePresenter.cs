@@ -206,9 +206,9 @@ public sealed class WebBubblePresenter
 
         const q = bubble.getBoundingClientRect();
         const gap = b.theme.pointerSize + 8;
-        let side = b.placement === 'Auto' ? 'Bottom' : b.placement;
-        let x;
-        let y;
+        const margin = 8;
+        const viewportWidth = root.defaultView.innerWidth;
+        const viewportHeight = root.defaultView.innerHeight;
 
         const coords = (candidate) => {
             if (candidate === 'Top')
@@ -220,26 +220,64 @@ public sealed class WebBubblePresenter
             return [r.left + (r.width - q.width) / 2, r.bottom + gap];
         };
 
-        [x, y] = coords(side);
+        const evaluate = (side) => {
+            let [x, y] = coords(side);
 
-        if (b.placement === 'Auto') {
-            const fitsBottom = y + q.height <= innerHeight - 8;
-            if (!fitsBottom) {
-                const [tx, ty] = coords('Top');
-                if (ty >= 8) {
-                    side = 'Top';
-                    x = tx;
-                    y = ty;
-                }
-            }
+            // Clamp only on the axis parallel to the target. Clamping across
+            // the target-facing axis is what previously allowed the bubble to
+            // slide back over the actionable element.
+            if (side === 'Top' || side === 'Bottom')
+                x = Math.max(margin, Math.min(x, viewportWidth - q.width - margin));
+            else
+                y = Math.max(margin, Math.min(y, viewportHeight - q.height - margin));
+
+            const rect = {
+                left: x, top: y,
+                right: x + q.width, bottom: y + q.height
+            };
+            const inside =
+                rect.left >= margin &&
+                rect.top >= margin &&
+                rect.right <= viewportWidth - margin &&
+                rect.bottom <= viewportHeight - margin;
+            const overlapsTarget = !(
+                rect.right <= r.left ||
+                rect.left >= r.right ||
+                rect.bottom <= r.top ||
+                rect.top >= r.bottom
+            );
+            const overflow =
+                Math.max(0, margin - rect.left) +
+                Math.max(0, margin - rect.top) +
+                Math.max(0, rect.right - (viewportWidth - margin)) +
+                Math.max(0, rect.bottom - (viewportHeight - margin));
+
+            return { side, x, y, inside, overlapsTarget, overflow };
+        };
+
+        const preferred = b.placement === 'Auto' ? 'Bottom' : b.placement;
+        const sides = [preferred, 'Top', 'Right', 'Left', 'Bottom']
+            .filter((side, index, all) => all.indexOf(side) === index);
+        const candidates = sides.map(evaluate);
+
+        // First choice: fully visible and never covering the actionable target.
+        // Fallback: still never cover the target; choose the least viewport
+        // overflow. If no non-overlapping placement exists, keep the bubble
+        // hidden rather than making the required control unusable.
+        let chosen = candidates.find(candidate => candidate.inside && !candidate.overlapsTarget);
+        if (!chosen) {
+            const safe = candidates
+                .filter(candidate => !candidate.overlapsTarget)
+                .sort((a, b) => a.overflow - b.overflow);
+            chosen = safe[0];
         }
+        if (!chosen)
+            return;
 
-        x = Math.max(8, Math.min(x, innerWidth - q.width - 8));
-        y = Math.max(8, Math.min(y, innerHeight - q.height - 8));
-        bubble.style.left = x + 'px';
-        bubble.style.top = y + 'px';
-        bubble.dataset.actualPlacement = side;
-        placePointer(side);
+        bubble.style.left = chosen.x + 'px';
+        bubble.style.top = chosen.y + 'px';
+        bubble.dataset.actualPlacement = chosen.side;
+        placePointer(chosen.side);
         bubble.style.visibility = 'visible';
     };
 
