@@ -295,7 +295,16 @@ async Task WaitForGuideStep(int order)
         }
         await page.WaitForTimeoutAsync(100);
     }
-    throw new TimeoutException($"DAP Guide did not present Step {order}: {expected.Id}.");
+    var recentDapDiagnostics=string.Join(
+        Environment.NewLine,
+        dapStdErrLines.Where(line =>
+            line.StartsWith("[DAP guide]",StringComparison.Ordinal)
+            || line.StartsWith("[DAP validation]",StringComparison.Ordinal)
+            || line.StartsWith("[DAP bubble]",StringComparison.Ordinal)
+            || line.StartsWith("[DAP runtime]",StringComparison.Ordinal)));
+    throw new TimeoutException(
+        $"DAP Guide did not present Step {order}: {expected.Id}.{Environment.NewLine}" +
+        $"DAP diagnostics:{Environment.NewLine}{recentDapDiagnostics}");
 }
 
 var dapAppProject=Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","..","..","..","..","src","DAP.App","DAP.App.csproj"));
