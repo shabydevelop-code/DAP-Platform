@@ -29,6 +29,8 @@ await page.AddInitScriptAsync(@"(() => {
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',install); else install();
 })()");
 
+await page.AddInitScriptAsync("document.documentElement.dataset.dapE2eMode = '" + e2eMode + "'");
+
 async Task<IFrame> Content()
 {
     // Re-query the current DOM iframe on every attempt. A locator/element handle
