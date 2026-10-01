@@ -67,7 +67,9 @@ public sealed class WebGuideRuntime
                 previousStepFragment = fragment;
             }
 
+            Console.Error.WriteLine($"[DAP guide] starting Step {stepIndex + 1}/{orderedSteps.Length} '{step.Id}'.");
             await _steps.RunActiveStepAsync(page, step, stepIndex + 1, orderedSteps.Length, cancellationToken);
+            Console.Error.WriteLine($"[DAP guide] completed Step {stepIndex + 1}/{orderedSteps.Length} '{step.Id}'.");
         }
     }
 
