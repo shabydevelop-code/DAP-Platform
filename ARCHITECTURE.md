@@ -144,6 +144,8 @@ Responsibilities include:
 Core code depends on data abstractions, not on a specific database engine.
 
 SQLite is the first provider. Additional providers can be added behind the same contracts.
+SQLite default database location on Windows is `%ProgramData%\DAP\Data\DAP.db` (normally `C:\ProgramData\DAP\Data\DAP.db`). The application/provider may override this with `DAP_DATABASE_PATH`; Core must not depend on either the path or SQLite.
+
 
 ## Localization
 
