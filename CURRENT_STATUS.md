@@ -59,7 +59,7 @@ The current representative E2E is the validated baseline for further test expans
 ## Not implemented yet
 
 - Solution/project structure (partially started: `src/DAP.Core` now exists; full solution structure is not yet created).
-- WPF shell.
+- WPF shell (initial `DAP.App` executable host now exists; user-facing shell UI is not implemented).
 - Learner UI.
 - Editor UI.
 - Shared guide domain model (target-resolution foundation started; Guide/Step/Bubble/Validation model still pending).
@@ -116,3 +116,8 @@ The validated E2E baseline already includes a real CRM value-validation flow in 
 
 ### Target resolution model
 A target is represented by a runtime-neutral TargetDescriptor rather than a single selector. It identifies the target through a primary locator plus zero or more anchors/context constraints. Resolution must discover candidates, apply the anchors, verify uniqueness, and return an explicit ambiguous/not-found result rather than guessing. The descriptor also carries the runtime and frame context required by the corresponding Web or Windows adapter. This model is intended to support re-resolution after DOM changes, iframe replacement, grid rerender/reorder, layout shifts, target disappearance/reappearance, and equivalent Windows UI changes.
+
+
+## DAP executable host
+
+`src/DAP.App` now exists as a real `net8.0-windows` WPF `WinExe` with assembly name `DAP`. It references Core, Data, SQLite, and the Web Runtime and acts as the production composition root. `--check` initializes the configured SQLite provider and composes the Web Learner runtime services. `--learner-web <guide-id>` is reserved for independent Learner execution but currently fails explicitly because the cross-process browser attachment contract is not implemented yet. The E2E continues to host the Learner runtime in-process only as behavioral regression coverage. No separate Bubble.exe is planned; bubble lifecycle belongs to DAP.exe.
