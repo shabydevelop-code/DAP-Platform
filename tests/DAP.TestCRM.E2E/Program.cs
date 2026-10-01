@@ -8,6 +8,20 @@ using DAP.Data.Sqlite;
 using DAP.Data.Sqlite.Guides;
 
 const string baseUrl = "http://localhost:5200";
+
+if (args.Contains("--reset-guide", StringComparer.OrdinalIgnoreCase))
+{
+    var resetOptions = SqliteDatabaseOptions.CreateDefault();
+    var resetFactory = new SqliteConnectionFactory(resetOptions);
+    await new SqliteDatabaseInitializer(resetFactory).InitializeAsync();
+    var resetRepository = new SqliteGuideStepRepository(resetFactory);
+    foreach (var step in DapTestCrmGuideSeed.CreateSteps())
+        await resetRepository.SaveStepAsync(DapTestCrmGuideSeed.GuideId, step);
+
+    Console.WriteLine($"Reset Guide '{DapTestCrmGuideSeed.GuideId}' ({DapTestCrmGuideSeed.CreateSteps().Count} steps) in {resetOptions.DatabasePath}");
+    return;
+}
+
 static int ReserveTcpPort()
 {
     var listener = new TcpListener(IPAddress.Loopback, 0);
