@@ -35,10 +35,12 @@ public sealed class WebLearnerRuntime
         GuideStep step,
         CancellationToken cancellationToken)
     {
-        var isClickedValidation = step.AdvanceMode == StepAdvanceMode.AutomaticOnValidation
-            && string.Equals(step.Validation?.Kind, "clicked", StringComparison.Ordinal);
+        var hasAutomaticValidation = step.AdvanceMode == StepAdvanceMode.AutomaticOnValidation
+            && step.Validation is not null;
+        var isClickedValidation = hasAutomaticValidation
+            && string.Equals(step.Validation!.Kind, "clicked", StringComparison.Ordinal);
 
-        if (isClickedValidation)
+        if (hasAutomaticValidation)
             await _validationSession.EnsureBridgeAsync(page);
 
         while (!cancellationToken.IsCancellationRequested)
@@ -48,10 +50,25 @@ public sealed class WebLearnerRuntime
                 // Event completion lives in DAP.exe and is checked before context
                 // or presentation. The validating click may itself replace the
                 // document or navigate away from the Step context.
-                if (isClickedValidation && _validationSession.IsCompleted(step.Id))
+                if (hasAutomaticValidation && _validationSession.IsCompleted(step.Id))
                 {
-                    await _bubbles.HideAsync(page);
-                    return;
+                    // An event says the learner finished interacting; the
+                    // validation condition still decides whether it was valid.
+                    // Click validation is itself satisfied by the click event.
+                    if (isClickedValidation)
+                    {
+                        await _bubbles.HideAsync(page);
+                        return;
+                    }
+
+                    var completedResolution = await _bubbles.ResolveTargetAsync(page, step, cancellationToken);
+                    if (completedResolution.Status == TargetResolutionStatus.Resolved
+                        && completedResolution.Target is not null
+                        && await _validation.IsSatisfiedAsync(completedResolution.Target, step.Validation!, cancellationToken))
+                    {
+                        await _bubbles.HideAsync(page);
+                        return;
+                    }
                 }
 
                 if (!await _contextGuard.IsActiveAsync(page, step, cancellationToken))
@@ -76,14 +93,9 @@ public sealed class WebLearnerRuntime
                 {
                     await _bubbles.HideAsync(page);
                 }
-                else if (step.AdvanceMode == StepAdvanceMode.AutomaticOnValidation
-                    && step.Validation is not null
-                    && !isClickedValidation
-                    && await _validation.IsSatisfiedAsync(resolution.Target, step.Validation, cancellationToken))
-                {
-                    await _bubbles.HideAsync(page);
-                    return;
-                }
+                // Non-click value validation is intentionally not polled for
+                // completion here. Its condition is evaluated only after the
+                // control reports its natural commit event (blur/change).
             }
             catch (PlaywrightException) when (!cancellationToken.IsCancellationRequested)
             {
