@@ -202,7 +202,7 @@ await WaitReady();
 await Click("nav.tabs button:has-text('פניות')");
 await WaitReady();
 var frame=await Content();
-var siteCasesRoute=frame.Url;
+var siteCasesRoute=new Uri(frame.Url).Fragment;
 await frame.Locator("h2:has-text('פניות')").WaitForAsync();
 await Click("th button[data-sort='status']");
 await WaitReady();
