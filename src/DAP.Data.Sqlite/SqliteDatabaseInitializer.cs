@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS Guides (Id TEXT PRIMARY KEY, Name TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS GuideSteps (
  Id TEXT PRIMARY KEY, GuideId TEXT NOT NULL, StepOrder INTEGER NOT NULL, AdvanceMode TEXT NOT NULL,
  Runtime TEXT NULL, LocatorStrategy TEXT NULL, LocatorValue TEXT NULL, FrameContextJson TEXT NULL,
- BubbleContent TEXT NOT NULL, BubblePlacement TEXT NOT NULL, ValidationKind TEXT NULL,
+ ContextKind TEXT NULL, ContextValue TEXT NULL, BubbleContent TEXT NOT NULL, BubblePlacement TEXT NOT NULL, ValidationKind TEXT NULL,
  ValidationExpectedValue TEXT NULL, ValidationOptionsJson TEXT NULL,
  FOREIGN KEY (GuideId) REFERENCES Guides(Id) ON DELETE CASCADE, UNIQUE (GuideId, StepOrder));
 CREATE TABLE IF NOT EXISTS TargetAnchors (
