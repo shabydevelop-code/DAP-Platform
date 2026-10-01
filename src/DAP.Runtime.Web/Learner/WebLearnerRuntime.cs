@@ -159,27 +159,33 @@ public sealed class WebLearnerRuntime
                 TargetResolution<ILocator> resolution;
                 if (isClickedValidation)
                 {
-                    using var presentationCancellation =
-                        CancellationTokenSource.CreateLinkedTokenSource(
-                            cancellationToken,
-                            _validationSession.GetCompletionToken(step.Id));
-                    try
-                    {
-                        resolution = await _bubbles.EnsureShownAsync(
-                            page,
-                            step,
-                            stepNumber,
-                            totalSteps,
-                            presentationCancellation.Token);
-                    }
-                    catch (OperationCanceledException)
-                        when (!cancellationToken.IsCancellationRequested
-                              && _validationSession.IsCompleted(step.Id))
+                    var presentationTask = _bubbles.EnsureShownAsync(
+                        page,
+                        step,
+                        stepNumber,
+                        totalSteps,
+                        cancellationToken);
+                    var completionTask = _validationSession.WaitForCompletionAsync(step.Id);
+
+                    var winner = await Task.WhenAny(presentationTask, completionTask);
+                    if (winner == completionTask && _validationSession.IsCompleted(step.Id))
                     {
                         _validationSession.Trace(
-                            $"[DAP runtime] click completion canceled in-flight EnsureShown for Step '{step.Id}'.");
+                            $"[DAP runtime] click completion won race with in-flight EnsureShown for Step '{step.Id}'.");
+
+                        // Do not await a Playwright operation that is already talking
+                        // to the document being replaced by the validating click.
+                        // Observe any eventual fault so the abandoned task cannot
+                        // become an unobserved exception.
+                        _ = presentationTask.ContinueWith(
+                            completed => _ = completed.Exception,
+                            CancellationToken.None,
+                            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+                            TaskScheduler.Default);
                         return;
                     }
+
+                    resolution = await presentationTask;
                 }
                 else
                 {
