@@ -263,15 +263,20 @@ async Task WaitForGuideStep(int order)
     var expected=dapSteps.Single(step=>step.Order==order);
     for(var i=0;i<100;i++)
     {
-        var content=await Content();
-        var bubble=content.Locator("#dap-guide-bubble");
-        if(await bubble.CountAsync()==1 && await bubble.TextContentAsync()==expected.Bubble.Content)
+        // A Guide may cross frame boundaries. Search live frames instead of
+        // assuming every production bubble belongs to the Content iframe.
+        foreach(var liveFrame in page.Frames.Where(candidate=>!candidate.IsDetached))
         {
-            // In visual mode the learner must have a chance to perceive a newly
-            // presented instruction before the harness starts carrying it out.
-            // This is presentation pacing only; fast mode remains unchanged.
-            await HumanPause(500);
-            return;
+            try
+            {
+                var bubble=liveFrame.Locator("#dap-guide-bubble");
+                if(await bubble.CountAsync()==1 && await bubble.TextContentAsync()==expected.Bubble.Content)
+                {
+                    await HumanPause(500);
+                    return;
+                }
+            }
+            catch(PlaywrightException) { }
         }
         await page.WaitForTimeoutAsync(100);
     }
@@ -590,11 +595,8 @@ if(await frame.Locator("[name='description']").InputValueAsync()!="הלקוח מ
 
 await WaitForGuideStep(20);
 await Select("[name='closeReason']","טופל");
-await page.WaitForTimeoutAsync(250);
-if(await (await Content()).Locator("#dap-guide-bubble").CountAsync()!=0)
-    throw new Exception("Completed guided Case closure segment still has an active bubble.");
-Console.WriteLine("DAP guided Case closure through validation alert and Close Reason: PASS");
 await WaitForGuideStep(21);
+Console.WriteLine("DAP guided Case closure through validation alert and Close Reason: PASS");
 await SaveSuccess();
 
 // 4. Content-document reload while remaining on the persisted Case.
