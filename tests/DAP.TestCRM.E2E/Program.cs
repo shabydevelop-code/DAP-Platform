@@ -277,29 +277,51 @@ foreach(var candidate in Process.GetProcessesByName("DAP"))
     }
 }
 
-// Build is deliberately outside the measured DAP startup path. The product
-// starts an already-built executable; E2E should measure the same boundary.
-StartupMark("orphan cleanup completed; DAP.App build starting");
-using(var dapBuildProcess=Process.Start(new ProcessStartInfo
+// Build is deliberately outside the measured DAP startup path. Reuse the
+// stable E2E output only when no DAP source/project input is newer than the
+// executable. This keeps repeated runs fast without ever testing stale product
+// code after a source change.
+var dapSourceRoot=Path.GetFullPath(Path.Combine(Path.GetDirectoryName(dapAppProject)!,".."));
+var dapExecutableTimestamp=File.Exists(dapExecutable)
+    ? File.GetLastWriteTimeUtc(dapExecutable)
+    : DateTime.MinValue;
+var dapBuildInputExtensions=new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 {
-    FileName="dotnet",
-    Arguments=$"build \"{dapAppProject}\" --nologo --verbosity quiet --output \"{dapBuildOutput}\"",
-    UseShellExecute=false,
-    CreateNoWindow=true,
-    RedirectStandardOutput=true,
-    RedirectStandardError=true
-}) ?? throw new Exception("DAP.App build process could not be started."))
+    ".cs", ".csproj", ".props", ".targets", ".json", ".sql", ".xaml", ".resx"
+};
+var dapBuildRequired=!File.Exists(dapExecutable)
+    || Directory.EnumerateFiles(dapSourceRoot,"*",SearchOption.AllDirectories)
+        .Where(path=>dapBuildInputExtensions.Contains(Path.GetExtension(path)))
+        .Any(path=>File.GetLastWriteTimeUtc(path)>dapExecutableTimestamp);
+
+if(dapBuildRequired)
 {
-    var buildStdOutTask=dapBuildProcess.StandardOutput.ReadToEndAsync();
-    var buildStdErrTask=dapBuildProcess.StandardError.ReadToEndAsync();
-    await dapBuildProcess.WaitForExitAsync();
-    if(dapBuildProcess.ExitCode!=0)
-        throw new Exception(
-            $"DAP.App build failed. ExitCode={dapBuildProcess.ExitCode}.{Environment.NewLine}" +
-            $"STDOUT:{Environment.NewLine}{await buildStdOutTask}{Environment.NewLine}" +
-            $"STDERR:{Environment.NewLine}{await buildStdErrTask}");
+    StartupMark("orphan cleanup completed; DAP.App build starting");
+    using(var dapBuildProcess=Process.Start(new ProcessStartInfo
+    {
+        FileName="dotnet",
+        Arguments=$"build \"{dapAppProject}\" --nologo --verbosity quiet --output \"{dapBuildOutput}\"",
+        UseShellExecute=false,
+        CreateNoWindow=true,
+        RedirectStandardOutput=true,
+        RedirectStandardError=true
+    }) ?? throw new Exception("DAP.App build process could not be started."))
+    {
+        var buildStdOutTask=dapBuildProcess.StandardOutput.ReadToEndAsync();
+        var buildStdErrTask=dapBuildProcess.StandardError.ReadToEndAsync();
+        await dapBuildProcess.WaitForExitAsync();
+        if(dapBuildProcess.ExitCode!=0)
+            throw new Exception(
+                $"DAP.App build failed. ExitCode={dapBuildProcess.ExitCode}.{Environment.NewLine}" +
+                $"STDOUT:{Environment.NewLine}{await buildStdOutTask}{Environment.NewLine}" +
+                $"STDERR:{Environment.NewLine}{await buildStdErrTask}");
+    }
+    StartupMark("DAP.App build completed");
 }
-StartupMark("DAP.App build completed");
+else
+{
+    StartupMark("DAP.App build skipped; stable E2E output is current");
+}
 
 if(!File.Exists(dapExecutable))
     throw new Exception($"Built DAP executable not found at {dapExecutable}");
