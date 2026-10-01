@@ -152,3 +152,10 @@ A target is represented by a runtime-neutral TargetDescriptor rather than a sing
 - After a learner action completes a Guide Step, E2E must observe the next production Guide Step before performing any technical scenario action that can replace/reload the guided document.
 - Technical reload/frame-lifecycle scenarios may then run and must verify that the already-active Step is reconciled/re-presented afterward.
 - This prevents the harness from racing DAP's event-driven Step transition and preserves the invariant that Guide progression is driven by learner actions, not test timing.
+
+
+## Click validation navigation durability
+- A Web `clicked` completion must reach DAP.exe before a cancelable browser default action is allowed to destroy/navigate the source document.
+- Fire-and-forget Playwright binding calls are not considered durable merely because the binding is re-exposed after navigation; an in-flight call can race document teardown.
+- For anchors and form submit controls with cancelable browser default actions, the presenter temporarily prevents that default action, awaits DAP's validation binding acknowledgement, then replays the native navigation/submission action.
+- Application event handlers are not replaced by DAP. This mechanism only gates cancelable browser default behavior and does not tailor the target application.
