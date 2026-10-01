@@ -76,6 +76,12 @@ The current representative E2E is the validated baseline for further test expans
 
 Architecture/Core scope is Web + Windows. The active implementation scope is Web only: Learner Web Runtime, Playwright target resolution, and Web bubbles against DAP.TestCRM. Windows/UIA bubble implementation is intentionally deferred; it will later implement the same shared Core contracts.
 
+## Persistence foundation
+
+The shared Core now includes initial runtime-neutral `ValidationDefinition`, `BubbleDefinition`, and `GuideStep` models. `DAP.Data` defines the guide-step repository abstraction, and `DAP.Data.Sqlite` now contains the first provider project plus an initial schema for Guides, GuideSteps, and ordered TargetAnchors. Multiple anchors are persisted explicitly. Core remains independent from SQLite.
+
+The schema is a provider implementation detail, not the domain contract. Current implementation work remains Web-only even though persisted Runtime/Target data is designed to support both Web and Windows.
+
 ## Next milestone
 
 The runtime-neutral target-resolution Core has now been started in `src/DAP.Core`. It defines `TargetDescriptor`, `Locator`, `Anchor`, `FrameContext`, runtime identity, and explicit `Resolved` / `NotFound` / `Ambiguous` resolution results. The Core has no Playwright, UIA, SQLite, or test-project dependency.
