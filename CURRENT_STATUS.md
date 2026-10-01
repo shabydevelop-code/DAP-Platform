@@ -409,3 +409,13 @@ Web `clicked` validation no longer stores completion in the guided application's
 - TestCRM's existing Case submit performs its server PUT and then a real `serverRefresh(location.hash)` / `location.reload()`.
 - Production bubble click validation previously called `__dapReportValidation(stepId)` fire-and-forget. The document could be torn down before the Playwright binding invocation reached DAP.exe.
 - WebBubblePresenter now gates cancelable native anchor/form-submit default actions until the DAP binding acknowledges the click completion, then replays the default navigation/submission. No TestCRM change or timing sleep was introduced.
+
+
+## Full Fast E2E PASS after reused-target validation lifecycle fix — 2026-10-01
+- Latest local Fast run completed the entire persisted 53-Step Guide successfully.
+- Final output: `PASS: representative Customer -> Site -> Case -> Lead workflow, including dynamic Lead deletion and Case deletion, completed.`
+- Root cause of the intermittent-looking Step transition failures was stale validation handlers on reused live DOM targets, not a need for longer Fast-mode waits.
+- Step 16 reused the Case status control from Step 13 and was initially reported as Step 13. Step 21 reused the Save button from Step 18 and was initially reported as Step 18.
+- Production `WebBubblePresenter` now rebinds both value and click validation handlers to the active Step when a target element is reused.
+- Fast mode remains intentionally strict; do not mask future lifecycle/race defects by increasing waits without evidence.
+- The 53-Step Fast run is now the current validated regression baseline.
