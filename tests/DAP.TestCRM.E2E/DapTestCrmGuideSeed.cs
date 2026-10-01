@@ -3,29 +3,85 @@ using DAP.Core.Targets;
 
 namespace DAP.TestCRM.E2E;
 
-// Test-only fixture consumed by the top-level E2E runner.
-
+// Test-only fixture: the Guide itself uses only production DAP contracts.
+// The E2E runner acts as a learner; DAP.exe owns presentation and advancement.
 public static class DapTestCrmGuideSeed
 {
-    public const string GuideId = "testcrm-customer-search";
+    public const string GuideId = "testcrm-create-case";
 
-    public static GuideStep CustomerNameStep => new(
-        "testcrm-customer-name", 1,
-        TargetDescriptor.Create(TargetRuntime.Web,
-            new Locator("css", "[name='name']"),
-            frameContext: new FrameContext(new[] { new Locator("css", "#content-frame") })),
-        new BubbleDefinition("הקלד את שם הלקוח", BubblePlacement.Bottom),
-        new ValidationDefinition("value-not-empty"),
-        StepAdvanceMode.AutomaticOnValidation,
-        new StepContextDefinition("css-exists", "#customer-search"));
+    private static readonly FrameContext ContentFrame =
+        new(new[] { new Locator("css", "#content-frame") });
 
-    public static GuideStep CustomerSearchButtonStep => new(
-        "testcrm-customer-search-button", 2,
-        TargetDescriptor.Create(TargetRuntime.Web,
-            new Locator("css", "#customer-search button.primary"),
-            frameContext: new FrameContext(new[] { new Locator("css", "#content-frame") })),
-        new BubbleDefinition("לחץ על חיפוש", BubblePlacement.Bottom),
-        new ValidationDefinition("clicked"),
-        StepAdvanceMode.AutomaticOnValidation,
-        new StepContextDefinition("css-exists", "#customer-search"));
+    private static TargetDescriptor WebTarget(string css) =>
+        TargetDescriptor.Create(
+            TargetRuntime.Web,
+            new Locator("css", css),
+            frameContext: ContentFrame);
+
+    private static GuideStep ClickStep(
+        string id, int order, string css, string instruction, string contextCss,
+        BubblePlacement placement = BubblePlacement.Bottom) =>
+        new(
+            id, order, WebTarget(css),
+            new BubbleDefinition(instruction, placement),
+            new ValidationDefinition("clicked"),
+            StepAdvanceMode.AutomaticOnValidation,
+            new StepContextDefinition("css-exists", contextCss));
+
+    private static GuideStep ValueStep(
+        string id, int order, string css, string instruction, string contextCss,
+        BubblePlacement placement = BubblePlacement.Bottom) =>
+        new(
+            id, order, WebTarget(css),
+            new BubbleDefinition(instruction, placement),
+            new ValidationDefinition("value-not-empty"),
+            StepAdvanceMode.AutomaticOnValidation,
+            new StepContextDefinition("css-exists", contextCss));
+
+    public static IReadOnlyList<GuideStep> Steps { get; } = new GuideStep[]
+    {
+        ValueStep(
+            "testcrm-customer-name", 1,
+            "[name='name']", "הקלד את שם הלקוח", "#customer-search"),
+
+        ClickStep(
+            "testcrm-customer-search-button", 2,
+            "#customer-search button.primary", "לחץ על חיפוש", "#customer-search"),
+
+        ClickStep(
+            "testcrm-customer-result", 3,
+            "#search-results tbody tr.clickable:first-child",
+            "פתח את הלקוח מתוצאות החיפוש", "#search-results"),
+
+        ClickStep(
+            "testcrm-site-row", 4,
+            "tbody tr.clickable:first-child",
+            "פתח את האתר הראשון של הלקוח", "tbody tr.clickable"),
+
+        ClickStep(
+            "testcrm-cases-tab", 5,
+            "nav.tabs button:has-text('פניות')",
+            "עבור ללשונית פניות", "nav.tabs"),
+
+        ClickStep(
+            "testcrm-new-case", 6,
+            "button.primary:has-text('פניה חדשה')",
+            "צור פנייה חדשה", "h2:has-text('פניות')"),
+
+        ValueStep(
+            "testcrm-case-subject", 7,
+            "[name='subject']", "הקלד את נושא הפנייה", "[name='subject']"),
+
+        ValueStep(
+            "testcrm-case-description", 8,
+            "[name='description']", "תאר את הפנייה", "[name='description']"),
+
+        ClickStep(
+            "testcrm-save-new-case", 9,
+            "button.primary:has-text('שמור')",
+            "שמור את הפנייה החדשה", "[name='subject']")
+    };
+
+    public static GuideStep CustomerNameStep => Steps[0];
+    public static GuideStep CustomerSearchButtonStep => Steps[1];
 }
