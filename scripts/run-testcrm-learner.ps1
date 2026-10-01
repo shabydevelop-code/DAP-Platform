@@ -17,6 +17,20 @@ function Get-FreeTcpPort {
     finally { $listener.Stop() }
 }
 
+function Stop-OwnedProcessTree($process) {
+    if (-not $process) { return }
+    try {
+        if (-not $process.HasExited) {
+            # Start-Process may own a dotnet/browser process that has children.
+            # Kill only this launcher's process tree; never touch unrelated DAP,
+            # dotnet, Chrome, or Edge processes.
+            & taskkill.exe /PID $process.Id /T /F 2>$null | Out-Null
+        }
+    } catch {
+        # Cleanup is best-effort. The process may have exited between checks.
+    }
+}
+
 function Resolve-BrowserPath([string]$name) {
     $programFilesX86 = [Environment]::GetFolderPath("ProgramFilesX86")
     if ($name -eq "chrome") {
@@ -100,12 +114,24 @@ try {
         "--page-url-contains", "localhost:5200"
     ) -PassThru -NoNewWindow
 
-    $dap.WaitForExit()
-    exit $dap.ExitCode
+    # Do not block in Process.WaitForExit(): a blocking .NET call prevents
+    # PowerShell from handling Ctrl+C promptly and therefore delays finally.
+    # Poll with an interruptible PowerShell command instead.
+    while (-not $dap.HasExited) {
+        Start-Sleep -Milliseconds 200
+    }
+
+    $dapExitCode = $dap.ExitCode
 }
 finally {
-    if ($dap -and -not $dap.HasExited) { Stop-Process -Id $dap.Id -Force -ErrorAction SilentlyContinue }
-    if ($crm -and -not $crm.HasExited) { Stop-Process -Id $crm.Id -Force -ErrorAction SilentlyContinue }
-    if ($browserProcess -and -not $browserProcess.HasExited) { Stop-Process -Id $browserProcess.Id -Force -ErrorAction SilentlyContinue }
+    Write-Host ""
+    Write-Host "Stopping manual learner run..."
+    Stop-OwnedProcessTree $dap
+    Stop-OwnedProcessTree $crm
+    Stop-OwnedProcessTree $browserProcess
     if (Test-Path $profileDir) { Remove-Item -Recurse -Force $profileDir -ErrorAction SilentlyContinue }
+}
+
+if ($null -ne $dapExitCode) {
+    exit $dapExitCode
 }
