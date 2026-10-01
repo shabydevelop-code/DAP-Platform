@@ -393,9 +393,15 @@ await frame.Locator("tbody tr.clickable").First.ClickAsync();
 await WaitReady();
 frame=await Content();
 await frame.Locator("#delete-lead").WaitForAsync();
+// First remove the dependent field so the target is measured in the compact layout.
+await Select("[name='status']","חדש");
+frame=await Content();
+if(await frame.Locator("[name='selectedService']").CountAsync()!=0)
+    throw new Exception("Dependent field did not disappear before layout-shift measurement.");
 var deleteTarget=frame.Locator("#delete-lead");
 var beforeBox=await deleteTarget.BoundingBoxAsync();
 if(beforeBox is null) throw new Exception("Could not resolve Delete Lead target before layout shift.");
+// Now trigger the existing server-driven status change that inserts the dependent field.
 await Select("[name='status']","נסגר בהצלחה");
 frame=await Content();
 await frame.Locator("[name='selectedService']").WaitForAsync();
