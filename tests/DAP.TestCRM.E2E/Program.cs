@@ -290,10 +290,11 @@ if(await frame.Locator("[name='closeReason']").InputValueAsync()!="טופל")
 // Business scenario: an agent checks Leads and then returns to the Cases workspace
 // without losing the current Site context or accidentally leaving the customer.
 //
-// The Site route is captured from the real Site page before entering the Case.
-// This avoids coupling the scenario to breadcrumb markup after a full shell reload.
+// Use the same user-facing Site breadcrumb navigation as the application.
+// Click() handles the real Content iframe replacement lifecycle; the test does
+// not call internal TestCRM navigation APIs or bypass the UI.
 frame=await Content();
-await page.EvaluateAsync("(hash)=>replaceContentFrame(hash)", siteCasesRoute);
+await Click(".breadcrumb a[data-go^='#/site/']");
 await WaitReady();
 frame=await Content();
 await frame.Locator("h2:has-text('פניות')").WaitForAsync();
