@@ -12,7 +12,12 @@ public sealed record WebBubbleTheme(
     string FontFamily,
     int FontSize,
     double LineHeight,
-    string Direction)
+    string Direction,
+    string TargetHighlightColor,
+    int TargetHighlightWidth,
+    int TargetHighlightOffset,
+    string TargetHighlightShadow,
+    int PointerSize)
 {
     public static WebBubbleTheme Default { get; } = new(
         BackgroundColor: "#ffffff",
@@ -26,5 +31,10 @@ public sealed record WebBubbleTheme(
         FontFamily: "Arial,sans-serif",
         FontSize: 14,
         LineHeight: 1.4,
-        Direction: "rtl");
+        Direction: "rtl",
+        TargetHighlightColor: "#2563eb",
+        TargetHighlightWidth: 2,
+        TargetHighlightOffset: 3,
+        TargetHighlightShadow: "0 0 0 3px rgba(37,99,235,.18)",
+        PointerSize: 9);
 }
