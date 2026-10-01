@@ -8,13 +8,16 @@ namespace DAP.Runtime.Web.Learner;
 public sealed class WebLearnerRuntime
 {
     private readonly WebBubblePresenter _bubbles;
+    private readonly WebStepContextGuard _contextGuard;
     private readonly TimeSpan _reconcileInterval;
 
     public WebLearnerRuntime(
         WebBubblePresenter bubbles,
+        WebStepContextGuard? contextGuard = null,
         TimeSpan? reconcileInterval = null)
     {
         _bubbles = bubbles;
+        _contextGuard = contextGuard ?? new WebStepContextGuard();
         _reconcileInterval = reconcileInterval ?? TimeSpan.FromMilliseconds(100);
     }
 
@@ -27,6 +30,13 @@ public sealed class WebLearnerRuntime
         {
             try
             {
+                if (!await _contextGuard.IsActiveAsync(page, step, cancellationToken))
+                {
+                    await _bubbles.HideAsync(page);
+                    await Task.Delay(_reconcileInterval, cancellationToken);
+                    continue;
+                }
+
                 var resolution = await _bubbles.EnsureShownAsync(page, step, cancellationToken);
 
                 if (resolution.Status != TargetResolutionStatus.Resolved)
