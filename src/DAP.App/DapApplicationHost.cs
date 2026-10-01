@@ -1,3 +1,4 @@
+using Microsoft.Playwright;
 using System.IO;
 using System.Windows;
 using DAP.Data.Sqlite;
@@ -49,11 +50,47 @@ public static class DapApplicationHost
             return 0;
         }
 
-        // Browser attachment is deliberately explicit. DAP.exe must own or attach
-        // to the browser connection; it cannot reuse an in-process Playwright IPage
-        // created by another executable.
-        Console.Error.WriteLine("Learner Web launch requires a browser attachment endpoint. This contract is the next implementation step.");
-        _ = repository;
-        return 3;
+        using var playwright = await Playwright.CreateAsync();
+        await using var browser = await playwright.Chromium.ConnectOverCDPAsync(
+            options.CdpEndpoint!,
+            new BrowserTypeConnectOverCDPOptions { Timeout = 10_000 });
+
+        var pages = browser.Contexts.SelectMany(context => context.Pages).ToArray();
+        var matchingPages = string.IsNullOrWhiteSpace(options.PageUrlContains)
+            ? pages
+            : pages.Where(page => page.Url.Contains(options.PageUrlContains, StringComparison.OrdinalIgnoreCase)).ToArray();
+
+        if (matchingPages.Length != 1)
+        {
+            MessageBox.Show(
+                $"DAP.exe found {matchingPages.Length} matching browser pages; exactly one is required.",
+                "DAP Learner",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            return 4;
+        }
+
+        var steps = await repository.GetStepsAsync(options.GuideId!, cancellationToken);
+        if (steps.Count == 0)
+        {
+            MessageBox.Show(
+                $"Guide '{options.GuideId}' has no steps.",
+                "DAP Learner",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            return 5;
+        }
+
+        var runtime = new WebLearnerRuntime(bubbles);
+        try
+        {
+            await runtime.RunActiveStepAsync(matchingPages[0], steps[0], cancellationToken);
+        }
+        finally
+        {
+            await runtime.StopAsync(matchingPages[0]);
+        }
+
+        return 0;
     }
 }
