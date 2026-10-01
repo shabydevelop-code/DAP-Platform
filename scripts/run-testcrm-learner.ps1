@@ -132,7 +132,8 @@ try {
         "run", "--project", $dapProject, "--",
         "--learner-web", $GuideId,
         "--cdp", $cdpEndpoint,
-        "--page-url-contains", "localhost:5200"
+        "--page-url-contains", "localhost:5200",
+        "--show-completion"
     ) -PassThru -NoNewWindow
 
     # Do not block in Process.WaitForExit(): a blocking .NET call prevents
