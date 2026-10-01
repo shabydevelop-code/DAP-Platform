@@ -38,49 +38,41 @@ public sealed class WebLearnerRuntime
         GuideStep step,
         CancellationToken cancellationToken)
     {
-        var first = await _bubbles.ResolveTargetAsync(page, step, cancellationToken);
-        if (first.Status != TargetResolutionStatus.Resolved || first.Target is null)
+        var resolution = await _bubbles.ResolveTargetAsync(page, step, cancellationToken);
+        if (resolution.Status != TargetResolutionStatus.Resolved || resolution.Target is null)
             return false;
 
-        var firstState = await first.Target.EvaluateAsync<TargetVisualState>(
-            "(el) => { const r = el.getBoundingClientRect(); return { connected: el.isConnected, x: r.x, y: r.y, width: r.width, height: r.height }; }");
-        if (!firstState.Connected || firstState.Width <= 0 || firstState.Height <= 0)
-            return false;
+        // Locators are live queries, not frozen DOM-node references. Instead of
+        // pretending a Locator proves node identity, observe the target's actual
+        // document for a quiet window. Any subtree/attribute/text mutation resets
+        // the quiet timer. This catches server-driven DOM replacement and local
+        // rerendering without requiring a network request to exist.
+        return await resolution.Target.EvaluateAsync<bool>(
+            @"(el, settleMs) => new Promise(resolve => {
+                if (!el.isConnected) { resolve(false); return; }
 
-        await Task.Delay(_presentationSettleInterval, cancellationToken);
-
-        var second = await _bubbles.ResolveTargetAsync(page, step, cancellationToken);
-        if (second.Status != TargetResolutionStatus.Resolved || second.Target is null)
-            return false;
-
-        // Re-check the original resolved node itself after the settling
-        // window. If a server render replaced/detached it, isConnected becomes
-        // false (or Playwright throws and the reconciliation loop retries).
-        // Avoid passing an ElementHandle as an Evaluate argument: Playwright
-        // serializes ordinary arguments and that is not a reliable DOM identity
-        // comparison between independently resolved Locators.
-        var originalState = await first.Target.EvaluateAsync<TargetVisualState>(
-            "(el) => { const r = el.getBoundingClientRect(); return { connected: el.isConnected, x: r.x, y: r.y, width: r.width, height: r.height }; }");
-        if (!originalState.Connected)
-            return false;
-
-        var secondState = await second.Target.EvaluateAsync<TargetVisualState>(
-            "(el) => { const r = el.getBoundingClientRect(); return { connected: el.isConnected, x: r.x, y: r.y, width: r.width, height: r.height }; }");
-        if (!secondState.Connected)
-            return false;
-
-        const double tolerance = 0.5;
-        return Math.Abs(firstState.X - originalState.X) <= tolerance
-            && Math.Abs(firstState.Y - originalState.Y) <= tolerance
-            && Math.Abs(firstState.Width - originalState.Width) <= tolerance
-            && Math.Abs(firstState.Height - originalState.Height) <= tolerance
-            && Math.Abs(originalState.X - secondState.X) <= tolerance
-            && Math.Abs(originalState.Y - secondState.Y) <= tolerance
-            && Math.Abs(originalState.Width - secondState.Width) <= tolerance
-            && Math.Abs(originalState.Height - secondState.Height) <= tolerance;
+                const doc = el.ownerDocument;
+                let timer;
+                const finish = () => {
+                    observer.disconnect();
+                    const r = el.getBoundingClientRect();
+                    resolve(el.isConnected && r.width > 0 && r.height > 0);
+                };
+                const reset = () => {
+                    clearTimeout(timer);
+                    timer = setTimeout(finish, settleMs);
+                };
+                const observer = new MutationObserver(reset);
+                observer.observe(doc.documentElement, {
+                    subtree: true,
+                    childList: true,
+                    attributes: true,
+                    characterData: true
+                });
+                reset();
+            })",
+            _presentationSettleInterval.TotalMilliseconds);
     }
-
-    private sealed record TargetVisualState(bool Connected, double X, double Y, double Width, double Height);
 
     public async Task RunActiveStepAsync(
         IPage page,
@@ -130,11 +122,11 @@ public sealed class WebLearnerRuntime
                     continue;
                 }
 
-                // A newly active Step is not presented merely because its selector
-                // already exists. Server-backed UIs can expose that selector while
-                // replacing/reflowing the document. Require the same DOM node and
-                // geometry to survive a short settling window first.
-                if (!await IsStableForPresentationAsync(page, step, cancellationToken))
+                // The first Step has no preceding learner transition to settle.
+                // For later Steps, wait until the target document has been quiet
+                // before presenting the next instruction.
+                if (_firstBubbleReported
+                    && !await IsStableForPresentationAsync(page, step, cancellationToken))
                 {
                     await _bubbles.HideAsync(page);
                     await Task.Delay(_reconcileInterval, cancellationToken);
