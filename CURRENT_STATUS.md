@@ -94,7 +94,7 @@ The Web bubble now makes target association explicit: `WebBubblePresenter` highl
 
 The TestCRM E2E harness is now wired to the production `DAP.Data.Sqlite` and `DAP.Runtime.Web` projects. Before the existing CRM workflow starts, it initializes a temporary DAP SQLite database, persists the first TestCRM GuideStep, reloads it through `SqliteGuideStepRepository`, resolves its real target through `WebTargetResolver`, presents it through `WebBubblePresenter`, and asserts the rendered bubble content. The fixture definition remains test-only; the persistence and bubble implementation are production code.
 
-Next: introduce the Learner Web Runtime lifecycle that owns the active GuideStep and re-presents/re-resolves its bubble after iframe/document replacement until validation succeeds. This is required because a bubble injected into a replaced iframe correctly disappears with that document; persistence/presentation alone must not own Step lifecycle.
+`DAP.Runtime.Web.Learner.WebLearnerRuntime` now provides the first production active-Step lifecycle. It reconciles the active Step every 100ms, always re-resolving from its `TargetDescriptor`; a replaced iframe/document or rerendered target is therefore reacquired instead of retaining stale Playwright identity. `WebBubblePresenter.EnsureShownAsync` is idempotent for the same Step and live DOM target, so reconciliation does not recreate/flicker the bubble on every pass. If the target is missing or ambiguous, the runtime hides stale guidance and continues waiting rather than guessing. Playwright navigation/frame races are retried by the next reconciliation cycle. Validation-driven Step completion/advance is intentionally not part of this lifecycle yet and remains the next production layer.
 
 ## Next milestone
 
