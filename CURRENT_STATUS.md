@@ -223,3 +223,10 @@ Web `clicked` validation no longer stores completion in the guided application's
 - The visual harness previously began `Fill()` immediately after observing a new bubble, making short-lived instructions difficult to perceive before cursor movement/scrolling started.
 - In visual mode, `WaitForGuideStep` now gives every newly observed Guide instruction a 500 ms presentation beat before the learner action begins. Fast mode is unchanged.
 - This is E2E presentation pacing, not a production Learner Runtime delay.
+
+
+## Guided Case closure extension
+- The visual TestCRM Guide now continues beyond treatment notes through Step 18.
+- Step 15 guides the real off-screen Activity More action. Because production bubbles remain hidden for off-screen targets, the visual learner scrolls first, then the E2E requires the Step 15 bubble to be visible before clicking.
+- Step 16 requires Case status = Closed, Step 17 guides restoring Subject after the CRM FieldChange clears it, and Step 18 requires Close Reason = Resolved.
+- The intentionally rejected Save with missing Close Reason remains an unguided validation exercise for now. A click-only Step would advance incorrectly on the rejected save; final Save guidance is deferred until the Guide can validate successful persistence rather than click occurrence.
