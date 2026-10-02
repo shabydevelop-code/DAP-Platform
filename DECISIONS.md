@@ -267,3 +267,21 @@ Normal guided Web execution and CRM-only both consume the persisted `testcrm-web
 Production Guide data must not be polluted with test-only action/value fields merely to make CRM-only executable. When a Guide validation is intentionally generic, such as `value-not-empty`, the synthetic value entered by the E2E remains a test-fixture concern.
 
 TestCRM's artificial Web/Windows parity must not drive a production schema that gives one Step parallel Web and Windows targets. A real hybrid Guide remains an ordered sequence in which each Step declares its own runtime.
+
+## ADR-030 — Windows learner bubbles follow the shared drag/pointer interaction contract
+
+**Status:** Accepted
+
+Windows learner bubbles use the same interaction principles as Web learner bubbles where the platform permits: an explicit visible drag handle, a directional pointer toward the current resolved target, and initial placement that attempts not to cover the target.
+
+The Windows implementation remains WPF-native and derives target geometry from production-observable UI Automation bounds. Dragging is presentation-only and does not change target identity, validation ownership, or Guide semantics.
+
+## ADR-031 — Small Windows grids use scoped row filtering before specialized large-grid strategies
+
+**Status:** Accepted
+
+When a Windows target is a row in a small, already-realized UIA grid and the persisted descriptor provides a descendant identity, the Windows Runtime may resolve it by enumerating `DataItem` rows within the declared grid scope and filtering those rows by the descendant anchor.
+
+The result must remain explicit and deterministic: exactly one match resolves, zero matches are NotFound, and multiple matches are Ambiguous. The Runtime must not choose the first row silently.
+
+This strategy is based only on UIA information observable from a closed target application. TestCRM source, internal database state, and private APIs must not be used as runtime targeting oracles. Specialized UIA/visual strategies for larger or virtualized grids may coexist behind the same shared target-resolution contract.
