@@ -10,6 +10,7 @@ public partial class MainWindow : Window
     readonly CrmApiClient api=new();
     int customerId,siteId;
     string siteTab="details";
+    string caseSort="id",caseSortDir="desc";
     public MainWindow(){InitializeComponent();Loaded+=async(_,_)=>await ShowSearch();}
 
     async void PortalButton_Click(object s,RoutedEventArgs e)=>await ShowSearch();
@@ -81,7 +82,22 @@ public partial class MainWindow : Window
         siteId=id;siteTab=tab;var s=await api.GetSiteAsync(id);if(s==null)return;customerId=s.CustomerId;var customer=await api.GetCustomerAsync(s.CustomerId);if(customer==null)return;Crumbs(("פורטל לקוחות",()=>ShowSearch()),(customer.Name,()=>ShowCustomer(s.CustomerId)),(s.Name,null));var v=V();v.Children.Add(new TextBlock{Text="אתר",FontSize=14,FontWeight=FontWeights.SemiBold});v.Children.Add(new TextBlock{Text=s.Name,FontSize=24});
         var nav=new StackPanel{Orientation=Orientation.Horizontal,FlowDirection=FlowDirection.RightToLeft};nav.Children.Add(B("פרטי אתר","SiteDetailsTab",async(_,_)=>await ShowSite(id,"details")));nav.Children.Add(B("פניות","CasesTab",async(_,_)=>await ShowSite(id,"cases")));nav.Children.Add(B("לידים","LeadsTab",async(_,_)=>await ShowSite(id,"leads")));var navRow=new DockPanel{LastChildFill=false,FlowDirection=FlowDirection.LeftToRight};DockPanel.SetDock(nav,Dock.Right);navRow.Children.Add(nav);v.Children.Add(navRow);
         if(tab=="details"){var n=T("SiteName",s.Name); var t=C("SiteType",["","משרד","סניף","מחסן"],s.Type); var a=T("SiteAddress",s.Address);F(v,"שם *",n);F(v,"סוג *",t);F(v,"כתובת *",a);A(v,B("שמור שינויים","SaveSiteButton",async(_,_)=>await Safe(async()=>{await api.SaveSiteAsync(id,new(n.Text,t.SelectedItem?.ToString()??"",a.Text));await ShowSite(id,"details");})),B("מחק אתר","DeleteSiteButton",async(_,_)=>await Safe(async()=>{if(MessageBox.Show("למחוק את האתר?","אישור מחיקה",MessageBoxButton.YesNo)==MessageBoxResult.Yes){await api.DeleteSiteAsync(id);await ShowCustomer(s.CustomerId);}})));}
-        if(tab=="cases"){H(v,"פניות",B("פניה חדשה","NewCaseButton",async(_,_)=>await ShowCase(null,id)));var xs=await api.GetCasesAsync(id);var g=GridFor(xs,new[]{"Id","Status","Subject"},"CasesGrid");g.MouseDoubleClick+=async(_,_)=>{if(g.SelectedItem is CaseItem x)await ShowCase(x.Id,id);};v.Children.Add(g);}
+        if(tab=="cases")
+        {
+            var newCase=B("פניה חדשה","NewCaseButton",async(_,_)=>await ShowCase(null,id));
+            var sortCases=B("מיין לפי סטטוס","SortCasesByStatusButton",async(_,_)=>
+            {
+                caseSort="status";
+                caseSortDir=caseSortDir=="asc"?"desc":"asc";
+                await ShowSite(id,"cases");
+            });
+            H(v,"פניות",newCase);
+            A(v,sortCases);
+            var xs=await api.GetCasesAsync(id,caseSort,caseSortDir);
+            var g=GridFor(xs,new[]{"Id","Status","Subject"},"CasesGrid");
+            g.MouseDoubleClick+=async(_,_)=>{if(g.SelectedItem is CaseItem x)await ShowCase(x.Id,id);};
+            v.Children.Add(g);
+        }
         if(tab=="leads"){H(v,"לידים",B("ליד חדש","NewLeadButton",async(_,_)=>await ShowLead(null,id)));var xs=await api.GetLeadsAsync(id);var g=GridFor(xs,new[]{"Id","Source","ContactName","Status"},"LeadsGrid");g.MouseDoubleClick+=async(_,_)=>{if(g.SelectedItem is Lead x)await ShowLead(x.Id,id);};v.Children.Add(g);}
         ScreenHost.Content=S(v);
     }
@@ -89,6 +105,11 @@ public partial class MainWindow : Window
     async Task ShowCase(int? id,int sid)
     {
         var fresh=id==null;var x=fresh?new CaseItem(0,sid,"פתוחה","","",""):await api.GetCaseAsync(id!.Value);if(x==null)return;var s=await api.GetSiteAsync(sid);if(s==null)return;var customer=await api.GetCustomerAsync(s.CustomerId);if(customer==null)return;Crumbs(("פורטל לקוחות",()=>ShowSearch()),(customer.Name,()=>ShowCustomer(s.CustomerId)),(s.Name,()=>ShowSite(sid,"cases")),(fresh?"פניה חדשה":"פניה "+id,null));var v=V();v.Children.Add(new TextBlock{Text="פנייה",FontSize=14,FontWeight=FontWeights.SemiBold});v.Children.Add(new TextBlock{Text=fresh?"פניה חדשה":"פניה "+id,FontSize=24});var st=C("CaseStatus",["","פתוחה","בטיפול","סגורה"],x.Status); var sub=T("CaseSubject",x.Subject); var desc=T("CaseDescription",x.Description); var close=C("CaseCloseReason",["","טופל","בקשת הלקוח","כפילות","לא רלוונטי"],x.CloseReason);F(v,"סטטוס *",st);F(v,"נושא *",sub);F(v,"תיאור",desc);var resolution=T("CaseResolutionNotes");resolution.IsEnabled=x.Status!="פתוחה";F(v,"הערות טיפול",resolution);if(x.Status=="סגורה")F(v,"סיבת סגירה *",close);
+        var activity=new StackPanel{Margin=new(0,18,0,0)};
+        activity.Children.Add(new TextBlock{Text="היסטוריית פעילות",FontSize=18,FontWeight=FontWeights.SemiBold});
+        for(var i=1;i<=12;i++)activity.Children.Add(new TextBlock{Text=$"פעילות {i} — עדכון שירות מתועד בפנייה",Margin=new(0,3,0,3)});
+        activity.Children.Add(B("הצג פעילות נוספת","ActivityMoreButton",(_,_)=>MessageBox.Show(this,"אין פעילויות נוספות להצגה.","היסטוריית פעילות")));
+        v.Children.Add(activity);
         st.SelectionChanged+=async(_,_)=>{if(!fresh&&st.SelectedItem is string q)await Safe(async()=>{await api.CaseStatusChangedAsync(id!.Value,q);await ShowCase(id,sid);});};
         var saveCase=B("שמור","SaveCaseButton",async(_,_)=>await Safe(async()=>{var input=new CaseInput(st.SelectedItem?.ToString()??"",sub.Text,desc.Text,close.SelectedItem?.ToString()??"");if(fresh){var y=await api.CreateCaseAsync(sid,input);await ShowCase(y.Id,sid);}else{await api.SaveCaseAsync(id!.Value,input);await ShowCase(id,sid);}}));
         if(!fresh) A(v,saveCase,B("מחק פנייה","DeleteCaseButton",async(_,_)=>await Safe(async()=>{if(MessageBox.Show("למחוק את הפנייה?","אישור מחיקה",MessageBoxButton.YesNo)==MessageBoxResult.Yes){await api.DeleteCaseAsync(id!.Value);await ShowSite(sid,"cases");}})));
