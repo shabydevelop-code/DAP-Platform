@@ -1,5 +1,29 @@
 # Current Status
 
+## Verified four-mode persisted-Guide baseline — 2026-10-02
+
+The current canonical execution modes are **Guided** and **Unguided**. The old `CRM-only` naming is historical and must not be used for the current mode contract.
+
+Locally verified baseline:
+- **Web Unguided — PASS 53/53.** Executes the 53 persisted Steps from `testcrm-web-canonical-workflow` through the E2E action executor without DAP.exe/bubbles.
+- **Web Guided — PASS 53/53.** Executes the same persisted 53-Step Guide through DAP.exe, the production Web Runtime, real target resolution, validation, and learner bubbles.
+- **Windows Unguided — PASS 10/10.** Executes the 10 persisted Steps from `testcrm-windows-canonical-workflow` through the Windows E2E action executor without DAP.exe/bubbles.
+- **Windows Guided — PASS 10/10.** Executes those same 10 persisted Steps through DAP.exe, the production Windows Runtime, real UIA targets, validation, and learner bubbles.
+- The separate Windows canonical 53-step business-flow harness is also locally verified PASS, but **DAP Windows Guided/Unguided persisted-Guide coverage is currently 10 Steps, not 53**.
+
+Recent Windows Runtime findings/fixes now part of the verified baseline:
+- Repeated/grid targets must resolve uniquely. The Windows Guide Step for the site row uses contextual identity rather than silently choosing the first matching `DataItem`: the target is scoped by the `SitesGrid` ancestor and the intended site identity.
+- Multiple anchors are supported by the existing runtime-neutral `TargetDescriptor`; ambiguity remains an explicit resolution result and the Runtime must not guess.
+- The persisted Guide is the source of learner bubble content. Guided E2E reads expected bubble content from the Guide loaded from `DAP.db` instead of duplicating instruction strings in the harness.
+- Windows navigation actions synchronize on their rendered destination screen before the next learner action proceeds.
+- A UIA target can exist before it has usable visible bounds. Windows Runtime reconciliation now waits until a resolved target is visible and has non-empty bounds before presenting its bubble instead of crashing.
+- For Windows `clicked` validation, completion can be observed either through the invoke event or when a previously resolved/visible activated target leaves the UI during the resulting navigation/re-render. A target that has never resolved does not satisfy `clicked`.
+- The Windows E2E action waits remain bounded by the 5-second policy; the fixes did not increase learner/action timeouts.
+- Guide seed changes do not silently overwrite an existing persisted Guide. Test Guide updates are applied explicitly with `--reset-guide`, preserving the rule: **Seed initializes. DB owns. Runtime consumes.**
+
+Next Windows milestone: expand `testcrm-windows-canonical-workflow` from the verified 10 persisted Steps toward the representative 53-step business workflow while preserving the four-mode baseline.
+
+
 Last updated: 2026-10-02
 
 ## Verified baseline — 2026-10-02
@@ -17,14 +41,14 @@ Last updated: 2026-10-02
 - `src/DAP.Runtime.Windows` now exists as production code using Microsoft UI Automation.
 - It includes production target resolution, WPF learner bubble presentation, Windows validation, and ordered Windows Guide execution.
 - `DAP.exe --learner-windows <guide-key> --window-automation-id <id>` loads persisted Guide data and runs Windows Steps.
-- The persisted Windows TestCRM Guide `testcrm-windows-canonical-workflow` currently contains the first two production-runtime Steps.
-- The first two persisted Windows Steps are locally verified PASS through the real DAP Windows Learner Runtime and real UIA targets/bubbles.
+- The persisted Windows TestCRM Guide `testcrm-windows-canonical-workflow` currently contains 10 production-runtime Steps.
+- All 10 persisted Windows Steps are locally verified PASS in both Windows Guided and Windows Unguided execution; Guided uses the real DAP Windows Learner Runtime and real UIA targets/bubbles.
 - The separate Windows CRM-only canonical 53-step business scenario is also locally verified PASS. A focused test-only DB-backed executor has additionally proved that persisted Windows Guide Steps 1 -> 2 can drive CRM-only actions without DAP Runtime.
 - The next Windows milestone is to expand the persisted Windows Guide/runtime coverage beyond Steps 1-2 toward the canonical 53-Step workflow. Instructor/Picker work remains deferred until Learner Runtime coverage is stable.
 
 ## Current phase
 
-Web canonical 53-Step execution is stable in both guided and CRM-only modes. Active implementation now includes the production Windows Learner Runtime foundation and expansion of persisted Windows Guide coverage.
+Web canonical 53-Step execution is stable in both Guided and Unguided modes. Windows persisted-Guide execution is stable for Steps 1-10 in both Guided and Unguided modes. Active work can now expand Windows persisted Guide coverage toward the canonical 53-Step business workflow.
 
 ## Current E2E baseline
 
