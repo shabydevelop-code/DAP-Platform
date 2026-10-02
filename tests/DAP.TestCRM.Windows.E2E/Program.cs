@@ -22,7 +22,7 @@ if (args.Contains("--reset-guide", StringComparer.OrdinalIgnoreCase))
     var factory = new SqliteConnectionFactory(options);
     await new SqliteDatabaseInitializer(factory).InitializeAsync();
     var repository = new SqliteGuideStepRepository(factory);
-    foreach (var step in DapTestCrmWindowsGuideSeed.CreateFirstTwoSteps())
+    foreach (var step in DapTestCrmWindowsGuideSeed.CreateSteps())
         await repository.SaveStepAsync(DapTestCrmWindowsGuideSeed.GuideId, step);
 
     await repository.RenameGuideAsync(
@@ -32,13 +32,13 @@ if (args.Contains("--reset-guide", StringComparer.OrdinalIgnoreCase))
 
     Console.WriteLine(
         $"Reset Guide '{DapTestCrmWindowsGuideSeed.GuideId}' " +
-        $"({DapTestCrmWindowsGuideSeed.CreateFirstTwoSteps().Count} steps) in {options.DatabasePath}");
+        $"({DapTestCrmWindowsGuideSeed.CreateSteps().Count} steps) in {options.DatabasePath}");
     return;
 }
 
-if (args.Contains("--dap-first-two", StringComparer.OrdinalIgnoreCase))
+if (args.Contains("--dap-first-ten", StringComparer.OrdinalIgnoreCase))
 {
-    await RunDapFirstTwoAsync();
+    await RunDapFirstTenAsync();
     return;
 }
 
@@ -61,17 +61,17 @@ finally
     StopOwnedProcessTree(app);
 }
 
-async Task RunDapFirstTwoAsync()
+async Task RunDapFirstTenAsync()
 {
     var databaseOptions = SqliteDatabaseOptions.CreateDefault();
     var factory = new SqliteConnectionFactory(databaseOptions);
     await new SqliteDatabaseInitializer(factory).InitializeAsync();
     var repository = new SqliteGuideStepRepository(factory);
     var persistedSteps = await repository.GetStepsAsync(DapTestCrmWindowsGuideSeed.GuideId);
-    if (persistedSteps.Count != 2)
+    if (persistedSteps.Count != 10)
     {
         throw new InvalidOperationException(
-            $"Guide '{DapTestCrmWindowsGuideSeed.GuideId}' must contain exactly 2 persisted Steps for this milestone. " +
+            $"Guide '{DapTestCrmWindowsGuideSeed.GuideId}' must contain exactly 10 persisted Steps for this milestone. " +
             "Run this project once with --reset-guide first.");
     }
 
@@ -103,28 +103,45 @@ async Task RunDapFirstTwoAsync()
             $"--learner-windows {DapTestCrmWindowsGuideSeed.GuideId} " +
             $"--window-automation-id {mainWindowAutomationId}");
 
-        var firstBubble = WaitForBubble("חפש את הלקוח: אלפא פתרונות בע\"מ", dap);
-        Console.WriteLine($"DAP Windows Step 1 bubble: {firstBubble.Current.Name}");
+        var driver = new WindowsCrmScenarioDriver(windowsApp, window);
 
-        if (!customerName.TryGetCurrentPattern(ValuePattern.Pattern, out var valuePattern))
-            throw new Exception("CustomerNameSearch does not expose ValuePattern.");
-        ((ValuePattern)valuePattern).SetValue("אלפא פתרונות בע\"מ");
+        WaitForBubble("חפש את הלקוח: אלפא פתרונות בע\"מ", dap);
+        await driver.SetCustomerSearch("אלפא פתרונות בע\"מ");
 
-        var secondBubble = WaitForBubble("לחץ על חיפוש", dap);
-        Console.WriteLine($"DAP Windows Step 2 bubble: {secondBubble.Current.Name}");
+        WaitForBubble("לחץ על חיפוש", dap);
+        await driver.SubmitCustomerSearch();
 
-        var searchButton = WaitForElementById(window, "SearchCustomersButton");
-        if (!searchButton.TryGetCurrentPattern(InvokePattern.Pattern, out var invokePattern))
-            throw new Exception("SearchCustomersButton does not expose InvokePattern.");
-        ((InvokePattern)invokePattern).Invoke();
+        WaitForBubble("פתח את הלקוח מתוצאות החיפוש", dap);
+        await driver.OpenFirstCustomer();
+
+        WaitForBubble("פתח את האתר הראשון של הלקוח", dap);
+        await driver.OpenFirstSite();
+
+        WaitForBubble("עבור ללשונית פניות", dap);
+        await driver.OpenCases();
+
+        WaitForBubble("מיין את הפניות לפי סטטוס", dap);
+        await driver.SortCasesByStatus();
+
+        WaitForBubble("צור פנייה חדשה", dap);
+        await driver.CreateCase();
+
+        WaitForBubble("הקלד את נושא הפנייה", dap);
+        await driver.SetCaseSubject("תקלה בחיבור לאינטרנט");
+
+        WaitForBubble("תאר את הפנייה", dap);
+        await driver.SetCaseDescription("הלקוח מדווח על חיבור לא יציב.");
+
+        WaitForBubble("שמור את הפנייה החדשה", dap);
+        await driver.SaveCase();
 
         if (!dap.WaitForExit(15_000))
-            throw new TimeoutException("DAP.exe did not complete after the validating Step 2 click.");
+            throw new TimeoutException("DAP.exe did not complete after the validating Step 10 action.");
         if (dap.ExitCode != 0)
             throw new Exception($"DAP.exe exited with code {dap.ExitCode}.");
 
-        WaitForElementById(window, "CustomersGrid");
-        Console.WriteLine("PASS: DAP Windows Learner Runtime persisted Step 1 -> Step 2 with real UIA targets and bubbles.");
+        WaitForElementById(window, "DeleteCaseButton");
+        Console.WriteLine("PASS: DAP Windows Learner Runtime persisted Steps 1 -> 10 with real UIA targets and bubbles.");
     }
     finally
     {
@@ -145,7 +162,7 @@ void EnsurePortFree(int port)
     catch (SocketException ex)
     {
         throw new InvalidOperationException(
-            $"Port {port} is already in use. Stop the existing TestCRM Server before running --dap-first-two.",
+            $"Port {port} is already in use. Stop the existing TestCRM Server before running --dap-first-ten.",
             ex);
     }
     finally
