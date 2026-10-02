@@ -1,7 +1,7 @@
 param(
     [ValidateSet("chrome", "edge")]
     [string]$Browser = "chrome",
-    [string]$GuideId = "testcrm-create-case",
+    [string]$GuideId = "testcrm-web-canonical-workflow",
     [ValidateRange(1, 2147483647)]
     [int]$StartStep = 1
 )
@@ -107,7 +107,7 @@ try {
     # synthesized; navigating Content to the post-delete Cases screen mirrors
     # the state immediately after Step 52 while keeping the real Header intact.
     $startUrl = $testCrmUrl
-    if ($GuideId -eq "testcrm-create-case" -and $StartStep -eq 53) {
+    if ($GuideId -eq "testcrm-web-canonical-workflow" -and $StartStep -eq 53) {
         $startUrl = "$testCrmUrl/#/site/1/cases"
         Write-Host "Preparing TestCRM state for Step 53: site Cases screen."
     } elseif ($StartStep -gt 1) {
