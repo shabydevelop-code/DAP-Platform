@@ -77,7 +77,7 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     }
     void FirstRow(string id){var g=ById(id);var row=Wait(()=>g.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.DataItem)),id+" first row");Click(row,true);}
 
-    AutomationElement Dialog()=>Wait(()=>AutomationElement.RootElement.FindAll(TreeScope.Children,new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.Window)).Cast<AutomationElement>().FirstOrDefault(x=>x.Current.ProcessId==app.Id&&x.Current.Name!="DAP Test CRM - Windows"),"dialog");
+    AutomationElement Dialog()=>Wait(()=>AutomationElement.RootElement.FindAll(TreeScope.Children,new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.Window)).Cast<AutomationElement>().FirstOrDefault(x=>x.Current.ProcessId==window.Current.ProcessId&&x.Current.Name!="DAP Test CRM - Windows"),"dialog");
     void DialogButton(bool confirm){var d=Dialog();var bs=d.FindAll(TreeScope.Descendants,new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.Button));if(bs.Count==0)throw new Exception("Dialog has no buttons.");var b=confirm?bs.Cast<AutomationElement>().FirstOrDefault(x=>x.Current.Name is "Yes" or "כן" or "אישור")??bs[0]:bs[0];Click(b);}
 
     public Task SearchCustomer(string v){Set("CustomerNameSearch",v);Click(ById("SearchCustomersButton"));return Task.CompletedTask;}
