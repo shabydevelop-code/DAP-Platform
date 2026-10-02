@@ -159,7 +159,15 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     public Task SetCloseReason(string v){Select("CaseCloseReason",v);return Task.CompletedTask;}
     public Task OpenSiteFromBreadcrumb()
     {
-        Click(ButtonByName("מטה תל אביב"));
+        DismissUnexpectedInfoDialogs();
+        var siteCrumb=window.FindAll(TreeScope.Descendants,
+            new AndCondition(
+                new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.Button),
+                new PropertyCondition(AutomationElement.AutomationIdProperty,"Breadcrumb")))
+            .Cast<AutomationElement>()
+            .FirstOrDefault(x=>x.Current.Name=="מטה תל אביב");
+        if(siteCrumb is null)throw new Exception("Site breadcrumb 'מטה תל אביב' was not found.");
+        Click(siteCrumb);
         Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"LeadsTab")),"Site screen after breadcrumb");
         return Task.CompletedTask;
     }
