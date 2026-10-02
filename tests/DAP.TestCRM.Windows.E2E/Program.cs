@@ -236,9 +236,11 @@ AutomationElement WaitForElementById(
     throw new TimeoutException($"Timed out waiting for UIA element '{automationId}'.");
 }
 
-AutomationElement WaitForBubble(string expectedInstruction, Process dapProcess, int timeout = 30_000)
+AutomationElement WaitForBubble(string expectedInstruction, Process dapProcess, int timeout = 5_000)
 {
     var sw = Stopwatch.StartNew();
+    string? lastObservedInstruction = null;
+
     while (sw.ElapsedMilliseconds < timeout)
     {
         if (dapProcess.HasExited)
@@ -249,14 +251,19 @@ AutomationElement WaitForBubble(string expectedInstruction, Process dapProcess, 
             TreeScope.Children,
             new PropertyCondition(AutomationElement.AutomationIdProperty, "DapLearnerBubble"));
 
-        if (bubble is not null
-            && string.Equals(bubble.Current.Name, expectedInstruction, StringComparison.Ordinal))
-            return bubble;
+        if (bubble is not null)
+        {
+            lastObservedInstruction = bubble.Current.Name;
+            if (string.Equals(lastObservedInstruction, expectedInstruction, StringComparison.Ordinal))
+                return bubble;
+        }
 
         Thread.Sleep(100);
     }
 
-    throw new TimeoutException($"Timed out waiting for DAP Windows bubble '{expectedInstruction}'.");
+    throw new TimeoutException(
+        $"Timed out waiting for DAP Windows bubble '{expectedInstruction}'. " +
+        $"Last observed bubble: '{lastObservedInstruction ?? "<none>"}'.");
 }
 
 async Task WaitForHttpAsync(string url, Process process, string processName)
