@@ -255,8 +255,17 @@ async Task<IFrame> Content()
 
                 if (!frame.IsDetached)
                 {
-                    var ready = await frame.Locator("html").GetAttributeAsync("data-dap-ready");
+                    var html = frame.Locator("html");
+                    var ready = await html.GetAttributeAsync("data-dap-ready");
+                    var routeState = await html.GetAttributeAsync("data-dap-route-state");
+                    var routeError = await html.GetAttributeAsync("data-dap-route-error");
+                    var apiUrl = await html.GetAttributeAsync("data-dap-api");
+                    var apiState = await html.GetAttributeAsync("data-dap-api-state");
                     diagnosticParts.Add($"data-dap-ready={ready ?? "<null>"}");
+                    diagnosticParts.Add($"route-state={routeState ?? "<null>"}");
+                    diagnosticParts.Add($"route-error={routeError ?? "<null>"}");
+                    diagnosticParts.Add($"api={apiUrl ?? "<null>"}");
+                    diagnosticParts.Add($"api-state={apiState ?? "<null>"}");
                 }
             }
         }
