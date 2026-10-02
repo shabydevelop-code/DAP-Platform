@@ -511,7 +511,29 @@ public sealed class WindowsGuideRuntime
             return false;
 
         var pattern = locator.Value;
-        if (pattern.Length < 2 || pattern[0] != '^' || pattern[^1] != '
+        if (pattern.Length < 2 || pattern[0] != '^' || pattern[^1] != '$')
+            return false;
+
+        var body = pattern[1..^1];
+        for (var index = 0; index < body.Length; index++)
+        {
+            if (body[index] == '\\')
+            {
+                if (++index >= body.Length)
+                    return false;
+
+                continue;
+            }
+
+            if (".+*?()[]{}|^$".Contains(body[index]))
+                return false;
+        }
+
+        return true;
+    }
+
+    private static bool SameElement(AutomationElement left, AutomationElement right)
+    {
         try
         {
             return Automation.Compare(left, right);
