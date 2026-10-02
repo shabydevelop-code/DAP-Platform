@@ -121,6 +121,10 @@ internal static class DapTestCrmWindowsGuideSeed
 
         ClickStep(
             "testcrm-windows-save-new-case", 10,
-            ById("SaveCaseButton"), "שמור את הפנייה החדשה")
+            ById("SaveCaseButton"), "שמור את הפנייה החדשה"),
+
+        ClickStep(
+            "testcrm-windows-back-to-cases", 11,
+            ById("Breadcrumb"), "חזור לרשימת הפניות")
     };
 }
