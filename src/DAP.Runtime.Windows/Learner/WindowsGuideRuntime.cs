@@ -177,11 +177,15 @@ public sealed class WindowsGuideRuntime
 
                 if (!HasVisibleBounds(target))
                 {
-                    if (step.Id == "testcrm-windows-back-to-cases")
-                        Console.Error.WriteLine($"[DAP Windows guide diagnostic] Step '{step.Id}' target has no visible bounds.");
-                    await _bubbles.HideAsync();
-                    await Task.Delay(_pollInterval, cancellationToken);
-                    continue;
+                    TryScrollIntoView(target);
+                    if (!HasVisibleBounds(target))
+                    {
+                        if (step.Id == "testcrm-windows-back-to-cases")
+                            Console.Error.WriteLine($"[DAP Windows guide diagnostic] Step '{step.Id}' target has no visible bounds.");
+                        await _bubbles.HideAsync();
+                        await Task.Delay(_pollInterval, cancellationToken);
+                        continue;
+                    }
                 }
 
                 if (clicked && (subscribedTarget is null || !SameElement(subscribedTarget, target)))
@@ -335,6 +339,21 @@ public sealed class WindowsGuideRuntime
         catch (ElementNotAvailableException)
         {
             return false;
+        }
+    }
+
+    private static void TryScrollIntoView(AutomationElement target)
+    {
+        try
+        {
+            if (target.TryGetCurrentPattern(ScrollItemPattern.Pattern, out var pattern))
+                ((ScrollItemPattern)pattern).ScrollIntoView();
+        }
+        catch (ElementNotAvailableException)
+        {
+        }
+        catch (InvalidOperationException)
+        {
         }
     }
 
