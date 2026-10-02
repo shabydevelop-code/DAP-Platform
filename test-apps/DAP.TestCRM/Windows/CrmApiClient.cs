@@ -38,20 +38,21 @@ public sealed class CrmApiClient
     private async Task<T> PostAsync<T>(string path,object body)
     {
         using var r=await _http.PostAsJsonAsync(path,body);
-        await EnsureAsync(r);
+        await EnsureAsync(r,path);
         return (await r.Content.ReadFromJsonAsync<T>(JsonOptions))!;
     }
     private async Task SendAsync<T>(HttpMethod method,string path,T body)
     {
         using var r=await _http.SendAsync(new HttpRequestMessage(method,path){Content=JsonContent.Create(body)});
-        await EnsureAsync(r);
+        await EnsureAsync(r,path);
     }
-    private static async Task EnsureAsync(HttpResponseMessage r)
+    private static async Task EnsureAsync(HttpResponseMessage r,string path)
     {
         if(r.IsSuccessStatusCode)return;
         var body=await r.Content.ReadAsStringAsync();
         var message=TryGetProblemMessage(body);
-        throw new InvalidOperationException(message ?? (string.IsNullOrWhiteSpace(body)?$"CRM API returned {(int)r.StatusCode}.":body));
+        var detail=message ?? (string.IsNullOrWhiteSpace(body)?"No response body.":body);
+        throw new InvalidOperationException($"CRM API {r.RequestMessage?.Method} {path} returned {(int)r.StatusCode} ({r.StatusCode}): {detail}");
     }
 
     private static string? TryGetProblemMessage(string body)
