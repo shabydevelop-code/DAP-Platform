@@ -65,6 +65,9 @@ internal sealed class PersistedWindowsCrmGuideExecutor
             case "testcrm-windows-back-to-cases":
                 await driver.OpenSiteFromBreadcrumb();
                 return;
+            case "testcrm-windows-open-created-case":
+                await driver.OpenCreatedCase();
+                return;
             default:
                 throw new NotSupportedException(
                     $"Persisted Windows CRM-only executor does not yet support Guide Step '{step.Id}' (order {step.Order}).");
