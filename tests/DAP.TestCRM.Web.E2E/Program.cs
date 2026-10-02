@@ -1079,6 +1079,10 @@ var headerFrame=page.Frames.FirstOrDefault(x=>x.Name=="dap-header")
     ?? throw new Exception("Header frame was not found.");
 var header=headerFrame.Locator("#portal-header");
 await WaitForGuideStep(53);
+// Keep the final Guide bubble visible long enough to be observed in visual mode
+// before the E2E performs the action that completes the Guide.
+if(visualMode)
+    await page.WaitForTimeoutAsync(1200);
 await MoveTo(header);
 await header.ClickAsync();
 await WaitReady();
