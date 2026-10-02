@@ -229,57 +229,7 @@ async Task<IFrame> Content()
         catch(PlaywrightException) { }
         await page.WaitForTimeoutAsync(100);
     }
-    var frameDiagnostics=new List<string>();
-    foreach(var liveFrame in page.Frames)
-    {
-        try
-        {
-            var ready=await liveFrame.Locator("html").GetAttributeAsync("data-dap-ready");
-            var appText=await liveFrame.Locator("#app").CountAsync()==1
-                ? (await liveFrame.Locator("#app").InnerTextAsync()).Replace(Environment.NewLine," ").Trim()
-                : "<no #app>";
-            if(appText.Length>160) appText=appText[..160]+"...";
-            frameDiagnostics.Add(
-                $"name='{liveFrame.Name}', detached={liveFrame.IsDetached}, url='{liveFrame.Url}', dapReady='{ready ?? "<null>"}', app='{appText}'");
-        }
-        catch(Exception ex) when(ex is PlaywrightException or TimeoutException)
-        {
-            frameDiagnostics.Add(
-                $"name='{liveFrame.Name}', detached={liveFrame.IsDetached}, url='{liveFrame.Url}', diagnostic='{ex.GetType().Name}: {ex.Message}'");
-        }
-    }
-
-    var currentCount=await page.Locator("#content-frame").CountAsync();
-    var nextCount=await page.Locator("#content-frame-next").CountAsync();
-    var oldCount=await page.Locator("#content-frame-old").CountAsync();
-    var webExited=ownedTestCrmProcess?.HasExited ?? false;
-    var backendExited=ownedTestCrmBackendProcess?.HasExited ?? false;
-    var webExit=webExited ? ownedTestCrmProcess!.ExitCode.ToString() : "<running>";
-    var backendExit=backendExited ? ownedTestCrmBackendProcess!.ExitCode.ToString() : "<running>";
-    var webStdErr=webExited ? await ownedTestCrmProcess!.StandardError.ReadToEndAsync() : "<not captured while running>";
-    var backendStdErr=backendExited ? await ownedTestCrmBackendProcess!.StandardError.ReadToEndAsync() : "<not captured while running>";
-    string directBackendProbe;
-    try
-    {
-        using var probeClient=new HttpClient { Timeout=TimeSpan.FromSeconds(2) };
-        using var probeRequest=new HttpRequestMessage(
-            HttpMethod.Get,
-            "http://localhost:5201/api/customers?name=%D7%90%D7%9C%D7%A4%D7%90&sort=id&dir=asc");
-        probeRequest.Headers.TryAddWithoutValidation("X-DAP-E2E-Mode","fast");
-        using var probeResponse=await probeClient.SendAsync(probeRequest);
-        directBackendProbe=$"HTTP {(int)probeResponse.StatusCode}";
-    }
-    catch(Exception ex)
-    {
-        directBackendProbe=$"{ex.GetType().Name}: {ex.Message}";
-    }
-    throw new Exception(
-        $"Stable content iframe not found within 5 seconds. " +
-        $"DOM iframe state: current={currentCount}, next={nextCount}, old={oldCount}.{Environment.NewLine}" +
-        $"Processes: Web={webExit}, Backend={backendExit}. Direct backend probe={directBackendProbe}.{Environment.NewLine}" +
-        $"Web STDERR: {webStdErr}{Environment.NewLine}" +
-        $"Backend STDERR: {backendStdErr}{Environment.NewLine}" +
-        $"Live frames:{Environment.NewLine}{string.Join(Environment.NewLine,frameDiagnostics)}");
+    throw new Exception("Stable content iframe not found.");
 }
 async Task WaitReady()
 {
@@ -818,41 +768,8 @@ else
     await WaitForGuideStep(2);
 }
 
-async Task TraceCustomerSearchState(string stage)
-{
-    var contentFrame=page.Frames.FirstOrDefault(candidate=>
-        !candidate.IsDetached
-        && candidate.Name=="dap-content");
-    if(contentFrame is null)
-    {
-        Console.WriteLine($"[Step 2 trace] {stage}: dap-content frame missing.");
-        return;
-    }
-
-    string? ready=null;
-    string? nameValue=null;
-    try
-    {
-        ready=await contentFrame.Locator("html").GetAttributeAsync("data-dap-ready");
-        if(await contentFrame.Locator("[name='name']").CountAsync()==1)
-            nameValue=await contentFrame.Locator("[name='name']").InputValueAsync();
-    }
-    catch(PlaywrightException ex)
-    {
-        Console.WriteLine($"[Step 2 trace] {stage}: frame access failed: {ex.Message}");
-        return;
-    }
-
-    Console.WriteLine(
-        $"[Step 2 trace] {stage}: mode={(crmOnly ? "crm-only" : "guided")}, " +
-        $"url='{contentFrame.Url}', dapReady='{ready ?? "<null>"}', name='{nameValue ?? "<missing>"}'");
-}
-
-await TraceCustomerSearchState("before click");
 await Click("#customer-search button.primary");
-await TraceCustomerSearchState("after click");
 await WaitReady();
-await TraceCustomerSearchState("after ready");
 
 // From here the production Guide continues across real CRM navigation. The E2E
 // waits for each instruction before acting, so the same Guide can be followed
