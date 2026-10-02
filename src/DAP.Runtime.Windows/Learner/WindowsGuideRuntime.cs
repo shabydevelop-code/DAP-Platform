@@ -112,6 +112,7 @@ public sealed class WindowsGuideRuntime
         var stepStopwatch = Stopwatch.StartNew();
         var resolutionAttempt = 0;
         var targetFirstResolvedLogged = false;
+        var bubbleShownForStep = false;
 
         Console.Error.WriteLine(
             $"[DAP Windows step timing] Step {stepNumber}/{totalSteps} '{step.Id}' entered at +0 ms.");
@@ -139,7 +140,9 @@ public sealed class WindowsGuideRuntime
                 {
                     if (step.Id == "testcrm-windows-back-to-cases")
                         Console.Error.WriteLine($"[DAP Windows guide diagnostic] Step '{step.Id}' resolver threw ElementNotAvailableException.");
-                    await _bubbles.HideAsync();
+                    if (!bubbleShownForStep)
+                        if (!bubbleShownForStep)
+                        await _bubbles.HideAsync();
                     if (targetDisappeared && targetWasResolved)
                         return;
                     if (clicked && clickedDisappearanceFallbackArmed)
@@ -212,7 +215,8 @@ public sealed class WindowsGuideRuntime
                     {
                         if (step.Id == "testcrm-windows-back-to-cases")
                             Console.Error.WriteLine($"[DAP Windows guide diagnostic] Step '{step.Id}' target has no visible bounds.");
-                        await _bubbles.HideAsync();
+                        if (!bubbleShownForStep)
+                            await _bubbles.HideAsync();
                         await Task.Delay(_pollInterval, cancellationToken);
                         continue;
                     }
@@ -242,6 +246,7 @@ public sealed class WindowsGuideRuntime
 
                 var bubbleStartedAt = stepStopwatch.ElapsedMilliseconds;
                 await _bubbles.ShowAsync(target, step, stepNumber, totalSteps, cancellationToken);
+                bubbleShownForStep = true;
                 Console.Error.WriteLine(
                     $"[DAP Windows step timing] Step '{step.Id}' bubble shown at " +
                     $"+{stepStopwatch.ElapsedMilliseconds} ms " +
