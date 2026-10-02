@@ -13,7 +13,7 @@ public partial class MainWindow : Window
     public MainWindow(){InitializeComponent();Loaded+=async(_,_)=>await ShowSearch();}
 
     async void PortalButton_Click(object s,RoutedEventArgs e)=>await ShowSearch();
-    Button B(string text,string id,RoutedEventHandler click){var b=new Button{Content=text,Margin=new(4),Padding=new(12,6,12,6)};AutomationProperties.SetAutomationId(b,id);b.Click+=click;return b;}
+    Button B(string text,string id,RoutedEventHandler click){var b=new Button{Content=text,Margin=new(4),Padding=new(12,6,12,6)};AutomationProperties.SetAutomationId(b,id);AutomationProperties.SetName(b,text);b.Click+=click;return b;}
     void H(Panel p, string title, Button button)
     {
         var content=new StackPanel{Orientation=Orientation.Horizontal,FlowDirection=FlowDirection.RightToLeft};
@@ -44,6 +44,9 @@ public partial class MainWindow : Window
         field.RowDefinitions.Add(new RowDefinition{Height=GridLength.Auto});
         field.RowDefinitions.Add(new RowDefinition{Height=GridLength.Auto});
         var caption=new TextBlock{Text=label,Width=360,Margin=new(0,0,0,2),FontWeight=FontWeights.SemiBold,TextAlignment=TextAlignment.Right,FlowDirection=FlowDirection.LeftToRight,HorizontalAlignment=HorizontalAlignment.Stretch};
+        var accessibleLabel=label.TrimEnd(' ','*');
+        AutomationProperties.SetName(control,accessibleLabel);
+        AutomationProperties.SetLabeledBy(control,caption);
         Grid.SetRow(caption,0);
         control.FlowDirection=FlowDirection.RightToLeft;
         control.HorizontalAlignment=HorizontalAlignment.Stretch;
@@ -101,5 +104,5 @@ public partial class MainWindow : Window
         else A(v,saveLead);
         ScreenHost.Content=S(v);
     }
-    static DataGrid GridFor<T>(IEnumerable<T> items,string[] fields,string id){var g=new DataGrid{ItemsSource=items,AutoGenerateColumns=false,IsReadOnly=true,SelectionMode=DataGridSelectionMode.Single,Margin=new(4),MinHeight=180,Height=double.NaN,MaxHeight=double.PositiveInfinity,VerticalScrollBarVisibility=ScrollBarVisibility.Disabled,FlowDirection=FlowDirection.RightToLeft,HorizontalContentAlignment=HorizontalAlignment.Right};AutomationProperties.SetAutomationId(g,id);foreach(var f in fields)g.Columns.Add(new DataGridTextColumn{Header=f,Binding=new Binding(f),Width=new DataGridLength(1,DataGridLengthUnitType.Star)});return g;}
+    static DataGrid GridFor<T>(IEnumerable<T> items,string[] fields,string id){var g=new DataGrid{ItemsSource=items,AutoGenerateColumns=false,IsReadOnly=true,SelectionMode=DataGridSelectionMode.Single,Margin=new(4),MinHeight=180,Height=double.NaN,MaxHeight=double.PositiveInfinity,VerticalScrollBarVisibility=ScrollBarVisibility.Disabled,FlowDirection=FlowDirection.RightToLeft,HorizontalContentAlignment=HorizontalAlignment.Right};AutomationProperties.SetAutomationId(g,id);AutomationProperties.SetName(g,id switch{"CustomersGrid"=>"תוצאות חיפוש לקוחות","SitesGrid"=>"רשימת אתרים","CasesGrid"=>"רשימת פניות","LeadsGrid"=>"רשימת לידים",_=>"טבלה"});foreach(var f in fields)g.Columns.Add(new DataGridTextColumn{Header=f,Binding=new Binding(f),Width=new DataGridLength(1,DataGridLengthUnitType.Star)});return g;}
 }
