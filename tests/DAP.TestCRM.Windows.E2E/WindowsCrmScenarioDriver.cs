@@ -140,7 +140,12 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
         Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"NewCaseButton")),"Cases screen");
         return Task.CompletedTask;
     }
-    public Task SortCasesByStatus(){Click(ById("SortCasesByStatusButton"));return Task.CompletedTask;}
+    public Task SortCasesByStatus()
+    {
+        Click(ById("SortCasesByStatusButton"));
+        Wait(()=>EnabledById("NewCaseButton"),"Cases screen after status sort");
+        return Task.CompletedTask;
+    }
     public Task CreateCase()
     {
         var button=ById("NewCaseButton");
