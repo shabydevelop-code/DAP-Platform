@@ -82,7 +82,7 @@ try
     Click(ById("SaveCaseButton")); DismissDialog();
     Select("CaseCloseReason","טופל"); Click(ById("SaveCaseButton"));
 
-    Click(ById("Breadcrumb")); // Site
+    Click(ByButtonName("מטה תל אביב")); // Site breadcrumb
     Click(ById("LeadsTab")); Click(ById("CasesTab")); Click(ById("LeadsTab"));
     Click(ById("NewLeadButton")); Set("LeadContactName","לקוח בדיקת מערכת"); Click(ById("SaveLeadButton"));
     Select("LeadStatus","נסגר בהצלחה"); Select("LeadStatus","חדש"); Select("LeadStatus","נסגר בהצלחה");
@@ -94,7 +94,7 @@ try
     Set("CustomerNameSearch","אלפא פתרונות בע\"מ"); Click(ById("SearchCustomersButton")); FirstGridRow("CustomersGrid");
     FirstGridRow("SitesGrid"); Click(ById("LeadsTab")); FirstGridRow("LeadsGrid");
     Select("LeadStatus","חדש"); Select("LeadStatus","נסגר בהצלחה"); Select("LeadStatus","חדש"); Select("LeadStatus","נסגר בהצלחה");
-    Click(ById("Breadcrumb")); Click(ById("CasesTab")); FirstGridRow("CasesGrid"); Click(ById("Breadcrumb"));
+    Click(ByButtonName("מטה תל אביב")); Click(ById("CasesTab")); FirstGridRow("CasesGrid"); Click(ByButtonName("מטה תל אביב"));
     var rows=ById("CasesGrid").FindAll(TreeScope.Descendants,new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.DataItem));
     if(rows.Count==0) throw new Exception("No Case available for final context check.");
 
