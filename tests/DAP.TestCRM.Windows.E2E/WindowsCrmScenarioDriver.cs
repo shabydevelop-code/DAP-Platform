@@ -169,31 +169,29 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
             Wait(()=>window.FindFirst(TreeScope.Descendants,
                 new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteCaseButton")),"persisted Case form after Save");
         else
-            WaitForOperationCompleted("Case Save");
+        {
+            // A persisted Case save has two legitimate outcomes in the canonical flow:
+            // validation opens a modal (Step 18), or a successful save rebuilds the Case form (Step 21).
+            var mainHwnd=new IntPtr(window.Current.NativeWindowHandle);
+            Wait(()=>
+            {
+                var popup=GetWindow(mainHwnd,GW_ENABLEDPOPUP);
+                if(popup!=IntPtr.Zero && popup!=mainHwnd && IsWindowVisible(popup))
+                    return window;
+
+                var delete=window.FindFirst(TreeScope.Descendants,
+                    new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteCaseButton"));
+                var status=window.FindFirst(TreeScope.Descendants,
+                    new PropertyCondition(AutomationElement.AutomationIdProperty,"StatusText"));
+                return delete is not null && status is not null && string.IsNullOrEmpty(status.Current.Name)
+                    ? delete : null;
+            },"Case save validation or completed form");
+        }
 
         createdCaseId ??= CurrentCaseId();
         return Task.CompletedTask;
     }
 
-    void WaitForOperationCompleted(string operation)
-    {
-        var status=ById("StatusText");
-        var sw=Stopwatch.StartNew();
-        var observedBusy=false;
-        while(sw.ElapsedMilliseconds<5000)
-        {
-            var text=status.Current.Name;
-            if(text=="מעבד...")observedBusy=true;
-            if(observedBusy && string.IsNullOrEmpty(text))return;
-            Thread.Sleep(50);
-        }
-
-        // A very fast operation can complete before UIA observes the busy text.
-        // In that case require the current screen to be stable after the click.
-        Thread.Sleep(250);
-        if(string.IsNullOrEmpty(status.Current.Name))return;
-        throw new TimeoutException($"Timed out waiting for {operation} to complete.");
-    }
     string CurrentCaseId()
     {
         var titles=window.FindAll(TreeScope.Descendants,new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.Text))
