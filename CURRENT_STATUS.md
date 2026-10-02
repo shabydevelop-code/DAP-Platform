@@ -627,3 +627,14 @@ The old combined root `DAP.TestCRM.csproj` and root launch profile were removed 
 - A second full canonical Web E2E run passed with this self-contained topology, confirming that no separately pre-started TestCRM server terminals are required.
 - Current stable Web baseline: numeric persistence IDs + stable textual keys + 53-Step persisted Guide + self-contained full E2E PASS.
 - Next planned runtime milestone: Windows Learner Runtime, starting with persisted Windows Steps 1–2, production UIA target resolution, and real learner bubbles using the same DAP database architecture.
+
+## Windows persisted Guide 12-Step milestone — 2026-10-03
+
+- **Windows Guided persisted Steps 1 -> 12 are locally verified PASS.** Terminal result: `PASS: DAP Windows Learner Runtime persisted Steps 1 -> 12 with real UIA targets, runtime capture, and bubbles.`
+- Step 11 captures the newly created Case identifier from the live Windows UI and persists it as runtime Step capture for reuse by Step 12.
+- Step 12 resolves the created Case row from `CasesGrid` using the captured identifier and contextual anchors. For small already-realized grids, Windows target resolution now uses the same ordinary `DataItem` row filtering principle already used successfully for `SitesGrid`: enumerate scoped rows, apply the descendant identity, require a unique result, and do not guess.
+- The TestCRM Case fixture is bounded on server startup so the primary Site keeps only the newest 10 pre-existing Cases; the guided scenario therefore exercises a small deterministic grid instead of historical database pollution from prior runs. This is test-fixture hygiene, not a production Runtime shortcut.
+- Windows learner bubbles now support a visible drag handle and a directional pointer toward the resolved UIA target. Initial placement tries non-overlapping sides of the target and changes side when the preferred placement would not fit. Dragging updates the pointer direction.
+- The Windows E2E driver selects the created Case row through `SelectionItemPattern` before the physical double-click fallback, matching the existing safe WPF DataGrid interaction pattern.
+- The 5-second E2E timeout policy remains unchanged. No timeout increase was used to obtain the PASS.
+- Closed-target rule remains unchanged: TestCRM source may be inspected for diagnosis and learning, but production target resolution relies only on runtime-observable UIA data.
