@@ -52,6 +52,11 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
         if(!combo.TryGetCurrentPattern(ValuePattern.Pattern,out var pattern))
             throw new Exception($"{id} has no ValuePattern.");
         ((ValuePattern)pattern).SetValue(value);
+        Wait(()=> {
+            var current=window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,id));
+            if(current is null || !current.TryGetCurrentPattern(ValuePattern.Pattern,out var currentPattern))return null;
+            return string.Equals(((ValuePattern)currentPattern).Current.Value,value,StringComparison.Ordinal) ? current : null;
+        },$"{id} value '{value}'");
 
         if(id=="CaseStatus" && value=="בטיפול")
             Wait(()=>EnabledById("CaseResolutionNotes"),"CaseResolutionNotes enabled after CaseStatus=בטיפול");
