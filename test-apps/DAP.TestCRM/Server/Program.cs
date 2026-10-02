@@ -1,6 +1,11 @@
 using Microsoft.Data.Sqlite;
 
-var builder = WebApplication.CreateBuilder(args);
+var options = new WebApplicationOptions
+{
+    Args = args,
+    WebRootPath = Path.Combine("Web", "wwwroot")
+};
+var builder = WebApplication.CreateBuilder(options);
 var app = builder.Build();
 
 app.Use(async (context,next)=>{if(context.Request.Path.StartsWithSegments("/api") && context.Request.Headers["X-DAP-E2E-Mode"].ToString()!="fast")await Task.Delay(650);await next();});
