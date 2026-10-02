@@ -49,9 +49,14 @@ if (args.Contains("--reset-guide", StringComparer.OrdinalIgnoreCase))
     return;
 }
 
-var crmOnly = args.Contains("--crm-only", StringComparer.OrdinalIgnoreCase);
-if (crmOnly && (manualFromStep is not null || visualFromStep is not null))
-    throw new ArgumentException("--crm-only cannot be combined with --manual-from-step or --visual-from-step.");
+var unguided =
+    args.Contains("--unguided", StringComparer.OrdinalIgnoreCase) ||
+    args.Contains("--crm-only", StringComparer.OrdinalIgnoreCase);
+var explicitGuided = args.Contains("--guided", StringComparer.OrdinalIgnoreCase);
+if (unguided && explicitGuided)
+    throw new ArgumentException("--guided and --unguided cannot be combined.");
+if (unguided && (manualFromStep is not null || visualFromStep is not null))
+    throw new ArgumentException("--unguided cannot be combined with --manual-from-step or --visual-from-step.");
 
 static int ReserveTcpPort()
 {
@@ -183,7 +188,7 @@ var visualMode = e2eMode is "visual" or "demo";
 var fastMode = !visualMode;
 var switchedToVisual = visualMode;
 
-Console.WriteLine($"E2E mode: {(crmOnly ? $"crm-only ({e2eMode})" : visualFromStep is not null ? $"fast -> visual from Step {visualFromStep}" : visualMode ? "visual" : "fast")}");
+Console.WriteLine($"E2E mode: {(unguided ? $"crm-only ({e2eMode})" : visualFromStep is not null ? $"fast -> visual from Step {visualFromStep}" : visualMode ? "visual" : "fast")}");
 if (visualMode || visualFromStep is not null)
 await page.AddInitScriptAsync(@"(() => {
   const install=()=>{
@@ -259,7 +264,7 @@ async Task MoveTo(ILocator target)
     // by the active production bubble. This turns Guide/E2E synchronization
     // into an executable invariant instead of relying on visually similar
     // selectors in two separate places.
-    if(!crmOnly)
+    if(!unguided)
     {
         var matchesActiveGuideTarget=await target.EvaluateAsync<bool>(
             @"el => {
@@ -404,7 +409,7 @@ await WaitReady();
 StartupMark("TestCRM ready");
 
 // Every Web scenario mode consumes the same persisted production Guide.
-// CRM-only suppresses DAP.exe and bubble presentation, but the business-flow
+// unguided suppresses DAP.exe and bubble presentation, but the business-flow
 // harness is still sequenced by the Guide in DAP.db. This keeps the Guide as
 // the single source of truth without adding test-only fields to production data.
 var dapDatabaseOptions=SqliteDatabaseOptions.CreateDefault();
@@ -418,8 +423,8 @@ await dapRepository.RenameGuideAsync(
     DapTestCrmGuideSeed.GuideName);
 var dapSteps=await dapRepository.GetStepsAsync(DapTestCrmGuideSeed.GuideId);
 Console.WriteLine($"DAP persistent guide database: {dapDbPath}");
-StartupMark(crmOnly
-    ? "persistent DAP guide loaded for CRM-only"
+StartupMark(unguided
+    ? "persistent DAP guide loaded for unguided"
     : "persistent DAP guide loaded");
 
 if(dapSteps.Count==0)
@@ -466,10 +471,10 @@ async Task WaitForGuideStep(int order)
     if(advancedSequence)
         lastScenarioGuideOrder=order;
 
-    if(crmOnly)
+    if(unguided)
     {
         if(advancedSequence)
-            Console.WriteLine($"Web CRM-only Guide Step {order}/{dapSteps.Count}: {expected.Id}");
+            Console.WriteLine($"Web unguided Guide Step {order}/{dapSteps.Count}: {expected.Id}");
         return;
     }
     for(var i=0;i<100;i++)
@@ -554,7 +559,7 @@ void KillOwnedDapProcess()
 
 try
 {
-if(!crmOnly)
+if(!unguided)
 {
 var dapStep=dapSteps[0];
 var dapSecondStep=dapSteps[1];
@@ -760,7 +765,7 @@ lastScenarioGuideOrder=2;
 }
 else
 {
-    // CRM-only follows the same persisted Guide sequence without DAP.exe or
+    // unguided follows the same persisted Guide sequence without DAP.exe or
     // bubble presentation. Test input remains harness-owned.
     await WaitForGuideStep(1);
     await (await Content()).Locator("[name='name']").WaitForAsync();
@@ -851,7 +856,7 @@ if(await notes.IsDisabledAsync()) throw new Exception("Treatment Notes did not b
 await WaitForGuideStep(14);
 await Fill("[name='resolutionNotes']","בוצעה בדיקת שירות מול הלקוח והתקלה טופלה.");
 
-Console.WriteLine(crmOnly ? "CRM customer -> Case treatment segment: PASS" : "DAP complete customer -> Case treatment Guide segment: PASS");
+Console.WriteLine(unguided ? "CRM customer -> Case treatment segment: PASS" : "DAP complete customer -> Case treatment Guide segment: PASS");
 
 // 4. Real off-screen target / scrolling through activity history.
 // Step 15 is deliberately off-screen: the production presenter keeps its bubble
@@ -898,7 +903,7 @@ if(await frame.Locator("[name='description']").InputValueAsync()!="הלקוח מ
 await WaitForGuideStep(20);
 await Select("[name='closeReason']","טופל");
 await WaitForGuideStep(21);
-Console.WriteLine(crmOnly ? "CRM Case closure through validation alert and Close Reason: PASS" : "DAP guided Case closure through validation alert and Close Reason: PASS");
+Console.WriteLine(unguided ? "CRM Case closure through validation alert and Close Reason: PASS" : "DAP guided Case closure through validation alert and Close Reason: PASS");
 await SaveSuccess();
 
 // Step 21's Save click is the learner action that advances the production
@@ -1182,8 +1187,8 @@ if(lastScenarioGuideOrder!=dapSteps.Count)
     throw new Exception(
         $"Canonical Web scenario completed after Guide Step {lastScenarioGuideOrder}; expected {dapSteps.Count}.");
 
-Console.WriteLine(crmOnly
-    ? "PASS: Web CRM-only executed the canonical 53-step scenario sequenced by the persisted Guide in DAP.db, without DAP.exe or bubbles."
+Console.WriteLine(unguided
+    ? "PASS: Web unguided executed the canonical 53-step scenario sequenced by the persisted Guide in DAP.db, without DAP.exe or bubbles."
     : "PASS: representative Customer -> Site -> Case -> Lead workflow, including dynamic Lead deletion and Case deletion, completed.");
 await page.WaitForTimeoutAsync(visualMode ? 1500 : 0);
 }
