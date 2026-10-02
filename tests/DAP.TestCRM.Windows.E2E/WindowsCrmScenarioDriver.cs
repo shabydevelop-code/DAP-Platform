@@ -134,8 +134,8 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     public Task ConfirmDelete(){DialogButton(true);return Task.CompletedTask;}
     public Task GoPortal(){Click(ById("PortalHeader"));return Task.CompletedTask;}
 
-    static IntPtr WaitHandle(Func<IntPtr> f,string what,int timeout=10000){var sw=Stopwatch.StartNew();while(sw.ElapsedMilliseconds<timeout){var x=f();if(x!=IntPtr.Zero)return x;Thread.Sleep(100);}throw new TimeoutException($"Timed out waiting for {what}.");}
-    static AutomationElement Wait(Func<AutomationElement?> f,string what,int timeout=10000){var sw=Stopwatch.StartNew();while(sw.ElapsedMilliseconds<timeout){var x=f();if(x!=null)return x;Thread.Sleep(100);}throw new TimeoutException($"Timed out waiting for {what}.");}
+    static IntPtr WaitHandle(Func<IntPtr> f,string what,int timeout=5000){var sw=Stopwatch.StartNew();while(sw.ElapsedMilliseconds<timeout){var x=f();if(x!=IntPtr.Zero)return x;Thread.Sleep(100);}throw new TimeoutException($"Timed out waiting for {what}.");}
+    static AutomationElement Wait(Func<AutomationElement?> f,string what,int timeout=5000){var sw=Stopwatch.StartNew();while(sw.ElapsedMilliseconds<timeout){var x=f();if(x!=null)return x;Thread.Sleep(100);}throw new TimeoutException($"Timed out waiting for {what}.");}
     const uint GW_ENABLEDPOPUP=6, WM_COMMAND=0x0111;
     const int IDOK=1, IDYES=6;
     const int SM_XVIRTUALSCREEN=76, SM_YVIRTUALSCREEN=77, SM_CXVIRTUALSCREEN=78, SM_CYVIRTUALSCREEN=79;
