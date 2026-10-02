@@ -15,4 +15,11 @@ public sealed record GuideStep(
     BubbleDefinition Bubble,
     ValidationDefinition? Validation = null,
     StepAdvanceMode AdvanceMode = StepAdvanceMode.AutomaticOnValidation,
-    StepContextDefinition? Context = null);
+    StepContextDefinition? Context = null,
+    StepCaptureDefinition? Capture = null);
+
+public sealed record StepCaptureDefinition(
+    TargetRuntime Runtime,
+    Locator Locator,
+    string Property,
+    string? Pattern = null);
