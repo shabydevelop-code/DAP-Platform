@@ -2,7 +2,8 @@ namespace DAP.TestCRM.E2E.Common;
 
 public interface ICrmScenarioDriver
 {
-    Task SearchCustomer(string name);
+    Task SetCustomerSearch(string name);
+    Task SubmitCustomerSearch();
     Task OpenFirstCustomer();
     Task OpenFirstSite();
     Task OpenCases();
@@ -45,8 +46,8 @@ public static class CanonicalCrmScenario
             await action();
         }
 
-        await Step(1,()=>d.SearchCustomer("אלפא פתרונות בע\"מ"));
-        await Step(2,()=>Task.CompletedTask); // Search is committed with Step 1 in the Windows form action.
+        await Step(1,()=>d.SetCustomerSearch("אלפא פתרונות בע\"מ"));
+        await Step(2,d.SubmitCustomerSearch);
         await Step(3,d.OpenFirstCustomer);
         await Step(4,d.OpenFirstSite);
         await Step(5,d.OpenCases);
