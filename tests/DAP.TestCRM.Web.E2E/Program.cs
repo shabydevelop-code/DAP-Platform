@@ -10,16 +10,27 @@ using DAP.Data.Sqlite.Guides;
 const string baseUrl = "http://localhost:5200";
 
 int? manualFromStep = null;
+int? visualFromStep = null;
 for (var i = 0; i < args.Length; i++)
 {
-    if (!args[i].Equals("--manual-from-step", StringComparison.OrdinalIgnoreCase))
+    if (args[i].Equals("--manual-from-step", StringComparison.OrdinalIgnoreCase))
+    {
+        if (i + 1 >= args.Length || !int.TryParse(args[++i], out var parsedManualStep) || parsedManualStep < 1)
+            throw new ArgumentException("--manual-from-step requires a positive Guide Step order.");
+        manualFromStep = parsedManualStep;
         continue;
+    }
 
-    if (i + 1 >= args.Length || !int.TryParse(args[++i], out var parsedManualStep) || parsedManualStep < 1)
-        throw new ArgumentException("--manual-from-step requires a positive Guide Step order.");
-
-    manualFromStep = parsedManualStep;
+    if (args[i].Equals("--visual-from-step", StringComparison.OrdinalIgnoreCase))
+    {
+        if (i + 1 >= args.Length || !int.TryParse(args[++i], out var parsedVisualStep) || parsedVisualStep < 1)
+            throw new ArgumentException("--visual-from-step requires a positive Guide Step order.");
+        visualFromStep = parsedVisualStep;
+    }
 }
+
+if (manualFromStep is not null && visualFromStep is not null)
+    throw new ArgumentException("--manual-from-step and --visual-from-step cannot be combined.");
 
 if (args.Contains("--reset-guide", StringComparer.OrdinalIgnoreCase))
 {
@@ -35,8 +46,8 @@ if (args.Contains("--reset-guide", StringComparer.OrdinalIgnoreCase))
 }
 
 var crmOnly = args.Contains("--crm-only", StringComparer.OrdinalIgnoreCase);
-if (crmOnly && manualFromStep is not null)
-    throw new ArgumentException("--crm-only cannot be combined with --manual-from-step.");
+if (crmOnly && (manualFromStep is not null || visualFromStep is not null))
+    throw new ArgumentException("--crm-only cannot be combined with --manual-from-step or --visual-from-step.");
 
 static int ReserveTcpPort()
 {
@@ -148,9 +159,10 @@ StartupMark("browser context and page created");
 var e2eMode = Environment.GetEnvironmentVariable("DAP_E2E_MODE")?.Trim().ToLowerInvariant() ?? "fast";
 var visualMode = e2eMode is "visual" or "demo";
 var fastMode = !visualMode;
+var switchedToVisual = visualMode;
 
-Console.WriteLine($"E2E mode: {(crmOnly ? "crm-only" : visualMode ? "visual" : "fast")}");
-if (visualMode)
+Console.WriteLine($"E2E mode: {(crmOnly ? "crm-only" : visualFromStep is not null ? $"fast -> visual from Step {visualFromStep}" : visualMode ? "visual" : "fast")}");
+if (visualMode || visualFromStep is not null)
 await page.AddInitScriptAsync(@"(() => {
   const install=()=>{
     if(window !== window.top) return;
@@ -394,6 +406,11 @@ if(!crmOnly)
             nameof(manualFromStep),
             manualFromStep,
             $"Guide '{DapTestCrmGuideSeed.GuideId}' does not contain Step {manualFromStep}.");
+    if(visualFromStep is not null && !dapSteps.Any(step => step.Order == visualFromStep.Value))
+        throw new ArgumentOutOfRangeException(
+            nameof(visualFromStep),
+            visualFromStep,
+            $"Guide '{DapTestCrmGuideSeed.GuideId}' does not contain Step {visualFromStep}.");
 }
 
 var dapStdErrLines=new System.Collections.Concurrent.ConcurrentQueue<string>();
@@ -422,6 +439,13 @@ async Task WaitForGuideStep(int order)
                         if(bubbleText.Contains(expected.Bubble.Content,StringComparison.Ordinal)
                             && bubbleText.Contains(expectedProgress,StringComparison.Ordinal))
                         {
+                            if(visualFromStep == order && !switchedToVisual)
+                            {
+                                visualMode=true;
+                                fastMode=false;
+                                switchedToVisual=true;
+                                Console.WriteLine($"E2E mode transition: FAST -> VISUAL at Step {order}");
+                            }
                             await HumanPause(500);
                             if(manualFromStep == order)
                             {
