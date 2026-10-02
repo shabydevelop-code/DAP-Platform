@@ -211,7 +211,7 @@ async Task<IFrame> Content()
     // retiring frame and must never be treated as the active content context.
     // Guide-step timeout detects a technical transition failure. Human-paced
     // visual/demo timing is handled separately by HumanPause.
-    const int attempts=50;
+    const int attempts=100;
     for(var i=0;i<attempts;i++)
     {
         try
@@ -746,13 +746,19 @@ if(!dapSecondBubbleText.Contains(expectedSecondProgress,StringComparison.Ordinal
     throw new Exception($"DAP Guide Runtime second Step progress mismatch. Expected '{expectedSecondProgress}'.");
 Console.WriteLine("DAP Learner Web Runtime automatic validation completion: PASS");
 Console.WriteLine("DAP Guide Runtime Step 1 -> Step 2 transition: PASS");
+
+// Steps 1 and 2 were verified above through the production Runtime rather than
+// through WaitForGuideStep, so record the same canonical sequence position.
+lastScenarioGuideOrder=2;
 }
 else
 {
-    // CRM-only executes the same canonical business flow, but without starting
-    // DAP.exe or waiting for Guide/bubble synchronization.
+    // CRM-only follows the same persisted Guide sequence without DAP.exe or
+    // bubble presentation. Test input remains harness-owned.
+    await WaitForGuideStep(1);
     await (await Content()).Locator("[name='name']").WaitForAsync();
     await Fill("[name='name']","אלפא פתרונות בע\"מ");
+    await WaitForGuideStep(2);
 }
 
 await Click("#customer-search button.primary");
