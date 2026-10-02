@@ -9,43 +9,51 @@ public sealed class CrmApiClient
     private readonly HttpClient _http = new() { BaseAddress = new Uri("http://localhost:5200") };
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    public async Task<List<Customer>> GetCustomersAsync(string? name = null, string? phone = null, string? email = null)
+    public Task<List<Customer>> GetCustomersAsync(string? name=null,string? phone=null,string? email=null) =>
+        GetListAsync<Customer>("/api/customers"+Query(("name",name),("phone",phone),("email",email)));
+    public Task<Customer?> GetCustomerAsync(int id) => GetAsync<Customer>($"/api/customers/{id}");
+    public Task<List<Site>> GetSitesAsync(int customerId) => GetListAsync<Site>($"/api/customers/{customerId}/sites");
+    public Task<Site?> GetSiteAsync(int id) => GetAsync<Site>($"/api/sites/{id}");
+    public Task<List<CaseItem>> GetCasesAsync(int siteId) => GetListAsync<CaseItem>($"/api/sites/{siteId}/cases");
+    public Task<CaseItem?> GetCaseAsync(int id) => GetAsync<CaseItem>($"/api/cases/{id}");
+    public Task<List<Lead>> GetLeadsAsync(int siteId) => GetListAsync<Lead>($"/api/sites/{siteId}/leads");
+    public Task<Lead?> GetLeadAsync(int id) => GetAsync<Lead>($"/api/leads/{id}");
+
+    public Task<Customer> CreateCustomerAsync(string name,string phone,string email) => PostAsync<Customer>("/api/customers",new {name,phone,email});
+    public Task<Site> CreateSiteAsync(int customerId,SiteInput x) => PostAsync<Site>($"/api/customers/{customerId}/sites",x);
+    public Task<CaseItem> CreateCaseAsync(int siteId,CaseInput x) => PostAsync<CaseItem>($"/api/sites/{siteId}/cases",x);
+    public Task<Lead> CreateLeadAsync(int siteId,LeadInput x) => PostAsync<Lead>($"/api/sites/{siteId}/leads",x);
+    public Task SaveSiteAsync(int id,SiteInput x) => SendAsync(HttpMethod.Put,$"/api/sites/{id}",x);
+    public Task SaveCaseAsync(int id,CaseInput x) => SendAsync(HttpMethod.Put,$"/api/cases/{id}",x);
+    public Task SaveLeadAsync(int id,LeadInput x) => SendAsync(HttpMethod.Put,$"/api/leads/{id}",x);
+    public Task DeleteSiteAsync(int id) => SendAsync(HttpMethod.Delete,$"/api/sites/{id}",new {});
+    public Task DeleteCaseAsync(int id) => SendAsync(HttpMethod.Delete,$"/api/cases/{id}",new {});
+    public Task DeleteLeadAsync(int id) => SendAsync(HttpMethod.Delete,$"/api/leads/{id}",new {});
+    public Task CaseStatusChangedAsync(int id,string status) => SendAsync(HttpMethod.Post,$"/api/cases/{id}/fieldchange/status",new {status});
+    public Task LeadStatusChangedAsync(int id,string status) => SendAsync(HttpMethod.Post,$"/api/leads/{id}/fieldchange/status",new {status});
+
+    private async Task<T?> GetAsync<T>(string path) => await _http.GetFromJsonAsync<T>(path,JsonOptions);
+    private async Task<List<T>> GetListAsync<T>(string path) => await _http.GetFromJsonAsync<List<T>>(path,JsonOptions) ?? [];
+    private async Task<T> PostAsync<T>(string path,object body)
     {
-        var query = new List<string>();
-        AddQuery(query, "name", name);
-        AddQuery(query, "phone", phone);
-        AddQuery(query, "email", email);
-        var path = "/api/customers" + (query.Count == 0 ? "" : "?" + string.Join("&", query));
-        return await _http.GetFromJsonAsync<List<Customer>>(path, JsonOptions) ?? [];
+        using var r=await _http.PostAsJsonAsync(path,body);
+        await EnsureAsync(r);
+        return (await r.Content.ReadFromJsonAsync<T>(JsonOptions))!;
     }
-
-    private static void AddQuery(List<string> query, string key, string? value)
+    private async Task SendAsync<T>(HttpMethod method,string path,T body)
     {
-        if (!string.IsNullOrWhiteSpace(value))
-            query.Add($"{key}={Uri.EscapeDataString(value.Trim())}");
+        using var r=await _http.SendAsync(new HttpRequestMessage(method,path){Content=JsonContent.Create(body)});
+        await EnsureAsync(r);
     }
-
-    public async Task<List<Site>> GetSitesAsync(int customerId) =>
-        await _http.GetFromJsonAsync<List<Site>>($"/api/customers/{customerId}/sites", JsonOptions) ?? [];
-
-    public async Task<List<CaseItem>> GetCasesAsync(int siteId) =>
-        await _http.GetFromJsonAsync<List<CaseItem>>($"/api/sites/{siteId}/cases", JsonOptions) ?? [];
-
-    public async Task<List<Lead>> GetLeadsAsync(int siteId) =>
-        await _http.GetFromJsonAsync<List<Lead>>($"/api/sites/{siteId}/leads", JsonOptions) ?? [];
-
-    public async Task SaveSiteAsync(int id, SiteInput input) => await SendAsync(HttpMethod.Put, $"/api/sites/{id}", input);
-    public async Task SaveCaseAsync(int id, CaseInput input) => await SendAsync(HttpMethod.Put, $"/api/cases/{id}", input);
-    public async Task SaveLeadAsync(int id, LeadInput input) => await SendAsync(HttpMethod.Put, $"/api/leads/{id}", input);
-
-    private async Task SendAsync<T>(HttpMethod method, string path, T body)
+    private static async Task EnsureAsync(HttpResponseMessage r)
     {
-        using var response = await _http.SendAsync(new HttpRequestMessage(method, path) { Content = JsonContent.Create(body) });
-        if (response.IsSuccessStatusCode) return;
-
-        var text = await response.Content.ReadAsStringAsync();
-        throw new InvalidOperationException(string.IsNullOrWhiteSpace(text)
-            ? $"CRM API returned {(int)response.StatusCode}."
-            : text);
+        if(r.IsSuccessStatusCode)return;
+        var text=await r.Content.ReadAsStringAsync();
+        throw new InvalidOperationException(string.IsNullOrWhiteSpace(text)?$"CRM API returned {(int)r.StatusCode}.":text);
+    }
+    private static string Query(params (string key,string? value)[] values)
+    {
+        var q=values.Where(x=>!string.IsNullOrWhiteSpace(x.value)).Select(x=>$"{x.key}={Uri.EscapeDataString(x.value!.Trim())}").ToArray();
+        return q.Length==0?"":"?"+string.Join("&",q);
     }
 }
