@@ -127,41 +127,49 @@ public sealed class WindowsTargetResolver
         if (scopeAnchor is null || descendantAnchor is null)
             return false;
 
-        // Find all declared scopes so duplicate containers still preserve normal
-        // ambiguity semantics instead of silently choosing the first one.
-        var scopes = Find(root, scopeAnchor.Locator).ToList();
-        if (scopes.Count == 0)
-            return false;
-
         if (!TryCreateNativeCondition(descendantAnchor.Locator, out var descendantCondition))
             return false;
 
-        foreach (var scope in scopes)
-        {
-            // Query the selective descendant directly through UIA. Do not enumerate the
-            // complete subtree: exact materialized runtime values such as a generated ID
-            // can be located by the provider itself.
-            foreach (AutomationElement descendant in scope.FindAll(TreeScope.Descendants, descendantCondition))
-            {
-                // RawView preserves structural parents that ControlView may skip for
-                // DataGrid cells/text, which is essential when walking back to a DataItem.
-                var current = TreeWalker.RawViewWalker.GetParent(descendant);
-                while (current is not null && !Automation.Compare(current, scope))
-                {
-                    if (MatchesLocator(current, descriptor.Locator)
-                        && HasRawAncestorOrSelf(current, scope)
-                        && MatchesRemainingAnchors(current, descriptor.Anchors, scopeAnchor, descendantAnchor)
-                        && !candidates.Any(existing => Automation.Compare(existing, current)))
-                    {
-                        candidates.Add(current);
-                    }
+        // Anchor-first must start with the most selective runtime value, not with the
+        // repeated primary type (for example DataItem) and not by enumerating the grid.
+        // Captured IDs/names are expected to identify a single materialized element, so
+        // let the UIA provider stop at the first exact match and walk structurally upward.
+        var descendant = root.FindFirst(TreeScope.Descendants, descendantCondition);
+        if (descendant is null)
+            return false;
 
-                    current = TreeWalker.RawViewWalker.GetParent(current);
-                }
-            }
+        var walker = TreeWalker.RawViewWalker;
+        for (var current = walker.GetParent(descendant);
+             current is not null;
+             current = walker.GetParent(current))
+        {
+            if (!MatchesLocator(current, descriptor.Locator))
+                continue;
+
+            // Verify the declared scope from the candidate upward. This keeps the
+            // optimization generic: the unique descendant locates the row, while the
+            // ancestor/context anchor proves that the row belongs to the right container.
+            var scope = FindRawAncestor(current, scopeAnchor.Locator);
+            if (scope is null)
+                continue;
+
+            if (MatchesRemainingAnchors(current, descriptor.Anchors, scopeAnchor, descendantAnchor))
+                candidates.Add(current);
+
+            break;
         }
 
         return true;
+    }
+
+    private static AutomationElement? FindRawAncestor(AutomationElement candidate, Locator locator)
+    {
+        var walker = TreeWalker.RawViewWalker;
+        for (AutomationElement? current = candidate; current is not null; current = walker.GetParent(current))
+            if (MatchesLocator(current, locator))
+                return current;
+
+        return null;
     }
 
     private static bool MatchesRemainingAnchors(
