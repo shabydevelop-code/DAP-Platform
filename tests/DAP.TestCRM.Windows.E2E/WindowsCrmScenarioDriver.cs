@@ -53,7 +53,7 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
             throw new Exception($"{id} has no ExpandCollapsePattern.");
 
         ((ExpandCollapsePattern)ep).Expand();
-        Thread.Sleep(200);
+        Thread.Sleep(250);
 
         var processId=window.Current.ProcessId;
         var item=Wait(()=>AutomationElement.RootElement.FindFirst(TreeScope.Descendants,new AndCondition(
@@ -61,14 +61,19 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
             new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.ListItem),
             new PropertyCondition(AutomationElement.NameProperty,value))),$"{id} item '{value}'");
 
-        // WPF popup items in this app do not expose a usable SelectionItem/Invoke pattern.
-        // Use a guarded physical click only for the popup item, matching the verified manual action.
+        // Click the actual popup item. ComboBox popups are separate HWNDs, so their
+        // bounds are not required to be inside the main window rectangle.
         var r=item.Current.BoundingRectangle;
-        var wr=window.Current.BoundingRectangle;
         if(r.IsEmpty)throw new Exception($"ComboBox item '{value}' has no bounds.");
-        if(r.Left<wr.Left || r.Top<wr.Top || r.Right>wr.Right || r.Bottom>wr.Bottom)
-            throw new Exception($"Refusing ComboBox click outside CRM window for '{id}' value '{value}'.");
-        SetCursorPos((int)(r.Left+r.Width/2),(int)(r.Top+r.Height/2));
+        var screenWidth=GetSystemMetrics(SM_CXVIRTUALSCREEN);
+        var screenHeight=GetSystemMetrics(SM_CYVIRTUALSCREEN);
+        var screenLeft=GetSystemMetrics(SM_XVIRTUALSCREEN);
+        var screenTop=GetSystemMetrics(SM_YVIRTUALSCREEN);
+        var x=(int)(r.Left+r.Width/2);
+        var y=(int)(r.Top+r.Height/2);
+        if(x<screenLeft || y<screenTop || x>=screenLeft+screenWidth || y>=screenTop+screenHeight)
+            throw new Exception($"Refusing ComboBox click outside virtual screen for '{id}' value '{value}'.");
+        SetCursorPos(x,y);
         Mouse();
 
         if(id=="CaseStatus" && value=="בטיפול")
@@ -134,6 +139,7 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     public Task GoPortal(){Click(ById("PortalHeader"));return Task.CompletedTask;}
 
     static AutomationElement Wait(Func<AutomationElement?> f,string what,int timeout=10000){var sw=Stopwatch.StartNew();while(sw.ElapsedMilliseconds<timeout){var x=f();if(x!=null)return x;Thread.Sleep(100);}throw new TimeoutException($"Timed out waiting for {what}.");}
+    const int SM_XVIRTUALSCREEN=76, SM_YVIRTUALSCREEN=77, SM_CXVIRTUALSCREEN=78, SM_CYVIRTUALSCREEN=79;
     const byte VK_RETURN=0x0D;
     const byte VK_HOME=0x24;
     const byte VK_DOWN=0x28;
