@@ -42,6 +42,12 @@ if (args.Contains("--dap-first-two", StringComparer.OrdinalIgnoreCase))
     return;
 }
 
+if (args.Contains("--crm-only-db-first-two", StringComparer.OrdinalIgnoreCase))
+{
+    await RunCrmOnlyDbFirstTwoAsync();
+    return;
+}
+
 using var app = Process.Start(new ProcessStartInfo(
     "dotnet",
     $"run --project \"{appProject}\" --no-launch-profile")
@@ -59,6 +65,53 @@ try
 finally
 {
     StopOwnedProcessTree(app);
+}
+
+async Task RunCrmOnlyDbFirstTwoAsync()
+{
+    var databaseOptions = SqliteDatabaseOptions.CreateDefault();
+    var factory = new SqliteConnectionFactory(databaseOptions);
+    await new SqliteDatabaseInitializer(factory).InitializeAsync();
+    var repository = new SqliteGuideStepRepository(factory);
+    var persistedSteps = await repository.GetStepsAsync(DapTestCrmWindowsGuideSeed.GuideId);
+
+    if (persistedSteps.Count != 2)
+    {
+        throw new InvalidOperationException(
+            $"Guide '{DapTestCrmWindowsGuideSeed.GuideId}' must contain exactly 2 persisted Steps. " +
+            "Run this project once with --reset-guide first.");
+    }
+
+    Process? backend = null;
+    Process? windowsApp = null;
+
+    try
+    {
+        EnsurePortFree(5201);
+
+        backend = StartProcess(
+            "dotnet",
+            $"run --project \"{backendProject}\" --no-launch-profile",
+            new Dictionary<string, string?> { ["ASPNETCORE_URLS"] = "http://localhost:5201" });
+
+        await WaitForHttpAsync("http://localhost:5201/api/customers", backend, "TestCRM backend");
+
+        windowsApp = StartProcess(
+            "dotnet",
+            $"run --project \"{appProject}\" --no-launch-profile");
+
+        var window = WaitForMainWindow();
+        await new DbBackedWindowsCrmStepExecutor(window).RunAsync(persistedSteps);
+
+        WaitForElementById(window, "CustomersGrid");
+        Console.WriteLine(
+            "PASS: Windows CRM-only executed persisted Steps 1 -> 2 from DAP.db without DAP Runtime.");
+    }
+    finally
+    {
+        if (windowsApp is not null) StopOwnedProcessTree(windowsApp);
+        if (backend is not null) StopOwnedProcessTree(backend);
+    }
 }
 
 async Task RunDapFirstTwoAsync()
