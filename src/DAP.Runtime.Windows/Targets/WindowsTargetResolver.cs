@@ -22,7 +22,7 @@ public sealed class WindowsTargetResolver
         // An unanchored exact locator is the Guide's declaration that the locator itself is
         // sufficient to identify the target. Use FindFirst so UIA can stop walking large
         // descendant trees (for example, a screen containing a large DataGrid).
-        if (descriptor.Anchors.Count == 0 && IsExactLocator(descriptor.Locator))
+        if (descriptor.Anchors.Count == 0 && IsUniqueExactLocator(descriptor.Locator))
         {
             var findStopwatch = Stopwatch.StartNew();
             var findCpuStarted = process.TotalProcessorTime;
@@ -119,10 +119,10 @@ public sealed class WindowsTargetResolver
 
         var scopeAnchor = descriptor.Anchors.FirstOrDefault(anchor =>
             anchor.Relation is AnchorRelation.Ancestor or AnchorRelation.Context
-            && IsExactLocator(anchor.Locator));
+            && IsNativeExactLocator(anchor.Locator));
         var descendantAnchor = descriptor.Anchors.FirstOrDefault(anchor =>
             anchor.Relation == AnchorRelation.Descendant
-            && IsExactLocator(anchor.Locator));
+            && IsNativeExactLocator(anchor.Locator));
 
         if (scopeAnchor is null || descendantAnchor is null)
             return false;
@@ -133,21 +133,30 @@ public sealed class WindowsTargetResolver
         if (scopes.Count == 0)
             return false;
 
+        if (!TryCreateNativeCondition(descendantAnchor.Locator, out var descendantCondition))
+            return false;
+
         foreach (var scope in scopes)
         {
-            foreach (var descendant in Find(scope, descendantAnchor.Locator))
+            // Query the selective descendant directly through UIA. Do not enumerate the
+            // complete subtree: exact materialized runtime values such as a generated ID
+            // can be located by the provider itself.
+            foreach (AutomationElement descendant in scope.FindAll(TreeScope.Descendants, descendantCondition))
             {
-                var current = TreeWalker.ControlViewWalker.GetParent(descendant);
+                // RawView preserves structural parents that ControlView may skip for
+                // DataGrid cells/text, which is essential when walking back to a DataItem.
+                var current = TreeWalker.RawViewWalker.GetParent(descendant);
                 while (current is not null && !Automation.Compare(current, scope))
                 {
                     if (MatchesLocator(current, descriptor.Locator)
-                        && MatchesAnchors(current, descriptor.Anchors)
+                        && HasRawAncestorOrSelf(current, scope)
+                        && MatchesRemainingAnchors(current, descriptor.Anchors, scopeAnchor, descendantAnchor)
                         && !candidates.Any(existing => Automation.Compare(existing, current)))
                     {
                         candidates.Add(current);
                     }
 
-                    current = TreeWalker.ControlViewWalker.GetParent(current);
+                    current = TreeWalker.RawViewWalker.GetParent(current);
                 }
             }
         }
@@ -155,7 +164,32 @@ public sealed class WindowsTargetResolver
         return true;
     }
 
-    private static bool IsExactLocator(Locator locator) =>
+    private static bool MatchesRemainingAnchors(
+        AutomationElement candidate,
+        IReadOnlyList<Anchor> anchors,
+        Anchor scopeAnchor,
+        Anchor descendantAnchor) =>
+        anchors
+            .Where(anchor => !ReferenceEquals(anchor, scopeAnchor) && !ReferenceEquals(anchor, descendantAnchor))
+            .All(anchor => MatchesAnchor(candidate, anchor));
+
+    private static bool HasRawAncestorOrSelf(AutomationElement candidate, AutomationElement ancestor)
+    {
+        var walker = TreeWalker.RawViewWalker;
+        for (AutomationElement? current = candidate; current is not null; current = walker.GetParent(current))
+            if (Automation.Compare(current, ancestor))
+                return true;
+        return false;
+    }
+
+    private static bool IsUniqueExactLocator(Locator locator)
+    {
+        var strategy = locator.Strategy.Trim();
+        return strategy.Equals("automation-id", StringComparison.OrdinalIgnoreCase)
+               || strategy.Equals("name", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsNativeExactLocator(Locator locator) =>
         TryCreateNativeCondition(locator, out _);
 
     private static AutomationElement? FindFirst(AutomationElement root, Locator locator)
