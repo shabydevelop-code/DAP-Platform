@@ -65,6 +65,8 @@ public sealed class WindowsGuideRuntime
         CancellationToken cancellationToken)
     {
         var clicked = string.Equals(step.Validation?.Kind, "clicked", StringComparison.OrdinalIgnoreCase);
+        var targetDisappeared = string.Equals(step.Validation?.Kind, "target-disappeared", StringComparison.OrdinalIgnoreCase);
+        var targetWasResolved = false;
         var clickCompleted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         AutomationEventHandler? clickHandler = null;
         AutomationElement? subscribedTarget = null;
@@ -88,11 +90,14 @@ public sealed class WindowsGuideRuntime
                 if (resolution.Status != TargetResolutionStatus.Resolved || resolution.Target is null)
                 {
                     await _bubbles.HideAsync();
+                    if (targetDisappeared && targetWasResolved)
+                        return;
                     await Task.Delay(_pollInterval, cancellationToken);
                     continue;
                 }
 
                 var target = resolution.Target;
+                targetWasResolved = true;
 
                 if (clicked && (subscribedTarget is null || !Automation.Compare(subscribedTarget, target)))
                 {
@@ -117,6 +122,11 @@ public sealed class WindowsGuideRuntime
                 {
                     if (clickCompleted.Task.IsCompleted)
                         return;
+                }
+                else if (targetDisappeared)
+                {
+                    // Completion is detected on a later reconciliation pass when
+                    // the previously resolved target leaves the current UI tree.
                 }
                 else if (step.AdvanceMode == StepAdvanceMode.AutomaticOnValidation
                          && step.Validation is not null
