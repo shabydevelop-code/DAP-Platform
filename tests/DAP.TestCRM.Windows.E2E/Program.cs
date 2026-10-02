@@ -36,12 +36,8 @@ if (args.Contains("--reset-guide", StringComparer.OrdinalIgnoreCase))
     return;
 }
 
-var unguided =
-    args.Contains("--unguided", StringComparer.OrdinalIgnoreCase) ||
-    args.Contains("--crm-only-guide", StringComparer.OrdinalIgnoreCase);
-var guided =
-    args.Contains("--guided", StringComparer.OrdinalIgnoreCase) ||
-    args.Contains("--dap-first-ten", StringComparer.OrdinalIgnoreCase);
+var unguided = args.Contains("--unguided", StringComparer.OrdinalIgnoreCase);
+var guided = args.Contains("--guided", StringComparer.OrdinalIgnoreCase);
 
 if (unguided && guided)
     throw new ArgumentException("--guided and --unguided cannot be combined.");
