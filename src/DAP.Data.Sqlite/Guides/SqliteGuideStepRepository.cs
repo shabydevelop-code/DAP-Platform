@@ -116,6 +116,34 @@ SELECT Id FROM GuideSteps WHERE GuideId=$guideId AND Key=$key;
         await transaction.CommitAsync(cancellationToken);
     }
 
+    public async Task RenameGuideAsync(
+        string currentKey,
+        string newKey,
+        string newName,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(currentKey);
+        ArgumentException.ThrowIfNullOrWhiteSpace(newKey);
+        ArgumentException.ThrowIfNullOrWhiteSpace(newName);
+
+        await using var connection = await _connections.OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+UPDATE Guides
+SET Key = $newKey, Name = $newName
+WHERE Key = $currentKey
+  AND NOT EXISTS (SELECT 1 FROM Guides WHERE Key = $newKey);
+
+UPDATE Guides
+SET Name = $newName
+WHERE Key = $newKey;
+""";
+        command.Parameters.AddWithValue("$currentKey", currentKey);
+        command.Parameters.AddWithValue("$newKey", newKey);
+        command.Parameters.AddWithValue("$newName", newName);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
     private static void Add(SqliteCommand c,string name,object? value)=>c.Parameters.AddWithValue(name,value??DBNull.Value);
 
     private static StepRow ReadStep(SqliteDataReader r)=>new(
