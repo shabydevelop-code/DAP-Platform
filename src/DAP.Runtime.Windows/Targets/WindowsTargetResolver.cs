@@ -142,9 +142,42 @@ public sealed class WindowsTargetResolver
             return true;
 
         var descendant = scope.FindFirst(TreeScope.Descendants, descendantCondition);
-        if (descendant is null)
+        if (descendant is not null)
+        {
+            AddPrimaryAncestorCandidate(
+                descendant,
+                scope,
+                descriptor,
+                scopeAnchor,
+                descendantAnchor,
+                candidates);
             return true;
+        }
 
+        // A virtualized container can report its full logical item set while exposing only
+        // realized rows/cells in the UIA tree. Ask the provider for its logical items and
+        // realize them one at a time until the selective descendant anchor becomes available.
+        // This avoids repeatedly enumerating every DataItem and running a descendant query
+        // against every row on every reconciliation pass.
+        TryResolveVirtualizedItem(
+            scope,
+            descendantCondition,
+            descriptor,
+            scopeAnchor,
+            descendantAnchor,
+            candidates);
+
+        return true;
+    }
+
+    private static void AddPrimaryAncestorCandidate(
+        AutomationElement descendant,
+        AutomationElement scope,
+        TargetDescriptor descriptor,
+        Anchor scopeAnchor,
+        Anchor descendantAnchor,
+        ICollection<AutomationElement> candidates)
+    {
         var walker = TreeWalker.RawViewWalker;
         for (var current = walker.GetParent(descendant);
              current is not null && !Automation.Compare(current, scope);
@@ -158,8 +191,102 @@ public sealed class WindowsTargetResolver
 
             break;
         }
+    }
 
-        return true;
+    private static void TryResolveVirtualizedItem(
+        AutomationElement scope,
+        Condition descendantCondition,
+        TargetDescriptor descriptor,
+        Anchor scopeAnchor,
+        Anchor descendantAnchor,
+        ICollection<AutomationElement> candidates)
+    {
+        if (!scope.TryGetCurrentPattern(ItemContainerPattern.Pattern, out var rawPattern)
+            || rawPattern is not ItemContainerPattern itemContainer)
+            return;
+
+        var stopwatch = Stopwatch.StartNew();
+        var visited = 0;
+        var realized = 0;
+        AutomationElement? item = null;
+
+        try
+        {
+            while (visited < 10_000)
+            {
+                item = itemContainer.FindItemByProperty(item, null!, null!);
+                if (item is null)
+                    break;
+
+                visited++;
+
+                try
+                {
+                    if (item.TryGetCurrentPattern(VirtualizedItemPattern.Pattern, out var rawVirtualized)
+                        && rawVirtualized is VirtualizedItemPattern virtualized)
+                    {
+                        virtualized.Realize();
+                        realized++;
+                    }
+
+                    AutomationElement? descendant = null;
+                    if (MatchesCondition(item, descendantCondition))
+                    {
+                        descendant = item;
+                    }
+                    else
+                    {
+                        descendant = item.FindFirst(TreeScope.Descendants, descendantCondition);
+                    }
+
+                    if (descendant is null)
+                        continue;
+
+                    if (MatchesLocator(item, descriptor.Locator)
+                        && MatchesRemainingAnchors(item, descriptor.Anchors, scopeAnchor, descendantAnchor))
+                    {
+                        candidates.Add(item);
+                    }
+                    else
+                    {
+                        AddPrimaryAncestorCandidate(
+                            descendant,
+                            scope,
+                            descriptor,
+                            scopeAnchor,
+                            descendantAnchor,
+                            candidates);
+                    }
+
+                    if (candidates.Count > 0)
+                        break;
+                }
+                catch (ElementNotAvailableException)
+                {
+                    // Realizing a virtualized item can replace its placeholder element.
+                    // Continue with the provider's logical-item enumeration.
+                }
+                catch (InvalidOperationException)
+                {
+                    // Some providers expose ItemContainerPattern but do not allow all
+                    // operations on every placeholder. Continue to the next logical item.
+                }
+            }
+        }
+        catch (ElementNotAvailableException)
+        {
+        }
+        catch (InvalidOperationException)
+        {
+        }
+        catch (ArgumentException)
+        {
+        }
+
+        stopwatch.Stop();
+        Console.Error.WriteLine(
+            $"[DAP Windows resolver virtualized] visited={visited}, realized={realized}, " +
+            $"final={candidates.Count}, elapsed={stopwatch.ElapsedMilliseconds} ms.");
     }
 
     private static AutomationElement? FindRawAncestor(AutomationElement candidate, Locator locator)
