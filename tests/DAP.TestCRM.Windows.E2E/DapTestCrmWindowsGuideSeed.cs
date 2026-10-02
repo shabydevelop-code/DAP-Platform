@@ -132,8 +132,21 @@ internal static class DapTestCrmWindowsGuideSeed
             "testcrm-windows-save-new-case", 10,
             ById("SaveCaseButton"), "שמור את הפנייה החדשה"),
 
-        ClickStep(
+        new GuideStep(
             "testcrm-windows-back-to-cases", 11,
-            ByIdAndName("Breadcrumb", "מטה תל אביב"), "חזור לרשימת הפניות")
+            ByIdAndName("Breadcrumb", "מטה תל אביב"),
+            new BubbleDefinition("חזור לרשימת הפניות", BubblePlacement.Bottom),
+            new ValidationDefinition("clicked"),
+            StepAdvanceMode.AutomaticOnValidation,
+            Capture: new StepCaptureDefinition(
+                TargetRuntime.Windows,
+                new Locator("name-regex", @"^פניה\s+\d+$"),
+                "name",
+                @"^פניה\s+(\d+)$")),
+
+        NavigationRowStep(
+            "testcrm-windows-open-created-case", 12,
+            "CasesGrid", "פתח את הפנייה שיצרת",
+            "{{step:testcrm-windows-back-to-cases:capture}}")
     };
 }
