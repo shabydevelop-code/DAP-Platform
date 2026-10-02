@@ -102,6 +102,13 @@ public sealed class WindowsGuideRuntime
                 var target = resolution.Target;
                 targetWasResolved = true;
 
+                if (!HasVisibleBounds(target))
+                {
+                    await _bubbles.HideAsync();
+                    await Task.Delay(_pollInterval, cancellationToken);
+                    continue;
+                }
+
                 if (clicked && (subscribedTarget is null || !Automation.Compare(subscribedTarget, target)))
                 {
                     if (subscribedTarget is not null && clickHandler is not null)
@@ -160,6 +167,22 @@ public sealed class WindowsGuideRuntime
                 catch (ElementNotAvailableException) { }
             }
             await _bubbles.HideAsync();
+        }
+    }
+
+    private static bool HasVisibleBounds(AutomationElement target)
+    {
+        try
+        {
+            var rect = target.Current.BoundingRectangle;
+            return !target.Current.IsOffscreen
+                   && !rect.IsEmpty
+                   && rect.Width > 0
+                   && rect.Height > 0;
+        }
+        catch (ElementNotAvailableException)
+        {
+            return false;
         }
     }
 
