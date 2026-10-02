@@ -83,6 +83,8 @@ public sealed class WindowsGuideRuntime
                 catch (ElementNotAvailableException)
                 {
                     await _bubbles.HideAsync();
+                    if (targetDisappeared && targetWasResolved)
+                        return;
                     await Task.Delay(_pollInterval, cancellationToken);
                     continue;
                 }
