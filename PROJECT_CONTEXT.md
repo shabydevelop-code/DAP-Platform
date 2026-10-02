@@ -299,3 +299,13 @@ The old combined root `DAP.TestCRM.csproj` and root launch profile were removed 
 - Pending Windows parity milestone remains explicit: expand the current Windows CRM-only shared core scenario to cover the complete canonical 53-step business workflow before DAP Windows Runtime bubble/target integration is considered complete.
 
 - **Windows canonical 53-step CRM-only milestone: PASS (locally verified 2026-10-02).** `CanonicalCrmScenario.Run53Async` completed the full Customer -> Site -> Case -> Lead flow and terminated with `PASS: Windows CRM-only canonical 53-step Customer -> Site -> Case -> Lead scenario completed.` The Windows E2E now synchronizes async sort/create/delete/navigation transitions in the test harness. Test-only row AutomationIds were removed from the Windows target application; E2E target resolution remains the responsibility of the test harness. No full-53 PASS is claimed for DAP Runtime/bubbles yet; this milestone is the CRM-only Windows business-flow baseline.
+
+
+## Guide persistence identity and Web E2E baseline — 2026-10-02
+- DAP persistence uses numeric internal IDs for Guides and GuideSteps, with stable textual keys stored separately in `Guides.Key` and `GuideSteps.Key`.
+- Existing legacy SQLite databases using TEXT primary keys are migrated automatically by `SqliteDatabaseInitializer` while preserving Guide/Step keys, ordering, bubbles, validation, context, frame data and anchors.
+- The canonical TestCRM Web Guide key is `testcrm-web-canonical-workflow`; the previous `testcrm-create-case` key is migrated in place.
+- The canonical Web Guide currently contains 53 persisted Steps in the DAP database.
+- Local verification on 2026-10-02 completed the full Web runtime workflow after the schema migration with terminal PASS: `PASS: representative Customer -> Site -> Case -> Lead workflow, including dynamic Lead deletion and Case deletion, completed.`
+- The normal Web E2E runner is self-contained: it starts the shared TestCRM backend on port 5201 and the Web host on port 5200, waits for readiness, runs the browser/DAP scenario, then terminates only the processes it owns.
+- The next runtime milestone remains Windows Learner Runtime integration against the same DAP persistence architecture, beginning with real Steps 1–2 and real bubbles.
