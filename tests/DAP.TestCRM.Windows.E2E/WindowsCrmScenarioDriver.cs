@@ -17,9 +17,24 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
 
     void Click(AutomationElement e,bool twice=false)
     {
+        if(!twice && e.TryGetCurrentPattern(InvokePattern.Pattern,out var invoke))
+        {
+            ((InvokePattern)invoke).Invoke();
+            Thread.Sleep(500);
+            return;
+        }
+
         if(e.TryGetCurrentPattern(ScrollItemPattern.Pattern,out var sp))((ScrollItemPattern)sp).ScrollIntoView();
-        var r=e.Current.BoundingRectangle;if(r.IsEmpty)throw new Exception($"Target '{e.Current.AutomationId}' has no bounds.");
-        SetCursorPos((int)(r.Left+r.Width/2),(int)(r.Top+r.Height/2));Mouse();if(twice){Thread.Sleep(80);Mouse();}Thread.Sleep(800);
+        var r=e.Current.BoundingRectangle;
+        var wr=window.Current.BoundingRectangle;
+        if(r.IsEmpty)throw new Exception($"Target '{e.Current.AutomationId}' has no bounds.");
+        if(r.Left<wr.Left || r.Top<wr.Top || r.Right>wr.Right || r.Bottom>wr.Bottom)
+            throw new Exception($"Refusing physical mouse fallback outside CRM window for '{e.Current.AutomationId}'.");
+
+        SetCursorPos((int)(r.Left+r.Width/2),(int)(r.Top+r.Height/2));
+        Mouse();
+        if(twice){Thread.Sleep(80);Mouse();}
+        Thread.Sleep(800);
     }
     void Set(string id,string value)
     {
@@ -46,7 +61,10 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
 
         if(item.TryGetCurrentPattern(SelectionItemPattern.Pattern,out var sip))
             ((SelectionItemPattern)sip).Select();
-        else Click(item);
+        else if(item.TryGetCurrentPattern(InvokePattern.Pattern,out var iip))
+            ((InvokePattern)iip).Invoke();
+        else
+            throw new Exception($"List item '{value}' exposes neither SelectionItemPattern nor InvokePattern.");
 
         Wait(()=> {
             var current=window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,id));
