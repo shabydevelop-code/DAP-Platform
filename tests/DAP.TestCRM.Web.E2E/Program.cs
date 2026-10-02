@@ -64,7 +64,6 @@ static int ReserveTcpPort()
 
 Process? ownedTestCrmProcess = null;
 Process? ownedTestCrmBackendProcess = null;
-if (manualFromStep is not null)
 {
     var repoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
     var testCrmProject = Path.Combine(repoRoot, "test-apps", "DAP.TestCRM", "Web", "DAP.TestCRM.Web.csproj");
@@ -86,10 +85,10 @@ if (manualFromStep is not null)
     };
     backendPsi.Environment["ASPNETCORE_URLS"] = "http://localhost:5201";
     ownedTestCrmBackendProcess = Process.Start(backendPsi)
-        ?? throw new InvalidOperationException("Could not start TestCRM backend for manual handoff.");
+        ?? throw new InvalidOperationException("Could not start TestCRM backend for E2E.");
 
-    // Manual handoff is intentionally self-contained: unlike a normal E2E run,
-    // the tester should not have to start a second process in another terminal.
+    // Every Web E2E mode is self-contained: the harness owns the TestCRM
+    // backend and Web host and cleans up only the processes it started.
     var psi = new ProcessStartInfo
     {
         FileName = "dotnet",
@@ -103,7 +102,7 @@ if (manualFromStep is not null)
     psi.Environment["ASPNETCORE_URLS"] = baseUrl;
     psi.Environment["TestCrmBackendUrl"] = "http://localhost:5201";
     ownedTestCrmProcess = Process.Start(psi)
-        ?? throw new InvalidOperationException("Could not start TestCRM for manual handoff.");
+        ?? throw new InvalidOperationException("Could not start TestCRM Web host for E2E.");
 
     var crmReadyDeadline = DateTime.UtcNow.AddSeconds(30);
     using var http = new HttpClient();
@@ -140,7 +139,7 @@ if (manualFromStep is not null)
         throw new Exception($"TestCRM did not become ready at {baseUrl} within 30 seconds.", ex);
     }
 
-    Console.WriteLine($"Manual handoff TestCRM started at {baseUrl} (PID {ownedTestCrmProcess.Id}).");
+    Console.WriteLine($"Self-contained TestCRM started at {baseUrl} (Web PID {ownedTestCrmProcess.Id}, Backend PID {ownedTestCrmBackendProcess.Id}).");
 }
 
 var harnessStartupTimer=Stopwatch.StartNew();
@@ -1167,6 +1166,24 @@ finally
         finally
         {
             ownedTestCrmProcess.Dispose();
+        }
+    }
+
+    if (ownedTestCrmBackendProcess is not null)
+    {
+        try
+        {
+            if (!ownedTestCrmBackendProcess.HasExited)
+            {
+                ownedTestCrmBackendProcess.Kill(entireProcessTree: true);
+                ownedTestCrmBackendProcess.WaitForExit(5000);
+            }
+        }
+        catch (InvalidOperationException) { }
+        catch (System.ComponentModel.Win32Exception) { }
+        finally
+        {
+            ownedTestCrmBackendProcess.Dispose();
         }
     }
 }
