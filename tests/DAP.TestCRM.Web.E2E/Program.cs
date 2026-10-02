@@ -366,29 +366,32 @@ StartupMark("TestCRM navigation completed");
 await WaitReady();
 StartupMark("TestCRM ready");
 
-// First real DAP Web bubble: persist -> reload -> resolve -> present.
-// The persistent DAP database is the Source of Truth. The E2E never rewrites
-// the Guide during a normal run. DapTestCrmGuideSeed remains only as an explicit
-// initialization/reset definition and must be invoked by a dedicated reset path.
-var dapDatabaseOptions=SqliteDatabaseOptions.CreateDefault();
-var dapDbPath=dapDatabaseOptions.DatabasePath;
-var dapFactory=new SqliteConnectionFactory(dapDatabaseOptions);
-await new SqliteDatabaseInitializer(dapFactory).InitializeAsync();
-var dapRepository=new SqliteGuideStepRepository(dapFactory);
-var dapSteps=await dapRepository.GetStepsAsync(DapTestCrmGuideSeed.GuideId);
-Console.WriteLine($"DAP persistent guide database: {dapDbPath}");
-StartupMark("persistent DAP guide loaded");
-if(dapSteps.Count==0)
-    throw new Exception(
-        $"DAP Guide '{DapTestCrmGuideSeed.GuideId}' does not exist in the persistent database. " +
-        "Initialize/reset the Guide explicitly before running the E2E.");
-if(manualFromStep is not null && !dapSteps.Any(step => step.Order == manualFromStep.Value))
-    throw new ArgumentOutOfRangeException(
-        nameof(manualFromStep),
-        manualFromStep,
-        $"Guide '{DapTestCrmGuideSeed.GuideId}' does not contain Step {manualFromStep}.");
-var dapStep=dapSteps[0];
-var dapSecondStep=dapSteps[1];
+// DAP is intentionally absent from CRM-only. The canonical CRM business flow
+// below still runs in full, but this mode must not require DAP.db, a Guide, or
+// DAP.exe. Guided modes load the persistent Guide as their Source of Truth.
+IReadOnlyList<DAP.Core.Guides.GuideStep> dapSteps=Array.Empty<DAP.Core.Guides.GuideStep>();
+string? dapDbPath=null;
+if(!crmOnly)
+{
+    var dapDatabaseOptions=SqliteDatabaseOptions.CreateDefault();
+    dapDbPath=dapDatabaseOptions.DatabasePath;
+    var dapFactory=new SqliteConnectionFactory(dapDatabaseOptions);
+    await new SqliteDatabaseInitializer(dapFactory).InitializeAsync();
+    var dapRepository=new SqliteGuideStepRepository(dapFactory);
+    dapSteps=await dapRepository.GetStepsAsync(DapTestCrmGuideSeed.GuideId);
+    Console.WriteLine($"DAP persistent guide database: {dapDbPath}");
+    StartupMark("persistent DAP guide loaded");
+
+    if(dapSteps.Count==0)
+        throw new Exception(
+            $"DAP Guide '{DapTestCrmGuideSeed.GuideId}' does not exist in the persistent database. " +
+            "Initialize/reset the Guide explicitly before running the E2E.");
+    if(manualFromStep is not null && !dapSteps.Any(step => step.Order == manualFromStep.Value))
+        throw new ArgumentOutOfRangeException(
+            nameof(manualFromStep),
+            manualFromStep,
+            $"Guide '{DapTestCrmGuideSeed.GuideId}' does not contain Step {manualFromStep}.");
+}
 
 var dapStdErrLines=new System.Collections.Concurrent.ConcurrentQueue<string>();
 async Task WaitForGuideStep(int order)
@@ -472,6 +475,8 @@ try
 {
 if(!crmOnly)
 {
+var dapStep=dapSteps[0];
+var dapSecondStep=dapSteps[1];
 var dapAppProject=Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","..","..","..","..","src","DAP.App","DAP.App.csproj"));
 if(!File.Exists(dapAppProject))
     throw new Exception($"DAP.App project not found at {dapAppProject}");
@@ -569,7 +574,7 @@ dapProcess=new Process
         RedirectStandardError=true
     }
 };
-dapProcess.StartInfo.Environment["DAP_DATABASE_PATH"]=dapDbPath;
+dapProcess.StartInfo.Environment["DAP_DATABASE_PATH"]=dapDbPath!;
 var dapStartupTimer=Stopwatch.StartNew();
 if(!dapProcess.Start())
     throw new Exception("DAP.exe process could not be started.");
@@ -759,7 +764,7 @@ if(await notes.IsDisabledAsync()) throw new Exception("Treatment Notes did not b
 await WaitForGuideStep(14);
 await Fill("[name='resolutionNotes']","בוצעה בדיקת שירות מול הלקוח והתקלה טופלה.");
 
-Console.WriteLine("DAP complete customer -> Case treatment Guide segment: PASS");
+Console.WriteLine(crmOnly ? "CRM customer -> Case treatment segment: PASS" : "DAP complete customer -> Case treatment Guide segment: PASS");
 
 // 4. Real off-screen target / scrolling through activity history.
 // Step 15 is deliberately off-screen: the production presenter keeps its bubble
@@ -806,7 +811,7 @@ if(await frame.Locator("[name='description']").InputValueAsync()!="הלקוח מ
 await WaitForGuideStep(20);
 await Select("[name='closeReason']","טופל");
 await WaitForGuideStep(21);
-Console.WriteLine("DAP guided Case closure through validation alert and Close Reason: PASS");
+Console.WriteLine(crmOnly ? "CRM Case closure through validation alert and Close Reason: PASS" : "DAP guided Case closure through validation alert and Close Reason: PASS");
 await SaveSuccess();
 
 // Step 21's Save click is the learner action that advances the production
