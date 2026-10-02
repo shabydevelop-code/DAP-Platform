@@ -82,7 +82,20 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
         var e=window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,id));
         return e is not null && e.Current.IsEnabled ? e : null;
     }
-    void FirstRow(string id){var g=ById(id);var row=Wait(()=>g.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.DataItem)),id+" first row");Click(row,true);}
+    void FirstRow(string id)
+    {
+        var g=ById(id);
+        var row=Wait(()=>g.FindFirst(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.DataItem)),id+" first row");
+
+        // WPF DataGrid opens records from MouseDoubleClick. Keep the physical
+        // double-click, but synchronize with selection first so the handler
+        // receives the intended row even when the two clicks are very fast.
+        if(row.TryGetCurrentPattern(SelectionItemPattern.Pattern,out var selection))
+            ((SelectionItemPattern)selection).Select();
+
+        Click(row,true);
+    }
 
     void DismissUnexpectedInfoDialogs()
     {
