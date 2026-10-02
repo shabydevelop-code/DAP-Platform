@@ -10,6 +10,7 @@ public enum AnchorRelation
     Context,
     Ancestor,
     Descendant,
+    ColumnHeader,
     Sibling,
     Nearby
 }
