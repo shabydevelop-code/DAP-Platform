@@ -207,6 +207,7 @@ async Task RunGuidedAsync()
 
         WaitForBubble(BubbleFor("testcrm-windows-save-new-case"), dap);
         await driver.SaveCase();
+        DiagnoseBreadcrumbs(window);
 
         WaitForBubble(BubbleFor("testcrm-windows-back-to-cases"), dap);
         await driver.OpenSiteFromBreadcrumb();
@@ -369,6 +370,39 @@ void DiagnoseNavigationGrids(AutomationElement window)
         {
             Console.WriteLine($"[Windows UIA diagnostic] {gridId}: <became unavailable>");
         }
+    }
+}
+
+void DiagnoseBreadcrumbs(AutomationElement window)
+{
+    try
+    {
+        var buttons = window.FindAll(
+            TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Button));
+
+        var breadcrumbs = buttons.Cast<AutomationElement>()
+            .Where(element =>
+                string.Equals(element.Current.AutomationId, "Breadcrumb", StringComparison.Ordinal)
+                || string.Equals(element.Current.Name, "מטה תל אביב", StringComparison.Ordinal))
+            .ToArray();
+
+        Console.WriteLine($"[Windows UIA diagnostic] breadcrumb candidates={breadcrumbs.Length}");
+        foreach (var element in breadcrumbs)
+        {
+            Console.WriteLine(
+                $"[Windows UIA diagnostic] breadcrumb: " +
+                $"AutomationId='{element.Current.AutomationId}'; " +
+                $"Name='{element.Current.Name}'; " +
+                $"ControlType='{element.Current.ControlType?.ProgrammaticName ?? "<null>"}'; " +
+                $"IsOffscreen={element.Current.IsOffscreen}; " +
+                $"IsEnabled={element.Current.IsEnabled}; " +
+                $"Bounds='{element.Current.BoundingRectangle}'");
+        }
+    }
+    catch (ElementNotAvailableException)
+    {
+        Console.WriteLine("[Windows UIA diagnostic] breadcrumbs: <became unavailable>");
     }
 }
 
