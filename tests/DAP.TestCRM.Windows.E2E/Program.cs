@@ -105,7 +105,7 @@ async Task RunPersistedUnguidedAsync()
 
         await executor.RunAsync(persistedSteps);
 
-        WaitForElementById(window, "NewCaseButton", 5_000);
+        WaitForElementById(window, "DeleteCaseButton", 5_000);
         Console.WriteLine(
             $"PASS: Windows unguided executed {persistedSteps.Count} persisted Guide Steps from DAP.db without DAP.exe or bubbles.");
     }
@@ -216,7 +216,7 @@ async Task RunGuidedAsync()
         await driver.OpenCreatedCase();
 
         if (!dap.WaitForExit(15_000))
-            throw new TimeoutException("DAP.exe did not complete after the validating Step 11 action.");
+            throw new TimeoutException("DAP.exe did not complete after the validating Step 12 action.");
         if (dap.ExitCode != 0)
             throw new Exception($"DAP.exe exited with code {dap.ExitCode}.");
 
