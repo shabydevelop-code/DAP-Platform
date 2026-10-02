@@ -67,6 +67,8 @@ public sealed class WindowsGuideRuntime
         var clicked = string.Equals(step.Validation?.Kind, "clicked", StringComparison.OrdinalIgnoreCase);
         var targetDisappeared = string.Equals(step.Validation?.Kind, "target-disappeared", StringComparison.OrdinalIgnoreCase);
         var targetWasResolved = false;
+        var clickedDisappearanceFallbackArmed = false;
+        AutomationElement? previousResolvedTarget = null;
         var clickCompleted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         AutomationEventHandler? clickHandler = null;
         AutomationElement? subscribedTarget = null;
@@ -84,7 +86,9 @@ public sealed class WindowsGuideRuntime
                 catch (ElementNotAvailableException)
                 {
                     await _bubbles.HideAsync();
-                    if ((targetDisappeared || clicked) && targetWasResolved)
+                    if (targetDisappeared && targetWasResolved)
+                        return;
+                    if (clicked && clickedDisappearanceFallbackArmed)
                         return;
                     await Task.Delay(_pollInterval, cancellationToken);
                     continue;
@@ -93,7 +97,9 @@ public sealed class WindowsGuideRuntime
                 if (resolution.Status != TargetResolutionStatus.Resolved || resolution.Target is null)
                 {
                     await _bubbles.HideAsync();
-                    if ((targetDisappeared || clicked) && targetWasResolved)
+                    if (targetDisappeared && targetWasResolved)
+                        return;
+                    if (clicked && clickedDisappearanceFallbackArmed)
                         return;
                     await Task.Delay(_pollInterval, cancellationToken);
                     continue;
@@ -101,6 +107,15 @@ public sealed class WindowsGuideRuntime
 
                 var target = resolution.Target;
                 targetWasResolved = true;
+
+                if (clicked
+                    && previousResolvedTarget is not null
+                    && Automation.Compare(previousResolvedTarget, target))
+                {
+                    clickedDisappearanceFallbackArmed = true;
+                }
+
+                previousResolvedTarget = target;
 
                 if (!HasVisibleBounds(target))
                 {
