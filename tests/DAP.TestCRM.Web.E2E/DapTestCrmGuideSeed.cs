@@ -7,7 +7,9 @@ namespace DAP.TestCRM.Web.E2E;
 // The E2E runner acts as a learner; DAP.exe owns presentation and advancement.
 public static class DapTestCrmGuideSeed
 {
-    public const string GuideId = "testcrm-create-case";
+    public const string LegacyGuideId = "testcrm-create-case";
+    public const string GuideId = "testcrm-web-canonical-workflow";
+    public const string GuideName = "TestCRM Web Canonical Workflow";
 
     private static readonly FrameContext ContentFrame =
         new(new[] { new Locator("css", "#content-frame") });
