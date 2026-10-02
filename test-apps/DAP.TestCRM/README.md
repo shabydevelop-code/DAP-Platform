@@ -175,3 +175,26 @@ These scenarios must continue to exercise user-visible application behavior and 
 DAP.TestCRM is intentionally more realistic than a static test page, but it remains a focused test/demo CRM rather than a production CRM product. Its job is to provide deterministic, persistent, server-backed business behavior against which the DAP runtime can be validated.
 
 Duplicate-event/idempotency behavior is not claimed as a completed scenario yet; it requires the corresponding production runtime event model rather than an artificial CRM-only control.
+
+
+## Windows client
+
+The first real Windows TestCRM client now lives under `Windows/` as a WPF application.
+
+- It is a second client of the existing TestCRM HTTP API at `http://localhost:5200`.
+- It never opens `data/testcrm.db` directly; the TestCRM server remains the sole owner of SQLite access.
+- Web and Windows therefore operate on the same Customers, Sites, Cases, and Leads.
+- The initial Windows flow supports Customer -> Site -> Case/Lead navigation and editing/saving existing Sites, Cases, and Leads.
+- Important WPF controls have explicit `AutomationProperties.AutomationId` values so the application can later serve as a realistic UIA target for DAP Windows Runtime.
+
+Run the server first:
+
+```powershell
+dotnet run --project test-apps\DAP.TestCRM\DAP.TestCRM.csproj
+```
+
+Then, from a second terminal, run Windows:
+
+```powershell
+dotnet run --project test-apps\DAP.TestCRM\Windows\DAP.TestCRM.Windows.csproj
+```
