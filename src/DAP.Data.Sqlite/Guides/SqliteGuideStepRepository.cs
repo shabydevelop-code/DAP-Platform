@@ -22,13 +22,17 @@ public sealed class SqliteGuideStepRepository : IGuideStepRepository
         await using (var command = connection.CreateCommand())
         {
             command.CommandText = """
-SELECT Id, StepOrder, AdvanceMode, Runtime, LocatorStrategy, LocatorValue, FrameContextJson,
-       ContextKind, ContextValue, BubbleContent, BubblePlacement, ValidationKind, ValidationExpectedValue, ValidationOptionsJson
-FROM GuideSteps WHERE GuideId = $guideId ORDER BY StepOrder;
+SELECT s.Id, s.Key, s.StepOrder, s.AdvanceMode, s.Runtime, s.LocatorStrategy, s.LocatorValue, s.FrameContextJson,
+       s.ContextKind, s.ContextValue, s.BubbleContent, s.BubblePlacement, s.ValidationKind, s.ValidationExpectedValue, s.ValidationOptionsJson
+FROM GuideSteps s
+JOIN Guides g ON g.Id = s.GuideId
+WHERE g.Key = $guideKey
+ORDER BY s.StepOrder;
 """;
-            command.Parameters.AddWithValue("$guideId", guideId);
+            command.Parameters.AddWithValue("$guideKey", guideId);
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-            while (await reader.ReadAsync(cancellationToken)) rows.Add(ReadStep(reader));
+            while (await reader.ReadAsync(cancellationToken))
+                rows.Add(ReadStep(reader));
         }
 
         var result = new List<GuideStep>(rows.Count);
@@ -41,31 +45,42 @@ FROM GuideSteps WHERE GuideId = $guideId ORDER BY StepOrder;
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(guideId);
         ArgumentNullException.ThrowIfNull(step);
+
         await using var connection = await _connections.OpenAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
 
+        long numericGuideId;
         await using (var guide = connection.CreateCommand())
         {
             guide.Transaction = (SqliteTransaction)transaction;
-            guide.CommandText = "INSERT INTO Guides(Id,Name) VALUES($id,$id) ON CONFLICT(Id) DO NOTHING;";
-            guide.Parameters.AddWithValue("$id", guideId);
-            await guide.ExecuteNonQueryAsync(cancellationToken);
+            guide.CommandText = """
+INSERT INTO Guides(Key, Name) VALUES($key, $key)
+ON CONFLICT(Key) DO NOTHING;
+SELECT Id FROM Guides WHERE Key = $key;
+""";
+            guide.Parameters.AddWithValue("$key", guideId);
+            numericGuideId = Convert.ToInt64(await guide.ExecuteScalarAsync(cancellationToken));
         }
 
+        long numericStepId;
         await using (var command = connection.CreateCommand())
         {
             command.Transaction = (SqliteTransaction)transaction;
             command.CommandText = """
-INSERT INTO GuideSteps(Id,GuideId,StepOrder,AdvanceMode,Runtime,LocatorStrategy,LocatorValue,FrameContextJson,ContextKind,ContextValue,
+INSERT INTO GuideSteps(
+ GuideId,Key,StepOrder,AdvanceMode,Runtime,LocatorStrategy,LocatorValue,FrameContextJson,ContextKind,ContextValue,
  BubbleContent,BubblePlacement,ValidationKind,ValidationExpectedValue,ValidationOptionsJson)
-VALUES($id,$guideId,$order,$advance,$runtime,$strategy,$value,$frame,$contextKind,$contextValue,$content,$placement,$validation,$expected,$options)
-ON CONFLICT(Id) DO UPDATE SET GuideId=excluded.GuideId, StepOrder=excluded.StepOrder, AdvanceMode=excluded.AdvanceMode,
+VALUES($guideId,$key,$order,$advance,$runtime,$strategy,$value,$frame,$contextKind,$contextValue,$content,$placement,$validation,$expected,$options)
+ON CONFLICT(GuideId,Key) DO UPDATE SET
+ StepOrder=excluded.StepOrder, AdvanceMode=excluded.AdvanceMode,
  Runtime=excluded.Runtime, LocatorStrategy=excluded.LocatorStrategy, LocatorValue=excluded.LocatorValue,
- FrameContextJson=excluded.FrameContextJson, ContextKind=excluded.ContextKind, ContextValue=excluded.ContextValue, BubbleContent=excluded.BubbleContent, BubblePlacement=excluded.BubblePlacement,
+ FrameContextJson=excluded.FrameContextJson, ContextKind=excluded.ContextKind, ContextValue=excluded.ContextValue,
+ BubbleContent=excluded.BubbleContent, BubblePlacement=excluded.BubblePlacement,
  ValidationKind=excluded.ValidationKind, ValidationExpectedValue=excluded.ValidationExpectedValue,
  ValidationOptionsJson=excluded.ValidationOptionsJson;
+SELECT Id FROM GuideSteps WHERE GuideId=$guideId AND Key=$key;
 """;
-            Add(command,"$id",step.Id); Add(command,"$guideId",guideId); Add(command,"$order",step.Order);
+            Add(command,"$guideId",numericGuideId); Add(command,"$key",step.Id); Add(command,"$order",step.Order);
             Add(command,"$advance",step.AdvanceMode.ToString()); Add(command,"$runtime",step.Target?.Runtime.ToString());
             Add(command,"$strategy",step.Target?.Locator.Strategy); Add(command,"$value",step.Target?.Locator.Value);
             Add(command,"$frame",step.Target?.FrameContext is null ? null : JsonSerializer.Serialize(step.Target.FrameContext.Path));
@@ -73,34 +88,40 @@ ON CONFLICT(Id) DO UPDATE SET GuideId=excluded.GuideId, StepOrder=excluded.StepO
             Add(command,"$content",step.Bubble.Content); Add(command,"$placement",step.Bubble.Placement.ToString());
             Add(command,"$validation",step.Validation?.Kind); Add(command,"$expected",step.Validation?.ExpectedValue);
             Add(command,"$options",step.Validation?.Options is null ? null : JsonSerializer.Serialize(step.Validation.Options));
-            await command.ExecuteNonQueryAsync(cancellationToken);
+            numericStepId = Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken));
         }
 
         await using (var delete = connection.CreateCommand())
         {
             delete.Transaction = (SqliteTransaction)transaction;
-            delete.CommandText="DELETE FROM TargetAnchors WHERE GuideStepId=$id;"; Add(delete,"$id",step.Id);
+            delete.CommandText = "DELETE FROM TargetAnchors WHERE GuideStepId=$id;";
+            Add(delete,"$id",numericStepId);
             await delete.ExecuteNonQueryAsync(cancellationToken);
         }
+
         if(step.Target is not null)
         {
             for(var i=0;i<step.Target.Anchors.Count;i++)
             {
                 var anchor=step.Target.Anchors[i];
-                await using var insert=connection.CreateCommand(); insert.Transaction=(SqliteTransaction)transaction;
+                await using var insert=connection.CreateCommand();
+                insert.Transaction=(SqliteTransaction)transaction;
                 insert.CommandText="INSERT INTO TargetAnchors(GuideStepId,AnchorOrder,Relation,LocatorStrategy,LocatorValue) VALUES($id,$order,$relation,$strategy,$value);";
-                Add(insert,"$id",step.Id); Add(insert,"$order",i); Add(insert,"$relation",anchor.Relation.ToString());
+                Add(insert,"$id",numericStepId); Add(insert,"$order",i); Add(insert,"$relation",anchor.Relation.ToString());
                 Add(insert,"$strategy",anchor.Locator.Strategy); Add(insert,"$value",anchor.Locator.Value);
                 await insert.ExecuteNonQueryAsync(cancellationToken);
             }
         }
+
         await transaction.CommitAsync(cancellationToken);
     }
 
     private static void Add(SqliteCommand c,string name,object? value)=>c.Parameters.AddWithValue(name,value??DBNull.Value);
 
     private static StepRow ReadStep(SqliteDataReader r)=>new(
-        r.GetString(0),r.GetInt32(1),r.GetString(2),N(r,3),N(r,4),N(r,5),N(r,6),N(r,7),N(r,8),r.GetString(9),r.GetString(10),N(r,11),N(r,12),N(r,13));
+        r.GetInt64(0),r.GetString(1),r.GetInt32(2),r.GetString(3),N(r,4),N(r,5),N(r,6),N(r,7),N(r,8),N(r,9),
+        r.GetString(10),r.GetString(11),N(r,12),N(r,13),N(r,14));
+
     private static string? N(SqliteDataReader r,int i)=>r.IsDBNull(i)?null:r.GetString(i);
 
     private static async Task<GuideStep> MaterializeAsync(SqliteConnection connection,StepRow row,CancellationToken ct)
@@ -111,16 +132,20 @@ ON CONFLICT(Id) DO UPDATE SET GuideId=excluded.GuideId, StepOrder=excluded.StepO
             var anchors=new List<Anchor>();
             await using var command=connection.CreateCommand();
             command.CommandText="SELECT Relation,LocatorStrategy,LocatorValue FROM TargetAnchors WHERE GuideStepId=$id ORDER BY AnchorOrder;";
-            command.Parameters.AddWithValue("$id",row.Id);
+            command.Parameters.AddWithValue("$id",row.NumericId);
             await using var reader=await command.ExecuteReaderAsync(ct);
-            while(await reader.ReadAsync(ct)) anchors.Add(new Anchor(new Locator(reader.GetString(1),reader.GetString(2)),Enum.Parse<AnchorRelation>(reader.GetString(0))));
+            while(await reader.ReadAsync(ct))
+                anchors.Add(new Anchor(new Locator(reader.GetString(1),reader.GetString(2)),Enum.Parse<AnchorRelation>(reader.GetString(0))));
             var framePath=row.FrameJson is null?null:JsonSerializer.Deserialize<Locator[]>(row.FrameJson);
             target=new TargetDescriptor(Enum.Parse<TargetRuntime>(row.Runtime),new Locator(row.Strategy,row.Value),anchors,framePath is null?null:new FrameContext(framePath));
         }
+
         var validation=row.ValidationKind is null?null:new ValidationDefinition(row.ValidationKind,row.Expected,row.OptionsJson is null?null:JsonSerializer.Deserialize<Dictionary<string,string>>(row.OptionsJson));
         var context=row.ContextKind is null || row.ContextValue is null ? null : new StepContextDefinition(row.ContextKind,row.ContextValue);
-        return new GuideStep(row.Id,row.Order,target,new BubbleDefinition(row.BubbleContent,Enum.Parse<BubblePlacement>(row.Placement)),validation,Enum.Parse<StepAdvanceMode>(row.AdvanceMode),context);
+        return new GuideStep(row.Key,row.Order,target,new BubbleDefinition(row.BubbleContent,Enum.Parse<BubblePlacement>(row.Placement)),validation,Enum.Parse<StepAdvanceMode>(row.AdvanceMode),context);
     }
 
-    private sealed record StepRow(string Id,int Order,string AdvanceMode,string? Runtime,string? Strategy,string? Value,string? FrameJson,string? ContextKind,string? ContextValue,string BubbleContent,string Placement,string? ValidationKind,string? Expected,string? OptionsJson);
+    private sealed record StepRow(
+        long NumericId,string Key,int Order,string AdvanceMode,string? Runtime,string? Strategy,string? Value,string? FrameJson,
+        string? ContextKind,string? ContextValue,string BubbleContent,string Placement,string? ValidationKind,string? Expected,string? OptionsJson);
 }
