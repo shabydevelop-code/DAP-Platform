@@ -84,7 +84,7 @@ public sealed class WindowsGuideRuntime
                 catch (ElementNotAvailableException)
                 {
                     await _bubbles.HideAsync();
-                    if (targetDisappeared && targetWasResolved)
+                    if ((targetDisappeared || clicked) && targetWasResolved)
                         return;
                     await Task.Delay(_pollInterval, cancellationToken);
                     continue;
@@ -93,7 +93,7 @@ public sealed class WindowsGuideRuntime
                 if (resolution.Status != TargetResolutionStatus.Resolved || resolution.Target is null)
                 {
                     await _bubbles.HideAsync();
-                    if (targetDisappeared && targetWasResolved)
+                    if ((targetDisappeared || clicked) && targetWasResolved)
                         return;
                     await Task.Delay(_pollInterval, cancellationToken);
                     continue;
