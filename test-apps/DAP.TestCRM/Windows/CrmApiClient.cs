@@ -6,7 +6,7 @@ namespace DAP.TestCRM.Windows;
 
 public sealed class CrmApiClient
 {
-    private readonly HttpClient _http = new() { BaseAddress = new Uri("http://localhost:5200") };
+    private readonly HttpClient _http = new() { BaseAddress = new Uri("http://localhost:5201") };
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     public Task<List<Customer>> GetCustomersAsync(string? name=null,string? phone=null,string? email=null) =>
