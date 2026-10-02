@@ -113,6 +113,8 @@ public sealed class WindowsGuideRuntime
                 }
                 catch (ElementNotAvailableException)
                 {
+                    if (step.Id == "testcrm-windows-back-to-cases")
+                        Console.Error.WriteLine($"[DAP Windows guide diagnostic] Step '{step.Id}' resolver threw ElementNotAvailableException.");
                     await _bubbles.HideAsync();
                     if (targetDisappeared && targetWasResolved)
                         return;
@@ -124,6 +126,8 @@ public sealed class WindowsGuideRuntime
 
                 if (resolution.Status != TargetResolutionStatus.Resolved || resolution.Target is null)
                 {
+                    if (step.Id == "testcrm-windows-back-to-cases")
+                        Console.Error.WriteLine($"[DAP Windows guide diagnostic] Step '{step.Id}' resolution status={resolution.Status}; targetNull={resolution.Target is null}.");
                     await _bubbles.HideAsync();
                     if (targetDisappeared && targetWasResolved)
                         return;
