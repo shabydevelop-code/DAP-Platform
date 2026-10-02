@@ -38,6 +38,10 @@ if (args.Contains("--reset-guide", StringComparer.OrdinalIgnoreCase))
     var resetFactory = new SqliteConnectionFactory(resetOptions);
     await new SqliteDatabaseInitializer(resetFactory).InitializeAsync();
     var resetRepository = new SqliteGuideStepRepository(resetFactory);
+    await resetRepository.RenameGuideAsync(
+        DapTestCrmGuideSeed.LegacyGuideId,
+        DapTestCrmGuideSeed.GuideId,
+        DapTestCrmGuideSeed.GuideName);
     foreach (var step in DapTestCrmGuideSeed.CreateSteps())
         await resetRepository.SaveStepAsync(DapTestCrmGuideSeed.GuideId, step);
 
@@ -412,6 +416,10 @@ if(!crmOnly)
     var dapFactory=new SqliteConnectionFactory(dapDatabaseOptions);
     await new SqliteDatabaseInitializer(dapFactory).InitializeAsync();
     var dapRepository=new SqliteGuideStepRepository(dapFactory);
+    await dapRepository.RenameGuideAsync(
+        DapTestCrmGuideSeed.LegacyGuideId,
+        DapTestCrmGuideSeed.GuideId,
+        DapTestCrmGuideSeed.GuideName);
     dapSteps=await dapRepository.GetStepsAsync(DapTestCrmGuideSeed.GuideId);
     Console.WriteLine($"DAP persistent guide database: {dapDbPath}");
     StartupMark("persistent DAP guide loaded");
