@@ -123,10 +123,10 @@ async Task RunGuidedAsync()
     await new SqliteDatabaseInitializer(factory).InitializeAsync();
     var repository = new SqliteGuideStepRepository(factory);
     var persistedSteps = await repository.GetStepsAsync(DapTestCrmWindowsGuideSeed.GuideId);
-    if (persistedSteps.Count != 11)
+    if (persistedSteps.Count != 12)
     {
         throw new InvalidOperationException(
-            $"Guide '{DapTestCrmWindowsGuideSeed.GuideId}' must contain exactly 11 persisted Steps for this milestone. " +
+            $"Guide '{DapTestCrmWindowsGuideSeed.GuideId}' must contain exactly 12 persisted Steps for this milestone. " +
             "Run this project once with --reset-guide first.");
     }
 
@@ -212,13 +212,16 @@ async Task RunGuidedAsync()
         WaitForBubble(BubbleFor("testcrm-windows-back-to-cases"), dap);
         await driver.OpenSiteFromBreadcrumb();
 
+        WaitForBubble(BubbleFor("testcrm-windows-open-created-case"), dap);
+        await driver.OpenCreatedCase();
+
         if (!dap.WaitForExit(15_000))
             throw new TimeoutException("DAP.exe did not complete after the validating Step 11 action.");
         if (dap.ExitCode != 0)
             throw new Exception($"DAP.exe exited with code {dap.ExitCode}.");
 
-        WaitForElementById(window, "NewCaseButton", 5_000);
-        Console.WriteLine("PASS: DAP Windows Learner Runtime persisted Steps 1 -> 11 with real UIA targets and bubbles.");
+        WaitForElementById(window, "DeleteCaseButton", 5_000);
+        Console.WriteLine("PASS: DAP Windows Learner Runtime persisted Steps 1 -> 12 with real UIA targets, runtime capture, and bubbles.");
     }
     finally
     {
