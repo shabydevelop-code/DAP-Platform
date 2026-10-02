@@ -137,7 +137,7 @@ public sealed class WindowsGuideRuntime
                 targetWasResolved = true;
 
                 if (clicked
-                    && (preExistingTarget is null || !Automation.Compare(preExistingTarget, target)))
+                    && (preExistingTarget is null || !SameElement(preExistingTarget, target)))
                 {
                     clickedDisappearanceFallbackArmed = true;
                 }
@@ -207,6 +207,18 @@ public sealed class WindowsGuideRuntime
                 catch (ElementNotAvailableException) { }
             }
             await _bubbles.HideAsync();
+        }
+    }
+
+    private static bool SameElement(AutomationElement left, AutomationElement right)
+    {
+        try
+        {
+            return Automation.Compare(left, right);
+        }
+        catch (ElementNotAvailableException)
+        {
+            return false;
         }
     }
 
