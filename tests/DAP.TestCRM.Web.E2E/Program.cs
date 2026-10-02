@@ -186,7 +186,7 @@ var visualMode = e2eMode is "visual" or "demo";
 var fastMode = !visualMode;
 var switchedToVisual = visualMode;
 
-Console.WriteLine($"E2E mode: {(unguided ? $"crm-only ({e2eMode})" : visualFromStep is not null ? $"fast -> visual from Step {visualFromStep}" : visualMode ? "visual" : "fast")}");
+Console.WriteLine($"E2E mode: {(unguided ? $"unguided ({e2eMode})" : visualFromStep is not null ? $"fast -> visual from Step {visualFromStep}" : visualMode ? "visual" : "fast")}");
 if (visualMode || visualFromStep is not null)
 await page.AddInitScriptAsync(@"(() => {
   const install=()=>{
@@ -248,7 +248,7 @@ async Task WaitReady()
     await f.Locator("#server-busy").WaitForAsync(new()
     {
         State = WaitForSelectorState.Hidden,
-        Timeout = 10000
+        Timeout = 5000
     });
 }
 async Task HumanPause(int ms=320)
