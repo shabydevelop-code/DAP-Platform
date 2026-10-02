@@ -28,8 +28,7 @@ static async Task VerifyFreshRoundTripAsync(string path)
 
     await repository.SaveStepAsync("guide-1",step);
     var loaded=(await repository.GetStepsAsync("guide-1")).Single();
-    if(loaded!=step)
-        throw new Exception($"SQLite round-trip mismatch.\nExpected: {step}\nActual: {loaded}");
+    AssertEquivalent(step, loaded);
 
     await using(var connection=await factory.OpenAsync())
     {
@@ -107,6 +106,40 @@ WHERE g.Key='legacy-guide' AND s.Key='legacy-step';
             if(reader.GetString(i)!="integer")
                 throw new Exception($"Legacy migration left a non-numeric ID at column {i}.");
     }
+}
+
+static void AssertEquivalent(GuideStep expected, GuideStep actual)
+{
+    if(expected.Id!=actual.Id ||
+       expected.Order!=actual.Order ||
+       expected.AdvanceMode!=actual.AdvanceMode ||
+       expected.Bubble!=actual.Bubble ||
+       expected.Context!=actual.Context)
+        throw new Exception($"SQLite round-trip scalar mismatch.\nExpected: {expected}\nActual: {actual}");
+
+    if(expected.Validation?.Kind!=actual.Validation?.Kind ||
+       expected.Validation?.ExpectedValue!=actual.Validation?.ExpectedValue)
+        throw new Exception("SQLite round-trip validation mismatch.");
+
+    var expectedOptions=expected.Validation?.Options ?? new Dictionary<string,string>();
+    var actualOptions=actual.Validation?.Options ?? new Dictionary<string,string>();
+    if(expectedOptions.Count!=actualOptions.Count ||
+       expectedOptions.Any(pair=>!actualOptions.TryGetValue(pair.Key,out var value) || value!=pair.Value))
+        throw new Exception("SQLite round-trip validation options mismatch.");
+
+    if(expected.Target?.Runtime!=actual.Target?.Runtime ||
+       expected.Target?.Locator!=actual.Target?.Locator)
+        throw new Exception("SQLite round-trip target mismatch.");
+
+    var expectedFrame=expected.Target?.FrameContext?.Path ?? Array.Empty<Locator>();
+    var actualFrame=actual.Target?.FrameContext?.Path ?? Array.Empty<Locator>();
+    if(!expectedFrame.SequenceEqual(actualFrame))
+        throw new Exception("SQLite round-trip frame context mismatch.");
+
+    var expectedAnchors=expected.Target?.Anchors ?? Array.Empty<Anchor>();
+    var actualAnchors=actual.Target?.Anchors ?? Array.Empty<Anchor>();
+    if(!expectedAnchors.SequenceEqual(actualAnchors))
+        throw new Exception("SQLite round-trip anchors mismatch.");
 }
 
 static GuideStep CreateStep()=>new(
