@@ -275,14 +275,17 @@ async Task Click(string selector)
 
     if(replacesFrame)
     {
-        // Do not let the next assertion bind to the still-visible retiring
-        // iframe. Wait for the replacement lifecycle to start and finish.
-        await page.Locator("#content-frame-next").WaitForAsync(new() {
+        // The transient #content-frame-next can be created and promoted before
+        // Playwright observes its Attached state (especially in visual mode).
+        // Wait for the stable outcome instead: the active Content frame has
+        // finished the replacement lifecycle and reports itself ready.
+        await page.Locator("#content-frame").WaitForAsync(new() {
             State = WaitForSelectorState.Attached, Timeout = 10000
         });
         await page.Locator("#content-frame-next").WaitForAsync(new() {
             State = WaitForSelectorState.Detached, Timeout = 10000
         });
+        await Content();
     }
     await HumanPause(420);
 }
