@@ -154,21 +154,18 @@ public sealed class WindowsTargetResolver
             return true;
         }
 
-        // Some WPF providers expose the complete grid subtree only through an unfiltered
-        // UIA snapshot. A native NameProperty FindFirst can still return null even though
-        // the same descendant is present when the provider is asked for the subtree.
-        // Take one scope-local snapshot before falling back to virtualized-item traversal.
-        descendant = FindDescendantFromScopeSnapshot(scope, descendantCondition);
-        if (descendant is not null)
-        {
-            AddPrimaryAncestorCandidate(
-                descendant,
-                scope,
-                descriptor,
-                scopeAnchor,
-                descendantAnchor,
-                candidates);
-            return true;
+        // Prefer the provider's logical grid contract over realizing rows one by one.
+        // GridPattern gives direct cell access by row/column and avoids constructing the
+        // full descendant subtree for every DataItem.
+        TryResolveGridPattern(
+            scope,
+            descendantCondition,
+            descriptor,
+            scopeAnchor,
+            descendantAnchor,
+            candidates);
+
+        return true;
         }
 
         // A virtualized container can report its full logical item set while exposing only
@@ -187,61 +184,7 @@ public sealed class WindowsTargetResolver
         return true;
     }
 
-    private static AutomationElement? FindDescendantFromScopeSnapshot(
-        AutomationElement scope,
-        Condition descendantCondition)
-    {
-        var stopwatch = Stopwatch.StartNew();
-        try
-        {
-            foreach (AutomationElement element in scope.FindAll(TreeScope.Descendants, Condition.TrueCondition))
-            {
-                if (!MatchesCondition(element, descendantCondition))
-                    continue;
-
-                stopwatch.Stop();
-                Console.Error.WriteLine(
-                    $"[DAP Windows resolver snapshot] matched descendant after {stopwatch.ElapsedMilliseconds} ms.");
-                return element;
-            }
-        }
-        catch (ElementNotAvailableException)
-        {
-        }
-        catch (InvalidOperationException)
-        {
-        }
-
-        stopwatch.Stop();
-        Console.Error.WriteLine(
-            $"[DAP Windows resolver snapshot] no descendant match after {stopwatch.ElapsedMilliseconds} ms.");
-        return null;
-    }
-
-    private static void AddPrimaryAncestorCandidate(
-        AutomationElement descendant,
-        AutomationElement scope,
-        TargetDescriptor descriptor,
-        Anchor scopeAnchor,
-        Anchor descendantAnchor,
-        ICollection<AutomationElement> candidates)
-    {
-        var walker = TreeWalker.RawViewWalker;
-        for (var current = walker.GetParent(descendant);
-             current is not null && !Automation.Compare(current, scope);
-             current = walker.GetParent(current))
-        {
-            if (!MatchesLocator(current, descriptor.Locator))
-                continue;
-
-            if (MatchesRemainingAnchors(current, descriptor.Anchors, scopeAnchor, descendantAnchor))
-                candidates.Add(current);
-
-            break;
-        }
-    }
-
-    private static void TryResolveVirtualizedItem(
+    private static void TryResolveGridPattern(
         AutomationElement scope,
         Condition descendantCondition,
         TargetDescriptor descriptor,
@@ -249,77 +192,84 @@ public sealed class WindowsTargetResolver
         Anchor descendantAnchor,
         ICollection<AutomationElement> candidates)
     {
-        if (!scope.TryGetCurrentPattern(ItemContainerPattern.Pattern, out var rawPattern)
-            || rawPattern is not ItemContainerPattern itemContainer)
+        if (!scope.TryGetCurrentPattern(GridPattern.Pattern, out var rawPattern)
+            || rawPattern is not GridPattern grid)
             return;
 
         var stopwatch = Stopwatch.StartNew();
-        var visited = 0;
-        var realized = 0;
-        AutomationElement? item = null;
+        var inspectedCells = 0;
 
         try
         {
-            while (visited < 10_000)
+            var rows = grid.Current.RowCount;
+            var columns = grid.Current.ColumnCount;
+
+            for (var row = 0; row < rows; row++)
             {
-                item = itemContainer.FindItemByProperty(item, null!, null!);
-                if (item is null)
-                    break;
-
-                visited++;
-
-                try
+                for (var column = 0; column < columns; column++)
                 {
-                    if (item.TryGetCurrentPattern(VirtualizedItemPattern.Pattern, out var rawVirtualized)
-                        && rawVirtualized is VirtualizedItemPattern virtualized)
+                    AutomationElement cell;
+                    try
                     {
-                        virtualized.Realize();
-                        realized++;
+                        cell = grid.GetItem(row, column);
                     }
+                    catch (ArgumentOutOfRangeException)
+                    {
+                        continue;
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        continue;
+                    }
+
+                    inspectedCells++;
 
                     AutomationElement? descendant = null;
-                    if (MatchesCondition(item, descendantCondition))
+                    try
                     {
-                        descendant = item;
+                        if (MatchesCondition(cell, descendantCondition))
+                        {
+                            descendant = cell;
+                        }
+                        else
+                        {
+                            descendant = cell.FindFirst(TreeScope.Descendants, descendantCondition);
+                        }
                     }
-                    else
+                    catch (ElementNotAvailableException)
                     {
-                        descendant = item.FindFirst(TreeScope.Descendants, descendantCondition);
+                        continue;
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        continue;
                     }
 
                     if (descendant is null)
                         continue;
 
-                    if (MatchesLocator(item, descriptor.Locator)
-                        && MatchesRemainingAnchors(item, descriptor.Anchors, scopeAnchor, descendantAnchor))
-                    {
-                        candidates.Add(item);
-                    }
-                    else
-                    {
-                        AddPrimaryAncestorCandidate(
-                            descendant,
-                            scope,
-                            descriptor,
-                            scopeAnchor,
-                            descendantAnchor,
-                            candidates);
-                    }
+                    AddPrimaryAncestorCandidate(
+                        descendant,
+                        scope,
+                        descriptor,
+                        scopeAnchor,
+                        descendantAnchor,
+                        candidates);
 
-                    if (candidates.Count > 0)
-                        break;
-                }
-                catch (ElementNotAvailableException)
-                {
-                    // Realizing a virtualized item can replace its placeholder element.
-                    // Continue with the provider's logical-item enumeration.
-                }
-                catch (InvalidOperationException)
-                {
-                    // Some providers expose ItemContainerPattern but do not allow all
-                    // operations on every placeholder. Continue to the next logical item.
+                    stopwatch.Stop();
+                    Console.Error.WriteLine(
+                        $"[DAP Windows resolver grid] rows={rows}, columns={columns}, " +
+                        $"inspectedCells={inspectedCells}, final={candidates.Count}, " +
+                        $"elapsed={stopwatch.ElapsedMilliseconds} ms.");
+                    return;
                 }
             }
+
+            stopwatch.Stop();
+            Console.Error.WriteLine(
+                $"[DAP Windows resolver grid] rows={rows}, columns={columns}, " +
+                $"inspectedCells={inspectedCells}, final=0, " +
+                $"elapsed={stopwatch.ElapsedMilliseconds} ms.");
         }
         catch (ElementNotAvailableException)
         {
@@ -327,14 +277,6 @@ public sealed class WindowsTargetResolver
         catch (InvalidOperationException)
         {
         }
-        catch (ArgumentException)
-        {
-        }
-
-        stopwatch.Stop();
-        Console.Error.WriteLine(
-            $"[DAP Windows resolver virtualized] visited={visited}, realized={realized}, " +
-            $"final={candidates.Count}, elapsed={stopwatch.ElapsedMilliseconds} ms.");
     }
 
     private static AutomationElement? FindRawAncestor(AutomationElement candidate, Locator locator)
