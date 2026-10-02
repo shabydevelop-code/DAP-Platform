@@ -469,6 +469,7 @@ AutomationElement WaitForBubble(string expectedInstruction, Process dapProcess, 
 {
     var sw = Stopwatch.StartNew();
     string? lastObservedInstruction = null;
+    var diagnosticLogged = false;
 
     while (sw.ElapsedMilliseconds < timeout)
     {
@@ -496,6 +497,12 @@ AutomationElement WaitForBubble(string expectedInstruction, Process dapProcess, 
                         return false;
                     }
                 });
+
+            if (bubble is null && !diagnosticLogged && sw.ElapsedMilliseconds >= 1_000)
+            {
+                diagnosticLogged = true;
+                DiagnoseDapTopLevelWindows(dapProcess);
+            }
         }
         catch (ElementNotAvailableException)
         {
@@ -520,6 +527,45 @@ AutomationElement WaitForBubble(string expectedInstruction, Process dapProcess, 
     throw new TimeoutException(
         $"Timed out waiting for DAP Windows bubble '{expectedInstruction}'. " +
         $"Last observed bubble: '{lastObservedInstruction ?? "<none>"}'.");
+}
+
+void DiagnoseDapTopLevelWindows(Process dapProcess)
+{
+    try
+    {
+        var windows = AutomationElement.RootElement.FindAll(
+            TreeScope.Children,
+            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Window))
+            .Cast<AutomationElement>()
+            .ToArray();
+
+        Console.WriteLine($"[Windows UIA diagnostic] top-level windows={windows.Length}; DAP pid={dapProcess.Id}");
+
+        foreach (var window in windows)
+        {
+            try
+            {
+                var processId = window.Current.ProcessId;
+                if (processId != dapProcess.Id)
+                    continue;
+
+                Console.WriteLine(
+                    $"[Windows UIA diagnostic] DAP window: " +
+                    $"Name='{window.Current.Name}'; " +
+                    $"AutomationId='{window.Current.AutomationId}'; " +
+                    $"ClassName='{window.Current.ClassName}'; " +
+                    $"IsOffscreen={window.Current.IsOffscreen}; " +
+                    $"Bounds='{window.Current.BoundingRectangle}'");
+            }
+            catch (ElementNotAvailableException)
+            {
+            }
+        }
+    }
+    catch (ElementNotAvailableException)
+    {
+        Console.WriteLine("[Windows UIA diagnostic] DAP top-level windows became unavailable.");
+    }
 }
 
 async Task WaitForHttpAsync(string url, Process process, string processName)
