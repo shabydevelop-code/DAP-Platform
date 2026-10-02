@@ -232,3 +232,12 @@ SQLite persistence uses numeric internal primary/foreign keys for Guides, GuideS
 Runtime and application boundaries may continue to address a Guide by its stable textual key; database row IDs are an internal persistence concern and must not become user-facing or runtime-routing identifiers.
 
 Legacy databases that used textual primary keys are migrated in place, preserving the previous textual IDs as the new keys and remapping all GuideStep and TargetAnchor relationships to numeric IDs.
+
+
+## ADR-027 — Web E2E owns its TestCRM server topology
+
+**Status:** Accepted
+
+The normal TestCRM Web E2E runner must be self-contained. It starts the shared TestCRM backend and Web host, waits for application readiness, executes the browser/DAP scenario, and cleans up only the processes it created.
+
+Manual pre-start of TestCRM Server or Web is not part of the normal E2E contract. This keeps Fast, Visual, CRM-only, and focused runtime validation reproducible from a single runner command.
