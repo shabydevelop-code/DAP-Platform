@@ -156,7 +156,21 @@ async Task RunGuidedAsync()
             "dotnet",
             $"run --project \"{dapProject}\" --no-launch-profile --no-build -- " +
             $"--learner-windows {DapTestCrmWindowsGuideSeed.GuideId} " +
-            $"--window-automation-id {mainWindowAutomationId}");
+            $"--window-automation-id {mainWindowAutomationId}",
+            redirectOutput: true);
+
+        dap.OutputDataReceived += (_, e) =>
+        {
+            if (!string.IsNullOrWhiteSpace(e.Data))
+                Console.WriteLine($"[DAP] {e.Data}");
+        };
+        dap.ErrorDataReceived += (_, e) =>
+        {
+            if (!string.IsNullOrWhiteSpace(e.Data))
+                Console.Error.WriteLine($"[DAP ERROR] {e.Data}");
+        };
+        dap.BeginOutputReadLine();
+        dap.BeginErrorReadLine();
 
         var driver = new WindowsCrmScenarioDriver(windowsApp, window);
 
@@ -229,12 +243,15 @@ void EnsurePortFree(int port)
 Process StartProcess(
     string fileName,
     string arguments,
-    IReadOnlyDictionary<string, string?>? environment = null)
+    IReadOnlyDictionary<string, string?>? environment = null,
+    bool redirectOutput = false)
 {
     var psi = new ProcessStartInfo(fileName, arguments)
     {
         WorkingDirectory = root,
-        UseShellExecute = false
+        UseShellExecute = false,
+        RedirectStandardOutput = redirectOutput,
+        RedirectStandardError = redirectOutput
     };
 
     if (environment is not null)
