@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using System.Windows.Automation;
 using DAP.Core.Guides;
 using DAP.Core.Targets;
@@ -9,6 +10,7 @@ namespace DAP.Runtime.Windows.Learner;
 
 public sealed class WindowsGuideRuntime
 {
+    private static readonly Regex RuntimeValueToken = new(@"\{\{step:(?<step>[^}:]+):capture\}\}", RegexOptions.Compiled | RegexOptions.CultureInvariant);
     private readonly WindowsTargetResolver _resolver;
     private readonly WindowsBubblePresenter _bubbles;
     private readonly WindowsValidationEvaluator _validation;
@@ -43,10 +45,12 @@ public sealed class WindowsGuideRuntime
         }
 
         AutomationElement? preExistingTargetForCurrentStep = null;
+        var capturedValues = new Dictionary<string, string>(StringComparer.Ordinal);
 
         for (var index = startIndex; index < ordered.Length; index++)
         {
-            var step = ordered[index];
+            var persistedStep = ordered[index];
+            var step = MaterializeRuntimeValues(persistedStep, capturedValues);
             if (step.Target?.Runtime != TargetRuntime.Windows)
                 throw new InvalidOperationException(
                     $"Guide Step '{step.Id}' is not a Windows Step and cannot run in WindowsGuideRuntime.");
@@ -54,8 +58,9 @@ public sealed class WindowsGuideRuntime
             AutomationElement? nextTargetBeforeCurrentAction = null;
             if (index + 1 < ordered.Length)
             {
-                var nextStep = ordered[index + 1];
-                if (nextStep.Target?.Runtime == TargetRuntime.Windows)
+                var nextPersistedStep = ordered[index + 1];
+                var nextStep = TryMaterializeRuntimeValues(nextPersistedStep, capturedValues);
+                if (nextStep?.Target?.Runtime == TargetRuntime.Windows)
                 {
                     try
                     {
@@ -76,7 +81,8 @@ public sealed class WindowsGuideRuntime
                 index + 1,
                 ordered.Length,
                 cancellationToken,
-                preExistingTargetForCurrentStep);
+                preExistingTargetForCurrentStep,
+                capturedValues);
             Console.Error.WriteLine($"[DAP Windows guide] completed Step {index + 1}/{ordered.Length} '{step.Id}'.");
 
             preExistingTargetForCurrentStep = nextTargetBeforeCurrentAction;
@@ -91,7 +97,8 @@ public sealed class WindowsGuideRuntime
         int stepNumber,
         int totalSteps,
         CancellationToken cancellationToken,
-        AutomationElement? preExistingTarget)
+        AutomationElement? preExistingTarget,
+        IDictionary<string, string> capturedValues)
     {
         var clicked = string.Equals(step.Validation?.Kind, "clicked", StringComparison.OrdinalIgnoreCase);
         var targetDisappeared = string.Equals(step.Validation?.Kind, "target-disappeared", StringComparison.OrdinalIgnoreCase);
@@ -153,6 +160,16 @@ public sealed class WindowsGuideRuntime
                         $"sameAsPreExisting={sameAsPreExisting}; " +
                         $"fallbackArmed={clickedDisappearanceFallbackArmed}; " +
                         $"target={DescribeTarget(target)}");
+                }
+
+                if (step.Capture is not null && !capturedValues.ContainsKey(step.Id))
+                {
+                    var capture = ResolveCapture(windowRoot, step.Capture);
+                    if (capture is not null)
+                    {
+                        capturedValues[step.Id] = capture;
+                        Console.Error.WriteLine($"[DAP Windows guide] captured runtime value for Step '{step.Id}'.");
+                    }
                 }
 
                 if (!HasVisibleBounds(target))
@@ -231,6 +248,63 @@ public sealed class WindowsGuideRuntime
             }
             await _bubbles.HideAsync();
         }
+    }
+
+    private string? ResolveCapture(AutomationElement windowRoot, StepCaptureDefinition capture)
+    {
+        if (capture.Runtime != TargetRuntime.Windows)
+            throw new InvalidOperationException("WindowsGuideRuntime can capture only Windows runtime values.");
+
+        var descriptor = TargetDescriptor.Create(TargetRuntime.Windows, capture.Locator);
+        var resolution = _resolver.Resolve(windowRoot, descriptor);
+        if (resolution.Status != TargetResolutionStatus.Resolved || resolution.Target is null)
+            return null;
+
+        var raw = capture.Property.Trim().ToLowerInvariant() switch
+        {
+            "name" => resolution.Target.Current.Name,
+            "automation-id" => resolution.Target.Current.AutomationId,
+            _ => throw new NotSupportedException($"Unsupported Windows capture property '{capture.Property}'.")
+        };
+
+        if (string.IsNullOrEmpty(capture.Pattern))
+            return raw;
+
+        var match = Regex.Match(raw ?? string.Empty, capture.Pattern, RegexOptions.CultureInvariant);
+        if (!match.Success)
+            return null;
+        return match.Groups.Count > 1 ? match.Groups[1].Value : match.Value;
+    }
+
+    private static GuideStep MaterializeRuntimeValues(GuideStep step, IReadOnlyDictionary<string, string> values)
+    {
+        if (step.Target is null)
+            return step;
+
+        string Replace(string value) => RuntimeValueToken.Replace(value, match =>
+        {
+            var source = match.Groups["step"].Value;
+            if (!values.TryGetValue(source, out var captured))
+                throw new InvalidOperationException($"Guide Step '{step.Id}' references uncaptured runtime value from Step '{source}'.");
+            return captured;
+        });
+
+        return step with
+        {
+            Target = step.Target with
+            {
+                Locator = step.Target.Locator with { Value = Replace(step.Target.Locator.Value) },
+                Anchors = step.Target.Anchors
+                    .Select(anchor => anchor with { Locator = anchor.Locator with { Value = Replace(anchor.Locator.Value) } })
+                    .ToArray()
+            }
+        };
+    }
+
+    private static GuideStep? TryMaterializeRuntimeValues(GuideStep step, IReadOnlyDictionary<string, string> values)
+    {
+        try { return MaterializeRuntimeValues(step, values); }
+        catch (InvalidOperationException) { return null; }
     }
 
     private static bool SameElement(AutomationElement left, AutomationElement right)
