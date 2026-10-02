@@ -65,8 +65,8 @@ public sealed class WindowsBubblePresenter
                 windowHeight,
                 SystemParameters.WorkArea);
 
-            _window.Left = placement.Left;
-            _window.Top = placement.Top;
+            _window.Left = placement.X;
+            _window.Top = placement.Y;
 
             if (!_window.IsVisible)
                 _window.Show();
