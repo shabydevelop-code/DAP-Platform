@@ -48,8 +48,41 @@ public sealed class CrmApiClient
     private static async Task EnsureAsync(HttpResponseMessage r)
     {
         if(r.IsSuccessStatusCode)return;
-        var text=await r.Content.ReadAsStringAsync();
-        throw new InvalidOperationException(string.IsNullOrWhiteSpace(text)?$"CRM API returned {(int)r.StatusCode}.":text);
+        var body=await r.Content.ReadAsStringAsync();
+        var message=TryGetProblemMessage(body);
+        throw new InvalidOperationException(message ?? (string.IsNullOrWhiteSpace(body)?$"CRM API returned {(int)r.StatusCode}.":body));
+    }
+
+    private static string? TryGetProblemMessage(string body)
+    {
+        if(string.IsNullOrWhiteSpace(body))return null;
+        try
+        {
+            using var doc=JsonDocument.Parse(body);
+            var root=doc.RootElement;
+            if(root.TryGetProperty("errors",out var errors) && errors.ValueKind==JsonValueKind.Object)
+            {
+                var messages=new List<string>();
+                foreach(var property in errors.EnumerateObject())
+                {
+                    if(property.Value.ValueKind==JsonValueKind.Array)
+                        foreach(var item in property.Value.EnumerateArray())
+                            if(item.ValueKind==JsonValueKind.String && !string.IsNullOrWhiteSpace(item.GetString()))
+                                messages.Add(item.GetString()!);
+                    else if(property.Value.ValueKind==JsonValueKind.String && !string.IsNullOrWhiteSpace(property.Value.GetString()))
+                        messages.Add(property.Value.GetString()!);
+                }
+                if(messages.Count>0)return string.Join(Environment.NewLine,messages.Distinct());
+            }
+            if(root.TryGetProperty("detail",out var detail) && detail.ValueKind==JsonValueKind.String && !string.IsNullOrWhiteSpace(detail.GetString()))
+                return detail.GetString();
+            if(root.TryGetProperty("title",out var title) && title.ValueKind==JsonValueKind.String && !string.IsNullOrWhiteSpace(title.GetString()))
+                return title.GetString();
+        }
+        catch(JsonException)
+        {
+        }
+        return null;
     }
     private static string Query(params (string key,string? value)[] values)
     {
