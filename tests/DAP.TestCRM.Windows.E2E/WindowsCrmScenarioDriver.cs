@@ -196,7 +196,7 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
         {
             var current=EnabledById("NewCaseButton");
             return current is not null && !Automation.Compare(oldButton,current) ? current : null;
-        },"Cases screen replacement after status sort",10000);
+        },"Cases screen replacement after status sort");
         return Task.CompletedTask;
     }
     public Task CreateCase()
@@ -208,7 +208,7 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
 
         // Invoke once only. The WPF navigation is asynchronous, so allow the
         // destination form enough time to finish its API-backed initialization.
-        Wait(()=>EnabledById("CaseSubject"),"new Case form",10000);
+        Wait(()=>EnabledById("CaseSubject"),"new Case form");
         return Task.CompletedTask;
     }
     public Task SetCaseSubject(string v){Set("CaseSubject",v);return Task.CompletedTask;}
@@ -363,7 +363,7 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
         if(!button.Current.IsEnabled || !button.TryGetCurrentPattern(InvokePattern.Pattern,out var invoke))
             throw new Exception("NewLeadButton is not invokable.");
         ((InvokePattern)invoke).Invoke();
-        Wait(()=>EnabledById("LeadContactName"),"new Lead form",10000);
+        Wait(()=>EnabledById("LeadContactName"),"new Lead form");
         return Task.CompletedTask;
     }
     public Task SetLeadContact(string v){Set("LeadContactName",v);return Task.CompletedTask;}
@@ -415,9 +415,9 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
         // rebuilding the destination screen. Do not let the next canonical
         // step act on breadcrumbs from the record that is still being deleted.
         if(deletingLead)
-            Wait(()=>EnabledById("NewLeadButton"),"Leads screen after Lead deletion",10000);
+            Wait(()=>EnabledById("NewLeadButton"),"Leads screen after Lead deletion");
         else if(deletingCase)
-            Wait(()=>EnabledById("NewCaseButton"),"Cases screen after Case deletion",10000);
+            Wait(()=>EnabledById("NewCaseButton"),"Cases screen after Case deletion");
 
         return Task.CompletedTask;
     }
