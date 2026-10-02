@@ -39,6 +39,15 @@ The product is a single Windows desktop application with two user modes:
 
 The application must not couple the core guide model to the GUI technology.
 
+## Closed-target / black-box rule
+
+- DAP must never require access to the source code, internal implementation, database, private APIs, or other privileged internals of the application being guided.
+- Production Learner Runtime and Instructor/Editor capabilities must work with closed third-party applications as black boxes, using only information that DAP can legitimately observe or interact with externally through the applicable runtime technology (for example UIA for Windows and browser/runtime-visible information for Web).
+- Source code of DAP.TestCRM may be inspected during DAP development to diagnose a failure, understand the test fixture, and distinguish a fixture defect from a generic DAP limitation. This is a development aid only and must never become a runtime dependency, targeting assumption, or prerequisite for creating/running a Guide.
+- Every fix derived with help from TestCRM source inspection must be implemented as a generic production capability that remains valid when the target application's source is unavailable.
+- TestCRM should deliberately expose difficult real-world black-box conditions so these limitations are discovered during development rather than at customer deployment.
+- When practical, Guide creation and runtime validation should also be exercised under a strict black-box perspective: if DAP cannot discover enough information through its production-observable interfaces, treat that as a product capability gap rather than solving it through target-source knowledge.
+
 ## Runtime scope
 
 A guide can be:
