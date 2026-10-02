@@ -6,6 +6,13 @@
     <WebRoot>Web\wwwroot</WebRoot>
   </PropertyGroup>
   <ItemGroup>
+    <!-- Windows is a separate WPF project and must not be compiled by the Web SDK project. -->
+    <Compile Remove="Windows\**\*.cs" />
+    <EmbeddedResource Remove="Windows\**\*" />
+    <Content Remove="Windows\**\*" />
+    <None Remove="Windows\**\*" />
+    <Page Remove="Windows\**\*.xaml" />
+    <ApplicationDefinition Remove="Windows\**\App.xaml" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.11" />
   </ItemGroup>
 </Project>
