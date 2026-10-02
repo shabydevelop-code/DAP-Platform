@@ -42,6 +42,8 @@ public sealed class WindowsGuideRuntime
                 throw new InvalidOperationException($"Guide does not contain Step order {startStepOrder.Value}.");
         }
 
+        AutomationElement? preExistingTargetForCurrentStep = null;
+
         for (var index = startIndex; index < ordered.Length; index++)
         {
             var step = ordered[index];
@@ -49,9 +51,35 @@ public sealed class WindowsGuideRuntime
                 throw new InvalidOperationException(
                     $"Guide Step '{step.Id}' is not a Windows Step and cannot run in WindowsGuideRuntime.");
 
+            AutomationElement? nextTargetBeforeCurrentAction = null;
+            if (index + 1 < ordered.Length)
+            {
+                var nextStep = ordered[index + 1];
+                if (nextStep.Target?.Runtime == TargetRuntime.Windows)
+                {
+                    try
+                    {
+                        var nextResolution = _resolver.Resolve(windowRoot, nextStep.Target);
+                        if (nextResolution.Status == TargetResolutionStatus.Resolved)
+                            nextTargetBeforeCurrentAction = nextResolution.Target;
+                    }
+                    catch (ElementNotAvailableException)
+                    {
+                    }
+                }
+            }
+
             Console.Error.WriteLine($"[DAP Windows guide] starting Step {index + 1}/{ordered.Length} '{step.Id}'.");
-            await RunStepAsync(windowRoot, step, index + 1, ordered.Length, cancellationToken);
+            await RunStepAsync(
+                windowRoot,
+                step,
+                index + 1,
+                ordered.Length,
+                cancellationToken,
+                preExistingTargetForCurrentStep);
             Console.Error.WriteLine($"[DAP Windows guide] completed Step {index + 1}/{ordered.Length} '{step.Id}'.");
+
+            preExistingTargetForCurrentStep = nextTargetBeforeCurrentAction;
         }
 
         await _bubbles.HideAsync();
@@ -62,13 +90,13 @@ public sealed class WindowsGuideRuntime
         GuideStep step,
         int stepNumber,
         int totalSteps,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        AutomationElement? preExistingTarget)
     {
         var clicked = string.Equals(step.Validation?.Kind, "clicked", StringComparison.OrdinalIgnoreCase);
         var targetDisappeared = string.Equals(step.Validation?.Kind, "target-disappeared", StringComparison.OrdinalIgnoreCase);
         var targetWasResolved = false;
         var clickedDisappearanceFallbackArmed = false;
-        AutomationElement? previousResolvedTarget = null;
         var clickCompleted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         AutomationEventHandler? clickHandler = null;
         AutomationElement? subscribedTarget = null;
@@ -109,13 +137,10 @@ public sealed class WindowsGuideRuntime
                 targetWasResolved = true;
 
                 if (clicked
-                    && previousResolvedTarget is not null
-                    && Automation.Compare(previousResolvedTarget, target))
+                    && (preExistingTarget is null || !Automation.Compare(preExistingTarget, target)))
                 {
                     clickedDisappearanceFallbackArmed = true;
                 }
-
-                previousResolvedTarget = target;
 
                 if (!HasVisibleBounds(target))
                 {
