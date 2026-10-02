@@ -1,13 +1,15 @@
 PRAGMA foreign_keys = ON;
 
 CREATE TABLE IF NOT EXISTS Guides (
-    Id TEXT PRIMARY KEY,
+    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+    Key TEXT NOT NULL UNIQUE,
     Name TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS GuideSteps (
-    Id TEXT PRIMARY KEY,
-    GuideId TEXT NOT NULL,
+    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+    GuideId INTEGER NOT NULL,
+    Key TEXT NOT NULL,
     StepOrder INTEGER NOT NULL,
     AdvanceMode TEXT NOT NULL,
     Runtime TEXT NULL,
@@ -22,12 +24,13 @@ CREATE TABLE IF NOT EXISTS GuideSteps (
     ValidationExpectedValue TEXT NULL,
     ValidationOptionsJson TEXT NULL,
     FOREIGN KEY (GuideId) REFERENCES Guides(Id) ON DELETE CASCADE,
+    UNIQUE (GuideId, Key),
     UNIQUE (GuideId, StepOrder)
 );
 
 CREATE TABLE IF NOT EXISTS TargetAnchors (
     Id INTEGER PRIMARY KEY AUTOINCREMENT,
-    GuideStepId TEXT NOT NULL,
+    GuideStepId INTEGER NOT NULL,
     AnchorOrder INTEGER NOT NULL,
     Relation TEXT NOT NULL,
     LocatorStrategy TEXT NOT NULL,
