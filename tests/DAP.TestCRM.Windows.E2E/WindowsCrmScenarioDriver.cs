@@ -22,7 +22,24 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
         SetCursorPos((int)(r.Left+r.Width/2),(int)(r.Top+r.Height/2));Mouse();if(twice){Thread.Sleep(80);Mouse();}Thread.Sleep(800);
     }
     void Set(string id,string value){var e=ById(id);if(!e.TryGetCurrentPattern(ValuePattern.Pattern,out var p))throw new Exception($"{id} has no ValuePattern.");((ValuePattern)p).SetValue(value);Thread.Sleep(150);}
-    void Select(string id,string value){Click(ById(id));var item=Wait(()=>window.FindFirst(TreeScope.Descendants,new AndCondition(new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.ListItem),new PropertyCondition(AutomationElement.NameProperty,value))),$"{id} item '{value}'");Click(item);}
+    void Select(string id,string value)
+    {
+        var combo=ById(id);
+        if(combo.TryGetCurrentPattern(ExpandCollapsePattern.Pattern,out var ep))
+            ((ExpandCollapsePattern)ep).Expand();
+        else Click(combo);
+
+        var processId=window.Current.ProcessId;
+        var item=Wait(()=>AutomationElement.RootElement.FindFirst(TreeScope.Descendants,new AndCondition(
+            new PropertyCondition(AutomationElement.ProcessIdProperty,processId),
+            new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.ListItem),
+            new PropertyCondition(AutomationElement.NameProperty,value))),$"{id} item '{value}'");
+
+        if(item.TryGetCurrentPattern(SelectionItemPattern.Pattern,out var sip))
+            ((SelectionItemPattern)sip).Select();
+        else Click(item);
+        Thread.Sleep(850);
+    }
     void FirstRow(string id){var g=ById(id);var row=Wait(()=>g.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.DataItem)),id+" first row");Click(row,true);}
 
     AutomationElement Dialog()=>Wait(()=>AutomationElement.RootElement.FindAll(TreeScope.Children,new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.Window)).Cast<AutomationElement>().FirstOrDefault(x=>x.Current.ProcessId==app.Id&&x.Current.Name!="DAP Test CRM - Windows"),"dialog");
