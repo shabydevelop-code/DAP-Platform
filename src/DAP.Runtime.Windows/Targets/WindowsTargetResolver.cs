@@ -80,7 +80,7 @@ public sealed class WindowsTargetResolver
     {
         var walker = TreeWalker.ControlViewWalker;
         for (var current = walker.GetParent(candidate); current is not null; current = walker.GetParent(current))
-            if (condition.Evaluate(current))
+            if (MatchesCondition(current, condition))
                 return true;
         return false;
     }
@@ -97,5 +97,14 @@ public sealed class WindowsTargetResolver
                 return true;
 
         return false;
+    }
+
+    private static bool MatchesCondition(AutomationElement element, Condition condition)
+    {
+        if (condition is not PropertyCondition property)
+            return false;
+
+        var actual = element.GetCurrentPropertyValue(property.Property, true);
+        return Equals(actual, property.Value);
     }
 }
