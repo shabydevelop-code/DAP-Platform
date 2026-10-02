@@ -1,12 +1,16 @@
 using Microsoft.Playwright;
-using System.IO;
 using System.Diagnostics;
+using System.IO;
 using System.Windows;
+using System.Windows.Automation;
 using DAP.Data.Sqlite;
 using DAP.Data.Sqlite.Guides;
 using DAP.Runtime.Web.Bubbles;
 using DAP.Runtime.Web.Learner;
 using DAP.Runtime.Web.Targets;
+using DAP.Runtime.Windows.Bubbles;
+using DAP.Runtime.Windows.Learner;
+using DAP.Runtime.Windows.Targets;
 
 namespace DAP.App;
 
@@ -27,15 +31,8 @@ public static class DapApplicationHost
         var databaseOptions = SqliteDatabaseOptions.CreateDefault();
         var connections = new SqliteConnectionFactory(databaseOptions);
         await new SqliteDatabaseInitializer(connections).InitializeAsync(cancellationToken);
-        StartupMark(startup, "SQLite initialized");
-
-        // Production composition root. These objects now belong to DAP.exe rather
-        // than to a target application or test process.
         var repository = new SqliteGuideStepRepository(connections);
-        var resolver = new WebTargetResolver();
-        var bubbles = new WebBubblePresenter(resolver);
-        _ = new WebLearnerRuntime(bubbles);
-        StartupMark(startup, "composition root created");
+        StartupMark(startup, "SQLite initialized");
 
         if (options.Mode == DapLaunchMode.InfrastructureCheck)
         {
@@ -58,6 +55,101 @@ public static class DapApplicationHost
 
             return 0;
         }
+
+        var steps = await repository.GetStepsAsync(options.GuideId!, cancellationToken);
+        StartupMark(startup, $"guide loaded ({steps.Count} steps)");
+        if (steps.Count == 0)
+        {
+            MessageBox.Show(
+                $"Guide '{options.GuideId}' has no steps.",
+                "DAP Learner",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            return 5;
+        }
+
+        if (options.Mode == DapLaunchMode.LearnerWindows)
+            return await RunWindowsAsync(options, steps, startup, cancellationToken);
+
+        return await RunWebAsync(options, steps, startup, cancellationToken);
+    }
+
+    private static async Task<int> RunWindowsAsync(
+        DapLaunchOptions options,
+        IReadOnlyList<DAP.Core.Guides.GuideStep> steps,
+        Stopwatch startup,
+        CancellationToken cancellationToken)
+    {
+        var window = await WaitForWindowAsync(options.WindowAutomationId!, cancellationToken);
+        StartupMark(startup, $"Windows target window resolved ({options.WindowAutomationId})");
+
+        var resolver = new WindowsTargetResolver();
+        var bubbles = new WindowsBubblePresenter();
+        var runtime = new WindowsGuideRuntime(resolver, bubbles);
+
+        try
+        {
+            StartupMark(startup, "Windows guide runtime starting");
+            await runtime.RunAsync(window, steps, cancellationToken, options.StartStep);
+
+            if (options.ShowCompletion)
+            {
+                MessageBox.Show(
+                    "הלומדה הסתיימה בהצלחה.",
+                    "DAP Learner",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+        }
+        finally
+        {
+            await bubbles.HideAsync();
+        }
+
+        return 0;
+    }
+
+    private static async Task<AutomationElement> WaitForWindowAsync(
+        string automationId,
+        CancellationToken cancellationToken)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(30);
+        var condition = new PropertyCondition(
+            AutomationElement.AutomationIdProperty,
+            automationId);
+
+        while (DateTime.UtcNow < deadline)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var matches = AutomationElement.RootElement
+                .FindAll(TreeScope.Children, condition)
+                .Cast<AutomationElement>()
+                .ToArray();
+
+            if (matches.Length == 1)
+                return matches[0];
+
+            if (matches.Length > 1)
+                throw new InvalidOperationException(
+                    $"DAP.exe found {matches.Length} Windows target windows with AutomationId '{automationId}'; exactly one is required.");
+
+            await Task.Delay(100, cancellationToken);
+        }
+
+        throw new TimeoutException(
+            $"DAP.exe did not find a Windows target window with AutomationId '{automationId}' within 30 seconds.");
+    }
+
+    private static async Task<int> RunWebAsync(
+        DapLaunchOptions options,
+        IReadOnlyList<DAP.Core.Guides.GuideStep> steps,
+        Stopwatch startup,
+        CancellationToken cancellationToken)
+    {
+        var resolver = new WebTargetResolver();
+        var bubbles = new WebBubblePresenter(resolver);
+        StartupMark(startup, "Web composition root created");
 
         using var playwright = await Playwright.CreateAsync();
         StartupMark(startup, "Playwright created");
@@ -82,23 +174,11 @@ public static class DapApplicationHost
             return 4;
         }
 
-        var steps = await repository.GetStepsAsync(options.GuideId!, cancellationToken);
-        StartupMark(startup, $"guide loaded ({steps.Count} steps)");
-        if (steps.Count == 0)
-        {
-            MessageBox.Show(
-                $"Guide '{options.GuideId}' has no steps.",
-                "DAP Learner",
-                MessageBoxButton.OK,
-                MessageBoxImage.Error);
-            return 5;
-        }
-
         var stepRuntime = new WebLearnerRuntime(bubbles);
         var guideRuntime = new WebGuideRuntime(stepRuntime);
         try
         {
-            StartupMark(startup, "guide runtime starting");
+            StartupMark(startup, "Web guide runtime starting");
             await guideRuntime.RunAsync(matchingPages[0], steps, cancellationToken, options.StartStep);
 
             if (options.ShowCompletion)
