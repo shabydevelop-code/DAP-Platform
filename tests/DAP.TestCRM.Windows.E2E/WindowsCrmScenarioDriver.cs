@@ -160,16 +160,28 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     public Task OpenSiteFromBreadcrumb()
     {
         DismissUnexpectedInfoDialogs();
-        var siteCrumb=window.FindAll(TreeScope.Descendants,
-            new AndCondition(
-                new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.Button),
-                new PropertyCondition(AutomationElement.AutomationIdProperty,"Breadcrumb")))
-            .Cast<AutomationElement>()
-            .FirstOrDefault(x=>x.Current.Name=="מטה תל אביב");
-        if(siteCrumb is null)throw new Exception("Site breadcrumb 'מטה תל אביב' was not found.");
-        Click(siteCrumb);
-        Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"LeadsTab")),"Site screen after breadcrumb");
-        return Task.CompletedTask;
+        var deadline=Stopwatch.StartNew();
+        while(deadline.ElapsedMilliseconds<5000)
+        {
+            var leadsTab=window.FindFirst(TreeScope.Descendants,
+                new PropertyCondition(AutomationElement.AutomationIdProperty,"LeadsTab"));
+            if(leadsTab is not null)return Task.CompletedTask;
+
+            var siteCrumb=window.FindAll(TreeScope.Descendants,
+                new AndCondition(
+                    new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.Button),
+                    new PropertyCondition(AutomationElement.AutomationIdProperty,"Breadcrumb")))
+                .Cast<AutomationElement>()
+                .FirstOrDefault(x=>x.Current.Name=="מטה תל אביב");
+
+            if(siteCrumb is not null &&
+               siteCrumb.Current.IsEnabled &&
+               siteCrumb.TryGetCurrentPattern(InvokePattern.Pattern,out var invoke))
+                ((InvokePattern)invoke).Invoke();
+
+            Thread.Sleep(200);
+        }
+        throw new TimeoutException("Site breadcrumb was invoked but the Site screen did not become ready.");
     }
     public Task OpenLeads()
     {
