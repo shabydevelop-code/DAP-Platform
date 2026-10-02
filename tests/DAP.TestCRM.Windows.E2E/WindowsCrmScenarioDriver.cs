@@ -245,28 +245,25 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     public Task OpenSiteFromBreadcrumb()
     {
         DismissUnexpectedInfoDialogs();
-        var deadline=Stopwatch.StartNew();
-        while(deadline.ElapsedMilliseconds<5000)
-        {
-            var leadsTab=window.FindFirst(TreeScope.Descendants,
-                new PropertyCondition(AutomationElement.AutomationIdProperty,"LeadsTab"));
-            if(leadsTab is not null)return Task.CompletedTask;
 
-            var siteCrumb=window.FindAll(TreeScope.Descendants,
-                new AndCondition(
-                    new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.Button),
-                    new PropertyCondition(AutomationElement.AutomationIdProperty,"Breadcrumb")))
-                .Cast<AutomationElement>()
-                .FirstOrDefault(x=>x.Current.Name=="מטה תל אביב");
+        var siteCrumb=window.FindAll(TreeScope.Descendants,
+            new AndCondition(
+                new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.Button),
+                new PropertyCondition(AutomationElement.AutomationIdProperty,"Breadcrumb")))
+            .Cast<AutomationElement>()
+            .FirstOrDefault(x=>x.Current.Name=="מטה תל אביב")
+            ?? throw new Exception("Site breadcrumb 'מטה תל אביב' was not found.");
 
-            if(siteCrumb is not null &&
-               siteCrumb.Current.IsEnabled &&
-               siteCrumb.TryGetCurrentPattern(InvokePattern.Pattern,out var invoke))
-                ((InvokePattern)invoke).Invoke();
+        // Invoke exactly once. Re-invoking an async WPF breadcrumb while ShowSite is
+        // still loading starts overlapping ShowSite operations and can replace the
+        // newly rendered Site screen with another in-flight render.
+        if(!siteCrumb.Current.IsEnabled || !siteCrumb.TryGetCurrentPattern(InvokePattern.Pattern,out var invoke))
+            throw new Exception("Site breadcrumb is not invokable.");
+        ((InvokePattern)invoke).Invoke();
 
-            Thread.Sleep(200);
-        }
-        throw new TimeoutException("Site breadcrumb was invoked but the Site screen did not become ready.");
+        Wait(()=>window.FindFirst(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.AutomationIdProperty,"LeadsTab")),"Site screen after breadcrumb");
+        return Task.CompletedTask;
     }
     public Task OpenLeads()
     {
