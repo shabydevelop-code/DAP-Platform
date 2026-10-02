@@ -49,7 +49,8 @@ public sealed class WindowsTargetResolver
         // invert the search: locate the narrow ancestor scope first, then the identifying
         // descendant, and walk upward to the primary target. This avoids enumerating every
         // primary candidate and issuing one descendant UIA query per candidate.
-        if (TryResolveFromAnchors(root, descriptor, out var anchorFirstCandidates))
+        if (TryResolveFromAnchors(root, descriptor, out var anchorFirstCandidates)
+            && anchorFirstCandidates.Count > 0)
         {
             stopwatch.Stop();
             if (stopwatch.ElapsedMilliseconds >= 100)
@@ -62,7 +63,6 @@ public sealed class WindowsTargetResolver
 
             return anchorFirstCandidates.Count switch
             {
-                0 => TargetResolution<AutomationElement>.NotFound(),
                 1 => TargetResolution<AutomationElement>.Resolved(anchorFirstCandidates[0]),
                 _ => TargetResolution<AutomationElement>.Ambiguous(anchorFirstCandidates.Count)
             };
@@ -131,7 +131,7 @@ public sealed class WindowsTargetResolver
         // ambiguity semantics instead of silently choosing the first one.
         var scopes = Find(root, scopeAnchor.Locator).ToList();
         if (scopes.Count == 0)
-            return true;
+            return false;
 
         foreach (var scope in scopes)
         {
