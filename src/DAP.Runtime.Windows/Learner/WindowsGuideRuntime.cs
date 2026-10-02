@@ -117,6 +117,16 @@ public sealed class WindowsGuideRuntime
         Console.Error.WriteLine(
             $"[DAP Windows step timing] Step {stepNumber}/{totalSteps} '{step.Id}' entered at +0 ms.");
 
+        if (ShouldWaitForUiStability(step.Target!))
+        {
+            var settleStartedAt = stepStopwatch.ElapsedMilliseconds;
+            await WaitForTargetScopeStabilityAsync(windowRoot, step.Target!, cancellationToken);
+            Console.Error.WriteLine(
+                $"[DAP Windows step timing] Step '{step.Id}' UIA scope settled at " +
+                $"+{stepStopwatch.ElapsedMilliseconds} ms " +
+                $"(wait={stepStopwatch.ElapsedMilliseconds - settleStartedAt} ms).");
+        }
+
         try
         {
             while (!cancellationToken.IsCancellationRequested)
@@ -368,6 +378,246 @@ public sealed class WindowsGuideRuntime
     {
         try { return MaterializeRuntimeValues(step, values); }
         catch (InvalidOperationException) { return null; }
+    }
+
+    private async Task WaitForTargetScopeStabilityAsync(
+        AutomationElement windowRoot,
+        TargetDescriptor descriptor,
+        CancellationToken cancellationToken)
+    {
+        var scopeAnchor = descriptor.Anchors.FirstOrDefault(anchor =>
+            anchor.Relation is AnchorRelation.Ancestor or AnchorRelation.Context
+            && IsSimpleExactLocator(anchor.Locator));
+        if (scopeAnchor is null)
+            return;
+
+        var scopeWait = Stopwatch.StartNew();
+        AutomationElement? scope = null;
+        while (scope is null && scopeWait.Elapsed < TimeSpan.FromSeconds(5))
+        {
+            try
+            {
+                scope = FindFirstExact(windowRoot, scopeAnchor.Locator);
+            }
+            catch (ElementNotAvailableException)
+            {
+            }
+
+            if (scope is null)
+                await Task.Delay(_pollInterval, cancellationToken);
+        }
+
+        if (scope is null)
+            return;
+
+        var observation = Stopwatch.StartNew();
+        long lastSignal = Stopwatch.GetTimestamp();
+        var signalCount = 0;
+
+        void MarkSignal()
+        {
+            Interlocked.Exchange(ref lastSignal, Stopwatch.GetTimestamp());
+            Interlocked.Increment(ref signalCount);
+        }
+
+        StructureChangedEventHandler structureHandler = (_, _) => MarkSignal();
+        AutomationEventHandler asyncContentHandler = (_, _) => MarkSignal();
+
+        try
+        {
+            Automation.AddStructureChangedEventHandler(
+                scope,
+                TreeScope.Subtree,
+                structureHandler);
+            Automation.AddAutomationEventHandler(
+                AutomationElement.AsyncContentLoadedEvent,
+                scope,
+                TreeScope.Subtree,
+                asyncContentHandler);
+
+            var quietPeriod = TimeSpan.FromMilliseconds(450);
+            var maxObservation = TimeSpan.FromSeconds(5);
+
+            while (observation.Elapsed < maxObservation)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var last = Interlocked.Read(ref lastSignal);
+                var quietFor = Stopwatch.GetElapsedTime(last);
+                if (quietFor >= quietPeriod)
+                    break;
+
+                await Task.Delay(TimeSpan.FromMilliseconds(100), cancellationToken);
+            }
+
+            if (signalCount > 0 || observation.ElapsedMilliseconds >= 100)
+            {
+                Console.Error.WriteLine(
+                    $"[DAP Windows UIA settle] scope={scopeAnchor.Locator.Strategy}='{scopeAnchor.Locator.Value}', " +
+                    $"signals={signalCount}, elapsed={observation.ElapsedMilliseconds} ms.");
+            }
+        }
+        catch (ElementNotAvailableException)
+        {
+        }
+        catch (InvalidOperationException)
+        {
+        }
+        finally
+        {
+            try
+            {
+                Automation.RemoveStructureChangedEventHandler(scope, structureHandler);
+            }
+            catch (ElementNotAvailableException)
+            {
+            }
+
+            try
+            {
+                Automation.RemoveAutomationEventHandler(
+                    AutomationElement.AsyncContentLoadedEvent,
+                    scope,
+                    asyncContentHandler);
+            }
+            catch (ElementNotAvailableException)
+            {
+            }
+        }
+    }
+
+    private static bool ShouldWaitForUiStability(TargetDescriptor descriptor)
+    {
+        var hasScope = descriptor.Anchors.Any(anchor =>
+            anchor.Relation is AnchorRelation.Ancestor or AnchorRelation.Context
+            && IsSimpleExactLocator(anchor.Locator));
+        var hasExactDynamicDescendant = descriptor.Anchors.Any(anchor =>
+            anchor.Relation == AnchorRelation.Descendant
+            && IsExactNameRegex(anchor.Locator));
+
+        return hasScope && hasExactDynamicDescendant;
+    }
+
+    private static bool IsSimpleExactLocator(Locator locator)
+    {
+        var strategy = locator.Strategy.Trim();
+        return strategy.Equals("automation-id", StringComparison.OrdinalIgnoreCase)
+               || strategy.Equals("name", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsExactNameRegex(Locator locator)
+    {
+        if (!locator.Strategy.Trim().Equals("name-regex", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        var pattern = locator.Value;
+        if (pattern.Length < 2 || pattern[0] != '^' || pattern[^1] != '
+        try
+        {
+            return Automation.Compare(left, right);
+        }
+        catch (ElementNotAvailableException)
+        {
+            return false;
+        }
+    }
+
+    private static void TryScrollIntoView(AutomationElement target)
+    {
+        try
+        {
+            if (target.TryGetCurrentPattern(ScrollItemPattern.Pattern, out var pattern))
+                ((ScrollItemPattern)pattern).ScrollIntoView();
+        }
+        catch (ElementNotAvailableException)
+        {
+        }
+        catch (InvalidOperationException)
+        {
+        }
+    }
+
+    private static bool HasVisibleBounds(AutomationElement target)
+    {
+        try
+        {
+            var rect = target.Current.BoundingRectangle;
+            return !target.Current.IsOffscreen
+                   && !rect.IsEmpty
+                   && rect.Width > 0
+                   && rect.Height > 0;
+        }
+        catch (ElementNotAvailableException)
+        {
+            return false;
+        }
+    }
+
+    private static string DescribeTarget(AutomationElement target)
+    {
+        try
+        {
+            var parts = new List<string>
+            {
+                $"AutomationId='{target.Current.AutomationId}'",
+                $"Name='{target.Current.Name}'",
+                $"ControlType='{target.Current.ControlType?.ProgrammaticName ?? "<null>"}'",
+                $"IsOffscreen={target.Current.IsOffscreen}",
+                $"IsEnabled={target.Current.IsEnabled}"
+            };
+
+            var ancestors = new List<string>();
+            var walker = TreeWalker.ControlViewWalker;
+            for (var current = walker.GetParent(target);
+                 current is not null && ancestors.Count < 6;
+                 current = walker.GetParent(current))
+            {
+                ancestors.Add(
+                    $"{current.Current.ControlType?.ProgrammaticName ?? "<null>"}" +
+                    $"(AutomationId='{current.Current.AutomationId}',Name='{current.Current.Name}',IsOffscreen={current.Current.IsOffscreen})");
+            }
+
+            parts.Add($"Ancestors=[{string.Join(" <- ", ancestors)}]");
+            return string.Join("; ", parts);
+        }
+        catch (ElementNotAvailableException)
+        {
+            return "<target became unavailable while collecting diagnostics>";
+        }
+    }
+}
+)
+            return false;
+
+        var body = pattern[1..^1];
+        for (var index = 0; index < body.Length; index++)
+        {
+            if (body[index] == '\\')
+            {
+                if (++index >= body.Length)
+                    return false;
+                continue;
+            }
+
+            if (".+*?()[]{}|^$".Contains(body[index]))
+                return false;
+        }
+
+        return true;
+    }
+
+    private static AutomationElement? FindFirstExact(AutomationElement root, Locator locator)
+    {
+        var strategy = locator.Strategy.Trim();
+        Condition condition;
+        if (strategy.Equals("automation-id", StringComparison.OrdinalIgnoreCase))
+            condition = new PropertyCondition(AutomationElement.AutomationIdProperty, locator.Value);
+        else if (strategy.Equals("name", StringComparison.OrdinalIgnoreCase))
+            condition = new PropertyCondition(AutomationElement.NameProperty, locator.Value);
+        else
+            return null;
+
+        return root.FindFirst(TreeScope.Descendants, condition);
     }
 
     private static bool SameElement(AutomationElement left, AutomationElement right)
