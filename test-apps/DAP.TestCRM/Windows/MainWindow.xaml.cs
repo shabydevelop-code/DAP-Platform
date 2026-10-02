@@ -58,7 +58,7 @@ public partial class MainWindow : Window
     StackPanel V()=>new(){Orientation=Orientation.Vertical,HorizontalAlignment=HorizontalAlignment.Stretch,FlowDirection=FlowDirection.RightToLeft,Margin=new(24,0,24,0)};
     ScrollViewer S(UIElement content)=>new(){Content=content,HorizontalContentAlignment=HorizontalAlignment.Stretch,VerticalContentAlignment=VerticalAlignment.Top,FlowDirection=FlowDirection.RightToLeft,HorizontalScrollBarVisibility=ScrollBarVisibility.Disabled,VerticalScrollBarVisibility=ScrollBarVisibility.Auto};
     void Crumbs(params (string text,Func<Task>? go)[] xs){BreadcrumbPanel.Children.Clear();foreach(var x in xs){if(x.go==null)BreadcrumbPanel.Children.Add(new TextBlock{Text=x.text+" / ",Margin=new(2)});else{var b=B(x.text,"Breadcrumb",async(_,_)=>await x.go());b.Padding=new(2);b.Margin=new(2);BreadcrumbPanel.Children.Add(b);}}}
-    async Task Safe(Func<Task> f){try{StatusText.Text="מעבד...";await f();StatusText.Text="";}catch(Exception ex){StatusText.Text="שגיאה";MessageBox.Show(this,ex.Message,"DAP Test CRM",MessageBoxButton.OK,MessageBoxImage.Error);}}
+    async Task Safe(Func<Task> f){try{StatusText.Text="מעבד...";await f();}catch(Exception ex){MessageBox.Show(this,ex.Message,"DAP Test CRM",MessageBoxButton.OK,MessageBoxImage.Error);}finally{StatusText.Text="";}}
 
     async Task ShowSearch(string name="",string phone="",string email="",bool run=false)
     {
@@ -101,5 +101,5 @@ public partial class MainWindow : Window
         else A(v,saveLead);
         ScreenHost.Content=S(v);
     }
-    static DataGrid GridFor<T>(IEnumerable<T> items,string[] fields,string id){var g=new DataGrid{ItemsSource=items,AutoGenerateColumns=false,IsReadOnly=true,SelectionMode=DataGridSelectionMode.Single,Margin=new(4),MinHeight=180,FlowDirection=FlowDirection.RightToLeft,HorizontalContentAlignment=HorizontalAlignment.Right};AutomationProperties.SetAutomationId(g,id);foreach(var f in fields)g.Columns.Add(new DataGridTextColumn{Header=f,Binding=new Binding(f),Width=new DataGridLength(1,DataGridLengthUnitType.Star)});return g;}
+    static DataGrid GridFor<T>(IEnumerable<T> items,string[] fields,string id){var g=new DataGrid{ItemsSource=items,AutoGenerateColumns=false,IsReadOnly=true,SelectionMode=DataGridSelectionMode.Single,Margin=new(4),MinHeight=180,Height=double.NaN,MaxHeight=double.PositiveInfinity,VerticalScrollBarVisibility=ScrollBarVisibility.Disabled,FlowDirection=FlowDirection.RightToLeft,HorizontalContentAlignment=HorizontalAlignment.Right};AutomationProperties.SetAutomationId(g,id);foreach(var f in fields)g.Columns.Add(new DataGridTextColumn{Header=f,Binding=new Binding(f),Width=new DataGridLength(1,DataGridLengthUnitType.Star)});return g;}
 }
