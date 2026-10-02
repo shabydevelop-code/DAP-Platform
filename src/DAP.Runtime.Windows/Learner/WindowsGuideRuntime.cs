@@ -70,6 +70,7 @@ public sealed class WindowsGuideRuntime
         var clickCompleted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         AutomationEventHandler? clickHandler = null;
         AutomationElement? subscribedTarget = null;
+        string? lastTargetDisappearedDiagnostic = null;
 
         try
         {
@@ -129,6 +130,13 @@ public sealed class WindowsGuideRuntime
                 {
                     // Completion is detected on a later reconciliation pass when
                     // the previously resolved target leaves the current UI tree.
+                    var diagnostic = DescribeTarget(target);
+                    if (!string.Equals(diagnostic, lastTargetDisappearedDiagnostic, StringComparison.Ordinal))
+                    {
+                        Console.Error.WriteLine(
+                            $"[DAP Windows guide] Step '{step.Id}' target-disappeared still resolves: {diagnostic}");
+                        lastTargetDisappearedDiagnostic = diagnostic;
+                    }
                 }
                 else if (step.AdvanceMode == StepAdvanceMode.AutomaticOnValidation
                          && step.Validation is not null
@@ -152,6 +160,39 @@ public sealed class WindowsGuideRuntime
                 catch (ElementNotAvailableException) { }
             }
             await _bubbles.HideAsync();
+        }
+    }
+
+    private static string DescribeTarget(AutomationElement target)
+    {
+        try
+        {
+            var parts = new List<string>
+            {
+                $"AutomationId='{target.Current.AutomationId}'",
+                $"Name='{target.Current.Name}'",
+                $"ControlType='{target.Current.ControlType?.ProgrammaticName ?? "<null>"}'",
+                $"IsOffscreen={target.Current.IsOffscreen}",
+                $"IsEnabled={target.Current.IsEnabled}"
+            };
+
+            var ancestors = new List<string>();
+            var walker = TreeWalker.ControlViewWalker;
+            for (var current = walker.GetParent(target);
+                 current is not null && ancestors.Count < 6;
+                 current = walker.GetParent(current))
+            {
+                ancestors.Add(
+                    $"{current.Current.ControlType?.ProgrammaticName ?? "<null>"}" +
+                    $"(AutomationId='{current.Current.AutomationId}',Name='{current.Current.Name}',IsOffscreen={current.Current.IsOffscreen})");
+            }
+
+            parts.Add($"Ancestors=[{string.Join(" <- ", ancestors)}]");
+            return string.Join("; ", parts);
+        }
+        catch (ElementNotAvailableException)
+        {
+            return "<target became unavailable while collecting diagnostics>";
         }
     }
 }
