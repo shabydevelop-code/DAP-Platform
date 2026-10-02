@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.RegularExpressions;
 using System.Windows.Automation;
 using DAP.Core.Targets;
@@ -14,9 +15,30 @@ public sealed class WindowsTargetResolver
         if (descriptor.Runtime != TargetRuntime.Windows)
             throw new InvalidOperationException("WindowsTargetResolver can resolve only Windows targets.");
 
+        var stopwatch = Stopwatch.StartNew();
         var candidates = Find(root, descriptor.Locator).ToList();
-        if (descriptor.Anchors.Count > 0)
-            candidates = candidates.Where(candidate => MatchesAnchors(candidate, descriptor.Anchors)).ToList();
+        var primaryCandidateCount = candidates.Count;
+        var anchorDiagnostics = new List<string>(descriptor.Anchors.Count);
+
+        foreach (var anchor in descriptor.Anchors)
+        {
+            var before = candidates.Count;
+            candidates = candidates.Where(candidate => MatchesAnchor(candidate, anchor)).ToList();
+            anchorDiagnostics.Add(
+                $"{anchor.Relation}:{anchor.Locator.Strategy}='{anchor.Locator.Value}' {before}->{candidates.Count}");
+        }
+
+        stopwatch.Stop();
+        if (stopwatch.ElapsedMilliseconds >= 100 || primaryCandidateCount >= 100)
+        {
+            var anchors = anchorDiagnostics.Count == 0
+                ? "none"
+                : string.Join(", ", anchorDiagnostics);
+            Console.Error.WriteLine(
+                $"[DAP Windows resolver timing] locator={descriptor.Locator.Strategy}='{descriptor.Locator.Value}', " +
+                $"primary={primaryCandidateCount}, anchors=[{anchors}], final={candidates.Count}, " +
+                $"elapsed={stopwatch.ElapsedMilliseconds} ms.");
+        }
 
         return candidates.Count switch
         {
