@@ -356,3 +356,22 @@ Both modes are locally verified PASS on 2026-10-02 after the CRM-only Guide sequ
 ## Windows Learner Runtime status
 
 Production Windows runtime code exists in `src/DAP.Runtime.Windows`. It uses UI Automation for target resolution and validation and WPF for non-activating learner bubbles. `DAP.exe` supports `--learner-windows <guide-key> --window-automation-id <id>` and consumes persisted Guide Steps from the same provider-independent persistence boundary. The first 10 persisted Windows TestCRM Steps are locally verified end-to-end in Guided mode through the production runtime and in Unguided mode through the persisted-Guide action executor. The separate TestCRM Windows 53-step business scenario remains the expansion baseline while persisted production-runtime coverage grows from 10 toward 53 Steps.
+
+## Windows persisted Guide Steps 1–12 — verified 2026-10-03
+
+The persisted Windows Guide `testcrm-windows-canonical-workflow` is now locally verified through **Step 12** in Guided mode with the production DAP Windows Learner Runtime. The terminal run passed with real UIA targets, runtime capture, and learner bubbles.
+
+The new dynamic Case-row flow is:
+1. create and save a Case;
+2. capture its generated identifier from the live Case screen;
+3. return to the Case list;
+4. resolve the row whose descendant identifier equals the captured value;
+5. present the learner bubble on that row and open it.
+
+For small already-realized Windows grids, row targeting deliberately follows the same simple model used by the working Sites grid: scope to the declared grid, enumerate `DataItem` rows, filter each row by the declared descendant anchor, and require uniqueness. More specialized anchor-first/grid-provider paths remain available for larger scopes, but the Runtime must not use TestCRM source or database knowledge as an oracle.
+
+The TestCRM server now bounds accumulated Site-1 Cases to the newest 10 on startup when the fixture DB already exists. This keeps repeated E2E runs deterministic and prevents historical test data from turning a small-grid learner scenario into a performance artifact.
+
+Windows learner bubble presentation now includes the same key interaction conventions as Web: explicit drag handle, directional pointer toward the target, and initial placement that attempts to avoid covering the target. The implementation remains Windows-native WPF and derives target geometry from UIA bounds.
+
+The Windows E2E action driver now selects a dynamically located WPF DataGrid row with `SelectionItemPattern` before using the required physical double-click fallback. This is test-driver synchronization, not production target-resolution behavior.
