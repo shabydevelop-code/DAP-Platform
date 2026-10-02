@@ -173,17 +173,17 @@ await using var browser = await playwright.Chromium.LaunchAsync(new()
     Args = new[] { "--start-maximized", $"--remote-debugging-port={dapCdpPort}" }
 });
 StartupMark($"{e2eBrowser} launched");
-var context = await browser.NewContextAsync(new() { ViewportSize = ViewportSize.NoViewport, ExtraHTTPHeaders = new Dictionary<string,string> { ["X-DAP-E2E-Mode"] = (Environment.GetEnvironmentVariable("DAP_E2E_MODE")?.Trim().ToLowerInvariant() ?? "fast") } });
+var e2eMode = Environment.GetEnvironmentVariable("DAP_E2E_MODE")?.Trim().ToLowerInvariant() ?? "fast";
+var context = await browser.NewContextAsync(new() { ViewportSize = ViewportSize.NoViewport, ExtraHTTPHeaders = new Dictionary<string,string> { ["X-DAP-E2E-Mode"] = e2eMode } });
 var page = await context.NewPageAsync();
 page.SetDefaultTimeout(5000);
 StartupMark("browser context and page created");
 
-var e2eMode = Environment.GetEnvironmentVariable("DAP_E2E_MODE")?.Trim().ToLowerInvariant() ?? "fast";
 var visualMode = e2eMode is "visual" or "demo";
 var fastMode = !visualMode;
 var switchedToVisual = visualMode;
 
-Console.WriteLine($"E2E mode: {(crmOnly ? "crm-only" : visualFromStep is not null ? $"fast -> visual from Step {visualFromStep}" : visualMode ? "visual" : "fast")}");
+Console.WriteLine($"E2E mode: {(crmOnly ? $"crm-only ({e2eMode})" : visualFromStep is not null ? $"fast -> visual from Step {visualFromStep}" : visualMode ? "visual" : "fast")}");
 if (visualMode || visualFromStep is not null)
 await page.AddInitScriptAsync(@"(() => {
   const install=()=>{
@@ -211,7 +211,7 @@ async Task<IFrame> Content()
     // retiring frame and must never be treated as the active content context.
     // Guide-step timeout detects a technical transition failure. Human-paced
     // visual/demo timing is handled separately by HumanPause.
-    const int attempts=100;
+    const int attempts=50;
     for(var i=0;i<attempts;i++)
     {
         try
