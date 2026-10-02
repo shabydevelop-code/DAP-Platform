@@ -495,3 +495,12 @@ Web `clicked` validation no longer stores completion in the guided application's
   - DAP product data: default `%ProgramData%\\DAP\\Data\\DAP.db` (or `DAP_DATABASE_PATH`).
   - TestCRM business data: `test-apps/DAP.TestCRM/data/testcrm.db`.
 - Do not merge these databases: TestCRM is an external target/demo application, while `DAP.db` stores DAP guides, steps, targets, bubble/validation configuration, and related product state.
+
+
+## Windows TestCRM client started (2026-10-02)
+- Added a real WPF client at `test-apps/DAP.TestCRM/Windows/DAP.TestCRM.Windows.csproj`.
+- Windows is an API client of the same TestCRM server used by Web; it does not access SQLite directly.
+- This preserves one business-data owner: `Server -> data/testcrm.db`.
+- Initial Windows functionality: load Customers, load Sites for the selected Customer, load Cases and Leads for the selected Site, and edit/save existing Sites, Cases, and Leads through the shared API.
+- Important Windows controls have explicit UIA AutomationIds in preparation for DAP Windows Runtime targeting.
+- Local build/runtime verification is still required after pull; GitHub-side editing cannot execute the user's local Windows/WPF runtime.
