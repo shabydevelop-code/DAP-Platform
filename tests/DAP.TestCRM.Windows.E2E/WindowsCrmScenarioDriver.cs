@@ -85,8 +85,16 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
             var hwnd=GetWindow(mainHwnd,GW_ENABLEDPOPUP);
             return hwnd!=IntPtr.Zero && hwnd!=mainHwnd ? hwnd : IntPtr.Zero;
         },"modal dialog");
-        SendMessage(popup,WM_COMMAND,new IntPtr(confirm ? IDYES : IDOK),IntPtr.Zero);
-        WaitHandle(()=>!IsWindow(popup) ? mainHwnd : IntPtr.Zero,"modal dialog dismissed");
+        var popupElement=AutomationElement.FromHandle(popup);
+        var buttons=popupElement.FindAll(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.Button));
+        var button=confirm
+            ? buttons.Cast<AutomationElement>().FirstOrDefault(x=>x.Current.Name is "Yes" or "כן" or "אישור") ?? buttons.Cast<AutomationElement>().FirstOrDefault()
+            : buttons.Cast<AutomationElement>().FirstOrDefault(x=>x.Current.Name is "OK" or "אישור") ?? buttons.Cast<AutomationElement>().FirstOrDefault();
+        if(button is null || !button.TryGetCurrentPattern(InvokePattern.Pattern,out var invoke))
+            throw new Exception("Modal dialog has no invokable button.");
+        ((InvokePattern)invoke).Invoke();
+        WaitHandle(()=>!IsWindowVisible(popup) ? mainHwnd : IntPtr.Zero,"modal dialog dismissed");
     }
 
     public Task SearchCustomer(string v){Set("CustomerNameSearch",v);Click(ById("SearchCustomersButton"));return Task.CompletedTask;}
@@ -148,6 +156,7 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     [DllImport("user32.dll")] static extern IntPtr GetWindow(IntPtr hWnd,uint uCmd);
     [DllImport("user32.dll")] static extern IntPtr SendMessage(IntPtr hWnd,uint msg,IntPtr wParam,IntPtr lParam);
     [DllImport("user32.dll")] static extern bool IsWindow(IntPtr hWnd);
+    [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr hWnd);
     [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr hWnd);
     [DllImport("user32.dll")] static extern int GetSystemMetrics(int nIndex);
     [DllImport("user32.dll")] static extern bool SetCursorPos(int x,int y);
