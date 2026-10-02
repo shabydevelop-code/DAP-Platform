@@ -16,7 +16,24 @@ public partial class MainWindow : Window
     Button B(string text,string id,RoutedEventHandler click){var b=new Button{Content=text,Margin=new(4),Padding=new(12,6,12,6)};AutomationProperties.SetAutomationId(b,id);b.Click+=click;return b;}
     TextBox T(string id,string text=""){var x=new TextBox{Text=text,Margin=new(0,4,0,0),Width=360,HorizontalAlignment=HorizontalAlignment.Stretch};AutomationProperties.SetAutomationId(x,id);return x;}
     ComboBox C(string id,string[] items,string value){var x=new ComboBox{Margin=new(0,4,0,0),Width=360,HorizontalAlignment=HorizontalAlignment.Stretch,ItemsSource=items,SelectedItem=value};AutomationProperties.SetAutomationId(x,id);return x;}
-    void F(Panel p,string label,Control control){var row=new DockPanel{LastChildFill=false,FlowDirection=FlowDirection.LeftToRight};var field=new StackPanel{Width=360,FlowDirection=FlowDirection.LeftToRight,Margin=new(0,5,0,5)};field.Children.Add(new TextBlock{Text=label,Width=360,Margin=new(0,0,0,2),FontWeight=FontWeights.SemiBold,TextAlignment=TextAlignment.Right,HorizontalAlignment=HorizontalAlignment.Left,FlowDirection=FlowDirection.RightToLeft});control.FlowDirection=FlowDirection.RightToLeft;control.HorizontalAlignment=HorizontalAlignment.Stretch;control.Width=double.NaN;field.Children.Add(control);DockPanel.SetDock(field,Dock.Right);row.Children.Add(field);p.Children.Add(row);}
+    void F(Panel p,string label,Control control)
+    {
+        var row=new DockPanel{LastChildFill=false,FlowDirection=FlowDirection.LeftToRight};
+        var field=new Grid{Width=360,Margin=new(0,5,0,5),FlowDirection=FlowDirection.LeftToRight};
+        field.RowDefinitions.Add(new RowDefinition{Height=GridLength.Auto});
+        field.RowDefinitions.Add(new RowDefinition{Height=GridLength.Auto});
+        var caption=new TextBlock{Text=label,Margin=new(0,0,0,2),FontWeight=FontWeights.SemiBold,TextAlignment=TextAlignment.Right,FlowDirection=FlowDirection.RightToLeft,HorizontalAlignment=HorizontalAlignment.Stretch};
+        Grid.SetRow(caption,0);
+        control.FlowDirection=FlowDirection.RightToLeft;
+        control.HorizontalAlignment=HorizontalAlignment.Stretch;
+        control.Width=double.NaN;
+        Grid.SetRow(control,1);
+        field.Children.Add(caption);
+        field.Children.Add(control);
+        DockPanel.SetDock(field,Dock.Right);
+        row.Children.Add(field);
+        p.Children.Add(row);
+    }
     StackPanel V()=>new(){Orientation=Orientation.Vertical,HorizontalAlignment=HorizontalAlignment.Stretch,FlowDirection=FlowDirection.RightToLeft,Margin=new(24,0,24,0)};
     ScrollViewer S(UIElement content)=>new(){Content=content,HorizontalContentAlignment=HorizontalAlignment.Stretch,VerticalContentAlignment=VerticalAlignment.Top,FlowDirection=FlowDirection.RightToLeft,HorizontalScrollBarVisibility=ScrollBarVisibility.Disabled,VerticalScrollBarVisibility=ScrollBarVisibility.Auto};
     void Crumbs(params (string text,Func<Task>? go)[] xs){BreadcrumbPanel.Children.Clear();foreach(var x in xs){if(x.go==null)BreadcrumbPanel.Children.Add(new TextBlock{Text=x.text+" / ",Margin=new(2)});else{var b=B(x.text,"Breadcrumb",async(_,_)=>await x.go());b.Padding=new(2);b.Margin=new(2);BreadcrumbPanel.Children.Add(b);}}}
