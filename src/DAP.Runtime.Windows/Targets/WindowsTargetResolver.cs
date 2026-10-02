@@ -125,7 +125,7 @@ public sealed class WindowsTargetResolver
             && IsNativeExactLocator(anchor.Locator));
         var descendantAnchor = descriptor.Anchors.FirstOrDefault(anchor =>
             anchor.Relation == AnchorRelation.Descendant
-            && IsNativeExactLocator(anchor.Locator));
+            && IsExactRegexLocator(anchor.Locator));
 
         if (scopeAnchor is null || descendantAnchor is null)
             return false;
@@ -199,6 +199,10 @@ public sealed class WindowsTargetResolver
 
     private static bool IsNativeExactLocator(Locator locator) =>
         TryCreateNativeCondition(locator, out _);
+
+    private static bool IsExactRegexLocator(Locator locator) =>
+        locator.Strategy.Trim().Equals("name-regex", StringComparison.OrdinalIgnoreCase)
+        && TryGetExactRegexValue(locator.Value, out _);
 
     private static AutomationElement? FindFirst(AutomationElement root, Locator locator)
     {
