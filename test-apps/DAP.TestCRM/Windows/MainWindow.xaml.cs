@@ -14,6 +14,16 @@ public partial class MainWindow : Window
 
     async void PortalButton_Click(object s,RoutedEventArgs e)=>await ShowSearch();
     Button B(string text,string id,RoutedEventHandler click){var b=new Button{Content=text,Margin=new(4),Padding=new(12,6,12,6)};AutomationProperties.SetAutomationId(b,id);b.Click+=click;return b;}
+    void H(Panel p, string title, Button button)
+    {
+        var content=new StackPanel{Orientation=Orientation.Horizontal,FlowDirection=FlowDirection.RightToLeft};
+        content.Children.Add(new TextBlock{Text=title,FontSize=20,VerticalAlignment=VerticalAlignment.Center});
+        content.Children.Add(button);
+        var row=new DockPanel{LastChildFill=false,FlowDirection=FlowDirection.LeftToRight};
+        DockPanel.SetDock(content,Dock.Right);
+        row.Children.Add(content);
+        p.Children.Add(row);
+    }
     void A(Panel p, params Button[] buttons)
     {
         var actions=new StackPanel{Orientation=Orientation.Horizontal,FlowDirection=FlowDirection.RightToLeft};
@@ -60,7 +70,7 @@ public partial class MainWindow : Window
         ScreenHost.Content=S(root);
     }
     async Task ShowCustomerForm(){Crumbs(("פורטל לקוחות",()=>ShowSearch()),("לקוח חדש",null));var v=V();v.Children.Add(new TextBlock{Text="לקוח חדש",FontSize=24});var n=T("CustomerName"); var p=T("CustomerPhone"); var e=T("CustomerEmail");foreach(var z in new[]{("שם *",n),("טלפון *",p),("דוא\"ל *",e)})F(v,z.Item1,z.Item2);A(v,B("שמור","SaveCustomerButton",async(_,_)=>await Safe(async()=>{var x=await api.CreateCustomerAsync(n.Text,p.Text,e.Text);await ShowCustomer(x.Id);})));ScreenHost.Content=v;await Task.CompletedTask;}
-    async Task ShowCustomer(int id){customerId=id;var c=await api.GetCustomerAsync(id);if(c==null)return;var sites=await api.GetSitesAsync(id);Crumbs(("פורטל לקוחות",()=>ShowSearch()),(c.Name,null));var v=V();v.Children.Add(new TextBlock{Text=c.Name,FontSize=24});v.Children.Add(new TextBlock{Text=$"{c.Phone} · {c.Email}",Margin=new(4)});var bar=new StackPanel{Orientation=Orientation.Horizontal,HorizontalAlignment=HorizontalAlignment.Right,FlowDirection=FlowDirection.RightToLeft};bar.Children.Add(new TextBlock{Text="אתרים",FontSize=20,VerticalAlignment=VerticalAlignment.Center});bar.Children.Add(B("אתר חדש","NewSiteButton",async(_,_)=>await ShowSiteForm(id)));v.Children.Add(bar);var g=GridFor(sites,new[]{"Id","Name","Type","Address"},"SitesGrid");g.MouseDoubleClick+=async(_,_)=>{if(g.SelectedItem is Site x)await ShowSite(x.Id,"details");};v.Children.Add(g);ScreenHost.Content=v;}
+    async Task ShowCustomer(int id){customerId=id;var c=await api.GetCustomerAsync(id);if(c==null)return;var sites=await api.GetSitesAsync(id);Crumbs(("פורטל לקוחות",()=>ShowSearch()),(c.Name,null));var v=V();v.Children.Add(new TextBlock{Text=c.Name,FontSize=24});v.Children.Add(new TextBlock{Text=$"{c.Phone} · {c.Email}",Margin=new(4)});H(v,"אתרים",B("אתר חדש","NewSiteButton",async(_,_)=>await ShowSiteForm(id)));var g=GridFor(sites,new[]{"Id","Name","Type","Address"},"SitesGrid");g.MouseDoubleClick+=async(_,_)=>{if(g.SelectedItem is Site x)await ShowSite(x.Id,"details");};v.Children.Add(g);ScreenHost.Content=v;}
     async Task ShowSiteForm(int cid){Crumbs(("פורטל לקוחות",()=>ShowSearch()),("לקוח",()=>ShowCustomer(cid)),("אתר חדש",null));var v=V();var n=T("SiteName"); var t=C("SiteType",["","משרד","סניף","מחסן"],""); var a=T("SiteAddress");v.Children.Add(new TextBlock{Text="אתר חדש",FontSize=24});F(v,"שם *",n);F(v,"סוג *",t);F(v,"כתובת *",a);A(v,B("שמור","SaveSiteButton",async(_,_)=>await Safe(async()=>{var x=await api.CreateSiteAsync(cid,new(n.Text,t.SelectedItem?.ToString()??"",a.Text));await ShowSite(x.Id,"details");})));ScreenHost.Content=v;await Task.CompletedTask;}
 
     async Task ShowSite(int id,string tab)
@@ -68,8 +78,8 @@ public partial class MainWindow : Window
         siteId=id;siteTab=tab;var s=await api.GetSiteAsync(id);if(s==null)return;customerId=s.CustomerId;Crumbs(("פורטל לקוחות",()=>ShowSearch()),("לקוח",()=>ShowCustomer(s.CustomerId)),(s.Name,null));var v=V();v.Children.Add(new TextBlock{Text=s.Name,FontSize=24});
         var nav=new StackPanel{Orientation=Orientation.Horizontal,HorizontalAlignment=HorizontalAlignment.Right,FlowDirection=FlowDirection.RightToLeft};nav.Children.Add(B("פרטי אתר","SiteDetailsTab",async(_,_)=>await ShowSite(id,"details")));nav.Children.Add(B("פניות","CasesTab",async(_,_)=>await ShowSite(id,"cases")));nav.Children.Add(B("לידים","LeadsTab",async(_,_)=>await ShowSite(id,"leads")));v.Children.Add(nav);
         if(tab=="details"){var n=T("SiteName",s.Name); var t=C("SiteType",["","משרד","סניף","מחסן"],s.Type); var a=T("SiteAddress",s.Address);F(v,"שם *",n);F(v,"סוג *",t);F(v,"כתובת *",a);A(v,B("שמור שינויים","SaveSiteButton",async(_,_)=>await Safe(async()=>{await api.SaveSiteAsync(id,new(n.Text,t.SelectedItem?.ToString()??"",a.Text));await ShowSite(id,"details");})),B("מחק אתר","DeleteSiteButton",async(_,_)=>await Safe(async()=>{if(MessageBox.Show("למחוק את האתר?","אישור מחיקה",MessageBoxButton.YesNo)==MessageBoxResult.Yes){await api.DeleteSiteAsync(id);await ShowCustomer(s.CustomerId);}})));}
-        if(tab=="cases"){var bar=new StackPanel{Orientation=Orientation.Horizontal,HorizontalAlignment=HorizontalAlignment.Right,FlowDirection=FlowDirection.RightToLeft};bar.Children.Add(new TextBlock{Text="פניות",FontSize=20});bar.Children.Add(B("פניה חדשה","NewCaseButton",async(_,_)=>await ShowCase(null,id)));v.Children.Add(bar);var xs=await api.GetCasesAsync(id);var g=GridFor(xs,new[]{"Id","Status","Subject"},"CasesGrid");g.MouseDoubleClick+=async(_,_)=>{if(g.SelectedItem is CaseItem x)await ShowCase(x.Id,id);};v.Children.Add(g);}
-        if(tab=="leads"){var bar=new StackPanel{Orientation=Orientation.Horizontal,HorizontalAlignment=HorizontalAlignment.Right,FlowDirection=FlowDirection.RightToLeft};bar.Children.Add(new TextBlock{Text="לידים",FontSize=20});bar.Children.Add(B("ליד חדש","NewLeadButton",async(_,_)=>await ShowLead(null,id)));v.Children.Add(bar);var xs=await api.GetLeadsAsync(id);var g=GridFor(xs,new[]{"Id","Source","ContactName","Status"},"LeadsGrid");g.MouseDoubleClick+=async(_,_)=>{if(g.SelectedItem is Lead x)await ShowLead(x.Id,id);};v.Children.Add(g);}
+        if(tab=="cases"){H(v,"פניות",B("פניה חדשה","NewCaseButton",async(_,_)=>await ShowCase(null,id)));var xs=await api.GetCasesAsync(id);var g=GridFor(xs,new[]{"Id","Status","Subject"},"CasesGrid");g.MouseDoubleClick+=async(_,_)=>{if(g.SelectedItem is CaseItem x)await ShowCase(x.Id,id);};v.Children.Add(g);}
+        if(tab=="leads"){H(v,"לידים",B("ליד חדש","NewLeadButton",async(_,_)=>await ShowLead(null,id)));var xs=await api.GetLeadsAsync(id);var g=GridFor(xs,new[]{"Id","Source","ContactName","Status"},"LeadsGrid");g.MouseDoubleClick+=async(_,_)=>{if(g.SelectedItem is Lead x)await ShowLead(x.Id,id);};v.Children.Add(g);}
         ScreenHost.Content=S(v);
     }
 
