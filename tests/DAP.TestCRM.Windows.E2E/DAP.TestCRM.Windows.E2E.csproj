@@ -10,5 +10,6 @@
     <ProjectReference Include="../DAP.TestCRM.E2E.Common/DAP.TestCRM.E2E.Common.csproj" />
     <ProjectReference Include="../../src/DAP.Core/DAP.Core.csproj" />
     <ProjectReference Include="../../src/DAP.Data.Sqlite/DAP.Data.Sqlite.csproj" />
+    <ProjectReference Include="../../src/DAP.App/DAP.App.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 </Project>
