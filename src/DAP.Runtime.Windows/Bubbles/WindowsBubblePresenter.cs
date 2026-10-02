@@ -21,6 +21,8 @@ public sealed class WindowsBubblePresenter
     private TextBlock? _progress;
     private Rect _targetRect;
     private bool _dragging;
+    private bool _manuallyPositioned;
+    private string? _activeStepId;
 
     public async Task ShowAsync(
         AutomationElement target,
@@ -44,6 +46,13 @@ public sealed class WindowsBubblePresenter
         {
             EnsureWindow();
 
+            if (!string.Equals(_activeStepId, step.Id, StringComparison.Ordinal))
+            {
+                _activeStepId = step.Id;
+                _manuallyPositioned = false;
+                _pointer!.Visibility = Visibility.Visible;
+            }
+
             _targetRect = rect;
             _content!.Text = step.Bubble.Content;
             _progress!.Text = $"שלב {stepNumber} מתוך {totalSteps}";
@@ -58,21 +67,31 @@ public sealed class WindowsBubblePresenter
             var windowWidth = bubbleWidth + PointerSpace * 2;
             var windowHeight = bubbleHeight + PointerSpace * 2;
 
-            var placement = ChoosePlacement(
-                rect,
-                step.Bubble.Placement,
-                windowWidth,
-                windowHeight,
-                SystemParameters.WorkArea);
+            if (!_manuallyPositioned)
+            {
+                var placement = ChoosePlacement(
+                    rect,
+                    step.Bubble.Placement,
+                    windowWidth,
+                    windowHeight,
+                    SystemParameters.WorkArea);
 
-            _window.Left = placement.X;
-            _window.Top = placement.Y;
+                _window.Left = placement.X;
+                _window.Top = placement.Y;
+            }
 
             if (!_window.IsVisible)
                 _window.Show();
 
             _window.UpdateLayout();
-            UpdatePointer();
+
+            if (_manuallyPositioned)
+                _pointer!.Visibility = Visibility.Collapsed;
+            else
+            {
+                _pointer!.Visibility = Visibility.Visible;
+                UpdatePointer();
+            }
         });
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -331,14 +350,15 @@ public sealed class WindowsBubblePresenter
             finally
             {
                 _dragging = false;
+                _manuallyPositioned = true;
                 dragHandle.Cursor = Cursors.SizeAll;
-                UpdatePointer();
+                _pointer!.Visibility = Visibility.Collapsed;
             }
         };
 
         _window.LocationChanged += (_, _) =>
         {
-            if (_dragging || _window.IsVisible)
+            if (!_manuallyPositioned && (_dragging || _window.IsVisible))
                 UpdatePointer();
         };
 
