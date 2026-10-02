@@ -6,6 +6,7 @@ public sealed record Anchor(
 
 public enum AnchorRelation
 {
+    Self,
     Context,
     Ancestor,
     Descendant,
