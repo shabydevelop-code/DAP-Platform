@@ -103,7 +103,12 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     }
     public Task SetCaseSubject(string v){Set("CaseSubject",v);return Task.CompletedTask;}
     public Task SetCaseDescription(string v){Set("CaseDescription",v);return Task.CompletedTask;}
-    public Task SaveCase(){Click(ById("SaveCaseButton"));return Task.CompletedTask;}
+    public Task SaveCase()
+    {
+        Click(ById("SaveCaseButton"));
+        Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteCaseButton")),"persisted Case form after Save");
+        return Task.CompletedTask;
+    }
     public Task SetCaseStatus(string v){Select("CaseStatus",v);return Task.CompletedTask;}
     public Task SetResolutionNotes(string v){Set("CaseResolutionNotes",v);return Task.CompletedTask;}
     public Task ShowMoreActivity(){Click(ById("ActivityMoreButton"));return Task.CompletedTask;}
