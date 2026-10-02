@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using System.Windows.Automation;
 using DAP.Core.Targets;
 
@@ -27,6 +28,15 @@ public sealed class WindowsTargetResolver
 
     private static IEnumerable<AutomationElement> Find(AutomationElement root, Locator locator)
     {
+        if (locator.Strategy.Trim().Equals("name-regex", StringComparison.OrdinalIgnoreCase))
+        {
+            var regex = new Regex(locator.Value, RegexOptions.CultureInvariant);
+            return root.FindAll(TreeScope.Descendants, Condition.TrueCondition)
+                .Cast<AutomationElement>()
+                .Where(element => regex.IsMatch(element.Current.Name ?? string.Empty))
+                .ToArray();
+        }
+
         var condition = CreateCondition(locator);
         return root.FindAll(TreeScope.Descendants, condition).Cast<AutomationElement>();
     }
