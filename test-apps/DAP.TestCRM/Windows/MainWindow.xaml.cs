@@ -13,12 +13,14 @@ public partial class MainWindow : Window
         Loaded += async (_, _) => await ReloadCustomersAsync();
     }
 
-    private async Task ReloadCustomersAsync()
+    private async Task ReloadCustomersAsync(bool useSearch = false)
     {
         try
         {
             StatusText.Text = "טוען לקוחות...";
-            var customers = await _api.GetCustomersAsync();
+            var customers = useSearch
+                ? await _api.GetCustomersAsync(CustomerNameSearchBox.Text, CustomerPhoneSearchBox.Text, CustomerEmailSearchBox.Text)
+                : await _api.GetCustomersAsync();
             CustomersGrid.ItemsSource = customers;
             if (customers.Count > 0) CustomersGrid.SelectedIndex = 0;
             StatusText.Text = "מחובר לשרת TestCRM";
@@ -26,7 +28,17 @@ public partial class MainWindow : Window
         catch (Exception ex) { ShowError(ex); }
     }
 
-    private async void RefreshButton_Click(object sender, RoutedEventArgs e) => await ReloadCustomersAsync();
+    private async void RefreshButton_Click(object sender, RoutedEventArgs e) => await ReloadCustomersAsync(true);
+
+    private async void SearchCustomersButton_Click(object sender, RoutedEventArgs e) => await ReloadCustomersAsync(true);
+
+    private async void ClearCustomerSearchButton_Click(object sender, RoutedEventArgs e)
+    {
+        CustomerNameSearchBox.Clear();
+        CustomerPhoneSearchBox.Clear();
+        CustomerEmailSearchBox.Clear();
+        await ReloadCustomersAsync();
+    }
 
     private async void CustomersGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
