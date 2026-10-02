@@ -19,15 +19,34 @@ The representative DAP flow exercises the business path:
 
 while preserving and later re-resolving stable business context.
 
+## Internal structure
+
+DAP.TestCRM is one shared test system with separate server, Web UI, and shared data ownership:
+
+```text
+test-apps/DAP.TestCRM/
+  DAP.TestCRM.csproj
+  Server/
+    Program.cs
+  Web/
+    wwwroot/
+  data/
+    testcrm.db
+```
+
+The project file intentionally remains at the TestCRM root so existing run/E2E commands keep the same project path. The Web UI and the future Windows UI are clients of the shared CRM server/API; neither UI owns the business database.
+
 ## Persistence
 
 DAP.TestCRM uses a real SQLite database rather than browser-only or in-memory state.
 
-The application resolves the database from its content root:
+The shared CRM database is:
 
 ```text
-test-apps/DAP.TestCRM/testcrm.db
+test-apps/DAP.TestCRM/data/testcrm.db
 ```
+
+For backward compatibility, if the new shared database does not yet exist but the legacy `test-apps/DAP.TestCRM/testcrm.db` exists, startup moves that database into `data` before initialization. This preserves existing local CRM business data after pulling the refactor.
 
 On startup the server:
 
