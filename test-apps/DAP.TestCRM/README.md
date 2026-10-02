@@ -109,6 +109,20 @@ http://localhost:5200
 
 The DAP E2E and manual learner launchers can also start/use TestCRM as part of their own workflows.
 
+To run the Web client and its E2E regression with the current split client/server structure, use separate terminals:
+
+```powershell
+# Terminal 1 — shared backend
+cd C:\yossi\ChatGpt\DAP-Platform
+dotnet run --project test-apps\DAP.TestCRM\Server\DAP.TestCRM.Server.csproj
+```
+
+```powershell
+# Terminal 2 — Web E2E
+cd C:\yossi\ChatGpt\DAP-Platform
+dotnet run --project tests\DAP.TestCRM.Web.E2E\DAP.TestCRM.Web.E2E.csproj
+```
+
 ## Purpose and realism rule
 
 DAP.TestCRM is both a permanent runtime regression target and a credible CRM demo environment. Technical edge cases must be represented through plausible CRM behavior rather than artificial test controls.
@@ -190,7 +204,7 @@ The first real Windows TestCRM client now lives under `Windows/` as a WPF applic
 Run the server first:
 
 ```powershell
-dotnet run --project test-apps\DAP.TestCRM\DAP.TestCRM.csproj
+dotnet run --project test-apps\DAP.TestCRM\Server\DAP.TestCRM.Server.csproj
 ```
 
 Then, from a second terminal, run Windows:
