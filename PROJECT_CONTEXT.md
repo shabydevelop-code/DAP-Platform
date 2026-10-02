@@ -375,3 +375,9 @@ The TestCRM server now bounds accumulated Site-1 Cases to the newest 10 on start
 Windows learner bubble presentation now includes the same key interaction conventions as Web: explicit drag handle, directional pointer toward the target, and initial placement that attempts to avoid covering the target. The implementation remains Windows-native WPF and derives target geometry from UIA bounds.
 
 The Windows E2E action driver now selects a dynamically located WPF DataGrid row with `SelectionItemPattern` before using the required physical double-click fallback. This is test-driver synchronization, not production target-resolution behavior.
+
+## Windows learner bubble manual placement — 2026-10-03
+
+Windows bubble behavior now matches the corresponding Web interaction more closely. A learner may drag the bubble using the explicit drag handle. Once dragged, the bubble remains at that manual location while the same Guide Step remains active, even though the Windows Runtime continues its normal target reconciliation loop. The pointer is hidden after the drag completes.
+
+Manual placement is Step-scoped, not global. Entering a new Step clears the manual-position flag, restores automatic target-relative placement, and shows the directional pointer again. This behavior changes only bubble presentation; target resolution and validation remain unchanged.
