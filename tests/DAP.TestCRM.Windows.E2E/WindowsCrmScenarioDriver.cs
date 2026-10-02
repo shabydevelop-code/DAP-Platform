@@ -334,7 +334,25 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     public Task SetLeadStatus(string v){Select("LeadStatus",v);return Task.CompletedTask;}
     public Task SetLeadService(string v){Select("LeadSelectedService",v);return Task.CompletedTask;}
     public Task DeleteLead(){Click(ById("DeleteLeadButton"));return Task.CompletedTask;}
-    public Task ConfirmDelete(){DialogButton(true);return Task.CompletedTask;}
+    public Task ConfirmDelete()
+    {
+        var deletingLead=window.FindFirst(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteLeadButton")) is not null;
+        var deletingCase=window.FindFirst(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteCaseButton")) is not null;
+
+        DialogButton(true);
+
+        // The confirmation closes before the async delete callback finishes
+        // rebuilding the destination screen. Do not let the next canonical
+        // step act on breadcrumbs from the record that is still being deleted.
+        if(deletingLead)
+            Wait(()=>EnabledById("NewLeadButton"),"Leads screen after Lead deletion",10000);
+        else if(deletingCase)
+            Wait(()=>EnabledById("NewCaseButton"),"Cases screen after Case deletion",10000);
+
+        return Task.CompletedTask;
+    }
     public Task DeleteCase(){Click(ById("DeleteCaseButton"));return Task.CompletedTask;}
     public Task GoPortal(){Click(ById("PortalHeader"));return Task.CompletedTask;}
 
