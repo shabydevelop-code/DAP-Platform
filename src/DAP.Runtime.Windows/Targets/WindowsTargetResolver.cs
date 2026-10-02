@@ -154,6 +154,19 @@ public sealed class WindowsTargetResolver
             return true;
         }
 
+        // Some WPF providers expose already-realized row descendants to broad UIA
+        // enumeration even when a filtered FindFirst cannot see the same element.
+        // Scan only the DataItems that already exist in this scope, stop immediately on
+        // a match, and keep the fallback bounded so it cannot turn into a full-grid walk.
+        if (TryResolveExistingRows(
+                scope,
+                descendantAnchor.Locator,
+                descriptor,
+                scopeAnchor,
+                descendantAnchor,
+                candidates))
+            return true;
+
         // Some providers make repeated cross-process property reads very expensive.
         // Pull the scope subtree once with the identifying property cached, then filter
         // locally. This is the Windows/UIA equivalent of using a DOM snapshot instead of
@@ -183,6 +196,94 @@ public sealed class WindowsTargetResolver
             candidates);
 
         return true;
+    }
+
+    private static bool TryResolveExistingRows(
+        AutomationElement scope,
+        Locator descendantLocator,
+        TargetDescriptor descriptor,
+        Anchor scopeAnchor,
+        Anchor descendantAnchor,
+        ICollection<AutomationElement> candidates)
+    {
+        const int maxRows = 50;
+        const int maxElapsedMilliseconds = 500;
+
+        var stopwatch = Stopwatch.StartNew();
+        var inspectedRows = 0;
+
+        try
+        {
+            var rowCondition = new PropertyCondition(
+                AutomationElement.ControlTypeProperty,
+                ControlType.DataItem);
+            var rows = scope.FindAll(TreeScope.Descendants, rowCondition);
+
+            foreach (AutomationElement row in rows)
+            {
+                if (inspectedRows >= maxRows || stopwatch.ElapsedMilliseconds >= maxElapsedMilliseconds)
+                    break;
+
+                inspectedRows++;
+
+                AutomationElement? match = null;
+                try
+                {
+                    foreach (AutomationElement element in row.FindAll(
+                                 TreeScope.Descendants,
+                                 Condition.TrueCondition))
+                    {
+                        if (MatchesLocator(element, descendantLocator))
+                        {
+                            match = element;
+                            break;
+                        }
+                    }
+                }
+                catch (ElementNotAvailableException)
+                {
+                    continue;
+                }
+                catch (InvalidOperationException)
+                {
+                    continue;
+                }
+
+                if (match is null)
+                    continue;
+
+                if (MatchesRemainingAnchors(
+                        row,
+                        descriptor.Anchors,
+                        scopeAnchor,
+                        descendantAnchor)
+                    && MatchesLocator(row, descriptor.Locator))
+                {
+                    candidates.Add(row);
+                }
+
+                stopwatch.Stop();
+                Console.Error.WriteLine(
+                    $"[DAP Windows resolver existing-rows] rows={rows.Count}, " +
+                    $"inspected={inspectedRows}, final={candidates.Count}, " +
+                    $"elapsed={stopwatch.ElapsedMilliseconds} ms.");
+                return true;
+            }
+
+            stopwatch.Stop();
+            Console.Error.WriteLine(
+                $"[DAP Windows resolver existing-rows] rows={rows.Count}, " +
+                $"inspected={inspectedRows}, final=0, " +
+                $"elapsed={stopwatch.ElapsedMilliseconds} ms.");
+        }
+        catch (ElementNotAvailableException)
+        {
+        }
+        catch (InvalidOperationException)
+        {
+        }
+
+        return false;
     }
 
     private static AutomationElement? FindDescendantFromCachedSnapshot(
