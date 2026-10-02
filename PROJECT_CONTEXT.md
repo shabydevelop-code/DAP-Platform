@@ -240,3 +240,9 @@ These are authoring semantics, not TestCRM/Grid-specific Runtime concepts. Core/
   - DAP product data: default `%ProgramData%\\DAP\\Data\\DAP.db` (or `DAP_DATABASE_PATH`).
   - TestCRM business data: `test-apps/DAP.TestCRM/data/testcrm.db`.
 - Do not merge these databases: TestCRM is an external target/demo application, while `DAP.db` stores DAP guides, steps, targets, bubble/validation configuration, and related product state.
+
+
+## Source-edit safety rule
+- When programmatically editing source files, never insert escape sequences such as \`\\n\`, \`\\r\\n\`, or \`\\t\` as literal source text when actual whitespace is intended.
+- After an automated source edit that introduces or replaces line breaks/whitespace, re-read the edited region before considering the change complete.
+- Explicitly verify that no unintended literal escape sequences remain and that the surrounding source structure is syntactically intact.
