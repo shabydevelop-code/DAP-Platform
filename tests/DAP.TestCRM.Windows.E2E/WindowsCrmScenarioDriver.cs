@@ -53,7 +53,7 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
             throw new Exception($"{id} has no ExpandCollapsePattern.");
 
         ((ExpandCollapsePattern)ep).Expand();
-        Thread.Sleep(150);
+        Thread.Sleep(200);
 
         var processId=window.Current.ProcessId;
         var item=Wait(()=>AutomationElement.RootElement.FindFirst(TreeScope.Descendants,new AndCondition(
@@ -61,11 +61,15 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
             new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.ListItem),
             new PropertyCondition(AutomationElement.NameProperty,value))),$"{id} item '{value}'");
 
-        // WPF's ComboBox popup does not expose a reliable SelectionItemPattern here.
-        // Focus the actual popup item and commit it with Enter; this raises the same
-        // SelectionChanged event as a user selection without moving the physical mouse.
-        item.SetFocus();
-        KeyPress(VK_RETURN);
+        // WPF popup items in this app do not expose a usable SelectionItem/Invoke pattern.
+        // Use a guarded physical click only for the popup item, matching the verified manual action.
+        var r=item.Current.BoundingRectangle;
+        var wr=window.Current.BoundingRectangle;
+        if(r.IsEmpty)throw new Exception($"ComboBox item '{value}' has no bounds.");
+        if(r.Left<wr.Left || r.Top<wr.Top || r.Right>wr.Right || r.Bottom>wr.Bottom)
+            throw new Exception($"Refusing ComboBox click outside CRM window for '{id}' value '{value}'.");
+        SetCursorPos((int)(r.Left+r.Width/2),(int)(r.Top+r.Height/2));
+        Mouse();
 
         if(id=="CaseStatus" && value=="בטיפול")
             Wait(()=>EnabledById("CaseResolutionNotes"),"CaseResolutionNotes enabled after CaseStatus=בטיפול");
