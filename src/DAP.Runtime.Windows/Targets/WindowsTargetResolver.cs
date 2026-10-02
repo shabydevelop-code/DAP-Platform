@@ -168,6 +168,29 @@ public sealed class WindowsTargetResolver
         return true;
     }
 
+    private static void AddPrimaryAncestorCandidate(
+        AutomationElement descendant,
+        AutomationElement scope,
+        TargetDescriptor descriptor,
+        Anchor scopeAnchor,
+        Anchor descendantAnchor,
+        ICollection<AutomationElement> candidates)
+    {
+        var walker = TreeWalker.RawViewWalker;
+        for (var current = walker.GetParent(descendant);
+             current is not null && !Automation.Compare(current, scope);
+             current = walker.GetParent(current))
+        {
+            if (!MatchesLocator(current, descriptor.Locator))
+                continue;
+
+            if (MatchesRemainingAnchors(current, descriptor.Anchors, scopeAnchor, descendantAnchor))
+                candidates.Add(current);
+
+            break;
+        }
+    }
+
     private static void TryResolveGridPattern(
         AutomationElement scope,
         Condition descendantCondition,
