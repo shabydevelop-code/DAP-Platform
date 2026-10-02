@@ -198,3 +198,21 @@ Then, from a second terminal, run Windows:
 ```powershell
 dotnet run --project test-apps\DAP.TestCRM\Windows\DAP.TestCRM.Windows.csproj
 ```
+
+
+## TestCRM client/server separation — 2026-10-02
+
+TestCRM is development/test infrastructure only and is never part of a customer DAP production package.
+
+The test application now has explicit deployment boundaries:
+- `Server/DAP.TestCRM.Server.csproj` — shared API, business rules, validation, FieldChange behavior and `data/testcrm.db`. It contains no Web static UI.
+- `Web/DAP.TestCRM.Web.csproj` — Web host and `wwwroot` static UI only. It proxies `/api` to the shared backend.
+- `Windows/DAP.TestCRM.Windows.csproj` — WPF client. It calls the shared backend directly and has no dependency on the Web client.
+
+Development ports:
+- shared backend: `http://localhost:5201`
+- Web host: `http://localhost:5200`
+
+Architectural invariant: Web and Windows may depend on the shared backend contract, but neither client may depend on the other client. A Windows-only test deployment must work with Server + Windows after the Web directory is absent; a Web-only test deployment must work with Server + Web after the Windows directory is absent.
+
+The old combined root `DAP.TestCRM.csproj` and root launch profile were removed so the Web static files cannot accidentally become a backend dependency.
