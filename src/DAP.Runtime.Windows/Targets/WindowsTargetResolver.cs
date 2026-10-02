@@ -154,6 +154,23 @@ public sealed class WindowsTargetResolver
             return true;
         }
 
+        // Some WPF providers expose the complete grid subtree only through an unfiltered
+        // UIA snapshot. A native NameProperty FindFirst can still return null even though
+        // the same descendant is present when the provider is asked for the subtree.
+        // Take one scope-local snapshot before falling back to virtualized-item traversal.
+        descendant = FindDescendantFromScopeSnapshot(scope, descendantCondition);
+        if (descendant is not null)
+        {
+            AddPrimaryAncestorCandidate(
+                descendant,
+                scope,
+                descriptor,
+                scopeAnchor,
+                descendantAnchor,
+                candidates);
+            return true;
+        }
+
         // A virtualized container can report its full logical item set while exposing only
         // realized rows/cells in the UIA tree. Ask the provider for its logical items and
         // realize them one at a time until the selective descendant anchor becomes available.
@@ -168,6 +185,37 @@ public sealed class WindowsTargetResolver
             candidates);
 
         return true;
+    }
+
+    private static AutomationElement? FindDescendantFromScopeSnapshot(
+        AutomationElement scope,
+        Condition descendantCondition)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        try
+        {
+            foreach (AutomationElement element in scope.FindAll(TreeScope.Descendants, Condition.TrueCondition))
+            {
+                if (!MatchesCondition(element, descendantCondition))
+                    continue;
+
+                stopwatch.Stop();
+                Console.Error.WriteLine(
+                    $"[DAP Windows resolver snapshot] matched descendant after {stopwatch.ElapsedMilliseconds} ms.");
+                return element;
+            }
+        }
+        catch (ElementNotAvailableException)
+        {
+        }
+        catch (InvalidOperationException)
+        {
+        }
+
+        stopwatch.Stop();
+        Console.Error.WriteLine(
+            $"[DAP Windows resolver snapshot] no descendant match after {stopwatch.ElapsedMilliseconds} ms.");
+        return null;
     }
 
     private static void AddPrimaryAncestorCandidate(
