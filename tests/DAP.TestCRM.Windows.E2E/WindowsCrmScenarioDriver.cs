@@ -22,7 +22,6 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
         if(!twice && e.TryGetCurrentPattern(InvokePattern.Pattern,out var invoke))
         {
             ((InvokePattern)invoke).Invoke();
-            Thread.Sleep(500);
             return;
         }
 
@@ -36,7 +35,6 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
         SetCursorPos((int)(r.Left+r.Width/2),(int)(r.Top+r.Height/2));
         Mouse();
         if(twice){Thread.Sleep(80);Mouse();}
-        Thread.Sleep(800);
     }
     void Set(string id,string value)
     {
@@ -47,7 +45,12 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
         },$"{id} enabled");
         if(!e.TryGetCurrentPattern(ValuePattern.Pattern,out var p))throw new Exception($"{id} has no ValuePattern.");
         ((ValuePattern)p).SetValue(value);
-        Thread.Sleep(150);
+        Wait(()=>
+        {
+            var current=window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,id));
+            if(current is null || !current.TryGetCurrentPattern(ValuePattern.Pattern,out var currentPattern))return null;
+            return string.Equals(((ValuePattern)currentPattern).Current.Value,value,StringComparison.Ordinal) ? current : null;
+        },$"{id} value '{value}'");
     }
     void Select(string id,string value)
     {
@@ -71,7 +74,7 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
         else if(id=="LeadStatus" && value=="חדש")
             Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"LeadSelectedService")) is null ? window : null,"LeadSelectedService hidden after LeadStatus=חדש");
         else
-            Thread.Sleep(400);
+            return;
     }
 
     AutomationElement? EnabledById(string id)
