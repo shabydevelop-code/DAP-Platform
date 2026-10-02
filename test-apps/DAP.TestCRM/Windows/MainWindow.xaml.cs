@@ -108,7 +108,7 @@ public partial class MainWindow : Window
         var activity=new StackPanel{Margin=new(0,18,0,0)};
         activity.Children.Add(new TextBlock{Text="היסטוריית פעילות",FontSize=18,FontWeight=FontWeights.SemiBold});
         for(var i=1;i<=12;i++)activity.Children.Add(new TextBlock{Text=$"פעילות {i} — עדכון שירות מתועד בפנייה",Margin=new(0,3,0,3)});
-        var moreActivity=B("הצג פעילות נוספת","ActivityMoreButton",(_,_)=>MessageBox.Show(this,"אין פעילויות נוספות להצגה.","היסטוריית פעילות"));moreActivity.HorizontalAlignment=HorizontalAlignment.Right;activity.Children.Add(moreActivity);
+        var moreActivity=B("הצג פעילות נוספת","ActivityMoreButton",(_,_)=>MessageBox.Show(this,"אין פעילויות נוספות להצגה.","היסטוריית פעילות"));var moreActivityRow=new DockPanel{LastChildFill=false,FlowDirection=FlowDirection.LeftToRight};DockPanel.SetDock(moreActivity,Dock.Right);moreActivityRow.Children.Add(moreActivity);activity.Children.Add(moreActivityRow);
         v.Children.Add(activity);
         st.SelectionChanged+=async(_,_)=>{if(!fresh&&st.SelectedItem is string q)await Safe(async()=>{var change=await api.CaseStatusChangedAsync(id!.Value,q);sub.Text=change.Subject;close.SelectedItem=change.CloseReason;resolution.IsEnabled=change.ResolutionEnabled;if(change.Status=="סגורה"){if(close.Parent is null)F(v,"סיבת סגירה *",close);}else if(close.Parent is Panel closeParent)closeParent.Children.Remove(close);});};
         var saveCase=B("שמור","SaveCaseButton",async(_,_)=>await Safe(async()=>{var input=new CaseInput(st.SelectedItem?.ToString()??"",sub.Text,desc.Text,close.SelectedItem?.ToString()??"");if(fresh){var y=await api.CreateCaseAsync(sid,input);await ShowCase(y.Id,sid);}else{await api.SaveCaseAsync(id!.Value,input);await ShowCase(id,sid);}}));
