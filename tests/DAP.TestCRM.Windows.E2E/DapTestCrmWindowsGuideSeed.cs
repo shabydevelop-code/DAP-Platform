@@ -11,6 +11,17 @@ internal static class DapTestCrmWindowsGuideSeed
     private static TargetDescriptor ById(string automationId) =>
         TargetDescriptor.Create(TargetRuntime.Windows, new Locator("automation-id", automationId));
 
+    private static TargetDescriptor ByIdAndName(string automationId, string name) =>
+        TargetDescriptor.Create(
+            TargetRuntime.Windows,
+            new Locator("automation-id", automationId),
+            new[]
+            {
+                new Anchor(
+                    new Locator("name", name),
+                    AnchorRelation.Context)
+            });
+
     private static TargetDescriptor GridRow(
         string gridAutomationId,
         string? descendantName = null)
@@ -125,6 +136,6 @@ internal static class DapTestCrmWindowsGuideSeed
 
         ClickStep(
             "testcrm-windows-back-to-cases", 11,
-            ById("Breadcrumb"), "חזור לרשימת הפניות")
+            ByIdAndName("Breadcrumb", "מטה תל אביב"), "חזור לרשימת הפניות")
     };
 }
