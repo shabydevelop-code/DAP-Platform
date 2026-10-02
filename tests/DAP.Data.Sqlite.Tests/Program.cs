@@ -30,21 +30,23 @@ static async Task VerifyFreshRoundTripAsync(string path)
     if(loaded!=step)
         throw new Exception($"SQLite round-trip mismatch.\nExpected: {step}\nActual: {loaded}");
 
-    await using var connection=await factory.OpenAsync();
-    await using var command=connection.CreateCommand();
-    command.CommandText="""
+    await using(var connection=await factory.OpenAsync())
+    {
+        await using var command=connection.CreateCommand();
+        command.CommandText="""
 SELECT typeof(g.Id), typeof(s.Id), typeof(s.GuideId), typeof(a.GuideStepId)
 FROM Guides g
 JOIN GuideSteps s ON s.GuideId=g.Id
 JOIN TargetAnchors a ON a.GuideStepId=s.Id
 WHERE g.Key='guide-1' AND s.Key='step-1';
 """;
-    await using var reader=await command.ExecuteReaderAsync();
-    if(!await reader.ReadAsync())
-        throw new Exception("Fresh numeric-ID schema row was not found.");
-    for(var i=0;i<4;i++)
-        if(reader.GetString(i)!="integer")
-            throw new Exception($"Expected numeric SQLite ID at column {i}, got {reader.GetString(i)}.");
+        await using var reader=await command.ExecuteReaderAsync();
+        if(!await reader.ReadAsync())
+            throw new Exception("Fresh numeric-ID schema row was not found.");
+        for(var i=0;i<4;i++)
+            if(reader.GetString(i)!="integer")
+                throw new Exception($"Expected numeric SQLite ID at column {i}, got {reader.GetString(i)}.");
+    }
 }
 
 static async Task VerifyLegacyMigrationAsync(string path)
@@ -87,21 +89,23 @@ VALUES('legacy-step',0,'Ancestor','css','#customer-search');
     if(steps[0].Target?.Anchors.Count!=1)
         throw new Exception("Legacy TargetAnchor was not preserved during numeric-ID migration.");
 
-    await using var migrated=await factory.OpenAsync();
-    await using var verify=migrated.CreateCommand();
-    verify.CommandText="""
+    await using(var migrated=await factory.OpenAsync())
+    {
+        await using var verify=migrated.CreateCommand();
+        verify.CommandText="""
 SELECT typeof(g.Id), typeof(s.Id), typeof(s.GuideId), typeof(a.GuideStepId)
 FROM Guides g
 JOIN GuideSteps s ON s.GuideId=g.Id
 JOIN TargetAnchors a ON a.GuideStepId=s.Id
 WHERE g.Key='legacy-guide' AND s.Key='legacy-step';
 """;
-    await using var reader=await verify.ExecuteReaderAsync();
-    if(!await reader.ReadAsync())
-        throw new Exception("Migrated numeric-ID rows were not found.");
-    for(var i=0;i<4;i++)
-        if(reader.GetString(i)!="integer")
-            throw new Exception($"Legacy migration left a non-numeric ID at column {i}.");
+        await using var reader=await verify.ExecuteReaderAsync();
+        if(!await reader.ReadAsync())
+            throw new Exception("Migrated numeric-ID rows were not found.");
+        for(var i=0;i<4;i++)
+            if(reader.GetString(i)!="integer")
+                throw new Exception($"Legacy migration left a non-numeric ID at column {i}.");
+    }
 }
 
 static GuideStep CreateStep()=>new(
