@@ -44,7 +44,6 @@ public static class CanonicalCrmScenario
         await d.SetCaseStatus("בטיפול");
         await d.SetResolutionNotes("בוצעה בדיקת שירות מול הלקוח והתקלה טופלה.");
         await d.ShowMoreActivity();
-        await d.DismissValidation();
         await d.SetCaseStatus("סגורה");
         await d.SetCaseSubject("תקלה בחיבור לאינטרנט");
         await d.SaveCase();
