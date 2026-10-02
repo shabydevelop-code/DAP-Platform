@@ -64,6 +64,8 @@ public sealed class WindowsTargetResolver
         var condition = CreateCondition(anchor.Locator);
         return anchor.Relation switch
         {
+            AnchorRelation.Self =>
+                MatchesCondition(candidate, condition),
             AnchorRelation.Ancestor or AnchorRelation.Context =>
                 HasInParentChain(candidate, condition),
             AnchorRelation.Descendant =>
