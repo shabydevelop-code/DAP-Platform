@@ -17,6 +17,7 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
 
     void Click(AutomationElement e,bool twice=false)
     {
+        DismissUnexpectedInfoDialogs();
         if(!twice && e.TryGetCurrentPattern(InvokePattern.Pattern,out var invoke))
         {
             ((InvokePattern)invoke).Invoke();
@@ -38,6 +39,7 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     }
     void Set(string id,string value)
     {
+        DismissUnexpectedInfoDialogs();
         var e=Wait(()=> {
             var candidate=window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,id));
             return candidate is not null && candidate.Current.IsEnabled ? candidate : null;
@@ -48,6 +50,7 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     }
     void Select(string id,string value)
     {
+        DismissUnexpectedInfoDialogs();
         var combo=ById(id);
         if(!combo.TryGetCurrentPattern(ValuePattern.Pattern,out var pattern))
             throw new Exception($"{id} has no ValuePattern.");
@@ -76,6 +79,29 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
         return e is not null && e.Current.IsEnabled ? e : null;
     }
     void FirstRow(string id){var g=ById(id);var row=Wait(()=>g.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.DataItem)),id+" first row");Click(row,true);}
+
+    void DismissUnexpectedInfoDialogs()
+    {
+        var mainHwnd=new IntPtr(window.Current.NativeWindowHandle);
+        for(var i=0;i<4;i++)
+        {
+            var popup=GetWindow(mainHwnd,GW_ENABLEDPOPUP);
+            if(popup==IntPtr.Zero || popup==mainHwnd || !IsWindowVisible(popup))return;
+
+            var popupElement=AutomationElement.FromHandle(popup);
+            var buttons=popupElement.FindAll(TreeScope.Descendants,
+                new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.Button))
+                .Cast<AutomationElement>().ToList();
+
+            var ok=buttons.FirstOrDefault(x=>x.Current.Name is "OK" or "אישור");
+            var yes=buttons.FirstOrDefault(x=>x.Current.Name is "Yes" or "כן");
+            if(ok is null || yes is not null)return;
+            if(!ok.TryGetCurrentPattern(InvokePattern.Pattern,out var invoke))return;
+
+            ((InvokePattern)invoke).Invoke();
+            WaitHandle(()=>!IsWindowVisible(popup) ? mainHwnd : IntPtr.Zero,"unexpected information dialog dismissed");
+        }
+    }
 
     void DialogButton(bool confirm)
     {
