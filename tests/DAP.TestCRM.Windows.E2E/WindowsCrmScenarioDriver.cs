@@ -48,31 +48,25 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     }
     void Select(string id,string value)
     {
-        var options=id switch
-        {
-            "CaseStatus" => new[]{"","פתוחה","בטיפול","סגורה"},
-            "CaseCloseReason" => new[]{"","טופל","בקשת הלקוח","כפילות","לא רלוונטי"},
-            "LeadStatus" => new[]{"","חדש","בתהליך","נסגר בהצלחה","נסגר ללא עסקה"},
-            "LeadSelectedService" => new[]{"","חבילת שירות","שדרוג מערכת","הדרכה","תמיכה מורחבת"},
-            _ => throw new Exception($"No keyboard option map is defined for ComboBox '{id}'.")
-        };
-        var targetIndex=Array.IndexOf(options,value);
-        if(targetIndex<0)throw new Exception($"Value '{value}' is not valid for ComboBox '{id}'.");
-
         var combo=ById(id);
-        combo.SetFocus();
         if(!combo.TryGetCurrentPattern(ExpandCollapsePattern.Pattern,out var ep))
             throw new Exception($"{id} has no ExpandCollapsePattern.");
 
         ((ExpandCollapsePattern)ep).Expand();
         Thread.Sleep(150);
-        combo.SetFocus();
-        KeyPress(VK_HOME);
-        for(var i=0;i<targetIndex;i++)KeyPress(VK_DOWN);
+
+        var processId=window.Current.ProcessId;
+        var item=Wait(()=>AutomationElement.RootElement.FindFirst(TreeScope.Descendants,new AndCondition(
+            new PropertyCondition(AutomationElement.ProcessIdProperty,processId),
+            new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.ListItem),
+            new PropertyCondition(AutomationElement.NameProperty,value))),$"{id} item '{value}'");
+
+        // WPF's ComboBox popup does not expose a reliable SelectionItemPattern here.
+        // Focus the actual popup item and commit it with Enter; this raises the same
+        // SelectionChanged event as a user selection without moving the physical mouse.
+        item.SetFocus();
         KeyPress(VK_RETURN);
 
-        // FieldChange can rebuild the entire form. Verify the resulting business state,
-        // not the stale ComboBox element that initiated the change.
         if(id=="CaseStatus" && value=="בטיפול")
             Wait(()=>EnabledById("CaseResolutionNotes"),"CaseResolutionNotes enabled after CaseStatus=בטיפול");
         else if(id=="CaseStatus" && value=="סגורה")
