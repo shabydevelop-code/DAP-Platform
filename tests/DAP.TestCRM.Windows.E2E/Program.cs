@@ -476,15 +476,42 @@ AutomationElement WaitForBubble(string expectedInstruction, Process dapProcess, 
             throw new Exception(
                 $"DAP.exe exited before bubble '{expectedInstruction}' was observed. ExitCode={dapProcess.ExitCode}.");
 
-        var bubble = AutomationElement.RootElement.FindFirst(
-            TreeScope.Children,
-            new PropertyCondition(AutomationElement.AutomationIdProperty, "DapLearnerBubble"));
+        AutomationElement? bubble = null;
+        try
+        {
+            var candidates = AutomationElement.RootElement.FindAll(
+                TreeScope.Descendants,
+                new PropertyCondition(AutomationElement.AutomationIdProperty, "DapLearnerBubble"));
+
+            bubble = candidates.Cast<AutomationElement>()
+                .FirstOrDefault(candidate =>
+                {
+                    try
+                    {
+                        return !candidate.Current.IsOffscreen
+                            && !candidate.Current.BoundingRectangle.IsEmpty;
+                    }
+                    catch (ElementNotAvailableException)
+                    {
+                        return false;
+                    }
+                });
+        }
+        catch (ElementNotAvailableException)
+        {
+        }
 
         if (bubble is not null)
         {
-            lastObservedInstruction = bubble.Current.Name;
-            if (string.Equals(lastObservedInstruction, expectedInstruction, StringComparison.Ordinal))
-                return bubble;
+            try
+            {
+                lastObservedInstruction = bubble.Current.Name;
+                if (string.Equals(lastObservedInstruction, expectedInstruction, StringComparison.Ordinal))
+                    return bubble;
+            }
+            catch (ElementNotAvailableException)
+            {
+            }
         }
 
         Thread.Sleep(100);
