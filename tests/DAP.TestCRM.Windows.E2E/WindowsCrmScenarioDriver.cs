@@ -305,22 +305,13 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     }
     public Task CreateLead()
     {
-        var deadline=Stopwatch.StartNew();
-        while(deadline.ElapsedMilliseconds<5000)
-        {
-            DismissUnexpectedInfoDialogs();
-            var contact=EnabledById("LeadContactName");
-            if(contact is not null)return Task.CompletedTask;
-
-            var button=window.FindFirst(TreeScope.Descendants,
-                new PropertyCondition(AutomationElement.AutomationIdProperty,"NewLeadButton"));
-            if(button is not null && button.Current.IsEnabled &&
-               button.TryGetCurrentPattern(InvokePattern.Pattern,out var invoke))
-                ((InvokePattern)invoke).Invoke();
-
-            Thread.Sleep(200);
-        }
-        throw new TimeoutException("NewLeadButton was invoked but the Lead form did not become ready.");
+        DismissUnexpectedInfoDialogs();
+        var button=ById("NewLeadButton");
+        if(!button.Current.IsEnabled || !button.TryGetCurrentPattern(InvokePattern.Pattern,out var invoke))
+            throw new Exception("NewLeadButton is not invokable.");
+        ((InvokePattern)invoke).Invoke();
+        Wait(()=>EnabledById("LeadContactName"),"new Lead form");
+        return Task.CompletedTask;
     }
     public Task SetLeadContact(string v){Set("LeadContactName",v);return Task.CompletedTask;}
     public Task SaveLead()
