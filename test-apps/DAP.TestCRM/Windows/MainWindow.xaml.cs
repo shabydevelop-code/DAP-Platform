@@ -35,7 +35,7 @@ public partial class MainWindow : Window
         p.Children.Add(row);
     }
     TextBox T(string id,string text=""){var x=new TextBox{Text=text,Margin=new(0,4,0,0),Width=360,HorizontalAlignment=HorizontalAlignment.Stretch};AutomationProperties.SetAutomationId(x,id);return x;}
-    ComboBox C(string id,string[] items,string value){var x=new ComboBox{Margin=new(0,4,0,0),Width=360,HorizontalAlignment=HorizontalAlignment.Stretch,ItemsSource=items,SelectedItem=value};AutomationProperties.SetAutomationId(x,id);return x;}
+    ComboBox C(string id,string[] items,string value){var x=new AutomationComboBox{Margin=new(0,4,0,0),Width=360,HorizontalAlignment=HorizontalAlignment.Stretch,ItemsSource=items,SelectedItem=value};AutomationProperties.SetAutomationId(x,id);return x;}
     void F(Panel p,string label,Control control)
     {
         var row=new Grid{FlowDirection=FlowDirection.LeftToRight,HorizontalAlignment=HorizontalAlignment.Stretch};
