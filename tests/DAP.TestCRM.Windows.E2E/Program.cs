@@ -167,7 +167,7 @@ async Task RunGuidedAsync()
         dap.ErrorDataReceived += (_, e) =>
         {
             if (!string.IsNullOrWhiteSpace(e.Data))
-                Console.Error.WriteLine($"[DAP ERROR] {e.Data}");
+                Console.Error.WriteLine($"[DAP STDERR] {e.Data}");
         };
         dap.BeginOutputReadLine();
         dap.BeginErrorReadLine();
