@@ -297,3 +297,11 @@ CRM-only exists to run the same canonical CRM flow without learner bubbles. It m
 ## Windows Runtime topology
 
 `DAP.Runtime.Windows` is a production adapter behind the shared Core model. It resolves Windows `TargetDescriptor` data through UI Automation, presents non-activating WPF learner bubbles, evaluates supported Windows validation, and runs ordered persisted Steps. `DAP.exe --learner-windows` locates the requested top-level application window and composes this runtime from the persisted Guide. Each Guide Step still has one runtime-specific target; hybrid Guides are represented by an ordered mix of Web and Windows Steps rather than by adding parallel Web/Windows targets to one Step.
+
+## Windows grid targeting and bubble presentation
+
+Windows target resolution treats a grid row as a normal runtime target described by the shared `TargetDescriptor` model. When a descriptor scopes the target to a small, already-realized UIA grid and identifies the row through a descendant value, the Windows adapter may enumerate the scoped `DataItem` rows and apply the descendant anchor to each row. Resolution still requires exactly one matching row; zero matches return NotFound and multiple matches return Ambiguous. This is the same semantic model used for stable site-name row lookup and for runtime-captured Case identifiers.
+
+This small-grid path is intentionally based only on UI Automation state visible at runtime. It must not depend on application source, internal database rows, or private APIs. Larger/virtualized grids may require more specialized UIA or future visual-resolution strategies, but those remain implementation choices behind the same runtime-neutral target contract.
+
+Windows learner bubble presentation is WPF-native but follows the shared learner interaction contract used by Web where practical: a visible explicit drag handle, a directional pointer aimed at the resolved target, and initial placement that prefers a non-overlapping side of the target. Target geometry comes from UIA `BoundingRectangle` and is converted using the target window DPI. Dragging changes only presentation; target identity, validation ownership, and Step semantics remain unchanged.
