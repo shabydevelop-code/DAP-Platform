@@ -167,6 +167,10 @@ CREATE TABLE IF NOT EXISTS TargetAnchors (
  Relation TEXT NOT NULL, LocatorStrategy TEXT NOT NULL, LocatorValue TEXT NOT NULL,
  FOREIGN KEY (GuideStepId) REFERENCES GuideSteps(Id) ON DELETE CASCADE,
  UNIQUE (GuideStepId, AnchorOrder));
+CREATE TABLE IF NOT EXISTS StepCaptures (
+ GuideStepId INTEGER PRIMARY KEY, Runtime TEXT NOT NULL, LocatorStrategy TEXT NOT NULL,
+ LocatorValue TEXT NOT NULL, Property TEXT NOT NULL, Pattern TEXT NULL,
+ FOREIGN KEY (GuideStepId) REFERENCES GuideSteps(Id) ON DELETE CASCADE);
 CREATE INDEX IF NOT EXISTS IX_GuideSteps_GuideId_StepOrder ON GuideSteps(GuideId, StepOrder);
 CREATE INDEX IF NOT EXISTS IX_TargetAnchors_GuideStepId ON TargetAnchors(GuideStepId);
 """;
