@@ -133,9 +133,21 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     public Task SetCloseReason(string v){Select("CaseCloseReason",v);return Task.CompletedTask;}
     public Task OpenSiteFromBreadcrumb(){Click(ButtonByName("מטה תל אביב"));return Task.CompletedTask;}
     public Task OpenLeads(){Click(ById("LeadsTab"));return Task.CompletedTask;}
-    public Task CreateLead(){Click(ById("NewLeadButton"));return Task.CompletedTask;}
+    public Task CreateLead()
+    {
+        Click(ById("NewLeadButton"));
+        Wait(()=>EnabledById("LeadContactName"),"Lead form ready");
+        return Task.CompletedTask;
+    }
     public Task SetLeadContact(string v){Set("LeadContactName",v);return Task.CompletedTask;}
-    public Task SaveLead(){Click(ById("SaveLeadButton"));return Task.CompletedTask;}
+    public Task SaveLead()
+    {
+        Click(ById("SaveLeadButton"));
+        var deleteButton=window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteLeadButton"));
+        if(deleteButton is null)
+            Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteLeadButton")),"persisted Lead form after Save");
+        return Task.CompletedTask;
+    }
     public Task SetLeadStatus(string v){Select("LeadStatus",v);return Task.CompletedTask;}
     public Task SetLeadService(string v){Select("LeadSelectedService",v);return Task.CompletedTask;}
     public Task DeleteLead(){Click(ById("DeleteLeadButton"));return Task.CompletedTask;}
