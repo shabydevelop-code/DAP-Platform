@@ -79,9 +79,15 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
 
     void DialogButton(bool confirm)
     {
-        Wait(()=>!window.Current.IsEnabled ? window : null,"modal dialog");
+        var mainHwnd=new IntPtr(window.Current.NativeWindowHandle);
+        var popup=WaitHandle(()=>
+        {
+            var hwnd=GetWindow(mainHwnd,GW_ENABLEDPOPUP);
+            return hwnd!=IntPtr.Zero && hwnd!=mainHwnd ? hwnd : IntPtr.Zero;
+        },"modal dialog");
+        SetForegroundWindow(popup);
         KeyPress(VK_RETURN);
-        Wait(()=>window.Current.IsEnabled ? window : null,"modal dialog dismissed");
+        WaitHandle(()=>GetWindow(mainHwnd,GW_ENABLEDPOPUP)==mainHwnd ? mainHwnd : IntPtr.Zero,"modal dialog dismissed");
     }
 
     public Task SearchCustomer(string v){Set("CustomerNameSearch",v);Click(ById("SearchCustomersButton"));return Task.CompletedTask;}
@@ -129,15 +135,15 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     public Task ConfirmDelete(){DialogButton(true);return Task.CompletedTask;}
     public Task GoPortal(){Click(ById("PortalHeader"));return Task.CompletedTask;}
 
-    static AutomationElement Wait(Func<AutomationElement?> f,string what,int timeout=10000){var sw=Stopwatch.StartNew();while(sw.ElapsedMilliseconds<timeout){var x=f();if(x!=null)return x;Thread.Sleep(100);}throw new TimeoutException($"Timed out waiting for {what}.");}
-    const int SM_XVIRTUALSCREEN=76, SM_YVIRTUALSCREEN=77, SM_CXVIRTUALSCREEN=78, SM_CYVIRTUALSCREEN=79;
+    static IntPtr WaitHandle(Func<IntPtr> f,string what,int timeout=10000){var sw=Stopwatch.StartNew();while(sw.ElapsedMilliseconds<timeout){var x=f();if(x!=IntPtr.Zero)return x;Thread.Sleep(100);}throw new TimeoutException($"Timed out waiting for {what}.");}\n    static AutomationElement Wait(Func<AutomationElement?> f,string what,int timeout=10000){var sw=Stopwatch.StartNew();while(sw.ElapsedMilliseconds<timeout){var x=f();if(x!=null)return x;Thread.Sleep(100);}throw new TimeoutException($"Timed out waiting for {what}.");}
+    const uint GW_ENABLEDPOPUP=6;\n    const int SM_XVIRTUALSCREEN=76, SM_YVIRTUALSCREEN=77, SM_CXVIRTUALSCREEN=78, SM_CYVIRTUALSCREEN=79;
     const byte VK_RETURN=0x0D;
     const byte VK_HOME=0x24;
     const byte VK_DOWN=0x28;
     const uint KEYEVENTF_KEYUP=0x0002;
     static void KeyPress(byte key){keybd_event(key,0,0,UIntPtr.Zero);keybd_event(key,0,KEYEVENTF_KEYUP,UIntPtr.Zero);}
     static void Mouse(){mouse_event(2,0,0,0,UIntPtr.Zero);mouse_event(4,0,0,0,UIntPtr.Zero);}
-    [DllImport("user32.dll")] static extern int GetSystemMetrics(int nIndex);
+    [DllImport("user32.dll")] static extern IntPtr GetWindow(IntPtr hWnd,uint uCmd);\n    [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr hWnd);\n    [DllImport("user32.dll")] static extern int GetSystemMetrics(int nIndex);
     [DllImport("user32.dll")] static extern bool SetCursorPos(int x,int y);
     [DllImport("user32.dll")] static extern void mouse_event(uint flags,uint dx,uint dy,uint data,UIntPtr extra);
     [DllImport("user32.dll")] static extern void keybd_event(byte virtualKey,byte scanCode,uint flags,UIntPtr extra);
