@@ -182,6 +182,7 @@ async Task RunGuidedAsync()
 
         WaitForBubble("פתח את הלקוח מתוצאות החיפוש", dap);
         await driver.OpenFirstCustomer();
+        DiagnoseNavigationGrids(window);
 
         WaitForBubble("פתח את האתר הראשון של הלקוח", dap);
         await driver.OpenFirstSite();
@@ -306,6 +307,50 @@ AutomationElement WaitForElementById(
     }
 
     throw new TimeoutException($"Timed out waiting for UIA element '{automationId}'.");
+}
+
+void DiagnoseNavigationGrids(AutomationElement window)
+{
+    foreach (var gridId in new[] { "CustomersGrid", "SitesGrid" })
+    {
+        try
+        {
+            var grid = window.FindFirst(
+                TreeScope.Descendants,
+                new PropertyCondition(AutomationElement.AutomationIdProperty, gridId));
+
+            if (grid is null)
+            {
+                Console.WriteLine($"[Windows UIA diagnostic] {gridId}: <not found>");
+                continue;
+            }
+
+            var rows = grid.FindAll(
+                TreeScope.Descendants,
+                new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.DataItem));
+
+            Console.WriteLine(
+                $"[Windows UIA diagnostic] {gridId}: " +
+                $"IsOffscreen={grid.Current.IsOffscreen}; " +
+                $"IsEnabled={grid.Current.IsEnabled}; " +
+                $"rows={rows.Count}");
+
+            for (var i = 0; i < rows.Count; i++)
+            {
+                var row = rows[i];
+                Console.WriteLine(
+                    $"[Windows UIA diagnostic] {gridId} row {i}: " +
+                    $"AutomationId='{row.Current.AutomationId}'; " +
+                    $"Name='{row.Current.Name}'; " +
+                    $"IsOffscreen={row.Current.IsOffscreen}; " +
+                    $"IsEnabled={row.Current.IsEnabled}");
+            }
+        }
+        catch (ElementNotAvailableException)
+        {
+            Console.WriteLine($"[Windows UIA diagnostic] {gridId}: <became unavailable>");
+        }
+    }
 }
 
 AutomationElement WaitForBubble(string expectedInstruction, Process dapProcess, int timeout = 5_000)
