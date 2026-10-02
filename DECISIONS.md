@@ -254,3 +254,16 @@ A timeout failure must be treated first as evidence of a possible readiness, lif
 Before proposing any timeout above 5 seconds, the failing transition and its real readiness condition must be investigated. An increase above 5 seconds is a last-resort change only when there is concrete evidence that the underlying operation can legitimately require more than 5 seconds.
 
 **Any change that raises an E2E timeout above 5 seconds requires the user's explicit approval before implementation.** This applies even to temporary diagnostic changes. Polling intervals and intentionally human-paced Visual-mode delays are separate concerns and do not override this rule.
+
+
+## ADR-029 — CRM-only reuses the canonical persisted Guide sequence
+
+**Status:** Accepted
+
+Web CRM-only is the canonical CRM business flow without `DAP.exe` and learner bubbles. It is not a separate TestCRM QA scenario.
+
+Normal guided Web execution and CRM-only both consume the persisted `testcrm-web-canonical-workflow` Guide from the configured DAP data provider and follow the same 53-Step sequence. Guided mode additionally synchronizes with production DAP Runtime/bubble state; CRM-only omits that presentation/runtime synchronization.
+
+Production Guide data must not be polluted with test-only action/value fields merely to make CRM-only executable. When a Guide validation is intentionally generic, such as `value-not-empty`, the synthetic value entered by the E2E remains a test-fixture concern.
+
+TestCRM's artificial Web/Windows parity must not drive a production schema that gives one Step parallel Web and Windows targets. A real hybrid Guide remains an ordered sequence in which each Step declares its own runtime.
