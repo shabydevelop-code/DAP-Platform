@@ -86,11 +86,7 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
             return hwnd!=IntPtr.Zero && hwnd!=mainHwnd ? hwnd : IntPtr.Zero;
         },"modal dialog");
         SendMessage(popup,WM_COMMAND,new IntPtr(confirm ? IDYES : IDOK),IntPtr.Zero);
-        WaitHandle(()=>
-        {
-            var hwnd=GetWindow(mainHwnd,GW_ENABLEDPOPUP);
-            return hwnd==IntPtr.Zero || hwnd==mainHwnd ? mainHwnd : IntPtr.Zero;
-        },"modal dialog dismissed");
+        WaitHandle(()=>!IsWindow(popup) ? mainHwnd : IntPtr.Zero,"modal dialog dismissed");
     }
 
     public Task SearchCustomer(string v){Set("CustomerNameSearch",v);Click(ById("SearchCustomersButton"));return Task.CompletedTask;}
@@ -151,6 +147,7 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     static void Mouse(){mouse_event(2,0,0,0,UIntPtr.Zero);mouse_event(4,0,0,0,UIntPtr.Zero);}
     [DllImport("user32.dll")] static extern IntPtr GetWindow(IntPtr hWnd,uint uCmd);
     [DllImport("user32.dll")] static extern IntPtr SendMessage(IntPtr hWnd,uint msg,IntPtr wParam,IntPtr lParam);
+    [DllImport("user32.dll")] static extern bool IsWindow(IntPtr hWnd);
     [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr hWnd);
     [DllImport("user32.dll")] static extern int GetSystemMetrics(int nIndex);
     [DllImport("user32.dll")] static extern bool SetCursorPos(int x,int y);
