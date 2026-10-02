@@ -30,8 +30,8 @@ public sealed class CrmApiClient
     public Task DeleteSiteAsync(int id) => SendAsync(HttpMethod.Delete,$"/api/sites/{id}",new {});
     public Task DeleteCaseAsync(int id) => SendAsync(HttpMethod.Delete,$"/api/cases/{id}",new {});
     public Task DeleteLeadAsync(int id) => SendAsync(HttpMethod.Delete,$"/api/leads/{id}",new {});
-    public Task CaseStatusChangedAsync(int id,string status) => SendAsync(HttpMethod.Post,$"/api/cases/{id}/fieldchange/status",new {status});
-    public Task LeadStatusChangedAsync(int id,string status) => SendAsync(HttpMethod.Post,$"/api/leads/{id}/fieldchange/status",new {status});
+    public Task<CaseStatusFieldChange> CaseStatusChangedAsync(int id,string status) => PostAsync<CaseStatusFieldChange>($"/api/cases/{id}/fieldchange/status",new {status});
+    public Task<LeadStatusFieldChange> LeadStatusChangedAsync(int id,string status) => PostAsync<LeadStatusFieldChange>($"/api/leads/{id}/fieldchange/status",new {status});
 
     private async Task<T?> GetAsync<T>(string path) => await _http.GetFromJsonAsync<T>(path,JsonOptions);
     private async Task<List<T>> GetListAsync<T>(string path) => await _http.GetFromJsonAsync<List<T>>(path,JsonOptions) ?? [];
