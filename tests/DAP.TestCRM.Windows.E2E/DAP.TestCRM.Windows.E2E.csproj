@@ -4,11 +4,8 @@
     <TargetFramework>net8.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
   </PropertyGroup>
-  <ItemGroup>
-    <Reference Include="UIAutomationClient" />
-    <Reference Include="UIAutomationTypes" />
-  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../DAP.TestCRM.E2E.Common/DAP.TestCRM.E2E.Common.csproj" />
   </ItemGroup>
