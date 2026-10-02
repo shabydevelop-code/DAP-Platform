@@ -130,27 +130,24 @@ public sealed class WindowsTargetResolver
         if (!TryCreateNativeCondition(descendantAnchor.Locator, out var descendantCondition))
             return false;
 
-        // Anchor-first must start with the most selective runtime value, not with the
-        // repeated primary type (for example DataItem) and not by enumerating the grid.
-        // Captured IDs/names are expected to identify a single materialized element, so
-        // let the UIA provider stop at the first exact match and walk structurally upward.
-        var descendant = root.FindFirst(TreeScope.Descendants, descendantCondition);
+        // Resolve the declared scope first, then ask that provider for the first exact
+        // descendant match. Searching from the desktop/window root can miss descendants
+        // exposed lazily by virtualized controls, while a scope-local query lets the
+        // owning provider materialize its own subtree without enumerating every DataItem.
+        var scope = FindFirst(root, scopeAnchor.Locator);
+        if (scope is null)
+            return true;
+
+        var descendant = scope.FindFirst(TreeScope.Descendants, descendantCondition);
         if (descendant is null)
-            return false;
+            return true;
 
         var walker = TreeWalker.RawViewWalker;
         for (var current = walker.GetParent(descendant);
-             current is not null;
+             current is not null && !Automation.Compare(current, scope);
              current = walker.GetParent(current))
         {
             if (!MatchesLocator(current, descriptor.Locator))
-                continue;
-
-            // Verify the declared scope from the candidate upward. This keeps the
-            // optimization generic: the unique descendant locates the row, while the
-            // ancestor/context anchor proves that the row belongs to the right container.
-            var scope = FindRawAncestor(current, scopeAnchor.Locator);
-            if (scope is null)
                 continue;
 
             if (MatchesRemainingAnchors(current, descriptor.Anchors, scopeAnchor, descendantAnchor))
