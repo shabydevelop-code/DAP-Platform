@@ -232,7 +232,43 @@ async Task<IFrame> Content()
         catch(PlaywrightException) { }
         await page.WaitForTimeoutAsync(100);
     }
-    throw new Exception("Stable content iframe not found.");
+    var diagnosticParts = new List<string>();
+    try
+    {
+        var iframe = page.Locator("#content-frame");
+        var iframeCount = await iframe.CountAsync();
+        diagnosticParts.Add($"#content-frame count={iframeCount}");
+
+        if (iframeCount == 1)
+        {
+            var src = await iframe.GetAttributeAsync("src");
+            diagnosticParts.Add($"src={src ?? "<null>"}");
+
+            var handle = await iframe.ElementHandleAsync();
+            var frame = handle is null ? null : await handle.ContentFrameAsync();
+            diagnosticParts.Add($"contentFrame={(frame is null ? "null" : "present")}");
+
+            if (frame is not null)
+            {
+                diagnosticParts.Add($"detached={frame.IsDetached}");
+                diagnosticParts.Add($"frameUrl={frame.Url}");
+
+                if (!frame.IsDetached)
+                {
+                    var ready = await frame.Locator("html").GetAttributeAsync("data-dap-ready");
+                    diagnosticParts.Add($"data-dap-ready={ready ?? "<null>"}");
+                }
+            }
+        }
+
+        diagnosticParts.Add("pageFrames=[" + string.Join(", ", page.Frames.Select(x => $"{x.Name}:{x.Url}")) + "]");
+    }
+    catch (Exception ex)
+    {
+        diagnosticParts.Add($"diagnostic-error={ex.GetType().Name}: {ex.Message}");
+    }
+
+    throw new Exception("Stable content iframe not found. " + string.Join("; ", diagnosticParts));
 }
 async Task WaitReady()
 {
