@@ -557,3 +557,12 @@ The old combined root `DAP.TestCRM.csproj` and root launch profile were removed 
 - Pending Windows parity milestone remains explicit: expand the current Windows CRM-only shared core scenario to cover the complete canonical 53-step business workflow before DAP Windows Runtime bubble/target integration is considered complete.
 
 - **Windows canonical 53-step CRM-only milestone: PASS (locally verified 2026-10-02).** `CanonicalCrmScenario.Run53Async` completed the full Customer -> Site -> Case -> Lead flow and terminated with `PASS: Windows CRM-only canonical 53-step Customer -> Site -> Case -> Lead scenario completed.` The Windows E2E now synchronizes async sort/create/delete/navigation transitions in the test harness. Test-only row AutomationIds were removed from the Windows target application; E2E target resolution remains the responsibility of the test harness. No full-53 PASS is claimed for DAP Runtime/bubbles yet; this milestone is the CRM-only Windows business-flow baseline.
+
+
+## Numeric Guide/Step database identities — 2026-10-02
+- DAP SQLite persistence now uses numeric internal primary/foreign keys for `Guides.Id`, `GuideSteps.Id`, `GuideSteps.GuideId`, and `TargetAnchors.GuideStepId`.
+- Human-readable stable identifiers are stored separately as `Guides.Key` and `GuideSteps.Key`.
+- Existing databases using the legacy TEXT primary-key schema are migrated automatically by `SqliteDatabaseInitializer`; Guide keys, Step keys, ordering, bubble/validation data, frame/context data, and TargetAnchors are preserved.
+- Repository APIs continue to accept the stable textual Guide key, so runtime launch semantics do not expose database row IDs.
+- The canonical TestCRM Web Guide key is now `testcrm-web-canonical-workflow`; the E2E harness migrates the previous `testcrm-create-case` key in place and assigns the display name `TestCRM Web Canonical Workflow`.
+- `DAP.Data.Sqlite.Tests` now covers both a fresh numeric-ID round trip and migration from the legacy TEXT-ID schema.
