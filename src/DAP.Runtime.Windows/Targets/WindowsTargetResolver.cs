@@ -69,46 +69,53 @@ public sealed class WindowsTargetResolver
     private static bool MatchesAnchors(AutomationElement candidate, IReadOnlyList<Anchor> anchors) =>
         anchors.All(anchor => MatchesAnchor(candidate, anchor));
 
-    private static bool MatchesAnchor(AutomationElement candidate, Anchor anchor)
-    {
-        var condition = CreateCondition(anchor.Locator);
-        return anchor.Relation switch
+    private static bool MatchesAnchor(AutomationElement candidate, Anchor anchor) =>
+        anchor.Relation switch
         {
             AnchorRelation.Self =>
-                MatchesCondition(candidate, condition),
+                MatchesLocator(candidate, anchor.Locator),
             AnchorRelation.Ancestor or AnchorRelation.Context =>
-                HasInParentChain(candidate, condition),
+                HasInParentChain(candidate, anchor.Locator),
             AnchorRelation.Descendant =>
-                candidate.FindFirst(TreeScope.Descendants, condition) is not null,
+                candidate.FindAll(TreeScope.Descendants, Condition.TrueCondition)
+                    .Cast<AutomationElement>()
+                    .Any(element => MatchesLocator(element, anchor.Locator)),
             AnchorRelation.Sibling =>
-                HasSibling(candidate, condition),
+                HasSibling(candidate, anchor.Locator),
             AnchorRelation.Nearby =>
-                HasSibling(candidate, condition) || HasInParentChain(candidate, condition),
+                HasSibling(candidate, anchor.Locator) || HasInParentChain(candidate, anchor.Locator),
             _ => false
         };
-    }
 
-    private static bool HasInParentChain(AutomationElement candidate, Condition condition)
+    private static bool HasInParentChain(AutomationElement candidate, Locator locator)
     {
         var walker = TreeWalker.ControlViewWalker;
         for (var current = walker.GetParent(candidate); current is not null; current = walker.GetParent(current))
-            if (MatchesCondition(current, condition))
+            if (MatchesLocator(current, locator))
                 return true;
         return false;
     }
 
-    private static bool HasSibling(AutomationElement candidate, Condition condition)
+    private static bool HasSibling(AutomationElement candidate, Locator locator)
     {
         var walker = TreeWalker.ControlViewWalker;
         var parent = walker.GetParent(candidate);
         if (parent is null)
             return false;
 
-        foreach (AutomationElement sibling in parent.FindAll(TreeScope.Children, condition))
-            if (!Automation.Compare(candidate, sibling))
+        foreach (AutomationElement sibling in parent.FindAll(TreeScope.Children, Condition.TrueCondition))
+            if (!Automation.Compare(candidate, sibling) && MatchesLocator(sibling, locator))
                 return true;
 
         return false;
+    }
+
+    private static bool MatchesLocator(AutomationElement element, Locator locator)
+    {
+        if (locator.Strategy.Trim().Equals("name-regex", StringComparison.OrdinalIgnoreCase))
+            return Regex.IsMatch(element.Current.Name ?? string.Empty, locator.Value, RegexOptions.CultureInvariant);
+
+        return MatchesCondition(element, CreateCondition(locator));
     }
 
     private static bool MatchesCondition(AutomationElement element, Condition condition)
