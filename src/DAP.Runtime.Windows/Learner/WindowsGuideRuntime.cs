@@ -162,13 +162,16 @@ public sealed class WindowsGuideRuntime
                         $"target={DescribeTarget(target)}");
                 }
 
-                if (step.Capture is not null && !capturedValues.ContainsKey(step.Id))
+                if (step.Capture is not null)
                 {
                     var capture = ResolveCapture(windowRoot, step.Capture);
-                    if (capture is not null)
+                    if (capture is not null
+                        && (!capturedValues.TryGetValue(step.Id, out var previousCapture)
+                            || !string.Equals(previousCapture, capture, StringComparison.Ordinal)))
                     {
                         capturedValues[step.Id] = capture;
-                        Console.Error.WriteLine($"[DAP Windows guide] captured runtime value for Step '{step.Id}'.");
+                        Console.Error.WriteLine(
+                            $"[DAP Windows guide] updated runtime capture for Step '{step.Id}' to '{capture}'.");
                     }
                 }
 
