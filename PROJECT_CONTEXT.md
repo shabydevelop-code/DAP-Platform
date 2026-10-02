@@ -222,3 +222,10 @@ These are authoring semantics, not TestCRM/Grid-specific Runtime concepts. Core/
 - Guide completion is an explicit learner state presented as a completion bubble with a `סיום` button. Completion must wait for the learner's real click; it must not synthesize the click. Finishing the Guide is conceptually separate from closing the target business browser.
 - Stateful manual debugging must preserve the real prior workflow. The E2E `--manual-from-step <N>` handoff is therefore generic: automate Steps before N using the representative scenario and pause when Step N is ready, rather than reconstructing synthetic state or adding Step-specific branches.
 - Step-specific presentation workarounds are not acceptable. The constrained-iframe promotion and manual handoff mechanisms must remain generic runtime/test-harness capabilities.
+
+## GitHub repository access
+
+- Canonical repository: `shabydevelop-code/DAP-Platform`.
+- Connected GitHub account `shabydevelop-code` has verified repository permissions: `admin=true`, `maintain=true`, `pull=true`, `push=true`, `triage=true`.
+- In new chats, do not assume repository access is read-only. When write capability matters, verify permissions from repository metadata before concluding that write access is unavailable.
+- DAP development may read and write this repository through the connected GitHub tools unless verified repository permissions change.
