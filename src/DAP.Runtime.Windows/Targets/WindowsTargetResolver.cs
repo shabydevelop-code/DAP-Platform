@@ -16,6 +16,28 @@ public sealed class WindowsTargetResolver
             throw new InvalidOperationException("WindowsTargetResolver can resolve only Windows targets.");
 
         var stopwatch = Stopwatch.StartNew();
+
+        // An unanchored exact locator is the Guide's declaration that the locator itself is
+        // sufficient to identify the target. Use FindFirst so UIA can stop walking large
+        // descendant trees (for example, a screen containing a large DataGrid).
+        if (descriptor.Anchors.Count == 0 && IsExactLocator(descriptor.Locator))
+        {
+            var candidate = FindFirst(root, descriptor.Locator);
+            stopwatch.Stop();
+
+            if (stopwatch.ElapsedMilliseconds >= 100)
+            {
+                Console.Error.WriteLine(
+                    $"[DAP Windows resolver timing] locator={descriptor.Locator.Strategy}='{descriptor.Locator.Value}', " +
+                    $"fast-path=exact-unanchored, final={(candidate is null ? 0 : 1)}, " +
+                    $"elapsed={stopwatch.ElapsedMilliseconds} ms.");
+            }
+
+            return candidate is null
+                ? TargetResolution<AutomationElement>.NotFound()
+                : TargetResolution<AutomationElement>.Resolved(candidate);
+        }
+
         var candidates = Find(root, descriptor.Locator).ToList();
         var primaryCandidateCount = candidates.Count;
         var anchorDiagnostics = new List<string>(descriptor.Anchors.Count);
@@ -47,6 +69,13 @@ public sealed class WindowsTargetResolver
             _ => TargetResolution<AutomationElement>.Ambiguous(candidates.Count)
         };
     }
+
+    private static bool IsExactLocator(Locator locator) =>
+        locator.Strategy.Trim().Equals("automation-id", StringComparison.OrdinalIgnoreCase)
+        || locator.Strategy.Trim().Equals("name", StringComparison.OrdinalIgnoreCase);
+
+    private static AutomationElement? FindFirst(AutomationElement root, Locator locator) =>
+        root.FindFirst(TreeScope.Descendants, CreateCondition(locator));
 
     private static IEnumerable<AutomationElement> Find(AutomationElement root, Locator locator)
     {
