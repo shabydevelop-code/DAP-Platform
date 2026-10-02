@@ -177,10 +177,7 @@ public sealed class WindowsBubblePresenter
 
         if (Math.Abs(dx) >= Math.Abs(dy))
         {
-            var y = Math.Clamp(
-                targetCenter.Y - _window.Top,
-                PointerSpace + size,
-                PointerSpace + Math.Max(size, _bubble.ActualHeight - size));
+            var y = PointerSpace + (_bubble.ActualHeight / 2);
 
             if (dx >= 0)
             {
@@ -199,10 +196,7 @@ public sealed class WindowsBubblePresenter
         }
         else
         {
-            var x = Math.Clamp(
-                targetCenter.X - _window.Left,
-                PointerSpace + size,
-                PointerSpace + Math.Max(size, _bubble.ActualWidth - size));
+            var x = PointerSpace + (_bubble.ActualWidth / 2);
 
             if (dy >= 0)
             {
@@ -272,8 +266,8 @@ public sealed class WindowsBubblePresenter
             Foreground = new SolidColorBrush(Color.FromRgb(220, 228, 236)),
             Cursor = Cursors.SizeAll,
             ToolTip = "גרור להזזת הבועה",
-            HorizontalAlignment = HorizontalAlignment.Left,
-            Margin = new Thickness(0, 0, 8, 6)
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 0, 0, 6)
         };
 
         var stack = new StackPanel();
