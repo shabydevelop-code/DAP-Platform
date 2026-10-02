@@ -49,32 +49,9 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     void Select(string id,string value)
     {
         var combo=ById(id);
-        if(!combo.TryGetCurrentPattern(ExpandCollapsePattern.Pattern,out var ep))
-            throw new Exception($"{id} has no ExpandCollapsePattern.");
-
-        ((ExpandCollapsePattern)ep).Expand();
-        Thread.Sleep(250);
-
-        var processId=window.Current.ProcessId;
-        var item=Wait(()=>AutomationElement.RootElement.FindFirst(TreeScope.Descendants,new AndCondition(
-            new PropertyCondition(AutomationElement.ProcessIdProperty,processId),
-            new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.ListItem),
-            new PropertyCondition(AutomationElement.NameProperty,value))),$"{id} item '{value}'");
-
-        // Click the actual popup item. ComboBox popups are separate HWNDs, so their
-        // bounds are not required to be inside the main window rectangle.
-        var r=item.Current.BoundingRectangle;
-        if(r.IsEmpty)throw new Exception($"ComboBox item '{value}' has no bounds.");
-        var screenWidth=GetSystemMetrics(SM_CXVIRTUALSCREEN);
-        var screenHeight=GetSystemMetrics(SM_CYVIRTUALSCREEN);
-        var screenLeft=GetSystemMetrics(SM_XVIRTUALSCREEN);
-        var screenTop=GetSystemMetrics(SM_YVIRTUALSCREEN);
-        var x=(int)(r.Left+r.Width/2);
-        var y=(int)(r.Top+r.Height/2);
-        if(x<screenLeft || y<screenTop || x>=screenLeft+screenWidth || y>=screenTop+screenHeight)
-            throw new Exception($"Refusing ComboBox click outside virtual screen for '{id}' value '{value}'.");
-        SetCursorPos(x,y);
-        Mouse();
+        if(!combo.TryGetCurrentPattern(ValuePattern.Pattern,out var pattern))
+            throw new Exception($"{id} has no ValuePattern.");
+        ((ValuePattern)pattern).SetValue(value);
 
         if(id=="CaseStatus" && value=="בטיפול")
             Wait(()=>EnabledById("CaseResolutionNotes"),"CaseResolutionNotes enabled after CaseStatus=בטיפול");
