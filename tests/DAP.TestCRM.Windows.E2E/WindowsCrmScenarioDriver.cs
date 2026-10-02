@@ -211,10 +211,14 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
         var grid=ById(gridId);
         return Wait(()=>
         {
-            foreach(var row in grid.FindAll(TreeScope.Descendants,new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.DataItem)).Cast<AutomationElement>())
+            foreach(var row in grid.FindAll(TreeScope.Descendants,
+                new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.DataItem)).Cast<AutomationElement>())
             {
-                if(row.FindAll(TreeScope.Descendants,new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.Text))
-                    .Cast<AutomationElement>().Any(x=>string.Equals(x.Current.Name,value,StringComparison.Ordinal)))
+                var values=row.FindAll(TreeScope.Descendants,Condition.TrueCondition)
+                    .Cast<AutomationElement>()
+                    .Select(x=>x.Current.Name?.Trim())
+                    .Where(x=>!string.IsNullOrEmpty(x));
+                if(values.Any(x=>string.Equals(x,value,StringComparison.Ordinal)))
                     return row;
             }
             return null;
