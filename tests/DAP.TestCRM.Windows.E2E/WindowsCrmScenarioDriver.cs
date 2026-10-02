@@ -284,7 +284,12 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     public Task OpenCreatedCase()
     {
         if(string.IsNullOrWhiteSpace(createdCaseId))throw new Exception("Created Case id is not known.");
-        Click(RowByCellText("CasesGrid",createdCaseId),true);
+
+        var row=RowByCellText("CasesGrid",createdCaseId);
+        if(row.TryGetCurrentPattern(SelectionItemPattern.Pattern,out var selection))
+            ((SelectionItemPattern)selection).Select();
+
+        Click(row,true);
         Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteCaseButton")),"created Case form");
         if(CurrentCaseId()!=createdCaseId)throw new Exception($"Expected created Case {createdCaseId}, but another Case was opened.");
         return Task.CompletedTask;
