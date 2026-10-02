@@ -25,8 +25,8 @@ DAP.TestCRM is one shared test system with separate server, Web UI, and shared d
 
 ```text
 test-apps/DAP.TestCRM/
-  DAP.TestCRM.csproj
   Server/
+    DAP.TestCRM.Server.csproj
     Program.cs
   Web/
     wwwroot/
@@ -34,7 +34,7 @@ test-apps/DAP.TestCRM/
     testcrm.db
 ```
 
-The project file intentionally remains at the TestCRM root so existing run/E2E commands keep the same project path. The Web UI and the future Windows UI are clients of the shared CRM server/API; neither UI owns the business database.
+The server project lives under `Server/DAP.TestCRM.Server.csproj`. The Web UI and Windows UI are clients of the shared CRM server/API; neither UI owns the business database.
 
 ## Persistence
 
@@ -98,7 +98,7 @@ From the repository root:
 
 ```powershell
 cd C:\yossi\ChatGpt\DAP-Platform
-dotnet run --project test-apps\DAP.TestCRM\DAP.TestCRM.csproj
+dotnet run --project test-apps\DAP.TestCRM\Server\DAP.TestCRM.Server.csproj
 ```
 
 The normal TestCRM address is:
