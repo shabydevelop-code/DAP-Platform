@@ -156,8 +156,27 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
         Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"CustomersGrid")),"customer search results");
         return Task.CompletedTask;
     }
-    public Task OpenFirstCustomer(){FirstRow("CustomersGrid");return Task.CompletedTask;}
-    public Task OpenFirstSite(){FirstRow("SitesGrid");return Task.CompletedTask;}
+    public Task OpenFirstCustomer()
+    {
+        FirstRow("CustomersGrid");
+        Wait(
+            () => window.FindFirst(
+                TreeScope.Descendants,
+                new PropertyCondition(AutomationElement.AutomationIdProperty, "SitesGrid")),
+            "Customer Sites screen");
+        return Task.CompletedTask;
+    }
+
+    public Task OpenFirstSite()
+    {
+        FirstRow("SitesGrid");
+        Wait(
+            () => window.FindFirst(
+                TreeScope.Descendants,
+                new PropertyCondition(AutomationElement.AutomationIdProperty, "CasesTab")),
+            "Site screen");
+        return Task.CompletedTask;
+    }
     public Task OpenCases()
     {
         DismissUnexpectedInfoDialogs();
