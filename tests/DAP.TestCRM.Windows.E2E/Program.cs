@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
+using System.Net;
+using System.Net.Sockets;
 using System.Windows.Automation;
 using DAP.Data.Sqlite;
 using DAP.Data.Sqlite.Guides;
@@ -79,6 +81,8 @@ async Task RunDapFirstTwoAsync()
 
     try
     {
+        EnsurePortFree(5201);
+
         backend = StartProcess(
             "dotnet",
             $"run --project \"{backendProject}\" --no-launch-profile",
@@ -127,6 +131,26 @@ async Task RunDapFirstTwoAsync()
         if (dap is not null) StopOwnedProcessTree(dap);
         if (windowsApp is not null) StopOwnedProcessTree(windowsApp);
         if (backend is not null) StopOwnedProcessTree(backend);
+    }
+}
+
+void EnsurePortFree(int port)
+{
+    TcpListener? listener = null;
+    try
+    {
+        listener = new TcpListener(IPAddress.Loopback, port);
+        listener.Start();
+    }
+    catch (SocketException ex)
+    {
+        throw new InvalidOperationException(
+            $"Port {port} is already in use. Stop the existing TestCRM Server before running --dap-first-two.",
+            ex);
+    }
+    finally
+    {
+        listener?.Stop();
     }
 }
 
