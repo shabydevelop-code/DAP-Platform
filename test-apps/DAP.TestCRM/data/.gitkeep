@@ -1,0 +1,1 @@
+# Keeps the shared TestCRM data directory in source control. Runtime testcrm.db is created here and should remain untracked.

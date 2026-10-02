@@ -8,7 +8,14 @@ app.Use(async (context,next)=>{if(context.Request.Path.StartsWithSegments("/api"
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
-var dbPath = Path.Combine(builder.Environment.ContentRootPath, "testcrm.db");
+var dataDirectory = Path.Combine(builder.Environment.ContentRootPath, "data");
+Directory.CreateDirectory(dataDirectory);
+var dbPath = Path.Combine(dataDirectory, "testcrm.db");
+var legacyDbPath = Path.Combine(builder.Environment.ContentRootPath, "testcrm.db");
+if (!File.Exists(dbPath) && File.Exists(legacyDbPath))
+{
+    File.Move(legacyDbPath, dbPath);
+}
 var connectionString = $"Data Source={dbPath}";
 InitializeDatabase(connectionString);
 
