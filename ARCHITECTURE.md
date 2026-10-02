@@ -305,3 +305,12 @@ Windows target resolution treats a grid row as a normal runtime target described
 This small-grid path is intentionally based only on UI Automation state visible at runtime. It must not depend on application source, internal database rows, or private APIs. Larger/virtualized grids may require more specialized UIA or future visual-resolution strategies, but those remain implementation choices behind the same runtime-neutral target contract.
 
 Windows learner bubble presentation is WPF-native but follows the shared learner interaction contract used by Web where practical: a visible explicit drag handle, a directional pointer aimed at the resolved target, and initial placement that prefers a non-overlapping side of the target. Target geometry comes from UIA `BoundingRectangle` and is converted using the target window DPI. Dragging changes only presentation; target identity, validation ownership, and Step semantics remain unchanged.
+
+### Windows bubble manual-position lifecycle
+
+Windows learner bubble placement has two presentation states per active Step:
+
+1. **Automatic placement** — the presenter chooses a non-overlapping side near the resolved UIA target and shows a centered directional pointer.
+2. **Manual placement** — after the learner drags the bubble, the presenter preserves the learner-selected window position and hides the pointer.
+
+Runtime reconciliation may continue to re-resolve the target while the Step is active, but it must not overwrite a manual bubble position. Manual-position state is reset when the active Step identifier changes. This keeps presentation stable without changing target ownership, validation semantics, or runtime state.
