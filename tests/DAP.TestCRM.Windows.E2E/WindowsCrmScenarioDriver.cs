@@ -157,8 +157,19 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     public Task ShowMoreActivity(){Click(ById("ActivityMoreButton"));return Task.CompletedTask;}
     public Task DismissValidation(){DialogButton(false);return Task.CompletedTask;}
     public Task SetCloseReason(string v){Select("CaseCloseReason",v);return Task.CompletedTask;}
-    public Task OpenSiteFromBreadcrumb(){Click(ButtonByName("מטה תל אביב"));return Task.CompletedTask;}
-    public Task OpenLeads(){Click(ById("LeadsTab"));return Task.CompletedTask;}
+    public Task OpenSiteFromBreadcrumb()
+    {
+        Click(ButtonByName("מטה תל אביב"));
+        Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"LeadsTab")),"Site screen after breadcrumb");
+        return Task.CompletedTask;
+    }
+    public Task OpenLeads()
+    {
+        DismissUnexpectedInfoDialogs();
+        Click(ById("LeadsTab"));
+        Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"NewLeadButton")),"Leads screen");
+        return Task.CompletedTask;
+    }
     public Task CreateLead()
     {
         var deadline=Stopwatch.StartNew();
