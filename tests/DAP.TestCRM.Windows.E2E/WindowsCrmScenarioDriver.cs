@@ -49,30 +49,54 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     void Select(string id,string value)
     {
         var combo=ById(id);
-        if(combo.TryGetCurrentPattern(ExpandCollapsePattern.Pattern,out var ep))
-            ((ExpandCollapsePattern)ep).Expand();
-        else Click(combo);
+        combo.SetFocus();
 
-        var processId=window.Current.ProcessId;
-        var item=Wait(()=>AutomationElement.RootElement.FindFirst(TreeScope.Descendants,new AndCondition(
-            new PropertyCondition(AutomationElement.ProcessIdProperty,processId),
-            new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.ListItem),
-            new PropertyCondition(AutomationElement.NameProperty,value))),$"{id} item '{value}'");
-
-        if(item.TryGetCurrentPattern(SelectionItemPattern.Pattern,out var sip))
-            ((SelectionItemPattern)sip).Select();
-        else if(item.TryGetCurrentPattern(InvokePattern.Pattern,out var iip))
-            ((InvokePattern)iip).Invoke();
+        if(combo.TryGetCurrentPattern(ValuePattern.Pattern,out var vp) && !((ValuePattern)vp).Current.IsReadOnly)
+        {
+            ((ValuePattern)vp).SetValue(value);
+            KeyPress(VK_RETURN);
+        }
         else
         {
-            item.SetFocus();
+            if(!combo.TryGetCurrentPattern(ExpandCollapsePattern.Pattern,out var ep))
+                throw new Exception($"{id} exposes neither editable ValuePattern nor ExpandCollapsePattern.");
+
+            ((ExpandCollapsePattern)ep).Expand();
+            Thread.Sleep(150);
+
+            // WPF may expose popup ListItems without SelectionItem/Invoke patterns.
+            // Select through keyboard navigation on the focused ComboBox instead of physical mouse.
+            combo.SetFocus();
+            KeyPress(VK_HOME);
+            var processId=window.Current.ProcessId;
+            var item=Wait(()=>AutomationElement.RootElement.FindFirst(TreeScope.Descendants,new AndCondition(
+                new PropertyCondition(AutomationElement.ProcessIdProperty,processId),
+                new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.ListItem),
+                new PropertyCondition(AutomationElement.NameProperty,value))),$"{id} item '{value}'");
+
+            var allItems=AutomationElement.RootElement.FindAll(TreeScope.Descendants,new AndCondition(
+                new PropertyCondition(AutomationElement.ProcessIdProperty,processId),
+                new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.ListItem)));
+            var targetIndex=allItems.Cast<AutomationElement>()
+                .Where(x=>x.Current.BoundingRectangle.Top>=item.Current.BoundingRectangle.Top-1000 && x.Current.BoundingRectangle.Top<=item.Current.BoundingRectangle.Bottom+1000)
+                .OrderBy(x=>x.Current.BoundingRectangle.Top)
+                .ToList()
+                .FindIndex(x=>x.Current.Name==value);
+            if(targetIndex<0)throw new Exception($"Could not determine keyboard index for {id} item '{value}'.");
+            for(var i=0;i<targetIndex;i++)KeyPress(VK_DOWN);
             KeyPress(VK_RETURN);
         }
 
         Wait(()=> {
             var current=window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,id));
-            return current is not null && current.Current.IsEnabled ? current : null;
-        },$"{id} refreshed");
+            if(current is null || !current.Current.IsEnabled)return null;
+            if(current.TryGetCurrentPattern(SelectionPattern.Pattern,out var sp))
+            {
+                var selected=((SelectionPattern)sp).Current.GetSelection();
+                if(selected.Any(x=>x.Current.Name==value))return current;
+            }
+            return current.Current.Name.Contains(value,StringComparison.Ordinal) ? current : null;
+        },$"{id} selected '{value}'");
         Thread.Sleep(250);
     }
     void FirstRow(string id){var g=ById(id);var row=Wait(()=>g.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.DataItem)),id+" first row");Click(row,true);}
@@ -122,6 +146,8 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
 
     static AutomationElement Wait(Func<AutomationElement?> f,string what,int timeout=10000){var sw=Stopwatch.StartNew();while(sw.ElapsedMilliseconds<timeout){var x=f();if(x!=null)return x;Thread.Sleep(100);}throw new TimeoutException($"Timed out waiting for {what}.");}
     const byte VK_RETURN=0x0D;
+    const byte VK_HOME=0x24;
+    const byte VK_DOWN=0x28;
     const uint KEYEVENTF_KEYUP=0x0002;
     static void KeyPress(byte key){keybd_event(key,0,0,UIntPtr.Zero);keybd_event(key,0,KEYEVENTF_KEYUP,UIntPtr.Zero);}
     static void Mouse(){mouse_event(2,0,0,0,UIntPtr.Zero);mouse_event(4,0,0,0,UIntPtr.Zero);}
