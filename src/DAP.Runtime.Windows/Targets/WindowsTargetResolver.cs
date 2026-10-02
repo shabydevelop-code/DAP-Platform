@@ -141,6 +141,33 @@ public sealed class WindowsTargetResolver
         if (scope is null)
             return true;
 
+        // For a small, already-realized grid, use the same simple row-filtering
+        // strategy as ordinary grid navigation (for example SitesGrid): enumerate
+        // the DataItem rows in the declared scope and apply the descendant anchor.
+        // The specialized anchor-first path is reserved for larger scopes where
+        // broad row enumeration is the actual performance problem.
+        var scopedPrimaryCandidates = Find(scope, descriptor.Locator).ToList();
+        if (scopedPrimaryCandidates.Count <= 50)
+        {
+            foreach (var candidate in scopedPrimaryCandidates)
+            {
+                if (MatchesRemainingAnchors(
+                        candidate,
+                        descriptor.Anchors,
+                        scopeAnchor,
+                        descendantAnchor)
+                    && HasDescendant(candidate, descendantAnchor.Locator))
+                {
+                    candidates.Add(candidate);
+                }
+            }
+
+            Console.Error.WriteLine(
+                $"[DAP Windows resolver scoped-rows] rows={scopedPrimaryCandidates.Count}, " +
+                $"final={candidates.Count}.");
+            return true;
+        }
+
         var descendant = scope.FindFirst(TreeScope.Descendants, descendantCondition);
         if (descendant is not null)
         {
