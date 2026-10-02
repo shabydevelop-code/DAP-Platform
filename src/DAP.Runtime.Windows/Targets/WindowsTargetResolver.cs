@@ -166,22 +166,6 @@ public sealed class WindowsTargetResolver
             candidates);
 
         return true;
-        }
-
-        // A virtualized container can report its full logical item set while exposing only
-        // realized rows/cells in the UIA tree. Ask the provider for its logical items and
-        // realize them one at a time until the selective descendant anchor becomes available.
-        // This avoids repeatedly enumerating every DataItem and running a descendant query
-        // against every row on every reconciliation pass.
-        TryResolveVirtualizedItem(
-            scope,
-            descendantCondition,
-            descriptor,
-            scopeAnchor,
-            descendantAnchor,
-            candidates);
-
-        return true;
     }
 
     private static void TryResolveGridPattern(
