@@ -241,3 +241,16 @@ Legacy databases that used textual primary keys are migrated in place, preservin
 The normal TestCRM Web E2E runner must be self-contained. It starts the shared TestCRM backend and Web host, waits for application readiness, executes the browser/DAP scenario, and cleans up only the processes it created.
 
 Manual pre-start of TestCRM Server or Web is not part of the normal E2E contract. This keeps Fast, Visual, CRM-only, and focused runtime validation reproducible from a single runner command.
+
+
+## ADR-028 — E2E timeout increases above 5 seconds require explicit approval
+
+**Status:** Accepted
+
+The default maximum wait timeout for DAP/TestCRM E2E synchronization is 5 seconds.
+
+A timeout failure must be treated first as evidence of a possible readiness, lifecycle, target-resolution, navigation, server-state, or synchronization defect. Increasing a timeout must not be used as the normal first response to a failing test, because it can hide the actual defect while only making failures slower.
+
+Before proposing any timeout above 5 seconds, the failing transition and its real readiness condition must be investigated. An increase above 5 seconds is a last-resort change only when there is concrete evidence that the underlying operation can legitimately require more than 5 seconds.
+
+**Any change that raises an E2E timeout above 5 seconds requires the user's explicit approval before implementation.** This applies even to temporary diagnostic changes. Polling intervals and intentionally human-paced Visual-mode delays are separate concerns and do not override this rule.
