@@ -85,9 +85,12 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
             var hwnd=GetWindow(mainHwnd,GW_ENABLEDPOPUP);
             return hwnd!=IntPtr.Zero && hwnd!=mainHwnd ? hwnd : IntPtr.Zero;
         },"modal dialog");
-        SetForegroundWindow(popup);
-        KeyPress(VK_RETURN);
-        WaitHandle(()=>GetWindow(mainHwnd,GW_ENABLEDPOPUP)==mainHwnd ? mainHwnd : IntPtr.Zero,"modal dialog dismissed");
+        SendMessage(popup,WM_COMMAND,new IntPtr(confirm ? IDYES : IDOK),IntPtr.Zero);
+        WaitHandle(()=>
+        {
+            var hwnd=GetWindow(mainHwnd,GW_ENABLEDPOPUP);
+            return hwnd==IntPtr.Zero || hwnd==mainHwnd ? mainHwnd : IntPtr.Zero;
+        },"modal dialog dismissed");
     }
 
     public Task SearchCustomer(string v){Set("CustomerNameSearch",v);Click(ById("SearchCustomersButton"));return Task.CompletedTask;}
@@ -137,7 +140,8 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
 
     static IntPtr WaitHandle(Func<IntPtr> f,string what,int timeout=10000){var sw=Stopwatch.StartNew();while(sw.ElapsedMilliseconds<timeout){var x=f();if(x!=IntPtr.Zero)return x;Thread.Sleep(100);}throw new TimeoutException($"Timed out waiting for {what}.");}
     static AutomationElement Wait(Func<AutomationElement?> f,string what,int timeout=10000){var sw=Stopwatch.StartNew();while(sw.ElapsedMilliseconds<timeout){var x=f();if(x!=null)return x;Thread.Sleep(100);}throw new TimeoutException($"Timed out waiting for {what}.");}
-    const uint GW_ENABLEDPOPUP=6;
+    const uint GW_ENABLEDPOPUP=6, WM_COMMAND=0x0111;
+    const int IDOK=1, IDYES=6;
     const int SM_XVIRTUALSCREEN=76, SM_YVIRTUALSCREEN=77, SM_CXVIRTUALSCREEN=78, SM_CYVIRTUALSCREEN=79;
     const byte VK_RETURN=0x0D;
     const byte VK_HOME=0x24;
@@ -146,6 +150,7 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     static void KeyPress(byte key){keybd_event(key,0,0,UIntPtr.Zero);keybd_event(key,0,KEYEVENTF_KEYUP,UIntPtr.Zero);}
     static void Mouse(){mouse_event(2,0,0,0,UIntPtr.Zero);mouse_event(4,0,0,0,UIntPtr.Zero);}
     [DllImport("user32.dll")] static extern IntPtr GetWindow(IntPtr hWnd,uint uCmd);
+    [DllImport("user32.dll")] static extern IntPtr SendMessage(IntPtr hWnd,uint msg,IntPtr wParam,IntPtr lParam);
     [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr hWnd);
     [DllImport("user32.dll")] static extern int GetSystemMetrics(int nIndex);
     [DllImport("user32.dll")] static extern bool SetCursorPos(int x,int y);
