@@ -229,7 +229,33 @@ async Task<IFrame> Content()
         catch(PlaywrightException) { }
         await page.WaitForTimeoutAsync(100);
     }
-    throw new Exception("Stable content iframe not found.");
+    var frameDiagnostics=new List<string>();
+    foreach(var liveFrame in page.Frames)
+    {
+        try
+        {
+            var ready=await liveFrame.Locator("html").GetAttributeAsync("data-dap-ready");
+            var appText=await liveFrame.Locator("#app").CountAsync()==1
+                ? (await liveFrame.Locator("#app").InnerTextAsync()).Replace(Environment.NewLine," ").Trim()
+                : "<no #app>";
+            if(appText.Length>160) appText=appText[..160]+"...";
+            frameDiagnostics.Add(
+                $"name='{liveFrame.Name}', detached={liveFrame.IsDetached}, url='{liveFrame.Url}', dapReady='{ready ?? "<null>"}', app='{appText}'");
+        }
+        catch(Exception ex) when(ex is PlaywrightException or TimeoutException)
+        {
+            frameDiagnostics.Add(
+                $"name='{liveFrame.Name}', detached={liveFrame.IsDetached}, url='{liveFrame.Url}', diagnostic='{ex.GetType().Name}: {ex.Message}'");
+        }
+    }
+
+    var currentCount=await page.Locator("#content-frame").CountAsync();
+    var nextCount=await page.Locator("#content-frame-next").CountAsync();
+    var oldCount=await page.Locator("#content-frame-old").CountAsync();
+    throw new Exception(
+        $"Stable content iframe not found within 5 seconds. " +
+        $"DOM iframe state: current={currentCount}, next={nextCount}, old={oldCount}.{Environment.NewLine}" +
+        $"Live frames:{Environment.NewLine}{string.Join(Environment.NewLine,frameDiagnostics)}");
 }
 async Task WaitReady()
 {
