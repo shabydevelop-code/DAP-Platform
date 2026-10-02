@@ -344,6 +344,19 @@ void DiagnoseNavigationGrids(AutomationElement window)
                     $"Name='{row.Current.Name}'; " +
                     $"IsOffscreen={row.Current.IsOffscreen}; " +
                     $"IsEnabled={row.Current.IsEnabled}");
+
+                var ancestors = new List<string>();
+                for (var current = TreeWalker.ControlViewWalker.GetParent(row);
+                     current is not null && ancestors.Count < 6;
+                     current = TreeWalker.ControlViewWalker.GetParent(current))
+                {
+                    ancestors.Add(
+                        $"{current.Current.ControlType?.ProgrammaticName ?? "<null>"}" +
+                        $"(AutomationId='{current.Current.AutomationId}',Name='{current.Current.Name}',IsOffscreen={current.Current.IsOffscreen})");
+                }
+                Console.WriteLine(
+                    $"[Windows UIA diagnostic] {gridId} row {i} ControlView ancestors: " +
+                    string.Join(" <- ", ancestors));
             }
         }
         catch (ElementNotAvailableException)
