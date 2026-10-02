@@ -1,81 +1,158 @@
 # DAP.TestCRM
 
-Permanent server-backed target application for DAP integration and end-to-end testing.
+Permanent server-backed CRM target application for DAP integration, end-to-end regression testing, manual learner walkthroughs, and realistic customer-facing demonstrations.
+
+It is a test target for DAP. It is not part of the DAP product runtime.
 
 ## Business model
 
 - Customer has many Sites.
 - Site has many Cases.
 - Site has many Leads.
-- Existing records can be opened and new Site/Case/Lead records can be created.
+- Existing records can be opened and edited.
+- New Customers, Sites, Cases, and Leads can be created through server-backed flows.
+- Sites, Cases, and Leads support real persisted updates; Cases and Leads also participate in the representative create/delete workflow.
 
-## Persistence and server behavior
+The representative DAP flow exercises the business path:
 
-- Data is persisted in SQLite at `testcrm.db`.
-- The database is created and seeded automatically on first run.
-- Browser screens read and write data through HTTP API requests.
-- Grid sorting is performed by the server using allow-listed sort fields and `ORDER BY`; clicking a grid header sends a new request with `sort` and `dir`.
-- Breadcrumbs are available throughout the application and always provide a route back to the customer portal.
+`Customer -> Site -> Case -> Lead`
 
-## Purpose
+while preserving and later re-resolving stable business context.
 
-This application deliberately contains behaviors a production DAP runtime must handle:
+## Persistence
 
-- Persistent server-backed data.
-- Asynchronous requests.
-- Dynamic DOM replacement after a server response.
-- Tab/content replacement.
-- Record navigation.
-- Server-sorted grids with selectable records.
-- Create/edit/save flows.
+DAP.TestCRM uses a real SQLite database rather than browser-only or in-memory state.
 
-It is a test target, not part of the DAP product runtime.
+The application resolves the database from its content root:
+
+```text
+test-apps/DAP.TestCRM/testcrm.db
+```
+
+On startup the server:
+
+1. Opens `testcrm.db`.
+2. Creates the required tables if they do not exist.
+3. Applies the small compatibility column additions currently required by Cases and Leads.
+4. Seeds the initial sample Customers, Sites, Cases, and Leads only when the Customers table is empty.
+
+Restarting the browser, DAP, or the CRM server does not normally reset saved business data. Once the database contains the seed/business records, startup does not overwrite them.
+
+The current persisted entities are:
+
+- `Customers`
+- `Sites`
+- `Cases`
+- `Leads`
+
+## Real server-backed save behavior
+
+Browser screens read and write data through HTTP API requests.
+
+Successful business saves execute real SQLite statements:
+
+- Create operations use `INSERT`.
+- Edit/save operations use `UPDATE`.
+- Delete operations use `DELETE`.
+- Reads and grids use `SELECT`.
+
+For example, saving an existing Case calls `PUT /api/cases/{id}`, performs server validation, and then updates the persisted Case fields in SQLite.
+
+A FieldChange is deliberately different from Save. FieldChange endpoints model a PeopleSoft-style server round trip and return dependent UI state, but they do not by themselves persist the edited record. Persistence occurs through the corresponding successful create/update request.
+
+Server validation can therefore reject a save while the browser preserves the learner's working values. Only a successful save changes the persisted record.
+
+## HTTP API
+
+The ASP.NET Core backend exposes business APIs for:
+
+- Customer search/read/create.
+- Site read/list/create/update/delete.
+- Case read/list/create/update/delete and Status FieldChange.
+- Lead read/list/create/update/delete and Status FieldChange.
+
+Grid sorting is performed by the server using allow-listed sort fields and SQL `ORDER BY`; clicking a supported grid header sends a new request with `sort` and `dir`.
 
 ## Run
 
+From the repository root:
+
 ```powershell
-cd test-apps\DAP.TestCRM
-dotnet run
+cd C:\yossi\ChatGpt\DAP-Platform
+dotnet run --project test-apps\DAP.TestCRM\DAP.TestCRM.csproj
 ```
 
-Open `http://localhost:5200`.
+The normal TestCRM address is:
 
+```text
+http://localhost:5200
+```
 
-## Realistic DAP demo and runtime scenarios
+The DAP E2E and manual learner launchers can also start/use TestCRM as part of their own workflows.
 
-DAP.TestCRM serves both as a permanent runtime test target and a credible customer-facing demo environment. Technical edge cases must be represented through realistic CRM behavior rather than artificial test controls.
+## Purpose and realism rule
 
-Reference flow: search for a customer, open a site, enter a server-backed grid, sort it, open a business record, trigger a server FieldChange, handle dependent fields and validation, save, return to the grid, and continue to another record.
+DAP.TestCRM is both a permanent runtime regression target and a credible CRM demo environment. Technical edge cases must be represented through plausible CRM behavior rather than artificial test controls.
 
-The CRM should progressively cover iframe/document replacement, server round trips, transient DOM replacement, repeated grid targets, conditional fields, targets that appear or disappear, scrolling to off-screen targets, modal overlays, server validation, target movement/re-sizing, and navigation between business contexts.
+The reference workflow includes customer search, Site navigation, server-backed grids, sorting, opening business records, FieldChange, dependent fields, server validation, save/update, navigation between business contexts, creation and deletion.
 
-Do not add test-only buttons or obviously artificial screens merely to exercise DAP. New runtime test cases should receive a plausible CRM business scenario whenever practical, so the same flows can be reused for regression testing, live demonstrations, and recorded customer-facing videos.
-
+Do not add test-only buttons or obviously artificial screens merely to exercise DAP. New runtime cases should receive a plausible CRM business scenario whenever practical so the same flow remains useful for regression testing, manual testing, live demonstrations, and recorded demos.
 
 ## Server round-trip feedback
 
-Server activity uses one consistent system-wide behavior:
+Server activity follows one consistent UX rule:
 
 - Keep the current CRM content visible whenever possible.
-- Show a compact spinner with "מעבד..." while the server request is active.
-- Do not show a generic "טוען..." placeholder during Content iframe reload/reconstruction.
+- Show a compact `מעבד...` spinner while the server request is active.
+- Do not replace the Content area with a generic loading placeholder during iframe reload/reconstruction.
 - Temporarily block duplicate interaction when necessary without visually hiding the business screen.
-- After context restoration, show transient success feedback for successful saves and the server-returned modal for validation/errors.
+- After context restoration, show transient success feedback for successful saves and the server-returned modal/validation state for rejected operations.
 
-The rule applies to all server-backed CRM actions, including search, sorting, FieldChange, save/update, delete, and validation.
+This applies to server-backed search, sorting, FieldChange, save/update, delete, and validation flows.
 
+Outside E2E fast mode the server currently includes a short artificial response delay so these round trips remain visible during manual/demo execution. Fast E2E bypasses that delay through its request mode.
 
-## PeopleSoft Web runtime scenario coverage
+## PeopleSoft-style runtime coverage
 
-The permanent CRM flow now includes concrete business-shaped scenarios for DAP Web target/context resolution:
+The permanent CRM currently provides business-shaped scenarios for DAP target/context resolution:
 
 - Case Status FieldChange can remove and restore the conditional Close Reason target.
-- Treatment Notes is disabled while a Case is Open and becomes enabled after a server-backed status transition.
-- The Cases grid contains repeated identical Open actions, each bound to a different business record.\n- Case-grid Open actions receive transient generated DOM IDs on each render; stable resolution must use business identity/context rather than those IDs.\n- Server-side Case sorting rebuilds and reorders the grid; the same Case is resolved again after it moves to another row.
-- Case history makes the record screen vertically scrollable and provides legitimate off-screen targets.
-- Conditional Close Reason and validation summaries change layout and move downstream targets.
-- Opening a Case from the grid replaces the Content iframe element, requiring frame and target re-resolution.\n- Case FieldChange performs a full Content-document reload while preserving the same logical Case route/context; reload alone is not a context transition.\n- The representative E2E leaves the created Case context for Leads and later returns to that exact Case by stable business identity.
-- Server validation inserts a validation summary, marks rejected fields, preserves working values, and then presents the server error modal.
+- Treatment Notes is disabled while a Case is Open and becomes enabled after the relevant server-backed status transition.
+- Cases grids contain repeated Open actions associated with different business records.
+- Case-grid Open actions receive transient generated DOM IDs on render, so stable DAP resolution must use business identity/context rather than those IDs.
+- Server-side sorting rebuilds and reorders grids, requiring target re-resolution.
+- Case history makes the record screen vertically scrollable and supplies legitimate off-screen targets.
+- Conditional fields and validation summaries change layout and move downstream targets.
+- Opening a Case from the grid can replace the Content iframe element, requiring frame and target re-resolution.
+- Case FieldChange can reload the Content document while preserving the same logical Case route/context; document reload alone is not treated as a business-context transition.
+- The representative workflow leaves the created Case context for Leads and later returns to the exact Case by stable business identity.
+- Server validation inserts a validation summary, marks rejected fields, preserves working values, and presents the returned error modal.
+- CRM tab switching and cross-frame navigation exercise context preservation across Header and Content frames.
+- Conditional target disappearance/reappearance, layout shifts, consecutive server updates, and explicit business-context switching are exercised through the representative scenario.
+- Lead creation includes server-backed FieldChange and conditional validation.
+- The representative workflow includes dynamic Lead deletion and Case deletion.
 
-These are permanent regression/demo scenarios. They must remain realistic CRM behavior rather than test-only controls.
-\nThe representative E2E now asserts generated-ID churn, server grid reorder, full Content-document reload with preserved Case context, frame re-resolution, and leave/return re-resolution. Duplicate-event/idempotency behavior is intentionally not claimed yet; it requires a production runtime event model rather than an artificial CRM-only control.\n
+## Representative DAP regression scenario
+
+The current persisted DAP TestCRM Guide contains 53 Steps and is exercised against ten representative PeopleSoft-style scenarios:
+
+1. Case status FieldChange + Content iframe replacement.
+2. Case validation failure + preservation of unsaved values.
+3. Grid rerender/reorder + target re-resolution.
+4. Full page reload + business context preservation.
+5. CRM tab switching + business context preservation.
+6. Conditional target disappearance/reappearance + re-resolution.
+7. Cross-frame navigation from Header to Content.
+8. Layout shift + target re-resolution.
+9. Consecutive server updates + final-state re-resolution.
+10. Business context switch + target isolation.
+
+The same representative run covers the complete Customer -> Site -> Case -> Lead workflow, including Lead creation, FieldChange/conditional validation, dynamic Lead deletion, and Case deletion.
+
+These scenarios must continue to exercise user-visible application behavior and generic DAP runtime mechanisms. TestCRM-specific workarounds must not be introduced merely to make a DAP test pass.
+
+## Current boundary
+
+DAP.TestCRM is intentionally more realistic than a static test page, but it remains a focused test/demo CRM rather than a production CRM product. Its job is to provide deterministic, persistent, server-backed business behavior against which the DAP runtime can be validated.
+
+Duplicate-event/idempotency behavior is not claimed as a completed scenario yet; it requires the corresponding production runtime event model rather than an artificial CRM-only control.
