@@ -16,8 +16,8 @@ try
     while(sw.ElapsedMilliseconds<30000 && window is null){window=AutomationElement.RootElement.FindFirst(TreeScope.Children,new PropertyCondition(AutomationElement.NameProperty,appTitle));if(window is null)Thread.Sleep(100);}
     if(window is null)throw new TimeoutException("Timed out waiting for Windows TestCRM main window.");
 
-    await CanonicalCrmScenario.RunCoreAsync(new WindowsCrmScenarioDriver(app,window));
-    Console.WriteLine("PASS: Windows CRM-only canonical Customer -> Site -> Case -> Lead core scenario completed.");
+    await CanonicalCrmScenario.Run53Async(new WindowsCrmScenarioDriver(app,window));
+    Console.WriteLine("PASS: Windows CRM-only canonical 53-step Customer -> Site -> Case -> Lead scenario completed.");
 }
 finally
 {
