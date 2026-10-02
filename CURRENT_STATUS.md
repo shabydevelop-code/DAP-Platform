@@ -573,3 +573,13 @@ The old combined root `DAP.TestCRM.csproj` and root launch profile were removed 
 - The runner owns `DAP.TestCRM.Server` on `http://localhost:5201` and `DAP.TestCRM.Web` on `http://localhost:5200`, waits for the Web host to become ready, and then runs the browser/DAP scenario.
 - E2E cleanup now terminates and disposes both the owned Web host and backend process trees in addition to the owned DAP process.
 - A normal full Web E2E run therefore no longer requires manually starting TestCRM servers in separate terminals.
+
+
+## Verified post-migration Web baseline — 2026-10-02
+- Local `DAP.Data.Sqlite.Tests` verification: `DAP SQLite guide persistence and legacy ID migration: PASS`.
+- The real DAP database at `C:\ProgramData\DAP\Data\DAP.db` was migrated successfully and the canonical Web Guide was reset as `testcrm-web-canonical-workflow` with 53 Steps.
+- The full canonical Web E2E passed after the persistence migration: `PASS: representative Customer -> Site -> Case -> Lead workflow, including dynamic Lead deletion and Case deletion, completed.`
+- The Web E2E runner was then changed to start and clean up TestCRM Server + Web itself.
+- A second full canonical Web E2E run passed with this self-contained topology, confirming that no separately pre-started TestCRM server terminals are required.
+- Current stable Web baseline: numeric persistence IDs + stable textual keys + 53-Step persisted Guide + self-contained full E2E PASS.
+- Next planned runtime milestone: Windows Learner Runtime, starting with persisted Windows Steps 1–2, production UIA target resolution, and real learner bubbles using the same DAP database architecture.
