@@ -13,5 +13,6 @@
     <ProjectReference Include="../DAP.Data/DAP.Data.csproj" />
     <ProjectReference Include="../DAP.Data.Sqlite/DAP.Data.Sqlite.csproj" />
     <ProjectReference Include="../DAP.Runtime.Web/DAP.Runtime.Web.csproj" />
+    <ProjectReference Include="../DAP.Runtime.Windows/DAP.Runtime.Windows.csproj" />
   </ItemGroup>
 </Project>
