@@ -174,35 +174,38 @@ async Task RunGuidedAsync()
 
         var driver = new WindowsCrmScenarioDriver(windowsApp, window);
 
-        WaitForBubble("חפש את הלקוח: אלפא פתרונות בע\"מ", dap);
+        string BubbleFor(string stepId) =>
+            persistedSteps.Single(step => step.Id == stepId).Bubble.Content;
+
+        WaitForBubble(BubbleFor("testcrm-windows-customer-name"), dap);
         await driver.SetCustomerSearch("אלפא פתרונות בע\"מ");
 
-        WaitForBubble("לחץ על חיפוש", dap);
+        WaitForBubble(BubbleFor("testcrm-windows-customer-search-button"), dap);
         await driver.SubmitCustomerSearch();
 
-        WaitForBubble("פתח את הלקוח מתוצאות החיפוש", dap);
+        WaitForBubble(BubbleFor("testcrm-windows-customer-result"), dap);
         await driver.OpenFirstCustomer();
         DiagnoseNavigationGrids(window);
 
-        WaitForBubble("פתח את האתר הראשון של הלקוח", dap);
+        WaitForBubble(BubbleFor("testcrm-windows-site-row"), dap);
         await driver.OpenFirstSite();
 
-        WaitForBubble("עבור ללשונית פניות", dap);
+        WaitForBubble(BubbleFor("testcrm-windows-cases-tab"), dap);
         await driver.OpenCases();
 
-        WaitForBubble("מיין את הפניות לפי סטטוס", dap);
+        WaitForBubble(BubbleFor("testcrm-windows-sort-cases"), dap);
         await driver.SortCasesByStatus();
 
-        WaitForBubble("צור פנייה חדשה", dap);
+        WaitForBubble(BubbleFor("testcrm-windows-new-case"), dap);
         await driver.CreateCase();
 
-        WaitForBubble("הקלד את נושא הפנייה", dap);
+        WaitForBubble(BubbleFor("testcrm-windows-case-subject"), dap);
         await driver.SetCaseSubject("תקלה בחיבור לאינטרנט");
 
-        WaitForBubble("תאר את הפנייה", dap);
+        WaitForBubble(BubbleFor("testcrm-windows-case-description"), dap);
         await driver.SetCaseDescription("הלקוח מדווח על חיבור לא יציב.");
 
-        WaitForBubble("שמור את הפנייה החדשה", dap);
+        WaitForBubble(BubbleFor("testcrm-windows-save-new-case"), dap);
         await driver.SaveCase();
 
         if (!dap.WaitForExit(15_000))
