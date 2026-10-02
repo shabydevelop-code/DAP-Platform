@@ -16,12 +16,12 @@ namespace DAP.App;
 
 public static class DapApplicationHost
 {
+    private static void StartupMark(Stopwatch timer, string stage)
+        => Console.Error.WriteLine($"[DAP startup] {timer.Elapsed.TotalMilliseconds:F0} ms - {stage}");
+
     public static async Task<int> RunAsync(string[] args, CancellationToken cancellationToken = default)
     {
         var startup = Stopwatch.StartNew();
-        static void StartupMark(Stopwatch timer, string stage)
-            => Console.Error.WriteLine($"[DAP startup] {timer.Elapsed.TotalMilliseconds:F0} ms - {stage}");
-
         StartupMark(startup, "host entered");
         var options = DapLaunchOptions.Parse(args);
         if (options is null)
