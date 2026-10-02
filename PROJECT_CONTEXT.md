@@ -229,3 +229,14 @@ These are authoring semantics, not TestCRM/Grid-specific Runtime concepts. Core/
 - Connected GitHub account `shabydevelop-code` has verified repository permissions: `admin=true`, `maintain=true`, `pull=true`, `push=true`, `triage=true`.
 - In new chats, do not assume repository access is read-only. When write capability matters, verify permissions from repository metadata before concluding that write access is unavailable.
 - DAP development may read and write this repository through the connected GitHub tools unless verified repository permissions change.
+
+
+## TestCRM refactor verification and database separation (2026-10-02)
+- The TestCRM refactor to `Server/`, `Web/`, and `data/` was pulled and verified locally.
+- TestCRM starts successfully on `http://localhost:5200` after the WebRoot fix.
+- The representative `Customer -> Site -> Case -> Lead` E2E workflow passes after the refactor, including dynamic Lead deletion and Case deletion.
+- `tests/DAP.Data.Sqlite.Tests` contains infrastructure tests for DAP's SQLite persistence layer; it is not a TestCRM application/test-data directory and should remain under `tests/`.
+- DAP product persistence and TestCRM business persistence are intentionally separate:
+  - DAP product data: default `%ProgramData%\\DAP\\Data\\DAP.db` (or `DAP_DATABASE_PATH`).
+  - TestCRM business data: `test-apps/DAP.TestCRM/data/testcrm.db`.
+- Do not merge these databases: TestCRM is an external target/demo application, while `DAP.db` stores DAP guides, steps, targets, bubble/validation configuration, and related product state.
