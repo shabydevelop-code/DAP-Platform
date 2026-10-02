@@ -477,3 +477,10 @@ Web `clicked` validation no longer stores completion in the guided application's
 - Manual verification after the cursor stabilization confirmed the drag interaction works as intended.
 - Relevant commits in this sequence: `81d2ae2`, `bb49a06`, `e2abeac`, `2d766c0`, `d6b0383`, `70af73f`, `afe49cd`, `b753033`, `4523342`, `2c688dc`, `5099256`, `ea9dbeb`, `d0ba364`, `29a07af`, `ab82b10`.
 - Full normal automated 53-Step E2E has not yet been re-run after this complete UX/drag-handle sequence; the earlier cross-browser baseline remains historical until that regression run is repeated.
+
+## GitHub repository access
+
+- Canonical repository: `shabydevelop-code/DAP-Platform`.
+- Connected GitHub account `shabydevelop-code` has verified repository permissions: `admin=true`, `maintain=true`, `pull=true`, `push=true`, `triage=true`.
+- In new chats, do not assume repository access is read-only. When write capability matters, verify permissions from repository metadata before concluding that write access is unavailable.
+- DAP development may read and write this repository through the connected GitHub tools unless verified repository permissions change.
