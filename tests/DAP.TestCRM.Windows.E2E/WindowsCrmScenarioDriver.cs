@@ -350,10 +350,34 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     public Task SetLeadContact(string v){Set("LeadContactName",v);return Task.CompletedTask;}
     public Task SaveLead()
     {
+        var wasPersisted=window.FindFirst(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteLeadButton")) is not null;
         Click(ById("SaveLeadButton"));
-        var deleteButton=window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteLeadButton"));
-        if(deleteButton is null)
-            Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteLeadButton")),"persisted Lead form after Save");
+
+        if(!wasPersisted)
+            Wait(()=>window.FindFirst(TreeScope.Descendants,
+                new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteLeadButton")),"persisted Lead form after Save");
+        else
+        {
+            // Do not treat the existing DeleteLeadButton as proof that Save finished:
+            // it belongs to the old form while SaveLeadAsync is still awaiting ShowLead.
+            // Wait for either canonical validation (Step 32) or for Safe() to finish
+            // the successful save/reload (Step 35) and clear StatusText.
+            var mainHwnd=new IntPtr(window.Current.NativeWindowHandle);
+            Wait(()=>
+            {
+                var popup=GetWindow(mainHwnd,GW_ENABLEDPOPUP);
+                if(popup!=IntPtr.Zero && popup!=mainHwnd && IsWindowVisible(popup))
+                    return window;
+
+                var delete=window.FindFirst(TreeScope.Descendants,
+                    new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteLeadButton"));
+                var status=window.FindFirst(TreeScope.Descendants,
+                    new PropertyCondition(AutomationElement.AutomationIdProperty,"StatusText"));
+                return delete is not null && status is not null && string.IsNullOrEmpty(status.Current.Name)
+                    ? delete : null;
+            },"Lead save validation or completed form");
+        }
         return Task.CompletedTask;
     }
     public Task SetLeadStatus(string v){Select("LeadStatus",v);return Task.CompletedTask;}
