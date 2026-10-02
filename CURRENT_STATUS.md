@@ -566,3 +566,10 @@ The old combined root `DAP.TestCRM.csproj` and root launch profile were removed 
 - Repository APIs continue to accept the stable textual Guide key, so runtime launch semantics do not expose database row IDs.
 - The canonical TestCRM Web Guide key is now `testcrm-web-canonical-workflow`; the E2E harness migrates the previous `testcrm-create-case` key in place and assigns the display name `TestCRM Web Canonical Workflow`.
 - `DAP.Data.Sqlite.Tests` now covers both a fresh numeric-ID round trip and migration from the legacy TEXT-ID schema.
+
+
+## Self-contained TestCRM Web E2E startup — 2026-10-02
+- The normal TestCRM Web E2E runner now starts both required TestCRM processes itself in every execution mode, not only in `--manual-from-step`.
+- The runner owns `DAP.TestCRM.Server` on `http://localhost:5201` and `DAP.TestCRM.Web` on `http://localhost:5200`, waits for the Web host to become ready, and then runs the browser/DAP scenario.
+- E2E cleanup now terminates and disposes both the owned Web host and backend process trees in addition to the owned DAP process.
+- A normal full Web E2E run therefore no longer requires manually starting TestCRM servers in separate terminals.
