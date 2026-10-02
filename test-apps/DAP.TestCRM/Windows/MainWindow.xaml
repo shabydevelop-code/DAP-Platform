@@ -24,7 +24,28 @@
             </Grid.ColumnDefinitions>
 
             <GroupBox Header="לקוחות" Margin="0,0,10,0">
-                <DataGrid x:Name="CustomersGrid" AutomationProperties.AutomationId="CustomersGrid"
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Grid Margin="8,8,8,10">
+                        <Grid.RowDefinitions><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                        <TextBox x:Name="CustomerNameSearchBox" AutomationProperties.AutomationId="CustomerNameSearch"
+                                 Margin="0,0,6,6" ToolTip="שם לקוח"/>
+                        <TextBox x:Name="CustomerPhoneSearchBox" AutomationProperties.AutomationId="CustomerPhoneSearch"
+                                 Grid.Column="1" Margin="0,0,6,6" ToolTip="טלפון"/>
+                        <TextBox x:Name="CustomerEmailSearchBox" AutomationProperties.AutomationId="CustomerEmailSearch"
+                                 Grid.Column="2" Margin="0,0,0,6" ToolTip="דוא&quot;ל"/>
+                        <StackPanel Grid.Row="1" Grid.ColumnSpan="3" Orientation="Horizontal" HorizontalAlignment="Right">
+                            <Button x:Name="ClearCustomerSearchButton" AutomationProperties.AutomationId="ClearCustomerSearchButton"
+                                    Content="נקה" Width="80" Margin="0,0,8,0" Click="ClearCustomerSearchButton_Click"/>
+                            <Button x:Name="SearchCustomersButton" AutomationProperties.AutomationId="SearchCustomersButton"
+                                    Content="חפש" Width="90" IsDefault="True" Click="SearchCustomersButton_Click"/>
+                        </StackPanel>
+                    </Grid>
+                <DataGrid Grid.Row="1" x:Name="CustomersGrid" AutomationProperties.AutomationId="CustomersGrid"
                           AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single"
                           SelectionChanged="CustomersGrid_SelectionChanged">
                     <DataGrid.Columns>
@@ -34,6 +55,7 @@
                         <DataGridTextColumn Header="דוא&quot;ל" Binding="{Binding Email}" Width="190"/>
                     </DataGrid.Columns>
                 </DataGrid>
+                </Grid>
             </GroupBox>
 
             <TabControl Grid.Column="1" x:Name="DetailsTabs" AutomationProperties.AutomationId="DetailsTabs">
