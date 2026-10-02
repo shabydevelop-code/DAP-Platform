@@ -154,7 +154,7 @@ async Task RunGuidedAsync()
 
         dap = StartProcess(
             "dotnet",
-            $"run --project \"{dapProject}\" --no-launch-profile -- " +
+            $"run --project \"{dapProject}\" --no-launch-profile --no-build -- " +
             $"--learner-windows {DapTestCrmWindowsGuideSeed.GuideId} " +
             $"--window-automation-id {mainWindowAutomationId}");
 
