@@ -207,12 +207,14 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
             foreach(var row in grid.FindAll(TreeScope.Descendants,
                 new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.DataItem)).Cast<AutomationElement>())
             {
-                var values=row.FindAll(TreeScope.Descendants,Condition.TrueCondition)
-                    .Cast<AutomationElement>()
-                    .Select(x=>x.Current.Name?.Trim())
-                    .Where(x=>!string.IsNullOrEmpty(x));
-                if(values.Any(x=>string.Equals(x,value,StringComparison.Ordinal)))
-                    return row;
+                foreach(var cell in row.FindAll(TreeScope.Descendants,Condition.TrueCondition).Cast<AutomationElement>())
+                {
+                    if(string.Equals(cell.Current.Name?.Trim(),value,StringComparison.Ordinal))
+                        return row;
+                    if(cell.TryGetCurrentPattern(ValuePattern.Pattern,out var pattern) &&
+                       string.Equals(((ValuePattern)pattern).Current.Value?.Trim(),value,StringComparison.Ordinal))
+                        return row;
+                }
             }
             return null;
         },$"{gridId} row containing '{value}'");
@@ -221,10 +223,7 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     public Task OpenCreatedCase()
     {
         if(string.IsNullOrWhiteSpace(createdCaseId))throw new Exception("Created Case id is not known.");
-        var rowId=$"CasesGridRow_{createdCaseId}";
-        var row=Wait(()=>window.FindFirst(TreeScope.Descendants,
-            new PropertyCondition(AutomationElement.AutomationIdProperty,rowId)),rowId);
-        Click(row,true);
+        Click(RowByCellText("CasesGrid",createdCaseId),true);
         Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteCaseButton")),"created Case form");
         if(CurrentCaseId()!=createdCaseId)throw new Exception($"Expected created Case {createdCaseId}, but another Case was opened.");
         return Task.CompletedTask;
