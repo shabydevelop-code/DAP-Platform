@@ -505,14 +505,21 @@ async Task WaitForGuideStep(int order)
 {
     var expected=dapSteps.Single(step=>step.Order==order);
 
-    if(order!=lastScenarioGuideOrder+1)
+    // The harness may wait for the same active Guide Step more than once:
+    // first to synchronize a preceding transition, then again immediately
+    // before performing that Step's learner action. Repeating the current Step
+    // is valid; skipping forward or moving backward is not.
+    if(order<lastScenarioGuideOrder || order>lastScenarioGuideOrder+1)
         throw new Exception(
-            $"Canonical Web scenario requested Guide Step {order} after Step {lastScenarioGuideOrder}; expected {lastScenarioGuideOrder+1}.");
-    lastScenarioGuideOrder=order;
+            $"Canonical Web scenario requested Guide Step {order} after Step {lastScenarioGuideOrder}; expected Step {lastScenarioGuideOrder} or {lastScenarioGuideOrder+1}.");
+    var advancedSequence=order==lastScenarioGuideOrder+1;
+    if(advancedSequence)
+        lastScenarioGuideOrder=order;
 
     if(crmOnly)
     {
-        Console.WriteLine($"Web CRM-only Guide Step {order}/{dapSteps.Count}: {expected.Id}");
+        if(advancedSequence)
+            Console.WriteLine($"Web CRM-only Guide Step {order}/{dapSteps.Count}: {expected.Id}");
         return;
     }
     for(var i=0;i<100;i++)
