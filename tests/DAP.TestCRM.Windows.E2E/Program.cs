@@ -36,15 +36,25 @@ if (args.Contains("--reset-guide", StringComparer.OrdinalIgnoreCase))
     return;
 }
 
-if (args.Contains("--crm-only-guide", StringComparer.OrdinalIgnoreCase))
+var unguided =
+    args.Contains("--unguided", StringComparer.OrdinalIgnoreCase) ||
+    args.Contains("--crm-only-guide", StringComparer.OrdinalIgnoreCase);
+var guided =
+    args.Contains("--guided", StringComparer.OrdinalIgnoreCase) ||
+    args.Contains("--dap-first-ten", StringComparer.OrdinalIgnoreCase);
+
+if (unguided && guided)
+    throw new ArgumentException("--guided and --unguided cannot be combined.");
+
+if (unguided)
 {
-    await RunPersistedCrmOnlyAsync();
+    await RunPersistedUnguidedAsync();
     return;
 }
 
-if (args.Contains("--dap-first-ten", StringComparer.OrdinalIgnoreCase))
+if (guided)
 {
-    await RunDapFirstTenAsync();
+    await RunGuidedAsync();
     return;
 }
 
@@ -67,7 +77,7 @@ finally
     StopOwnedProcessTree(app);
 }
 
-async Task RunPersistedCrmOnlyAsync()
+async Task RunPersistedUnguidedAsync()
 {
     var databaseOptions = SqliteDatabaseOptions.CreateDefault();
     var factory = new SqliteConnectionFactory(databaseOptions);
@@ -101,7 +111,7 @@ async Task RunPersistedCrmOnlyAsync()
 
         WaitForElementById(window, "DeleteCaseButton", 5_000);
         Console.WriteLine(
-            $"PASS: Windows CRM-only executed {persistedSteps.Count} persisted Guide Steps from DAP.db without DAP.exe or bubbles.");
+            $"PASS: Windows unguided executed {persistedSteps.Count} persisted Guide Steps from DAP.db without DAP.exe or bubbles.");
     }
     finally
     {
@@ -110,7 +120,7 @@ async Task RunPersistedCrmOnlyAsync()
     }
 }
 
-async Task RunDapFirstTenAsync()
+async Task RunGuidedAsync()
 {
     var databaseOptions = SqliteDatabaseOptions.CreateDefault();
     var factory = new SqliteConnectionFactory(databaseOptions);
