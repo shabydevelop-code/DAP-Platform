@@ -136,14 +136,25 @@ public sealed class WindowsGuideRuntime
                 var target = resolution.Target;
                 targetWasResolved = true;
 
-                if (clicked
-                    && (preExistingTarget is null || !SameElement(preExistingTarget, target)))
-                {
+                var sameAsPreExisting = clicked
+                    && preExistingTarget is not null
+                    && SameElement(preExistingTarget, target);
+                if (clicked && !sameAsPreExisting)
                     clickedDisappearanceFallbackArmed = true;
+
+                if (step.Id == "testcrm-windows-back-to-cases")
+                {
+                    Console.Error.WriteLine(
+                        $"[DAP Windows guide diagnostic] Step '{step.Id}' resolved; " +
+                        $"sameAsPreExisting={sameAsPreExisting}; " +
+                        $"fallbackArmed={clickedDisappearanceFallbackArmed}; " +
+                        $"target={DescribeTarget(target)}");
                 }
 
                 if (!HasVisibleBounds(target))
                 {
+                    if (step.Id == "testcrm-windows-back-to-cases")
+                        Console.Error.WriteLine($"[DAP Windows guide diagnostic] Step '{step.Id}' target has no visible bounds.");
                     await _bubbles.HideAsync();
                     await Task.Delay(_pollInterval, cancellationToken);
                     continue;
@@ -164,9 +175,17 @@ public sealed class WindowsGuideRuntime
                         TreeScope.Element,
                         clickHandler);
                     subscribedTarget = target;
+                    if (step.Id == "testcrm-windows-back-to-cases")
+                        Console.Error.WriteLine($"[DAP Windows guide diagnostic] Step '{step.Id}' subscribed to Invoke.");
                 }
 
+                if (step.Id == "testcrm-windows-back-to-cases")
+                    Console.Error.WriteLine($"[DAP Windows guide diagnostic] Step '{step.Id}' showing bubble.");
+
                 await _bubbles.ShowAsync(target, step, stepNumber, totalSteps, cancellationToken);
+
+                if (step.Id == "testcrm-windows-back-to-cases")
+                    Console.Error.WriteLine($"[DAP Windows guide diagnostic] Step '{step.Id}' bubble shown.");
 
                 if (clicked)
                 {
