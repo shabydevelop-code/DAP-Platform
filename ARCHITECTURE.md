@@ -30,6 +30,8 @@ DAP.exe (.NET 8 / WPF)
 
 ## Repository structure
 
+Current implemented production/test projects:
+
 ```text
 src/
   DAP.App/
@@ -37,18 +39,19 @@ src/
   DAP.Data/
   DAP.Data.Sqlite/
   DAP.Runtime.Web/
-  DAP.Runtime.Windows/
+
+test-apps/
+  DAP.TestCRM/
 
 tests/
-  DAP.Core.Tests/
-  DAP.Web.Tests/
-  DAP.Windows.Tests/
-  DAP.Integration.Tests/
+  DAP.Data.Sqlite.Tests/
+  DAP.TestCRM.E2E/
 
-docs/
+scripts/
+  run-testcrm-learner.ps1
 ```
 
-Dependencies must point inward toward Core abstractions.
+`DAP.Runtime.Windows` and broader Windows/UIA test projects belong to the target architecture but are not implemented in the current repository baseline. Dependencies must continue to point inward toward Core abstractions.
 
 ## Desktop application
 
@@ -104,6 +107,18 @@ Responsibilities include:
 - Treat the frame path as part of Web target context. A target may live in a different iframe from surrounding application chrome, and both the frame and target must be re-resolved after refresh/replacement.
 - Support multi-frame server applications where persistent header/navigation and active business content are hosted in separate iframes.
 - Provide Web recording/target-capture capabilities required by Editor.
+
+### Bubble presentation surface vs target surface
+
+The document/frame that owns a resolved Web target is not necessarily capable of displaying the learner bubble. A constrained child iframe may correctly contain the target while physically clipping any bubble positioned outside its small viewport.
+
+Target identity and validation remain bound to the original resolved element and frame. Presentation alone may be promoted to the top-level page when the owning child frame cannot display the bubble. The current Web Runtime represents this promoted surface with `#dap-guide-bubble-proxy`.
+
+Promotion is a generic presentation mechanism, not a target-resolution change and not a TestCRM/Step-specific workaround. A promoted bubble remains a real learner surface: it is interactive, must not pass clicks through to the underlying target, and follows the same learner interaction contract as a normal bubble.
+
+Regular, promoted, and completion bubbles expose an explicit `⠿` drag handle. Only the visible handle starts dragging. Normal bubble content uses the default cursor, handle hover uses `grab`, and active dragging uses `grabbing`.
+
+Guide completion is presented as a top-level completion bubble with an explicit `סיום` action. The Runtime waits for the learner's real click. Finishing the Guide ends the Guide/runtime flow but does not imply closing the target business browser.
 
 ### Server-backed Web context rule
 
