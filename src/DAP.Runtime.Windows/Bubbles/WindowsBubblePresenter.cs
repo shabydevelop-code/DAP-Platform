@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Runtime.InteropServices;
 using DAP.Core.Guides;
 
 namespace DAP.Runtime.Windows.Bubbles;
@@ -19,9 +20,16 @@ public sealed class WindowsBubblePresenter
         int totalSteps,
         CancellationToken cancellationToken)
     {
-        var rect = target.Current.BoundingRectangle;
-        if (rect.IsEmpty || rect.Width <= 0 || rect.Height <= 0)
+        var physicalRect = target.Current.BoundingRectangle;
+        if (physicalRect.IsEmpty || physicalRect.Width <= 0 || physicalRect.Height <= 0)
             throw new InvalidOperationException($"Windows target '{step.Id}' has no visible bounds.");
+
+        var scale = GetTargetScale(target);
+        var rect = new Rect(
+            physicalRect.Left / scale,
+            physicalRect.Top / scale,
+            physicalRect.Width / scale,
+            physicalRect.Height / scale);
 
         await Application.Current.Dispatcher.InvokeAsync(() =>
         {
@@ -75,6 +83,26 @@ public sealed class WindowsBubblePresenter
                 _window.Hide();
         });
     }
+
+    private static double GetTargetScale(AutomationElement target)
+    {
+        var walker = TreeWalker.ControlViewWalker;
+        for (AutomationElement? current = target; current is not null; current = walker.GetParent(current))
+        {
+            var handle = new IntPtr(current.Current.NativeWindowHandle);
+            if (handle == IntPtr.Zero)
+                continue;
+
+            var dpi = GetDpiForWindow(handle);
+            if (dpi > 0)
+                return dpi / 96d;
+        }
+
+        return 1d;
+    }
+
+    [DllImport("user32.dll")]
+    private static extern uint GetDpiForWindow(IntPtr hwnd);
 
     private void EnsureWindow()
     {
