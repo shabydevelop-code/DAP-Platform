@@ -49,8 +49,7 @@ public sealed class WindowsTargetResolver
         // invert the search: locate the narrow ancestor scope first, then the identifying
         // descendant, and walk upward to the primary target. This avoids enumerating every
         // primary candidate and issuing one descendant UIA query per candidate.
-        if (TryResolveFromAnchors(root, descriptor, out var anchorFirstCandidates)
-            && anchorFirstCandidates.Count > 0)
+        if (TryResolveFromAnchors(root, descriptor, out var anchorFirstCandidates))
         {
             stopwatch.Stop();
             if (stopwatch.ElapsedMilliseconds >= 100)
@@ -61,8 +60,12 @@ public sealed class WindowsTargetResolver
                     $"elapsed={stopwatch.ElapsedMilliseconds} ms, cpu={(process.TotalProcessorTime - cpuStarted).TotalMilliseconds:F0} ms.");
             }
 
+            // If the descriptor qualifies for anchor-first resolution, that strategy is
+            // authoritative for this attempt. A temporary miss means NotFound and should
+            // be retried by the runtime; do not fall through to the expensive broad scan.
             return anchorFirstCandidates.Count switch
             {
+                0 => TargetResolution<AutomationElement>.NotFound(),
                 1 => TargetResolution<AutomationElement>.Resolved(anchorFirstCandidates[0]),
                 _ => TargetResolution<AutomationElement>.Ambiguous(anchorFirstCandidates.Count)
             };
