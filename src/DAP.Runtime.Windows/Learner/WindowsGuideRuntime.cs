@@ -214,7 +214,10 @@ public sealed class WindowsGuideRuntime
                 if (clicked)
                 {
                     if (clickCompleted.Task.IsCompleted)
+                    {
+                        FinalizeCapture(windowRoot, step, capturedValues);
                         return;
+                    }
                 }
                 else if (targetDisappeared)
                 {
@@ -251,6 +254,19 @@ public sealed class WindowsGuideRuntime
             }
             await _bubbles.HideAsync();
         }
+    }
+
+    private void FinalizeCapture(AutomationElement windowRoot, GuideStep step, IDictionary<string, string> capturedValues)
+    {
+        if (step.Capture is null)
+            return;
+
+        var value = ResolveCapture(windowRoot, step.Capture);
+        if (value is null)
+            return;
+
+        capturedValues[step.Id] = value;
+        Console.Error.WriteLine($"[DAP Windows guide] finalized runtime capture for Step '{step.Id}' as '{value}'.");
     }
 
     private string? ResolveCapture(AutomationElement windowRoot, StepCaptureDefinition capture)
