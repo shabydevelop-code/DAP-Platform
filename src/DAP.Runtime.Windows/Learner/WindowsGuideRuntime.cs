@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.RegularExpressions;
 using System.Windows.Automation;
 using DAP.Core.Guides;
@@ -108,15 +109,31 @@ public sealed class WindowsGuideRuntime
         AutomationEventHandler? clickHandler = null;
         AutomationElement? subscribedTarget = null;
         string? lastTargetDisappearedDiagnostic = null;
+        var stepStopwatch = Stopwatch.StartNew();
+        var resolutionAttempt = 0;
+        var targetFirstResolvedLogged = false;
+
+        Console.Error.WriteLine(
+            $"[DAP Windows step timing] Step {stepNumber}/{totalSteps} '{step.Id}' entered at +0 ms.");
 
         try
         {
             while (!cancellationToken.IsCancellationRequested)
             {
                 TargetResolution<AutomationElement> resolution;
+                var resolutionStopwatch = Stopwatch.StartNew();
+                resolutionAttempt++;
                 try
                 {
                     resolution = _resolver.Resolve(windowRoot, step.Target!);
+                    resolutionStopwatch.Stop();
+                    if (resolutionStopwatch.ElapsedMilliseconds >= 100)
+                    {
+                        Console.Error.WriteLine(
+                            $"[DAP Windows step timing] Step '{step.Id}' resolution attempt {resolutionAttempt} " +
+                            $"status={resolution.Status}, duration={resolutionStopwatch.ElapsedMilliseconds} ms, " +
+                            $"stepElapsed={stepStopwatch.ElapsedMilliseconds} ms.");
+                    }
                 }
                 catch (ElementNotAvailableException)
                 {
@@ -146,6 +163,14 @@ public sealed class WindowsGuideRuntime
 
                 var target = resolution.Target;
                 targetWasResolved = true;
+
+                if (!targetFirstResolvedLogged)
+                {
+                    targetFirstResolvedLogged = true;
+                    Console.Error.WriteLine(
+                        $"[DAP Windows step timing] Step '{step.Id}' target first resolved at " +
+                        $"+{stepStopwatch.ElapsedMilliseconds} ms after {resolutionAttempt} attempt(s).");
+                }
 
                 var sameAsPreExisting = clicked
                     && preExistingTarget is not null
@@ -177,7 +202,12 @@ public sealed class WindowsGuideRuntime
 
                 if (!HasVisibleBounds(target))
                 {
+                    var scrollStartedAt = stepStopwatch.ElapsedMilliseconds;
                     TryScrollIntoView(target);
+                    Console.Error.WriteLine(
+                        $"[DAP Windows step timing] Step '{step.Id}' ScrollIntoView finished at " +
+                        $"+{stepStopwatch.ElapsedMilliseconds} ms " +
+                        $"(duration={stepStopwatch.ElapsedMilliseconds - scrollStartedAt} ms).");
                     if (!HasVisibleBounds(target))
                     {
                         if (step.Id == "testcrm-windows-back-to-cases")
@@ -210,7 +240,12 @@ public sealed class WindowsGuideRuntime
                 if (step.Id == "testcrm-windows-back-to-cases")
                     Console.Error.WriteLine($"[DAP Windows guide diagnostic] Step '{step.Id}' showing bubble.");
 
+                var bubbleStartedAt = stepStopwatch.ElapsedMilliseconds;
                 await _bubbles.ShowAsync(target, step, stepNumber, totalSteps, cancellationToken);
+                Console.Error.WriteLine(
+                    $"[DAP Windows step timing] Step '{step.Id}' bubble shown at " +
+                    $"+{stepStopwatch.ElapsedMilliseconds} ms " +
+                    $"(ShowAsync duration={stepStopwatch.ElapsedMilliseconds - bubbleStartedAt} ms).");
 
                 if (step.Id == "testcrm-windows-back-to-cases")
                     Console.Error.WriteLine($"[DAP Windows guide diagnostic] Step '{step.Id}' bubble shown.");
