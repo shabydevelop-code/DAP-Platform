@@ -217,7 +217,7 @@ void EnsurePortFree(int port)
     catch (SocketException ex)
     {
         throw new InvalidOperationException(
-            $"Port {port} is already in use. Stop the existing TestCRM Server before running --dap-first-ten.",
+            $"Port {port} is already in use. Stop the existing TestCRM Server before running this E2E mode.",
             ex);
     }
     finally
