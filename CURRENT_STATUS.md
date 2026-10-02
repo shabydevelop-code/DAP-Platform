@@ -26,6 +26,10 @@ Next Windows milestone: expand `testcrm-windows-canonical-workflow` from the ver
 
 Last updated: 2026-10-02
 
+## Closed-target / black-box architectural rule — 2026-10-02
+
+DAP is required to support closed third-party target applications. Production Runtime and Instructor/Editor behavior must not depend on access to target source code, internal databases, private APIs, or implementation details unavailable through DAP's production-observable interfaces. TestCRM source may be inspected during development for diagnosis only; any resulting fix must be generic and must continue to work when the target is a black box. TestCRM is intentionally used to surface difficult black-box targeting/runtime conditions early, and inability to discover sufficient target information through production interfaces is treated as a DAP product capability gap rather than bypassed with source knowledge.
+
 ## Verified baseline — 2026-10-02
 
 - The canonical Web Guide `testcrm-web-canonical-workflow` contains 53 persisted Steps in `DAP.db`.
