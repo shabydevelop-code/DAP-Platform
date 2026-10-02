@@ -309,3 +309,16 @@ The old combined root `DAP.TestCRM.csproj` and root launch profile were removed 
 - Local verification on 2026-10-02 completed the full Web runtime workflow after the schema migration with terminal PASS: `PASS: representative Customer -> Site -> Case -> Lead workflow, including dynamic Lead deletion and Case deletion, completed.`
 - The normal Web E2E runner is self-contained: it starts the shared TestCRM backend on port 5201 and the Web host on port 5200, waits for readiness, runs the browser/DAP scenario, then terminates only the processes it owns.
 - The next runtime milestone remains Windows Learner Runtime integration against the same DAP persistence architecture, beginning with real Steps 1–2 and real bubbles.
+
+## Canonical E2E execution modes
+
+The canonical Web test Guide is `testcrm-web-canonical-workflow` with 53 persisted Steps in the configured DAP database. Both execution modes consume that same persisted Guide and the same canonical CRM business flow:
+
+- Normal/guided mode launches `DAP.exe` and verifies production Web Runtime behavior, bubbles, validation, and Guide progression.
+- `--crm-only` omits `DAP.exe` and bubble synchronization but remains sequenced by the same 53 persisted Guide Steps. It is not an independent TestCRM QA script.
+
+Both modes are locally verified PASS on 2026-10-02 after the CRM-only Guide sequencing work. The Guide remains the source of learner sequence/targets/validation/context; synthetic E2E input values that are intentionally not encoded by generic Guide validation remain test-fixture concerns.
+
+## Windows Learner Runtime status
+
+Production Windows runtime code now exists in `src/DAP.Runtime.Windows`. It uses UI Automation for target resolution and validation and WPF for non-activating learner bubbles. `DAP.exe` supports `--learner-windows <guide-key> --window-automation-id <id>` and consumes persisted Guide Steps from the same provider-independent persistence boundary. The first two persisted Windows TestCRM Steps are locally verified end-to-end through the production runtime. The TestCRM Windows 53-step CRM-only business scenario remains a test-harness baseline while persisted production-runtime coverage is expanded.
