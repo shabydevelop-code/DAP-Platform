@@ -252,9 +252,18 @@ async Task<IFrame> Content()
     var currentCount=await page.Locator("#content-frame").CountAsync();
     var nextCount=await page.Locator("#content-frame-next").CountAsync();
     var oldCount=await page.Locator("#content-frame-old").CountAsync();
+    var webExited=ownedTestCrmProcess?.HasExited ?? false;
+    var backendExited=ownedTestCrmBackendProcess?.HasExited ?? false;
+    var webExit=webExited ? ownedTestCrmProcess!.ExitCode.ToString() : "<running>";
+    var backendExit=backendExited ? ownedTestCrmBackendProcess!.ExitCode.ToString() : "<running>";
+    var webStdErr=webExited ? await ownedTestCrmProcess!.StandardError.ReadToEndAsync() : "<not captured while running>";
+    var backendStdErr=backendExited ? await ownedTestCrmBackendProcess!.StandardError.ReadToEndAsync() : "<not captured while running>";
     throw new Exception(
         $"Stable content iframe not found within 5 seconds. " +
         $"DOM iframe state: current={currentCount}, next={nextCount}, old={oldCount}.{Environment.NewLine}" +
+        $"Processes: Web={webExit}, Backend={backendExit}.{Environment.NewLine}" +
+        $"Web STDERR: {webStdErr}{Environment.NewLine}" +
+        $"Backend STDERR: {backendStdErr}{Environment.NewLine}" +
         $"Live frames:{Environment.NewLine}{string.Join(Environment.NewLine,frameDiagnostics)}");
 }
 async Task WaitReady()
