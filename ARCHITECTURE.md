@@ -254,3 +254,32 @@ A target is represented by a runtime-neutral TargetDescriptor rather than a sing
 The current E2E still hosts `WebLearnerRuntime` in-process for behavioral regression coverage. That is test harness wiring, not the final process topology.
 
 An independent DAP.exe cannot consume an `IPage` created inside another process. Production Web execution therefore requires DAP.exe to own or explicitly attach to a browser/Playwright connection. `DAP.exe --learner-web <guide-id> --cdp <endpoint> [--page-url-contains <text>]` now attaches to an existing Chromium browser through Playwright's CDP connection, selects exactly one matching page, loads the guide from the configured data provider, and starts its first Web Learner Step. Ambiguous page selection fails explicitly rather than guessing. The E2E harness has not yet been switched from its in-process runtime to this process boundary.
+
+
+## Guide persistence identity
+
+Persistence distinguishes database identity from runtime/business identity:
+
+- `Guides.Id` and `GuideSteps.Id` are numeric internal database primary keys.
+- `GuideSteps.GuideId` and `TargetAnchors.GuideStepId` are numeric foreign keys.
+- `Guides.Key` and `GuideSteps.Key` are stable human-readable textual identifiers.
+- Runtime launch and repository boundaries address Guides by textual key; numeric row IDs remain an internal persistence concern.
+- Legacy SQLite databases that used textual primary keys are migrated in place by the database initializer.
+
+This separation allows display names and stable textual keys to evolve independently from relational database identity and supports future Instructor-created Guides without exposing persistence IDs to runtime contracts.
+
+
+## Self-contained TestCRM Web E2E topology
+
+The normal TestCRM Web E2E runner owns the complete temporary test topology for its run:
+
+1. Start `DAP.TestCRM.Server` on `http://localhost:5201`.
+2. Start `DAP.TestCRM.Web` on `http://localhost:5200`, configured to use the shared backend.
+3. Wait until the Web host is reachable.
+4. Start the browser and DAP runtime path.
+5. Execute the canonical scenario.
+6. Terminate and dispose only the backend, Web host, and DAP processes created by the runner.
+
+A normal full Web E2E run therefore does not require manually pre-started TestCRM servers.
+
+The canonical Web Guide is `testcrm-web-canonical-workflow` and contains 53 persisted Steps. The full Web workflow was reverified after the numeric-ID persistence migration on 2026-10-02.
