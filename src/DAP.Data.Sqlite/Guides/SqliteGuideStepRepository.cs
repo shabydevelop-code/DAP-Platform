@@ -113,6 +113,28 @@ SELECT Id FROM GuideSteps WHERE GuideId=$guideId AND Key=$key;
             }
         }
 
+        await using (var deleteCapture = connection.CreateCommand())
+        {
+            deleteCapture.Transaction = (SqliteTransaction)transaction;
+            deleteCapture.CommandText = "DELETE FROM StepCaptures WHERE GuideStepId=$id;";
+            Add(deleteCapture,"$id",numericStepId);
+            await deleteCapture.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        if (step.Capture is not null)
+        {
+            await using var insertCapture = connection.CreateCommand();
+            insertCapture.Transaction = (SqliteTransaction)transaction;
+            insertCapture.CommandText = "INSERT INTO StepCaptures(GuideStepId,Runtime,LocatorStrategy,LocatorValue,Property,Pattern) VALUES($id,$runtime,$strategy,$value,$property,$pattern);";
+            Add(insertCapture,"$id",numericStepId);
+            Add(insertCapture,"$runtime",step.Capture.Runtime.ToString());
+            Add(insertCapture,"$strategy",step.Capture.Locator.Strategy);
+            Add(insertCapture,"$value",step.Capture.Locator.Value);
+            Add(insertCapture,"$property",step.Capture.Property);
+            Add(insertCapture,"$pattern",step.Capture.Pattern);
+            await insertCapture.ExecuteNonQueryAsync(cancellationToken);
+        }
+
         await transaction.CommitAsync(cancellationToken);
     }
 
@@ -170,7 +192,20 @@ WHERE Key = $newKey;
 
         var validation=row.ValidationKind is null?null:new ValidationDefinition(row.ValidationKind,row.Expected,row.OptionsJson is null?null:JsonSerializer.Deserialize<Dictionary<string,string>>(row.OptionsJson));
         var context=row.ContextKind is null || row.ContextValue is null ? null : new StepContextDefinition(row.ContextKind,row.ContextValue);
-        return new GuideStep(row.Key,row.Order,target,new BubbleDefinition(row.BubbleContent,Enum.Parse<BubblePlacement>(row.Placement)),validation,Enum.Parse<StepAdvanceMode>(row.AdvanceMode),context);
+        StepCaptureDefinition? capture=null;
+        await using (var captureCommand=connection.CreateCommand())
+        {
+            captureCommand.CommandText="SELECT Runtime,LocatorStrategy,LocatorValue,Property,Pattern FROM StepCaptures WHERE GuideStepId=$id;";
+            captureCommand.Parameters.AddWithValue("$id",row.NumericId);
+            await using var captureReader=await captureCommand.ExecuteReaderAsync(ct);
+            if(await captureReader.ReadAsync(ct))
+                capture=new StepCaptureDefinition(
+                    Enum.Parse<TargetRuntime>(captureReader.GetString(0)),
+                    new Locator(captureReader.GetString(1),captureReader.GetString(2)),
+                    captureReader.GetString(3),
+                    captureReader.IsDBNull(4)?null:captureReader.GetString(4));
+        }
+        return new GuideStep(row.Key,row.Order,target,new BubbleDefinition(row.BubbleContent,Enum.Parse<BubblePlacement>(row.Placement)),validation,Enum.Parse<StepAdvanceMode>(row.AdvanceMode),context,capture);
     }
 
     private sealed record StepRow(
