@@ -21,7 +21,16 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
         var r=e.Current.BoundingRectangle;if(r.IsEmpty)throw new Exception($"Target '{e.Current.AutomationId}' has no bounds.");
         SetCursorPos((int)(r.Left+r.Width/2),(int)(r.Top+r.Height/2));Mouse();if(twice){Thread.Sleep(80);Mouse();}Thread.Sleep(800);
     }
-    void Set(string id,string value){var e=ById(id);if(!e.TryGetCurrentPattern(ValuePattern.Pattern,out var p))throw new Exception($"{id} has no ValuePattern.");((ValuePattern)p).SetValue(value);Thread.Sleep(150);}
+    void Set(string id,string value)
+    {
+        var e=Wait(()=> {
+            var candidate=window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,id));
+            return candidate is not null && candidate.Current.IsEnabled ? candidate : null;
+        },$"{id} enabled");
+        if(!e.TryGetCurrentPattern(ValuePattern.Pattern,out var p))throw new Exception($"{id} has no ValuePattern.");
+        ((ValuePattern)p).SetValue(value);
+        Thread.Sleep(150);
+    }
     void Select(string id,string value)
     {
         var combo=ById(id);
@@ -38,7 +47,12 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
         if(item.TryGetCurrentPattern(SelectionItemPattern.Pattern,out var sip))
             ((SelectionItemPattern)sip).Select();
         else Click(item);
-        Thread.Sleep(850);
+
+        Wait(()=> {
+            var current=window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,id));
+            return current is not null && current.Current.IsEnabled ? current : null;
+        },$"{id} refreshed");
+        Thread.Sleep(250);
     }
     void FirstRow(string id){var g=ById(id);var row=Wait(()=>g.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.DataItem)),id+" first row");Click(row,true);}
 
