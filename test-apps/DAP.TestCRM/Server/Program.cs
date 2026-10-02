@@ -3,24 +3,7 @@ using Microsoft.Data.Sqlite;
 var builder = WebApplication.CreateBuilder(args);
 var app = builder.Build();
 
-app.Use(async (context,next)=>{
-    var isApi=context.Request.Path.StartsWithSegments("/api");
-    var isCustomerSearch=HttpMethods.IsGet(context.Request.Method)
-        && context.Request.Path.Equals("/api/customers",StringComparison.OrdinalIgnoreCase);
-    if(isCustomerSearch)
-        Console.Error.WriteLine($"[TestCRM backend] customer search START {context.Request.QueryString} mode='{context.Request.Headers["X-DAP-E2E-Mode"]}'");
-    if(isApi && context.Request.Headers["X-DAP-E2E-Mode"].ToString()!="fast")
-        await Task.Delay(650);
-    try
-    {
-        await next();
-    }
-    finally
-    {
-        if(isCustomerSearch)
-            Console.Error.WriteLine($"[TestCRM backend] customer search END status={context.Response.StatusCode}");
-    }
-});
+app.Use(async (context,next)=>{if(context.Request.Path.StartsWithSegments("/api") && context.Request.Headers["X-DAP-E2E-Mode"].ToString()!="fast")await Task.Delay(650);await next();});
 
 var testCrmRoot = Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, ".."));
 var dataDirectory = Path.Combine(testCrmRoot, "data");
