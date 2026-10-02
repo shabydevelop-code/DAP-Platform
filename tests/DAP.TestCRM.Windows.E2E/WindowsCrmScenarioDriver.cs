@@ -64,7 +64,10 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
         else if(item.TryGetCurrentPattern(InvokePattern.Pattern,out var iip))
             ((InvokePattern)iip).Invoke();
         else
-            throw new Exception($"List item '{value}' exposes neither SelectionItemPattern nor InvokePattern.");
+        {
+            item.SetFocus();
+            KeyPress(VK_RETURN);
+        }
 
         Wait(()=> {
             var current=window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,id));
@@ -118,7 +121,11 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     public Task GoPortal(){Click(ById("PortalHeader"));return Task.CompletedTask;}
 
     static AutomationElement Wait(Func<AutomationElement?> f,string what,int timeout=10000){var sw=Stopwatch.StartNew();while(sw.ElapsedMilliseconds<timeout){var x=f();if(x!=null)return x;Thread.Sleep(100);}throw new TimeoutException($"Timed out waiting for {what}.");}
+    const byte VK_RETURN=0x0D;
+    const uint KEYEVENTF_KEYUP=0x0002;
+    static void KeyPress(byte key){keybd_event(key,0,0,UIntPtr.Zero);keybd_event(key,0,KEYEVENTF_KEYUP,UIntPtr.Zero);}
     static void Mouse(){mouse_event(2,0,0,0,UIntPtr.Zero);mouse_event(4,0,0,0,UIntPtr.Zero);}
     [DllImport("user32.dll")] static extern bool SetCursorPos(int x,int y);
     [DllImport("user32.dll")] static extern void mouse_event(uint flags,uint dx,uint dy,uint data,UIntPtr extra);
+    [DllImport("user32.dll")] static extern void keybd_event(byte virtualKey,byte scanCode,uint flags,UIntPtr extra);
 }
