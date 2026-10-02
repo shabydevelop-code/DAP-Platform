@@ -34,15 +34,9 @@ if (args.Contains("--reset-guide", StringComparer.OrdinalIgnoreCase))
     return;
 }
 
-if (args.Contains("--crm-only", StringComparer.OrdinalIgnoreCase))
-{
-    if (manualFromStep is not null)
-        throw new ArgumentException("--crm-only cannot be combined with --manual-from-step.");
-
-    Console.WriteLine("E2E scope: TestCRM Web only (DAP Guide/bubbles disabled)");
-    await CrmOnlyScenario.RunAsync();
-    return;
-}
+var crmOnly = args.Contains("--crm-only", StringComparer.OrdinalIgnoreCase);
+if (crmOnly && manualFromStep is not null)
+    throw new ArgumentException("--crm-only cannot be combined with --manual-from-step.");
 
 static int ReserveTcpPort()
 {
@@ -155,7 +149,7 @@ var e2eMode = Environment.GetEnvironmentVariable("DAP_E2E_MODE")?.Trim().ToLower
 var visualMode = e2eMode is "visual" or "demo";
 var fastMode = !visualMode;
 
-Console.WriteLine($"E2E mode: {(visualMode ? "visual" : "fast")}");
+Console.WriteLine($"E2E mode: {(crmOnly ? "crm-only" : visualMode ? "visual" : "fast")}");
 if (visualMode)
 await page.AddInitScriptAsync(@"(() => {
   const install=()=>{
@@ -231,13 +225,16 @@ async Task MoveTo(ILocator target)
     // by the active production bubble. This turns Guide/E2E synchronization
     // into an executable invariant instead of relying on visually similar
     // selectors in two separate places.
-    var matchesActiveGuideTarget=await target.EvaluateAsync<bool>(
-        @"el => {
-            const bubble=el.ownerDocument.getElementById('dap-guide-bubble');
-            return !!bubble && bubble.__dapTarget === el;
-        }");
-    if(!matchesActiveGuideTarget)
-        throw new Exception("Visible E2E action target does not match the active DAP Guide target.");
+    if(!crmOnly)
+    {
+        var matchesActiveGuideTarget=await target.EvaluateAsync<bool>(
+            @"el => {
+                const bubble=el.ownerDocument.getElementById('dap-guide-bubble');
+                return !!bubble && bubble.__dapTarget === el;
+            }");
+        if(!matchesActiveGuideTarget)
+            throw new Exception("Visible E2E action target does not match the active DAP Guide target.");
+    }
 
     await target.ScrollIntoViewIfNeededAsync();
     var box=await target.BoundingBoxAsync() ?? throw new Exception("Target has no bounding box.");
@@ -396,6 +393,7 @@ var dapSecondStep=dapSteps[1];
 var dapStdErrLines=new System.Collections.Concurrent.ConcurrentQueue<string>();
 async Task WaitForGuideStep(int order)
 {
+    if(crmOnly) return;
     var expected=dapSteps.Single(step=>step.Order==order);
     for(var i=0;i<100;i++)
     {
@@ -453,6 +451,27 @@ async Task WaitForGuideStep(int order)
         $"DAP diagnostics:{Environment.NewLine}{recentDapDiagnostics}");
 }
 
+Process? dapProcess=null;
+Task<string>? dapStdOutTask=null;
+void KillOwnedDapProcess()
+{
+    if(dapProcess is null) return;
+    try
+    {
+        if(!dapProcess.HasExited)
+        {
+            dapProcess.Kill(entireProcessTree:true);
+            dapProcess.WaitForExit(5000);
+        }
+    }
+    catch(InvalidOperationException) { }
+    catch(System.ComponentModel.Win32Exception) { }
+}
+
+try
+{
+if(!crmOnly)
+{
 var dapAppProject=Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","..","..","..","..","src","DAP.App","DAP.App.csproj"));
 if(!File.Exists(dapAppProject))
     throw new Exception($"DAP.App project not found at {dapAppProject}");
@@ -538,7 +557,7 @@ else
 if(!File.Exists(dapExecutable))
     throw new Exception($"Built DAP executable not found at {dapExecutable}");
 
-using var dapProcess=new Process
+dapProcess=new Process
 {
     StartInfo=new ProcessStartInfo
     {
@@ -559,22 +578,9 @@ StartupMark("DAP.exe process started");
 // Ctrl+C can terminate the E2E before async finally cleanup gets a chance to
 // run. Register a synchronous process-exit safety net scoped only to the DAP
 // process created by this test.
-void KillOwnedDapProcess()
-{
-    try
-    {
-        if(!dapProcess.HasExited)
-        {
-            dapProcess.Kill(entireProcessTree:true);
-            dapProcess.WaitForExit(5000);
-        }
-    }
-    catch(InvalidOperationException) { }
-    catch(System.ComponentModel.Win32Exception) { }
-}
 AppDomain.CurrentDomain.ProcessExit+=(_,_)=>KillOwnedDapProcess();
 
-var dapStdOutTask=dapProcess.StandardOutput.ReadToEndAsync();
+dapStdOutTask=dapProcess.StandardOutput.ReadToEndAsync();
 dapProcess.ErrorDataReceived+=(_,eventArgs)=>
 {
     if(eventArgs.Data is not null)
@@ -582,8 +588,6 @@ dapProcess.ErrorDataReceived+=(_,eventArgs)=>
 };
 dapProcess.BeginErrorReadLine();
 
-try
-{
 var dapContent=await Content();
 var dapBubble=dapContent.Locator("#dap-guide-bubble");
 var dapStartupDeadline=DateTime.UtcNow.AddSeconds(30);
@@ -591,7 +595,7 @@ while(await dapBubble.CountAsync()==0 && DateTime.UtcNow<dapStartupDeadline)
 {
     if(dapProcess.HasExited)
     {
-        var dapStdOut=await dapStdOutTask;
+        var dapStdOut=await dapStdOutTask!;
         var dapStdErr=string.Join(Environment.NewLine,dapStdErrLines);
         throw new Exception(
             $"DAP.exe exited before presenting the first bubble. ExitCode={dapProcess.ExitCode}.{Environment.NewLine}" +
@@ -663,6 +667,14 @@ if(!dapSecondBubbleText.Contains(expectedSecondProgress,StringComparison.Ordinal
     throw new Exception($"DAP Guide Runtime second Step progress mismatch. Expected '{expectedSecondProgress}'.");
 Console.WriteLine("DAP Learner Web Runtime automatic validation completion: PASS");
 Console.WriteLine("DAP Guide Runtime Step 1 -> Step 2 transition: PASS");
+}
+else
+{
+    // CRM-only executes the same canonical business flow, but without starting
+    // DAP.exe or waiting for Guide/bubble synchronization.
+    await (await Content()).Locator("[name='name']").WaitForAsync();
+    await Fill("[name='name']","אלפא פתרונות בע\"מ");
+}
 
 await Click("#customer-search button.primary");
 await WaitReady();
