@@ -27,7 +27,7 @@ public partial class MainWindow : Window
         Crumbs(("פורטל לקוחות",null));var root=V();root.Children.Add(new TextBlock{Text="חיפוש לקוח",FontSize=24,FontWeight=FontWeights.SemiBold});
         var n=T("CustomerNameSearch",name);var p=T("CustomerPhoneSearch",phone);var m=T("CustomerEmailSearch",email);
         F(root,"שם לקוח",n);F(root,"טלפון",p);F(root,"דוא\"ל",m);
-        var actions=new StackPanel{Orientation=Orientation.Horizontal,HorizontalAlignment=HorizontalAlignment.Right,FlowDirection=FlowDirection.RightToLeft};actions.Children.Add(B("חיפוש","SearchCustomersButton",async(_,_)=>await ShowSearch(n.Text,p.Text,m.Text,true)));actions.Children.Add(B("לקוח חדש","NewCustomerButton",async(_,_)=>await ShowCustomerForm()));root.Children.Add(actions);
+        var actions=new StackPanel{Orientation=Orientation.Horizontal,FlowDirection=FlowDirection.RightToLeft};actions.Children.Add(B("חיפוש","SearchCustomersButton",async(_,_)=>await ShowSearch(n.Text,p.Text,m.Text,true)));actions.Children.Add(B("לקוח חדש","NewCustomerButton",async(_,_)=>await ShowCustomerForm()));var actionRow=new DockPanel{LastChildFill=false,FlowDirection=FlowDirection.LeftToRight};DockPanel.SetDock(actions,Dock.Right);actionRow.Children.Add(actions);root.Children.Add(actionRow);
         if(run){var data=await api.GetCustomersAsync(name,phone,email);var g=GridFor(data,new[]{"Id","Name","Phone","Email"},"CustomersGrid");g.MouseDoubleClick+=async(_,_)=>{if(g.SelectedItem is Customer x)await ShowCustomer(x.Id);};root.Children.Add(new TextBlock{Text=data.Count==0?"לא נמצאו לקוחות התואמים לחיפוש.":"תוצאות חיפוש",FontSize=18,Margin=new(4,14,4,4)});root.Children.Add(g);}
         ScreenHost.Content=S(root);
     }
