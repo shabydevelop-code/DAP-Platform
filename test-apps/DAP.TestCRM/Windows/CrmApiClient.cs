@@ -9,8 +9,21 @@ public sealed class CrmApiClient
     private readonly HttpClient _http = new() { BaseAddress = new Uri("http://localhost:5200") };
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    public async Task<List<Customer>> GetCustomersAsync() =>
-        await _http.GetFromJsonAsync<List<Customer>>("/api/customers", JsonOptions) ?? [];
+    public async Task<List<Customer>> GetCustomersAsync(string? name = null, string? phone = null, string? email = null)
+    {
+        var query = new List<string>();
+        AddQuery(query, "name", name);
+        AddQuery(query, "phone", phone);
+        AddQuery(query, "email", email);
+        var path = "/api/customers" + (query.Count == 0 ? "" : "?" + string.Join("&", query));
+        return await _http.GetFromJsonAsync<List<Customer>>(path, JsonOptions) ?? [];
+    }
+
+    private static void AddQuery(List<string> query, string key, string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+            query.Add($"{key}={Uri.EscapeDataString(value.Trim())}");
+    }
 
     public async Task<List<Site>> GetSitesAsync(int customerId) =>
         await _http.GetFromJsonAsync<List<Site>>($"/api/customers/{customerId}/sites", JsonOptions) ?? [];
