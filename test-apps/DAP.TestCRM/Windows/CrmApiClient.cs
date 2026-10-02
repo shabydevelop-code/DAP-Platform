@@ -14,7 +14,8 @@ public sealed class CrmApiClient
     public Task<Customer?> GetCustomerAsync(int id) => GetAsync<Customer>($"/api/customers/{id}");
     public Task<List<Site>> GetSitesAsync(int customerId) => GetListAsync<Site>($"/api/customers/{customerId}/sites");
     public Task<Site?> GetSiteAsync(int id) => GetAsync<Site>($"/api/sites/{id}");
-    public Task<List<CaseItem>> GetCasesAsync(int siteId) => GetListAsync<CaseItem>($"/api/sites/{siteId}/cases");
+    public Task<List<CaseItem>> GetCasesAsync(int siteId,string? sort=null,string? dir=null) =>
+        GetListAsync<CaseItem>($"/api/sites/{siteId}/cases"+Query(("sort",sort),("dir",dir)));
     public Task<CaseItem?> GetCaseAsync(int id) => GetAsync<CaseItem>($"/api/cases/{id}");
     public Task<List<Lead>> GetLeadsAsync(int siteId) => GetListAsync<Lead>($"/api/sites/{siteId}/leads");
     public Task<Lead?> GetLeadAsync(int id) => GetAsync<Lead>($"/api/leads/{id}");
