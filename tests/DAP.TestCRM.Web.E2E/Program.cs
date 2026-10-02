@@ -49,9 +49,7 @@ if (args.Contains("--reset-guide", StringComparer.OrdinalIgnoreCase))
     return;
 }
 
-var unguided =
-    args.Contains("--unguided", StringComparer.OrdinalIgnoreCase) ||
-    args.Contains("--crm-only", StringComparer.OrdinalIgnoreCase);
+var unguided = args.Contains("--unguided", StringComparer.OrdinalIgnoreCase);
 var explicitGuided = args.Contains("--guided", StringComparer.OrdinalIgnoreCase);
 if (unguided && explicitGuided)
     throw new ArgumentException("--guided and --unguided cannot be combined.");
