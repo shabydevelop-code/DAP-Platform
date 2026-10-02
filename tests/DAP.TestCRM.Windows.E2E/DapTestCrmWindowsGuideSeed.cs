@@ -11,16 +11,30 @@ internal static class DapTestCrmWindowsGuideSeed
     private static TargetDescriptor ById(string automationId) =>
         TargetDescriptor.Create(TargetRuntime.Windows, new Locator("automation-id", automationId));
 
-    private static TargetDescriptor FirstGridRow(string gridAutomationId) =>
-        TargetDescriptor.Create(
+    private static TargetDescriptor GridRow(
+        string gridAutomationId,
+        string? descendantName = null)
+    {
+        var anchors = new List<Anchor>
+        {
+            new(
+                new Locator("automation-id", gridAutomationId),
+                AnchorRelation.Ancestor)
+        };
+
+        if (!string.IsNullOrWhiteSpace(descendantName))
+        {
+            anchors.Add(
+                new Anchor(
+                    new Locator("name", descendantName),
+                    AnchorRelation.Descendant));
+        }
+
+        return TargetDescriptor.Create(
             TargetRuntime.Windows,
             new Locator("control-type", "dataitem"),
-            new[]
-            {
-                new Anchor(
-                    new Locator("automation-id", gridAutomationId),
-                    AnchorRelation.Ancestor)
-            });
+            anchors);
+    }
 
     private static GuideStep ClickStep(
         string id,
@@ -40,11 +54,12 @@ internal static class DapTestCrmWindowsGuideSeed
         string id,
         int order,
         string gridAutomationId,
-        string instruction) =>
+        string instruction,
+        string? descendantName = null) =>
         new(
             id,
             order,
-            FirstGridRow(gridAutomationId),
+            GridRow(gridAutomationId, descendantName),
             new BubbleDefinition(instruction, BubblePlacement.Bottom),
             new ValidationDefinition("target-disappeared"),
             StepAdvanceMode.AutomaticOnValidation);
@@ -81,7 +96,8 @@ internal static class DapTestCrmWindowsGuideSeed
 
         NavigationRowStep(
             "testcrm-windows-site-row", 4,
-            "SitesGrid", "פתח את האתר הראשון של הלקוח"),
+            "SitesGrid", "פתח את האתר מטה תל אביב",
+            "מטה תל אביב"),
 
         ClickStep(
             "testcrm-windows-cases-tab", 5,
