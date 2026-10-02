@@ -638,3 +638,11 @@ The old combined root `DAP.TestCRM.csproj` and root launch profile were removed 
 - The Windows E2E driver selects the created Case row through `SelectionItemPattern` before the physical double-click fallback, matching the existing safe WPF DataGrid interaction pattern.
 - The 5-second E2E timeout policy remains unchanged. No timeout increase was used to obtain the PASS.
 - Closed-target rule remains unchanged: TestCRM source may be inspected for diagnosis and learning, but production target resolution relies only on runtime-observable UIA data.
+
+## Windows bubble drag persistence — 2026-10-03
+
+- Windows learner bubbles now preserve a manual drag position for the lifetime of the active Step.
+- After the learner drags a Windows bubble, the Runtime no longer reapplies automatic placement on subsequent reconciliation cycles for that same Step.
+- The directional pointer is hidden after manual dragging, matching the established Web learner-bubble behavior.
+- When the active Step changes, manual-position state is reset; the next Step returns to automatic placement and shows its pointer again.
+- The interaction remains presentation-only: dragging does not change target identity, validation, runtime capture, or Step progression.
