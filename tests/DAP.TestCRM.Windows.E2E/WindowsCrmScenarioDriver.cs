@@ -82,7 +82,22 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     public Task OpenFirstSite(){FirstRow("SitesGrid");return Task.CompletedTask;}
     public Task OpenCases(){Click(ById("CasesTab"));return Task.CompletedTask;}
     public Task SortCasesByStatus(){Click(ById("SortCasesByStatusButton"));return Task.CompletedTask;}
-    public Task CreateCase(){Click(ById("NewCaseButton"));return Task.CompletedTask;}
+    public Task CreateCase()
+    {
+        var deadline=Stopwatch.StartNew();
+        while(deadline.ElapsedMilliseconds<10000)
+        {
+            var subject=window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"CaseSubject"));
+            if(subject is not null && subject.Current.IsEnabled)return Task.CompletedTask;
+
+            var button=window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"NewCaseButton"));
+            if(button is not null && button.Current.IsEnabled && button.TryGetCurrentPattern(InvokePattern.Pattern,out var invoke))
+                ((InvokePattern)invoke).Invoke();
+
+            Thread.Sleep(300);
+        }
+        throw new TimeoutException("NewCaseButton was invoked but the Case form did not become ready.");
+    }
     public Task SetCaseSubject(string v){Set("CaseSubject",v);return Task.CompletedTask;}
     public Task SetCaseDescription(string v){Set("CaseDescription",v);return Task.CompletedTask;}
     public Task SaveCase(){Click(ById("SaveCaseButton"));return Task.CompletedTask;}
