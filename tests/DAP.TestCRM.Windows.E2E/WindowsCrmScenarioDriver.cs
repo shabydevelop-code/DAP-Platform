@@ -282,8 +282,13 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
             .Cast<AutomationElement>()
             .FirstOrDefault(x=>x.Current.Name=="אלפא פתרונות בע\"מ")
             ?? throw new Exception("Customer breadcrumb was not found.");
-        Click(customer);
-        Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"SitesGrid")),"Customer Sites screen");
+
+        if(!customer.Current.IsEnabled || !customer.TryGetCurrentPattern(InvokePattern.Pattern,out var invoke))
+            throw new Exception("Customer breadcrumb is not invokable.");
+        ((InvokePattern)invoke).Invoke();
+
+        Wait(()=>window.FindFirst(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.AutomationIdProperty,"SitesGrid")),"Customer Sites screen");
         return Task.CompletedTask;
     }
     public Task OpenFirstLead()
