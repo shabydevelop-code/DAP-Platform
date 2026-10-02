@@ -258,10 +258,25 @@ async Task<IFrame> Content()
     var backendExit=backendExited ? ownedTestCrmBackendProcess!.ExitCode.ToString() : "<running>";
     var webStdErr=webExited ? await ownedTestCrmProcess!.StandardError.ReadToEndAsync() : "<not captured while running>";
     var backendStdErr=backendExited ? await ownedTestCrmBackendProcess!.StandardError.ReadToEndAsync() : "<not captured while running>";
+    string directBackendProbe;
+    try
+    {
+        using var probeClient=new HttpClient { Timeout=TimeSpan.FromSeconds(2) };
+        using var probeRequest=new HttpRequestMessage(
+            HttpMethod.Get,
+            "http://localhost:5201/api/customers?name=%D7%90%D7%9C%D7%A4%D7%90&sort=id&dir=asc");
+        probeRequest.Headers.TryAddWithoutValidation("X-DAP-E2E-Mode","fast");
+        using var probeResponse=await probeClient.SendAsync(probeRequest);
+        directBackendProbe=$"HTTP {(int)probeResponse.StatusCode}";
+    }
+    catch(Exception ex)
+    {
+        directBackendProbe=$"{ex.GetType().Name}: {ex.Message}";
+    }
     throw new Exception(
         $"Stable content iframe not found within 5 seconds. " +
         $"DOM iframe state: current={currentCount}, next={nextCount}, old={oldCount}.{Environment.NewLine}" +
-        $"Processes: Web={webExit}, Backend={backendExit}.{Environment.NewLine}" +
+        $"Processes: Web={webExit}, Backend={backendExit}. Direct backend probe={directBackendProbe}.{Environment.NewLine}" +
         $"Web STDERR: {webStdErr}{Environment.NewLine}" +
         $"Backend STDERR: {backendStdErr}{Environment.NewLine}" +
         $"Live frames:{Environment.NewLine}{string.Join(Environment.NewLine,frameDiagnostics)}");
