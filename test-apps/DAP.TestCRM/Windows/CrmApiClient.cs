@@ -33,8 +33,18 @@ public sealed class CrmApiClient
     public Task<CaseStatusFieldChange> CaseStatusChangedAsync(int id,string status) => PostAsync<CaseStatusFieldChange>($"/api/cases/{id}/fieldchange/status",new {status});
     public Task<LeadStatusFieldChange> LeadStatusChangedAsync(int id,string status) => PostAsync<LeadStatusFieldChange>($"/api/leads/{id}/fieldchange/status",new {status});
 
-    private async Task<T?> GetAsync<T>(string path) => await _http.GetFromJsonAsync<T>(path,JsonOptions);
-    private async Task<List<T>> GetListAsync<T>(string path) => await _http.GetFromJsonAsync<List<T>>(path,JsonOptions) ?? [];
+    private async Task<T?> GetAsync<T>(string path)
+    {
+        using var r=await _http.GetAsync(path);
+        await EnsureAsync(r,path);
+        return await r.Content.ReadFromJsonAsync<T>(JsonOptions);
+    }
+    private async Task<List<T>> GetListAsync<T>(string path)
+    {
+        using var r=await _http.GetAsync(path);
+        await EnsureAsync(r,path);
+        return await r.Content.ReadFromJsonAsync<List<T>>(JsonOptions) ?? [];
+    }
     private async Task<T> PostAsync<T>(string path,object body)
     {
         using var r=await _http.PostAsJsonAsync(path,body);
