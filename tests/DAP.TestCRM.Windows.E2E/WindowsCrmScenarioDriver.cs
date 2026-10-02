@@ -9,6 +9,7 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
 {
     readonly AutomationElement window;
     readonly Process app;
+    string? createdCaseId;
 
     public WindowsCrmScenarioDriver(Process app, AutomationElement window){this.app=app;this.window=window;}
 
@@ -123,10 +124,22 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
         WaitHandle(()=>!IsWindowVisible(popup) ? mainHwnd : IntPtr.Zero,"modal dialog dismissed");
     }
 
-    public Task SearchCustomer(string v){Set("CustomerNameSearch",v);Click(ById("SearchCustomersButton"));return Task.CompletedTask;}
+    public Task SetCustomerSearch(string v){Set("CustomerNameSearch",v);return Task.CompletedTask;}
+    public Task SubmitCustomerSearch()
+    {
+        Click(ById("SearchCustomersButton"));
+        Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"CustomersGrid")),"customer search results");
+        return Task.CompletedTask;
+    }
     public Task OpenFirstCustomer(){FirstRow("CustomersGrid");return Task.CompletedTask;}
     public Task OpenFirstSite(){FirstRow("SitesGrid");return Task.CompletedTask;}
-    public Task OpenCases(){Click(ById("CasesTab"));return Task.CompletedTask;}
+    public Task OpenCases()
+    {
+        DismissUnexpectedInfoDialogs();
+        Click(ById("CasesTab"));
+        Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"NewCaseButton")),"Cases screen");
+        return Task.CompletedTask;
+    }
     public Task SortCasesByStatus(){Click(ById("SortCasesByStatusButton"));return Task.CompletedTask;}
     public Task CreateCase()
     {
@@ -150,8 +163,47 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     {
         Click(ById("SaveCaseButton"));
         Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteCaseButton")),"persisted Case form after Save");
+        createdCaseId ??= CurrentCaseId();
         return Task.CompletedTask;
     }
+    string CurrentCaseId()
+    {
+        var titles=window.FindAll(TreeScope.Descendants,new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.Text))
+            .Cast<AutomationElement>()
+            .Select(x=>x.Current.Name)
+            .Where(x=>x.StartsWith("פניה ",StringComparison.Ordinal));
+        foreach(var title in titles)
+        {
+            var id=title["פניה ".Length..].Trim();
+            if(int.TryParse(id,out _))return id;
+        }
+        throw new Exception("Persisted Case id was not found in the Windows Case screen.");
+    }
+
+    AutomationElement RowByCellText(string gridId,string value)
+    {
+        var grid=ById(gridId);
+        return Wait(()=>
+        {
+            foreach(var row in grid.FindAll(TreeScope.Descendants,new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.DataItem)).Cast<AutomationElement>())
+            {
+                if(row.FindAll(TreeScope.Descendants,new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.Text))
+                    .Cast<AutomationElement>().Any(x=>string.Equals(x.Current.Name,value,StringComparison.Ordinal)))
+                    return row;
+            }
+            return null;
+        },$"{gridId} row containing '{value}'");
+    }
+
+    public Task OpenCreatedCase()
+    {
+        if(string.IsNullOrWhiteSpace(createdCaseId))throw new Exception("Created Case id is not known.");
+        Click(RowByCellText("CasesGrid",createdCaseId),true);
+        Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteCaseButton")),"created Case form");
+        if(CurrentCaseId()!=createdCaseId)throw new Exception($"Expected created Case {createdCaseId}, but another Case was opened.");
+        return Task.CompletedTask;
+    }
+
     public Task SetCaseStatus(string v){Select("CaseStatus",v);return Task.CompletedTask;}
     public Task SetResolutionNotes(string v){Set("CaseResolutionNotes",v);return Task.CompletedTask;}
     public Task ShowMoreActivity(){Click(ById("ActivityMoreButton"));return Task.CompletedTask;}
@@ -190,6 +242,32 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
         Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"NewLeadButton")),"Leads screen");
         return Task.CompletedTask;
     }
+    public Task OpenCustomerFromBreadcrumb()
+    {
+        DismissUnexpectedInfoDialogs();
+        var customer=window.FindAll(TreeScope.Descendants,
+            new AndCondition(
+                new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.Button),
+                new PropertyCondition(AutomationElement.AutomationIdProperty,"Breadcrumb")))
+            .Cast<AutomationElement>()
+            .FirstOrDefault(x=>x.Current.Name=="אלפא פתרונות בע\"מ")
+            ?? throw new Exception("Customer breadcrumb was not found.");
+        Click(customer);
+        Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"SitesGrid")),"Customer Sites screen");
+        return Task.CompletedTask;
+    }
+    public Task OpenFirstLead()
+    {
+        FirstRow("LeadsGrid");
+        Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteLeadButton")),"Lead form");
+        return Task.CompletedTask;
+    }
+    public Task OpenFirstCase()
+    {
+        FirstRow("CasesGrid");
+        Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteCaseButton")),"Case form");
+        return Task.CompletedTask;
+    }
     public Task CreateLead()
     {
         var deadline=Stopwatch.StartNew();
@@ -222,6 +300,7 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     public Task SetLeadService(string v){Select("LeadSelectedService",v);return Task.CompletedTask;}
     public Task DeleteLead(){Click(ById("DeleteLeadButton"));return Task.CompletedTask;}
     public Task ConfirmDelete(){DialogButton(true);return Task.CompletedTask;}
+    public Task DeleteCase(){Click(ById("DeleteCaseButton"));return Task.CompletedTask;}
     public Task GoPortal(){Click(ById("PortalHeader"));return Task.CompletedTask;}
 
     static IntPtr WaitHandle(Func<IntPtr> f,string what,int timeout=5000){var sw=Stopwatch.StartNew();while(sw.ElapsedMilliseconds<timeout){var x=f();if(x!=IntPtr.Zero)return x;Thread.Sleep(100);}throw new TimeoutException($"Timed out waiting for {what}.");}
