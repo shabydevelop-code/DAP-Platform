@@ -22,7 +22,8 @@ internal static class DapTestCrmWindowsGuideSeed
 
     private static TargetDescriptor GridRow(
         string gridAutomationId,
-        string? descendantName = null)
+        string? descendantName = null,
+        bool descendantNameIsRegex = false)
     {
         var anchors = new List<Anchor>
         {
@@ -35,7 +36,7 @@ internal static class DapTestCrmWindowsGuideSeed
         {
             anchors.Add(
                 new Anchor(
-                    new Locator("name", descendantName),
+                    new Locator(descendantNameIsRegex ? "name-regex" : "name", descendantName),
                     AnchorRelation.Descendant));
         }
 
@@ -64,11 +65,12 @@ internal static class DapTestCrmWindowsGuideSeed
         int order,
         string gridAutomationId,
         string instruction,
-        string? descendantName = null) =>
+        string? descendantName = null,
+        bool descendantNameIsRegex = false) =>
         new(
             id,
             order,
-            GridRow(gridAutomationId, descendantName),
+            GridRow(gridAutomationId, descendantName, descendantNameIsRegex),
             new BubbleDefinition(instruction, BubblePlacement.Bottom),
             new ValidationDefinition("target-disappeared"),
             StepAdvanceMode.AutomaticOnValidation);
@@ -147,6 +149,7 @@ internal static class DapTestCrmWindowsGuideSeed
         NavigationRowStep(
             "testcrm-windows-open-created-case", 12,
             "CasesGrid", "פתח את הפנייה שיצרת",
-            "{{step:testcrm-windows-back-to-cases:capture}}")
+            @"^{{step:testcrm-windows-back-to-cases:capture}}$",
+            descendantNameIsRegex: true)
     };
 }
