@@ -485,18 +485,19 @@ AutomationElement WaitForBubble(string expectedInstruction, Process dapProcess, 
                 new PropertyCondition(AutomationElement.AutomationIdProperty, "DapLearnerBubble"));
 
             bubble = candidates.Cast<AutomationElement>()
-                .FirstOrDefault(candidate =>
-                {
-                    try
-                    {
-                        return !candidate.Current.IsOffscreen
-                            && !candidate.Current.BoundingRectangle.IsEmpty;
-                    }
-                    catch (ElementNotAvailableException)
-                    {
-                        return false;
-                    }
-                });
+                .FirstOrDefault(IsVisibleUiaElement);
+
+            // WPF top-level windows do not always expose AutomationId consistently
+            // through UIA when DAP is launched via "dotnet run". The bubble's
+            // accessible Name is the instruction itself, so use that as a second,
+            // source-independent identity path before declaring it missing.
+            bubble ??= AutomationElement.RootElement.FindAll(
+                    TreeScope.Children,
+                    new AndCondition(
+                        new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Window),
+                        new PropertyCondition(AutomationElement.NameProperty, expectedInstruction)))
+                .Cast<AutomationElement>()
+                .FirstOrDefault(IsVisibleUiaElement);
 
             if (bubble is null && !diagnosticLogged && sw.ElapsedMilliseconds >= 1_000)
             {
@@ -529,6 +530,19 @@ AutomationElement WaitForBubble(string expectedInstruction, Process dapProcess, 
         $"Last observed bubble: '{lastObservedInstruction ?? "<none>"}'.");
 }
 
+bool IsVisibleUiaElement(AutomationElement candidate)
+{
+    try
+    {
+        return !candidate.Current.IsOffscreen
+               && !candidate.Current.BoundingRectangle.IsEmpty;
+    }
+    catch (ElementNotAvailableException)
+    {
+        return false;
+    }
+}
+
 void DiagnoseDapTopLevelWindows(Process dapProcess)
 {
     try
@@ -539,18 +553,15 @@ void DiagnoseDapTopLevelWindows(Process dapProcess)
             .Cast<AutomationElement>()
             .ToArray();
 
-        Console.WriteLine($"[Windows UIA diagnostic] top-level windows={windows.Length}; DAP pid={dapProcess.Id}");
+        Console.WriteLine($"[Windows UIA diagnostic] top-level windows={windows.Length}; launcher pid={dapProcess.Id}");
 
         foreach (var window in windows)
         {
             try
             {
-                var processId = window.Current.ProcessId;
-                if (processId != dapProcess.Id)
-                    continue;
-
                 Console.WriteLine(
-                    $"[Windows UIA diagnostic] DAP window: " +
+                    $"[Windows UIA diagnostic] top-level window: " +
+                    $"ProcessId={window.Current.ProcessId}; " +
                     $"Name='{window.Current.Name}'; " +
                     $"AutomationId='{window.Current.AutomationId}'; " +
                     $"ClassName='{window.Current.ClassName}'; " +
