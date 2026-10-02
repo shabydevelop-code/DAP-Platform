@@ -221,3 +221,14 @@ The interaction contract is: normal content uses the default cursor, handle hove
 After the final Step completes, the Web Learner Runtime presents a completion state with an explicit `סיום` action and waits for the learner's real click. DAP must not synthesize that click.
 
 Finishing the Guide/runtime is separate from the lifecycle of the target business browser. The completion action does not imply closing the browser.
+
+
+## ADR-026 — Numeric persistence IDs with stable textual keys
+
+**Status:** Accepted
+
+SQLite persistence uses numeric internal primary/foreign keys for Guides, GuideSteps, and their relationships. Human-readable identifiers are stored separately as stable textual `Key` values.
+
+Runtime and application boundaries may continue to address a Guide by its stable textual key; database row IDs are an internal persistence concern and must not become user-facing or runtime-routing identifiers.
+
+Legacy databases that used textual primary keys are migrated in place, preserving the previous textual IDs as the new keys and remapping all GuideStep and TargetAnchor relationships to numeric IDs.
