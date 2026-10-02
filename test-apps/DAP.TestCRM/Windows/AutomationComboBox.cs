@@ -24,9 +24,15 @@ internal sealed class AutomationComboBoxPeer : ComboBoxAutomationPeer, IValuePro
 
     void IValueProvider.SetValue(string value)
     {
-        if(!owner.IsEnabled)throw new InvalidOperationException("ComboBox is disabled.");
-        var match=owner.Items.Cast<object>().FirstOrDefault(x=>string.Equals(x?.ToString(),value,StringComparison.Ordinal));
-        if(match is null)throw new ArgumentException($"Unknown ComboBox value '{value}'.",nameof(value));
-        owner.SelectedItem=match;
+        owner.Dispatcher.Invoke(() =>
+        {
+            if(!owner.IsEnabled)throw new InvalidOperationException("ComboBox is disabled.");
+            var index=-1;
+            for(var i=0;i<owner.Items.Count;i++)
+                if(string.Equals(owner.Items[i]?.ToString(),value,StringComparison.Ordinal)){index=i;break;}
+            if(index<0)throw new ArgumentException($"Unknown ComboBox value '{value}'.",nameof(value));
+            owner.SelectedIndex=index;
+            owner.UpdateLayout();
+        });
     }
 }
