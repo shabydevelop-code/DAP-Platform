@@ -212,7 +212,15 @@ async Task RunGuidedAsync()
         WaitForBubble(BubbleFor("testcrm-windows-back-to-cases"), dap);
         await driver.OpenSiteFromBreadcrumb();
 
-        WaitForBubble(BubbleFor("testcrm-windows-open-created-case"), dap);
+        try
+        {
+            WaitForBubble(BubbleFor("testcrm-windows-open-created-case"), dap);
+        }
+        catch (TimeoutException)
+        {
+            DiagnoseCasesGrid(window);
+            throw;
+        }
         await driver.OpenCreatedCase();
 
         if (!dap.WaitForExit(15_000))
@@ -373,6 +381,54 @@ void DiagnoseNavigationGrids(AutomationElement window)
         {
             Console.WriteLine($"[Windows UIA diagnostic] {gridId}: <became unavailable>");
         }
+    }
+}
+
+void DiagnoseCasesGrid(AutomationElement window)
+{
+    try
+    {
+        var grid = window.FindFirst(
+            TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.AutomationIdProperty, "CasesGrid"));
+
+        if (grid is null)
+        {
+            Console.WriteLine("[Windows UIA diagnostic] CasesGrid: <not found>");
+            return;
+        }
+
+        var rows = grid.FindAll(
+            TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.DataItem))
+            .Cast<AutomationElement>()
+            .ToArray();
+
+        Console.WriteLine($"[Windows UIA diagnostic] CasesGrid rows={rows.Length}");
+        for (var index = 0; index < rows.Length; index++)
+        {
+            var row = rows[index];
+            Console.WriteLine(
+                $"[Windows UIA diagnostic] CasesGrid row {index}: " +
+                $"AutomationId='{row.Current.AutomationId}'; Name='{row.Current.Name}'; " +
+                $"ControlType='{row.Current.ControlType?.ProgrammaticName ?? "<null>"}'");
+
+            var descendants = row.FindAll(TreeScope.Descendants, Condition.TrueCondition)
+                .Cast<AutomationElement>()
+                .ToArray();
+
+            foreach (var element in descendants)
+            {
+                Console.WriteLine(
+                    $"[Windows UIA diagnostic] CasesGrid row {index} descendant: " +
+                    $"AutomationId='{element.Current.AutomationId}'; Name='{element.Current.Name}'; " +
+                    $"ControlType='{element.Current.ControlType?.ProgrammaticName ?? "<null>"}'");
+            }
+        }
+    }
+    catch (ElementNotAvailableException)
+    {
+        Console.WriteLine("[Windows UIA diagnostic] CasesGrid: <became unavailable>");
     }
 }
 
