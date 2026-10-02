@@ -147,7 +147,10 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
         if(!button.Current.IsEnabled || !button.TryGetCurrentPattern(InvokePattern.Pattern,out var invoke))
             throw new Exception("NewCaseButton is not invokable.");
         ((InvokePattern)invoke).Invoke();
-        Wait(()=>EnabledById("CaseSubject"),"new Case form");
+
+        // Invoke once only. The WPF navigation is asynchronous, so allow the
+        // destination form enough time to finish its API-backed initialization.
+        Wait(()=>EnabledById("CaseSubject"),"new Case form",10000);
         return Task.CompletedTask;
     }
     public Task SetCaseSubject(string v){Set("CaseSubject",v);return Task.CompletedTask;}
@@ -302,7 +305,7 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
         if(!button.Current.IsEnabled || !button.TryGetCurrentPattern(InvokePattern.Pattern,out var invoke))
             throw new Exception("NewLeadButton is not invokable.");
         ((InvokePattern)invoke).Invoke();
-        Wait(()=>EnabledById("LeadContactName"),"new Lead form");
+        Wait(()=>EnabledById("LeadContactName"),"new Lead form",10000);
         return Task.CompletedTask;
     }
     public Task SetLeadContact(string v){Set("LeadContactName",v);return Task.CompletedTask;}
