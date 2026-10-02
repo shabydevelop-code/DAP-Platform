@@ -161,10 +161,38 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     public Task SetCaseDescription(string v){Set("CaseDescription",v);return Task.CompletedTask;}
     public Task SaveCase()
     {
+        var wasPersisted=window.FindFirst(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteCaseButton")) is not null;
         Click(ById("SaveCaseButton"));
-        Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteCaseButton")),"persisted Case form after Save");
+
+        if(!wasPersisted)
+            Wait(()=>window.FindFirst(TreeScope.Descendants,
+                new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteCaseButton")),"persisted Case form after Save");
+        else
+            WaitForOperationCompleted("Case Save");
+
         createdCaseId ??= CurrentCaseId();
         return Task.CompletedTask;
+    }
+
+    void WaitForOperationCompleted(string operation)
+    {
+        var status=ById("StatusText");
+        var sw=Stopwatch.StartNew();
+        var observedBusy=false;
+        while(sw.ElapsedMilliseconds<5000)
+        {
+            var text=status.Current.Name;
+            if(text=="מעבד...")observedBusy=true;
+            if(observedBusy && string.IsNullOrEmpty(text))return;
+            Thread.Sleep(50);
+        }
+
+        // A very fast operation can complete before UIA observes the busy text.
+        // In that case require the current screen to be stable after the click.
+        Thread.Sleep(250);
+        if(string.IsNullOrEmpty(status.Current.Name))return;
+        throw new TimeoutException($"Timed out waiting for {operation} to complete.");
     }
     string CurrentCaseId()
     {
