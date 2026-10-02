@@ -403,47 +403,68 @@ StartupMark("TestCRM navigation completed");
 await WaitReady();
 StartupMark("TestCRM ready");
 
-// DAP is intentionally absent from CRM-only. The canonical CRM business flow
-// below still runs in full, but this mode must not require DAP.db, a Guide, or
-// DAP.exe. Guided modes load the persistent Guide as their Source of Truth.
-IReadOnlyList<DAP.Core.Guides.GuideStep> dapSteps=Array.Empty<DAP.Core.Guides.GuideStep>();
-string? dapDbPath=null;
-if(!crmOnly)
-{
-    var dapDatabaseOptions=SqliteDatabaseOptions.CreateDefault();
-    dapDbPath=dapDatabaseOptions.DatabasePath;
-    var dapFactory=new SqliteConnectionFactory(dapDatabaseOptions);
-    await new SqliteDatabaseInitializer(dapFactory).InitializeAsync();
-    var dapRepository=new SqliteGuideStepRepository(dapFactory);
-    await dapRepository.RenameGuideAsync(
-        DapTestCrmGuideSeed.LegacyGuideId,
-        DapTestCrmGuideSeed.GuideId,
-        DapTestCrmGuideSeed.GuideName);
-    dapSteps=await dapRepository.GetStepsAsync(DapTestCrmGuideSeed.GuideId);
-    Console.WriteLine($"DAP persistent guide database: {dapDbPath}");
-    StartupMark("persistent DAP guide loaded");
+// Every Web scenario mode consumes the same persisted production Guide.
+// CRM-only suppresses DAP.exe and bubble presentation, but the business-flow
+// harness is still sequenced by the Guide in DAP.db. This keeps the Guide as
+// the single source of truth without adding test-only fields to production data.
+var dapDatabaseOptions=SqliteDatabaseOptions.CreateDefault();
+var dapDbPath=dapDatabaseOptions.DatabasePath;
+var dapFactory=new SqliteConnectionFactory(dapDatabaseOptions);
+await new SqliteDatabaseInitializer(dapFactory).InitializeAsync();
+var dapRepository=new SqliteGuideStepRepository(dapFactory);
+await dapRepository.RenameGuideAsync(
+    DapTestCrmGuideSeed.LegacyGuideId,
+    DapTestCrmGuideSeed.GuideId,
+    DapTestCrmGuideSeed.GuideName);
+var dapSteps=await dapRepository.GetStepsAsync(DapTestCrmGuideSeed.GuideId);
+Console.WriteLine($"DAP persistent guide database: {dapDbPath}");
+StartupMark(crmOnly
+    ? "persistent DAP guide loaded for CRM-only"
+    : "persistent DAP guide loaded");
 
-    if(dapSteps.Count==0)
-        throw new Exception(
-            $"DAP Guide '{DapTestCrmGuideSeed.GuideId}' does not exist in the persistent database. " +
-            "Initialize/reset the Guide explicitly before running the E2E.");
-    if(manualFromStep is not null && !dapSteps.Any(step => step.Order == manualFromStep.Value))
-        throw new ArgumentOutOfRangeException(
-            nameof(manualFromStep),
-            manualFromStep,
-            $"Guide '{DapTestCrmGuideSeed.GuideId}' does not contain Step {manualFromStep}.");
-    if(visualFromStep is not null && !dapSteps.Any(step => step.Order == visualFromStep.Value))
-        throw new ArgumentOutOfRangeException(
-            nameof(visualFromStep),
-            visualFromStep,
-            $"Guide '{DapTestCrmGuideSeed.GuideId}' does not contain Step {visualFromStep}.");
-}
+if(dapSteps.Count==0)
+    throw new Exception(
+        $"DAP Guide '{DapTestCrmGuideSeed.GuideId}' does not exist in the persistent database. " +
+        "Initialize/reset the Guide explicitly before running the E2E.");
+if(dapSteps.Count!=53)
+    throw new Exception(
+        $"DAP Guide '{DapTestCrmGuideSeed.GuideId}' must contain exactly 53 Steps for the canonical Web scenario; found {dapSteps.Count}.");
+if(dapSteps.Select(step=>step.Order).Distinct().Count()!=dapSteps.Count
+    || dapSteps.Min(step=>step.Order)!=1
+    || dapSteps.Max(step=>step.Order)!=dapSteps.Count)
+    throw new Exception(
+        $"DAP Guide '{DapTestCrmGuideSeed.GuideId}' must have contiguous unique Step orders 1..{dapSteps.Count}.");
+if(dapSteps.Any(step=>step.Target is null || step.Target.Runtime!=TargetRuntime.Web))
+    throw new Exception(
+        $"DAP Guide '{DapTestCrmGuideSeed.GuideId}' contains a Step without a Web target.");
+
+if(manualFromStep is not null && !dapSteps.Any(step => step.Order == manualFromStep.Value))
+    throw new ArgumentOutOfRangeException(
+        nameof(manualFromStep),
+        manualFromStep,
+        $"Guide '{DapTestCrmGuideSeed.GuideId}' does not contain Step {manualFromStep}.");
+if(visualFromStep is not null && !dapSteps.Any(step => step.Order == visualFromStep.Value))
+    throw new ArgumentOutOfRangeException(
+        nameof(visualFromStep),
+        visualFromStep,
+        $"Guide '{DapTestCrmGuideSeed.GuideId}' does not contain Step {visualFromStep}.");
 
 var dapStdErrLines=new System.Collections.Concurrent.ConcurrentQueue<string>();
+var lastScenarioGuideOrder=0;
 async Task WaitForGuideStep(int order)
 {
-    if(crmOnly) return;
     var expected=dapSteps.Single(step=>step.Order==order);
+
+    if(order!=lastScenarioGuideOrder+1)
+        throw new Exception(
+            $"Canonical Web scenario requested Guide Step {order} after Step {lastScenarioGuideOrder}; expected {lastScenarioGuideOrder+1}.");
+    lastScenarioGuideOrder=order;
+
+    if(crmOnly)
+    {
+        Console.WriteLine($"Web CRM-only Guide Step {order}/{dapSteps.Count}: {expected.Id}");
+        return;
+    }
     for(var i=0;i<100;i++)
     {
         // A Guide may cross frame boundaries. Search live frames instead of
@@ -1144,7 +1165,13 @@ if(!new Uri(frame.Url).Fragment.Equals("#/",StringComparison.Ordinal))
     throw new Exception("Header navigation did not return Content to the customer workspace.");
 await frame.Locator("h1:has-text('חיפוש לקוח')").WaitForAsync();
 
-Console.WriteLine("PASS: representative Customer -> Site -> Case -> Lead workflow, including dynamic Lead deletion and Case deletion, completed.");
+if(lastScenarioGuideOrder!=dapSteps.Count)
+    throw new Exception(
+        $"Canonical Web scenario completed after Guide Step {lastScenarioGuideOrder}; expected {dapSteps.Count}.");
+
+Console.WriteLine(crmOnly
+    ? "PASS: Web CRM-only executed the canonical 53-step scenario sequenced by the persisted Guide in DAP.db, without DAP.exe or bubbles."
+    : "PASS: representative Customer -> Site -> Case -> Lead workflow, including dynamic Lead deletion and Case deletion, completed.");
 await page.WaitForTimeoutAsync(visualMode ? 1500 : 0);
 }
 finally
