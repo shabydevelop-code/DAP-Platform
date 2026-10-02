@@ -177,3 +177,47 @@ The permanent DAP.TestCRM E2E suite is a representative server-backed CRM target
 Test-specific workarounds, hidden navigation APIs, route persistence added solely for tests, or application-specific hooks must not be introduced merely to make an E2E scenario pass. When a scenario requires such a workaround, the scenario or the generic DAP Web Runtime contract must be reconsidered.
 
 Validated scenarios currently cover server-driven FieldChange and Content iframe replacement, validation with preserved unsaved working values, Grid rerender/reorder and target re-resolution, Content-document reload with preserved logical context, CRM tab switching, conditional target disappearance/reappearance, cross-frame Header-to-Content navigation, and Layout Shift with target re-resolution. The existing baseline workflow and deletion coverage must remain regression-protected as new scenarios are added.
+
+## ADR-021 — Persisted Guide database owns initialized Guides
+
+**Status:** Accepted
+
+Guide seed/factory definitions initialize or explicitly reset known Guides; they are not authoritative during normal execution after initialization.
+
+Normal execution loads and runs the persisted Guide from the configured DAP data provider. Instructor/Editor changes written to persistence therefore become authoritative for subsequent Learner and E2E execution.
+
+Product rule: **Seed initializes. DB owns. Runtime consumes.**
+
+SQLite is the current provider only. This ownership rule belongs to the persistence architecture and must remain independent of the concrete database engine.
+
+## ADR-022 — Learner is a runtime, not a mandatory dashboard
+
+**Status:** Accepted
+
+The current learner product flow is organization-provided launch/shortcut/portal -> specific Guide -> Learner Runtime -> in-application bubbles -> completion.
+
+DAP does not require a persistent Learner dashboard or generic between-Step loading/progress surface. Between Steps the Runtime may remain visually quiet while it re-resolves the next target. An optional catalog/launcher may be introduced only as a separate future product requirement.
+
+## ADR-023 — Web bubble presentation may be promoted independently of target ownership
+
+**Status:** Accepted
+
+A resolved target and its validation remain owned by the original document/frame. If that frame is physically unable to display the learner bubble, presentation may be promoted to the top-level page without changing target identity or validation ownership.
+
+The promoted bubble is an interactive production learner surface, not a passive diagnostic overlay. This rule is generic and must not be implemented as a Step-, site-, or TestCRM-specific workaround.
+
+## ADR-024 — Bubble dragging uses an explicit handle
+
+**Status:** Accepted
+
+Draggable learner bubbles expose a visible `⠿` handle. Only that handle starts a drag; the rest of the bubble must not advertise or initiate dragging.
+
+The interaction contract is: normal content uses the default cursor, handle hover uses `grab`, and active dragging uses `grabbing`. The rule applies consistently to regular Web bubbles, promoted top-level bubbles, and the Guide completion bubble.
+
+## ADR-025 — Guide completion requires explicit learner confirmation
+
+**Status:** Accepted
+
+After the final Step completes, the Web Learner Runtime presents a completion state with an explicit `סיום` action and waits for the learner's real click. DAP must not synthesize that click.
+
+Finishing the Guide/runtime is separate from the lifecycle of the target business browser. The completion action does not imply closing the browser.
