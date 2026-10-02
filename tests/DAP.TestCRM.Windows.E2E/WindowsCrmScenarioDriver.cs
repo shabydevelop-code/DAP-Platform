@@ -142,8 +142,17 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     }
     public Task SortCasesByStatus()
     {
+        var oldButton=ById("NewCaseButton");
         Click(ById("SortCasesByStatusButton"));
-        Wait(()=>EnabledById("NewCaseButton"),"Cases screen after status sort");
+
+        // ShowSite rebuilds the whole Cases screen asynchronously. Seeing a
+        // NewCaseButton is not enough: the old button remains in UIA until the
+        // replacement screen is installed. Wait for a different UIA element.
+        Wait(()=>
+        {
+            var current=EnabledById("NewCaseButton");
+            return current is not null && !Automation.Compare(oldButton,current) ? current : null;
+        },"Cases screen replacement after status sort",10000);
         return Task.CompletedTask;
     }
     public Task CreateCase()
