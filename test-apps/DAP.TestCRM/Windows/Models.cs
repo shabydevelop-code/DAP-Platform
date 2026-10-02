@@ -8,3 +8,5 @@ public sealed record Lead(int Id, int SiteId, string Source, string ContactName,
 public sealed record SiteInput(string Name, string Type, string Address);
 public sealed record CaseInput(string Status, string Subject, string Description, string CloseReason);
 public sealed record LeadInput(string Source, string ContactName, string Status, string Notes, string SelectedService, string LostReason);
+public sealed record CaseStatusFieldChange(string Status, string Subject, string CloseReason, bool ResolutionEnabled);
+public sealed record LeadStatusFieldChange(string Status, string SelectedService, string LostReason);
