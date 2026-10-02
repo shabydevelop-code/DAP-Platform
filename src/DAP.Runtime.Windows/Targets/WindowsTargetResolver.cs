@@ -154,6 +154,23 @@ public sealed class WindowsTargetResolver
             return true;
         }
 
+        // Some providers make repeated cross-process property reads very expensive.
+        // Pull the scope subtree once with the identifying property cached, then filter
+        // locally. This is the Windows/UIA equivalent of using a DOM snapshot instead of
+        // issuing one remote query per row/cell.
+        descendant = FindDescendantFromCachedSnapshot(scope, descendantAnchor.Locator);
+        if (descendant is not null)
+        {
+            AddPrimaryAncestorCandidate(
+                descendant,
+                scope,
+                descriptor,
+                scopeAnchor,
+                descendantAnchor,
+                candidates);
+            return true;
+        }
+
         // Prefer the provider's logical grid contract over realizing rows one by one.
         // GridPattern gives direct cell access by row/column and avoids constructing the
         // full descendant subtree for every DataItem.
@@ -166,6 +183,67 @@ public sealed class WindowsTargetResolver
             candidates);
 
         return true;
+    }
+
+    private static AutomationElement? FindDescendantFromCachedSnapshot(
+        AutomationElement scope,
+        Locator locator)
+    {
+        if (!TryCreateNativeCondition(locator, out var condition)
+            || condition is not PropertyCondition property)
+            return null;
+
+        var stopwatch = Stopwatch.StartNew();
+        var cache = new CacheRequest
+        {
+            AutomationElementMode = AutomationElementMode.Full,
+            TreeFilter = Automation.RawViewCondition,
+            TreeScope = TreeScope.Element
+        };
+        cache.Add(property.Property);
+        cache.Add(AutomationElement.ControlTypeProperty);
+
+        try
+        {
+            using (cache.Activate())
+            {
+                var elements = scope.FindAll(TreeScope.Descendants, Condition.TrueCondition);
+                foreach (AutomationElement element in elements)
+                {
+                    object actual;
+                    try
+                    {
+                        actual = element.GetCachedPropertyValue(property.Property, true);
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        continue;
+                    }
+
+                    if (!Equals(actual, property.Value))
+                        continue;
+
+                    stopwatch.Stop();
+                    Console.Error.WriteLine(
+                        $"[DAP Windows resolver cached-snapshot] elements={elements.Count}, " +
+                        $"matched=1, elapsed={stopwatch.ElapsedMilliseconds} ms.");
+                    return element;
+                }
+
+                stopwatch.Stop();
+                Console.Error.WriteLine(
+                    $"[DAP Windows resolver cached-snapshot] elements={elements.Count}, " +
+                    $"matched=0, elapsed={stopwatch.ElapsedMilliseconds} ms.");
+            }
+        }
+        catch (ElementNotAvailableException)
+        {
+        }
+        catch (InvalidOperationException)
+        {
+        }
+
+        return null;
     }
 
     private static void AddPrimaryAncestorCandidate(
