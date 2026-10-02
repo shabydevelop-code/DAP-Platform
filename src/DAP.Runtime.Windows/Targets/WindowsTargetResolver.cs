@@ -210,10 +210,11 @@ public sealed class WindowsTargetResolver
         {
             var rows = grid.Current.RowCount;
             var columns = grid.Current.ColumnCount;
+            var candidateColumns = ResolveCandidateColumns(scope, descriptor, columns);
 
             for (var row = 0; row < rows; row++)
             {
-                for (var column = 0; column < columns; column++)
+                foreach (var column in candidateColumns)
                 {
                     AutomationElement cell;
                     try
@@ -266,6 +267,7 @@ public sealed class WindowsTargetResolver
                     stopwatch.Stop();
                     Console.Error.WriteLine(
                         $"[DAP Windows resolver grid] rows={rows}, columns={columns}, " +
+                        $"candidateColumns={string.Join(",", candidateColumns)}, " +
                         $"inspectedCells={inspectedCells}, final={candidates.Count}, " +
                         $"elapsed={stopwatch.ElapsedMilliseconds} ms.");
                     return;
@@ -275,6 +277,7 @@ public sealed class WindowsTargetResolver
             stopwatch.Stop();
             Console.Error.WriteLine(
                 $"[DAP Windows resolver grid] rows={rows}, columns={columns}, " +
+                $"candidateColumns={string.Join(",", candidateColumns)}, " +
                 $"inspectedCells={inspectedCells}, final=0, " +
                 $"elapsed={stopwatch.ElapsedMilliseconds} ms.");
         }
@@ -284,6 +287,43 @@ public sealed class WindowsTargetResolver
         catch (InvalidOperationException)
         {
         }
+    }
+
+    private static IReadOnlyList<int> ResolveCandidateColumns(
+        AutomationElement scope,
+        TargetDescriptor descriptor,
+        int columnCount)
+    {
+        var columnHeaderAnchor = descriptor.Anchors.FirstOrDefault(anchor =>
+            anchor.Relation == AnchorRelation.ColumnHeader);
+        if (columnHeaderAnchor is null)
+            return Enumerable.Range(0, columnCount).ToArray();
+
+        if (!scope.TryGetCurrentPattern(TablePattern.Pattern, out var rawPattern)
+            || rawPattern is not TablePattern table)
+            return Enumerable.Range(0, columnCount).ToArray();
+
+        try
+        {
+            var headers = table.Current.GetColumnHeaders();
+            var matches = new List<int>();
+            for (var index = 0; index < headers.Length && index < columnCount; index++)
+            {
+                if (MatchesLocator(headers[index], columnHeaderAnchor.Locator))
+                    matches.Add(index);
+            }
+
+            if (matches.Count > 0)
+                return matches;
+        }
+        catch (ElementNotAvailableException)
+        {
+        }
+        catch (InvalidOperationException)
+        {
+        }
+
+        return Enumerable.Range(0, columnCount).ToArray();
     }
 
     private static AutomationElement? FindRawAncestor(AutomationElement candidate, Locator locator)
@@ -302,7 +342,10 @@ public sealed class WindowsTargetResolver
         Anchor scopeAnchor,
         Anchor descendantAnchor) =>
         anchors
-            .Where(anchor => !ReferenceEquals(anchor, scopeAnchor) && !ReferenceEquals(anchor, descendantAnchor))
+            .Where(anchor =>
+                !ReferenceEquals(anchor, scopeAnchor)
+                && !ReferenceEquals(anchor, descendantAnchor)
+                && anchor.Relation != AnchorRelation.ColumnHeader)
             .All(anchor => MatchesAnchor(candidate, anchor));
 
     private static bool HasRawAncestorOrSelf(AutomationElement candidate, AutomationElement ancestor)
