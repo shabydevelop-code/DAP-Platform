@@ -109,19 +109,27 @@ http://localhost:5200
 
 The DAP E2E and manual learner launchers can also start/use TestCRM as part of their own workflows.
 
-To run the Web client and its E2E regression with the current split client/server structure, use separate terminals:
+To run the Web client and its E2E regression with the current split client/server structure, use three separate terminals:
 
 ```powershell
-# Terminal 1 — shared backend
+# Terminal 1 — shared backend/API (:5201)
 cd C:\yossi\ChatGpt\DAP-Platform
 dotnet run --project test-apps\DAP.TestCRM\Server\DAP.TestCRM.Server.csproj
 ```
 
 ```powershell
-# Terminal 2 — Web E2E
+# Terminal 2 — Web host (:5200)
+cd C:\yossi\ChatGpt\DAP-Platform
+dotnet run --project test-apps\DAP.TestCRM\Web\DAP.TestCRM.Web.csproj
+```
+
+```powershell
+# Terminal 3 — Web E2E
 cd C:\yossi\ChatGpt\DAP-Platform
 dotnet run --project tests\DAP.TestCRM.Web.E2E\DAP.TestCRM.Web.E2E.csproj
 ```
+
+Start the backend first, then the Web host, and run Web E2E only after both are listening.
 
 ## Purpose and realism rule
 
