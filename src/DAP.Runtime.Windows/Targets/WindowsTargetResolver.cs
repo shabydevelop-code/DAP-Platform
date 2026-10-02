@@ -132,88 +132,7 @@ public sealed class WindowsTargetResolver
     private static bool TryGetExactRegexValue(string pattern, out string value)
     {
         value = string.Empty;
-        if (pattern.Length < 2 || pattern[0] != '^' || pattern[^1] != '
-    private static ControlType ParseControlType(string value) =>
-        value.Trim().ToLowerInvariant() switch
-        {
-            "button" => ControlType.Button,
-            "edit" or "textbox" => ControlType.Edit,
-            "combobox" => ControlType.ComboBox,
-            "dataitem" => ControlType.DataItem,
-            "window" => ControlType.Window,
-            _ => throw new NotSupportedException($"Unsupported Windows control type '{value}'.")
-        };
-
-    private static bool MatchesAnchors(AutomationElement candidate, IReadOnlyList<Anchor> anchors) =>
-        anchors.All(anchor => MatchesAnchor(candidate, anchor));
-
-    private static bool MatchesAnchor(AutomationElement candidate, Anchor anchor) =>
-        anchor.Relation switch
-        {
-            AnchorRelation.Self =>
-                MatchesLocator(candidate, anchor.Locator),
-            AnchorRelation.Ancestor or AnchorRelation.Context =>
-                HasInParentChain(candidate, anchor.Locator),
-            AnchorRelation.Descendant =>
-                HasDescendant(candidate, anchor.Locator),
-            AnchorRelation.Sibling =>
-                HasSibling(candidate, anchor.Locator),
-            AnchorRelation.Nearby =>
-                HasSibling(candidate, anchor.Locator) || HasInParentChain(candidate, anchor.Locator),
-            _ => false
-        };
-
-    private static bool HasDescendant(AutomationElement candidate, Locator locator)
-    {
-        if (TryCreateNativeCondition(locator, out var condition))
-            return candidate.FindFirst(TreeScope.Descendants, condition) is not null;
-
-        return candidate.FindAll(TreeScope.Descendants, Condition.TrueCondition)
-            .Cast<AutomationElement>()
-            .Any(element => MatchesLocator(element, locator));
-    }
-
-    private static bool HasInParentChain(AutomationElement candidate, Locator locator)
-    {
-        var walker = TreeWalker.ControlViewWalker;
-        for (var current = walker.GetParent(candidate); current is not null; current = walker.GetParent(current))
-            if (MatchesLocator(current, locator))
-                return true;
-        return false;
-    }
-
-    private static bool HasSibling(AutomationElement candidate, Locator locator)
-    {
-        var walker = TreeWalker.ControlViewWalker;
-        var parent = walker.GetParent(candidate);
-        if (parent is null)
-            return false;
-
-        foreach (AutomationElement sibling in parent.FindAll(TreeScope.Children, Condition.TrueCondition))
-            if (!Automation.Compare(candidate, sibling) && MatchesLocator(sibling, locator))
-                return true;
-
-        return false;
-    }
-
-    private static bool MatchesLocator(AutomationElement element, Locator locator)
-    {
-        if (locator.Strategy.Trim().Equals("name-regex", StringComparison.OrdinalIgnoreCase))
-            return Regex.IsMatch(element.Current.Name ?? string.Empty, locator.Value, RegexOptions.CultureInvariant);
-
-        return MatchesCondition(element, CreateCondition(locator));
-    }
-
-    private static bool MatchesCondition(AutomationElement element, Condition condition)
-    {
-        if (condition is not PropertyCondition property)
-            return false;
-
-        var actual = element.GetCurrentPropertyValue(property.Property, true);
-        return Equals(actual, property.Value);
-    }
-}
-)
+        if (pattern.Length < 2 || pattern[0] != '^' || pattern[^1] != '$')
             return false;
 
         var body = pattern[1..^1];
@@ -267,15 +186,23 @@ public sealed class WindowsTargetResolver
             AnchorRelation.Ancestor or AnchorRelation.Context =>
                 HasInParentChain(candidate, anchor.Locator),
             AnchorRelation.Descendant =>
-                candidate.FindAll(TreeScope.Descendants, Condition.TrueCondition)
-                    .Cast<AutomationElement>()
-                    .Any(element => MatchesLocator(element, anchor.Locator)),
+                HasDescendant(candidate, anchor.Locator),
             AnchorRelation.Sibling =>
                 HasSibling(candidate, anchor.Locator),
             AnchorRelation.Nearby =>
                 HasSibling(candidate, anchor.Locator) || HasInParentChain(candidate, anchor.Locator),
             _ => false
         };
+
+    private static bool HasDescendant(AutomationElement candidate, Locator locator)
+    {
+        if (TryCreateNativeCondition(locator, out var condition))
+            return candidate.FindFirst(TreeScope.Descendants, condition) is not null;
+
+        return candidate.FindAll(TreeScope.Descendants, Condition.TrueCondition)
+            .Cast<AutomationElement>()
+            .Any(element => MatchesLocator(element, locator));
+    }
 
     private static bool HasInParentChain(AutomationElement candidate, Locator locator)
     {
