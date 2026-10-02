@@ -59,12 +59,30 @@ static int ReserveTcpPort()
 }
 
 Process? ownedTestCrmProcess = null;
+Process? ownedTestCrmBackendProcess = null;
 if (manualFromStep is not null)
 {
     var repoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
-    var testCrmProject = Path.Combine(repoRoot, "test-apps", "DAP.TestCRM", "DAP.TestCRM.csproj");
+    var testCrmProject = Path.Combine(repoRoot, "test-apps", "DAP.TestCRM", "Web", "DAP.TestCRM.Web.csproj");
+    var testCrmBackendProject = Path.Combine(repoRoot, "test-apps", "DAP.TestCRM", "Server", "DAP.TestCRM.Server.csproj");
     if (!File.Exists(testCrmProject))
-        throw new FileNotFoundException("TestCRM project was not found.", testCrmProject);
+        throw new FileNotFoundException("TestCRM Web project was not found.", testCrmProject);
+    if (!File.Exists(testCrmBackendProject))
+        throw new FileNotFoundException("TestCRM Server project was not found.", testCrmBackendProject);
+
+    var backendPsi = new ProcessStartInfo
+    {
+        FileName = "dotnet",
+        Arguments = $"run --project \"{testCrmBackendProject}\" --no-launch-profile",
+        WorkingDirectory = repoRoot,
+        UseShellExecute = false,
+        CreateNoWindow = true,
+        RedirectStandardOutput = true,
+        RedirectStandardError = true
+    };
+    backendPsi.Environment["ASPNETCORE_URLS"] = "http://localhost:5201";
+    ownedTestCrmBackendProcess = Process.Start(backendPsi)
+        ?? throw new InvalidOperationException("Could not start TestCRM backend for manual handoff.");
 
     // Manual handoff is intentionally self-contained: unlike a normal E2E run,
     // the tester should not have to start a second process in another terminal.
@@ -79,6 +97,7 @@ if (manualFromStep is not null)
         RedirectStandardError = true
     };
     psi.Environment["ASPNETCORE_URLS"] = baseUrl;
+    psi.Environment["TestCrmBackendUrl"] = "http://localhost:5201";
     ownedTestCrmProcess = Process.Start(psi)
         ?? throw new InvalidOperationException("Could not start TestCRM for manual handoff.");
 
