@@ -285,3 +285,13 @@ When a Windows target is a row in a small, already-realized UIA grid and the per
 The result must remain explicit and deterministic: exactly one match resolves, zero matches are NotFound, and multiple matches are Ambiguous. The Runtime must not choose the first row silently.
 
 This strategy is based only on UIA information observable from a closed target application. TestCRM source, internal database state, and private APIs must not be used as runtime targeting oracles. Specialized UIA/visual strategies for larger or virtualized grids may coexist behind the same shared target-resolution contract.
+
+## ADR-032 — Manual Windows bubble placement persists for the active Step
+
+**Status:** Accepted
+
+When a learner drags a Windows learner bubble, that manually selected position remains authoritative for the rest of the current Guide Step. Normal Runtime reconciliation must not move the bubble back to an automatically calculated target-relative position while the same Step remains active.
+
+The directional pointer is hidden after the manual drag, matching the Web learner-bubble interaction. When the active Step changes, manual placement is cleared and the next bubble returns to automatic placement with its pointer visible.
+
+This state is presentation-only and must not alter target resolution, validation, runtime capture, or Guide progression.
