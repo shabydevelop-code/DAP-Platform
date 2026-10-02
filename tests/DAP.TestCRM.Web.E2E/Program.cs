@@ -811,8 +811,41 @@ else
     await WaitForGuideStep(2);
 }
 
+async Task TraceCustomerSearchState(string stage)
+{
+    var contentFrame=page.Frames.FirstOrDefault(candidate=>
+        !candidate.IsDetached
+        && candidate.Name=="dap-content");
+    if(contentFrame is null)
+    {
+        Console.WriteLine($"[Step 2 trace] {stage}: dap-content frame missing.");
+        return;
+    }
+
+    string? ready=null;
+    string? nameValue=null;
+    try
+    {
+        ready=await contentFrame.Locator("html").GetAttributeAsync("data-dap-ready");
+        if(await contentFrame.Locator("[name='name']").CountAsync()==1)
+            nameValue=await contentFrame.Locator("[name='name']").InputValueAsync();
+    }
+    catch(PlaywrightException ex)
+    {
+        Console.WriteLine($"[Step 2 trace] {stage}: frame access failed: {ex.Message}");
+        return;
+    }
+
+    Console.WriteLine(
+        $"[Step 2 trace] {stage}: mode={(crmOnly ? "crm-only" : "guided")}, " +
+        $"url='{contentFrame.Url}', dapReady='{ready ?? "<null>"}', name='{nameValue ?? "<missing>"}'");
+}
+
+await TraceCustomerSearchState("before click");
 await Click("#customer-search button.primary");
+await TraceCustomerSearchState("after click");
 await WaitReady();
+await TraceCustomerSearchState("after ready");
 
 // From here the production Guide continues across real CRM navigation. The E2E
 // waits for each instruction before acting, so the same Guide can be followed
