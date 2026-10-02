@@ -149,7 +149,7 @@ public sealed class WindowsGuideRuntime
                     continue;
                 }
 
-                if (clicked && (subscribedTarget is null || !Automation.Compare(subscribedTarget, target)))
+                if (clicked && (subscribedTarget is null || !SameElement(subscribedTarget, target)))
                 {
                     if (subscribedTarget is not null && clickHandler is not null)
                     {
