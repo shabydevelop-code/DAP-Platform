@@ -11,18 +11,7 @@ public partial class MainWindow : Window
     int customerId,siteId;
     string siteTab="details";
     string caseSort="id",caseSortDir="desc";
-    public MainWindow()
-    {
-        InitializeComponent();
-        var workArea=SystemParameters.WorkArea;
-        Width=Math.Max(MinWidth,workArea.Width*0.90);
-        Height=Math.Max(MinHeight,workArea.Height*0.90);
-        Width=Math.Min(Width,workArea.Width);
-        Height=Math.Min(Height,workArea.Height);
-        Left=workArea.Left+(workArea.Width-Width)/2;
-        Top=workArea.Top+(workArea.Height-Height)/2;
-        Loaded+=async(_,_)=>await ShowSearch();
-    }
+    public MainWindow(){InitializeComponent();Loaded+=async(_,_)=>await ShowSearch();}
 
     async void PortalButton_Click(object s,RoutedEventArgs e)=>await ShowSearch();
     Button B(string text,string id,RoutedEventHandler click){var b=new Button{Content=text,Margin=new(4),Padding=new(12,6,12,6)};AutomationProperties.SetAutomationId(b,id);AutomationProperties.SetName(b,text);b.Click+=click;return b;}
