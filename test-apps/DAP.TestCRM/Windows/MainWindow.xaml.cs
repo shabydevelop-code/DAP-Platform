@@ -24,7 +24,7 @@ public partial class MainWindow : Window
         var field=new Grid{Width=360,Margin=new(0,5,0,5),FlowDirection=FlowDirection.LeftToRight};
         field.RowDefinitions.Add(new RowDefinition{Height=GridLength.Auto});
         field.RowDefinitions.Add(new RowDefinition{Height=GridLength.Auto});
-        var caption=new TextBlock{Text=label,Width=360,Margin=new(0,0,0,2),FontWeight=FontWeights.SemiBold,TextAlignment=TextAlignment.Right,FlowDirection=FlowDirection.RightToLeft,HorizontalAlignment=HorizontalAlignment.Stretch};
+        var caption=new TextBlock{Text=label,Width=360,Margin=new(0,0,0,2),FontWeight=FontWeights.SemiBold,TextAlignment=TextAlignment.Right,FlowDirection=FlowDirection.LeftToRight,HorizontalAlignment=HorizontalAlignment.Stretch};
         Grid.SetRow(caption,0);
         control.FlowDirection=FlowDirection.RightToLeft;
         control.HorizontalAlignment=HorizontalAlignment.Stretch;
