@@ -89,6 +89,18 @@ Process? ownedTestCrmBackendProcess = null;
     backendPsi.Environment["ASPNETCORE_URLS"] = "http://localhost:5201";
     ownedTestCrmBackendProcess = Process.Start(backendPsi)
         ?? throw new InvalidOperationException("Could not start TestCRM backend for E2E.");
+    ownedTestCrmBackendProcess.OutputDataReceived += (_, e) =>
+    {
+        if (!string.IsNullOrWhiteSpace(e.Data))
+            Console.WriteLine($"[TestCRM Backend] {e.Data}");
+    };
+    ownedTestCrmBackendProcess.ErrorDataReceived += (_, e) =>
+    {
+        if (!string.IsNullOrWhiteSpace(e.Data))
+            Console.Error.WriteLine($"[TestCRM Backend ERROR] {e.Data}");
+    };
+    ownedTestCrmBackendProcess.BeginOutputReadLine();
+    ownedTestCrmBackendProcess.BeginErrorReadLine();
 
     // Every Web E2E mode is self-contained: the harness owns the TestCRM
     // backend and Web host and cleans up only the processes it started.
