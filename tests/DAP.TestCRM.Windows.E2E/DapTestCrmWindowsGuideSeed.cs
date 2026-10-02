@@ -23,7 +23,8 @@ internal static class DapTestCrmWindowsGuideSeed
     private static TargetDescriptor GridRow(
         string gridAutomationId,
         string? descendantName = null,
-        bool descendantNameIsRegex = false)
+        bool descendantNameIsRegex = false,
+        string? columnHeaderName = null)
     {
         var anchors = new List<Anchor>
         {
@@ -38,6 +39,14 @@ internal static class DapTestCrmWindowsGuideSeed
                 new Anchor(
                     new Locator(descendantNameIsRegex ? "name-regex" : "name", descendantName),
                     AnchorRelation.Descendant));
+        }
+
+        if (!string.IsNullOrWhiteSpace(columnHeaderName))
+        {
+            anchors.Add(
+                new Anchor(
+                    new Locator("name", columnHeaderName),
+                    AnchorRelation.ColumnHeader));
         }
 
         return TargetDescriptor.Create(
@@ -66,11 +75,12 @@ internal static class DapTestCrmWindowsGuideSeed
         string gridAutomationId,
         string instruction,
         string? descendantName = null,
-        bool descendantNameIsRegex = false) =>
+        bool descendantNameIsRegex = false,
+        string? columnHeaderName = null) =>
         new(
             id,
             order,
-            GridRow(gridAutomationId, descendantName, descendantNameIsRegex),
+            GridRow(gridAutomationId, descendantName, descendantNameIsRegex, columnHeaderName),
             new BubbleDefinition(instruction, BubblePlacement.Bottom),
             new ValidationDefinition("target-disappeared"),
             StepAdvanceMode.AutomaticOnValidation);
@@ -150,6 +160,7 @@ internal static class DapTestCrmWindowsGuideSeed
             "testcrm-windows-open-created-case", 12,
             "CasesGrid", "פתח את הפנייה שיצרת",
             @"^{{step:testcrm-windows-back-to-cases:capture}}$",
-            descendantNameIsRegex: true)
+            descendantNameIsRegex: true,
+            columnHeaderName: "מזהה")
     };
 }
