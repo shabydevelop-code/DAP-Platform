@@ -45,6 +45,29 @@ public sealed class WindowsTargetResolver
                 : TargetResolution<AutomationElement>.Resolved(candidate);
         }
 
+        // When a target is constrained by both an ancestor/context and a descendant,
+        // invert the search: locate the narrow ancestor scope first, then the identifying
+        // descendant, and walk upward to the primary target. This avoids enumerating every
+        // primary candidate and issuing one descendant UIA query per candidate.
+        if (TryResolveFromAnchors(root, descriptor, out var anchorFirstCandidates))
+        {
+            stopwatch.Stop();
+            if (stopwatch.ElapsedMilliseconds >= 100)
+            {
+                Console.Error.WriteLine(
+                    $"[DAP Windows resolver timing] locator={descriptor.Locator.Strategy}='{descriptor.Locator.Value}', " +
+                    $"fast-path=anchor-first, final={anchorFirstCandidates.Count}, " +
+                    $"elapsed={stopwatch.ElapsedMilliseconds} ms, cpu={(process.TotalProcessorTime - cpuStarted).TotalMilliseconds:F0} ms.");
+            }
+
+            return anchorFirstCandidates.Count switch
+            {
+                0 => TargetResolution<AutomationElement>.NotFound(),
+                1 => TargetResolution<AutomationElement>.Resolved(anchorFirstCandidates[0]),
+                _ => TargetResolution<AutomationElement>.Ambiguous(anchorFirstCandidates.Count)
+            };
+        }
+
         var primaryFindStopwatch = Stopwatch.StartNew();
         var primaryFindCpuStarted = process.TotalProcessorTime;
         var candidates = Find(root, descriptor.Locator).ToList();
@@ -85,6 +108,51 @@ public sealed class WindowsTargetResolver
             1 => TargetResolution<AutomationElement>.Resolved(candidates[0]),
             _ => TargetResolution<AutomationElement>.Ambiguous(candidates.Count)
         };
+    }
+
+    private static bool TryResolveFromAnchors(
+        AutomationElement root,
+        TargetDescriptor descriptor,
+        out List<AutomationElement> candidates)
+    {
+        candidates = [];
+
+        var scopeAnchor = descriptor.Anchors.FirstOrDefault(anchor =>
+            anchor.Relation is AnchorRelation.Ancestor or AnchorRelation.Context
+            && IsExactLocator(anchor.Locator));
+        var descendantAnchor = descriptor.Anchors.FirstOrDefault(anchor =>
+            anchor.Relation == AnchorRelation.Descendant
+            && IsExactLocator(anchor.Locator));
+
+        if (scopeAnchor is null || descendantAnchor is null)
+            return false;
+
+        // Find all declared scopes so duplicate containers still preserve normal
+        // ambiguity semantics instead of silently choosing the first one.
+        var scopes = Find(root, scopeAnchor.Locator).ToList();
+        if (scopes.Count == 0)
+            return true;
+
+        foreach (var scope in scopes)
+        {
+            foreach (var descendant in Find(scope, descendantAnchor.Locator))
+            {
+                var current = TreeWalker.ControlViewWalker.GetParent(descendant);
+                while (current is not null && !Automation.Compare(current, scope))
+                {
+                    if (MatchesLocator(current, descriptor.Locator)
+                        && MatchesAnchors(current, descriptor.Anchors)
+                        && !candidates.Any(existing => Automation.Compare(existing, current)))
+                    {
+                        candidates.Add(current);
+                    }
+
+                    current = TreeWalker.ControlViewWalker.GetParent(current);
+                }
+            }
+        }
+
+        return true;
     }
 
     private static bool IsExactLocator(Locator locator) =>
