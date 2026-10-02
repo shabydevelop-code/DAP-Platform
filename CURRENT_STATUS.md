@@ -2,9 +2,29 @@
 
 Last updated: 2026-10-02
 
+## Verified baseline — 2026-10-02
+
+- The canonical Web Guide `testcrm-web-canonical-workflow` contains 53 persisted Steps in `DAP.db`.
+- Normal Web E2E is locally verified PASS for the full 53-Step Customer -> Site -> Case -> Lead workflow using `DAP.exe`, the production Web Runtime, real bubbles, validation, and persisted Guide data.
+- Web `--crm-only` is locally verified PASS for the same canonical 53-Step workflow sequenced by the same persisted Guide, with `DAP.exe` and bubble synchronization intentionally omitted.
+- CRM-only is not a separate TestCRM QA workflow. It is the same canonical guided business scenario executed without the learner presentation/runtime process.
+- Repeated synchronization on the currently active Guide Step is valid when the harness first waits for a transition and then waits again immediately before that Step's learner action; the sequence guard rejects backward movement and skipped Steps.
+- Temporary Step-2/backend diagnostics used during stabilization have been removed after both modes passed.
+- The 5-second E2E timeout rule remains unchanged.
+
+### Windows production-runtime milestone
+
+- `src/DAP.Runtime.Windows` now exists as production code using Microsoft UI Automation.
+- It includes production target resolution, WPF learner bubble presentation, Windows validation, and ordered Windows Guide execution.
+- `DAP.exe --learner-windows <guide-key> --window-automation-id <id>` loads persisted Guide data and runs Windows Steps.
+- The persisted Windows TestCRM Guide `testcrm-windows-canonical-workflow` currently contains the first two production-runtime Steps.
+- The first two persisted Windows Steps are locally verified PASS through the real DAP Windows Learner Runtime and real UIA targets/bubbles.
+- The separate Windows CRM-only canonical 53-step business scenario is also locally verified PASS. A focused test-only DB-backed executor has additionally proved that persisted Windows Guide Steps 1 -> 2 can drive CRM-only actions without DAP Runtime.
+- The next Windows milestone is to expand the persisted Windows Guide/runtime coverage beyond Steps 1-2 toward the canonical 53-Step workflow. Instructor/Picker work remains deferred until Learner Runtime coverage is stable.
+
 ## Current phase
 
-Active E2E validation and stabilization of the permanent DAP.TestCRM PeopleSoft-Web test target.
+Web canonical 53-Step execution is stable in both guided and CRM-only modes. Active implementation now includes the production Windows Learner Runtime foundation and expansion of persisted Windows Guide coverage.
 
 ## Current E2E baseline
 
@@ -62,10 +82,6 @@ The current representative E2E is the validated baseline for further test expans
 - WPF shell (initial `DAP.App` executable host now exists; user-facing shell UI is not implemented).
 - Learner UI.
 - Editor UI.
-- Shared guide domain model (target-resolution foundation started; Guide/Step/Bubble/Validation model still pending).
-- Data abstraction and SQLite provider.
-- Web Runtime integration using Playwright for .NET.
-- Windows Runtime integration.
 - Recorder.
 - Localization resources.
 - Production deployment/bootstrap validation.
@@ -74,7 +90,7 @@ The current representative E2E is the validated baseline for further test expans
 
 ## Current implementation scope
 
-Architecture/Core scope is Web + Windows. The active implementation scope is Web only: Learner Web Runtime, Playwright target resolution, and Web bubbles against DAP.TestCRM. Windows/UIA bubble implementation is intentionally deferred; it will later implement the same shared Core contracts.
+Architecture/Core scope and active runtime implementation both cover Web + Windows. Web has the full persisted 53-Step canonical Guide baseline. Windows now has production UIA target resolution, WPF bubble presentation, validation, ordered Guide execution, and a locally verified persisted two-Step Learner path; expansion toward 53 Steps is next.
 
 ## Persistence foundation
 SQLite default database location on Windows is `%ProgramData%\DAP\Data\DAP.db` (normally `C:\ProgramData\DAP\Data\DAP.db`). The application/provider may override this with `DAP_DATABASE_PATH`; Core must not depend on either the path or SQLite.
