@@ -1,22 +1,15 @@
 using Microsoft.Data.Sqlite;
 
-var options = new WebApplicationOptions
-{
-    Args = args,
-    WebRootPath = Path.Combine("Web", "wwwroot")
-};
-var builder = WebApplication.CreateBuilder(options);
+var builder = WebApplication.CreateBuilder(args);
 var app = builder.Build();
 
 app.Use(async (context,next)=>{if(context.Request.Path.StartsWithSegments("/api") && context.Request.Headers["X-DAP-E2E-Mode"].ToString()!="fast")await Task.Delay(650);await next();});
 
-app.UseDefaultFiles();
-app.UseStaticFiles();
-
-var dataDirectory = Path.Combine(builder.Environment.ContentRootPath, "data");
+var testCrmRoot = Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, ".."));
+var dataDirectory = Path.Combine(testCrmRoot, "data");
 Directory.CreateDirectory(dataDirectory);
 var dbPath = Path.Combine(dataDirectory, "testcrm.db");
-var legacyDbPath = Path.Combine(builder.Environment.ContentRootPath, "testcrm.db");
+var legacyDbPath = Path.Combine(testCrmRoot, "testcrm.db");
 if (!File.Exists(dbPath) && File.Exists(legacyDbPath))
 {
     File.Move(legacyDbPath, dbPath);
