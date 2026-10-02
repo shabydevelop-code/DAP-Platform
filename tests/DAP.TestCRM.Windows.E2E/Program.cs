@@ -105,7 +105,7 @@ async Task RunPersistedUnguidedAsync()
 
         await executor.RunAsync(persistedSteps);
 
-        WaitForElementById(window, "DeleteCaseButton", 5_000);
+        WaitForElementById(window, "NewCaseButton", 5_000);
         Console.WriteLine(
             $"PASS: Windows unguided executed {persistedSteps.Count} persisted Guide Steps from DAP.db without DAP.exe or bubbles.");
     }
