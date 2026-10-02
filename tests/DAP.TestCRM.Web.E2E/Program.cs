@@ -34,6 +34,16 @@ if (args.Contains("--reset-guide", StringComparer.OrdinalIgnoreCase))
     return;
 }
 
+if (args.Contains("--crm-only", StringComparer.OrdinalIgnoreCase))
+{
+    if (manualFromStep is not null)
+        throw new ArgumentException("--crm-only cannot be combined with --manual-from-step.");
+
+    Console.WriteLine("E2E scope: TestCRM Web only (DAP Guide/bubbles disabled)");
+    await CrmOnlyScenario.RunAsync();
+    return;
+}
+
 static int ReserveTcpPort()
 {
     var listener = new TcpListener(IPAddress.Loopback, 0);
