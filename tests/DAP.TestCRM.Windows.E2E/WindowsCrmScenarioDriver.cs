@@ -48,56 +48,47 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     }
     void Select(string id,string value)
     {
+        var options=id switch
+        {
+            "CaseStatus" => new[]{"","פתוחה","בטיפול","סגורה"},
+            "CaseCloseReason" => new[]{"","טופל","בקשת הלקוח","כפילות","לא רלוונטי"},
+            "LeadStatus" => new[]{"","חדש","בתהליך","נסגר בהצלחה","נסגר ללא עסקה"},
+            "LeadSelectedService" => new[]{"","חבילת שירות","שדרוג מערכת","הדרכה","תמיכה מורחבת"},
+            _ => throw new Exception($"No keyboard option map is defined for ComboBox '{id}'.")
+        };
+        var targetIndex=Array.IndexOf(options,value);
+        if(targetIndex<0)throw new Exception($"Value '{value}' is not valid for ComboBox '{id}'.");
+
         var combo=ById(id);
         combo.SetFocus();
+        if(!combo.TryGetCurrentPattern(ExpandCollapsePattern.Pattern,out var ep))
+            throw new Exception($"{id} has no ExpandCollapsePattern.");
 
-        if(combo.TryGetCurrentPattern(ValuePattern.Pattern,out var vp) && !((ValuePattern)vp).Current.IsReadOnly)
-        {
-            ((ValuePattern)vp).SetValue(value);
-            KeyPress(VK_RETURN);
-        }
+        ((ExpandCollapsePattern)ep).Expand();
+        Thread.Sleep(150);
+        combo.SetFocus();
+        KeyPress(VK_HOME);
+        for(var i=0;i<targetIndex;i++)KeyPress(VK_DOWN);
+        KeyPress(VK_RETURN);
+
+        // FieldChange can rebuild the entire form. Verify the resulting business state,
+        // not the stale ComboBox element that initiated the change.
+        if(id=="CaseStatus" && value=="בטיפול")
+            Wait(()=>EnabledById("CaseResolutionNotes"),"CaseResolutionNotes enabled after CaseStatus=בטיפול");
+        else if(id=="CaseStatus" && value=="סגורה")
+            Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"CaseCloseReason")),"CaseCloseReason after CaseStatus=סגורה");
+        else if(id=="LeadStatus" && value=="נסגר בהצלחה")
+            Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"LeadSelectedService")),"LeadSelectedService after LeadStatus=נסגר בהצלחה");
+        else if(id=="LeadStatus" && value=="חדש")
+            Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"LeadSelectedService")) is null ? window : null,"LeadSelectedService hidden after LeadStatus=חדש");
         else
-        {
-            if(!combo.TryGetCurrentPattern(ExpandCollapsePattern.Pattern,out var ep))
-                throw new Exception($"{id} exposes neither editable ValuePattern nor ExpandCollapsePattern.");
+            Thread.Sleep(400);
+    }
 
-            ((ExpandCollapsePattern)ep).Expand();
-            Thread.Sleep(150);
-
-            // WPF may expose popup ListItems without SelectionItem/Invoke patterns.
-            // Select through keyboard navigation on the focused ComboBox instead of physical mouse.
-            combo.SetFocus();
-            KeyPress(VK_HOME);
-            var processId=window.Current.ProcessId;
-            var item=Wait(()=>AutomationElement.RootElement.FindFirst(TreeScope.Descendants,new AndCondition(
-                new PropertyCondition(AutomationElement.ProcessIdProperty,processId),
-                new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.ListItem),
-                new PropertyCondition(AutomationElement.NameProperty,value))),$"{id} item '{value}'");
-
-            var allItems=AutomationElement.RootElement.FindAll(TreeScope.Descendants,new AndCondition(
-                new PropertyCondition(AutomationElement.ProcessIdProperty,processId),
-                new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.ListItem)));
-            var targetIndex=allItems.Cast<AutomationElement>()
-                .Where(x=>x.Current.BoundingRectangle.Top>=item.Current.BoundingRectangle.Top-1000 && x.Current.BoundingRectangle.Top<=item.Current.BoundingRectangle.Bottom+1000)
-                .OrderBy(x=>x.Current.BoundingRectangle.Top)
-                .ToList()
-                .FindIndex(x=>x.Current.Name==value);
-            if(targetIndex<0)throw new Exception($"Could not determine keyboard index for {id} item '{value}'.");
-            for(var i=0;i<targetIndex;i++)KeyPress(VK_DOWN);
-            KeyPress(VK_RETURN);
-        }
-
-        Wait(()=> {
-            var current=window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,id));
-            if(current is null || !current.Current.IsEnabled)return null;
-            if(current.TryGetCurrentPattern(SelectionPattern.Pattern,out var sp))
-            {
-                var selected=((SelectionPattern)sp).Current.GetSelection();
-                if(selected.Any(x=>x.Current.Name==value))return current;
-            }
-            return current.Current.Name.Contains(value,StringComparison.Ordinal) ? current : null;
-        },$"{id} selected '{value}'");
-        Thread.Sleep(250);
+    AutomationElement? EnabledById(string id)
+    {
+        var e=window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,id));
+        return e is not null && e.Current.IsEnabled ? e : null;
     }
     void FirstRow(string id){var g=ById(id);var row=Wait(()=>g.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.DataItem)),id+" first row");Click(row,true);}
 
