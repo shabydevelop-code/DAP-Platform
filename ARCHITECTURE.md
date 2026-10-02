@@ -251,9 +251,9 @@ A target is represented by a runtime-neutral TargetDescriptor rather than a sing
 
 `src/DAP.App` is the production Windows executable host (`AssemblyName=DAP`, .NET 8 WPF). It is the composition root for persistence and runtime services. Learner bubble lifecycle belongs inside this process; there is no separate Bubble.exe.
 
-The current E2E still hosts `WebLearnerRuntime` in-process for behavioral regression coverage. That is test harness wiring, not the final process topology.
+The canonical guided Web E2E launches the production `DAP.exe` process, which attaches to the E2E-owned Chromium instance over CDP and owns Web Guide/bubble runtime behavior. CRM-only intentionally does not launch `DAP.exe`.
 
-An independent DAP.exe cannot consume an `IPage` created inside another process. Production Web execution therefore requires DAP.exe to own or explicitly attach to a browser/Playwright connection. `DAP.exe --learner-web <guide-id> --cdp <endpoint> [--page-url-contains <text>]` now attaches to an existing Chromium browser through Playwright's CDP connection, selects exactly one matching page, loads the guide from the configured data provider, and starts its first Web Learner Step. Ambiguous page selection fails explicitly rather than guessing. The E2E harness has not yet been switched from its in-process runtime to this process boundary.
+An independent DAP.exe cannot consume an `IPage` created inside another process. Production Web execution therefore requires DAP.exe to own or explicitly attach to a browser/Playwright connection. `DAP.exe --learner-web <guide-id> --cdp <endpoint> [--page-url-contains <text>]` now attaches to an existing Chromium browser through Playwright's CDP connection, selects exactly one matching page, loads the guide from the configured data provider, and starts its first Web Learner Step. Ambiguous page selection fails explicitly rather than guessing. The canonical E2E harness uses this external `DAP.exe` process boundary.
 
 
 ## Guide persistence identity
@@ -283,3 +283,17 @@ The normal TestCRM Web E2E runner owns the complete temporary test topology for 
 A normal full Web E2E run therefore does not require manually pre-started TestCRM servers.
 
 The canonical Web Guide is `testcrm-web-canonical-workflow` and contains 53 persisted Steps. The full Web workflow was reverified after the numeric-ID persistence migration on 2026-10-02.
+
+## Canonical Web guided vs CRM-only topology
+
+The Web E2E has one canonical 53-Step business sequence backed by the persisted Guide `testcrm-web-canonical-workflow` in `DAP.db`.
+
+Guided execution is: `DAP.db -> Guide Steps -> DAP.exe -> DAP.Runtime.Web -> target/bubble/validation -> TestCRM Web -> TestCRM Server -> testcrm.db`.
+
+CRM-only execution is: `DAP.db -> Guide Steps -> E2E CRM action harness -> TestCRM Web -> TestCRM Server -> testcrm.db`.
+
+CRM-only exists to run the same canonical CRM flow without learner bubbles. It must not evolve into a divergent TestCRM-specific QA path. Production Guide data owns the Step sequence, target semantics, validation, and context; the E2E harness owns only synthetic user actions/values needed to exercise those semantics.
+
+## Windows Runtime topology
+
+`DAP.Runtime.Windows` is a production adapter behind the shared Core model. It resolves Windows `TargetDescriptor` data through UI Automation, presents non-activating WPF learner bubbles, evaluates supported Windows validation, and runs ordered persisted Steps. `DAP.exe --learner-windows` locates the requested top-level application window and composes this runtime from the persisted Guide. Each Guide Step still has one runtime-specific target; hybrid Guides are represented by an ordered mix of Web and Windows Steps rather than by adding parallel Web/Windows targets to one Step.
