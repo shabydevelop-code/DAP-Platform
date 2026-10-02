@@ -29,7 +29,7 @@ try
         var x=(int)(r.Left+r.Width/2); var y=(int)(r.Top+r.Height/2);
         SetCursorPos(x,y); mouse_event(2,0,0,0,UIntPtr.Zero); mouse_event(4,0,0,0,UIntPtr.Zero);
         if(twice){Thread.Sleep(80);mouse_event(2,0,0,0,UIntPtr.Zero);mouse_event(4,0,0,0,UIntPtr.Zero);}
-        Thread.Sleep(250);
+        Thread.Sleep(800);
     }
     void Set(string id,string value)
     {
@@ -43,7 +43,7 @@ try
         var item=Wait(()=>window.FindFirst(TreeScope.Descendants,new AndCondition(
             new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.ListItem),
             new PropertyCondition(AutomationElement.NameProperty,value))),$"{id} item '{value}'");
-        Click(item); Thread.Sleep(450);
+        Click(item); Thread.Sleep(850);
     }
     void FirstGridRow(string gridId)
     {
