@@ -102,6 +102,15 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
             if(ok is null || yes is not null)return;
             if(!ok.TryGetCurrentPattern(InvokePattern.Pattern,out var invoke))return;
 
+            var dialogText=popupElement.FindAll(TreeScope.Descendants,Condition.TrueCondition)
+                .Cast<AutomationElement>()
+                .Where(x=>x.Current.ControlType==ControlType.Text)
+                .Select(x=>x.Current.Name?.Trim())
+                .Where(x=>!string.IsNullOrWhiteSpace(x))
+                .Distinct()
+                .ToArray();
+            Console.WriteLine($"Windows auto-dismissed alert: title='{popupElement.Current.Name}' text='{string.Join(" | ",dialogText)}'");
+
             ((InvokePattern)invoke).Invoke();
             WaitHandle(()=>!IsWindowVisible(popup) ? mainHwnd : IntPtr.Zero,"unexpected information dialog dismissed");
         }
