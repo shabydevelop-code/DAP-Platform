@@ -16,13 +16,19 @@ public sealed class WindowsTargetResolver
             throw new InvalidOperationException("WindowsTargetResolver can resolve only Windows targets.");
 
         var stopwatch = Stopwatch.StartNew();
+        var process = Process.GetCurrentProcess();
+        var cpuStarted = process.TotalProcessorTime;
 
         // An unanchored exact locator is the Guide's declaration that the locator itself is
         // sufficient to identify the target. Use FindFirst so UIA can stop walking large
         // descendant trees (for example, a screen containing a large DataGrid).
         if (descriptor.Anchors.Count == 0 && IsExactLocator(descriptor.Locator))
         {
+            var findStopwatch = Stopwatch.StartNew();
+            var findCpuStarted = process.TotalProcessorTime;
             var candidate = FindFirst(root, descriptor.Locator);
+            findStopwatch.Stop();
+            var findCpu = process.TotalProcessorTime - findCpuStarted;
             stopwatch.Stop();
 
             if (stopwatch.ElapsedMilliseconds >= 100)
@@ -30,7 +36,8 @@ public sealed class WindowsTargetResolver
                 Console.Error.WriteLine(
                     $"[DAP Windows resolver timing] locator={descriptor.Locator.Strategy}='{descriptor.Locator.Value}', " +
                     $"fast-path=exact-unanchored, final={(candidate is null ? 0 : 1)}, " +
-                    $"elapsed={stopwatch.ElapsedMilliseconds} ms.");
+                    $"findWall={findStopwatch.ElapsedMilliseconds} ms, findCpu={findCpu.TotalMilliseconds:F0} ms, " +
+                    $"elapsed={stopwatch.ElapsedMilliseconds} ms, cpu={(process.TotalProcessorTime - cpuStarted).TotalMilliseconds:F0} ms.");
             }
 
             return candidate is null
@@ -38,16 +45,25 @@ public sealed class WindowsTargetResolver
                 : TargetResolution<AutomationElement>.Resolved(candidate);
         }
 
+        var primaryFindStopwatch = Stopwatch.StartNew();
+        var primaryFindCpuStarted = process.TotalProcessorTime;
         var candidates = Find(root, descriptor.Locator).ToList();
+        primaryFindStopwatch.Stop();
+        var primaryFindCpu = process.TotalProcessorTime - primaryFindCpuStarted;
         var primaryCandidateCount = candidates.Count;
         var anchorDiagnostics = new List<string>(descriptor.Anchors.Count);
 
         foreach (var anchor in descriptor.Anchors)
         {
             var before = candidates.Count;
+            var anchorStopwatch = Stopwatch.StartNew();
+            var anchorCpuStarted = process.TotalProcessorTime;
             candidates = candidates.Where(candidate => MatchesAnchor(candidate, anchor)).ToList();
+            anchorStopwatch.Stop();
+            var anchorCpu = process.TotalProcessorTime - anchorCpuStarted;
             anchorDiagnostics.Add(
-                $"{anchor.Relation}:{anchor.Locator.Strategy}='{anchor.Locator.Value}' {before}->{candidates.Count}");
+                $"{anchor.Relation}:{anchor.Locator.Strategy}='{anchor.Locator.Value}' {before}->{candidates.Count} " +
+                $"wall={anchorStopwatch.ElapsedMilliseconds}ms cpu={anchorCpu.TotalMilliseconds:F0}ms");
         }
 
         stopwatch.Stop();
@@ -58,8 +74,9 @@ public sealed class WindowsTargetResolver
                 : string.Join(", ", anchorDiagnostics);
             Console.Error.WriteLine(
                 $"[DAP Windows resolver timing] locator={descriptor.Locator.Strategy}='{descriptor.Locator.Value}', " +
-                $"primary={primaryCandidateCount}, anchors=[{anchors}], final={candidates.Count}, " +
-                $"elapsed={stopwatch.ElapsedMilliseconds} ms.");
+                $"primary={primaryCandidateCount}, primaryWall={primaryFindStopwatch.ElapsedMilliseconds} ms, " +
+                $"primaryCpu={primaryFindCpu.TotalMilliseconds:F0} ms, anchors=[{anchors}], final={candidates.Count}, " +
+                $"elapsed={stopwatch.ElapsedMilliseconds} ms, cpu={(process.TotalProcessorTime - cpuStarted).TotalMilliseconds:F0} ms.");
         }
 
         return candidates.Count switch
