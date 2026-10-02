@@ -104,7 +104,6 @@ public sealed class WindowsGuideRuntime
         var clicked = string.Equals(step.Validation?.Kind, "clicked", StringComparison.OrdinalIgnoreCase);
         var targetDisappeared = string.Equals(step.Validation?.Kind, "target-disappeared", StringComparison.OrdinalIgnoreCase);
         var targetWasResolved = false;
-        var clickedDisappearanceFallbackArmed = false;
         var clickCompleted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         AutomationEventHandler? clickHandler = null;
         AutomationElement? subscribedTarget = null;
@@ -154,8 +153,6 @@ public sealed class WindowsGuideRuntime
                         await _bubbles.HideAsync();
                     if (targetDisappeared && targetWasResolved)
                         return;
-                    if (clicked && clickedDisappearanceFallbackArmed)
-                        return;
                     await Task.Delay(_pollInterval, cancellationToken);
                     continue;
                 }
@@ -167,8 +164,6 @@ public sealed class WindowsGuideRuntime
                     if (!bubbleShownForStep)
                         await _bubbles.HideAsync();
                     if (targetDisappeared && targetWasResolved)
-                        return;
-                    if (clicked && clickedDisappearanceFallbackArmed)
                         return;
                     await Task.Delay(_pollInterval, cancellationToken);
                     continue;
@@ -188,15 +183,11 @@ public sealed class WindowsGuideRuntime
                 var sameAsPreExisting = clicked
                     && preExistingTarget is not null
                     && SameElement(preExistingTarget, target);
-                if (clicked && !sameAsPreExisting)
-                    clickedDisappearanceFallbackArmed = true;
-
                 if (step.Id == "testcrm-windows-back-to-cases")
                 {
                     Console.Error.WriteLine(
                         $"[DAP Windows guide diagnostic] Step '{step.Id}' resolved; " +
                         $"sameAsPreExisting={sameAsPreExisting}; " +
-                        $"fallbackArmed={clickedDisappearanceFallbackArmed}; " +
                         $"target={DescribeTarget(target)}");
                 }
 
@@ -267,6 +258,10 @@ public sealed class WindowsGuideRuntime
 
                 if (clicked)
                 {
+                    // A clicked Step completes only from observed activation of the
+                    // resolved target. Target disappearance by itself is not enough:
+                    // asynchronous WPF rerenders can replace a Button without any
+                    // learner action and would otherwise create a false completion.
                     if (clickCompleted.Task.IsCompleted)
                     {
                         FinalizeCapture(windowRoot, step, capturedValues);
