@@ -476,6 +476,7 @@ public sealed class WindowsBubblePresenter
                 return;
 
             _dragging = true;
+            _pointer!.Visibility = Visibility.Collapsed;
             dragHandle.Cursor = Cursors.Hand;
             try
             {
