@@ -71,6 +71,8 @@ For canonical Web TestCRM runs, ports 5200 and 5201 are runner prerequisites. Th
 
 For full manual execution, runner lifetime is also tied to the owned target application. Web must use explicit browser/page close events for operator-close detection rather than polling transport/liveness properties that can produce false positives; an unexpected Web-host process exit is a failure. Windows uses the owned TestCRM process lifetime. After a real target close, the harness cleans up its remaining owned children and returns control to the launching shell.
 
+The target-lifetime contract is mode-independent for runner-owned TestCRM execution. In Guided and Unguided automation, closing the owned target is also treated as an operator stop: active waits/actions must terminate promptly, remaining owned processes are cleaned up, and the runner returns without converting the closure into a timeout failure. Unexpected infrastructure-process failure remains an error.
+
 A hard termination may leave an old run directory or orphaned process, but later runs never reuse that executable path. Therefore an abandoned process cannot lock the normal repository `bin\Debug` outputs or the next run's executable output.
 
 This is test/development orchestration only. It does not move product Runtime logic into E2E code and does not change the production DAP deployment model.
