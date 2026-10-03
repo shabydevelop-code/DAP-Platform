@@ -8,7 +8,7 @@ namespace DAP.Runtime.Web.Learner;
 public sealed class WebGuideRuntime
 {
     private static readonly Regex RuntimeValueToken = new(
-        @"\{\{step:(?<step>[^}:]+):frame-url-fragment\}\}",
+        @"\{\{step:(?<step>[^}:]+):capture\}\}",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     private readonly WebLearnerRuntime _steps;
@@ -24,11 +24,7 @@ public sealed class WebGuideRuntime
         CancellationToken cancellationToken,
         int? startStepOrder = null)
     {
-        var frameUrlFragments = new Dictionary<string, string>(StringComparer.Ordinal);
-        var captureSourceStepIds = guideSteps
-            .SelectMany(ReferencedRuntimeValueSteps)
-            .ToHashSet(StringComparer.Ordinal);
-        string? previousStepFragment = null;
+        var capturedValues = new Dictionary<string, string>(StringComparer.Ordinal);
 
         var orderedSteps = guideSteps.OrderBy(step => step.Order).ToArray();
         var startIndex = 0;
@@ -49,32 +45,17 @@ public sealed class WebGuideRuntime
                 throw new InvalidOperationException(
                     $"Guide Step '{persistedStep.Id}' is not a Web Step and cannot run in WebGuideRuntime.");
 
-            var step = MaterializeRuntimeValues(persistedStep, frameUrlFragments);
-            var frame = await ResolveTargetFrameAsync(page, step.Target!.FrameContext, cancellationToken);
-            if (frame is not null)
+            var step = MaterializeRuntimeValues(persistedStep, capturedValues);
+
+            if (step.Capture is not null)
             {
-                var fragment = new Uri(frame.Url).Fragment;
+                var captured = await ResolveCaptureAsync(page, step, cancellationToken);
+                if (captured is null)
+                    throw new InvalidOperationException(
+                        $"Guide Step '{step.Id}' declares a Web capture that could not be resolved.");
 
-                if (captureSourceStepIds.Contains(step.Id) && previousStepFragment is not null)
-                {
-                    var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(10);
-                    while (string.Equals(fragment, previousStepFragment, StringComparison.Ordinal)
-                           && DateTime.UtcNow < deadline)
-                    {
-                        await Task.Delay(50, cancellationToken);
-                        frame = await ResolveTargetFrameAsync(page, step.Target.FrameContext, cancellationToken);
-                        if (frame is null)
-                            continue;
-                        fragment = new Uri(frame.Url).Fragment;
-                    }
-
-                    if (string.Equals(fragment, previousStepFragment, StringComparison.Ordinal))
-                        throw new InvalidOperationException(
-                            $"Guide Step '{step.Id}' is a runtime URL capture source, but its target frame did not leave the previous Step URL.");
-                }
-
-                frameUrlFragments[step.Id] = fragment;
-                previousStepFragment = fragment;
+                capturedValues[step.Id] = captured;
+                Console.Error.WriteLine($"[DAP guide] captured runtime value for Step '{step.Id}' as '{captured}'.");
             }
 
             Console.Error.WriteLine($"[DAP guide] starting Step {stepIndex + 1}/{orderedSteps.Length} '{step.Id}'.");
@@ -87,28 +68,15 @@ public sealed class WebGuideRuntime
         Console.Error.WriteLine("[DAP guide] completion bubble dismissed; Guide finished.");
     }
 
-    private static IEnumerable<string> ReferencedRuntimeValueSteps(GuideStep step)
-    {
-        if (step.Target is null)
-            yield break;
-
-        foreach (Match match in RuntimeValueToken.Matches(step.Target.Locator.Value))
-            yield return match.Groups["step"].Value;
-
-        foreach (var anchor in step.Target.Anchors)
-            foreach (Match match in RuntimeValueToken.Matches(anchor.Locator.Value))
-                yield return match.Groups["step"].Value;
-    }
-
     private static GuideStep MaterializeRuntimeValues(
         GuideStep step,
-        IReadOnlyDictionary<string, string> frameUrlFragments)
+        IReadOnlyDictionary<string, string> capturedValues)
     {
         if (step.Target is null)
             return step;
 
         Locator MaterializeLocator(Locator locator) =>
-            locator with { Value = Materialize(locator.Value, step.Id, frameUrlFragments) };
+            locator with { Value = Materialize(locator.Value, step.Id, capturedValues) };
 
         var target = step.Target with
         {
@@ -124,19 +92,79 @@ public sealed class WebGuideRuntime
     private static string Materialize(
         string value,
         string activeStepId,
-        IReadOnlyDictionary<string, string> frameUrlFragments) =>
+        IReadOnlyDictionary<string, string> capturedValues) =>
         RuntimeValueToken.Replace(value, match =>
         {
             var sourceStepId = match.Groups["step"].Value;
-            if (!frameUrlFragments.TryGetValue(sourceStepId, out var fragment))
+            if (!capturedValues.TryGetValue(sourceStepId, out var fragment))
                 throw new InvalidOperationException(
-                    $"Guide Step '{activeStepId}' references runtime URL fragment from Step '{sourceStepId}', but that Step has not captured one.");
+                    $"Guide Step '{activeStepId}' references runtime capture from Step '{sourceStepId}', but that Step has not captured one.");
 
             // Runtime values are substituted into persisted locator text. Escape
             // characters that can terminate a single-quoted CSS attribute value.
             return fragment.Replace(@"\", @"\\", StringComparison.Ordinal)
                 .Replace("'", @"\'", StringComparison.Ordinal);
         });
+
+    private static async Task<string?> ResolveCaptureAsync(
+        IPage page,
+        GuideStep step,
+        CancellationToken cancellationToken)
+    {
+        var capture = step.Capture
+            ?? throw new InvalidOperationException($"Guide Step '{step.Id}' does not declare a capture.");
+        if (capture.Runtime != TargetRuntime.Web)
+            throw new InvalidOperationException("WebGuideRuntime can capture only Web runtime values.");
+
+        var frame = await ResolveTargetFrameAsync(page, step.Target?.FrameContext, cancellationToken);
+        if (frame is null)
+            return null;
+
+        string? raw;
+        switch (capture.Property.Trim().ToLowerInvariant())
+        {
+            case "frame-url":
+                raw = frame.Url;
+                break;
+            case "frame-url-fragment":
+                raw = Uri.TryCreate(frame.Url, UriKind.Absolute, out var uri) ? uri.Fragment : null;
+                break;
+            default:
+            {
+                var locator = capture.Locator.Strategy.Trim().ToLowerInvariant() switch
+                {
+                    "css" => frame.Locator(capture.Locator.Value),
+                    "text" => frame.GetByText(capture.Locator.Value),
+                    "label" => frame.GetByLabel(capture.Locator.Value),
+                    "role" when Enum.TryParse<AriaRole>(capture.Locator.Value, true, out var role) => frame.GetByRole(role),
+                    _ => throw new NotSupportedException(
+                        $"Unsupported Web capture locator strategy '{capture.Locator.Strategy}'.")
+                };
+
+                if (await locator.CountAsync() != 1)
+                    return null;
+
+                raw = capture.Property.Trim().ToLowerInvariant() switch
+                {
+                    "text" => await locator.TextContentAsync(),
+                    "value" => await locator.InputValueAsync(),
+                    _ => throw new NotSupportedException(
+                        $"Unsupported Web capture property '{capture.Property}'.")
+                };
+                break;
+            }
+        }
+
+        if (raw is null)
+            return null;
+        if (string.IsNullOrEmpty(capture.Pattern))
+            return raw;
+
+        var match = Regex.Match(raw, capture.Pattern, RegexOptions.CultureInvariant);
+        if (!match.Success)
+            return null;
+        return match.Groups.Count > 1 ? match.Groups[1].Value : match.Value;
+    }
 
     private static async Task<IFrame?> ResolveTargetFrameAsync(
         IPage page,
