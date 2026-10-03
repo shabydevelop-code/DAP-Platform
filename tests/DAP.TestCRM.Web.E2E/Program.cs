@@ -369,6 +369,12 @@ var visualMode = e2eMode == "visual";
 var fastMode = !visualMode;
 var switchedToVisual = visualMode;
 
+// Full Guided runs require every synthetic learner action to match the active
+// production DAP target. Focused From-Step runs intentionally begin without
+// DAP, so that invariant is enabled only when DAP starts at the requested Step.
+var requireActiveGuideTarget =
+    !unguided && manualFromStep is null && visualFromStep is null;
+
 Console.WriteLine($"E2E mode: {(manual ? "manual" : unguided ? "unguided" : manualFromStep is not null ? $"unguided -> manual from Step {manualFromStep}" : visualFromStep is not null ? $"unguided -> visual from Step {visualFromStep}" : visualMode ? "visual" : "fast")}");
 if (visualMode || visualFromStep is not null)
 await page.AddInitScriptAsync(@"(() => {
@@ -490,7 +496,7 @@ async Task MoveTo(ILocator target)
     // by the active production bubble. This turns Guide/E2E synchronization
     // into an executable invariant instead of relying on visually similar
     // selectors in two separate places.
-    if(!unguided)
+    if(requireActiveGuideTarget)
     {
         var matchesActiveGuideTarget=await target.EvaluateAsync<bool>(
             @"el => {
@@ -773,6 +779,10 @@ Process StartFocusedDap(int startStepOrder)
             dapStdErrLines.Enqueue(eventArgs.Data);
     };
     process.BeginErrorReadLine();
+
+    // From this point onward the run is Guided again. Re-enable the strict
+    // bubble/action identity invariant before Step N performs any learner action.
+    requireActiveGuideTarget=true;
 
     Console.WriteLine(
         $"Web unguided bootstrap complete through Step {startStepOrder-1}; DAP started at Step {startStepOrder} with {bootstrapCaptures.Count} resume capture(s).");
