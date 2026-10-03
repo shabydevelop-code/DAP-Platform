@@ -159,8 +159,9 @@ async Task RunPersistedUnguidedAsync()
 
         var window = WaitForMainWindow();
         var executor = new PersistedWindowsCrmGuideExecutor(
-            new WindowsCrmScenarioDriver(windowsApp, window));
+            new WindowsCrmScenarioDriver(windowsApp, window, e2eMode == "visual"));
 
+        Console.WriteLine($"E2E mode: unguided ({e2eMode})");
         await executor.RunAsync(persistedSteps);
 
         Console.WriteLine(
