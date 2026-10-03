@@ -12,8 +12,24 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     string? createdCaseId;
     string? activeStepId;
     int? activeStepOrder;
+    bool visualMode;
 
-    public WindowsCrmScenarioDriver(Process app, AutomationElement window){this.app=app;this.window=window;}
+    public WindowsCrmScenarioDriver(Process app, AutomationElement window, bool visualMode = false)
+    {
+        this.app=app;
+        this.window=window;
+        this.visualMode=visualMode;
+    }
+
+    public bool VisualMode => visualMode;
+
+    public void SetVisualMode(bool enabled) => visualMode = enabled;
+
+    public void VisualPause(int milliseconds)
+    {
+        if (visualMode && milliseconds > 0)
+            Thread.Sleep(milliseconds);
+    }
 
     public void SetActiveGuideStep(int order, string id)
     {
@@ -27,6 +43,7 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     void Click(AutomationElement e,bool twice=false)
     {
         DismissUnexpectedInfoDialogs();
+        VisualTarget(e);
         if(!twice && e.TryGetCurrentPattern(InvokePattern.Pattern,out var invoke))
         {
             ((InvokePattern)invoke).Invoke();
@@ -52,6 +69,8 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
             return candidate is not null && candidate.Current.IsEnabled ? candidate : null;
         },$"{id} enabled");
         if(!e.TryGetCurrentPattern(ValuePattern.Pattern,out var p))throw new Exception($"{id} has no ValuePattern.");
+
+        VisualTarget(e);
 
         using var valueChanged = new ManualResetEventSlim(false);
         AutomationPropertyChangedEventHandler? handler = null;
@@ -117,6 +136,7 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     {
         DismissUnexpectedInfoDialogs();
         var combo=ById(id);
+        VisualTarget(combo);
         if(!combo.TryGetCurrentPattern(ValuePattern.Pattern,out var pattern))
             throw new Exception($"{id} has no ValuePattern.");
         ((ValuePattern)pattern).SetValue(value);
@@ -205,6 +225,7 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
             : buttonList.FirstOrDefault(x=>x.Current.Name is "OK" or "אישור") ?? buttonList.FirstOrDefault();
         if(button is null || !button.TryGetCurrentPattern(InvokePattern.Pattern,out var invoke))
             throw new Exception("Modal dialog has no invokable button.");
+        VisualTarget(button);
         ((InvokePattern)invoke).Invoke();
         WaitHandle(()=>!IsWindowVisible(popup) ? mainHwnd : IntPtr.Zero,"modal dialog dismissed");
     }
@@ -340,6 +361,7 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     public Task CreateCase()
     {
         var button=ById("NewCaseButton");
+        VisualTarget(button);
         if(!button.Current.IsEnabled || !button.TryGetCurrentPattern(InvokePattern.Pattern,out var invoke))
             throw new Exception("NewCaseButton is not invokable.");
         ((InvokePattern)invoke).Invoke();
@@ -453,6 +475,7 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
         // Invoke exactly once. Re-invoking an async WPF breadcrumb while ShowSite is
         // still loading starts overlapping ShowSite operations and can replace the
         // newly rendered Site screen with another in-flight render.
+        VisualTarget(siteCrumb);
         if(!siteCrumb.Current.IsEnabled || !siteCrumb.TryGetCurrentPattern(InvokePattern.Pattern,out var invoke))
             throw new Exception("Site breadcrumb is not invokable.");
         ((InvokePattern)invoke).Invoke();
@@ -479,6 +502,7 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
             .FirstOrDefault(x=>x.Current.Name=="אלפא פתרונות בע\"מ")
             ?? throw new Exception("Customer breadcrumb was not found.");
 
+        VisualTarget(customer);
         if(!customer.Current.IsEnabled || !customer.TryGetCurrentPattern(InvokePattern.Pattern,out var invoke))
             throw new Exception("Customer breadcrumb is not invokable.");
         ((InvokePattern)invoke).Invoke();
@@ -526,6 +550,7 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     {
         DismissUnexpectedInfoDialogs();
         var button=ById("NewLeadButton");
+        VisualTarget(button);
         if(!button.Current.IsEnabled || !button.TryGetCurrentPattern(InvokePattern.Pattern,out var invoke))
             throw new Exception("NewLeadButton is not invokable.");
         ((InvokePattern)invoke).Invoke();
@@ -590,6 +615,42 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     public Task DeleteCase(){Click(ById("DeleteCaseButton"));return Task.CompletedTask;}
     public Task GoPortal(){Click(ById("PortalHeader"));return Task.CompletedTask;}
 
+    void VisualTarget(AutomationElement element)
+    {
+        if (!visualMode)
+            return;
+
+        if (element.TryGetCurrentPattern(ScrollItemPattern.Pattern, out var scrollPattern))
+            ((ScrollItemPattern)scrollPattern).ScrollIntoView();
+
+        var bounds = element.Current.BoundingRectangle;
+        if (bounds.IsEmpty)
+            return;
+
+        var targetX = (int)(bounds.Left + bounds.Width / 2);
+        var targetY = (int)(bounds.Top + bounds.Height / 2);
+
+        if (!GetCursorPos(out var point))
+        {
+            SetCursorPos(targetX, targetY);
+            Thread.Sleep(220);
+            return;
+        }
+
+        const int frames = 12;
+        for (var frame = 1; frame <= frames; frame++)
+        {
+            var progress = frame / (double)frames;
+            var eased = 1 - Math.Pow(1 - progress, 3);
+            var x = (int)Math.Round(point.X + (targetX - point.X) * eased);
+            var y = (int)Math.Round(point.Y + (targetY - point.Y) * eased);
+            SetCursorPos(x, y);
+            Thread.Sleep(18);
+        }
+
+        Thread.Sleep(120);
+    }
+
     IntPtr WaitHandle(Func<IntPtr> f,string what,int timeout=5000)
     {
         var sw=Stopwatch.StartNew();
@@ -650,7 +711,11 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     [DllImport("user32.dll")] static extern bool IsWindow(IntPtr hWnd);
     [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr hWnd);
     [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr hWnd);
+    [StructLayout(LayoutKind.Sequential)]
+    struct POINT { public int X; public int Y; }
+
     [DllImport("user32.dll")] static extern int GetSystemMetrics(int nIndex);
+    [DllImport("user32.dll")] static extern bool GetCursorPos(out POINT point);
     [DllImport("user32.dll")] static extern bool SetCursorPos(int x,int y);
     [DllImport("user32.dll")] static extern void mouse_event(uint flags,uint dx,uint dy,uint data,UIntPtr extra);
     [DllImport("user32.dll")] static extern void keybd_event(byte virtualKey,byte scanCode,uint flags,UIntPtr extra);
