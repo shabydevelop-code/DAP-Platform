@@ -95,14 +95,21 @@ public static class DapTestCrmGuideSeed
             "button.primary:has-text('שמור')",
             "שמור את הפנייה החדשה", "[name='subject']"),
 
-        ClickStep(
+        new GuideStep(
             "testcrm-back-to-cases", 11,
-            ".breadcrumb a:nth-of-type(3)",
-            "חזור לרשימת הפניות", "h1:has-text('פניה')"),
+            WebTarget(".breadcrumb a:nth-of-type(3)"),
+            new BubbleDefinition("חזור לרשימת הפניות", BubblePlacement.Bottom),
+            new ValidationDefinition("clicked"),
+            StepAdvanceMode.AutomaticOnValidation,
+            new StepContextDefinition("css-exists", "h1:has-text('פניה')"),
+            new StepCaptureDefinition(
+                TargetRuntime.Web,
+                new Locator("css", "html"),
+                "frame-url-fragment")),
 
         ClickStep(
             "testcrm-open-created-case", 12,
-            "button.grid-open[data-go='{{step:testcrm-back-to-cases:frame-url-fragment}}']",
+            "button.grid-open[data-go='{{step:testcrm-back-to-cases:capture}}']",
             "פתח את הפנייה שיצרת", "h2:has-text('פניות')"),
 
         ValueStep(
@@ -171,7 +178,7 @@ public static class DapTestCrmGuideSeed
         ClickStep("testcrm-site-cases-final", 47, "nav.tabs button:has-text('פניות')", "עבור ללשונית פניות", "nav.tabs"),
         ClickStep("testcrm-open-context-case", 48, "tbody tr:first-child button.grid-open", "פתח את הפנייה הראשונה", "h2:has-text('פניות')"),
         ClickStep("testcrm-context-back-site", 49, ".breadcrumb a[data-go^='#/site/']", "חזור לאתר", "h1:has-text('פניה')"),
-        ClickStep("testcrm-open-created-case-final", 50, "button.grid-open[data-go='{{step:testcrm-back-to-cases:frame-url-fragment}}']", "פתח את הפנייה שיצרת", "h2:has-text('פניות')"),
+        ClickStep("testcrm-open-created-case-final", 50, "button.grid-open[data-go='{{step:testcrm-back-to-cases:capture}}']", "פתח את הפנייה שיצרת", "h2:has-text('פניות')"),
         ClickStep("testcrm-delete-case", 51, "#delete-case", "מחק את הפנייה", "#delete-case"),
         ClickStep("testcrm-confirm-delete-case", 52, "#ps-confirm [data-answer='yes']", "אשר את מחיקת הפנייה", "#ps-confirm"),
 
