@@ -34,7 +34,8 @@ public sealed class WindowsGuideRuntime
         AutomationElement windowRoot,
         IReadOnlyList<GuideStep> guideSteps,
         CancellationToken cancellationToken,
-        int? startStepOrder = null)
+        int? startStepOrder = null,
+        IReadOnlyDictionary<string, string>? initialCapturedValues = null)
     {
         var ordered = guideSteps.OrderBy(step => step.Order).ToArray();
         var startIndex = 0;
@@ -47,7 +48,9 @@ public sealed class WindowsGuideRuntime
         }
 
         AutomationElement? preExistingTargetForCurrentStep = null;
-        var capturedValues = new Dictionary<string, string>(StringComparer.Ordinal);
+        var capturedValues = initialCapturedValues is null
+            ? new Dictionary<string, string>(StringComparer.Ordinal)
+            : new Dictionary<string, string>(initialCapturedValues, StringComparer.Ordinal);
 
         for (var index = startIndex; index < ordered.Length; index++)
         {
@@ -650,6 +653,14 @@ public sealed class WindowsGuideRuntime
 
         capturedValues[step.Id] = value;
         Console.Error.WriteLine($"[DAP Windows guide] finalized runtime capture for Step '{step.Id}' as '{value}'.");
+    }
+
+    public string? CaptureStepValue(AutomationElement windowRoot, GuideStep step)
+    {
+        if (step.Capture is null)
+            return null;
+
+        return ResolveCapture(windowRoot, step.Capture);
     }
 
     private string? ResolveCapture(AutomationElement windowRoot, StepCaptureDefinition capture)
