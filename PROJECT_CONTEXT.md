@@ -381,3 +381,13 @@ The Windows E2E action driver now selects a dynamically located WPF DataGrid row
 Windows bubble behavior now matches the corresponding Web interaction more closely. A learner may drag the bubble using the explicit drag handle. Once dragged, the bubble remains at that manual location while the same Guide Step remains active, even though the Windows Runtime continues its normal target reconciliation loop. The pointer is hidden after the drag completes.
 
 Manual placement is Step-scoped, not global. Entering a new Step clears the manual-position flag, restores automatic target-relative placement, and shows the directional pointer again. This behavior changes only bubble presentation; target resolution and validation remain unchanged.
+
+## Critical Guide/DB progression rule — 2026-10-03
+
+The learner-facing flow must be reproducible from persisted Guide data plus the production Runtime alone. E2E drivers are test actors, not hidden workflow engines.
+
+From this point forward, any condition that decides whether a learner may advance to the next Step must be represented by the Guide model and persisted through the Guide data provider. Examples include value validation, required destination/context existence, modal completion, or any other post-action condition that is part of the business flow.
+
+The Runtime may contain generic implementation mechanics for evaluating those persisted conditions, but TestCRM-specific business knowledge must not live only in the Runtime or E2E harness. If a test discovers that progression is unsafe until another screen or target exists, treat that as a Guide-model requirement rather than merely adding a test-only wait.
+
+Short form: **DB/Guide = what completes the Step; Runtime = how completion is detected; E2E = synthetic learner only.**
