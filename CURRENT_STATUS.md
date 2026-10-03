@@ -25,6 +25,24 @@ Current parity and runtime baseline:
 
 Current milestone: the canonical Web and Windows learner flows are both complete and regression-verified across all four execution modes. Next work can proceed from this 53/53 four-mode baseline rather than expanding Windows Guide coverage.
 
+### Manual learner / UX parity refinements — 2026-10-03
+
+The current full human-learner launchers are:
+- Web: `scripts/run-testcrm-web-learner.ps1`
+- Windows: `scripts/run-testcrm-windows-learner.ps1`
+
+Both launchers build into a per-run isolated directory under `%TEMP%\DAP\ManualLearner\...` so stale TestCRM/DAP processes do not lock the normal `bin\Debug` outputs. They start only the required target/runtime processes and clean up the processes they own.
+
+Recent parity refinements:
+- Web manual completion uses the in-browser DAP completion bubble only; the manual Web launcher no longer adds `--show-completion`, avoiding a duplicate Windows MessageBox.
+- Windows Case-grid sorting now mirrors Web learner intent: Step 6 targets the `סטטוס` column header in `CasesGrid`; the separate visible "מיין לפי סטטוס" action button was removed.
+- Windows text-entry validation now follows natural commit semantics like Web: editing does not advance on the first valid/intermediate character. The learner must edit the field and then move focus away before `value-not-empty` / `value-equals` validation can complete. Discrete controls such as ComboBox continue to commit on selection change.
+- Windows initial Step presentation now attempts one-time automatic viewport adjustment through production-observable UIA scrolling. Targets that are clipped or too close to a scroll viewport edge are brought toward a comfortable central region before bubble placement. Reconciliation does not continuously re-center the target, so intentional learner scrolling remains authoritative after initial presentation.
+- Windows manual bubble dragging hides the directional pointer immediately when dragging begins and keeps it hidden for the remainder of that active Step. The next Step resets to automatic placement and restores its pointer.
+- Web reconciliation trace noise was reduced by removing repetitive successful context/EnsureShown lines while retaining meaningful state/race diagnostics.
+
+The four-mode 53/53 PASS matrix above remains the last fully verified regression baseline. The newest manual-UX parity changes listed here were made after that baseline and must not be treated as a new full PASS until the affected runs are executed again.
+
 Last updated: 2026-10-03
 
 ## Closed-target / black-box architectural rule — 2026-10-02
@@ -489,16 +507,16 @@ Web `clicked` validation no longer stores completion in the guided application's
 - No generic between-Step loading/progress GUI is currently planned. After a learner action, the bubble may disappear while the Runtime silently re-resolves the next target; the next bubble appears when its target is available. This avoids competing with the target application's own loading/status UI.
 - A missing target is not, by itself, proof of Guide failure. Enterprise applications may legitimately take a variable time to produce the next screen or element. The Runtime must not skip to a different target or infer a substitute merely because the intended target is currently NotFound.
 
-## Manual Learner Run — 2026-10-01
+## Manual Learner Run — current launchers
 
-- Added `scripts/run-testcrm-learner.ps1` for a real manual learner walkthrough of the persisted TestCRM Guide.
-- The launcher starts TestCRM, opens Chrome by default with an isolated temporary browser profile and CDP enabled, waits for the browser endpoint, and starts the production `DAP.App --learner-web testcrm-create-case` path against that browser.
-- The launcher performs no Guide actions. There is no E2E Click/Fill/Select automation in this mode; the human learner must perform every action and production validation drives all Step advancement.
-- The same persistent DAP database/Guide ownership rules apply. The launcher does not seed or rewrite the Guide.
-- Edge can be selected with `-Browser edge`; Chrome is the default.
-- Manual command from repository root: `powershell -ExecutionPolicy Bypass -File .\scripts\run-testcrm-learner.ps1`.
-
-
+- Full Web human-learner walkthrough: `powershell -ExecutionPolicy Bypass -File .\scripts\run-testcrm-web-learner.ps1`.
+- Full Windows human-learner walkthrough: `powershell -ExecutionPolicy Bypass -File .\scripts\run-testcrm-windows-learner.ps1`.
+- These are production Learner-runtime launchers, not synthetic E2E drivers. The human learner performs every target-application action.
+- Web starts the TestCRM backend/Web host, an isolated Chrome/Edge CDP browser profile, and production DAP Web Learner Runtime.
+- Windows starts the TestCRM backend, native TestCRM Windows application, and production DAP Windows Learner Runtime.
+- Both use isolated temporary build outputs to avoid stale-process locks on normal repository build directories.
+- Web completion is owned by the in-browser completion bubble with explicit `סיום`; Windows manual execution currently uses `--show-completion` for its completion dialog.
+- The same persistent Guide ownership rule applies: **Seed initializes. DB owns. Runtime consumes.**
 
 ### Focused manual learner runs
 - The manual TestCRM learner launcher supports `-StartStep <order>` for focused UX/debug runs without replaying the whole Guide.
