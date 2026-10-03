@@ -411,7 +411,7 @@ For value/text validation, a natural UI commit event represents one learner atte
 
 If primary validation fails, that commit attempt is consumed. The Runtime must wait for a new edit/change followed by a new commit event before it may reevaluate progression. A previously invalid commit must never leave the Step permanently armed such that later live typing can advance the Guide without another blur/change.
 
-Web must preserve the active editor's changed-since-last-commit state across reconciliation rather than reinstalling listeners in a way that resets that state every poll. Windows must reset its text-edit baseline after consuming an invalid blur attempt.
+Web must preserve the active editor's changed-since-last-commit state across reconciliation rather than reinstalling listeners in a way that resets that state every poll. Windows must reset its text-edit baseline after consuming an invalid blur attempt. Windows text commit observation uses UIA value/focus events as the primary signal, with polling only as a fallback for incomplete UIA providers.
 
 Click validation remains intentionally sticky because the validating click may immediately navigate, rerender, or destroy the source target while persisted completion conditions are still pending.
 
