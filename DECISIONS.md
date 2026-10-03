@@ -355,3 +355,17 @@ This behavior is limited to initial presentation of the active Step. Reconciliat
 
 Web may use DOM scrolling and Windows may use production-observable UI Automation scrolling such as `ScrollItemPattern` / `ScrollPattern`. The implementation must remain generic and must not depend on target application source code or private APIs.
 
+## ADR-038 — Product UI localization is external and has no fallback
+
+**Status:** Accepted
+
+All user-facing DAP product UI text is loaded at runtime from external localization files shipped beside the compiled application. The active language is selected by external localization configuration, and changing wording or switching between supported language files does not require recompiling `DAP.exe`.
+
+The localization source is singular by design:
+- no hard-coded user-facing translation strings in Runtime/Application code;
+- no embedded RESX translation fallback;
+- no fallback from a missing key to another language or compiled default;
+- a missing configuration file, language file, required key, or invalid UI direction is an explicit configuration error.
+
+Guide instructional content remains Guide/DB data and is not product UI localization. Developer diagnostics, logs, locator strategies, validation-kind identifiers, and other internal technical text may remain compiled because they are not end-user interface copy.
+
