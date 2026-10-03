@@ -112,7 +112,6 @@ public sealed class WindowsGuideRuntime
         var stepStopwatch = Stopwatch.StartNew();
         var resolutionAttempt = 0;
         var targetFirstResolvedLogged = false;
-        var bubbleShownForStep = false;
         var completionTargetsBeforeAction = CaptureReplacementBaselines(windowRoot, step);
 
         Console.Error.WriteLine(
@@ -277,7 +276,6 @@ public sealed class WindowsGuideRuntime
 
                 var bubbleStartedAt = stepStopwatch.ElapsedMilliseconds;
                 await _bubbles.ShowAsync(target, step, stepNumber, totalSteps, cancellationToken);
-                bubbleShownForStep = true;
                 Console.Error.WriteLine(
                     $"[DAP Windows step timing] Step '{step.Id}' bubble shown at " +
                     $"+{stepStopwatch.ElapsedMilliseconds} ms " +
