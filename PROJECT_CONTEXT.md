@@ -356,10 +356,9 @@ The old combined root `DAP.TestCRM.csproj` and root launch profile were removed 
 - Modal WPF MessageBoxes are handled as real platform dialogs. Expected validation/delete dialogs are dismissed/confirmed explicitly; unexpected informational OK dialogs block further E2E actions until dismissed so the scenario cannot continue behind a modal window.
 - Default Windows E2E wait timeout is 5 seconds.
 - The activity-more interaction remains a Windows-specific UI area to align with the Web behavior; the canonical scenario no longer incorrectly calls validation dismissal immediately after `ShowMoreActivity`.
-- This PASS establishes the Windows Unguided core baseline. It does not yet mean that the complete persisted 53-Step Web Guide has been reproduced in Windows; the next parity work is to extend the shared/core coverage toward the remaining canonical business steps before integrating DAP Windows Runtime bubbles/target resolution.
+- Historical note: at this earlier Windows Unguided core milestone, complete 53-Step Windows parity and Guided Runtime coverage were still pending. That gap has since been closed: the canonical Windows Guide now contains and executes all 53 aligned business Steps in both Guided and Unguided paths.
 
-- Windows/Web activity-more parity correction: Web renders `#activity-more` but defines no click handler or alert for it. The Windows-only `MessageBox` ("אין פעילויות נוספות להצגה.") was therefore removed; `ActivityMoreButton` now has the same no-alert/no-op business behavior as Web. Commit baseline follows the already verified Windows core PASS; local rerun is required after pull.
-- Pending Windows parity milestone remains explicit: expand the current Windows Unguided shared core scenario to cover the complete canonical 53-step business workflow before DAP Windows Runtime bubble/target integration is considered complete.
+- Windows/Web activity-more parity correction: Web renders `#activity-more` but defines no click handler or alert for it. The Windows-only `MessageBox` ("אין פעילויות נוספות להצגה.") was therefore removed; `ActivityMoreButton` now has the same no-alert/no-op business behavior as Web. This correction is part of the later verified 53-Step Windows baseline.
 
 - **Windows canonical 53-step Unguided milestone: PASS (locally verified 2026-10-02).** `CanonicalCrmScenario.Run53Async` completed the full Customer -> Site -> Case -> Lead flow and terminated with `PASS: Windows Unguided canonical 53-step Customer -> Site -> Case -> Lead scenario completed.` The Windows E2E now synchronizes async sort/create/delete/navigation transitions in the test harness. Test-only row AutomationIds were removed from the Windows target application; E2E target resolution remains the responsibility of the test harness. No full-53 PASS is claimed for DAP Runtime/bubbles yet; this milestone is the Unguided Windows business-flow baseline.
 
@@ -371,7 +370,7 @@ The old combined root `DAP.TestCRM.csproj` and root launch profile were removed 
 - The canonical Web Guide currently contains 53 persisted Steps in the DAP database.
 - Local verification on 2026-10-02 completed the full Web runtime workflow after the schema migration with terminal PASS: `PASS: representative Customer -> Site -> Case -> Lead workflow, including dynamic Lead deletion and Case deletion, completed.`
 - The normal Web E2E runner is self-contained: it starts the shared TestCRM backend on port 5201 and the Web host on port 5200, waits for readiness, runs the browser/DAP scenario, then terminates only the processes it owns.
-- The next runtime milestone remains Windows Learner Runtime integration against the same DAP persistence architecture, beginning with real Steps 1–2 and real bubbles.
+- Historical note: Windows Learner Runtime integration was the next milestone at this point. It has since been completed through the full persisted 53-Step Windows Guided baseline.
 
 ## Canonical E2E execution modes
 
@@ -476,7 +475,7 @@ Changes to `DAP_E2E_MODE`, `--guided`, `--unguided`, `--manual`, `--manual-from-
 ### Implemented Windows execution-mode parity
 Windows now implements the shared runner-mode contract rather than merely documenting it. The canonical Windows E2E parses `DAP_E2E_MODE=fast|visual` only for full `--guided`, rejects unsupported values there, supports `--visual-from-step <N>`, and uses the existing UIA action driver for both Guided modes. Visual mode adds platform-native visible cursor movement and pacing around the same learner actions; Unguided has no Fast/Visual mode.
 
-This change does not raise the 5-second timeout and does not introduce a separate Windows visual scenario. Local Windows/UIA validation is required before marking the new Visual paths verified.
+This change does not raise the 5-second timeout and does not introduce a separate Windows visual scenario. Focused Windows Visual From Step has since been locally verified with `--visual-from-step 47`; full Guided Visual remains a separate execution mode and should only be claimed when explicitly run.
 
 Runner precedence is now explicit and implemented identically on Web and Windows: `DAP_E2E_MODE` affects only full `--guided`. Manual, Unguided, Manual-From-Step, and Visual-From-Step ignore stale environment mode values. Focused runs own their transition semantics: Unguided -> Manual at N or Unguided -> Visual at N.
 
@@ -491,6 +490,6 @@ New canonical meanings:
 - Visual From Step: Unguided before N, Guided Visual from N.
 - Full runs retain their existing meanings.
 
-Local Web and Windows E2E execution is required after pull before these new focused paths are marked PASS.
+Focused From-Step execution has since been locally verified on both platforms at Step 47: Web and Windows both completed successfully with Unguided bootstrap before Step 47, resume context transferred into DAP, and Guided Visual execution from Step 47 onward.
 
 - Local verification after the Web/Windows Visual cursor pacing alignment: Web `--visual-from-step 47` completed successfully. This confirms the current focused-run contract in practice on Web: Unguided bootstrap before N, validated resume context into DAP, then Guided Visual from N, with the faster Windows-aligned cursor movement.
