@@ -104,9 +104,11 @@ Web and Windows canonical 53-Step execution are stable in both Guided and Unguid
 - `tests/DAP.TestCRM.E2E.Common/CanonicalCrmScenario.cs` contains the shared representative Customer -> Site -> Case -> Lead workflow used by the platform-specific Web and Windows E2E runners.
 - The workflow currently passes end-to-end, including ten validated business-facing scenarios, dynamic Lead deletion, and Case deletion.
 - Playwright default timeout is 5 seconds for the E2E runner.
-- E2E execution supports two modes through `DAP_E2E_MODE`:
+- Canonical runner-mode vocabulary is intentionally limited to `fast|visual`; `demo` has been removed and must not be accepted as an alias. Web/Windows runner mode names and user-facing semantics are now an explicit parity contract:
+- E2E execution modes:
   - `fast` (default): skips artificial human/visual delays and TestCRM's artificial server-thinking delay.
   - `visual`: preserves cursor movement, typing delays, processing feedback, and artificial server delay for demonstration.
+- Any future runner-mode/CLI change must be reviewed for both Web and Windows in the same change; intentional platform-only behavior requires an explicit documented exception.
 - Real readiness conditions remain active in both modes. The E2E does not replace actual server/DOM/frame readiness with fixed sleeps.
 - PeopleSoft-style Content iframe replacement is handled by re-resolving the active frame and waiting for real route readiness.
 - Scenario coverage now includes Case FieldChange + iframe replacement, server validation with unsaved-value preservation, Grid rerender/reorder + target re-resolution, Content-document reload with preserved Case context, CRM tab switching with preserved business context, conditional target disappearance/reappearance with re-resolution, cross-frame Header-to-Content navigation, Layout Shift + target re-resolution, consecutive server updates with final-state re-resolution, and business-context switching with target isolation.
