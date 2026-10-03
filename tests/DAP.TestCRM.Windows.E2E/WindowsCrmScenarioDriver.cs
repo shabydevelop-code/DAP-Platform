@@ -52,15 +52,66 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
             return candidate is not null && candidate.Current.IsEnabled ? candidate : null;
         },$"{id} enabled");
         if(!e.TryGetCurrentPattern(ValuePattern.Pattern,out var p))throw new Exception($"{id} has no ValuePattern.");
-        e.SetFocus();
-        ((ValuePattern)p).SetValue(value);
-        window.SetFocus();
-        Wait(()=>
+
+        using var valueChanged = new ManualResetEventSlim(false);
+        AutomationPropertyChangedEventHandler? handler = null;
+        handler = (_, args) =>
         {
-            var current=window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,id));
-            if(current is null || !current.TryGetCurrentPattern(ValuePattern.Pattern,out var currentPattern))return null;
-            return string.Equals(((ValuePattern)currentPattern).Current.Value,value,StringComparison.Ordinal) ? current : null;
-        },$"{id} value '{value}'");
+            if(args.Property == ValuePattern.ValueProperty
+               && string.Equals(args.NewValue as string,value,StringComparison.Ordinal))
+                valueChanged.Set();
+        };
+
+        Automation.AddAutomationPropertyChangedEventHandler(
+            e,
+            TreeScope.Element,
+            handler,
+            ValuePattern.ValueProperty);
+
+        try
+        {
+            e.SetFocus();
+
+            Wait(() =>
+            {
+                var current=window.FindFirst(
+                    TreeScope.Descendants,
+                    new PropertyCondition(AutomationElement.AutomationIdProperty,id));
+                return current is not null && current.Current.HasKeyboardFocus ? current : null;
+            },$"{id} keyboard focus");
+
+            ((ValuePattern)p).SetValue(value);
+
+            // Synchronize on the UIA provider's actual value-change notification.
+            // The production runtime observes the same signal; only after it has
+            // been published do we commit through real keyboard focus traversal.
+            if(!valueChanged.Wait(5_000))
+                throw new TimeoutException($"Timed out waiting for {id} UIA value-change notification.");
+
+            KeyPress(VK_TAB);
+
+            Wait(()=>
+            {
+                var current=window.FindFirst(
+                    TreeScope.Descendants,
+                    new PropertyCondition(AutomationElement.AutomationIdProperty,id));
+                if(current is null
+                   || !current.TryGetCurrentPattern(ValuePattern.Pattern,out var currentPattern))
+                    return null;
+
+                return string.Equals(
+                           ((ValuePattern)currentPattern).Current.Value,
+                           value,
+                           StringComparison.Ordinal)
+                       && !current.Current.HasKeyboardFocus
+                    ? current
+                    : null;
+            },$"{id} committed value '{value}'");
+        }
+        finally
+        {
+            Automation.RemoveAutomationPropertyChangedEventHandler(e,handler);
+        }
     }
     void Select(string id,string value)
     {
