@@ -110,8 +110,7 @@ public sealed class WindowsGuideRuntime
         var textTargetChanged = 0;
         var textTargetCommitted = 0;
         AutomationElement? subscribedTextTarget = null;
-        AutomationPropertyChangedEventHandler? textValueChangedHandler = null;
-        AutomationFocusChangedEventHandler? textFocusChangedHandler = null;
+        AutomationPropertyChangedEventHandler? textEditPropertyChangedHandler = null;
         var clickCompleted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         AutomationEventHandler? clickHandler = null;
         AutomationElement? subscribedTarget = null;
@@ -135,26 +134,6 @@ public sealed class WindowsGuideRuntime
                 $"+{stepStopwatch.ElapsedMilliseconds} ms " +
                 $"(wait={stepStopwatch.ElapsedMilliseconds - settleStartedAt} ms).");
         }
-
-        textFocusChangedHandler = (sender, _) =>
-        {
-            var textTarget = subscribedTextTarget;
-            if (textTarget is null || sender is not AutomationElement focusedElement)
-                return;
-
-            if (SameElement(textTarget, focusedElement))
-            {
-                Volatile.Write(ref textTargetObservedFocused, 1);
-                return;
-            }
-
-            if (Volatile.Read(ref textTargetObservedFocused) == 1
-                && Volatile.Read(ref textTargetChanged) == 1)
-            {
-                Volatile.Write(ref textTargetCommitted, 1);
-            }
-        };
-        Automation.AddAutomationFocusChangedEventHandler(textFocusChangedHandler);
 
         try
         {
@@ -243,13 +222,13 @@ public sealed class WindowsGuideRuntime
 
                     if (subscribedTextTarget is null || !SameElement(subscribedTextTarget, target))
                     {
-                        if (subscribedTextTarget is not null && textValueChangedHandler is not null)
+                        if (subscribedTextTarget is not null && textEditPropertyChangedHandler is not null)
                         {
                             try
                             {
                                 Automation.RemoveAutomationPropertyChangedEventHandler(
                                     subscribedTextTarget,
-                                    textValueChangedHandler);
+                                    textEditPropertyChangedHandler);
                             }
                             catch (ElementNotAvailableException)
                             {
@@ -259,28 +238,47 @@ public sealed class WindowsGuideRuntime
                         subscribedTextTarget = target;
                         initialTextValue = currentTextValue;
 
-                        textValueChangedHandler = (_, args) =>
+                        textEditPropertyChangedHandler = (_, args) =>
                         {
-                            if (args.Property != ValuePattern.ValueProperty)
+                            if (args.Property == ValuePattern.ValueProperty)
+                            {
+                                if (!Equals(args.OldValue, args.NewValue))
+                                    Volatile.Write(ref textTargetChanged, 1);
+                                return;
+                            }
+
+                            if (args.Property != AutomationElement.HasKeyboardFocusProperty)
                                 return;
 
-                            if (!Equals(args.OldValue, args.NewValue))
-                                Volatile.Write(ref textTargetChanged, 1);
+                            if (args.NewValue is bool hasKeyboardFocus && hasKeyboardFocus)
+                            {
+                                Volatile.Write(ref textTargetObservedFocused, 1);
+                                return;
+                            }
+
+                            if (args.NewValue is bool lostKeyboardFocus
+                                && !lostKeyboardFocus
+                                && Volatile.Read(ref textTargetObservedFocused) == 1
+                                && Volatile.Read(ref textTargetChanged) == 1)
+                            {
+                                Volatile.Write(ref textTargetCommitted, 1);
+                            }
                         };
 
                         Automation.AddAutomationPropertyChangedEventHandler(
                             target,
                             TreeScope.Element,
-                            textValueChangedHandler,
-                            ValuePattern.ValueProperty);
+                            textEditPropertyChangedHandler,
+                            ValuePattern.ValueProperty,
+                            AutomationElement.HasKeyboardFocusProperty);
                     }
 
                     initialTextValue ??= currentTextValue;
 
                     // Keep polling as a fallback for providers that do not emit
-                    // every UIA property/focus event. Event handlers are the
-                    // primary commit signal and close the fast focus-transition
-                    // race that polling alone can miss.
+                    // every UIA property notification. The target-scoped
+                    // HasKeyboardFocusProperty transition is the primary blur
+                    // signal, so fast focus loss cannot be missed between polls.
                     if (target.Current.HasKeyboardFocus)
                         Volatile.Write(ref textTargetObservedFocused, 1);
 
@@ -460,21 +458,18 @@ public sealed class WindowsGuideRuntime
         }
         finally
         {
-            if (subscribedTextTarget is not null && textValueChangedHandler is not null)
+            if (subscribedTextTarget is not null && textEditPropertyChangedHandler is not null)
             {
                 try
                 {
                     Automation.RemoveAutomationPropertyChangedEventHandler(
                         subscribedTextTarget,
-                        textValueChangedHandler);
+                        textEditPropertyChangedHandler);
                 }
                 catch (ElementNotAvailableException)
                 {
                 }
             }
-
-            if (textFocusChangedHandler is not null)
-                Automation.RemoveAutomationFocusChangedEventHandler(textFocusChangedHandler);
 
             if (subscribedTarget is not null && clickHandler is not null)
             {
