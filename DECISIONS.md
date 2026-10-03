@@ -471,7 +471,7 @@ Platform implementation details may differ — Playwright/DOM for Web and UIA/na
 
 Implementation note (2026-10-03): Windows now enforces `fast|visual` in the canonical runner and supports `--visual-from-step <N>`. Windows Visual uses the same UIA action path as Fast and adds visible native cursor movement/pacing; it is not a separate scenario. The standard 5-second technical timeout remains unchanged.
 
-Runner precedence rule (2026-10-03): `DAP_E2E_MODE` is consulted only for a full `--guided` run. `--manual`, `--unguided`, `--manual-from-step <N>`, and `--visual-from-step <N>` have absolute semantics and ignore any stale `DAP_E2E_MODE` value left in the launching shell. `--manual-from-step` always begins in Fast automation and hands off at N; `--visual-from-step` always begins in Fast automation and switches to Visual at N. This rule is identical for Web and Windows.
+Runner precedence rule (2026-10-03): `DAP_E2E_MODE` is consulted only for a full `--guided` run. `--manual`, `--unguided`, `--manual-from-step <N>`, and `--visual-from-step <N>` have absolute semantics and ignore any stale `DAP_E2E_MODE` value left in the launching shell. `--manual-from-step` always uses an Unguided bootstrap through N-1 and hands off to Guided Manual at N; `--visual-from-step` always uses an Unguided bootstrap through N-1 and switches to Guided Visual at N. This rule is identical for Web and Windows.
 
 ## ADR-044 — From-Step uses Unguided bootstrap plus resumable Guide context
 
