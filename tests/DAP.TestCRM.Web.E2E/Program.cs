@@ -810,14 +810,29 @@ if (manual)
     Console.WriteLine();
     Console.WriteLine("MANUAL WEB RUN: Step 1 is ready.");
     Console.WriteLine("Automatic learner actions are disabled. Perform the full Guide manually in the browser.");
-    Console.WriteLine("The run will close automatically when DAP completes the Guide.");
+    Console.WriteLine("The run will close automatically when DAP completes the Guide or the Web target/browser is closed.");
     Console.WriteLine("Press Ctrl+C only if you want to stop the run early.");
 
-    await dapProcess.WaitForExitAsync();
-    if (dapProcess.ExitCode != 0)
-        throw new Exception($"DAP.exe exited with code {dapProcess.ExitCode} during the manual Web learner run.");
+    while (!dapProcess.HasExited
+           && browser.IsConnected
+           && !page.IsClosed
+           && ownedTestCrmProcess is { HasExited: false })
+    {
+        await Task.Delay(100);
+    }
 
-    Console.WriteLine("DAP completed the manual Web Guide. Closing E2E-owned processes.");
+    if (dapProcess.HasExited)
+    {
+        if (dapProcess.ExitCode != 0)
+            throw new Exception($"DAP.exe exited with code {dapProcess.ExitCode} during the manual Web learner run.");
+
+        Console.WriteLine("DAP completed the manual Web Guide. Closing E2E-owned processes.");
+    }
+    else
+    {
+        Console.WriteLine("Web target/browser closed. Ending the manual learner run and cleaning up owned processes.");
+    }
+
     return;
 }
 
