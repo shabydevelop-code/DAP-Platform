@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Windows.Automation;
 using DAP.Core.Guides;
@@ -65,7 +66,7 @@ public sealed class WindowsGuideRuntime
                 {
                     try
                     {
-                        var nextResolution = _resolver.Resolve(windowRoot, nextStep.Target);
+                        var nextResolution = _resolver.Resolve(GetActiveResolutionRoot(windowRoot), nextStep.Target);
                         if (nextResolution.Status == TargetResolutionStatus.Resolved)
                             nextTargetBeforeCurrentAction = nextResolution.Target;
                     }
@@ -135,7 +136,7 @@ public sealed class WindowsGuideRuntime
                 resolutionAttempt++;
                 try
                 {
-                    resolution = _resolver.Resolve(windowRoot, step.Target!);
+                    resolution = _resolver.Resolve(GetActiveResolutionRoot(windowRoot), step.Target!);
                     resolutionStopwatch.Stop();
                     if (resolutionStopwatch.ElapsedMilliseconds >= 100)
                     {
@@ -324,7 +325,7 @@ public sealed class WindowsGuideRuntime
             throw new InvalidOperationException("WindowsGuideRuntime can capture only Windows runtime values.");
 
         var descriptor = TargetDescriptor.Create(TargetRuntime.Windows, capture.Locator);
-        var resolution = _resolver.Resolve(windowRoot, descriptor);
+        var resolution = _resolver.Resolve(GetActiveResolutionRoot(windowRoot), descriptor);
         if (resolution.Status != TargetResolutionStatus.Resolved || resolution.Target is null)
             return null;
 
@@ -552,6 +553,31 @@ public sealed class WindowsGuideRuntime
             return false;
         }
     }
+
+    private static AutomationElement GetActiveResolutionRoot(AutomationElement windowRoot)
+    {
+        try
+        {
+            var handle = new IntPtr(windowRoot.Current.NativeWindowHandle);
+            if (handle == IntPtr.Zero)
+                return windowRoot;
+
+            var popup = GetWindow(handle, GwEnabledPopup);
+            if (popup == IntPtr.Zero || popup == handle)
+                return windowRoot;
+
+            return AutomationElement.FromHandle(popup) ?? windowRoot;
+        }
+        catch (ElementNotAvailableException)
+        {
+            return windowRoot;
+        }
+    }
+
+    private const uint GwEnabledPopup = 6;
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetWindow(IntPtr hWnd, uint uCmd);
 
     private static void TryScrollIntoView(AutomationElement target)
     {
