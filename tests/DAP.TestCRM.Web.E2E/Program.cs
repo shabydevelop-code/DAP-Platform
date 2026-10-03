@@ -1,11 +1,13 @@
 using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
+using System.Text.Json;
 using DAP.TestCRM.Web.E2E;
 using Microsoft.Playwright;
 using DAP.Core.Targets;
 using DAP.Data.Sqlite;
 using DAP.Data.Sqlite.Guides;
+using DAP.Runtime.Web.Learner;
 
 const string baseUrl = "http://localhost:5200";
 
@@ -726,6 +728,57 @@ if(visualFromStep is not null && !dapSteps.Any(step => step.Order == visualFromS
         $"Guide '{DapTestCrmGuideSeed.GuideId}' does not contain Step {visualFromStep}.");
 
 var dapStdErrLines=new System.Collections.Concurrent.ConcurrentQueue<string>();
+var focusedStartStepOrder = manualFromStep ?? visualFromStep;
+var bootstrapCaptures = new Dictionary<string, string>(StringComparer.Ordinal);
+var resumeContextPath = Path.Combine(webRunRoot, "resume-context.json");
+
+Process StartFocusedDap(int startStepOrder)
+{
+    var dapExecutable=Path.Combine(dapOutput,"DAP.exe");
+    if(!File.Exists(dapExecutable))
+        throw new Exception($"Built DAP executable not found at {dapExecutable}");
+
+    var resumeContextArgument=string.Empty;
+    if(bootstrapCaptures.Count>0)
+    {
+        File.WriteAllText(resumeContextPath, JsonSerializer.Serialize(bootstrapCaptures));
+        resumeContextArgument=$" --resume-context-file \"{resumeContextPath}\"";
+    }
+
+    var showCompletionArgument=manualFromStep is not null ? " --show-completion" : string.Empty;
+    var process=new Process
+    {
+        StartInfo=new ProcessStartInfo
+        {
+            FileName=dapExecutable,
+            Arguments=$"--learner-web {DapTestCrmGuideSeed.GuideId} --cdp http://127.0.0.1:{dapCdpPort} --page-url-contains localhost:5200 --start-step {startStepOrder}" +
+                      resumeContextArgument +
+                      showCompletionArgument,
+            WorkingDirectory=dapOutput,
+            UseShellExecute=false,
+            CreateNoWindow=true,
+            RedirectStandardOutput=true,
+            RedirectStandardError=true
+        }
+    };
+    process.StartInfo.Environment["DAP_DATABASE_PATH"]=dapDbPath!;
+
+    if(!process.Start())
+        throw new Exception("DAP.exe process could not be started for focused Web run.");
+
+    dapStdOutTask=process.StandardOutput.ReadToEndAsync();
+    process.ErrorDataReceived+=(_,eventArgs)=>
+    {
+        if(eventArgs.Data is not null)
+            dapStdErrLines.Enqueue(eventArgs.Data);
+    };
+    process.BeginErrorReadLine();
+
+    Console.WriteLine(
+        $"Web unguided bootstrap complete through Step {startStepOrder-1}; DAP started at Step {startStepOrder} with {bootstrapCaptures.Count} resume capture(s).");
+    return process;
+}
+
 var lastScenarioGuideOrder=0;
 async Task WaitForGuideStep(int order)
 {
@@ -748,6 +801,35 @@ async Task WaitForGuideStep(int order)
             Console.WriteLine($"Web unguided Guide Step {order}/{dapSteps.Count}: {expected.Id}");
         return;
     }
+
+    if(focusedStartStepOrder is not null && order<focusedStartStepOrder.Value)
+    {
+        if(expected.Capture is not null)
+        {
+            var captured=await WebGuideRuntime.CaptureStepValueAsync(page, expected);
+            if(string.IsNullOrWhiteSpace(captured))
+                throw new InvalidOperationException(
+                    $"Web bootstrap could not capture runtime value for Step {order} '{expected.Id}'.");
+
+            bootstrapCaptures[expected.Id]=captured;
+            Console.WriteLine($"Web unguided bootstrap captured Step {order}: {expected.Id}");
+        }
+        else if(advancedSequence)
+        {
+            Console.WriteLine($"Web unguided bootstrap Step {order}/{dapSteps.Count}: {expected.Id}");
+        }
+        return;
+    }
+
+    if(dapProcess is null)
+    {
+        if(focusedStartStepOrder!=order)
+            throw new InvalidOperationException(
+                $"Web DAP launch expected at Step {focusedStartStepOrder}, but scenario reached Step {order}.");
+
+        dapProcess=StartFocusedDap(order);
+    }
+
     for(var i=0;i<100;i++)
     {
         // A Guide may cross frame boundaries. Search live frames instead of
@@ -813,7 +895,7 @@ async Task WaitForGuideStep(int order)
 
 try
 {
-if(!unguided)
+if(!unguided && focusedStartStepOrder is null)
 {
 var dapStep=dapSteps[0];
 var dapSecondStep=dapSteps[1];
@@ -1018,8 +1100,9 @@ lastScenarioGuideOrder=2;
 }
 else
 {
-    // unguided follows the same persisted Guide sequence without DAP.exe or
-    // bubble presentation. Test input remains harness-owned.
+    // Unguided runs never launch DAP. Focused From-Step runs use the same
+    // business actions as an unguided bootstrap until the requested Step,
+    // where WaitForGuideStep launches DAP with the captured resume context.
     await WaitForGuideStep(1);
     await (await Content()).Locator("[name='name']").WaitForAsync();
     await Fill("[name='name']","אלפא פתרונות בע\"מ");
