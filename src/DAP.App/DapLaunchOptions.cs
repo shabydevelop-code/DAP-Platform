@@ -1,4 +1,5 @@
 using System.Windows;
+using DAP.Core.Localization;
 
 namespace DAP.App;
 
@@ -18,7 +19,7 @@ public sealed record DapLaunchOptions(
     bool ShowCompletion,
     int? StartStep)
 {
-    public static DapLaunchOptions? Parse(string[] args)
+    public static DapLaunchOptions? Parse(string[] args, IUiTextProvider texts)
     {
         if (args.Length == 1 && args[0] == "--check")
             return new(DapLaunchMode.InfrastructureCheck, null, null, null, null, false, null);
@@ -42,13 +43,13 @@ public sealed record DapLaunchOptions(
                          && int.TryParse(args[++i], out var parsedStartStep) && parsedStartStep > 0)
                     startStep = parsedStartStep;
                 else
-                    return Usage();
+                    return Usage(texts);
             }
 
             if (!string.IsNullOrWhiteSpace(cdp))
                 return new(DapLaunchMode.LearnerWeb, args[1], cdp, pageUrlContains, null, showCompletion, startStep);
 
-            return Usage();
+            return Usage(texts);
         }
 
         if (args.Length >= 2 && args[0] == "--learner-windows" && !string.IsNullOrWhiteSpace(args[1]))
@@ -67,26 +68,23 @@ public sealed record DapLaunchOptions(
                          && int.TryParse(args[++i], out var parsedStartStep) && parsedStartStep > 0)
                     startStep = parsedStartStep;
                 else
-                    return Usage();
+                    return Usage(texts);
             }
 
             if (!string.IsNullOrWhiteSpace(windowAutomationId))
                 return new(DapLaunchMode.LearnerWindows, args[1], null, null, windowAutomationId, showCompletion, startStep);
 
-            return Usage();
+            return Usage(texts);
         }
 
-        return Usage();
+        return Usage(texts);
     }
 
-    private static DapLaunchOptions? Usage()
+    private static DapLaunchOptions? Usage(IUiTextProvider texts)
     {
         MessageBox.Show(
-            "Usage:\n" +
-            "DAP.exe --check\n" +
-            "DAP.exe --learner-web <guide-key> --cdp <endpoint> [--page-url-contains <text>] [--show-completion] [--start-step <order>]\n" +
-            "DAP.exe --learner-windows <guide-key> --window-automation-id <id> [--show-completion] [--start-step <order>]",
-            "DAP",
+            texts.Get("App.Usage"),
+            texts.Get("App.WindowTitle"),
             MessageBoxButton.OK,
             MessageBoxImage.Information);
         return null;
