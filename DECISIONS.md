@@ -470,3 +470,5 @@ Any addition, removal, rename, or semantic change to a public runner mode or foc
 Platform implementation details may differ — Playwright/DOM for Web and UIA/native input for Windows — but those differences must not create accidental user-facing CLI/mode drift.
 
 Implementation note (2026-10-03): Windows now enforces `fast|visual` in the canonical runner and supports `--visual-from-step <N>`. Windows Visual uses the same UIA action path as Fast and adds visible native cursor movement/pacing; it is not a separate scenario. The standard 5-second technical timeout remains unchanged.
+
+Runner precedence rule (2026-10-03): `DAP_E2E_MODE` is consulted only for a full `--guided` run. `--manual`, `--unguided`, `--manual-from-step <N>`, and `--visual-from-step <N>` have absolute semantics and ignore any stale `DAP_E2E_MODE` value left in the launching shell. `--manual-from-step` always begins in Fast automation and hands off at N; `--visual-from-step` always begins in Fast automation and switches to Visual at N. This rule is identical for Web and Windows.
