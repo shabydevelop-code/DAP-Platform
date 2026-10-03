@@ -731,3 +731,5 @@ Implemented symmetrically for Web and Windows:
 Implementation is committed but not yet locally executed on the user's Windows machine; focused Web/Windows PASS must be re-verified after pull.
 
 - **Web From-Step bootstrap fix — 2026-10-04:** the first Unguided-bootstrap run exposed a harness invariant leak: `MoveTo()` still required the active production DAP bubble target during Steps before N, even though DAP is intentionally not running there. The invariant is now disabled only during the bootstrap prefix and is re-enabled immediately when DAP starts at Step N, before the first Guided learner action. Commit: `3957f99195774bce2b3d0b7710d98484442174d6`. Local rerun required.
+
+- **Web/Windows Visual cursor parity — 2026-10-04:** Web Visual cursor travel now matches Windows Visual timing and easing: 12 frames, 18 ms per frame, cubic ease-out, and a 120 ms target dwell. This changes only visible cursor travel; Fast mode and technical timeouts are unchanged. Commit: `dcc8f7c52b26dff1eb4e9eb0c6a218e7e45accc6`.
