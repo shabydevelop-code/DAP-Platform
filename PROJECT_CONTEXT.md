@@ -406,3 +406,10 @@ GuideStep can persist ordered post-action completion conditions. SQLite stores t
 Web runtime capture is now explicit persisted StepCaptureDefinition data and uses the shared {{step:<id>:capture}} runtime token instead of inferring URL-fragment capture ownership from downstream locator text.
 
 Windows runtime now also evaluates persisted Step context guards. TestCRM seeds have begun moving destination/business waits from test-driver knowledge into persisted Guide semantics. The E2E driver may still contain technical synchronization needed to automate the synthetic learner, but that synchronization must not be the sole owner of learner progression rules.
+
+
+## Windows manual learner handoff — 2026-10-03
+
+The Windows TestCRM E2E runner supports `--manual-from-step <N>`, matching the Web handoff model. The runner starts the backend, Windows TestCRM, and production DAP Windows Learner Runtime from Step 1; it automates the canonical learner actions only until Step N is visibly ready, then stops synthetic UI actions and leaves DAP/TestCRM running for a human to continue manually through the remaining bubbles. This preserves earlier runtime captures and business context, so `--manual-from-step` must not be implemented by launching DAP directly at Step N on a fresh application state.
+
+`--manual-from-step` cannot be combined with `--unguided`. When the operator finishes the manual session and presses ENTER in the E2E console, the runner cleans up the DAP, TestCRM, and backend processes it owns.
