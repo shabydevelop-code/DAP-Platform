@@ -60,14 +60,18 @@ internal static class DapTestCrmWindowsGuideSeed
         int order,
         TargetDescriptor target,
         string instruction,
-        BubblePlacement placement = BubblePlacement.Bottom) =>
+        BubblePlacement placement = BubblePlacement.Bottom,
+        StepCompletionCondition? completionCondition = null) =>
         new(
             id,
             order,
             target,
             new BubbleDefinition(instruction, placement),
             new ValidationDefinition("clicked"),
-            StepAdvanceMode.AutomaticOnValidation);
+            StepAdvanceMode.AutomaticOnValidation,
+            CompletionConditions: completionCondition is null
+                ? null
+                : new[] { completionCondition });
 
     private static GuideStep NavigationRowStep(
         string id,
@@ -76,14 +80,18 @@ internal static class DapTestCrmWindowsGuideSeed
         string instruction,
         string? descendantName = null,
         bool descendantNameIsRegex = false,
-        string? columnHeaderName = null) =>
+        string? columnHeaderName = null,
+        StepCompletionCondition? completionCondition = null) =>
         new(
             id,
             order,
             GridRow(gridAutomationId, descendantName, descendantNameIsRegex, columnHeaderName),
             new BubbleDefinition(instruction, BubblePlacement.Bottom),
             new ValidationDefinition("target-disappeared"),
-            StepAdvanceMode.AutomaticOnValidation);
+            StepAdvanceMode.AutomaticOnValidation,
+            CompletionConditions: completionCondition is null
+                ? null
+                : new[] { completionCondition });
 
     private static GuideStep ValueStep(
         string id,
@@ -91,14 +99,18 @@ internal static class DapTestCrmWindowsGuideSeed
         string automationId,
         string instruction,
         string validationKind = "value-not-empty",
-        string? expectedValue = null) =>
+        string? expectedValue = null,
+        StepCompletionCondition? completionCondition = null) =>
         new(
             id,
             order,
             ById(automationId),
             new BubbleDefinition(instruction, BubblePlacement.Bottom),
             new ValidationDefinition(validationKind, expectedValue),
-            StepAdvanceMode.AutomaticOnValidation);
+            StepAdvanceMode.AutomaticOnValidation,
+            CompletionConditions: completionCondition is null
+                ? null
+                : new[] { completionCondition });
 
     public static IReadOnlyList<GuideStep> CreateSteps() => new GuideStep[]
     {
@@ -109,20 +121,21 @@ internal static class DapTestCrmWindowsGuideSeed
 
         ClickStep(
             "testcrm-windows-customer-search-button", 2,
-            ById("SearchCustomersButton"), "לחץ על חיפוש"),
+            ById("SearchCustomersButton"), "לחץ על חיפוש", completionCondition: new StepCompletionCondition("target-exists", ById("CustomersGrid"))),
 
         NavigationRowStep(
             "testcrm-windows-customer-result", 3,
-            "CustomersGrid", "פתח את הלקוח מתוצאות החיפוש"),
+            "CustomersGrid", "פתח את הלקוח מתוצאות החיפוש", completionCondition: new StepCompletionCondition("target-exists", ById("SitesGrid"))),
 
         NavigationRowStep(
             "testcrm-windows-site-row", 4,
             "SitesGrid", "פתח את האתר מטה תל אביב",
-            "מטה תל אביב"),
+            "מטה תל אביב",
+            completionCondition: new StepCompletionCondition("target-exists", ById("CasesTab"))),
 
         ClickStep(
             "testcrm-windows-cases-tab", 5,
-            ById("CasesTab"), "עבור ללשונית פניות"),
+            ById("CasesTab"), "עבור ללשונית פניות", completionCondition: new StepCompletionCondition("target-exists", ById("NewCaseButton"))),
 
         ClickStep(
             "testcrm-windows-sort-cases", 6,
@@ -130,7 +143,7 @@ internal static class DapTestCrmWindowsGuideSeed
 
         ClickStep(
             "testcrm-windows-new-case", 7,
-            ById("NewCaseButton"), "צור פנייה חדשה"),
+            ById("NewCaseButton"), "צור פנייה חדשה", completionCondition: new StepCompletionCondition("target-exists", ById("CaseSubject"))),
 
         ValueStep(
             "testcrm-windows-case-subject", 8,
@@ -142,7 +155,7 @@ internal static class DapTestCrmWindowsGuideSeed
 
         ClickStep(
             "testcrm-windows-save-new-case", 10,
-            ById("SaveCaseButton"), "שמור את הפנייה החדשה"),
+            ById("SaveCaseButton"), "שמור את הפנייה החדשה", completionCondition: new StepCompletionCondition("target-exists", ById("DeleteCaseButton"))),
 
         new GuideStep(
             "testcrm-windows-back-to-cases", 11,
@@ -154,19 +167,25 @@ internal static class DapTestCrmWindowsGuideSeed
                 TargetRuntime.Windows,
                 new Locator("name-regex", @"^פניה\s+\d+$"),
                 "name",
-                @"^פניה\s+(\d+)$")),
+                @"^פניה\s+(\d+)$"),
+            CompletionConditions: new[]
+            {
+                new StepCompletionCondition("target-exists", ById("CasesGrid"))
+            }),
 
         NavigationRowStep(
             "testcrm-windows-open-created-case", 12,
             "CasesGrid", "פתח את הפנייה שיצרת",
             @"^{{step:testcrm-windows-back-to-cases:capture}}$",
             descendantNameIsRegex: true,
-            columnHeaderName: "מזהה"),
+            columnHeaderName: "מזהה",
+            completionCondition: new StepCompletionCondition("target-exists", ById("DeleteCaseButton"))),
 
         ValueStep(
             "testcrm-windows-case-in-progress", 13,
             "CaseStatus", "שנה את סטטוס הפנייה לבטיפול",
-            "value-equals", "בטיפול"),
+            "value-equals", "בטיפול",
+            completionCondition: new StepCompletionCondition("target-enabled", ById("CaseResolutionNotes"))),
 
         ValueStep(
             "testcrm-windows-resolution-notes", 14,
@@ -179,7 +198,8 @@ internal static class DapTestCrmWindowsGuideSeed
         ValueStep(
             "testcrm-windows-case-closed", 16,
             "CaseStatus", "שנה את סטטוס הפנייה לסגורה",
-            "value-equals", "סגורה"),
+            "value-equals", "סגורה",
+            completionCondition: new StepCompletionCondition("target-exists", ById("CaseCloseReason"))),
 
         ValueStep(
             "testcrm-windows-case-subject-after-close", 17,
@@ -187,7 +207,10 @@ internal static class DapTestCrmWindowsGuideSeed
 
         ClickStep(
             "testcrm-windows-attempt-close-save", 18,
-            ById("SaveCaseButton"), "נסה לשמור את הפנייה"),
+            ById("SaveCaseButton"), "נסה לשמור את הפנייה",
+            completionCondition: new StepCompletionCondition(
+                "target-exists",
+                TargetDescriptor.Create(TargetRuntime.Windows, new Locator("control-type", "button")))),
 
         ClickStep(
             "testcrm-windows-confirm-close-validation", 19,
@@ -203,27 +226,27 @@ internal static class DapTestCrmWindowsGuideSeed
 
         ClickStep(
             "testcrm-windows-save-closed-case", 21,
-            ById("SaveCaseButton"), "שמור את הפנייה הסגורה"),
+            ById("SaveCaseButton"), "שמור את הפנייה הסגורה", completionCondition: new StepCompletionCondition("target-exists", ById("DeleteCaseButton"))),
 
         ClickStep(
             "testcrm-windows-return-site", 22,
-            ByIdAndName("Breadcrumb", "מטה תל אביב"), "חזור לאתר"),
+            ByIdAndName("Breadcrumb", "מטה תל אביב"), "חזור לאתר", completionCondition: new StepCompletionCondition("target-exists", ById("LeadsTab"))),
 
         ClickStep(
             "testcrm-windows-open-leads-tab", 23,
-            ById("LeadsTab"), "עבור ללשונית לידים"),
+            ById("LeadsTab"), "עבור ללשונית לידים", completionCondition: new StepCompletionCondition("target-exists", ById("NewLeadButton"))),
 
         ClickStep(
             "testcrm-windows-return-cases-tab", 24,
-            ById("CasesTab"), "חזור ללשונית פניות"),
+            ById("CasesTab"), "חזור ללשונית פניות", completionCondition: new StepCompletionCondition("target-exists", ById("NewCaseButton"))),
 
         ClickStep(
             "testcrm-windows-open-leads-again", 25,
-            ById("LeadsTab"), "עבור שוב ללשונית לידים"),
+            ById("LeadsTab"), "עבור שוב ללשונית לידים", completionCondition: new StepCompletionCondition("target-exists", ById("NewLeadButton"))),
 
         ClickStep(
             "testcrm-windows-new-lead", 26,
-            ById("NewLeadButton"), "צור ליד חדש"),
+            ById("NewLeadButton"), "צור ליד חדש", completionCondition: new StepCompletionCondition("target-exists", ById("LeadContactName"))),
 
         ValueStep(
             "testcrm-windows-lead-contact", 27,
@@ -231,16 +254,18 @@ internal static class DapTestCrmWindowsGuideSeed
 
         ClickStep(
             "testcrm-windows-save-new-lead", 28,
-            ById("SaveLeadButton"), "שמור את הליד החדש"),
+            ById("SaveLeadButton"), "שמור את הליד החדש", completionCondition: new StepCompletionCondition("target-exists", ById("DeleteLeadButton"))),
 
         ValueStep(
             "testcrm-windows-lead-close-success-1", 29,
             "LeadStatus", "שנה את סטטוס הליד לנסגר בהצלחה",
-            "value-equals", "נסגר בהצלחה"),
+            "value-equals", "נסגר בהצלחה",
+            completionCondition: new StepCompletionCondition("target-exists", ById("LeadSelectedService"))),
 
         ValueStep(
             "testcrm-windows-lead-new", 30,
             "LeadStatus", "החזר את סטטוס הליד לחדש",
-            "value-equals", "חדש")
+            "value-equals", "חדש",
+            completionCondition: new StepCompletionCondition("target-not-exists", ById("LeadSelectedService")))
     };
 }
