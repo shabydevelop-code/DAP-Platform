@@ -472,3 +472,15 @@ Platform implementation details may differ — Playwright/DOM for Web and UIA/na
 Implementation note (2026-10-03): Windows now enforces `fast|visual` in the canonical runner and supports `--visual-from-step <N>`. Windows Visual uses the same UIA action path as Fast and adds visible native cursor movement/pacing; it is not a separate scenario. The standard 5-second technical timeout remains unchanged.
 
 Runner precedence rule (2026-10-03): `DAP_E2E_MODE` is consulted only for a full `--guided` run. `--manual`, `--unguided`, `--manual-from-step <N>`, and `--visual-from-step <N>` have absolute semantics and ignore any stale `DAP_E2E_MODE` value left in the launching shell. `--manual-from-step` always begins in Fast automation and hands off at N; `--visual-from-step` always begins in Fast automation and switches to Visual at N. This rule is identical for Web and Windows.
+
+## ADR-044 — From-Step uses Unguided bootstrap plus resumable Guide context
+
+Focused runs do not need DAP before the requested Step. For both canonical Web and Windows runners, `--manual-from-step <N>` and `--visual-from-step <N>` therefore execute Steps `1..N-1` as an Unguided business-state bootstrap: DAP.exe is not running, no learner bubbles are presented, and production learner validation is not exercised during that prefix.
+
+At Step N the runner starts the production learner with `--start-step N`. Runtime values captured by earlier persisted Guide Steps are carried across the boundary through an explicit resume context file. DAP validates that every supplied resume value belongs to a real earlier Step that declares a capture. WebGuideRuntime and WindowsGuideRuntime initialize their runtime-capture dictionaries from that validated context before materializing Step N or later targets.
+
+The focused-run semantics are therefore:
+- `--manual-from-step N`: Unguided `1..N-1`, then Guided Manual from N.
+- `--visual-from-step N`: Unguided `1..N-1`, then Guided Visual from N.
+
+This supersedes earlier documentation that described the prefix as Guided Fast. Full Guided Fast, full Guided Visual, full Manual, and full Unguided runs are unchanged. No E2E timeout was increased; the 5-second technical timeout policy remains in force.
