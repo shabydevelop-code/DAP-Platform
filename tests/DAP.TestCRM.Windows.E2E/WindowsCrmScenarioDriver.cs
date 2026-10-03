@@ -10,8 +10,16 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     readonly AutomationElement window;
     readonly Process app;
     string? createdCaseId;
+    string? activeStepId;
+    int? activeStepOrder;
 
     public WindowsCrmScenarioDriver(Process app, AutomationElement window){this.app=app;this.window=window;}
+
+    public void SetActiveGuideStep(int order, string id)
+    {
+        activeStepOrder = order;
+        activeStepId = id;
+    }
 
     AutomationElement ById(string id)=>Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,id)),id);
     AutomationElement ButtonByName(string name)=>Wait(()=>window.FindFirst(TreeScope.Descendants,new AndCondition(new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.Button),new PropertyCondition(AutomationElement.NameProperty,name))),$"button '{name}'");
@@ -115,14 +123,7 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
             if(ok is null || yes is not null)return;
             if(!ok.TryGetCurrentPattern(InvokePattern.Pattern,out var invoke))return;
 
-            var dialogText=popupElement.FindAll(TreeScope.Descendants,Condition.TrueCondition)
-                .Cast<AutomationElement>()
-                .Where(x=>x.Current.ControlType==ControlType.Text)
-                .Select(x=>x.Current.Name?.Trim())
-                .Where(x=>!string.IsNullOrWhiteSpace(x))
-                .Distinct()
-                .ToArray();
-            Console.WriteLine($"Windows auto-dismissed alert: title='{popupElement.Current.Name}' text='{string.Join(" | ",dialogText)}'");
+            LogModal(popupElement, buttons, "UNEXPECTED/AUTO-DISMISSED");
 
             ((InvokePattern)invoke).Invoke();
             WaitHandle(()=>!IsWindowVisible(popup) ? mainHwnd : IntPtr.Zero,"unexpected information dialog dismissed");
@@ -140,13 +141,63 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
         var popupElement=AutomationElement.FromHandle(popup);
         var buttons=popupElement.FindAll(TreeScope.Descendants,
             new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.Button));
+        var buttonList=buttons.Cast<AutomationElement>().ToList();
+        LogModal(
+            popupElement,
+            buttonList,
+            confirm ? "EXPECTED/CONFIRMATION" : "EXPECTED/VALIDATION");
+
         var button=confirm
-            ? buttons.Cast<AutomationElement>().FirstOrDefault(x=>x.Current.Name is "Yes" or "כן" or "אישור") ?? buttons.Cast<AutomationElement>().FirstOrDefault()
-            : buttons.Cast<AutomationElement>().FirstOrDefault(x=>x.Current.Name is "OK" or "אישור") ?? buttons.Cast<AutomationElement>().FirstOrDefault();
+            ? buttonList.FirstOrDefault(x=>x.Current.Name is "Yes" or "כן" or "אישור") ?? buttonList.FirstOrDefault()
+            : buttonList.FirstOrDefault(x=>x.Current.Name is "OK" or "אישור") ?? buttonList.FirstOrDefault();
         if(button is null || !button.TryGetCurrentPattern(InvokePattern.Pattern,out var invoke))
             throw new Exception("Modal dialog has no invokable button.");
         ((InvokePattern)invoke).Invoke();
         WaitHandle(()=>!IsWindowVisible(popup) ? mainHwnd : IntPtr.Zero,"modal dialog dismissed");
+    }
+
+    void LogModal(
+        AutomationElement popupElement,
+        IReadOnlyList<AutomationElement> buttons,
+        string classification)
+    {
+        string title;
+        try { title = popupElement.Current.Name?.Trim() ?? string.Empty; }
+        catch (ElementNotAvailableException) { title = "<unavailable>"; }
+
+        var text = popupElement.FindAll(TreeScope.Descendants, Condition.TrueCondition)
+            .Cast<AutomationElement>()
+            .Where(x =>
+            {
+                try { return x.Current.ControlType == ControlType.Text; }
+                catch (ElementNotAvailableException) { return false; }
+            })
+            .Select(x =>
+            {
+                try { return x.Current.Name?.Trim(); }
+                catch (ElementNotAvailableException) { return null; }
+            })
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct()
+            .ToArray();
+
+        var buttonNames = buttons
+            .Select(x =>
+            {
+                try { return x.Current.Name?.Trim(); }
+                catch (ElementNotAvailableException) { return null; }
+            })
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .ToArray();
+
+        var step = activeStepOrder is null
+            ? "<unknown>"
+            : $"{activeStepOrder}:{activeStepId}";
+
+        Console.WriteLine(
+            $"[WINDOWS MODAL] step={step}; class={classification}; " +
+            $"title='{title}'; text='{string.Join(" | ", text)}'; " +
+            $"buttons=[{string.Join(", ", buttonNames)}]");
     }
 
     public Task SetCustomerSearch(string v){Set("CustomerNameSearch",v);return Task.CompletedTask;}
