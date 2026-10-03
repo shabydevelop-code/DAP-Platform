@@ -237,7 +237,13 @@ public sealed class WindowsGuideRuntime
                         }
 
                         subscribedTextTarget = target;
-                        initialTextValue = currentTextValue;
+
+                        // Re-subscribing to a rediscovered UIA wrapper must not
+                        // redefine the edit baseline. The baseline belongs to the
+                        // active Step/edit attempt, not to one AutomationElement
+                        // wrapper instance. Invalid commits explicitly establish
+                        // a new baseline below.
+                        initialTextValue ??= currentTextValue;
 
                         textEditPropertyChangedHandler = (_, args) =>
                         {
