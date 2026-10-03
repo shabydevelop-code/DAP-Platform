@@ -39,18 +39,38 @@ if (args.Contains("--reset-guide", StringComparer.OrdinalIgnoreCase))
 }
 
 int? manualFromStep = null;
+int? visualFromStep = null;
 for (var i = 0; i < args.Length; i++)
 {
-    if (!args[i].Equals("--manual-from-step", StringComparison.OrdinalIgnoreCase))
+    if (args[i].Equals("--manual-from-step", StringComparison.OrdinalIgnoreCase))
+    {
+        if (i + 1 >= args.Length
+            || !int.TryParse(args[++i], out var parsedManualStep)
+            || parsedManualStep < 1)
+            throw new ArgumentException("--manual-from-step requires a positive Guide Step order.");
+
+        manualFromStep = parsedManualStep;
         continue;
+    }
 
-    if (i + 1 >= args.Length
-        || !int.TryParse(args[++i], out var parsedManualStep)
-        || parsedManualStep < 1)
-        throw new ArgumentException("--manual-from-step requires a positive Guide Step order.");
+    if (args[i].Equals("--visual-from-step", StringComparison.OrdinalIgnoreCase))
+    {
+        if (i + 1 >= args.Length
+            || !int.TryParse(args[++i], out var parsedVisualStep)
+            || parsedVisualStep < 1)
+            throw new ArgumentException("--visual-from-step requires a positive Guide Step order.");
 
-    manualFromStep = parsedManualStep;
+        visualFromStep = parsedVisualStep;
+    }
 }
+
+if (manualFromStep is not null && visualFromStep is not null)
+    throw new ArgumentException("--manual-from-step and --visual-from-step cannot be combined.");
+
+var e2eMode = Environment.GetEnvironmentVariable("DAP_E2E_MODE")?.Trim().ToLowerInvariant() ?? "fast";
+if (e2eMode is not ("fast" or "visual"))
+    throw new ArgumentException(
+        $"Unsupported DAP_E2E_MODE '{e2eMode}'. Supported values: fast, visual.");
 
 var unguided = args.Contains("--unguided", StringComparer.OrdinalIgnoreCase);
 var guided = args.Contains("--guided", StringComparer.OrdinalIgnoreCase);
@@ -58,10 +78,10 @@ var manual = args.Contains("--manual", StringComparer.OrdinalIgnoreCase);
 
 if (unguided && guided)
     throw new ArgumentException("--guided and --unguided cannot be combined.");
-if (manual && (unguided || guided || manualFromStep is not null))
-    throw new ArgumentException("--manual cannot be combined with --guided, --unguided, or --manual-from-step.");
-if (unguided && manualFromStep is not null)
-    throw new ArgumentException("--unguided and --manual-from-step cannot be combined.");
+if (manual && (unguided || guided || manualFromStep is not null || visualFromStep is not null))
+    throw new ArgumentException("--manual cannot be combined with --guided, --unguided, --manual-from-step, or --visual-from-step.");
+if (unguided && (manualFromStep is not null || visualFromStep is not null))
+    throw new ArgumentException("--unguided cannot be combined with --manual-from-step or --visual-from-step.");
 
 if (unguided)
 {
@@ -71,13 +91,16 @@ if (unguided)
 
 if (manual)
 {
-    await RunGuidedAsync(1);
+    await RunGuidedAsync(handoffStepOrder: 1);
     return;
 }
 
-if (guided || manualFromStep is not null)
+if (guided || manualFromStep is not null || visualFromStep is not null)
 {
-    await RunGuidedAsync(manualFromStep);
+    await RunGuidedAsync(
+        handoffStepOrder: manualFromStep,
+        visualStartStepOrder: visualFromStep,
+        visualFromStart: guided && e2eMode == "visual");
     return;
 }
 
@@ -158,7 +181,10 @@ async Task RunPersistedUnguidedAsync()
     }
 }
 
-async Task RunGuidedAsync(int? handoffStepOrder = null)
+async Task RunGuidedAsync(
+    int? handoffStepOrder = null,
+    int? visualStartStepOrder = null,
+    bool visualFromStart = false)
 {
     var databaseOptions = SqliteDatabaseOptions.CreateDefault();
     var factory = new SqliteConnectionFactory(databaseOptions);
@@ -181,6 +207,15 @@ async Task RunGuidedAsync(int? handoffStepOrder = null)
             nameof(handoffStepOrder),
             handoffStepOrder,
             $"Guide '{DapTestCrmWindowsGuideSeed.GuideId}' does not contain Step {handoffStepOrder}.");
+    }
+
+    if (visualStartStepOrder is not null
+        && !persistedSteps.Any(step => step.Order == visualStartStepOrder.Value))
+    {
+        throw new ArgumentOutOfRangeException(
+            nameof(visualStartStepOrder),
+            visualStartStepOrder,
+            $"Guide '{DapTestCrmWindowsGuideSeed.GuideId}' does not contain Step {visualStartStepOrder}.");
     }
 
     Process? backend = null;
@@ -261,12 +296,27 @@ async Task RunGuidedAsync(int? handoffStepOrder = null)
         dap.BeginOutputReadLine();
         dap.BeginErrorReadLine();
 
-        var driver = new WindowsCrmScenarioDriver(windowsApp, window);
+        var driver = new WindowsCrmScenarioDriver(windowsApp, window, visualFromStart);
+
+        Console.WriteLine(
+            handoffStepOrder is not null
+                ? $"E2E mode: fast -> manual from Step {handoffStepOrder}"
+                : visualStartStepOrder is not null
+                    ? $"E2E mode: fast -> visual from Step {visualStartStepOrder}"
+                    : $"E2E mode: {(visualFromStart ? "visual" : "fast")}");
 
         void WaitForStep(string stepId)
         {
             var step = persistedSteps.Single(candidate => candidate.Id == stepId);
             WaitForBubble(step.Bubble.Content, dap);
+
+            if (visualStartStepOrder == step.Order && !driver.VisualMode)
+            {
+                driver.SetVisualMode(true);
+                Console.WriteLine($"E2E mode transition: FAST -> VISUAL at Step {step.Order}");
+            }
+
+            driver.VisualPause(500);
 
             if (handoffStepOrder != step.Order)
                 return;
