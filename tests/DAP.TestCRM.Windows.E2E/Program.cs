@@ -36,11 +36,27 @@ if (args.Contains("--reset-guide", StringComparer.OrdinalIgnoreCase))
     return;
 }
 
+int? manualFromStep = null;
+for (var i = 0; i < args.Length; i++)
+{
+    if (!args[i].Equals("--manual-from-step", StringComparison.OrdinalIgnoreCase))
+        continue;
+
+    if (i + 1 >= args.Length
+        || !int.TryParse(args[++i], out var parsedManualStep)
+        || parsedManualStep < 1)
+        throw new ArgumentException("--manual-from-step requires a positive Guide Step order.");
+
+    manualFromStep = parsedManualStep;
+}
+
 var unguided = args.Contains("--unguided", StringComparer.OrdinalIgnoreCase);
 var guided = args.Contains("--guided", StringComparer.OrdinalIgnoreCase);
 
 if (unguided && guided)
     throw new ArgumentException("--guided and --unguided cannot be combined.");
+if (unguided && manualFromStep is not null)
+    throw new ArgumentException("--unguided and --manual-from-step cannot be combined.");
 
 if (unguided)
 {
@@ -48,9 +64,9 @@ if (unguided)
     return;
 }
 
-if (guided)
+if (guided || manualFromStep is not null)
 {
-    await RunGuidedAsync();
+    await RunGuidedAsync(manualFromStep);
     return;
 }
 
@@ -66,7 +82,7 @@ try
 {
     var window = WaitForMainWindow();
     await CanonicalCrmScenario.Run53Async(new WindowsCrmScenarioDriver(app, window));
-    Console.WriteLine("PASS: Windows CRM-only canonical 53-step Customer -> Site -> Case -> Lead scenario completed.");
+    Console.WriteLine("PASS: Windows canonical 53-step Customer -> Site -> Case -> Lead scenario completed.");
 }
 finally
 {
@@ -115,7 +131,7 @@ async Task RunPersistedUnguidedAsync()
     }
 }
 
-async Task RunGuidedAsync()
+async Task RunGuidedAsync(int? handoffStepOrder = null)
 {
     var databaseOptions = SqliteDatabaseOptions.CreateDefault();
     var factory = new SqliteConnectionFactory(databaseOptions);
@@ -129,6 +145,15 @@ async Task RunGuidedAsync()
             $"Guide '{DapTestCrmWindowsGuideSeed.GuideId}' contains {persistedSteps.Count} persisted Steps, " +
             $"but the current seed defines {expectedStepCount}. " +
             "Run this project once with --reset-guide first.");
+    }
+
+    if (handoffStepOrder is not null
+        && !persistedSteps.Any(step => step.Order == handoffStepOrder.Value))
+    {
+        throw new ArgumentOutOfRangeException(
+            nameof(handoffStepOrder),
+            handoffStepOrder,
+            $"Guide '{DapTestCrmWindowsGuideSeed.GuideId}' does not contain Step {handoffStepOrder}.");
     }
 
     Process? backend = null;
@@ -178,44 +203,64 @@ async Task RunGuidedAsync()
         string BubbleFor(string stepId) =>
             persistedSteps.Single(step => step.Id == stepId).Bubble.Content;
 
-        WaitForBubble(BubbleFor("testcrm-windows-customer-name"), dap);
+        void WaitForStep(string stepId)
+        {
+            var step = persistedSteps.Single(candidate => candidate.Id == stepId);
+            WaitForBubble(step.Bubble.Content, dap);
+
+            if (handoffStepOrder != step.Order)
+                return;
+
+            Console.WriteLine();
+            Console.WriteLine($"MANUAL HANDOFF: Windows Step {step.Order}/{persistedSteps.Count} is ready.");
+            Console.WriteLine("Automatic learner actions are paused. Continue manually in TestCRM by following the DAP bubbles.");
+            Console.WriteLine("Press ENTER here only when you are finished with the manual run.");
+            Console.ReadLine();
+
+            throw new ManualHandoffCompleteException();
+        }
+
+        try
+        {
+
+        WaitForStep("testcrm-windows-customer-name");
         await driver.SetCustomerSearch("אלפא פתרונות בע\"מ");
 
-        WaitForBubble(BubbleFor("testcrm-windows-customer-search-button"), dap);
+        WaitForStep("testcrm-windows-customer-search-button");
         await driver.SubmitCustomerSearch();
 
-        WaitForBubble(BubbleFor("testcrm-windows-customer-result"), dap);
+        WaitForStep("testcrm-windows-customer-result");
         await driver.OpenFirstCustomer();
         DiagnoseNavigationGrids(window);
 
-        WaitForBubble(BubbleFor("testcrm-windows-site-row"), dap);
+        WaitForStep("testcrm-windows-site-row");
         await driver.OpenFirstSite();
 
-        WaitForBubble(BubbleFor("testcrm-windows-cases-tab"), dap);
+        WaitForStep("testcrm-windows-cases-tab");
         await driver.OpenCases();
 
-        WaitForBubble(BubbleFor("testcrm-windows-sort-cases"), dap);
+        WaitForStep("testcrm-windows-sort-cases");
         await driver.SortCasesByStatus();
 
-        WaitForBubble(BubbleFor("testcrm-windows-new-case"), dap);
+        WaitForStep("testcrm-windows-new-case");
         await driver.CreateCase();
 
-        WaitForBubble(BubbleFor("testcrm-windows-case-subject"), dap);
+        WaitForStep("testcrm-windows-case-subject");
         await driver.SetCaseSubject("תקלה בחיבור לאינטרנט");
 
-        WaitForBubble(BubbleFor("testcrm-windows-case-description"), dap);
+        WaitForStep("testcrm-windows-case-description");
         await driver.SetCaseDescription("הלקוח מדווח על חיבור לא יציב.");
 
-        WaitForBubble(BubbleFor("testcrm-windows-save-new-case"), dap);
+        WaitForStep("testcrm-windows-save-new-case");
         await driver.SaveCase();
         DiagnoseBreadcrumbs(window);
 
-        WaitForBubble(BubbleFor("testcrm-windows-back-to-cases"), dap);
+        WaitForStep("testcrm-windows-back-to-cases");
         await driver.OpenSiteFromBreadcrumb();
 
         try
         {
-            WaitForBubble(BubbleFor("testcrm-windows-open-created-case"), dap);
+            WaitForStep("testcrm-windows-open-created-case");
         }
         catch (TimeoutException)
         {
@@ -224,127 +269,127 @@ async Task RunGuidedAsync()
         }
         await driver.OpenCreatedCase();
 
-        WaitForBubble(BubbleFor("testcrm-windows-case-in-progress"), dap);
+        WaitForStep("testcrm-windows-case-in-progress");
         await driver.SetCaseStatus("בטיפול");
 
-        WaitForBubble(BubbleFor("testcrm-windows-resolution-notes"), dap);
+        WaitForStep("testcrm-windows-resolution-notes");
         await driver.SetResolutionNotes("נבדקה תשתית הלקוח");
 
-        WaitForBubble(BubbleFor("testcrm-windows-activity-more"), dap);
+        WaitForStep("testcrm-windows-activity-more");
         await driver.ShowMoreActivity();
 
-        WaitForBubble(BubbleFor("testcrm-windows-case-closed"), dap);
+        WaitForStep("testcrm-windows-case-closed");
         await driver.SetCaseStatus("סגורה");
 
-        WaitForBubble(BubbleFor("testcrm-windows-case-subject-after-close"), dap);
+        WaitForStep("testcrm-windows-case-subject-after-close");
         await driver.SetCaseSubject("תקלה בחיבור לאינטרנט");
 
-        WaitForBubble(BubbleFor("testcrm-windows-attempt-close-save"), dap);
+        WaitForStep("testcrm-windows-attempt-close-save");
         await driver.SaveCase();
 
-        WaitForBubble(BubbleFor("testcrm-windows-confirm-close-validation"), dap);
+        WaitForStep("testcrm-windows-confirm-close-validation");
         await driver.DismissValidation();
 
-        WaitForBubble(BubbleFor("testcrm-windows-close-reason"), dap);
+        WaitForStep("testcrm-windows-close-reason");
         await driver.SetCloseReason("טופל");
 
-        WaitForBubble(BubbleFor("testcrm-windows-save-closed-case"), dap);
+        WaitForStep("testcrm-windows-save-closed-case");
         await driver.SaveCase();
 
-        WaitForBubble(BubbleFor("testcrm-windows-return-site"), dap);
+        WaitForStep("testcrm-windows-return-site");
         await driver.OpenSiteFromBreadcrumb();
 
-        WaitForBubble(BubbleFor("testcrm-windows-open-leads-tab"), dap);
+        WaitForStep("testcrm-windows-open-leads-tab");
         await driver.OpenLeads();
 
-        WaitForBubble(BubbleFor("testcrm-windows-return-cases-tab"), dap);
+        WaitForStep("testcrm-windows-return-cases-tab");
         await driver.OpenCases();
 
-        WaitForBubble(BubbleFor("testcrm-windows-open-leads-again"), dap);
+        WaitForStep("testcrm-windows-open-leads-again");
         await driver.OpenLeads();
 
-        WaitForBubble(BubbleFor("testcrm-windows-new-lead"), dap);
+        WaitForStep("testcrm-windows-new-lead");
         await driver.CreateLead();
 
-        WaitForBubble(BubbleFor("testcrm-windows-lead-contact"), dap);
+        WaitForStep("testcrm-windows-lead-contact");
         await driver.SetLeadContact("דנה כהן");
 
-        WaitForBubble(BubbleFor("testcrm-windows-save-new-lead"), dap);
+        WaitForStep("testcrm-windows-save-new-lead");
         await driver.SaveLead();
 
-        WaitForBubble(BubbleFor("testcrm-windows-lead-close-success-1"), dap);
+        WaitForStep("testcrm-windows-lead-close-success-1");
         await driver.SetLeadStatus("נסגר בהצלחה");
 
-        WaitForBubble(BubbleFor("testcrm-windows-lead-new"), dap);
+        WaitForStep("testcrm-windows-lead-new");
         await driver.SetLeadStatus("חדש");
 
-        WaitForBubble(BubbleFor("testcrm-windows-lead-close-success-2"), dap);
+        WaitForStep("testcrm-windows-lead-close-success-2");
         await driver.SetLeadStatus("נסגר בהצלחה");
 
-        WaitForBubble(BubbleFor("testcrm-windows-lead-invalid-save"), dap);
+        WaitForStep("testcrm-windows-lead-invalid-save");
         await driver.SaveLead();
 
-        WaitForBubble(BubbleFor("testcrm-windows-lead-validation-ok"), dap);
+        WaitForStep("testcrm-windows-lead-validation-ok");
         await driver.DismissValidation();
 
-        WaitForBubble(BubbleFor("testcrm-windows-lead-service"), dap);
+        WaitForStep("testcrm-windows-lead-service");
         await driver.SetLeadService("תמיכה מורחבת");
 
-        WaitForBubble(BubbleFor("testcrm-windows-save-lead"), dap);
+        WaitForStep("testcrm-windows-save-lead");
         await driver.SaveLead();
 
-        WaitForBubble(BubbleFor("testcrm-windows-delete-lead"), dap);
+        WaitForStep("testcrm-windows-delete-lead");
         await driver.DeleteLead();
 
-        WaitForBubble(BubbleFor("testcrm-windows-confirm-delete-lead"), dap);
+        WaitForStep("testcrm-windows-confirm-delete-lead");
         await driver.ConfirmDelete();
 
-        WaitForBubble(BubbleFor("testcrm-windows-leads-to-customer"), dap);
+        WaitForStep("testcrm-windows-leads-to-customer");
         await driver.OpenCustomerFromBreadcrumb();
 
-        WaitForBubble(BubbleFor("testcrm-windows-customer-site"), dap);
+        WaitForStep("testcrm-windows-customer-site");
         await driver.OpenFirstSite();
 
-        WaitForBubble(BubbleFor("testcrm-windows-site-leads"), dap);
+        WaitForStep("testcrm-windows-site-leads");
         await driver.OpenLeads();
 
-        WaitForBubble(BubbleFor("testcrm-windows-open-lead"), dap);
+        WaitForStep("testcrm-windows-open-lead");
         await driver.OpenLeadByContactName("אבי כהן");
 
-        WaitForBubble(BubbleFor("testcrm-windows-layout-status-new"), dap);
+        WaitForStep("testcrm-windows-layout-status-new");
         await driver.SetLeadStatus("חדש");
 
-        WaitForBubble(BubbleFor("testcrm-windows-layout-status-closed"), dap);
+        WaitForStep("testcrm-windows-layout-status-closed");
         await driver.SetLeadStatus("נסגר בהצלחה");
 
-        WaitForBubble(BubbleFor("testcrm-windows-race-status-new"), dap);
+        WaitForStep("testcrm-windows-race-status-new");
         await driver.SetLeadStatus("חדש");
 
-        WaitForBubble(BubbleFor("testcrm-windows-race-status-closed"), dap);
+        WaitForStep("testcrm-windows-race-status-closed");
         await driver.SetLeadStatus("נסגר בהצלחה");
 
-        WaitForBubble(BubbleFor("testcrm-windows-lead-to-site"), dap);
+        WaitForStep("testcrm-windows-lead-to-site");
         await driver.OpenSiteFromBreadcrumb();
 
-        WaitForBubble(BubbleFor("testcrm-windows-site-cases-final"), dap);
+        WaitForStep("testcrm-windows-site-cases-final");
         await driver.OpenCases();
 
-        WaitForBubble(BubbleFor("testcrm-windows-open-context-case"), dap);
+        WaitForStep("testcrm-windows-open-context-case");
         await driver.OpenCreatedCase();
 
-        WaitForBubble(BubbleFor("testcrm-windows-context-back-site"), dap);
+        WaitForStep("testcrm-windows-context-back-site");
         await driver.OpenSiteFromBreadcrumb();
 
-        WaitForBubble(BubbleFor("testcrm-windows-open-created-case-final"), dap);
+        WaitForStep("testcrm-windows-open-created-case-final");
         await driver.OpenCreatedCase();
 
-        WaitForBubble(BubbleFor("testcrm-windows-delete-case"), dap);
+        WaitForStep("testcrm-windows-delete-case");
         await driver.DeleteCase();
 
-        WaitForBubble(BubbleFor("testcrm-windows-confirm-delete-case"), dap);
+        WaitForStep("testcrm-windows-confirm-delete-case");
         await driver.ConfirmDelete();
 
-        WaitForBubble(BubbleFor("testcrm-windows-header-home"), dap);
+        WaitForStep("testcrm-windows-header-home");
         await driver.GoPortal();
 
         if (!dap.WaitForExit(5_000))
@@ -353,6 +398,11 @@ async Task RunGuidedAsync()
             throw new Exception($"DAP.exe exited with code {dap.ExitCode}.");
 
         Console.WriteLine("PASS: DAP Windows Learner Runtime completed all 53 persisted Guide Steps with real UIA targets, runtime capture, modal targeting, and bubbles.");
+        }
+        catch (ManualHandoffCompleteException)
+        {
+            Console.WriteLine("Windows manual learner run finished by operator request.");
+        }
     }
     finally
     {
@@ -760,4 +810,8 @@ void StopOwnedProcessTree(Process process)
     {
         process.Dispose();
     }
+}
+
+sealed class ManualHandoffCompleteException : Exception
+{
 }
