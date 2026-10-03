@@ -85,16 +85,22 @@ public partial class MainWindow : Window
         if(tab=="cases")
         {
             var newCase=B("פניה חדשה","NewCaseButton",async(_,_)=>await ShowCase(null,id));
-            var sortCases=B("מיין לפי סטטוס","SortCasesByStatusButton",async(_,_)=>
+            H(v,"פניות",newCase);
+            var xs=await api.GetCasesAsync(id,caseSort,caseSortDir);
+            var g=GridFor(xs,new[]{"Id","Status","Subject"},"CasesGrid");
+            var statusColumn=g.Columns.Single(column=>string.Equals(column.Header?.ToString(),"סטטוס",StringComparison.Ordinal));
+            var sortCases=B("סטטוס","SortCasesByStatusButton",async(_,_)=>
             {
                 caseSort="status";
                 caseSortDir=caseSortDir=="asc"?"desc":"asc";
                 await ShowSite(id,"cases");
             });
-            H(v,"פניות",newCase);
-            A(v,sortCases);
-            var xs=await api.GetCasesAsync(id,caseSort,caseSortDir);
-            var g=GridFor(xs,new[]{"Id","Status","Subject"},"CasesGrid");
+            sortCases.Margin=new Thickness(0);
+            sortCases.Padding=new Thickness(4,2,4,2);
+            sortCases.Background=System.Windows.Media.Brushes.Transparent;
+            sortCases.BorderThickness=new Thickness(0);
+            statusColumn.CanUserSort=false;
+            statusColumn.Header=sortCases;
             g.MouseDoubleClick+=async(_,_)=>{if(g.SelectedItem is CaseItem x)await ShowCase(x.Id,id);};
             v.Children.Add(g);
         }
