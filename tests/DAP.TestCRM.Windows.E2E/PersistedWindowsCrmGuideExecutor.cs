@@ -23,6 +23,7 @@ internal sealed class PersistedWindowsCrmGuideExecutor
 
         foreach (var step in ordered)
         {
+            driver.SetActiveGuideStep(step.Order, step.Id);
             Console.WriteLine($"Windows persisted CRM-only Step {step.Order}/{ordered.Length}: {step.Id}");
             await ExecuteAsync(step);
         }
