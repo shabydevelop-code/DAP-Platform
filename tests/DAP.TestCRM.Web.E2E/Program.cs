@@ -339,10 +339,17 @@ await using var browser = await playwright.Chromium.LaunchAsync(new()
     Args = new[] { "--start-maximized", $"--remote-debugging-port={dapCdpPort}" }
 });
 StartupMark($"{e2eBrowser} launched");
-var e2eMode = Environment.GetEnvironmentVariable("DAP_E2E_MODE")?.Trim().ToLowerInvariant() ?? "fast";
-if (e2eMode is not ("fast" or "visual"))
-    throw new ArgumentException(
-        $"Unsupported DAP_E2E_MODE '{e2eMode}'. Supported values: fast, visual.");
+// DAP_E2E_MODE belongs only to a full --guided run. All other public
+// switches have absolute semantics and must not inherit a stale PowerShell
+// environment value from an earlier run.
+var e2eMode = "fast";
+if (explicitGuided && !manual && !unguided && manualFromStep is null && visualFromStep is null)
+{
+    e2eMode = Environment.GetEnvironmentVariable("DAP_E2E_MODE")?.Trim().ToLowerInvariant() ?? "fast";
+    if (e2eMode is not ("fast" or "visual"))
+        throw new ArgumentException(
+            $"Unsupported DAP_E2E_MODE '{e2eMode}'. Supported values: fast, visual.");
+}
 
 var context = await browser.NewContextAsync(new() { ViewportSize = ViewportSize.NoViewport, ExtraHTTPHeaders = new Dictionary<string,string> { ["X-DAP-E2E-Mode"] = e2eMode } });
 var page = await context.NewPageAsync();
@@ -360,7 +367,7 @@ var visualMode = e2eMode == "visual";
 var fastMode = !visualMode;
 var switchedToVisual = visualMode;
 
-Console.WriteLine($"E2E mode: {(manual ? "manual" : unguided ? $"unguided ({e2eMode})" : visualFromStep is not null ? $"fast -> visual from Step {visualFromStep}" : visualMode ? "visual" : "fast")}");
+Console.WriteLine($"E2E mode: {(manual ? "manual" : unguided ? "unguided" : manualFromStep is not null ? $"fast -> manual from Step {manualFromStep}" : visualFromStep is not null ? $"fast -> visual from Step {visualFromStep}" : visualMode ? "visual" : "fast")}");
 if (visualMode || visualFromStep is not null)
 await page.AddInitScriptAsync(@"(() => {
   const install=()=>{
