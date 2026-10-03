@@ -135,6 +135,31 @@ SELECT Id FROM GuideSteps WHERE GuideId=$guideId AND Key=$key;
             await insertCapture.ExecuteNonQueryAsync(cancellationToken);
         }
 
+        await using (var deleteCompletion = connection.CreateCommand())
+        {
+            deleteCompletion.Transaction = (SqliteTransaction)transaction;
+            deleteCompletion.CommandText = "DELETE FROM StepCompletionConditions WHERE GuideStepId=$id;";
+            Add(deleteCompletion,"$id",numericStepId);
+            await deleteCompletion.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        if (step.CompletionConditions is not null)
+        {
+            for (var i = 0; i < step.CompletionConditions.Count; i++)
+            {
+                var condition = step.CompletionConditions[i];
+                await using var insertCompletion = connection.CreateCommand();
+                insertCompletion.Transaction = (SqliteTransaction)transaction;
+                insertCompletion.CommandText = "INSERT INTO StepCompletionConditions(GuideStepId,ConditionOrder,Kind,ExpectedValue,TargetJson) VALUES($id,$order,$kind,$expected,$target);";
+                Add(insertCompletion,"$id",numericStepId);
+                Add(insertCompletion,"$order",i);
+                Add(insertCompletion,"$kind",condition.Kind);
+                Add(insertCompletion,"$expected",condition.ExpectedValue);
+                Add(insertCompletion,"$target",JsonSerializer.Serialize(condition.Target));
+                await insertCompletion.ExecuteNonQueryAsync(cancellationToken);
+            }
+        }
+
         await transaction.CommitAsync(cancellationToken);
     }
 
@@ -205,7 +230,28 @@ WHERE Key = $newKey;
                     captureReader.GetString(3),
                     captureReader.IsDBNull(4)?null:captureReader.GetString(4));
         }
-        return new GuideStep(row.Key,row.Order,target,new BubbleDefinition(row.BubbleContent,Enum.Parse<BubblePlacement>(row.Placement)),validation,Enum.Parse<StepAdvanceMode>(row.AdvanceMode),context,capture);
+        var completionConditions = new List<StepCompletionCondition>();
+        await using (var completionCommand = connection.CreateCommand())
+        {
+            completionCommand.CommandText = "SELECT Kind,ExpectedValue,TargetJson FROM StepCompletionConditions WHERE GuideStepId=$id ORDER BY ConditionOrder;";
+            completionCommand.Parameters.AddWithValue("$id",row.NumericId);
+            await using var completionReader = await completionCommand.ExecuteReaderAsync(ct);
+            while (await completionReader.ReadAsync(ct))
+            {
+                var completionTarget = JsonSerializer.Deserialize<TargetDescriptor>(completionReader.GetString(2))
+                    ?? throw new InvalidOperationException($"Could not deserialize completion target for Guide Step '{row.Key}'.");
+                completionConditions.Add(new StepCompletionCondition(
+                    completionReader.GetString(0),
+                    completionTarget,
+                    completionReader.IsDBNull(1) ? null : completionReader.GetString(1)));
+            }
+        }
+
+        return new GuideStep(
+            row.Key,row.Order,target,
+            new BubbleDefinition(row.BubbleContent,Enum.Parse<BubblePlacement>(row.Placement)),
+            validation,Enum.Parse<StepAdvanceMode>(row.AdvanceMode),context,capture,
+            completionConditions.Count == 0 ? null : completionConditions);
     }
 
     private sealed record StepRow(
