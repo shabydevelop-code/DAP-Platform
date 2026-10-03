@@ -391,3 +391,13 @@ From this point forward, any condition that decides whether a learner may advanc
 The Runtime may contain generic implementation mechanics for evaluating those persisted conditions, but TestCRM-specific business knowledge must not live only in the Runtime or E2E harness. If a test discovers that progression is unsafe until another screen or target exists, treat that as a Guide-model requirement rather than merely adding a test-only wait.
 
 Short form: **DB/Guide = what completes the Step; Runtime = how completion is detected; E2E = synthetic learner only.**
+
+## Persisted learner-flow semantics implemented — 2026-10-03
+
+The previously documented Guide/DB progression rule is now implemented in the shared model and both learner runtimes.
+
+GuideStep can persist ordered post-action completion conditions. SQLite stores them independently of E2E code. Web and Windows runtimes evaluate the persisted conditions after primary validation so navigation, modal transitions, saves, deletes, and asynchronous UI changes do not advance merely because the initiating click/value event occurred.
+
+Web runtime capture is now explicit persisted StepCaptureDefinition data and uses the shared {{step:<id>:capture}} runtime token instead of inferring URL-fragment capture ownership from downstream locator text.
+
+Windows runtime now also evaluates persisted Step context guards. TestCRM seeds have begun moving destination/business waits from test-driver knowledge into persisted Guide semantics. The E2E driver may still contain technical synchronization needed to automate the synthetic learner, but that synchronization must not be the sole owner of learner progression rules.
