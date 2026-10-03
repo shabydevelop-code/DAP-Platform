@@ -425,6 +425,8 @@ For Web, only explicit closure of the owned page or browser-disconnect events co
 
 The harness must not remain alive merely because DAP is still waiting after its guided target application has been closed. This rule applies only to runner-owned development/test topology and does not change production Runtime ownership boundaries.
 
+This rule applies to manual, Guided, and Unguided TestCRM runner modes. Automated waits must observe the owned target lifetime so that an operator-closed target produces a clean runner stop rather than a later timeout or UIA/Playwright exception.
+
 ## ADR-044 — Web E2E readiness is process-bound and ports are preflighted
 
 **Status:** Accepted
