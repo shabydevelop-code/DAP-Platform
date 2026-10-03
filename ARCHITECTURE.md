@@ -199,17 +199,22 @@ SQLite default database location on Windows is `%ProgramData%\DAP\Data\DAP.db` (
 
 ## Localization
 
-GUI localization is resource-based.
+User-facing product text is loaded at runtime from external JSON localization files shipped beside the compiled application:
 
 ```text
-Resources/
-  Strings.en.resx
-  Strings.he.resx
+Localization/
+  language.json
+  he.json
+  en.json
 ```
 
-Changing GUI language changes both text and flow direction.
+`language.json` selects the active UI language. The corresponding language file is the single source of truth for product UI text and UI direction. These files are copied to build/publish output and may be edited or replaced without recompiling `DAP.exe`.
 
-Guide-content language is independent of application GUI language.
+There are deliberately **no embedded translation fallbacks** and no hard-coded alternate UI strings. A missing localization configuration, missing language file, missing required key, or invalid direction is an explicit configuration error. This avoids split ownership where different wording can silently come from JSON, RESX, or compiled code.
+
+Guide instructional content remains persisted Guide data and is not moved into product localization files. Developer diagnostics, protocol names, locator/validation identifiers, and logs are not product UI localization.
+
+Changing GUI language changes product UI text and flow direction. Guide-content language remains independent from application GUI language.
 
 ## Deployment
 
