@@ -646,3 +646,19 @@ The old combined root `DAP.TestCRM.csproj` and root launch profile were removed 
 - The directional pointer is hidden after manual dragging, matching the established Web learner-bubble behavior.
 - When the active Step changes, manual-position state is reset; the next Step returns to automatic placement and shows its pointer again.
 - The interaction remains presentation-only: dragging does not change target identity, validation, runtime capture, or Step progression.
+
+## Guide progression hardening — persisted postconditions
+
+Work toward additional Windows Steps is paused while learner-flow ownership is hardened across Web and Windows.
+
+Implemented:
+- shared persisted Step completion conditions in Core and SQLite;
+- Web Runtime enforcement of persisted post-action conditions;
+- Windows Runtime enforcement of persisted post-action conditions;
+- Windows persisted context guards;
+- explicit persisted Web runtime capture using StepCaptureDefinition;
+- TestCRM Web navigation transitions now persist destination/post-action checks for the canonical flow;
+- Windows canonical Steps 1–30 now persist key destination/state checks rather than relying only on E2E waits;
+- the obsolete Windows unguided final assertion that always expected DeleteCaseButton was removed.
+
+The design rule remains: Guide/DB owns what completes a Step; Runtime owns how it is observed; E2E acts only as a synthetic learner.
