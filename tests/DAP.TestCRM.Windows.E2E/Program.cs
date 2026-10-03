@@ -333,9 +333,9 @@ async Task RunGuidedAsync(
 
         Console.WriteLine(
             handoffStepOrder is not null
-                ? $"E2E mode: fast -> manual from Step {handoffStepOrder}"
+                ? $"E2E mode: unguided -> manual from Step {handoffStepOrder}"
                 : visualStartStepOrder is not null
-                    ? $"E2E mode: fast -> visual from Step {visualStartStepOrder}"
+                    ? $"E2E mode: unguided -> visual from Step {visualStartStepOrder}"
                     : $"E2E mode: {(visualFromStart ? "visual" : "fast")}");
 
         void WaitForStep(string stepId)
@@ -374,12 +374,12 @@ async Task RunGuidedAsync(
                     $"Windows unguided bootstrap complete through Step {step.Order - 1}; DAP started at Step {step.Order} with {bootstrapCaptures.Count} resume capture(s).");
             }
 
-            WaitForBubble(step.Bubble.Content, dap);
+            WaitForBubble(step.Bubble.Content, dap!);
 
             if (visualStartStepOrder == step.Order && !driver.VisualMode)
             {
                 driver.SetVisualMode(true);
-                Console.WriteLine($"E2E mode transition: FAST -> VISUAL at Step {step.Order}");
+                Console.WriteLine($"E2E mode transition: UNGUIDED -> VISUAL at Step {step.Order}");
             }
 
             driver.VisualPause(500);
