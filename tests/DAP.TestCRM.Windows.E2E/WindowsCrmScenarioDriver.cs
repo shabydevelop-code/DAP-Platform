@@ -22,6 +22,7 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     }
 
     public bool VisualMode => visualMode;
+    public string? CreatedCaseId => createdCaseId;
 
     public void SetVisualMode(bool enabled) => visualMode = enabled;
 
