@@ -223,7 +223,12 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
 
     public Task CommitCustomerSearchEdit()
     {
-        window.SetFocus();
+        // Commit the edit the same way a learner does: keep focus in the
+        // CustomerNameSearch editor and send a real TAB keystroke so WPF
+        // performs its natural focus traversal / blur lifecycle.
+        var element=ById("CustomerNameSearch");
+        element.SetFocus();
+        KeyPress(VK_TAB);
         return Task.CompletedTask;
     }
     public Task SubmitCustomerSearch()
@@ -540,6 +545,7 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     const int IDOK=1, IDYES=6;
     const int SM_XVIRTUALSCREEN=76, SM_YVIRTUALSCREEN=77, SM_CXVIRTUALSCREEN=78, SM_CYVIRTUALSCREEN=79;
     const byte VK_RETURN=0x0D;
+    const byte VK_TAB=0x09;
     const byte VK_HOME=0x24;
     const byte VK_DOWN=0x28;
     const uint KEYEVENTF_KEYUP=0x0002;
