@@ -95,6 +95,14 @@ try
     await CanonicalCrmScenario.Run53Async(new WindowsCrmScenarioDriver(app, window));
     Console.WriteLine("PASS: Windows canonical 53-step Customer -> Site -> Case -> Lead scenario completed.");
 }
+catch (TargetApplicationClosedException)
+{
+    Console.WriteLine("Windows target application closed. Ending the run and cleaning up owned processes.");
+}
+catch (Exception) when (app.HasExited)
+{
+    Console.WriteLine("Windows target application closed. Ending the run and cleaning up owned processes.");
+}
 finally
 {
     StopOwnedProcessTree(app);
@@ -134,6 +142,14 @@ async Task RunPersistedUnguidedAsync()
 
         Console.WriteLine(
             $"PASS: Windows unguided executed {persistedSteps.Count} persisted Guide Steps from DAP.db without DAP.exe or bubbles.");
+    }
+    catch (TargetApplicationClosedException)
+    {
+        Console.WriteLine("Windows target application closed. Ending the run and cleaning up owned processes.");
+    }
+    catch (Exception) when (windowsApp is not null && windowsApp.HasExited)
+    {
+        Console.WriteLine("Windows target application closed. Ending the run and cleaning up owned processes.");
     }
     finally
     {
