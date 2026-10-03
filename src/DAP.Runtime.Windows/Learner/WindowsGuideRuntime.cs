@@ -108,11 +108,9 @@ public sealed class WindowsGuideRuntime
         string? initialTextValue = null;
         var textTargetObservedFocused = 0;
         var textTargetChanged = 0;
-        var textTargetBlurObserved = 0;
         var textTargetCommitted = 0;
         AutomationElement? subscribedTextTarget = null;
         AutomationPropertyChangedEventHandler? textEditPropertyChangedHandler = null;
-        AutomationFocusChangedEventHandler? textBlurFallbackHandler = null;
         var clickCompleted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         AutomationEventHandler? clickHandler = null;
         AutomationElement? subscribedTarget = null;
@@ -136,28 +134,6 @@ public sealed class WindowsGuideRuntime
                 $"+{stepStopwatch.ElapsedMilliseconds} ms " +
                 $"(wait={stepStopwatch.ElapsedMilliseconds - settleStartedAt} ms).");
         }
-
-        textBlurFallbackHandler = (_, _) =>
-        {
-            var textTarget = subscribedTextTarget;
-            if (textTarget is null
-                || Volatile.Read(ref textTargetObservedFocused) == 0
-                || Volatile.Read(ref textTargetChanged) == 0)
-                return;
-
-            try
-            {
-                if (!textTarget.Current.HasKeyboardFocus)
-                {
-                    Volatile.Write(ref textTargetBlurObserved, 1);
-                    Volatile.Write(ref textTargetCommitted, 1);
-                }
-            }
-            catch (ElementNotAvailableException)
-            {
-            }
-        };
-        Automation.AddAutomationFocusChangedEventHandler(textBlurFallbackHandler);
 
         try
         {
@@ -260,34 +236,14 @@ public sealed class WindowsGuideRuntime
                         }
 
                         subscribedTextTarget = target;
-
-                        // Re-subscribing to a rediscovered UIA wrapper must not
-                        // redefine the edit baseline. The baseline belongs to the
-                        // active Step/edit attempt, not to one AutomationElement
-                        // wrapper instance. Invalid commits explicitly establish
-                        // a new baseline below.
-                        initialTextValue ??= currentTextValue;
+                        initialTextValue = currentTextValue;
 
                         textEditPropertyChangedHandler = (_, args) =>
                         {
                             if (args.Property == ValuePattern.ValueProperty)
                             {
                                 if (!Equals(args.OldValue, args.NewValue))
-                                {
                                     Volatile.Write(ref textTargetChanged, 1);
-
-                                    try
-                                    {
-                                        if (subscribedTextTarget?.Current.HasKeyboardFocus == true)
-                                            Volatile.Write(ref textTargetObservedFocused, 1);
-                                    }
-                                    catch (ElementNotAvailableException)
-                                    {
-                                    }
-
-                                    if (Volatile.Read(ref textTargetBlurObserved) == 1)
-                                        Volatile.Write(ref textTargetCommitted, 1);
-                                }
                                 return;
                             }
 
@@ -297,17 +253,15 @@ public sealed class WindowsGuideRuntime
                             if (args.NewValue is bool hasKeyboardFocus && hasKeyboardFocus)
                             {
                                 Volatile.Write(ref textTargetObservedFocused, 1);
-                                Volatile.Write(ref textTargetBlurObserved, 0);
                                 return;
                             }
 
                             if (args.NewValue is bool lostKeyboardFocus
                                 && !lostKeyboardFocus
-                                && Volatile.Read(ref textTargetObservedFocused) == 1)
+                                && Volatile.Read(ref textTargetObservedFocused) == 1
+                                && Volatile.Read(ref textTargetChanged) == 1)
                             {
-                                Volatile.Write(ref textTargetBlurObserved, 1);
-                                if (Volatile.Read(ref textTargetChanged) == 1)
-                                    Volatile.Write(ref textTargetCommitted, 1);
+                                Volatile.Write(ref textTargetCommitted, 1);
                             }
                         };
 
@@ -326,20 +280,14 @@ public sealed class WindowsGuideRuntime
                     // HasKeyboardFocusProperty transition is the primary blur
                     // signal, so fast focus loss cannot be missed between polls.
                     if (target.Current.HasKeyboardFocus)
-                    {
                         Volatile.Write(ref textTargetObservedFocused, 1);
-                        Volatile.Write(ref textTargetBlurObserved, 0);
-                    }
-                    else if (Volatile.Read(ref textTargetObservedFocused) == 1)
-                    {
-                        Volatile.Write(ref textTargetBlurObserved, 1);
-                    }
 
                     if (!string.Equals(currentTextValue, initialTextValue, StringComparison.Ordinal))
                         Volatile.Write(ref textTargetChanged, 1);
 
-                    if (Volatile.Read(ref textTargetBlurObserved) == 1
-                        && Volatile.Read(ref textTargetChanged) == 1)
+                    if (Volatile.Read(ref textTargetObservedFocused) == 1
+                        && Volatile.Read(ref textTargetChanged) == 1
+                        && !target.Current.HasKeyboardFocus)
                     {
                         Volatile.Write(ref textTargetCommitted, 1);
                     }
@@ -497,7 +445,6 @@ public sealed class WindowsGuideRuntime
                         initialTextValue = ((ValuePattern)committedValuePattern).Current.Value;
                         Volatile.Write(ref textTargetObservedFocused, 0);
                         Volatile.Write(ref textTargetChanged, 0);
-                        Volatile.Write(ref textTargetBlurObserved, 0);
                         Volatile.Write(ref textTargetCommitted, 0);
                     }
                 }
@@ -523,9 +470,6 @@ public sealed class WindowsGuideRuntime
                 {
                 }
             }
-
-            if (textBlurFallbackHandler is not null)
-                Automation.RemoveAutomationFocusChangedEventHandler(textBlurFallbackHandler);
 
             if (subscribedTarget is not null && clickHandler is not null)
             {
