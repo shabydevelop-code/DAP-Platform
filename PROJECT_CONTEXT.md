@@ -438,6 +438,8 @@ Web and Windows full manual TestCRM runs are now modes of the canonical platform
 - Web full manual: `dotnet run --project tests\DAP.TestCRM.Web.E2E\DAP.TestCRM.Web.E2E.csproj -- --manual`
 - Windows full manual: `dotnet run --project tests\DAP.TestCRM.Windows.E2E\DAP.TestCRM.Windows.E2E.csproj -- --manual`
 - `--manual` starts the same platform topology used by Guided execution, waits for production Step 1, then performs no synthetic learner actions.
+- Manual mode is target-lifetime aware: if the learner closes the Web browser/page/Web host or the Windows TestCRM application before Guide completion, the runner ends the manual session, cleans up its remaining owned processes, and returns to the shell prompt rather than leaving the terminal waiting on DAP.
+- TestCRM grid headers are explicitly RTL/right-aligned on both platforms. Active sorting is shown conventionally with a visible ▲/▼ direction indicator; Web also publishes `aria-sort` state.
 - `--manual-from-step <N>` remains available for focused state-preserving handoff after the real prior workflow has executed.
 - The removed `scripts/run-testcrm-web-learner.ps1` and `scripts/run-testcrm-windows-learner.ps1` must not be reintroduced as parallel launch paths; startup/cleanup ownership stays in the E2E runners.
 
