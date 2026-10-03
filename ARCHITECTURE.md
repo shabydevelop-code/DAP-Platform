@@ -104,6 +104,8 @@ A failed non-click commit attempt is consumed. The Runtime must require a new ed
 
 On Windows, text-edit commit detection is driven by target-scoped UIA property-change events on the edit control itself: `ValuePattern.ValueProperty` for edits and `AutomationElement.HasKeyboardFocusProperty` for focus entry/blur. Polling may remain as a compatibility fallback for providers that omit events, but polling must not be the sole source of commit truth. A global focus-change listener is not the commit contract.
 
+Synthetic learner tests that need to commit a Windows text edit should exercise the application's natural keyboard focus traversal (for example TAB from the focused editor) rather than substituting `Window.SetFocus()` as a test-only blur mechanism.
+
 This rule applies to both Web and Windows runtimes.
 
 ### Guide navigation and context
