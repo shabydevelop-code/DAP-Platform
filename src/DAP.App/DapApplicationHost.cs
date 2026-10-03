@@ -2,6 +2,7 @@ using Microsoft.Playwright;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Automation;
 using DAP.Data.Sqlite;
@@ -75,15 +76,41 @@ public static class DapApplicationHost
             return 5;
         }
 
-        if (options.Mode == DapLaunchMode.LearnerWindows)
-            return await RunWindowsAsync(options, steps, texts, startup, cancellationToken);
+        var resumeContext = await LoadResumeContextAsync(options.ResumeContextPath, cancellationToken);
+        if (resumeContext.Count > 0)
+            StartupMark(startup, $"resume context loaded ({resumeContext.Count} captures)");
 
-        return await RunWebAsync(options, steps, texts, startup, cancellationToken);
+        if (options.Mode == DapLaunchMode.LearnerWindows)
+            return await RunWindowsAsync(options, steps, resumeContext, texts, startup, cancellationToken);
+
+        return await RunWebAsync(options, steps, resumeContext, texts, startup, cancellationToken);
+    }
+
+    private static async Task<IReadOnlyDictionary<string, string>> LoadResumeContextAsync(
+        string? path,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return new Dictionary<string, string>(StringComparer.Ordinal);
+
+        var fullPath = Path.GetFullPath(path);
+        if (!File.Exists(fullPath))
+            throw new FileNotFoundException("DAP resume context file was not found.", fullPath);
+
+        await using var stream = File.OpenRead(fullPath);
+        var values = await JsonSerializer.DeserializeAsync<Dictionary<string, string>>(
+            stream,
+            cancellationToken: cancellationToken);
+
+        return values is null
+            ? new Dictionary<string, string>(StringComparer.Ordinal)
+            : new Dictionary<string, string>(values, StringComparer.Ordinal);
     }
 
     private static async Task<int> RunWindowsAsync(
         DapLaunchOptions options,
         IReadOnlyList<DAP.Core.Guides.GuideStep> steps,
+        IReadOnlyDictionary<string, string> resumeContext,
         IUiTextProvider texts,
         Stopwatch startup,
         CancellationToken cancellationToken)
@@ -98,7 +125,7 @@ public static class DapApplicationHost
         try
         {
             StartupMark(startup, "Windows guide runtime starting");
-            await runtime.RunAsync(window, steps, cancellationToken, options.StartStep);
+            await runtime.RunAsync(window, steps, cancellationToken, options.StartStep, resumeContext);
 
             if (options.ShowCompletion)
             {
@@ -175,6 +202,7 @@ public static class DapApplicationHost
     private static async Task<int> RunWebAsync(
         DapLaunchOptions options,
         IReadOnlyList<DAP.Core.Guides.GuideStep> steps,
+        IReadOnlyDictionary<string, string> resumeContext,
         IUiTextProvider texts,
         Stopwatch startup,
         CancellationToken cancellationToken)
@@ -211,7 +239,7 @@ public static class DapApplicationHost
         try
         {
             StartupMark(startup, "Web guide runtime starting");
-            await guideRuntime.RunAsync(matchingPages[0], steps, cancellationToken, options.StartStep);
+            await guideRuntime.RunAsync(matchingPages[0], steps, cancellationToken, options.StartStep, resumeContext);
 
             if (options.ShowCompletion)
             {
