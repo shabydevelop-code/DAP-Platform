@@ -566,7 +566,7 @@ Web `clicked` validation no longer stores completion in the guided application's
 
 ## TestCRM refactor verification and database separation (2026-10-02)
 - The TestCRM refactor to `Server/`, `Web/`, and `data/` was pulled and verified locally.
-- TestCRM starts successfully on `http://localhost:5200` after the WebRoot fix.
+- The TestCRM Web host starts successfully on `http://localhost:5200` after the WebRoot fix; the shared backend/API is on `http://localhost:5201`.
 - The representative `Customer -> Site -> Case -> Lead` E2E workflow passes after the refactor, including dynamic Lead deletion and Case deletion.
 - `tests/DAP.Data.Sqlite.Tests` contains infrastructure tests for DAP's SQLite persistence layer; it is not a TestCRM application/test-data directory and should remain under `tests/`.
 - DAP product persistence and TestCRM business persistence are intentionally separate:
@@ -581,7 +581,7 @@ Web `clicked` validation no longer stores completion in the guided application's
 - This preserves one business-data owner: `Server -> data/testcrm.db`.
 - Initial Windows functionality: load Customers, load Sites for the selected Customer, load Cases and Leads for the selected Site, and edit/save existing Sites, Cases, and Leads through the shared API.
 - Important Windows controls have explicit UIA AutomationIds in preparation for DAP Windows Runtime targeting.
-- Local build/runtime verification is still required after pull; GitHub-side editing cannot execute the user's local Windows/WPF runtime.
+- Windows build/runtime verification is complete for the current canonical baseline; Windows Guided and Unguided both have verified 53/53 execution.
 
 ## Web E2E unified modes and Windows parity review — 2026-10-02
 - The representative Web E2E project is now `tests/DAP.TestCRM.Web.E2E/DAP.TestCRM.Web.E2E.csproj`.
@@ -597,7 +597,7 @@ Web `clicked` validation no longer stores completion in the guided application's
 - Windows TestCRM was reviewed against the persisted 53-Step Web Guide. Most of the business workflow is relevant to Windows because both clients use the same server/API/business model, but Web-specific mechanics (DOM/iframe/frame URL/CSS targeting) must not be copied literally into Windows UIA tests.
 - Known Windows parity gaps before building the Windows Unguided E2E: Case Resolution Notes is displayed/enabled but is not currently persisted in `CaseInput`; there is no Windows equivalent of the Web Step-15 activity-more interaction; and the Web Step-6 explicit Cases sort behavior does not currently have an equivalent explicit Windows implementation.
 - Windows validation/delete confirmations currently use WPF `MessageBox`, which is a valid platform-specific equivalent rather than the Web PS alert/confirm DOM. Dynamic Lead status behavior and conditional Selected Service UI are present and are suitable for equivalent Windows business-flow coverage.
-- Planned order remains: close required Windows CRM parity gaps -> build a Windows Unguided UI Automation E2E against the real WPF client -> stabilize/PASS the business scenario -> only then integrate DAP Windows Runtime/target resolution/bubbles.
+- That historical Windows parity plan is complete: the parity gaps were closed, the Windows Unguided UI Automation E2E was implemented and stabilized, and the production Windows Runtime/target resolution/bubbles were integrated and verified through the canonical 53-Step Guided baseline.
 
 
 
