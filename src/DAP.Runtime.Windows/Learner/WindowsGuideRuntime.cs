@@ -108,6 +108,7 @@ public sealed class WindowsGuideRuntime
         string? initialTextValue = null;
         var textTargetObservedFocused = 0;
         var textTargetChanged = 0;
+        var textTargetBlurObserved = 0;
         var textTargetCommitted = 0;
         AutomationElement? subscribedTextTarget = null;
         AutomationPropertyChangedEventHandler? textEditPropertyChangedHandler = null;
@@ -243,7 +244,11 @@ public sealed class WindowsGuideRuntime
                             if (args.Property == ValuePattern.ValueProperty)
                             {
                                 if (!Equals(args.OldValue, args.NewValue))
+                                {
                                     Volatile.Write(ref textTargetChanged, 1);
+                                    if (Volatile.Read(ref textTargetBlurObserved) == 1)
+                                        Volatile.Write(ref textTargetCommitted, 1);
+                                }
                                 return;
                             }
 
@@ -253,15 +258,17 @@ public sealed class WindowsGuideRuntime
                             if (args.NewValue is bool hasKeyboardFocus && hasKeyboardFocus)
                             {
                                 Volatile.Write(ref textTargetObservedFocused, 1);
+                                Volatile.Write(ref textTargetBlurObserved, 0);
                                 return;
                             }
 
                             if (args.NewValue is bool lostKeyboardFocus
                                 && !lostKeyboardFocus
-                                && Volatile.Read(ref textTargetObservedFocused) == 1
-                                && Volatile.Read(ref textTargetChanged) == 1)
+                                && Volatile.Read(ref textTargetObservedFocused) == 1)
                             {
-                                Volatile.Write(ref textTargetCommitted, 1);
+                                Volatile.Write(ref textTargetBlurObserved, 1);
+                                if (Volatile.Read(ref textTargetChanged) == 1)
+                                    Volatile.Write(ref textTargetCommitted, 1);
                             }
                         };
 
@@ -280,14 +287,20 @@ public sealed class WindowsGuideRuntime
                     // HasKeyboardFocusProperty transition is the primary blur
                     // signal, so fast focus loss cannot be missed between polls.
                     if (target.Current.HasKeyboardFocus)
+                    {
                         Volatile.Write(ref textTargetObservedFocused, 1);
+                        Volatile.Write(ref textTargetBlurObserved, 0);
+                    }
+                    else if (Volatile.Read(ref textTargetObservedFocused) == 1)
+                    {
+                        Volatile.Write(ref textTargetBlurObserved, 1);
+                    }
 
                     if (!string.Equals(currentTextValue, initialTextValue, StringComparison.Ordinal))
                         Volatile.Write(ref textTargetChanged, 1);
 
-                    if (Volatile.Read(ref textTargetObservedFocused) == 1
-                        && Volatile.Read(ref textTargetChanged) == 1
-                        && !target.Current.HasKeyboardFocus)
+                    if (Volatile.Read(ref textTargetBlurObserved) == 1
+                        && Volatile.Read(ref textTargetChanged) == 1)
                     {
                         Volatile.Write(ref textTargetCommitted, 1);
                     }
@@ -445,6 +458,7 @@ public sealed class WindowsGuideRuntime
                         initialTextValue = ((ValuePattern)committedValuePattern).Current.Value;
                         Volatile.Write(ref textTargetObservedFocused, 0);
                         Volatile.Write(ref textTargetChanged, 0);
+                        Volatile.Write(ref textTargetBlurObserved, 0);
                         Volatile.Write(ref textTargetCommitted, 0);
                     }
                 }
