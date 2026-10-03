@@ -381,3 +381,13 @@ The runner owns target-application startup, backend/browser setup where applicab
 
 Separate manual-launch scripts that duplicate the same startup/cleanup topology are not maintained. Product Runtime logic remains outside the E2E harness; the harness only owns development/test orchestration and synthetic learner actions.
 
+## ADR-040 — Windows TestCRM E2E uses isolated per-run executable outputs
+
+**Status:** Accepted
+
+Windows Guided/Manual TestCRM execution must not run DAP, TestCRM Server, or TestCRM Windows directly from normal repository build outputs that are reused by later builds.
+
+The Windows E2E runner builds these executables into a unique per-run directory under `%TEMP%\DAP\E2E\Windows\<run-id>` and launches them from there. The E2E project does not keep a build-time ProjectReference to `DAP.App`; DAP is built explicitly into the isolated run output.
+
+This prevents an interrupted or orphaned learner process from locking `src/DAP.App/bin/Debug` and causing subsequent `dotnet run` builds to fail. Runner-owned child processes are cleaned up in normal `finally` handling and also on process-exit / Ctrl+C when those notifications are delivered. A hard OS termination may leave the isolated temporary directory behind, but later runs never reuse it, so it cannot block future builds.
+
