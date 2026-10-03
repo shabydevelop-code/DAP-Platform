@@ -126,12 +126,28 @@ public sealed class WebLearnerRuntime
 
                     var completedResolution = await _bubbles.ResolveTargetAsync(page, step, cancellationToken);
                     if (completedResolution.Status == TargetResolutionStatus.Resolved
-                        && completedResolution.Target is not null
-                        && await _validation.IsSatisfiedAsync(completedResolution.Target, step.Validation!, cancellationToken)
-                        && await AreCompletionConditionsSatisfiedAsync(page, step, cancellationToken))
+                        && completedResolution.Target is not null)
                     {
-                        await _bubbles.HideAsync(page);
-                        return;
+                        var primaryValidationSatisfied = await _validation.IsSatisfiedAsync(
+                            completedResolution.Target,
+                            step.Validation!,
+                            cancellationToken);
+
+                        if (primaryValidationSatisfied
+                            && await AreCompletionConditionsSatisfiedAsync(page, step, cancellationToken))
+                        {
+                            await _bubbles.HideAsync(page);
+                            return;
+                        }
+
+                        if (!primaryValidationSatisfied)
+                        {
+                            // Non-click commit events represent one learner commit
+                            // attempt. If the committed value is invalid, consume
+                            // that attempt so subsequent typing cannot advance until
+                            // a new blur/change commit event is observed.
+                            _validationSession.ConsumeCompletion(step.Id);
+                        }
                     }
                 }
 
