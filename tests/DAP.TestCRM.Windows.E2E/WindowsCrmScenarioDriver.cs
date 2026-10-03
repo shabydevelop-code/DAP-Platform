@@ -203,6 +203,29 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     }
 
     public Task SetCustomerSearch(string v){Set("CustomerNameSearch",v);return Task.CompletedTask;}
+
+    public Task SetCustomerSearchWithoutCommit(string value)
+    {
+        DismissUnexpectedInfoDialogs();
+        var element=Wait(()=> {
+            var candidate=window.FindFirst(
+                TreeScope.Descendants,
+                new PropertyCondition(AutomationElement.AutomationIdProperty,"CustomerNameSearch"));
+            return candidate is not null && candidate.Current.IsEnabled ? candidate : null;
+        },"CustomerNameSearch enabled");
+        if(!element.TryGetCurrentPattern(ValuePattern.Pattern,out var pattern))
+            throw new Exception("CustomerNameSearch has no ValuePattern.");
+
+        element.SetFocus();
+        ((ValuePattern)pattern).SetValue(value);
+        return Task.CompletedTask;
+    }
+
+    public Task CommitCustomerSearchEdit()
+    {
+        window.SetFocus();
+        return Task.CompletedTask;
+    }
     public Task SubmitCustomerSearch()
     {
         Click(ById("SearchCustomersButton"));
