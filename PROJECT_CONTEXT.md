@@ -443,7 +443,15 @@ Web and Windows full manual TestCRM runs are now modes of the canonical platform
 
 The Web E2E now also regression-checks natural text commit explicitly: after typing the exact Step-1 value it verifies Step 1 is still active before blur, then sends Tab and requires advancement to Step 2 only after that commit event.
 
-Windows Guided/Manual E2E uses isolated per-run build outputs for TestCRM Server, TestCRM Windows, and DAP under `%TEMP%\DAP\E2E\Windows\<run-id>`.
+Web and Windows TestCRM runners now share the same executable-isolation rule.
 
-Web Guided/Manual/Unguided E2E now uses the equivalent isolated topology under `%TEMP%\DAP\E2E\Web\<run-id>`: TestCRM Server and TestCRM Web are always built/launched from that run directory, and DAP is built there for guided/manual modes. The Web runner registers owned-process cleanup before starting child processes, so Ctrl+C/process exit cleans DAP/Web/Server where the OS delivers the notification. Hard termination may leave a temporary directory, but later runs never reuse it. The Windows E2E project intentionally does not carry a build-time ProjectReference to `DAP.App`; it builds DAP explicitly into the isolated run directory and launches that executable. This prevents orphaned/interrupted DAP processes from locking `src/DAP.App/bin/Debug` and blocking the next run. Owned child processes are also terminated on normal cleanup and on process-exit/Ctrl+C cleanup where the OS permits it.
+- Windows Guided/Manual: TestCRM Server, TestCRM Windows, and DAP are built into `%TEMP%\DAP\E2E\Windows\<run-id>`.
+- Web Guided/Manual: TestCRM Server, TestCRM Web, and DAP are built into `%TEMP%\DAP\E2E\Web\<run-id>`.
+- Web Unguided uses the same Web run root for TestCRM Server/Web but does not build or launch DAP.
+- Each run gets a new GUID-based directory; later runs never reuse an abandoned executable path.
+- Normal cleanup plus process-exit/Ctrl+C cleanup attempts to terminate only runner-owned child processes.
+- The Windows E2E project intentionally has no build-time ProjectReference to `DAP.App`; it builds DAP explicitly into its isolated run output.
+- This prevents interrupted learner runs from locking normal repository `bin\Debug` outputs and blocking subsequent builds.
+
+The unified `--manual` paths and the newest per-run isolation changes are implemented but have not yet been reported as a new full regression PASS.
 
