@@ -53,6 +53,8 @@ Recent parity refinements:
 - Windows manual bubble dragging hides the directional pointer immediately when dragging begins and keeps it hidden for the remainder of that active Step. The next Step resets to automatic placement and restores its pointer.
 - Web reconciliation trace noise was reduced by removing repetitive successful context/EnsureShown lines while retaining meaningful state/race diagnostics.
 - Windows Step timing now logs the first bubble presentation once per active Step instead of logging every reconciliation refresh.
+- Windows Guided/Manual E2E no longer builds/runs DAP from `src/DAP.App/bin/Debug`. Backend, Windows TestCRM, and DAP are built into a unique per-run directory under `%TEMP%\DAP\E2E\Windows\<run-id>`, preventing interrupted learner runs from locking normal repository build outputs.
+- Windows E2E also registers process-exit/Ctrl+C cleanup for the child processes it owns. Hard termination may still leave a temporary run directory, but later runs never reuse it.
 
 The four-mode 53/53 PASS matrix above remains the last fully verified regression baseline. The newest manual-UX parity changes listed here were made after that baseline and must not be treated as a new full PASS until the affected runs are executed again.
 
