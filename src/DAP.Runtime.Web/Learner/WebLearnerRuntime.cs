@@ -135,7 +135,6 @@ public sealed class WebLearnerRuntime
                     }
                 }
 
-                _validationSession.Trace($"[DAP runtime trace] Step '{step.Id}' entering context check.");
                 if (!await _contextGuard.IsActiveAsync(page, step, cancellationToken))
                 {
                     _validationSession.Trace($"[DAP runtime trace] Step '{step.Id}' context inactive; hiding bubble.");
@@ -143,7 +142,6 @@ public sealed class WebLearnerRuntime
                     await Task.Delay(_reconcileInterval, cancellationToken);
                     continue;
                 }
-                _validationSession.Trace($"[DAP runtime trace] Step '{step.Id}' context check completed active.");
 
                 // The first Step has no preceding learner transition to settle.
                 // For later Steps, wait until the target document has been quiet
@@ -161,7 +159,6 @@ public sealed class WebLearnerRuntime
                     _validationSession.Trace($"[DAP runtime trace] Step '{step.Id}' presentation stability check completed.");
                 }
 
-                _validationSession.Trace($"[DAP runtime trace] Step '{step.Id}' entering EnsureShown.");
                 var presentation = Stopwatch.StartNew();
 
                 TargetResolution<ILocator> resolution;
@@ -210,7 +207,6 @@ public sealed class WebLearnerRuntime
                         cancellationToken);
                 }
 
-                _validationSession.Trace($"[DAP runtime trace] Step '{step.Id}' EnsureShown completed with {resolution.Status}.");
 
                 if (resolution.Status == TargetResolutionStatus.Resolved
                     && resolution.Target is not null)
