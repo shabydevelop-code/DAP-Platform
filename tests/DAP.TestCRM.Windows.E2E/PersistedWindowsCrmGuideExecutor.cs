@@ -68,6 +68,30 @@ internal sealed class PersistedWindowsCrmGuideExecutor
             case "testcrm-windows-open-created-case":
                 await driver.OpenCreatedCase();
                 return;
+            case "testcrm-windows-case-in-progress":
+                await driver.SetCaseStatus(RequiredExpectedValue(step));
+                return;
+            case "testcrm-windows-resolution-notes":
+                await driver.SetResolutionNotes("נבדקה תשתית הלקוח");
+                return;
+            case "testcrm-windows-activity-more":
+                await driver.ShowMoreActivity();
+                return;
+            case "testcrm-windows-case-closed":
+                await driver.SetCaseStatus(RequiredExpectedValue(step));
+                return;
+            case "testcrm-windows-case-subject-after-close":
+                await driver.SetCaseSubject("תקלה בחיבור לאינטרנט");
+                return;
+            case "testcrm-windows-attempt-close-save":
+                await driver.SaveCase();
+                return;
+            case "testcrm-windows-confirm-close-validation":
+                await driver.DismissValidation();
+                return;
+            case "testcrm-windows-close-reason":
+                await driver.SetCloseReason(RequiredExpectedValue(step));
+                return;
             default:
                 throw new NotSupportedException(
                     $"Persisted Windows CRM-only executor does not yet support Guide Step '{step.Id}' (order {step.Order}).");
