@@ -89,16 +89,20 @@ public partial class MainWindow : Window
             var xs=await api.GetCasesAsync(id,caseSort,caseSortDir);
             var g=GridFor(xs,new[]{"Id","Status","Subject"},"CasesGrid");
             var statusColumn=g.Columns.Single(column=>string.Equals(column.Header?.ToString(),"סטטוס",StringComparison.Ordinal));
-            var sortCases=B("סטטוס","SortCasesByStatusButton",async(_,_)=>
+            var statusSortIndicator=caseSort=="status"?(caseSortDir=="asc"?" ▲":" ▼"):"";
+            var sortCases=B($"סטטוס{statusSortIndicator}","SortCasesByStatusButton",async(_,_)=>
             {
                 caseSort="status";
                 caseSortDir=caseSortDir=="asc"?"desc":"asc";
                 await ShowSite(id,"cases");
             });
+            AutomationProperties.SetName(sortCases,"סטטוס");
             sortCases.Margin=new Thickness(0);
             sortCases.Padding=new Thickness(4,2,4,2);
             sortCases.Background=System.Windows.Media.Brushes.Transparent;
             sortCases.BorderThickness=new Thickness(0);
+            sortCases.FlowDirection=FlowDirection.RightToLeft;
+            sortCases.HorizontalContentAlignment=HorizontalAlignment.Right;
             statusColumn.CanUserSort=false;
             statusColumn.Header=sortCases;
             g.MouseDoubleClick+=async(_,_)=>{if(g.SelectedItem is CaseItem x)await ShowCase(x.Id,id);};
@@ -131,5 +135,5 @@ public partial class MainWindow : Window
         else A(v,saveLead);
         ScreenHost.Content=S(v);
     }
-    static DataGrid GridFor<T>(IEnumerable<T> items,string[] fields,string id){var g=new DataGrid{ItemsSource=items,AutoGenerateColumns=false,IsReadOnly=true,SelectionMode=DataGridSelectionMode.Single,Margin=new(4),MinHeight=180,Height=double.NaN,MaxHeight=double.PositiveInfinity,VerticalScrollBarVisibility=ScrollBarVisibility.Disabled,FlowDirection=FlowDirection.RightToLeft,HorizontalContentAlignment=HorizontalAlignment.Right};AutomationProperties.SetAutomationId(g,id);AutomationProperties.SetName(g,id switch{"CustomersGrid"=>"תוצאות חיפוש לקוחות","SitesGrid"=>"רשימת אתרים","CasesGrid"=>"רשימת פניות","LeadsGrid"=>"רשימת לידים",_=>"טבלה"});foreach(var f in fields){var header=f switch{"Id"=>"מזהה","Name"=>"שם","Phone"=>"טלפון","Email"=>"דוא\"ל","Type"=>"סוג","Address"=>"כתובת","Status"=>"סטטוס","Subject"=>"נושא","Source"=>"מקור","ContactName"=>"איש קשר",_=>f};g.Columns.Add(new DataGridTextColumn{Header=header,Binding=new Binding(f),Width=new DataGridLength(1,DataGridLengthUnitType.Star)});}return g;}
+    static DataGrid GridFor<T>(IEnumerable<T> items,string[] fields,string id){var g=new DataGrid{ItemsSource=items,AutoGenerateColumns=false,IsReadOnly=true,SelectionMode=DataGridSelectionMode.Single,Margin=new(4),MinHeight=180,Height=double.NaN,MaxHeight=double.PositiveInfinity,VerticalScrollBarVisibility=ScrollBarVisibility.Disabled,FlowDirection=FlowDirection.RightToLeft,HorizontalContentAlignment=HorizontalAlignment.Right};var headerStyle=new Style(typeof(DataGridColumnHeader));headerStyle.Setters.Add(new Setter(Control.HorizontalContentAlignmentProperty,HorizontalAlignment.Right));headerStyle.Setters.Add(new Setter(FrameworkElement.FlowDirectionProperty,FlowDirection.RightToLeft));g.ColumnHeaderStyle=headerStyle;AutomationProperties.SetAutomationId(g,id);AutomationProperties.SetName(g,id switch{"CustomersGrid"=>"תוצאות חיפוש לקוחות","SitesGrid"=>"רשימת אתרים","CasesGrid"=>"רשימת פניות","LeadsGrid"=>"רשימת לידים",_=>"טבלה"});foreach(var f in fields){var header=f switch{"Id"=>"מזהה","Name"=>"שם","Phone"=>"טלפון","Email"=>"דוא\"ל","Type"=>"סוג","Address"=>"כתובת","Status"=>"סטטוס","Subject"=>"נושא","Source"=>"מקור","ContactName"=>"איש קשר",_=>f};g.Columns.Add(new DataGridTextColumn{Header=header,Binding=new Binding(f),Width=new DataGridLength(1,DataGridLengthUnitType.Star)});}return g;}
 }
