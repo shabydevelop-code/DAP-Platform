@@ -22,13 +22,17 @@ public static class DapTestCrmGuideSeed
 
     private static GuideStep ClickStep(
         string id, int order, string css, string instruction, string contextCss,
-        BubblePlacement placement = BubblePlacement.Bottom) =>
+        BubblePlacement placement = BubblePlacement.Bottom,
+        string? completionCss = null) =>
         new(
             id, order, WebTarget(css),
             new BubbleDefinition(instruction, placement),
             new ValidationDefinition("clicked"),
             StepAdvanceMode.AutomaticOnValidation,
-            new StepContextDefinition("css-exists", contextCss));
+            new StepContextDefinition("css-exists", contextCss),
+            CompletionConditions: completionCss is null
+                ? null
+                : new[] { new StepCompletionCondition("target-exists", WebTarget(completionCss)) });
 
     private static GuideStep ValueStep(
         string id, int order, string css, string instruction, string contextCss,
@@ -55,22 +59,22 @@ public static class DapTestCrmGuideSeed
 
         ClickStep(
             "testcrm-customer-search-button", 2,
-            "#customer-search button.primary", "לחץ על חיפוש", "#customer-search"),
+            "#customer-search button.primary", "לחץ על חיפוש", "#customer-search", completionCss: "#search-results"),
 
         ClickStep(
             "testcrm-customer-result", 3,
             "#search-results tbody tr.clickable:first-child",
-            "פתח את הלקוח מתוצאות החיפוש", "#search-results"),
+            "פתח את הלקוח מתוצאות החיפוש", "#search-results", completionCss: "h2:has-text('אתרים')"),
 
         ClickStep(
             "testcrm-site-row", 4,
             "tbody tr.clickable:first-child",
-            "פתח את האתר הראשון של הלקוח", "tbody tr.clickable"),
+            "פתח את האתר הראשון של הלקוח", "tbody tr.clickable", completionCss: "nav.tabs"),
 
         ClickStep(
             "testcrm-cases-tab", 5,
             "nav.tabs button:has-text('פניות')",
-            "עבור ללשונית פניות", "nav.tabs"),
+            "עבור ללשונית פניות", "nav.tabs", completionCss: "h2:has-text('פניות')"),
 
         ClickStep(
             "testcrm-sort-cases", 6,
@@ -80,7 +84,7 @@ public static class DapTestCrmGuideSeed
         ClickStep(
             "testcrm-new-case", 7,
             "button.primary:has-text('פניה חדשה')",
-            "צור פנייה חדשה", "h2:has-text('פניות')"),
+            "צור פנייה חדשה", "h2:has-text('פניות')", completionCss: "[name='subject']"),
 
         ValueStep(
             "testcrm-case-subject", 8,
@@ -93,7 +97,7 @@ public static class DapTestCrmGuideSeed
         ClickStep(
             "testcrm-save-new-case", 10,
             "button.primary:has-text('שמור')",
-            "שמור את הפנייה החדשה", "[name='subject']"),
+            "שמור את הפנייה החדשה", "[name='subject']", completionCss: "#delete-case"),
 
         new GuideStep(
             "testcrm-back-to-cases", 11,
@@ -105,12 +109,13 @@ public static class DapTestCrmGuideSeed
             new StepCaptureDefinition(
                 TargetRuntime.Web,
                 new Locator("css", "html"),
-                "frame-url-fragment")),
+                "frame-url-fragment"),
+            new[] { new StepCompletionCondition("target-exists", WebTarget("h2:has-text('פניות')")) }),
 
         ClickStep(
             "testcrm-open-created-case", 12,
             "button.grid-open[data-go='{{step:testcrm-back-to-cases:capture}}']",
-            "פתח את הפנייה שיצרת", "h2:has-text('פניות')"),
+            "פתח את הפנייה שיצרת", "h2:has-text('פניות')", completionCss: "[name='status']"),
 
         ValueStep(
             "testcrm-case-in-progress", 13,
@@ -137,50 +142,50 @@ public static class DapTestCrmGuideSeed
         ClickStep(
             "testcrm-attempt-close-save", 18,
             "button.primary:has-text('שמור')",
-            "נסה לשמור את הפנייה", "[name='closeReason']"),
+            "נסה לשמור את הפנייה", "[name='closeReason']", completionCss: "#ps-alert"),
 
         ClickStep(
             "testcrm-confirm-close-validation", 19,
             "#ps-alert button",
-            "אשר את הודעת השגיאה", "#ps-alert"),
+            "אשר את הודעת השגיאה", "#ps-alert", completionCss: "[name='closeReason']"),
 
         ValueStep(
             "testcrm-close-reason", 20,
             "[name='closeReason']", "בחר בסיבת הסגירה \"טופל\"", "[name='closeReason']",
             "value-equals", "טופל"),
 
-        ClickStep("testcrm-save-closed-case", 21, "button.primary:has-text('שמור')", "שמור את הפנייה הסגורה", "[name='closeReason']"),
-        ClickStep("testcrm-return-site", 22, ".breadcrumb a[data-go^='#/site/']", "חזור לאתר", "h1:has-text('פניה')"),
-        ClickStep("testcrm-open-leads-tab", 23, "nav.tabs button:has-text('לידים')", "עבור ללשונית לידים", "nav.tabs"),
-        ClickStep("testcrm-return-cases-tab", 24, "nav.tabs button:has-text('פניות')", "חזור ללשונית פניות", "nav.tabs"),
-        ClickStep("testcrm-open-leads-again", 25, "nav.tabs button:has-text('לידים')", "עבור שוב ללשונית לידים", "nav.tabs"),
-        ClickStep("testcrm-new-lead", 26, "button.primary:has-text('ליד חדש')", "צור ליד חדש", "h2:has-text('לידים')"),
+        ClickStep("testcrm-save-closed-case", 21, "button.primary:has-text('שמור')", "שמור את הפנייה הסגורה", "[name='closeReason']", completionCss: "#delete-case"),
+        ClickStep("testcrm-return-site", 22, ".breadcrumb a[data-go^='#/site/']", "חזור לאתר", "h1:has-text('פניה')", completionCss: "nav.tabs"),
+        ClickStep("testcrm-open-leads-tab", 23, "nav.tabs button:has-text('לידים')", "עבור ללשונית לידים", "nav.tabs", completionCss: "h2:has-text('לידים')"),
+        ClickStep("testcrm-return-cases-tab", 24, "nav.tabs button:has-text('פניות')", "חזור ללשונית פניות", "nav.tabs", completionCss: "h2:has-text('פניות')"),
+        ClickStep("testcrm-open-leads-again", 25, "nav.tabs button:has-text('לידים')", "עבור שוב ללשונית לידים", "nav.tabs", completionCss: "h2:has-text('לידים')"),
+        ClickStep("testcrm-new-lead", 26, "button.primary:has-text('ליד חדש')", "צור ליד חדש", "h2:has-text('לידים')", completionCss: "[name='contactName']"),
         ValueStep("testcrm-lead-contact", 27, "[name='contactName']", "הזן את שם איש הקשר", "[name='contactName']"),
-        ClickStep("testcrm-save-new-lead", 28, "button.primary:has-text('שמור')", "שמור את הליד החדש", "[name='contactName']"),
+        ClickStep("testcrm-save-new-lead", 28, "button.primary:has-text('שמור')", "שמור את הליד החדש", "[name='contactName']", completionCss: "#delete-lead"),
         ValueStep("testcrm-lead-close-success-1", 29, "[name='status']", "שנה את סטטוס הליד לנסגר בהצלחה", "[name='status']", "value-equals", "נסגר בהצלחה"),
         ValueStep("testcrm-lead-new", 30, "[name='status']", "החזר את סטטוס הליד לחדש", "[name='status']", "value-equals", "חדש"),
         ValueStep("testcrm-lead-close-success-2", 31, "[name='status']", "שנה שוב את סטטוס הליד לנסגר בהצלחה", "[name='status']", "value-equals", "נסגר בהצלחה"),
-        ClickStep("testcrm-lead-invalid-save", 32, "button.primary:has-text('שמור')", "נסה לשמור את הליד", "[name='selectedService']"),
-        ClickStep("testcrm-lead-validation-ok", 33, "#ps-alert button", "אשר את הודעת השגיאה", "#ps-alert"),
+        ClickStep("testcrm-lead-invalid-save", 32, "button.primary:has-text('שמור')", "נסה לשמור את הליד", "[name='selectedService']", completionCss: "#ps-alert"),
+        ClickStep("testcrm-lead-validation-ok", 33, "#ps-alert button", "אשר את הודעת השגיאה", "#ps-alert", completionCss: "[name='selectedService']"),
         ValueStep("testcrm-lead-service", 34, "[name='selectedService']", "בחר בשירות \"תמיכה מורחבת\"", "[name='selectedService']", "value-equals", "תמיכה מורחבת"),
-        ClickStep("testcrm-save-lead", 35, "button.primary:has-text('שמור')", "שמור את הליד", "[name='selectedService']"),
-        ClickStep("testcrm-delete-lead", 36, "#delete-lead", "מחק את הליד", "#delete-lead"),
-        ClickStep("testcrm-confirm-delete-lead", 37, "#ps-confirm [data-answer='yes']", "אשר את מחיקת הליד", "#ps-confirm"),
-        ClickStep("testcrm-leads-to-customer", 38, ".breadcrumb a[data-go^='#/customer/']", "חזור ללקוח", "h2:has-text('לידים')"),
-        ClickStep("testcrm-customer-site", 39, "tbody tr.clickable:first-child", "פתח את האתר הראשון", "h2:has-text('אתרים')"),
-        ClickStep("testcrm-site-leads", 40, "nav.tabs button:has-text('לידים')", "עבור ללשונית לידים", "nav.tabs"),
-        ClickStep("testcrm-open-lead", 41, "tbody tr.clickable:first-child", "פתח את הליד הראשון", "h2:has-text('לידים')"),
+        ClickStep("testcrm-save-lead", 35, "button.primary:has-text('שמור')", "שמור את הליד", "[name='selectedService']", completionCss: "#delete-lead"),
+        ClickStep("testcrm-delete-lead", 36, "#delete-lead", "מחק את הליד", "#delete-lead", completionCss: "#ps-confirm"),
+        ClickStep("testcrm-confirm-delete-lead", 37, "#ps-confirm [data-answer='yes']", "אשר את מחיקת הליד", "#ps-confirm", completionCss: "h2:has-text('לידים')"),
+        ClickStep("testcrm-leads-to-customer", 38, ".breadcrumb a[data-go^='#/customer/']", "חזור ללקוח", "h2:has-text('לידים')", completionCss: "h2:has-text('אתרים')"),
+        ClickStep("testcrm-customer-site", 39, "tbody tr.clickable:first-child", "פתח את האתר הראשון", "h2:has-text('אתרים')", completionCss: "nav.tabs"),
+        ClickStep("testcrm-site-leads", 40, "nav.tabs button:has-text('לידים')", "עבור ללשונית לידים", "nav.tabs", completionCss: "h2:has-text('לידים')"),
+        ClickStep("testcrm-open-lead", 41, "tbody tr.clickable:first-child", "פתח את הליד הראשון", "h2:has-text('לידים')", completionCss: "#delete-lead"),
         ValueStep("testcrm-layout-status-new", 42, "[name='status']", "שנה את סטטוס הליד לחדש", "[name='status']", "value-equals", "חדש"),
         ValueStep("testcrm-layout-status-closed", 43, "[name='status']", "שנה את סטטוס הליד לנסגר בהצלחה", "[name='status']", "value-equals", "נסגר בהצלחה"),
         ValueStep("testcrm-race-status-new", 44, "[name='status']", "החזר את סטטוס הליד לחדש", "[name='status']", "value-equals", "חדש"),
         ValueStep("testcrm-race-status-closed", 45, "[name='status']", "שנה שוב את סטטוס הליד לנסגר בהצלחה", "[name='status']", "value-equals", "נסגר בהצלחה"),
-        ClickStep("testcrm-lead-to-site", 46, ".breadcrumb a[data-go^='#/site/'][data-go$='/leads']", "חזור לאתר", "h1:has-text('ליד')"),
-        ClickStep("testcrm-site-cases-final", 47, "nav.tabs button:has-text('פניות')", "עבור ללשונית פניות", "nav.tabs"),
-        ClickStep("testcrm-open-context-case", 48, "tbody tr:first-child button.grid-open", "פתח את הפנייה הראשונה", "h2:has-text('פניות')"),
-        ClickStep("testcrm-context-back-site", 49, ".breadcrumb a[data-go^='#/site/']", "חזור לאתר", "h1:has-text('פניה')"),
-        ClickStep("testcrm-open-created-case-final", 50, "button.grid-open[data-go='{{step:testcrm-back-to-cases:capture}}']", "פתח את הפנייה שיצרת", "h2:has-text('פניות')"),
-        ClickStep("testcrm-delete-case", 51, "#delete-case", "מחק את הפנייה", "#delete-case"),
-        ClickStep("testcrm-confirm-delete-case", 52, "#ps-confirm [data-answer='yes']", "אשר את מחיקת הפנייה", "#ps-confirm"),
+        ClickStep("testcrm-lead-to-site", 46, ".breadcrumb a[data-go^='#/site/'][data-go$='/leads']", "חזור לאתר", "h1:has-text('ליד')", completionCss: "nav.tabs"),
+        ClickStep("testcrm-site-cases-final", 47, "nav.tabs button:has-text('פניות')", "עבור ללשונית פניות", "nav.tabs", completionCss: "h2:has-text('פניות')"),
+        ClickStep("testcrm-open-context-case", 48, "tbody tr:first-child button.grid-open", "פתח את הפנייה הראשונה", "h2:has-text('פניות')", completionCss: "#delete-case"),
+        ClickStep("testcrm-context-back-site", 49, ".breadcrumb a[data-go^='#/site/']", "חזור לאתר", "h1:has-text('פניה')", completionCss: "h2:has-text('פניות')"),
+        ClickStep("testcrm-open-created-case-final", 50, "button.grid-open[data-go='{{step:testcrm-back-to-cases:capture}}']", "פתח את הפנייה שיצרת", "h2:has-text('פניות')", completionCss: "#delete-case"),
+        ClickStep("testcrm-delete-case", 51, "#delete-case", "מחק את הפנייה", "#delete-case", completionCss: "#ps-confirm"),
+        ClickStep("testcrm-confirm-delete-case", 52, "#ps-confirm [data-answer='yes']", "אשר את מחיקת הפנייה", "#ps-confirm", completionCss: "h2:has-text('פניות')"),
 
         new GuideStep(
             "testcrm-header-home", 53,
@@ -188,7 +193,11 @@ public static class DapTestCrmGuideSeed
                 frameContext: new FrameContext(new[] { new Locator("css", "iframe[name='dap-header']") })),
             new BubbleDefinition("חזור למסך חיפוש הלקוח", BubblePlacement.Bottom),
             new ValidationDefinition("clicked"),
-            StepAdvanceMode.AutomaticOnValidation)
+            StepAdvanceMode.AutomaticOnValidation,
+            CompletionConditions: new[]
+            {
+                new StepCompletionCondition("target-exists", WebTarget("#customer-search"))
+            })
     };
 
 
