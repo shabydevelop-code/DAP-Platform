@@ -369,3 +369,15 @@ The localization source is singular by design:
 
 Guide instructional content remains Guide/DB data and is not product UI localization. Developer diagnostics, logs, locator strategies, validation-kind identifiers, and other internal technical text may remain compiled because they are not end-user interface copy.
 
+## ADR-039 — TestCRM manual execution reuses the canonical E2E launch harness
+
+**Status:** Accepted
+
+Web and Windows TestCRM development execution use one platform runner for environment orchestration. Full human learner mode is exposed as `--manual` on the canonical Web/Windows E2E project rather than through separate PowerShell launchers.
+
+The runner owns target-application startup, backend/browser setup where applicable, DAP launch, ports, persistence wiring, diagnostics, and owned-process cleanup. In `--manual` mode it stops synthetic learner actions once production Guide Step 1 is visibly ready; the human learner performs the entire Guide from that point.
+
+`--manual-from-step <N>` remains the focused handoff mechanism because it preserves real preceding business state and runtime captures before automation stops at Step N.
+
+Separate manual-launch scripts that duplicate the same startup/cleanup topology are not maintained. Product Runtime logic remains outside the E2E harness; the harness only owns development/test orchestration and synthetic learner actions.
+
