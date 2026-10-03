@@ -3,6 +3,7 @@ using System.IO;
 using System.Net.Http;
 using System.Net;
 using System.Net.Sockets;
+using System.Text.Json;
 using System.Windows.Automation;
 using DAP.Data.Sqlite;
 using DAP.Data.Sqlite.Guides;
@@ -278,30 +279,55 @@ async Task RunGuidedAsync(
         var window = WaitForMainWindow();
         var customerName = WaitForElementById(window, "CustomerNameSearch");
 
-        var manualCompletionArgument = handoffStepOrder is not null
-            ? " --show-completion"
-            : string.Empty;
+        var focusedStartStepOrder = handoffStepOrder ?? visualStartStepOrder;
+        var bootstrapCaptures = new Dictionary<string, string>(StringComparer.Ordinal);
+        var resumeContextPath = Path.Combine(runRoot, "resume-context.json");
 
-        dap = StartProcess(
-            dapExe,
-            $"--learner-windows {DapTestCrmWindowsGuideSeed.GuideId} " +
-            $"--window-automation-id {mainWindowAutomationId}" +
-            manualCompletionArgument,
-            redirectOutput: true,
-            workingDirectory: dapOutput);
+        Process StartDap(int? startStepOrder)
+        {
+            var manualCompletionArgument = handoffStepOrder is not null
+                ? " --show-completion"
+                : string.Empty;
+            var startStepArgument = startStepOrder is not null
+                ? $" --start-step {startStepOrder.Value}"
+                : string.Empty;
+            var resumeContextArgument = string.Empty;
 
-        dap.OutputDataReceived += (_, e) =>
-        {
-            if (!string.IsNullOrWhiteSpace(e.Data))
-                Console.WriteLine($"[DAP] {e.Data}");
-        };
-        dap.ErrorDataReceived += (_, e) =>
-        {
-            if (!string.IsNullOrWhiteSpace(e.Data))
-                Console.Error.WriteLine($"[DAP STDERR] {e.Data}");
-        };
-        dap.BeginOutputReadLine();
-        dap.BeginErrorReadLine();
+            if (bootstrapCaptures.Count > 0)
+            {
+                File.WriteAllText(
+                    resumeContextPath,
+                    JsonSerializer.Serialize(bootstrapCaptures));
+                resumeContextArgument = $" --resume-context-file \"{resumeContextPath}\"";
+            }
+
+            var process = StartProcess(
+                dapExe,
+                $"--learner-windows {DapTestCrmWindowsGuideSeed.GuideId} " +
+                $"--window-automation-id {mainWindowAutomationId}" +
+                startStepArgument +
+                resumeContextArgument +
+                manualCompletionArgument,
+                redirectOutput: true,
+                workingDirectory: dapOutput);
+
+            process.OutputDataReceived += (_, e) =>
+            {
+                if (!string.IsNullOrWhiteSpace(e.Data))
+                    Console.WriteLine($"[DAP] {e.Data}");
+            };
+            process.ErrorDataReceived += (_, e) =>
+            {
+                if (!string.IsNullOrWhiteSpace(e.Data))
+                    Console.Error.WriteLine($"[DAP STDERR] {e.Data}");
+            };
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
+            return process;
+        }
+
+        if (focusedStartStepOrder is null)
+            dap = StartDap(null);
 
         var driver = new WindowsCrmScenarioDriver(windowsApp, window, visualFromStart);
 
@@ -315,6 +341,39 @@ async Task RunGuidedAsync(
         void WaitForStep(string stepId)
         {
             var step = persistedSteps.Single(candidate => candidate.Id == stepId);
+
+            if (focusedStartStepOrder is not null && step.Order < focusedStartStepOrder.Value)
+            {
+                if (step.Capture is not null)
+                {
+                    var captured = step.Id == "testcrm-windows-back-to-cases"
+                        ? driver.CreatedCaseId
+                        : null;
+                    if (string.IsNullOrWhiteSpace(captured))
+                        throw new InvalidOperationException(
+                            $"Windows bootstrap could not capture runtime value for Step {step.Order} '{step.Id}'.");
+
+                    bootstrapCaptures[step.Id] = captured;
+                    Console.WriteLine($"Windows unguided bootstrap captured Step {step.Order}: {step.Id}");
+                }
+                else
+                {
+                    Console.WriteLine($"Windows unguided bootstrap Step {step.Order}/{persistedSteps.Count}: {step.Id}");
+                }
+                return;
+            }
+
+            if (dap is null)
+            {
+                if (focusedStartStepOrder != step.Order)
+                    throw new InvalidOperationException(
+                        $"Windows DAP launch expected at Step {focusedStartStepOrder}, but scenario reached Step {step.Order}.");
+
+                dap = StartDap(step.Order);
+                Console.WriteLine(
+                    $"Windows unguided bootstrap complete through Step {step.Order - 1}; DAP started at Step {step.Order} with {bootstrapCaptures.Count} resume capture(s).");
+            }
+
             WaitForBubble(step.Bubble.Content, dap);
 
             if (visualStartStepOrder == step.Order && !driver.VisualMode)
@@ -337,7 +396,7 @@ async Task RunGuidedAsync(
             Console.WriteLine("The run will close automatically when DAP completes the Guide or the Windows target application is closed.");
             Console.WriteLine("Press ENTER only if you want to stop the manual run before Guide completion.");
 
-            while (!dap.HasExited && !windowsApp.HasExited)
+            while (!dap!.HasExited && !windowsApp.HasExited)
             {
                 if (Console.KeyAvailable && Console.ReadKey(intercept: true).Key == ConsoleKey.Enter)
                     break;
@@ -345,7 +404,7 @@ async Task RunGuidedAsync(
                 Thread.Sleep(100);
             }
 
-            if (dap.HasExited)
+            if (dap!.HasExited)
             {
                 if (dap.ExitCode != 0)
                     throw new Exception($"DAP.exe exited with code {dap.ExitCode} during the manual learner run.");
@@ -365,18 +424,27 @@ async Task RunGuidedAsync(
 
         WaitForStep("testcrm-windows-customer-name");
 
-        // Regression guard: an invalid committed value must not make the Step
-        // permanently "armed". After the invalid blur, completing the exact
-        // value while focus remains in the editor must still keep Step 1 active.
-        await driver.SetCustomerSearch("אלפא");
-        WaitForStep("testcrm-windows-customer-name");
+        if (focusedStartStepOrder is not null)
+        {
+            // Focused runs use Steps before N only to establish real business
+            // state; do not run the Step-1 regression sequence during bootstrap.
+            await driver.SetCustomerSearch("אלפא פתרונות בע\"מ");
+        }
+        else
+        {
+            // Regression guard: an invalid committed value must not make the Step
+            // permanently "armed". After the invalid blur, completing the exact
+            // value while focus remains in the editor must still keep Step 1 active.
+            await driver.SetCustomerSearch("אלפא");
+            WaitForStep("testcrm-windows-customer-name");
 
-        await driver.SetCustomerSearchWithoutCommit("אלפא פתרונות בע\"מ");
-        Thread.Sleep(350);
-        WaitForStep("testcrm-windows-customer-name");
-        Console.WriteLine("DAP Windows text validation waits for a new blur after an invalid commit: PASS");
+            await driver.SetCustomerSearchWithoutCommit("אלפא פתרונות בע\"מ");
+            Thread.Sleep(350);
+            WaitForStep("testcrm-windows-customer-name");
+            Console.WriteLine("DAP Windows text validation waits for a new blur after an invalid commit: PASS");
 
-        await driver.CommitCustomerSearchEdit();
+            await driver.CommitCustomerSearchEdit();
+        }
 
         WaitForStep("testcrm-windows-customer-search-button");
         await driver.SubmitCustomerSearch();
