@@ -295,3 +295,15 @@ When a learner drags a Windows learner bubble, that manually selected position r
 The directional pointer is hidden after the manual drag, matching the Web learner-bubble interaction. When the active Step changes, manual placement is cleared and the next bubble returns to automatic placement with its pointer visible.
 
 This state is presentation-only and must not alter target resolution, validation, runtime capture, or Guide progression.
+
+## ADR-033 — Guide completion rules belong to persisted Guide data
+
+**Status:** Accepted
+
+Any rule that determines whether a real learner is allowed to advance from one Guide Step to the next is part of the Guide's persisted semantics and must be representable in the Guide model and data provider. It must not exist only inside an E2E driver, scenario harness, TestCRM source, or other test-only orchestration.
+
+The persisted Step definition owns the **what** of completion: target, learner action/validation, required destination/context, and any additional completion conditions needed to prove that the business transition is complete. The production Runtime owns only the **how**: resolving those persisted targets and evaluating those persisted conditions through production-observable interfaces.
+
+An E2E driver may automate the learner's action, but it must not contain hidden business rules that are required for progression and unavailable to the real learner Runtime. If an E2E assertion reveals that the next Step is only safe after a destination screen, field, modal, state, or context exists, that requirement must be promoted into the persisted Guide semantics before relying on it as part of the learner flow.
+
+Runtime implementation details such as polling, retries, UIA event handling, modal-window discovery, resolver strategy, and timing mechanics remain code-level concerns and do not belong in the Guide database unless they are explicitly configurable product semantics.
