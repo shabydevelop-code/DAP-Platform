@@ -199,6 +199,48 @@ internal static class DapTestCrmWindowsGuideSeed
         ValueStep(
             "testcrm-windows-close-reason", 20,
             "CaseCloseReason", "בחר בסיבת הסגירה \"טופל\"",
-            "value-equals", "טופל")
+            "value-equals", "טופל"),
+
+        ClickStep(
+            "testcrm-windows-save-closed-case", 21,
+            ById("SaveCaseButton"), "שמור את הפנייה הסגורה"),
+
+        ClickStep(
+            "testcrm-windows-return-site", 22,
+            ByIdAndName("Breadcrumb", "מטה תל אביב"), "חזור לאתר"),
+
+        ClickStep(
+            "testcrm-windows-open-leads-tab", 23,
+            ById("LeadsTab"), "עבור ללשונית לידים"),
+
+        ClickStep(
+            "testcrm-windows-return-cases-tab", 24,
+            ById("CasesTab"), "חזור ללשונית פניות"),
+
+        ClickStep(
+            "testcrm-windows-open-leads-again", 25,
+            ById("LeadsTab"), "עבור שוב ללשונית לידים"),
+
+        ClickStep(
+            "testcrm-windows-new-lead", 26,
+            ById("NewLeadButton"), "צור ליד חדש"),
+
+        ValueStep(
+            "testcrm-windows-lead-contact", 27,
+            "LeadContactName", "הזן את שם איש הקשר"),
+
+        ClickStep(
+            "testcrm-windows-save-new-lead", 28,
+            ById("SaveLeadButton"), "שמור את הליד החדש"),
+
+        ValueStep(
+            "testcrm-windows-lead-close-success-1", 29,
+            "LeadStatus", "שנה את סטטוס הליד לנסגר בהצלחה",
+            "value-equals", "נסגר בהצלחה"),
+
+        ValueStep(
+            "testcrm-windows-lead-new", 30,
+            "LeadStatus", "החזר את סטטוס הליד לחדש",
+            "value-equals", "חדש")
     };
 }
