@@ -107,29 +107,30 @@ The normal TestCRM address is:
 http://localhost:5200
 ```
 
-The DAP E2E and manual learner launchers can also start/use TestCRM as part of their own workflows.
+For canonical DAP regression and learner runs, do **not** pre-start the backend or Web host in separate terminals. The platform E2E runner owns startup, readiness, isolated per-run outputs, and cleanup for the processes it launches.
 
-To run the Web client and its E2E regression with the current split client/server structure, use three separate terminals:
-
-```powershell
-# Terminal 1 — shared backend/API (:5201)
-cd C:\yossi\ChatGpt\DAP-Platform
-dotnet run --project test-apps\DAP.TestCRM\Server\DAP.TestCRM.Server.csproj
-```
+Web Guided:
 
 ```powershell
-# Terminal 2 — Web host (:5200)
 cd C:\yossi\ChatGpt\DAP-Platform
-dotnet run --project test-apps\DAP.TestCRM\Web\DAP.TestCRM.Web.csproj
+dotnet run --project tests\DAP.TestCRM.Web.E2E\DAP.TestCRM.Web.E2E.csproj -- --guided
 ```
+
+Web Unguided:
 
 ```powershell
-# Terminal 3 — Web E2E
 cd C:\yossi\ChatGpt\DAP-Platform
-dotnet run --project tests\DAP.TestCRM.Web.E2E\DAP.TestCRM.Web.E2E.csproj
+dotnet run --project tests\DAP.TestCRM.Web.E2E\DAP.TestCRM.Web.E2E.csproj -- --unguided
 ```
 
-Start the backend first, then the Web host, and run Web E2E only after both are listening.
+Web full manual learner run:
+
+```powershell
+cd C:\yossi\ChatGpt\DAP-Platform
+dotnet run --project tests\DAP.TestCRM.Web.E2E\DAP.TestCRM.Web.E2E.csproj -- --manual
+```
+
+Standalone Server/Web startup is still valid when developing the TestCRM clients themselves, but it is not the canonical DAP E2E topology.
 
 ## Purpose and realism rule
 
