@@ -180,6 +180,18 @@ async Task RunGuidedAsync(int? handoffStepOrder = null)
     var windowsOutput = Path.Combine(runRoot, "Windows");
     var dapOutput = Path.Combine(runRoot, "DAP");
 
+    void KillOwnedChildren()
+    {
+        TryKillOwnedProcessTree(dap);
+        TryKillOwnedProcessTree(windowsApp);
+        TryKillOwnedProcessTree(backend);
+    }
+
+    EventHandler processExitCleanup = (_, _) => KillOwnedChildren();
+    ConsoleCancelEventHandler cancelCleanup = (_, _) => KillOwnedChildren();
+    AppDomain.CurrentDomain.ProcessExit += processExitCleanup;
+    Console.CancelKeyPress += cancelCleanup;
+
     try
     {
         EnsurePortFree(5201);
@@ -457,6 +469,9 @@ async Task RunGuidedAsync(int? handoffStepOrder = null)
     }
     finally
     {
+        AppDomain.CurrentDomain.ProcessExit -= processExitCleanup;
+        Console.CancelKeyPress -= cancelCleanup;
+
         if (dap is not null) StopOwnedProcessTree(dap);
         if (windowsApp is not null) StopOwnedProcessTree(windowsApp);
         if (backend is not null) StopOwnedProcessTree(backend);
@@ -882,6 +897,27 @@ async Task WaitForHttpAsync(string url, Process process, string processName)
     }
 
     throw new TimeoutException($"{processName} did not become ready at {url} within 30 seconds.");
+}
+
+void TryKillOwnedProcessTree(Process? process)
+{
+    if (process is null)
+        return;
+
+    try
+    {
+        if (!process.HasExited)
+        {
+            process.Kill(entireProcessTree: true);
+            process.WaitForExit(5000);
+        }
+    }
+    catch (InvalidOperationException)
+    {
+    }
+    catch (System.ComponentModel.Win32Exception)
+    {
+    }
 }
 
 void StopOwnedProcessTree(Process process)
