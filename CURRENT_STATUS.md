@@ -39,11 +39,11 @@ Current milestone: the canonical Web and Windows learner flows are both complete
 
 ### Manual learner / UX parity refinements — 2026-10-03
 
-The current full human-learner launchers are:
-- Web: `scripts/run-testcrm-web-learner.ps1`
-- Windows: `scripts/run-testcrm-windows-learner.ps1`
+Full human-learner execution is now owned by the same canonical E2E runner used for automated validation:
+- Web: `dotnet run --project tests\DAP.TestCRM.Web.E2E\DAP.TestCRM.Web.E2E.csproj -- --manual`
+- Windows: `dotnet run --project tests\DAP.TestCRM.Windows.E2E\DAP.TestCRM.Windows.E2E.csproj -- --manual`
 
-Both launchers build into a per-run isolated directory under `%TEMP%\DAP\ManualLearner\...` so stale TestCRM/DAP processes do not lock the normal `bin\Debug` outputs. They start only the required target/runtime processes and clean up the processes they own.
+The duplicate PowerShell launchers were removed. `--manual` starts the normal TestCRM/DAP topology, waits until production Step 1 is visibly ready, disables synthetic learner actions, and leaves the human learner to complete the full Guide. The same runner owns startup, process cleanup, ports, database wiring, and DAP launch for automated and manual modes. `--manual-from-step <N>` remains the state-preserving focused handoff mode.
 
 Recent parity refinements:
 - Web manual completion uses the in-browser DAP completion bubble only; the manual Web launcher no longer adds `--show-completion`, avoiding a duplicate Windows MessageBox.
@@ -519,24 +519,17 @@ Web `clicked` validation no longer stores completion in the guided application's
 - No generic between-Step loading/progress GUI is currently planned. After a learner action, the bubble may disappear while the Runtime silently re-resolves the next target; the next bubble appears when its target is available. This avoids competing with the target application's own loading/status UI.
 - A missing target is not, by itself, proof of Guide failure. Enterprise applications may legitimately take a variable time to produce the next screen or element. The Runtime must not skip to a different target or infer a substitute merely because the intended target is currently NotFound.
 
-## Manual Learner Run — current launchers
+## Manual Learner Run — unified E2E modes
 
-- Full Web human-learner walkthrough: `powershell -ExecutionPolicy Bypass -File .\scripts\run-testcrm-web-learner.ps1`.
-- Full Windows human-learner walkthrough: `powershell -ExecutionPolicy Bypass -File .\scripts\run-testcrm-windows-learner.ps1`.
-- These are production Learner-runtime launchers, not synthetic E2E drivers. The human learner performs every target-application action.
-- Web starts the TestCRM backend/Web host, an isolated Chrome/Edge CDP browser profile, and production DAP Web Learner Runtime.
-- Windows starts the TestCRM backend, native TestCRM Windows application, and production DAP Windows Learner Runtime.
-- Both use isolated temporary build outputs to avoid stale-process locks on normal repository build directories.
-- Web completion is owned by the in-browser completion bubble with explicit `סיום`; Windows manual execution currently uses `--show-completion` for its completion dialog.
+- Full Web human-learner walkthrough: `dotnet run --project tests\DAP.TestCRM.Web.E2E\DAP.TestCRM.Web.E2E.csproj -- --manual`.
+- Full Windows human-learner walkthrough: `dotnet run --project tests\DAP.TestCRM.Windows.E2E\DAP.TestCRM.Windows.E2E.csproj -- --manual`.
+- Manual mode uses the production Learner Runtime and persisted Guide; the E2E harness only owns environment/process orchestration. Once Step 1 is ready, no synthetic learner action is performed.
+- Web completion remains owned by the in-browser completion bubble with explicit `סיום`; Windows manual mode uses the same guided DAP launch path and completion behavior.
 - The same persistent Guide ownership rule applies: **Seed initializes. DB owns. Runtime consumes.**
 
 ### Focused manual learner runs
-- The manual TestCRM learner launcher supports `-StartStep <order>` for focused UX/debug runs without replaying the whole Guide.
-- DAP still loads the complete persisted Guide from SQLite; the requested order only selects where execution begins, so progress remains the original Guide position (for example, Step 53 of 53).
-- This is a diagnostic entry point, not synthetic Guide state. Steps that depend on runtime values captured by earlier Steps still fail explicitly if those values are unavailable.
-- The E2E Guide synchronization now requires the active bubble to be visibly rendered, not merely present in the DOM.
-
-- For integration-state UX debugging, the representative TestCRM E2E supports `--manual-from-step 53`: automation follows the real Guide through Step 52, waits until the production Step 53 bubble is visible, then hands control to the tester while browser and DAP remain alive. This is preferred over synthetic state reconstruction when the Step depends on the complete prior workflow.
+- `--manual-from-step <N>` remains the focused state-preserving handoff mode. Automation executes the real preceding workflow, waits until Step N is visibly ready, then stops synthetic actions and hands control to the human learner.
+- This is preferred to launching DAP directly at Step N on fresh state because runtime captures and business context from preceding Steps are preserved.
 
 
 ## Web Bubble iframe promotion, completion UX, drag handle, and generic manual handoff — 2026-10-02
