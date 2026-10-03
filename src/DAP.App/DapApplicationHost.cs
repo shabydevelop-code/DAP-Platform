@@ -25,13 +25,14 @@ public static class DapApplicationHost
     {
         var startup = Stopwatch.StartNew();
         StartupMark(startup, "host entered");
-        var options = DapLaunchOptions.Parse(args);
-        if (options is null)
-            return 2;
-        StartupMark(startup, "launch options parsed");
 
         IUiTextProvider texts = JsonUiTextProvider.LoadFromApplicationDirectory();
         StartupMark(startup, $"localization loaded ({texts.Language})");
+
+        var options = DapLaunchOptions.Parse(args, texts);
+        if (options is null)
+            return 2;
+        StartupMark(startup, "launch options parsed");
 
         var databaseOptions = SqliteDatabaseOptions.CreateDefault();
         var connections = new SqliteConnectionFactory(databaseOptions);
