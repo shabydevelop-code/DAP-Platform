@@ -369,7 +369,7 @@ var visualMode = e2eMode == "visual";
 var fastMode = !visualMode;
 var switchedToVisual = visualMode;
 
-Console.WriteLine($"E2E mode: {(manual ? "manual" : unguided ? "unguided" : manualFromStep is not null ? $"fast -> manual from Step {manualFromStep}" : visualFromStep is not null ? $"fast -> visual from Step {visualFromStep}" : visualMode ? "visual" : "fast")}");
+Console.WriteLine($"E2E mode: {(manual ? "manual" : unguided ? "unguided" : manualFromStep is not null ? $"unguided -> manual from Step {manualFromStep}" : visualFromStep is not null ? $"unguided -> visual from Step {visualFromStep}" : visualMode ? "visual" : "fast")}");
 if (visualMode || visualFromStep is not null)
 await page.AddInitScriptAsync(@"(() => {
   const install=()=>{
@@ -856,7 +856,7 @@ async Task WaitForGuideStep(int order)
                                 visualMode=true;
                                 fastMode=false;
                                 switchedToVisual=true;
-                                Console.WriteLine($"E2E mode transition: FAST -> VISUAL at Step {order}");
+                                Console.WriteLine($"E2E mode transition: UNGUIDED -> VISUAL at Step {order}");
                             }
                             await HumanPause(500);
                             if(manualFromStep == order)
