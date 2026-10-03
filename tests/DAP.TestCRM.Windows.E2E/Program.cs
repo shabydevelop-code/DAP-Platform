@@ -211,8 +211,24 @@ async Task RunGuidedAsync(int? handoffStepOrder = null)
             Console.WriteLine();
             Console.WriteLine($"MANUAL HANDOFF: Windows Step {step.Order}/{persistedSteps.Count} is ready.");
             Console.WriteLine("Automatic learner actions are paused. Continue manually in TestCRM by following the DAP bubbles.");
-            Console.WriteLine("Press ENTER here only when you are finished with the manual run.");
-            Console.ReadLine();
+            Console.WriteLine("The run will close automatically when DAP completes the Guide.");
+            Console.WriteLine("Press ENTER only if you want to stop the manual run before Guide completion.");
+
+            while (!dap.HasExited)
+            {
+                if (Console.KeyAvailable && Console.ReadKey(intercept: true).Key == ConsoleKey.Enter)
+                    break;
+
+                Thread.Sleep(100);
+            }
+
+            if (dap.HasExited)
+            {
+                if (dap.ExitCode != 0)
+                    throw new Exception($"DAP.exe exited with code {dap.ExitCode} during the manual learner run.");
+
+                Console.WriteLine("DAP completed the manual Guide. Closing the E2E-owned processes.");
+            }
 
             throw new ManualHandoffCompleteException();
         }
