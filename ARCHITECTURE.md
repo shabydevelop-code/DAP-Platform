@@ -314,3 +314,17 @@ Windows learner bubble placement has two presentation states per active Step:
 2. **Manual placement** — after the learner drags the bubble, the presenter preserves the learner-selected window position and hides the pointer.
 
 Runtime reconciliation may continue to re-resolve the target while the Step is active, but it must not overwrite a manual bubble position. Manual-position state is reset when the active Step identifier changes. This keeps presentation stable without changing target ownership, validation semantics, or runtime state.
+
+## Persisted Guide is the learner-flow source of truth
+
+For a production learner session, the persisted Guide is the source of truth for progression. A learner does not have access to the E2E scenario driver or to hidden fixture knowledge, so every condition that is required before the next bubble may appear must be expressible through persisted Guide semantics.
+
+The responsibility boundary is:
+
+- **Guide data** defines what must be true: the current target, expected learner action or value, validation, destination/context requirements, and any additional completion conditions.
+- **Runtime code** defines how those persisted semantics are observed and evaluated on the target application.
+- **E2E code** acts only as a synthetic learner. It may perform clicks, typing, selections, and confirmations, but it must not be the sole owner of a rule that determines whether progression is valid.
+
+Therefore, a test-only wait such as “after this click, wait until the destination form exists” is not sufficient if that destination is semantically required for the real Guide to advance safely. In that case, the destination/context check must be represented in the Guide model and persisted through the configured data provider, while the Runtime supplies the generic mechanism that evaluates it.
+
+This rule applies equally to Web and Windows Guides and is independent of the concrete database technology.
