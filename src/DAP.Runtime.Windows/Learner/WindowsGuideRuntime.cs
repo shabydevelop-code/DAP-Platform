@@ -360,11 +360,29 @@ public sealed class WindowsGuideRuntime
                 }
                 else if (step.AdvanceMode == StepAdvanceMode.AutomaticOnValidation
                          && step.Validation is not null
-                         && (!isTextEditTarget || textTargetCommitted)
-                         && _validation.IsSatisfied(target, step.Validation)
-                         && AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction))
+                         && (!isTextEditTarget || textTargetCommitted))
                 {
-                    return;
+                    var primaryValidationSatisfied = _validation.IsSatisfied(target, step.Validation);
+                    if (primaryValidationSatisfied
+                        && AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction))
+                    {
+                        return;
+                    }
+
+                    if (isTextEditTarget
+                        && textTargetCommitted
+                        && !primaryValidationSatisfied
+                        && target.TryGetCurrentPattern(ValuePattern.Pattern, out var committedValuePattern))
+                    {
+                        // A text commit is one blur attempt. If that committed
+                        // value is invalid, consume the attempt and establish a
+                        // fresh baseline. Further typing must not advance until
+                        // the learner leaves the field again.
+                        initialTextValue = ((ValuePattern)committedValuePattern).Current.Value;
+                        textTargetObservedFocused = false;
+                        textTargetChanged = false;
+                        textTargetCommitted = false;
+                    }
                 }
                 else if (step.AdvanceMode == StepAdvanceMode.Manual)
                 {
