@@ -397,17 +397,64 @@ async Task Fill(string selector,string value)
     await page.Keyboard.PressAsync("Tab");
     await HumanPause(120);
 }
+async Task WaitForContentDocumentReplacement(double previousTimeOrigin)
+{
+    const int attempts=50;
+    for(var i=0;i<attempts;i++)
+    {
+        try
+        {
+            var element=page.Locator("#content-frame");
+            if(await element.CountAsync()==1)
+            {
+                var handle=await element.ElementHandleAsync();
+                var frame=handle is null ? null : await handle.ContentFrameAsync();
+                if(frame is not null && !frame.IsDetached)
+                {
+                    var currentTimeOrigin=await frame.EvaluateAsync<double>("() => performance.timeOrigin");
+                    if(Math.Abs(currentTimeOrigin-previousTimeOrigin)>0.01)
+                    {
+                        await WaitReady();
+                        return;
+                    }
+                }
+            }
+        }
+        catch(PlaywrightException)
+        {
+            // A reload can temporarily invalidate the old execution context.
+        }
+
+        await page.WaitForTimeoutAsync(100);
+    }
+
+    throw new TimeoutException("Content document was not replaced after the server-backed field change.");
+}
+
 async Task Select(string selector,string value)
 {
     var f=await Content(); var target=f.Locator(selector);
     await MoveTo(target);
     if (visualMode) await HumanPause(300);
 
+    // Status FieldChange performs a real server-backed document reload. Capture
+    // the browser document identity before the learner action so the harness
+    // cannot mistake the retiring ready document for the completed replacement.
+    var waitsForDocumentReplacement=
+        string.Equals(await target.GetAttributeAsync("name"),"status",StringComparison.Ordinal);
+    var previousTimeOrigin=waitsForDocumentReplacement
+        ? await f.EvaluateAsync<double>("() => performance.timeOrigin")
+        : 0d;
+
     // Keep the system test deterministic: select the real option directly.
     // SelectOption fires the real change event and therefore the real CRM FieldChange flow.
     await target.SelectOptionAsync(value);
     await HumanPause(800);
-    await WaitReady();
+
+    if(waitsForDocumentReplacement)
+        await WaitForContentDocumentReplacement(previousTimeOrigin);
+    else
+        await WaitReady();
 }
 async Task HumanScrollTo(ILocator target)
 {
