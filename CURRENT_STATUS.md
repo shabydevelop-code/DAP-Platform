@@ -57,6 +57,10 @@ Recent parity refinements:
 - Windows E2E also registers process-exit/Ctrl+C cleanup for the child processes it owns. Hard termination may still leave a temporary run directory, but later runs never reuse it.
 - Web Guided/Manual/Unguided E2E now follows the same isolation rule: TestCRM Server, TestCRM Web, and (when applicable) DAP are built into a unique `%TEMP%\DAP\E2E\Web\<run-id>` tree and launched from there. Process-exit/Ctrl+C cleanup is registered before child startup, so an interrupted run cannot lock the repository's normal Web/TestCRM/DAP build outputs.
 
+- Web non-click validation events are now commit attempts, not permanently sticky Step completion. An invalid blur/change attempt is consumed; later typing cannot advance until a new natural commit event occurs. Web listener edit state is preserved across reconciliation and reset after each commit attempt.
+- Windows text validation follows the same rule: an invalid blur consumes the current text commit and establishes a fresh value baseline. Refocusing and completing the correct value while still in the field does not advance until focus leaves again.
+- Web already contains the Step-1 regression sequence for invalid commit -> refocus -> exact value without blur -> still Step 1 -> blur -> Step 2. Windows Guided E2E now contains the equivalent regression sequence.
+
 The four-mode 53/53 PASS matrix above remains the last fully verified regression baseline. The unified `--manual` launch path and per-run Web/Windows output isolation have not yet been reported as full regression PASS. The newest manual-UX parity changes listed here were made after that baseline and must not be treated as a new full PASS until the affected runs are executed again.
 
 Last updated: 2026-10-03
