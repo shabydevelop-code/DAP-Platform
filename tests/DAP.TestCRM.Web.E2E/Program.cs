@@ -343,6 +343,13 @@ var e2eMode = Environment.GetEnvironmentVariable("DAP_E2E_MODE")?.Trim().ToLower
 var context = await browser.NewContextAsync(new() { ViewportSize = ViewportSize.NoViewport, ExtraHTTPHeaders = new Dictionary<string,string> { ["X-DAP-E2E-Mode"] = e2eMode } });
 var page = await context.NewPageAsync();
 page.SetDefaultTimeout(5000);
+
+var ownedWebTargetClosed = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+void OnOwnedPageClosed(object? _, IPage __) => ownedWebTargetClosed.TrySetResult("page-closed");
+void OnOwnedBrowserDisconnected(object? _, IBrowser __) => ownedWebTargetClosed.TrySetResult("browser-disconnected");
+page.Close += OnOwnedPageClosed;
+browser.Disconnected += OnOwnedBrowserDisconnected;
+
 StartupMark("browser context and page created");
 
 var visualMode = e2eMode is "visual" or "demo";
@@ -1430,8 +1437,16 @@ Console.WriteLine(unguided
     : "PASS: representative Customer -> Site -> Case -> Lead workflow, including dynamic Lead deletion and Case deletion, completed.");
 await page.WaitForTimeoutAsync(visualMode ? 1500 : 0);
 }
+catch (Exception) when (ownedWebTargetClosed.Task.IsCompleted)
+{
+    var closeReason = await ownedWebTargetClosed.Task;
+    Console.WriteLine($"Owned Web target closed ({closeReason}). Ending the run and cleaning up owned processes.");
+}
 finally
 {
+    page.Close -= OnOwnedPageClosed;
+    browser.Disconnected -= OnOwnedBrowserDisconnected;
+
     AppDomain.CurrentDomain.ProcessExit -= webProcessExitCleanup;
     Console.CancelKeyPress -= webCancelCleanup;
 
