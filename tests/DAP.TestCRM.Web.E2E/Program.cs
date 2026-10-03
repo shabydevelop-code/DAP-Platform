@@ -68,6 +68,26 @@ static int ReserveTcpPort()
     return port;
 }
 
+static void EnsurePortFree(int port)
+{
+    TcpListener? listener = null;
+    try
+    {
+        listener = new TcpListener(IPAddress.Loopback, port);
+        listener.Start();
+    }
+    catch (SocketException ex)
+    {
+        throw new InvalidOperationException(
+            $"Port {port} is already in use. Stop the existing process that owns this TestCRM port before starting a new Web E2E/manual run.",
+            ex);
+    }
+    finally
+    {
+        listener?.Stop();
+    }
+}
+
 var repoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
 var testCrmProject = Path.Combine(repoRoot, "test-apps", "DAP.TestCRM", "Web", "DAP.TestCRM.Web.csproj");
 var testCrmBackendProject = Path.Combine(repoRoot, "test-apps", "DAP.TestCRM", "Server", "DAP.TestCRM.Server.csproj");
@@ -160,6 +180,12 @@ Console.CancelKeyPress += webCancelCleanup;
     if (!File.Exists(dapAppProject))
         throw new FileNotFoundException("DAP.App project was not found.", dapAppProject);
 
+    // Fail before building/launching anything if a prior or unrelated process
+    // already owns the canonical TestCRM ports. The runner never kills an
+    // arbitrary port owner.
+    EnsurePortFree(5200);
+    EnsurePortFree(5201);
+
     await BuildIsolatedAsync(testCrmBackendProject, backendOutput, "TestCRM Server");
     await BuildIsolatedAsync(testCrmProject, webOutput, "TestCRM Web");
     if (!unguided)
@@ -233,7 +259,9 @@ Console.CancelKeyPress += webCancelCleanup;
     ownedTestCrmProcess.BeginErrorReadLine();
 
     var crmReadyDeadline = DateTime.UtcNow.AddSeconds(30);
+    var crmReady = false;
     using var http = new HttpClient();
+
     while (DateTime.UtcNow < crmReadyDeadline)
     {
         if (ownedTestCrmProcess.HasExited)
@@ -247,23 +275,34 @@ Console.CancelKeyPress += webCancelCleanup;
         try
         {
             using var response = await http.GetAsync(baseUrl);
-            if ((int)response.StatusCode < 500)
+
+            // HTTP success is accepted only while the exact Web-host process
+            // launched by this runner is still alive. This prevents a stale
+            // process on port 5200 from satisfying readiness for a failed launch.
+            if ((int)response.StatusCode < 500 && !ownedTestCrmProcess.HasExited)
+            {
+                crmReady = true;
                 break;
+            }
         }
-        catch (HttpRequestException) { }
+        catch (HttpRequestException)
+        {
+        }
 
         await Task.Delay(200);
     }
 
-    try
+    if (!crmReady)
     {
-        using var response = await http.GetAsync(baseUrl);
-        if ((int)response.StatusCode >= 500)
-            throw new Exception($"TestCRM readiness returned HTTP {(int)response.StatusCode}.");
-    }
-    catch (HttpRequestException ex)
-    {
-        throw new Exception($"TestCRM did not become ready at {baseUrl} within 30 seconds.", ex);
+        if (ownedTestCrmProcess.HasExited)
+        {
+            throw new Exception(
+                $"TestCRM exited before becoming ready. ExitCode={ownedTestCrmProcess.ExitCode}.{Environment.NewLine}" +
+                $"STDOUT tail:{Environment.NewLine}{string.Join(Environment.NewLine, testCrmWebStdOut)}{Environment.NewLine}" +
+                $"STDERR tail:{Environment.NewLine}{string.Join(Environment.NewLine, testCrmWebStdErr)}");
+        }
+
+        throw new Exception($"TestCRM did not become ready at {baseUrl} within 30 seconds.");
     }
 
     Console.WriteLine($"Self-contained TestCRM started at {baseUrl} (Web PID {ownedTestCrmProcess.Id}, Backend PID {ownedTestCrmBackendProcess.Id}).");
