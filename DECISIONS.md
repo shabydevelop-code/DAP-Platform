@@ -425,3 +425,13 @@ For Web, only explicit closure of the owned page or browser-disconnect events co
 
 The harness must not remain alive merely because DAP is still waiting after its guided target application has been closed. This rule applies only to runner-owned development/test topology and does not change production Runtime ownership boundaries.
 
+## ADR-044 — Web E2E readiness is process-bound and ports are preflighted
+
+**Status:** Accepted
+
+Canonical Web TestCRM E2E/manual execution uses ports 5200 (Web) and 5201 (backend). Before build/launch, the runner verifies that both ports are free. If either is occupied, the run fails clearly and does not kill the existing owner.
+
+HTTP readiness alone is insufficient because a stale TestCRM process can answer the canonical URL after the newly launched host has already failed to bind. The runner therefore accepts readiness only while the exact Web-host process it launched for the current run is still alive.
+
+This keeps startup ownership explicit: an old or unrelated process cannot impersonate the current run, and the harness never takes destructive action against an unknown port owner.
+
