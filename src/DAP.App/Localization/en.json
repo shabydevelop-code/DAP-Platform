@@ -1,0 +1,13 @@
+{
+  "Ui.Direction": "ltr",
+  "Learner.StepProgress": "Step {0} of {1}",
+  "Learner.DragBubble": "Drag to move the bubble",
+  "Learner.GuideCompleted": "Guide completed successfully",
+  "Learner.Finish": "Finish",
+  "Learner.CompletedMessage": "The guide completed successfully.",
+  "Learner.WindowTitle": "DAP Learner",
+  "Learner.GuideHasNoSteps": "Guide '{0}' has no steps.",
+  "Learner.BrowserPageCountError": "DAP found {0} matching browser pages; exactly one is required.",
+  "App.InfrastructureCheckTitle": "DAP Infrastructure Check",
+  "App.InfrastructureReady": "DAP.exe is ready.\n\nDatabase: {0}\n\nDiagnostics: {1}"
+}
