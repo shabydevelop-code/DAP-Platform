@@ -153,6 +153,45 @@ internal sealed class PersistedWindowsCrmGuideExecutor
             case "testcrm-windows-site-leads":
                 await driver.OpenLeads();
                 return;
+            case "testcrm-windows-open-lead":
+                await driver.OpenFirstLead();
+                return;
+            case "testcrm-windows-layout-status-new":
+                await driver.SetLeadStatus(RequiredExpectedValue(step));
+                return;
+            case "testcrm-windows-layout-status-closed":
+                await driver.SetLeadStatus(RequiredExpectedValue(step));
+                return;
+            case "testcrm-windows-race-status-new":
+                await driver.SetLeadStatus(RequiredExpectedValue(step));
+                return;
+            case "testcrm-windows-race-status-closed":
+                await driver.SetLeadStatus(RequiredExpectedValue(step));
+                return;
+            case "testcrm-windows-lead-to-site":
+                await driver.OpenSiteFromBreadcrumb();
+                return;
+            case "testcrm-windows-site-cases-final":
+                await driver.OpenCases();
+                return;
+            case "testcrm-windows-open-context-case":
+                await driver.OpenFirstCase();
+                return;
+            case "testcrm-windows-context-back-site":
+                await driver.OpenSiteFromBreadcrumb();
+                return;
+            case "testcrm-windows-open-created-case-final":
+                await driver.OpenCreatedCase();
+                return;
+            case "testcrm-windows-delete-case":
+                await driver.DeleteCase();
+                return;
+            case "testcrm-windows-confirm-delete-case":
+                await driver.ConfirmDelete();
+                return;
+            case "testcrm-windows-header-home":
+                await driver.GoPortal();
+                return;
             default:
                 throw new NotSupportedException(
                     $"Persisted Windows CRM-only executor does not yet support Guide Step '{step.Id}' (order {step.Order}).");
