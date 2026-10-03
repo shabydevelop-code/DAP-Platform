@@ -112,6 +112,7 @@ public sealed class WindowsGuideRuntime
         var textTargetCommitted = 0;
         AutomationElement? subscribedTextTarget = null;
         AutomationPropertyChangedEventHandler? textEditPropertyChangedHandler = null;
+        AutomationFocusChangedEventHandler? textBlurFallbackHandler = null;
         var clickCompleted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         AutomationEventHandler? clickHandler = null;
         AutomationElement? subscribedTarget = null;
@@ -135,6 +136,28 @@ public sealed class WindowsGuideRuntime
                 $"+{stepStopwatch.ElapsedMilliseconds} ms " +
                 $"(wait={stepStopwatch.ElapsedMilliseconds - settleStartedAt} ms).");
         }
+
+        textBlurFallbackHandler = (_, _) =>
+        {
+            var textTarget = subscribedTextTarget;
+            if (textTarget is null
+                || Volatile.Read(ref textTargetObservedFocused) == 0
+                || Volatile.Read(ref textTargetChanged) == 0)
+                return;
+
+            try
+            {
+                if (!textTarget.Current.HasKeyboardFocus)
+                {
+                    Volatile.Write(ref textTargetBlurObserved, 1);
+                    Volatile.Write(ref textTargetCommitted, 1);
+                }
+            }
+            catch (ElementNotAvailableException)
+            {
+            }
+        };
+        Automation.AddAutomationFocusChangedEventHandler(textBlurFallbackHandler);
 
         try
         {
@@ -252,6 +275,16 @@ public sealed class WindowsGuideRuntime
                                 if (!Equals(args.OldValue, args.NewValue))
                                 {
                                     Volatile.Write(ref textTargetChanged, 1);
+
+                                    try
+                                    {
+                                        if (subscribedTextTarget?.Current.HasKeyboardFocus == true)
+                                            Volatile.Write(ref textTargetObservedFocused, 1);
+                                    }
+                                    catch (ElementNotAvailableException)
+                                    {
+                                    }
+
                                     if (Volatile.Read(ref textTargetBlurObserved) == 1)
                                         Volatile.Write(ref textTargetCommitted, 1);
                                 }
@@ -490,6 +523,9 @@ public sealed class WindowsGuideRuntime
                 {
                 }
             }
+
+            if (textBlurFallbackHandler is not null)
+                Automation.RemoveAutomationFocusChangedEventHandler(textBlurFallbackHandler);
 
             if (subscribedTarget is not null && clickHandler is not null)
             {
