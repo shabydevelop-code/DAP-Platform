@@ -109,18 +109,18 @@ public sealed class WebLearnerRuntime
                     if (isClickedValidation)
                     {
                         _validationSession.Trace($"[DAP runtime] click completion at loop entry for Step '{step.Id}'.");
-                        // The browser click handler removes the active bubble
-                        // synchronously before reporting completion. Do not run a
-                        // second cross-frame cleanup here: the validating click
-                        // may already be replacing its frame, and evaluating a
-                        // retiring frame can block Guide advancement.
-                        return;
+                        // The validating action may navigate or replace the source
+                        // document. The persisted completion conditions, when any,
+                        // decide whether the business transition is actually done.
+                        if (await AreCompletionConditionsSatisfiedAsync(page, step, cancellationToken))
+                            return;
                     }
 
                     var completedResolution = await _bubbles.ResolveTargetAsync(page, step, cancellationToken);
                     if (completedResolution.Status == TargetResolutionStatus.Resolved
                         && completedResolution.Target is not null
-                        && await _validation.IsSatisfiedAsync(completedResolution.Target, step.Validation!, cancellationToken))
+                        && await _validation.IsSatisfiedAsync(completedResolution.Target, step.Validation!, cancellationToken)
+                        && await AreCompletionConditionsSatisfiedAsync(page, step, cancellationToken))
                     {
                         await _bubbles.HideAsync(page);
                         return;
@@ -182,7 +182,12 @@ public sealed class WebLearnerRuntime
                             CancellationToken.None,
                             TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
                             TaskScheduler.Default);
-                        return;
+
+                        if (await AreCompletionConditionsSatisfiedAsync(page, step, cancellationToken))
+                            return;
+
+                        await Task.Delay(_reconcileInterval, cancellationToken);
+                        continue;
                     }
 
                     resolution = await presentationTask;
@@ -239,11 +244,114 @@ public sealed class WebLearnerRuntime
             if (isClickedValidation && _validationSession.IsCompleted(step.Id))
             {
                 _validationSession.Trace($"[DAP runtime] click completion after reconciliation for Step '{step.Id}'.");
-                return;
+                if (await AreCompletionConditionsSatisfiedAsync(page, step, cancellationToken))
+                    return;
             }
 
             await Task.Delay(_reconcileInterval, cancellationToken);
         }
+    }
+
+    private static async Task<bool> AreCompletionConditionsSatisfiedAsync(
+        IPage page,
+        GuideStep step,
+        CancellationToken cancellationToken)
+    {
+        if (step.CompletionConditions is null || step.CompletionConditions.Count == 0)
+            return true;
+
+        foreach (var condition in step.CompletionConditions)
+        {
+            if (condition.Target.Runtime != TargetRuntime.Web)
+                throw new InvalidOperationException(
+                    $"Web Guide Step '{step.Id}' contains a non-Web completion target.");
+
+            var target = await ResolveCompletionTargetAsync(page, condition.Target, cancellationToken);
+            var kind = condition.Kind.Trim().ToLowerInvariant();
+
+            if (kind == "target-exists")
+            {
+                if (target is null)
+                    return false;
+                continue;
+            }
+
+            if (kind == "target-not-exists")
+            {
+                if (target is not null)
+                    return false;
+                continue;
+            }
+
+            if (kind == "target-enabled")
+            {
+                if (target is null || !await target.IsEnabledAsync())
+                    return false;
+                continue;
+            }
+
+            if (kind == "value-equals")
+            {
+                if (target is null || condition.ExpectedValue is null)
+                    return false;
+                if (!string.Equals(
+                        await target.InputValueAsync(),
+                        condition.ExpectedValue,
+                        StringComparison.Ordinal))
+                    return false;
+                continue;
+            }
+
+            throw new NotSupportedException(
+                $"Unsupported Web completion condition kind '{condition.Kind}'.");
+        }
+
+        return true;
+    }
+
+    private static async Task<ILocator?> ResolveCompletionTargetAsync(
+        IPage page,
+        TargetDescriptor descriptor,
+        CancellationToken cancellationToken)
+    {
+        IFrame frame = page.MainFrame;
+        if (descriptor.FrameContext is not null)
+        {
+            foreach (var frameLocator in descriptor.FrameContext.Path)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var frameElement = frameLocator.Strategy.Trim().ToLowerInvariant() switch
+                {
+                    "css" => frame.Locator(frameLocator.Value),
+                    "text" => frame.GetByText(frameLocator.Value),
+                    "label" => frame.GetByLabel(frameLocator.Value),
+                    "role" when Enum.TryParse<AriaRole>(frameLocator.Value, true, out var frameRole) => frame.GetByRole(frameRole),
+                    _ => throw new NotSupportedException(
+                        $"Unsupported Web completion frame locator strategy '{frameLocator.Strategy}'.")
+                };
+
+                if (await frameElement.CountAsync() != 1)
+                    return null;
+
+                var handle = await frameElement.ElementHandleAsync();
+                var child = handle is null ? null : await handle.ContentFrameAsync();
+                if (child is null || child.IsDetached)
+                    return null;
+                frame = child;
+            }
+        }
+
+        var locator = descriptor.Locator.Strategy.Trim().ToLowerInvariant() switch
+        {
+            "css" => frame.Locator(descriptor.Locator.Value),
+            "text" => frame.GetByText(descriptor.Locator.Value),
+            "label" => frame.GetByLabel(descriptor.Locator.Value),
+            "role" when Enum.TryParse<AriaRole>(descriptor.Locator.Value, true, out var role) => frame.GetByRole(role),
+            _ => throw new NotSupportedException(
+                $"Unsupported Web completion locator strategy '{descriptor.Locator.Strategy}'.")
+        };
+
+        return await locator.CountAsync() == 1 ? locator : null;
     }
 
     public Task WaitForGuideCompletedDismissalAsync(IPage page, CancellationToken cancellationToken)
