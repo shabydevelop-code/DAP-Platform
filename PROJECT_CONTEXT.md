@@ -463,3 +463,13 @@ Web and Windows TestCRM runners now share the same executable-isolation rule.
 
 The unified `--manual` paths and the newest per-run isolation changes are implemented but have not yet been reported as a new full regression PASS.
 
+
+
+### Web/Windows runner-mode symmetry
+
+The canonical Web and Windows TestCRM runners are one public execution surface. Shared mode/switch names must have aligned user meaning across both platforms even though Web uses Playwright/DOM mechanics and Windows uses UIA/native mechanics.
+
+The supported `DAP_E2E_MODE` vocabulary is `fast|visual` only. `demo` is removed and must not return as an alias on either platform.
+
+Changes to `DAP_E2E_MODE`, `--guided`, `--unguided`, `--manual`, `--manual-from-step`, `--visual-from-step`, or equivalent focused-run semantics must be reviewed for both Web and Windows together. An intentional one-platform exception requires an explicit ADR instead of silent drift.
+
