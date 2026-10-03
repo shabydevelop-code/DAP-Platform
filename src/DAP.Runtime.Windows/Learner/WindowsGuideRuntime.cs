@@ -113,6 +113,7 @@ public sealed class WindowsGuideRuntime
         var resolutionAttempt = 0;
         var targetFirstResolvedLogged = false;
         var bubbleShownForStep = false;
+        var completionTargetsBeforeAction = CaptureReplacementBaselines(windowRoot, step);
 
         Console.Error.WriteLine(
             $"[DAP Windows step timing] Step {stepNumber}/{totalSteps} '{step.Id}' entered at +0 ms.");
@@ -136,7 +137,7 @@ public sealed class WindowsGuideRuntime
                 // post-action conditions become true on the destination screen.
                 if (clicked
                     && clickCompleted.Task.IsCompleted
-                    && AreCompletionConditionsSatisfied(windowRoot, step))
+                    && AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction))
                 {
                     FinalizeCapture(windowRoot, step, capturedValues);
                     return;
@@ -172,7 +173,7 @@ public sealed class WindowsGuideRuntime
                     if (!bubbleShownForStep)
                         await _bubbles.HideAsync();
                     if (targetDisappeared && targetWasResolved
-                        && AreCompletionConditionsSatisfied(windowRoot, step))
+                        && AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction))
                         return;
                     await Task.Delay(_pollInterval, cancellationToken);
                     continue;
@@ -185,7 +186,7 @@ public sealed class WindowsGuideRuntime
                     if (!bubbleShownForStep)
                         await _bubbles.HideAsync();
                     if (targetDisappeared && targetWasResolved
-                        && AreCompletionConditionsSatisfied(windowRoot, step))
+                        && AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction))
                         return;
                     await Task.Delay(_pollInterval, cancellationToken);
                     continue;
@@ -285,7 +286,7 @@ public sealed class WindowsGuideRuntime
                     // asynchronous WPF rerenders can replace a Button without any
                     // learner action and would otherwise create a false completion.
                     if (clickCompleted.Task.IsCompleted
-                        && AreCompletionConditionsSatisfied(windowRoot, step))
+                        && AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction))
                     {
                         FinalizeCapture(windowRoot, step, capturedValues);
                         return;
@@ -306,7 +307,7 @@ public sealed class WindowsGuideRuntime
                 else if (step.AdvanceMode == StepAdvanceMode.AutomaticOnValidation
                          && step.Validation is not null
                          && _validation.IsSatisfied(target, step.Validation)
-                         && AreCompletionConditionsSatisfied(windowRoot, step))
+                         && AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction))
                 {
                     return;
                 }
@@ -331,7 +332,8 @@ public sealed class WindowsGuideRuntime
 
     private bool AreCompletionConditionsSatisfied(
         AutomationElement windowRoot,
-        GuideStep step)
+        GuideStep step,
+        IReadOnlyDictionary<StepCompletionCondition, AutomationElement?> replacementBaselines)
     {
         if (step.CompletionConditions is null || step.CompletionConditions.Count == 0)
             return true;
@@ -390,11 +392,55 @@ public sealed class WindowsGuideRuntime
                 continue;
             }
 
+            if (kind == "target-replaced")
+            {
+                if (!replacementBaselines.TryGetValue(condition, out var before)
+                    || before is null
+                    || resolution.Status != TargetResolutionStatus.Resolved
+                    || resolution.Target is null
+                    || SameElement(before, resolution.Target))
+                    return false;
+                continue;
+            }
+
             throw new NotSupportedException(
                 $"Unsupported Windows completion condition kind '{condition.Kind}'.");
         }
 
         return true;
+    }
+
+    private IReadOnlyDictionary<StepCompletionCondition, AutomationElement?> CaptureReplacementBaselines(
+        AutomationElement windowRoot,
+        GuideStep step)
+    {
+        var baselines = new Dictionary<StepCompletionCondition, AutomationElement?>();
+        if (step.CompletionConditions is null)
+            return baselines;
+
+        foreach (var condition in step.CompletionConditions)
+        {
+            if (!string.Equals(condition.Kind, "target-replaced", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            if (condition.Target.Runtime != TargetRuntime.Windows)
+                throw new InvalidOperationException(
+                    $"Windows Guide Step '{step.Id}' contains a non-Windows completion target.");
+
+            try
+            {
+                var resolution = _resolver.Resolve(GetActiveResolutionRoot(windowRoot), condition.Target);
+                baselines[condition] = resolution.Status == TargetResolutionStatus.Resolved
+                    ? resolution.Target
+                    : null;
+            }
+            catch (ElementNotAvailableException)
+            {
+                baselines[condition] = null;
+            }
+        }
+
+        return baselines;
     }
 
     private static bool IsStepContextActive(AutomationElement windowRoot, GuideStep step)
