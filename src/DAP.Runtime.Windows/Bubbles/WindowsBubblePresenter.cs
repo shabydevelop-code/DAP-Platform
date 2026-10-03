@@ -116,26 +116,13 @@ public sealed class WindowsBubblePresenter
         double height,
         Rect work)
     {
-        var order = preferred switch
-        {
-            BubblePlacement.Left => new[] { BubblePlacement.Left, BubblePlacement.Right, BubblePlacement.Top, BubblePlacement.Bottom },
-            BubblePlacement.Right => new[] { BubblePlacement.Right, BubblePlacement.Left, BubblePlacement.Top, BubblePlacement.Bottom },
-            BubblePlacement.Top => new[] { BubblePlacement.Top, BubblePlacement.Bottom, BubblePlacement.Right, BubblePlacement.Left },
-            BubblePlacement.Bottom => new[] { BubblePlacement.Bottom, BubblePlacement.Top, BubblePlacement.Right, BubblePlacement.Left },
-            _ => new[] { BubblePlacement.Bottom, BubblePlacement.Top, BubblePlacement.Right, BubblePlacement.Left }
-        };
-
-        foreach (var side in order)
-        {
-            var candidate = CandidateFor(side, target, width, height);
-            if (Fits(candidate, width, height, work) && !OverlapsTarget(candidate, width, height, target))
-                return candidate;
-        }
-
-        var fallback = CandidateFor(order[0], target, width, height);
+        // Respect the Guide placement as the authoritative side. The bubble may
+        // cover unrelated UI; users can drag it away when desired. Only clamp
+        // enough to keep the bubble on-screen instead of silently switching sides.
+        var candidate = CandidateFor(preferred, target, width, height);
         return new Point(
-            Math.Clamp(fallback.X, work.Left + 4, Math.Max(work.Left + 4, work.Right - width - 4)),
-            Math.Clamp(fallback.Y, work.Top + 4, Math.Max(work.Top + 4, work.Bottom - height - 4)));
+            Math.Clamp(candidate.X, work.Left + 4, Math.Max(work.Left + 4, work.Right - width - 4)),
+            Math.Clamp(candidate.Y, work.Top + 4, Math.Max(work.Top + 4, work.Bottom - height - 4)));
     }
 
     private static Point CandidateFor(
@@ -158,15 +145,6 @@ public sealed class WindowsBubblePresenter
                 target.Left + (target.Width - width) / 2,
                 target.Bottom + TargetGap)
         };
-
-    private static bool Fits(Point candidate, double width, double height, Rect work) =>
-        candidate.X >= work.Left + 4
-        && candidate.Y >= work.Top + 4
-        && candidate.X + width <= work.Right - 4
-        && candidate.Y + height <= work.Bottom - 4;
-
-    private static bool OverlapsTarget(Point candidate, double width, double height, Rect target) =>
-        new Rect(candidate.X, candidate.Y, width, height).IntersectsWith(target);
 
     private void UpdatePointer()
     {
