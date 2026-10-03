@@ -25,6 +25,20 @@ Current parity rules:
 
 Windows bubble behavior is now part of the verified baseline: target highlighting, target-relative positioning, explicit-handle dragging, preservation of manual relative offset during move/resize, hide on minimize/foreground loss, and restore from current UIA geometry.
 
+Current manual learner launchers:
+- Web: `scripts/run-testcrm-web-learner.ps1`
+- Windows: `scripts/run-testcrm-windows-learner.ps1`
+
+Both build into isolated per-run temporary outputs rather than the repository's normal build directories. The launchers perform no learner actions; the human user follows the persisted Guide through production runtimes.
+
+Current cross-runtime UX parity rules:
+- Text editing completes on natural commit, not on the first intermediate valid character. Web uses blur after a real edit; Windows requires an observed edit followed by focus loss before value validation may advance.
+- Discrete controls commit on their normal selection/change action.
+- A newly presented target may be auto-scrolled once into a comfortable visible region. Reconciliation must not repeatedly force viewport position after that initial presentation.
+- Manual bubble dragging makes manual placement authoritative for the active Step. The directional pointer disappears immediately when dragging begins and remains hidden until the Step changes.
+- TestCRM Windows Case sorting is exposed through the `סטטוס` grid header, matching the Web learner interaction instead of using a separate learner-facing sort button.
+- Web completion is the in-browser DAP completion UI; the manual Web launcher must not add a duplicate OS completion dialog.
+
 Web FieldChange synchronization now waits for the actual replacement document identity before accepting readiness, preventing stale-document races.
 
 The 5-second E2E timeout policy remains unchanged. Guide seed updates require explicit `--reset-guide`; normal execution follows **Seed initializes. DB owns. Runtime consumes.**
