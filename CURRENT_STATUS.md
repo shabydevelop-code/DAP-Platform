@@ -662,3 +662,10 @@ Implemented:
 - the obsolete Windows unguided final assertion that always expected DeleteCaseButton was removed.
 
 The design rule remains: Guide/DB owns what completes a Step; Runtime owns how it is observed; E2E acts only as a synthetic learner.
+
+
+## Windows manual learner handoff — 2026-10-03
+
+The Windows TestCRM E2E runner supports `--manual-from-step <N>`, matching the Web handoff model. The runner starts the backend, Windows TestCRM, and production DAP Windows Learner Runtime from Step 1; it automates the canonical learner actions only until Step N is visibly ready, then stops synthetic UI actions and leaves DAP/TestCRM running for a human to continue manually through the remaining bubbles. This preserves earlier runtime captures and business context, so `--manual-from-step` must not be implemented by launching DAP directly at Step N on a fresh application state.
+
+`--manual-from-step` cannot be combined with `--unguided`. When the operator finishes the manual session and presses ENTER in the E2E console, the runner cleans up the DAP, TestCRM, and backend processes it owns.
