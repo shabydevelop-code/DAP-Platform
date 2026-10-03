@@ -106,9 +106,12 @@ public sealed class WindowsGuideRuntime
         var targetDisappeared = string.Equals(step.Validation?.Kind, "target-disappeared", StringComparison.OrdinalIgnoreCase);
         var targetWasResolved = false;
         string? initialTextValue = null;
-        var textTargetObservedFocused = false;
-        var textTargetChanged = false;
-        var textTargetCommitted = false;
+        var textTargetObservedFocused = 0;
+        var textTargetChanged = 0;
+        var textTargetCommitted = 0;
+        AutomationElement? subscribedTextTarget = null;
+        AutomationPropertyChangedEventHandler? textValueChangedHandler = null;
+        AutomationFocusChangedEventHandler? textFocusChangedHandler = null;
         var clickCompleted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         AutomationEventHandler? clickHandler = null;
         AutomationElement? subscribedTarget = null;
@@ -132,6 +135,26 @@ public sealed class WindowsGuideRuntime
                 $"+{stepStopwatch.ElapsedMilliseconds} ms " +
                 $"(wait={stepStopwatch.ElapsedMilliseconds - settleStartedAt} ms).");
         }
+
+        textFocusChangedHandler = (sender, _) =>
+        {
+            var textTarget = subscribedTextTarget;
+            if (textTarget is null || sender is not AutomationElement focusedElement)
+                return;
+
+            if (SameElement(textTarget, focusedElement))
+            {
+                Volatile.Write(ref textTargetObservedFocused, 1);
+                return;
+            }
+
+            if (Volatile.Read(ref textTargetObservedFocused) == 1
+                && Volatile.Read(ref textTargetChanged) == 1)
+            {
+                Volatile.Write(ref textTargetCommitted, 1);
+            }
+        };
+        Automation.AddAutomationFocusChangedEventHandler(textFocusChangedHandler);
 
         try
         {
@@ -217,16 +240,59 @@ public sealed class WindowsGuideRuntime
                 if (isTextEditTarget && target.TryGetCurrentPattern(ValuePattern.Pattern, out var textValuePattern))
                 {
                     var currentTextValue = ((ValuePattern)textValuePattern).Current.Value;
+
+                    if (subscribedTextTarget is null || !SameElement(subscribedTextTarget, target))
+                    {
+                        if (subscribedTextTarget is not null && textValueChangedHandler is not null)
+                        {
+                            try
+                            {
+                                Automation.RemoveAutomationPropertyChangedEventHandler(
+                                    subscribedTextTarget,
+                                    textValueChangedHandler);
+                            }
+                            catch (ElementNotAvailableException)
+                            {
+                            }
+                        }
+
+                        subscribedTextTarget = target;
+                        initialTextValue = currentTextValue;
+
+                        textValueChangedHandler = (_, args) =>
+                        {
+                            if (args.Property != ValuePattern.ValueProperty)
+                                return;
+
+                            if (!Equals(args.OldValue, args.NewValue))
+                                Volatile.Write(ref textTargetChanged, 1);
+                        };
+
+                        Automation.AddAutomationPropertyChangedEventHandler(
+                            target,
+                            TreeScope.Element,
+                            textValueChangedHandler,
+                            ValuePattern.ValueProperty);
+                    }
+
                     initialTextValue ??= currentTextValue;
 
+                    // Keep polling as a fallback for providers that do not emit
+                    // every UIA property/focus event. Event handlers are the
+                    // primary commit signal and close the fast focus-transition
+                    // race that polling alone can miss.
                     if (target.Current.HasKeyboardFocus)
-                        textTargetObservedFocused = true;
+                        Volatile.Write(ref textTargetObservedFocused, 1);
 
                     if (!string.Equals(currentTextValue, initialTextValue, StringComparison.Ordinal))
-                        textTargetChanged = true;
+                        Volatile.Write(ref textTargetChanged, 1);
 
-                    if (textTargetObservedFocused && textTargetChanged && !target.Current.HasKeyboardFocus)
-                        textTargetCommitted = true;
+                    if (Volatile.Read(ref textTargetObservedFocused) == 1
+                        && Volatile.Read(ref textTargetChanged) == 1
+                        && !target.Current.HasKeyboardFocus)
+                    {
+                        Volatile.Write(ref textTargetCommitted, 1);
+                    }
                 }
 
                 if (!targetFirstResolvedLogged)
@@ -360,7 +426,7 @@ public sealed class WindowsGuideRuntime
                 }
                 else if (step.AdvanceMode == StepAdvanceMode.AutomaticOnValidation
                          && step.Validation is not null
-                         && (!isTextEditTarget || textTargetCommitted))
+                         && (!isTextEditTarget || Volatile.Read(ref textTargetCommitted) == 1))
                 {
                     var primaryValidationSatisfied = _validation.IsSatisfied(target, step.Validation);
                     if (primaryValidationSatisfied
@@ -370,7 +436,7 @@ public sealed class WindowsGuideRuntime
                     }
 
                     if (isTextEditTarget
-                        && textTargetCommitted
+                        && Volatile.Read(ref textTargetCommitted) == 1
                         && !primaryValidationSatisfied
                         && target.TryGetCurrentPattern(ValuePattern.Pattern, out var committedValuePattern))
                     {
@@ -379,9 +445,9 @@ public sealed class WindowsGuideRuntime
                         // fresh baseline. Further typing must not advance until
                         // the learner leaves the field again.
                         initialTextValue = ((ValuePattern)committedValuePattern).Current.Value;
-                        textTargetObservedFocused = false;
-                        textTargetChanged = false;
-                        textTargetCommitted = false;
+                        Volatile.Write(ref textTargetObservedFocused, 0);
+                        Volatile.Write(ref textTargetChanged, 0);
+                        Volatile.Write(ref textTargetCommitted, 0);
                     }
                 }
                 else if (step.AdvanceMode == StepAdvanceMode.Manual)
@@ -394,6 +460,22 @@ public sealed class WindowsGuideRuntime
         }
         finally
         {
+            if (subscribedTextTarget is not null && textValueChangedHandler is not null)
+            {
+                try
+                {
+                    Automation.RemoveAutomationPropertyChangedEventHandler(
+                        subscribedTextTarget,
+                        textValueChangedHandler);
+                }
+                catch (ElementNotAvailableException)
+                {
+                }
+            }
+
+            if (textFocusChangedHandler is not null)
+                Automation.RemoveAutomationFocusChangedEventHandler(textFocusChangedHandler);
+
             if (subscribedTarget is not null && clickHandler is not null)
             {
                 try { Automation.RemoveAutomationEventHandler(InvokePattern.InvokedEvent, subscribedTarget, clickHandler); }
