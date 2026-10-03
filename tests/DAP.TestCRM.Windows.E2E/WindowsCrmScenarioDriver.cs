@@ -539,8 +539,51 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     public Task DeleteCase(){Click(ById("DeleteCaseButton"));return Task.CompletedTask;}
     public Task GoPortal(){Click(ById("PortalHeader"));return Task.CompletedTask;}
 
-    static IntPtr WaitHandle(Func<IntPtr> f,string what,int timeout=5000){var sw=Stopwatch.StartNew();while(sw.ElapsedMilliseconds<timeout){var x=f();if(x!=IntPtr.Zero)return x;Thread.Sleep(100);}throw new TimeoutException($"Timed out waiting for {what}.");}
-    static AutomationElement Wait(Func<AutomationElement?> f,string what,int timeout=5000){var sw=Stopwatch.StartNew();while(sw.ElapsedMilliseconds<timeout){var x=f();if(x!=null)return x;Thread.Sleep(100);}throw new TimeoutException($"Timed out waiting for {what}.");}
+    IntPtr WaitHandle(Func<IntPtr> f,string what,int timeout=5000)
+    {
+        var sw=Stopwatch.StartNew();
+        while(sw.ElapsedMilliseconds<timeout)
+        {
+            if(app.HasExited)
+                throw new TargetApplicationClosedException();
+
+            var x=f();
+            if(x!=IntPtr.Zero)return x;
+            Thread.Sleep(100);
+        }
+
+        if(app.HasExited)
+            throw new TargetApplicationClosedException();
+
+        throw new TimeoutException($"Timed out waiting for {what}.");
+    }
+
+    AutomationElement Wait(Func<AutomationElement?> f,string what,int timeout=5000)
+    {
+        var sw=Stopwatch.StartNew();
+        while(sw.ElapsedMilliseconds<timeout)
+        {
+            if(app.HasExited)
+                throw new TargetApplicationClosedException();
+
+            try
+            {
+                var x=f();
+                if(x!=null)return x;
+            }
+            catch(ElementNotAvailableException) when(app.HasExited)
+            {
+                throw new TargetApplicationClosedException();
+            }
+
+            Thread.Sleep(100);
+        }
+
+        if(app.HasExited)
+            throw new TargetApplicationClosedException();
+
+        throw new TimeoutException($"Timed out waiting for {what}.");
+    }
     const uint GW_ENABLEDPOPUP=6, WM_COMMAND=0x0111;
     const int IDOK=1, IDYES=6;
     const int SM_XVIRTUALSCREEN=76, SM_YVIRTUALSCREEN=77, SM_CXVIRTUALSCREEN=78, SM_CYVIRTUALSCREEN=79;
@@ -560,4 +603,8 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     [DllImport("user32.dll")] static extern bool SetCursorPos(int x,int y);
     [DllImport("user32.dll")] static extern void mouse_event(uint flags,uint dx,uint dy,uint data,UIntPtr extra);
     [DllImport("user32.dll")] static extern void keybd_event(byte virtualKey,byte scanCode,uint flags,UIntPtr extra);
+}
+
+internal sealed class TargetApplicationClosedException : Exception
+{
 }
