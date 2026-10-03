@@ -274,7 +274,7 @@ Web `clicked` validation no longer stores completion in the guided application's
 
 
 ## Demo Guide/action synchronization
-- Visual demo invariant: while a Guide Step is active, the next visible learner action performed by the E2E must be exactly the action instructed by that Step.
+- Visual-mode invariant: while a Guide Step is active, the next visible learner action performed by the E2E must be exactly the action instructed by that Step.
 - Found and fixed a concrete mismatch after entering the Cases tab: E2E sorted the grid while the active next bubble instructed the learner to create a Case.
 - Cases status sort is now its own persisted clicked Step. The initial guided segment is now 10 Steps.
 - The E2E explicitly waits for Step 6 before sorting, then Steps 7-10 before create/fill/fill/save.
@@ -473,7 +473,7 @@ Web `clicked` validation no longer stores completion in the guided application's
 - It resolves DAP's real database through `SqliteDatabaseOptions.CreateDefault()`, seeds/updates Guide `testcrm-create-case` there, reloads the 53 Steps from that repository, and launches DAP.exe with the exact same database path.
 - Default path on Windows: `C:\ProgramData\DAP\Data\DAP.db`. `DAP_DATABASE_PATH` still overrides it explicitly.
 - The run prints `DAP persistent guide database: <path>` so the inspected file is unambiguous.
-- Dedicated SQLite repository tests continue to use isolated temporary databases; this change applies to the visual system demonstration.
+- Dedicated SQLite repository tests continue to use isolated temporary databases; this change applies to the visual system run.
 
 
 ## DB is now authoritative for TestCRM Guide
