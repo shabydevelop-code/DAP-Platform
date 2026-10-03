@@ -210,14 +210,17 @@ internal static class DapTestCrmWindowsGuideSeed
             ById("SaveCaseButton"), "נסה לשמור את הפנייה",
             completionCondition: new StepCompletionCondition(
                 "target-exists",
-                TargetDescriptor.Create(TargetRuntime.Windows, new Locator("control-type", "button")))),
+                TargetDescriptor.Create(
+                    TargetRuntime.Windows,
+                    new Locator("name-regex", @"^(OK|אישור)$")))),
 
         ClickStep(
             "testcrm-windows-confirm-close-validation", 19,
             TargetDescriptor.Create(
                 TargetRuntime.Windows,
-                new Locator("control-type", "button")),
-            "אשר את הודעת השגיאה"),
+                new Locator("name-regex", @"^(OK|אישור)$")),
+            "אשר את הודעת השגיאה",
+            completionCondition: new StepCompletionCondition("target-exists", ById("CaseCloseReason"))),
 
         ValueStep(
             "testcrm-windows-close-reason", 20,
