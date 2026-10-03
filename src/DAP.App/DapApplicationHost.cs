@@ -4,6 +4,8 @@ using System.IO;
 using System.Windows;
 using System.Windows.Automation;
 using DAP.Data.Sqlite;
+using DAP.App.Localization;
+using DAP.Core.Localization;
 using DAP.Data.Sqlite.Guides;
 using DAP.Runtime.Web.Bubbles;
 using DAP.Runtime.Web.Learner;
@@ -28,6 +30,9 @@ public static class DapApplicationHost
             return 2;
         StartupMark(startup, "launch options parsed");
 
+        IUiTextProvider texts = JsonUiTextProvider.LoadFromApplicationDirectory();
+        StartupMark(startup, $"localization loaded ({texts.Language})");
+
         var databaseOptions = SqliteDatabaseOptions.CreateDefault();
         var connections = new SqliteConnectionFactory(databaseOptions);
         await new SqliteDatabaseInitializer(connections).InitializeAsync(cancellationToken);
@@ -48,8 +53,8 @@ public static class DapApplicationHost
                 cancellationToken);
 
             MessageBox.Show(
-                $"DAP.exe ready.\n\nDatabase: {databaseOptions.DatabasePath}\n\nDiagnostics: {diagnosticsPath}",
-                "DAP Infrastructure Check",
+                texts.Format("App.InfrastructureReady", databaseOptions.DatabasePath, diagnosticsPath),
+                texts.Get("App.InfrastructureCheckTitle"),
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
 
@@ -61,22 +66,23 @@ public static class DapApplicationHost
         if (steps.Count == 0)
         {
             MessageBox.Show(
-                $"Guide '{options.GuideId}' has no steps.",
-                "DAP Learner",
+                texts.Format("Learner.GuideHasNoSteps", options.GuideId!),
+                texts.Get("Learner.WindowTitle"),
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
             return 5;
         }
 
         if (options.Mode == DapLaunchMode.LearnerWindows)
-            return await RunWindowsAsync(options, steps, startup, cancellationToken);
+            return await RunWindowsAsync(options, steps, texts, startup, cancellationToken);
 
-        return await RunWebAsync(options, steps, startup, cancellationToken);
+        return await RunWebAsync(options, steps, texts, startup, cancellationToken);
     }
 
     private static async Task<int> RunWindowsAsync(
         DapLaunchOptions options,
         IReadOnlyList<DAP.Core.Guides.GuideStep> steps,
+        IUiTextProvider texts,
         Stopwatch startup,
         CancellationToken cancellationToken)
     {
@@ -84,7 +90,7 @@ public static class DapApplicationHost
         StartupMark(startup, $"Windows target window resolved ({options.WindowAutomationId})");
 
         var resolver = new WindowsTargetResolver();
-        var bubbles = new WindowsBubblePresenter();
+        var bubbles = new WindowsBubblePresenter(texts);
         var runtime = new WindowsGuideRuntime(resolver, bubbles);
 
         try
@@ -95,8 +101,8 @@ public static class DapApplicationHost
             if (options.ShowCompletion)
             {
                 MessageBox.Show(
-                    "הלומדה הסתיימה בהצלחה.",
-                    "DAP Learner",
+                    texts.Get("Learner.CompletedMessage"),
+                    texts.Get("Learner.WindowTitle"),
                     MessageBoxButton.OK,
                     MessageBoxImage.Information);
             }
@@ -144,11 +150,12 @@ public static class DapApplicationHost
     private static async Task<int> RunWebAsync(
         DapLaunchOptions options,
         IReadOnlyList<DAP.Core.Guides.GuideStep> steps,
+        IUiTextProvider texts,
         Stopwatch startup,
         CancellationToken cancellationToken)
     {
         var resolver = new WebTargetResolver();
-        var bubbles = new WebBubblePresenter(resolver);
+        var bubbles = new WebBubblePresenter(resolver, texts);
         StartupMark(startup, "Web composition root created");
 
         using var playwright = await Playwright.CreateAsync();
@@ -167,8 +174,8 @@ public static class DapApplicationHost
         if (matchingPages.Length != 1)
         {
             MessageBox.Show(
-                $"DAP.exe found {matchingPages.Length} matching browser pages; exactly one is required.",
-                "DAP Learner",
+                texts.Format("Learner.BrowserPageCountError", matchingPages.Length),
+                texts.Get("Learner.WindowTitle"),
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
             return 4;
@@ -184,8 +191,8 @@ public static class DapApplicationHost
             if (options.ShowCompletion)
             {
                 MessageBox.Show(
-                    "הלומדה הסתיימה בהצלחה.",
-                    "DAP Learner",
+                    texts.Get("Learner.CompletedMessage"),
+                    texts.Get("Learner.WindowTitle"),
                     MessageBoxButton.OK,
                     MessageBoxImage.Information);
             }
