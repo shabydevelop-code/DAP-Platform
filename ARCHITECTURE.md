@@ -58,6 +58,19 @@ Web and Windows Learner runtimes are both production code. Test projects automat
 
 The canonical TestCRM E2E projects also own development launch orchestration for their platform. Full human runs use `--manual` in the same runner that owns Guided/Unguided execution, so server/app/browser/DAP startup and cleanup are not duplicated in separate PowerShell launchers. `--manual-from-step <N>` remains the focused handoff mode after the real preceding workflow has executed.
 
+### E2E process and output isolation
+
+TestCRM development runners must not execute long-lived owned processes from reusable repository build outputs. Each platform uses a unique per-run temporary root:
+
+- Web: `%TEMP%\DAP\E2E\Web\<run-id>`
+- Windows: `%TEMP%\DAP\E2E\Windows\<run-id>`
+
+The runner builds the target application components and DAP required for that mode into the run root, launches them from there, and owns their cleanup. Web Unguided does not build/launch DAP. Process-exit and Ctrl+C cleanup supplement normal `finally` cleanup.
+
+A hard termination may leave an old run directory or orphaned process, but later runs never reuse that executable path. Therefore an abandoned process cannot lock the normal repository `bin\Debug` outputs or the next run's executable output.
+
+This is test/development orchestration only. It does not move product Runtime logic into E2E code and does not change the production DAP deployment model.
+
 ## Desktop application
 
 GUI technology: WPF on .NET 8.
