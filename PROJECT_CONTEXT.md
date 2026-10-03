@@ -443,3 +443,5 @@ Web and Windows full manual TestCRM runs are now modes of the canonical platform
 
 The Web E2E now also regression-checks natural text commit explicitly: after typing the exact Step-1 value it verifies Step 1 is still active before blur, then sends Tab and requires advancement to Step 2 only after that commit event.
 
+Windows Guided/Manual E2E uses isolated per-run build outputs for TestCRM Server, TestCRM Windows, and DAP under `%TEMP%\DAP\E2E\Windows\<run-id>`. The Windows E2E project intentionally does not carry a build-time ProjectReference to `DAP.App`; it builds DAP explicitly into the isolated run directory and launches that executable. This prevents orphaned/interrupted DAP processes from locking `src/DAP.App/bin/Debug` and blocking the next run. Owned child processes are also terminated on normal cleanup and on process-exit/Ctrl+C cleanup where the OS permits it.
+
