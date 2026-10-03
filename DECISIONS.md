@@ -414,3 +414,14 @@ If primary validation fails, that commit attempt is consumed. The Runtime must w
 Web must preserve the active editor's changed-since-last-commit state across reconciliation rather than reinstalling listeners in a way that resets that state every poll. Windows must reset its text-edit baseline after consuming an invalid blur attempt.
 
 Click validation remains intentionally sticky because the validating click may immediately navigate, rerender, or destroy the source target while persisted completion conditions are still pending.
+
+## ADR-043 — Manual runner lifetime follows the target application
+
+**Status:** Accepted
+
+A TestCRM `--manual` session ends when either the Guide/DAP completes or the owned target application is closed by the learner.
+
+For Web, closure/disconnection of the owned browser/page or exit of the owned Web host ends the manual run. For Windows, exit of the owned TestCRM Windows process ends the manual run. The runner then cleans up the remaining processes it owns and returns control to the launching terminal.
+
+The harness must not remain alive merely because DAP is still waiting after its guided target application has been closed. This rule applies only to runner-owned development/test topology and does not change production Runtime ownership boundaries.
+
