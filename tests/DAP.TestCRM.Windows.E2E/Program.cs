@@ -67,14 +67,20 @@ for (var i = 0; i < args.Length; i++)
 if (manualFromStep is not null && visualFromStep is not null)
     throw new ArgumentException("--manual-from-step and --visual-from-step cannot be combined.");
 
-var e2eMode = Environment.GetEnvironmentVariable("DAP_E2E_MODE")?.Trim().ToLowerInvariant() ?? "fast";
-if (e2eMode is not ("fast" or "visual"))
-    throw new ArgumentException(
-        $"Unsupported DAP_E2E_MODE '{e2eMode}'. Supported values: fast, visual.");
-
 var unguided = args.Contains("--unguided", StringComparer.OrdinalIgnoreCase);
 var guided = args.Contains("--guided", StringComparer.OrdinalIgnoreCase);
 var manual = args.Contains("--manual", StringComparer.OrdinalIgnoreCase);
+
+// DAP_E2E_MODE belongs only to a full --guided run. Focused/manual/unguided
+// switches define their own behavior and must ignore a stale environment value.
+var e2eMode = "fast";
+if (guided && !manual && !unguided && manualFromStep is null && visualFromStep is null)
+{
+    e2eMode = Environment.GetEnvironmentVariable("DAP_E2E_MODE")?.Trim().ToLowerInvariant() ?? "fast";
+    if (e2eMode is not ("fast" or "visual"))
+        throw new ArgumentException(
+            $"Unsupported DAP_E2E_MODE '{e2eMode}'. Supported values: fast, visual.");
+}
 
 if (unguided && guided)
     throw new ArgumentException("--guided and --unguided cannot be combined.");
@@ -159,9 +165,9 @@ async Task RunPersistedUnguidedAsync()
 
         var window = WaitForMainWindow();
         var executor = new PersistedWindowsCrmGuideExecutor(
-            new WindowsCrmScenarioDriver(windowsApp, window, e2eMode == "visual"));
+            new WindowsCrmScenarioDriver(windowsApp, window));
 
-        Console.WriteLine($"E2E mode: unguided ({e2eMode})");
+        Console.WriteLine("E2E mode: unguided");
         await executor.RunAsync(persistedSteps);
 
         Console.WriteLine(
