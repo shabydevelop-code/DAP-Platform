@@ -16,10 +16,16 @@ public sealed record GuideStep(
     ValidationDefinition? Validation = null,
     StepAdvanceMode AdvanceMode = StepAdvanceMode.AutomaticOnValidation,
     StepContextDefinition? Context = null,
-    StepCaptureDefinition? Capture = null);
+    StepCaptureDefinition? Capture = null,
+    IReadOnlyList<StepCompletionCondition>? CompletionConditions = null);
 
 public sealed record StepCaptureDefinition(
     TargetRuntime Runtime,
     Locator Locator,
     string Property,
     string? Pattern = null);
+
+public sealed record StepCompletionCondition(
+    string Kind,
+    TargetDescriptor Target,
+    string? ExpectedValue = null);
