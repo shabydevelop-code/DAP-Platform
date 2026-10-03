@@ -35,7 +35,7 @@ Current milestone: the canonical Web and Windows learner flows are both complete
 - UI direction is read from the active language file.
 - There is intentionally no RESX/compiled/string fallback. Missing localization configuration, language file, key, or invalid direction is an explicit configuration error.
 - Guide bubble instructional content remains persisted Guide data and is not product localization.
-- This localization change has not yet been locally compiled/regression-verified after implementation.
+- The localization files have since been compiled and loaded successfully by the current Guided startup path. A dedicated Hebrew/English switching and localization-failure regression matrix has not yet been reported as complete.
 
 ### Manual learner / UX parity refinements — 2026-10-03
 
@@ -49,6 +49,7 @@ Recent parity refinements:
 - Web full-manual mode uses the in-browser DAP completion bubble only; the unified Web E2E manual path does not add `--show-completion`, avoiding a duplicate Windows MessageBox.
 - Web and Windows TestCRM grids now force RTL/right-aligned column headers. Sortable Web headers render an explicit active ▲/▼ indicator with `aria-sort`; the Windows Cases status header renders the same visible direction indicator while preserving the stable automation name/id used by the Guide.
 - Manual runner lifetime follows the owned target application as well as DAP. Web now uses explicit Playwright page-close/browser-disconnect events rather than polling connection state; an unexpected TestCRM Web-host exit is treated as an error, not as an operator close. Windows exits manual mode when the owned TestCRM process closes. The same target-close rule now applies to automated Guided/Unguided runs: closing the runner-owned Web page/browser or Windows application ends the run cleanly, triggers owned-process cleanup, and returns to the shell instead of surfacing a timeout/stack trace.
+- **Operator-close verification — 2026-10-03:** Windows Guided and Web Guided were both manually interrupted by closing the target application/browser. In both cases the E2E console returned cleanly with owned-process cleanup and without an unhandled exception or later timeout. This verifies the target-close path specifically; it is not a replacement for a new full 53/53 regression run.
 - Web E2E/manual startup now preflights canonical ports 5200 and 5201 before building/launching. It never kills an arbitrary existing port owner. Web readiness is accepted only while the exact Web-host process launched by the current runner is still alive, so a stale process on 5200 cannot satisfy readiness for a failed launch.
 - Windows Case-grid sorting now mirrors Web learner intent: Step 6 targets the `סטטוס` column header in `CasesGrid`; the separate visible "מיין לפי סטטוס" action button was removed.
 - Windows text-entry validation now follows natural commit semantics like Web: editing does not advance on the first valid/intermediate character. The learner must edit the field and then move focus away before `value-not-empty` / `value-equals` validation can complete. Discrete controls such as ComboBox continue to commit on selection change. Windows now observes text value changes and the target edit control's own `HasKeyboardFocusProperty` transitions through a target-scoped UIA property subscription, with polling retained only as a provider fallback. This replaces the less reliable global focus-change listener and is intended to preserve fast blur commits between reconciliation polls. The canonical Windows E2E now commits the Step-1 text edit with a real TAB keystroke instead of calling `window.SetFocus()`, so the synthetic learner follows WPF's natural focus traversal/blur lifecycle.
@@ -98,7 +99,7 @@ Web and Windows canonical 53-Step execution are stable in both Guided and Unguid
 
 ## Current E2E baseline
 
-- `tests/DAP.TestCRM.E2E/Program.cs` contains the representative Customer -> Site -> Case -> Lead workflow.
+- `tests/DAP.TestCRM.E2E.Common/CanonicalCrmScenario.cs` contains the shared representative Customer -> Site -> Case -> Lead workflow used by the platform-specific Web and Windows E2E runners.
 - The workflow currently passes end-to-end, including ten validated business-facing scenarios, dynamic Lead deletion, and Case deletion.
 - Playwright default timeout is 5 seconds for the E2E runner.
 - E2E execution supports two modes through `DAP_E2E_MODE`:
@@ -153,7 +154,6 @@ The current representative E2E is the validated baseline for further test expans
 - Full end-user Learner shell/catalog UI beyond the current runtime-driven bubble flow.
 - Editor UI.
 - Recorder.
-- Localization resources.
 - Production deployment/bootstrap validation.
 
 
