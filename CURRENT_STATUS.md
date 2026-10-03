@@ -25,6 +25,18 @@ Current parity and runtime baseline:
 
 Current milestone: the canonical Web and Windows learner flows are both complete and regression-verified across all four execution modes. Next work can proceed from this 53/53 four-mode baseline rather than expanding Windows Guide coverage.
 
+### External UI localization — 2026-10-03
+
+- Added runtime-loaded external localization under `src/DAP.App/Localization`: `language.json`, `he.json`, and `en.json`.
+- Build/publish output copies these JSON files beside the compiled application so wording can be changed without recompiling `DAP.exe`.
+- Added shared `IUiTextProvider` contract and JSON-backed application implementation.
+- Web and Windows learner bubble system text now comes from localization keys, including Step progress and drag-handle tooltip; Web completion text/button also comes from localization.
+- DAP application MessageBox text for learner completion, empty Guide, matching-browser-page errors, infrastructure check, and launch usage now comes from external localization.
+- UI direction is read from the active language file.
+- There is intentionally no RESX/compiled/string fallback. Missing localization configuration, language file, key, or invalid direction is an explicit configuration error.
+- Guide bubble instructional content remains persisted Guide data and is not product localization.
+- This localization change has not yet been locally compiled/regression-verified after implementation.
+
 ### Manual learner / UX parity refinements — 2026-10-03
 
 The current full human-learner launchers are:
