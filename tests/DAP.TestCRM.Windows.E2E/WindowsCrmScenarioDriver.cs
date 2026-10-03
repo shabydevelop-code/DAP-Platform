@@ -52,7 +52,9 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
             return candidate is not null && candidate.Current.IsEnabled ? candidate : null;
         },$"{id} enabled");
         if(!e.TryGetCurrentPattern(ValuePattern.Pattern,out var p))throw new Exception($"{id} has no ValuePattern.");
+        e.SetFocus();
         ((ValuePattern)p).SetValue(value);
+        window.SetFocus();
         Wait(()=>
         {
             var current=window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,id));
