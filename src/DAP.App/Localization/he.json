@@ -1,0 +1,13 @@
+{
+  "Ui.Direction": "rtl",
+  "Learner.StepProgress": "שלב {0} מתוך {1}",
+  "Learner.DragBubble": "גרור להזזת הבועה",
+  "Learner.GuideCompleted": "המדריך הושלם בהצלחה",
+  "Learner.Finish": "סיום",
+  "Learner.CompletedMessage": "הלומדה הסתיימה בהצלחה.",
+  "Learner.WindowTitle": "DAP Learner",
+  "Learner.GuideHasNoSteps": "למדריך '{0}' אין שלבים.",
+  "Learner.BrowserPageCountError": "נמצאו {0} דפי דפדפן מתאימים. נדרש דף אחד בדיוק.",
+  "App.InfrastructureCheckTitle": "בדיקת תשתית DAP",
+  "App.InfrastructureReady": "DAP.exe מוכן.\n\nמסד נתונים: {0}\n\nקובץ אבחון: {1}"
+}
