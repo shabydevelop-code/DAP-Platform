@@ -266,6 +266,71 @@ internal static class DapTestCrmWindowsGuideSeed
             "testcrm-windows-lead-new", 30,
             "LeadStatus", "החזר את סטטוס הליד לחדש",
             "value-equals", "חדש",
-            completionCondition: new StepCompletionCondition("target-not-exists", ById("LeadSelectedService")))
+            completionCondition: new StepCompletionCondition("target-not-exists", ById("LeadSelectedService"))),
+
+        ValueStep(
+            "testcrm-windows-lead-close-success-2", 31,
+            "LeadStatus", "שנה שוב את סטטוס הליד לנסגר בהצלחה",
+            "value-equals", "נסגר בהצלחה",
+            completionCondition: new StepCompletionCondition("target-exists", ById("LeadSelectedService"))),
+
+        ClickStep(
+            "testcrm-windows-lead-invalid-save", 32,
+            ById("SaveLeadButton"), "נסה לשמור את הליד",
+            completionCondition: new StepCompletionCondition(
+                "target-exists",
+                TargetDescriptor.Create(
+                    TargetRuntime.Windows,
+                    new Locator("name-regex", @"^(OK|אישור)$")))),
+
+        ClickStep(
+            "testcrm-windows-lead-validation-ok", 33,
+            TargetDescriptor.Create(
+                TargetRuntime.Windows,
+                new Locator("name-regex", @"^(OK|אישור)$")),
+            "אשר את הודעת השגיאה",
+            completionCondition: new StepCompletionCondition("target-exists", ById("LeadSelectedService"))),
+
+        ValueStep(
+            "testcrm-windows-lead-service", 34,
+            "LeadSelectedService", "בחר בשירות \"תמיכה מורחבת\"",
+            "value-equals", "תמיכה מורחבת"),
+
+        ClickStep(
+            "testcrm-windows-save-lead", 35,
+            ById("SaveLeadButton"), "שמור את הליד",
+            completionCondition: new StepCompletionCondition("target-exists", ById("DeleteLeadButton"))),
+
+        ClickStep(
+            "testcrm-windows-delete-lead", 36,
+            ById("DeleteLeadButton"), "מחק את הליד",
+            completionCondition: new StepCompletionCondition(
+                "target-exists",
+                TargetDescriptor.Create(
+                    TargetRuntime.Windows,
+                    new Locator("name-regex", @"^(Yes|כן|אישור)$")))),
+
+        ClickStep(
+            "testcrm-windows-confirm-delete-lead", 37,
+            TargetDescriptor.Create(
+                TargetRuntime.Windows,
+                new Locator("name-regex", @"^(Yes|כן|אישור)$")),
+            "אשר את מחיקת הליד",
+            completionCondition: new StepCompletionCondition("target-exists", ById("NewLeadButton"))),
+
+        ClickStep(
+            "testcrm-windows-leads-to-customer", 38,
+            ByIdAndName("Breadcrumb", "אלפא פתרונות בע\"מ"), "חזור ללקוח",
+            completionCondition: new StepCompletionCondition("target-exists", ById("SitesGrid"))),
+
+        NavigationRowStep(
+            "testcrm-windows-customer-site", 39,
+            "SitesGrid", "פתח את האתר הראשון",
+            completionCondition: new StepCompletionCondition("target-exists", ById("LeadsTab"))),
+
+        ClickStep(
+            "testcrm-windows-site-leads", 40,
+            ById("LeadsTab"), "עבור ללשונית לידים",
+            completionCondition: new StepCompletionCondition("target-exists", ById("NewLeadButton")))
     };
 }
