@@ -716,3 +716,5 @@ The Windows TestCRM E2E runner supports `--manual-from-step <N>`, matching the W
 - Existing `--manual-from-step <N>`, `--manual`, and `--unguided` remain available. Unguided also honors `DAP_E2E_MODE=fast|visual` for action pacing while still running without DAP.exe/bubbles.
 - The 5-second technical timeout policy is unchanged. Visual delays are presentation pacing only and do not increase resolver/synchronization timeouts.
 - Implementation is committed; a local Windows/UIA run is still required before claiming new Visual-mode PASS coverage.
+
+- Runner precedence hardening: both Web and Windows now read `DAP_E2E_MODE` only for full `--guided`. `--unguided`, `--manual`, `--manual-from-step <N>`, and `--visual-from-step <N>` ignore stale shell mode values, so each public command has deterministic semantics independent of the previously executed command.
