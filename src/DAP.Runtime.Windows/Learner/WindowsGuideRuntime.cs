@@ -112,7 +112,6 @@ public sealed class WindowsGuideRuntime
         var textTargetCommitted = 0;
         AutomationElement? subscribedTextTarget = null;
         AutomationPropertyChangedEventHandler? textEditPropertyChangedHandler = null;
-        AutomationFocusChangedEventHandler? textFocusChangedFallbackHandler = null;
         var clickCompleted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         AutomationEventHandler? clickHandler = null;
         AutomationElement? subscribedTarget = null;
@@ -136,28 +135,6 @@ public sealed class WindowsGuideRuntime
                 $"+{stepStopwatch.ElapsedMilliseconds} ms " +
                 $"(wait={stepStopwatch.ElapsedMilliseconds - settleStartedAt} ms).");
         }
-
-        textFocusChangedFallbackHandler = (sender, _) =>
-        {
-            var textTarget = subscribedTextTarget;
-            if (textTarget is null || sender is not AutomationElement focusedElement)
-                return;
-
-            if (SameElement(textTarget, focusedElement))
-            {
-                Volatile.Write(ref textTargetObservedFocused, 1);
-                Volatile.Write(ref textTargetBlurObserved, 0);
-                return;
-            }
-
-            if (Volatile.Read(ref textTargetObservedFocused) == 1)
-            {
-                Volatile.Write(ref textTargetBlurObserved, 1);
-                if (Volatile.Read(ref textTargetChanged) == 1)
-                    Volatile.Write(ref textTargetCommitted, 1);
-            }
-        };
-        Automation.AddAutomationFocusChangedEventHandler(textFocusChangedFallbackHandler);
 
         try
         {
@@ -513,9 +490,6 @@ public sealed class WindowsGuideRuntime
                 {
                 }
             }
-
-            if (textFocusChangedFallbackHandler is not null)
-                Automation.RemoveAutomationFocusChangedEventHandler(textFocusChangedFallbackHandler);
 
             if (subscribedTarget is not null && clickHandler is not null)
             {
