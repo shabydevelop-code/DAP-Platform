@@ -122,6 +122,36 @@ internal sealed class PersistedWindowsCrmGuideExecutor
             case "testcrm-windows-lead-new":
                 await driver.SetLeadStatus(RequiredExpectedValue(step));
                 return;
+            case "testcrm-windows-lead-close-success-2":
+                await driver.SetLeadStatus(RequiredExpectedValue(step));
+                return;
+            case "testcrm-windows-lead-invalid-save":
+                await driver.SaveLead();
+                return;
+            case "testcrm-windows-lead-validation-ok":
+                await driver.DismissValidation();
+                return;
+            case "testcrm-windows-lead-service":
+                await driver.SetLeadService(RequiredExpectedValue(step));
+                return;
+            case "testcrm-windows-save-lead":
+                await driver.SaveLead();
+                return;
+            case "testcrm-windows-delete-lead":
+                await driver.DeleteLead();
+                return;
+            case "testcrm-windows-confirm-delete-lead":
+                await driver.ConfirmDelete();
+                return;
+            case "testcrm-windows-leads-to-customer":
+                await driver.OpenCustomerFromBreadcrumb();
+                return;
+            case "testcrm-windows-customer-site":
+                await driver.OpenFirstSite();
+                return;
+            case "testcrm-windows-site-leads":
+                await driver.OpenLeads();
+                return;
             default:
                 throw new NotSupportedException(
                     $"Persisted Windows CRM-only executor does not yet support Guide Step '{step.Id}' (order {step.Order}).");
