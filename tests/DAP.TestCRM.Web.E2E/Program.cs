@@ -522,14 +522,20 @@ async Task MoveTo(ILocator target)
 
     var x=box.X+localX;
     var y=box.Y+localY;
-    const int steps=14;
-    for(var i=1;i<=steps;i++)
+
+    // Keep Web Visual cursor motion aligned with Windows Visual: the same
+    // 12-frame cubic ease-out movement, 18 ms frame pacing, and 120 ms target
+    // dwell. Platform-specific input mechanisms differ, but the visible learner
+    // pacing should feel the same.
+    const int frames=12;
+    for(var frame=1;frame<=frames;frame++)
     {
-        var t=(double)i/steps;
-        var sx=cursorX+(x-cursorX)*t;
-        var sy=cursorY+(y-cursorY)*t;
+        var progress=(double)frame/frames;
+        var eased=1-Math.Pow(1-progress,3);
+        var sx=cursorX+(x-cursorX)*eased;
+        var sy=cursorY+(y-cursorY)*eased;
         await page.EvaluateAsync("(p)=>window.__dapE2ECursor?.move(p.x,p.y)",new { x=sx,y=sy });
-        await page.WaitForTimeoutAsync(35);
+        await page.WaitForTimeoutAsync(18);
     }
     cursorX=x; cursorY=y;
     await target.HoverAsync(new() { Position = new() { X = localX, Y = localY } });
