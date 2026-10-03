@@ -203,7 +203,7 @@ A target is represented by a runtime-neutral TargetDescriptor rather than a sing
 
 ## Guide persistence ownership — Seed initializes, DB owns, Runtime consumes
 - **Persistent DAP database is the Source of Truth for Guides once initialized.**
-- A Guide seed/factory is an initialization/reset definition only. It must never silently overwrite an existing persistent Guide during normal Learner, E2E, or visual-demo execution.
+- A Guide seed/factory is an initialization/reset definition only. It must never silently overwrite an existing persistent Guide during normal Learner, E2E, or visual execution.
 - Normal execution flow: open DAP database -> load persisted Guide -> run exactly that persisted Guide.
 - If the required Guide is absent, normal E2E must fail clearly and require an explicit initialization/reset operation; it must not silently seed.
 - Future Instructor/Editor changes are written to the database and immediately become authoritative for Learner and E2E.
