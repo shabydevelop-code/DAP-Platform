@@ -54,7 +54,13 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
         if(!e.TryGetCurrentPattern(ValuePattern.Pattern,out var p))throw new Exception($"{id} has no ValuePattern.");
         e.SetFocus();
         ((ValuePattern)p).SetValue(value);
-        window.SetFocus();
+
+        // Commit text edits through WPF's natural focus traversal. The production
+        // Windows Runtime completes text validation only after an observed edit
+        // followed by a real target blur; focusing the parent window is not a
+        // faithful learner commit and may not raise HasKeyboardFocus=false.
+        KeyPress(VK_TAB);
+
         Wait(()=>
         {
             var current=window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,id));
