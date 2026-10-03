@@ -67,6 +67,8 @@ TestCRM development runners must not execute long-lived owned processes from reu
 
 The runner builds the target application components and DAP required for that mode into the run root, launches them from there, and owns their cleanup. Web Unguided does not build/launch DAP. Process-exit and Ctrl+C cleanup supplement normal `finally` cleanup.
 
+For full manual execution, runner lifetime is also tied to the owned target application. Closing the Web browser/page/Web host or the Windows TestCRM application is a terminal condition for that manual run: the harness cleans up its remaining owned children and returns control to the launching shell. A manual runner must not continue waiting solely for DAP after the guided target has been closed.
+
 A hard termination may leave an old run directory or orphaned process, but later runs never reuse that executable path. Therefore an abandoned process cannot lock the normal repository `bin\Debug` outputs or the next run's executable output.
 
 This is test/development orchestration only. It does not move product Runtime logic into E2E code and does not change the production DAP deployment model.
