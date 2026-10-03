@@ -330,7 +330,7 @@ async Task RunGuidedAsync()
         await driver.OpenCases();
 
         WaitForBubble(BubbleFor("testcrm-windows-open-context-case"), dap);
-        await driver.OpenCaseBySubject("כרטיס כניסה");
+        await driver.OpenCreatedCase();
 
         WaitForBubble(BubbleFor("testcrm-windows-context-back-site"), dap);
         await driver.OpenSiteFromBreadcrumb();
