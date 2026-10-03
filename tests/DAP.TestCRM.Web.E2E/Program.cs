@@ -51,8 +51,11 @@ if (args.Contains("--reset-guide", StringComparer.OrdinalIgnoreCase))
 
 var unguided = args.Contains("--unguided", StringComparer.OrdinalIgnoreCase);
 var explicitGuided = args.Contains("--guided", StringComparer.OrdinalIgnoreCase);
+var manual = args.Contains("--manual", StringComparer.OrdinalIgnoreCase);
 if (unguided && explicitGuided)
     throw new ArgumentException("--guided and --unguided cannot be combined.");
+if (manual && (unguided || explicitGuided || manualFromStep is not null || visualFromStep is not null))
+    throw new ArgumentException("--manual cannot be combined with --guided, --unguided, --manual-from-step, or --visual-from-step.");
 if (unguided && (manualFromStep is not null || visualFromStep is not null))
     throw new ArgumentException("--unguided cannot be combined with --manual-from-step or --visual-from-step.");
 
@@ -198,7 +201,7 @@ var visualMode = e2eMode is "visual" or "demo";
 var fastMode = !visualMode;
 var switchedToVisual = visualMode;
 
-Console.WriteLine($"E2E mode: {(unguided ? $"unguided ({e2eMode})" : visualFromStep is not null ? $"fast -> visual from Step {visualFromStep}" : visualMode ? "visual" : "fast")}");
+Console.WriteLine($"E2E mode: {(manual ? "manual" : unguided ? $"unguided ({e2eMode})" : visualFromStep is not null ? $"fast -> visual from Step {visualFromStep}" : visualMode ? "visual" : "fast")}");
 if (visualMode || visualFromStep is not null)
 await page.AddInitScriptAsync(@"(() => {
   const install=()=>{
@@ -817,6 +820,22 @@ if(!string.IsNullOrWhiteSpace(dapStartupDiagnostics))
     Console.WriteLine(dapStartupDiagnostics);
 Console.WriteLine("DAP production Web bubble from SQLite: PASS");
 
+if (manual)
+{
+    Console.WriteLine();
+    Console.WriteLine("MANUAL WEB RUN: Step 1 is ready.");
+    Console.WriteLine("Automatic learner actions are disabled. Perform the full Guide manually in the browser.");
+    Console.WriteLine("The run will close automatically when DAP completes the Guide.");
+    Console.WriteLine("Press Ctrl+C only if you want to stop the run early.");
+
+    await dapProcess.WaitForExitAsync();
+    if (dapProcess.ExitCode != 0)
+        throw new Exception($"DAP.exe exited with code {dapProcess.ExitCode} during the manual Web learner run.");
+
+    Console.WriteLine("DAP completed the manual Web Guide. Closing E2E-owned processes.");
+    return;
+}
+
 // Automatic validation belongs to DAP.exe. With guide orchestration active,
 // Step 1 can be replaced by Step 2 between polling intervals; absence of any
 // bubble is therefore not a valid completion signal. Require the persisted
@@ -834,7 +853,25 @@ if(await wrongValueBubble.CountAsync()!=1
     throw new Exception("Step 1 advanced even though its exact value validation was not satisfied.");
 Console.WriteLine("DAP exact-value validation rejects a committed wrong value: PASS");
 
-await Fill("[name='name']","אלפא פתרונות בע\"מ");
+var exactValueTarget=(await Content()).Locator("[name='name']");
+await MoveTo(exactValueTarget);
+await exactValueTarget.ClickAsync();
+await page.Keyboard.PressAsync("Control+A");
+await page.Keyboard.TypeAsync("אלפא פתרונות בע\"מ",new() { Delay = visualMode ? 75 : 0 });
+await page.WaitForTimeoutAsync(350);
+
+// Reaching the valid value is not itself a text-edit commit. Step 1 must stay
+// active until the learner leaves the field and the Runtime receives blur.
+dapContent=await Content();
+var preBlurBubble=dapContent.Locator("#dap-guide-bubble");
+if(await preBlurBubble.CountAsync()!=1
+    || !(await preBlurBubble.TextContentAsync() ?? string.Empty).Contains(dapStep.Bubble.Content,StringComparison.Ordinal))
+    throw new Exception("Step 1 advanced before the text edit was committed by leaving the field.");
+Console.WriteLine("DAP text validation waits for blur before advancing: PASS");
+
+await page.Keyboard.PressAsync("Tab");
+await HumanPause(120);
+
 var dapAdvancedToSecondStep=false;
 for(var i=0;i<50;i++)
 {
