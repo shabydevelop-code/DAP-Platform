@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using DAP.Core.Guides;
@@ -15,6 +16,8 @@ public sealed class WindowsBubblePresenter
     private const double TargetGap = 10d;
 
     private Window? _window;
+    private Window? _highlightWindow;
+    private Border? _highlightBorder;
     private Border? _bubble;
     private Polygon? _pointer;
     private TextBlock? _content;
@@ -54,6 +57,7 @@ public sealed class WindowsBubblePresenter
             }
 
             _targetRect = rect;
+            UpdateTargetHighlight(rect);
             _content!.Text = step.Bubble.Content;
             _progress!.Text = $"שלב {stepNumber} מתוך {totalSteps}";
             AutomationProperties.SetName(_window!, step.Bubble.Content);
@@ -106,6 +110,8 @@ public sealed class WindowsBubblePresenter
         {
             if (_window?.IsVisible == true)
                 _window.Hide();
+            if (_highlightWindow?.IsVisible == true)
+                _highlightWindow.Hide();
         });
     }
 
@@ -116,14 +122,71 @@ public sealed class WindowsBubblePresenter
         double height,
         Rect work)
     {
-        // Respect the Guide placement as the authoritative side. The bubble may
-        // cover unrelated UI; users can drag it away when desired. Only clamp
-        // enough to keep the bubble on-screen instead of silently switching sides.
-        var candidate = CandidateFor(preferred, target, width, height);
+        var opposite = preferred switch
+        {
+            BubblePlacement.Left => BubblePlacement.Right,
+            BubblePlacement.Right => BubblePlacement.Left,
+            BubblePlacement.Top => BubblePlacement.Bottom,
+            _ => BubblePlacement.Top
+        };
+
+        var perpendicular = preferred is BubblePlacement.Top or BubblePlacement.Bottom
+            ? new[] { BubblePlacement.Right, BubblePlacement.Left }
+            : new[] { BubblePlacement.Bottom, BubblePlacement.Top };
+
+        foreach (var side in new[] { preferred, opposite }.Concat(perpendicular))
+        {
+            var candidate = ClampSecondaryAxis(
+                CandidateFor(side, target, width, height),
+                side,
+                width,
+                height,
+                work);
+
+            if (Fits(candidate, width, height, work)
+                && !new Rect(candidate.X, candidate.Y, width, height).IntersectsWith(target))
+                return candidate;
+        }
+
+        // Extremely small work areas can make every side impossible. Preserve
+        // visibility as a last resort, but prefer the side with the most room.
+        var fallbackSide = AvailableSpace(preferred, target, work) >= AvailableSpace(opposite, target, work)
+            ? preferred
+            : opposite;
+        var fallback = CandidateFor(fallbackSide, target, width, height);
         return new Point(
-            Math.Clamp(candidate.X, work.Left + 4, Math.Max(work.Left + 4, work.Right - width - 4)),
-            Math.Clamp(candidate.Y, work.Top + 4, Math.Max(work.Top + 4, work.Bottom - height - 4)));
+            Math.Clamp(fallback.X, work.Left + 4, Math.Max(work.Left + 4, work.Right - width - 4)),
+            Math.Clamp(fallback.Y, work.Top + 4, Math.Max(work.Top + 4, work.Bottom - height - 4)));
     }
+
+    private static Point ClampSecondaryAxis(
+        Point candidate,
+        BubblePlacement side,
+        double width,
+        double height,
+        Rect work) =>
+        side is BubblePlacement.Top or BubblePlacement.Bottom
+            ? new Point(
+                Math.Clamp(candidate.X, work.Left + 4, Math.Max(work.Left + 4, work.Right - width - 4)),
+                candidate.Y)
+            : new Point(
+                candidate.X,
+                Math.Clamp(candidate.Y, work.Top + 4, Math.Max(work.Top + 4, work.Bottom - height - 4)));
+
+    private static bool Fits(Point candidate, double width, double height, Rect work) =>
+        candidate.X >= work.Left + 4
+        && candidate.Y >= work.Top + 4
+        && candidate.X + width <= work.Right - 4
+        && candidate.Y + height <= work.Bottom - 4;
+
+    private static double AvailableSpace(BubblePlacement side, Rect target, Rect work) =>
+        side switch
+        {
+            BubblePlacement.Left => target.Left - work.Left,
+            BubblePlacement.Right => work.Right - target.Right,
+            BubblePlacement.Top => target.Top - work.Top,
+            _ => work.Bottom - target.Bottom
+        };
 
     private static Point CandidateFor(
         BubblePlacement side,
@@ -214,6 +277,58 @@ public sealed class WindowsBubblePresenter
         _pointer.Points = new PointCollection { p1, p2, tip };
     }
 
+    private void UpdateTargetHighlight(Rect target)
+    {
+        EnsureHighlightWindow();
+
+        const double inset = 4d;
+        _highlightWindow!.Left = target.Left - inset;
+        _highlightWindow.Top = target.Top - inset;
+        _highlightWindow.Width = Math.Max(1, target.Width + inset * 2);
+        _highlightWindow.Height = Math.Max(1, target.Height + inset * 2);
+
+        if (!_highlightWindow.IsVisible)
+            _highlightWindow.Show();
+    }
+
+    private void EnsureHighlightWindow()
+    {
+        if (_highlightWindow is not null)
+            return;
+
+        _highlightBorder = new Border
+        {
+            BorderBrush = new SolidColorBrush(Color.FromRgb(45, 156, 219)),
+            BorderThickness = new Thickness(3),
+            CornerRadius = new CornerRadius(4),
+            Background = Brushes.Transparent,
+            IsHitTestVisible = false
+        };
+
+        _highlightWindow = new Window
+        {
+            Content = _highlightBorder,
+            WindowStyle = WindowStyle.None,
+            ResizeMode = ResizeMode.NoResize,
+            AllowsTransparency = true,
+            Background = Brushes.Transparent,
+            ShowInTaskbar = false,
+            Topmost = true,
+            ShowActivated = false,
+            IsHitTestVisible = false
+        };
+
+        _highlightWindow.SourceInitialized += (_, _) =>
+        {
+            var hwnd = new WindowInteropHelper(_highlightWindow).Handle;
+            var style = GetWindowLongPtr(hwnd, GwlExStyle).ToInt64();
+            style |= WsExTransparent | WsExNoActivate | WsExToolWindow;
+            SetWindowLongPtr(hwnd, GwlExStyle, new IntPtr(style));
+        };
+
+        AutomationProperties.SetAutomationId(_highlightWindow, "DapLearnerTargetHighlight");
+    }
+
     private static double GetTargetScale(AutomationElement target)
     {
         var walker = TreeWalker.ControlViewWalker;
@@ -231,8 +346,19 @@ public sealed class WindowsBubblePresenter
         return 1d;
     }
 
+    private const int GwlExStyle = -20;
+    private const long WsExTransparent = 0x00000020L;
+    private const long WsExToolWindow = 0x00000080L;
+    private const long WsExNoActivate = 0x08000000L;
+
     [DllImport("user32.dll")]
     private static extern uint GetDpiForWindow(IntPtr hwnd);
+
+    [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")]
+    private static extern IntPtr GetWindowLongPtr(IntPtr hwnd, int index);
+
+    [DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW")]
+    private static extern IntPtr SetWindowLongPtr(IntPtr hwnd, int index, IntPtr newLong);
 
     private void EnsureWindow()
     {
