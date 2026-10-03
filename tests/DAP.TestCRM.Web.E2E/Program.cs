@@ -132,6 +132,8 @@ Process? ownedTestCrmProcess = null;
 Process? ownedTestCrmBackendProcess = null;
 Process? dapProcess = null;
 Task<string>? dapStdOutTask = null;
+var testCrmWebStdOut = new System.Collections.Concurrent.ConcurrentQueue<string>();
+var testCrmWebStdErr = new System.Collections.Concurrent.ConcurrentQueue<string>();
 
 void KillOwnedDapProcess()
 {
@@ -209,17 +211,37 @@ Console.CancelKeyPress += webCancelCleanup;
     ownedTestCrmProcess = Process.Start(psi)
         ?? throw new InvalidOperationException("Could not start TestCRM Web host for E2E.");
 
+    ownedTestCrmProcess.OutputDataReceived += (_, e) =>
+    {
+        if (string.IsNullOrWhiteSpace(e.Data))
+            return;
+        testCrmWebStdOut.Enqueue(e.Data);
+        while (testCrmWebStdOut.Count > 200)
+            testCrmWebStdOut.TryDequeue(out _);
+        Console.WriteLine($"[TestCRM Web] {e.Data}");
+    };
+    ownedTestCrmProcess.ErrorDataReceived += (_, e) =>
+    {
+        if (string.IsNullOrWhiteSpace(e.Data))
+            return;
+        testCrmWebStdErr.Enqueue(e.Data);
+        while (testCrmWebStdErr.Count > 200)
+            testCrmWebStdErr.TryDequeue(out _);
+        Console.Error.WriteLine($"[TestCRM Web ERROR] {e.Data}");
+    };
+    ownedTestCrmProcess.BeginOutputReadLine();
+    ownedTestCrmProcess.BeginErrorReadLine();
+
     var crmReadyDeadline = DateTime.UtcNow.AddSeconds(30);
     using var http = new HttpClient();
     while (DateTime.UtcNow < crmReadyDeadline)
     {
         if (ownedTestCrmProcess.HasExited)
         {
-            var stdout = await ownedTestCrmProcess.StandardOutput.ReadToEndAsync();
-            var stderr = await ownedTestCrmProcess.StandardError.ReadToEndAsync();
             throw new Exception(
                 $"TestCRM exited before becoming ready. ExitCode={ownedTestCrmProcess.ExitCode}.{Environment.NewLine}" +
-                $"STDOUT:{Environment.NewLine}{stdout}{Environment.NewLine}STDERR:{Environment.NewLine}{stderr}");
+                $"STDOUT tail:{Environment.NewLine}{string.Join(Environment.NewLine, testCrmWebStdOut)}{Environment.NewLine}" +
+                $"STDERR tail:{Environment.NewLine}{string.Join(Environment.NewLine, testCrmWebStdErr)}");
         }
 
         try
@@ -849,7 +871,9 @@ if (manual)
         {
             await webHostExit;
             throw new Exception(
-                $"TestCRM Web host exited unexpectedly during the manual learner run. ExitCode={ownedTestCrmProcess.ExitCode}.");
+                $"TestCRM Web host exited unexpectedly during the manual learner run. ExitCode={ownedTestCrmProcess.ExitCode}.{Environment.NewLine}" +
+                $"STDOUT tail:{Environment.NewLine}{string.Join(Environment.NewLine, testCrmWebStdOut)}{Environment.NewLine}" +
+                $"STDERR tail:{Environment.NewLine}{string.Join(Environment.NewLine, testCrmWebStdErr)}");
         }
         else
         {
