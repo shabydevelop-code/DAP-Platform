@@ -431,8 +431,15 @@ Web runtime capture is now explicit persisted StepCaptureDefinition data and use
 Windows runtime now also evaluates persisted Step context guards. TestCRM seeds have begun moving destination/business waits from test-driver knowledge into persisted Guide semantics. The E2E driver may still contain technical synchronization needed to automate the synthetic learner, but that synchronization must not be the sole owner of learner progression rules.
 
 
-## Windows manual learner handoff — 2026-10-03
+## Unified manual learner execution — 2026-10-03
 
-The Windows TestCRM E2E runner supports `--manual-from-step <N>`, matching the Web handoff model. The runner starts the backend, Windows TestCRM, and production DAP Windows Learner Runtime from Step 1; it automates the canonical learner actions only until Step N is visibly ready, then stops synthetic UI actions and leaves DAP/TestCRM running for a human to continue manually through the remaining bubbles. This preserves earlier runtime captures and business context, so `--manual-from-step` must not be implemented by launching DAP directly at Step N on a fresh application state.
+Web and Windows full manual TestCRM runs are now modes of the canonical platform E2E runners rather than separate PowerShell launchers.
 
-`--manual-from-step` cannot be combined with `--unguided`. When the operator finishes the manual session and presses ENTER in the E2E console, the runner cleans up the DAP, TestCRM, and backend processes it owns.
+- Web full manual: `dotnet run --project tests\DAP.TestCRM.Web.E2E\DAP.TestCRM.Web.E2E.csproj -- --manual`
+- Windows full manual: `dotnet run --project tests\DAP.TestCRM.Windows.E2E\DAP.TestCRM.Windows.E2E.csproj -- --manual`
+- `--manual` starts the same platform topology used by Guided execution, waits for production Step 1, then performs no synthetic learner actions.
+- `--manual-from-step <N>` remains available for focused state-preserving handoff after the real prior workflow has executed.
+- The removed `scripts/run-testcrm-web-learner.ps1` and `scripts/run-testcrm-windows-learner.ps1` must not be reintroduced as parallel launch paths; startup/cleanup ownership stays in the E2E runners.
+
+The Web E2E now also regression-checks natural text commit explicitly: after typing the exact Step-1 value it verifies Step 1 is still active before blur, then sends Tab and requires advancement to Step 2 only after that commit event.
+
