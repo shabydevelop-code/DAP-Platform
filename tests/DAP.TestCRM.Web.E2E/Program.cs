@@ -340,6 +340,10 @@ await using var browser = await playwright.Chromium.LaunchAsync(new()
 });
 StartupMark($"{e2eBrowser} launched");
 var e2eMode = Environment.GetEnvironmentVariable("DAP_E2E_MODE")?.Trim().ToLowerInvariant() ?? "fast";
+if (e2eMode is not ("fast" or "visual"))
+    throw new ArgumentException(
+        $"Unsupported DAP_E2E_MODE '{e2eMode}'. Supported values: fast, visual.");
+
 var context = await browser.NewContextAsync(new() { ViewportSize = ViewportSize.NoViewport, ExtraHTTPHeaders = new Dictionary<string,string> { ["X-DAP-E2E-Mode"] = e2eMode } });
 var page = await context.NewPageAsync();
 page.SetDefaultTimeout(5000);
@@ -352,7 +356,7 @@ browser.Disconnected += OnOwnedBrowserDisconnected;
 
 StartupMark("browser context and page created");
 
-var visualMode = e2eMode is "visual" or "demo";
+var visualMode = e2eMode == "visual";
 var fastMode = !visualMode;
 var switchedToVisual = visualMode;
 
@@ -383,7 +387,7 @@ async Task<IFrame> Content()
     // captured before a PeopleSoft-style reload/replacement can point at a
     // retiring frame and must never be treated as the active content context.
     // Guide-step timeout detects a technical transition failure. Human-paced
-    // visual/demo timing is handled separately by HumanPause.
+    // Visual timing is handled separately by HumanPause.
     const int attempts=50;
     for(var i=0;i<attempts;i++)
     {
@@ -1036,7 +1040,7 @@ var frame=await Content();
 var siteCasesRoute=new Uri(frame.Url).Fragment;
 await frame.Locator("h2:has-text('פניות')").WaitForAsync();
 
-// Sorting is a visible learner action in the demo, so it has its own Guide Step.
+// Sorting is a visible learner action in visual mode, so it has its own Guide Step.
 // Never perform it while the next bubble is already instructing another action.
 await WaitForGuideStep(6);
 await Click("th button[data-sort='status']");
