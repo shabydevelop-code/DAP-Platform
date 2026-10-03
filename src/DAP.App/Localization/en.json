@@ -9,5 +9,7 @@
   "Learner.GuideHasNoSteps": "Guide '{0}' has no steps.",
   "Learner.BrowserPageCountError": "DAP found {0} matching browser pages; exactly one is required.",
   "App.InfrastructureCheckTitle": "DAP Infrastructure Check",
-  "App.InfrastructureReady": "DAP.exe is ready.\n\nDatabase: {0}\n\nDiagnostics: {1}"
+  "App.InfrastructureReady": "DAP.exe is ready.\n\nDatabase: {0}\n\nDiagnostics: {1}",
+  "App.WindowTitle": "DAP",
+  "App.Usage": "Usage:\\nDAP.exe --check\\nDAP.exe --learner-web <guide-key> --cdp <endpoint> [--page-url-contains <text>] [--show-completion] [--start-step <order>]\\nDAP.exe --learner-windows <guide-key> --window-automation-id <id> [--show-completion] [--start-step <order>]"
 }
