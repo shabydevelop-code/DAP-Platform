@@ -718,3 +718,15 @@ The Windows TestCRM E2E runner supports `--manual-from-step <N>`, matching the W
 - Implementation is committed; a local Windows/UIA run is still required before claiming new Visual-mode PASS coverage.
 
 - Runner precedence hardening: both Web and Windows now read `DAP_E2E_MODE` only for full `--guided`. `--unguided`, `--manual`, `--manual-from-step <N>`, and `--visual-from-step <N>` ignore stale shell mode values, so each public command has deterministic semantics independent of the previously executed command.
+
+### Unguided From-Step bootstrap with resume context — 2026-10-04
+
+Implemented symmetrically for Web and Windows:
+- `--manual-from-step <N>`: Steps before N run without DAP/bubbles; DAP starts at N and control is handed to the human learner.
+- `--visual-from-step <N>`: Steps before N run without DAP/bubbles; DAP starts at N and automation continues in Visual mode.
+- Bootstrap preserves real business state and carries earlier Guide runtime captures into DAP through a validated resume context.
+- The current canonical TestCRM capture used later in the flow (created Case identity) is preserved across the bootstrap/Guided boundary on both platforms.
+- Full `--guided`, full `--manual`, and full `--unguided` behavior is unchanged.
+- No timeout was raised.
+
+Implementation is committed but not yet locally executed on the user's Windows machine; focused Web/Windows PASS must be re-verified after pull.
