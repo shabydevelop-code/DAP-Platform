@@ -707,3 +707,12 @@ The design rule remains: Guide/DB owns what completes a Step; Runtime owns how i
 The Windows TestCRM E2E runner supports `--manual-from-step <N>`, matching the Web handoff model. The runner starts the backend, Windows TestCRM, and production DAP Windows Learner Runtime from Step 1; it automates the canonical learner actions only until Step N is visibly ready, then stops synthetic UI actions and leaves DAP/TestCRM running for a human to continue manually through the remaining bubbles. This preserves earlier runtime captures and business context, so `--manual-from-step` must not be implemented by launching DAP directly at Step N on a fresh application state.
 
 `--manual-from-step` cannot be combined with `--unguided`. When the operator finishes the manual session and presses ENTER in the E2E console, the runner cleans up the DAP, TestCRM, and backend processes it owns.
+
+### Windows E2E mode parity with Web — 2026-10-03
+- Windows canonical E2E now accepts the same `DAP_E2E_MODE=fast|visual` vocabulary as Web; `fast` remains the default and any other value fails explicitly.
+- `--guided` + `fast` is the existing automatic 53-Step Windows Guided run.
+- `--guided` + `visual` runs the same persisted 53-Step Guide and the same UIA action driver, but adds observable cursor movement and visual pacing before learner actions. No alternate test scenario or production shortcut was introduced.
+- Windows now also accepts `--visual-from-step <N>`, matching the current Web focused-run model: prior Steps execute in Fast mode and the same running Guided scenario switches to Visual when Step N is visibly active.
+- Existing `--manual-from-step <N>`, `--manual`, and `--unguided` remain available. Unguided also honors `DAP_E2E_MODE=fast|visual` for action pacing while still running without DAP.exe/bubbles.
+- The 5-second technical timeout policy is unchanged. Visual delays are presentation pacing only and do not increase resolver/synchronization timeouts.
+- Implementation is committed; a local Windows/UIA run is still required before claiming new Visual-mode PASS coverage.
