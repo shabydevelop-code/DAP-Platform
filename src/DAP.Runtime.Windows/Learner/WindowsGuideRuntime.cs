@@ -116,6 +116,7 @@ public sealed class WindowsGuideRuntime
         var stepStopwatch = Stopwatch.StartNew();
         var resolutionAttempt = 0;
         var targetFirstResolvedLogged = false;
+        var bubbleFirstShownLogged = false;
         var initialVisibilityChecked = false;
         var completionTargetsBeforeAction = CaptureReplacementBaselines(windowRoot, step);
 
@@ -320,10 +321,14 @@ public sealed class WindowsGuideRuntime
 
                 var bubbleStartedAt = stepStopwatch.ElapsedMilliseconds;
                 await _bubbles.ShowAsync(target, step, stepNumber, totalSteps, cancellationToken);
-                Console.Error.WriteLine(
-                    $"[DAP Windows step timing] Step '{step.Id}' bubble shown at " +
-                    $"+{stepStopwatch.ElapsedMilliseconds} ms " +
-                    $"(ShowAsync duration={stepStopwatch.ElapsedMilliseconds - bubbleStartedAt} ms).");
+                if (!bubbleFirstShownLogged)
+                {
+                    Console.Error.WriteLine(
+                        $"[DAP Windows step timing] Step '{step.Id}' first bubble shown at " +
+                        $"+{stepStopwatch.ElapsedMilliseconds} ms " +
+                        $"(ShowAsync duration={stepStopwatch.ElapsedMilliseconds - bubbleStartedAt} ms).");
+                    bubbleFirstShownLogged = true;
+                }
 
                 if (step.Id == "testcrm-windows-back-to-cases")
                     Console.Error.WriteLine($"[DAP Windows guide diagnostic] Step '{step.Id}' bubble shown.");
