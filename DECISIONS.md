@@ -256,15 +256,15 @@ Before proposing any timeout above 5 seconds, the failing transition and its rea
 **Any change that raises an E2E timeout above 5 seconds requires the user's explicit approval before implementation.** This applies even to temporary diagnostic changes. Polling intervals and intentionally human-paced Visual-mode delays are separate concerns and do not override this rule.
 
 
-## ADR-029 — CRM-only reuses the canonical persisted Guide sequence
+## ADR-029 — Unguided reuses the canonical persisted Guide sequence (historically CRM-only)
 
 **Status:** Accepted
 
-Web CRM-only is the canonical CRM business flow without `DAP.exe` and learner bubbles. It is not a separate TestCRM QA scenario.
+Web Unguided is the canonical CRM business flow without `DAP.exe` and learner bubbles. It is not a separate TestCRM QA scenario.
 
-Normal guided Web execution and CRM-only both consume the persisted `testcrm-web-canonical-workflow` Guide from the configured DAP data provider and follow the same 53-Step sequence. Guided mode additionally synchronizes with production DAP Runtime/bubble state; CRM-only omits that presentation/runtime synchronization.
+Normal Guided Web execution and Unguided both consume the persisted `testcrm-web-canonical-workflow` Guide from the configured DAP data provider and follow the same 53-Step sequence. Guided mode additionally synchronizes with production DAP Runtime/bubble state; Unguided omits that presentation/runtime synchronization.
 
-Production Guide data must not be polluted with test-only action/value fields merely to make CRM-only executable. When a Guide validation is intentionally generic, such as `value-not-empty`, the synthetic value entered by the E2E remains a test-fixture concern.
+Production Guide data must not be polluted with test-only action/value fields merely to make Unguided executable. When a Guide validation is intentionally generic, such as `value-not-empty`, the synthetic value entered by the E2E remains a test-fixture concern.
 
 TestCRM's artificial Web/Windows parity must not drive a production schema that gives one Step parallel Web and Windows targets. A real hybrid Guide remains an ordered sequence in which each Step declares its own runtime.
 

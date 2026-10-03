@@ -35,8 +35,8 @@ DAP is required to support closed third-party target applications. Production Ru
 
 - The canonical Web Guide `testcrm-web-canonical-workflow` contains 53 persisted Steps in `DAP.db`.
 - Normal Web E2E is locally verified PASS for the full 53-Step Customer -> Site -> Case -> Lead workflow using `DAP.exe`, the production Web Runtime, real bubbles, validation, and persisted Guide data.
-- Web `--crm-only` is locally verified PASS for the same canonical 53-Step workflow sequenced by the same persisted Guide, with `DAP.exe` and bubble synchronization intentionally omitted.
-- CRM-only is not a separate TestCRM QA workflow. It is the same canonical guided business scenario executed without the learner presentation/runtime process.
+- Web Unguided is locally verified PASS for the same canonical 53-Step workflow sequenced by the same persisted Guide, with `DAP.exe` and bubble synchronization intentionally omitted.
+- Unguided is not a separate TestCRM QA workflow. It is the same canonical business scenario executed without the learner presentation/runtime process.
 - Repeated synchronization on the currently active Guide Step is valid when the harness first waits for a transition and then waits again immediately before that Step's learner action; the sequence guard rejects backward movement and skipped Steps.
 - Temporary Step-2/backend diagnostics used during stabilization have been removed after both modes passed.
 - The 5-second E2E timeout rule remains unchanged.
@@ -48,7 +48,7 @@ DAP is required to support closed third-party target applications. Production Ru
 - `DAP.exe --learner-windows <guide-key> --window-automation-id <id>` loads persisted Guide data and runs Windows Steps.
 - The persisted Windows TestCRM Guide `testcrm-windows-canonical-workflow` contains the full 53 production-runtime Steps.
 - All 53 persisted Windows Steps are locally verified PASS in both Windows Guided and Windows Unguided execution; Guided uses the real DAP Windows Learner Runtime, UIA targets, runtime capture, modal targeting, completion conditions, and bubbles.
-- Windows Unguided executes the same persisted 53-Step canonical Guide without DAP Runtime/bubbles; it is the current replacement for the historical CRM-only wording.
+- Windows Unguided executes the same persisted 53-Step canonical Guide without DAP Runtime/bubbles; it is the current replacement for the historical Unguided wording.
 - Windows persisted-Guide coverage is complete at 53/53. Instructor/Picker work can proceed without treating Learner Runtime coverage expansion as an outstanding prerequisite.
 
 ## Current phase
@@ -109,12 +109,11 @@ The current representative E2E is the validated baseline for further test expans
 
 - Solution/project structure (partially started: `src/DAP.Core` now exists; full solution structure is not yet created).
 - WPF shell (initial `DAP.App` executable host now exists; user-facing shell UI is not implemented).
-- Learner UI.
+- Full end-user Learner shell/catalog UI beyond the current runtime-driven bubble flow.
 - Editor UI.
 - Recorder.
 - Localization resources.
 - Production deployment/bootstrap validation.
-- Automated tests.
 
 
 ## Current implementation scope
@@ -127,7 +126,7 @@ SQLite default database location on Windows is `%ProgramData%\DAP\Data\DAP.db` (
 
 The shared Core now includes initial runtime-neutral `ValidationDefinition`, `BubbleDefinition`, and `GuideStep` models. `DAP.Data` defines the guide-step repository abstraction. `DAP.Data.Sqlite` now contains the SQLite connection/bootstrap implementation, schema initialization, and `SqliteGuideStepRepository` with transactional save/load mapping for TargetDescriptor, ordered multiple Anchors, FrameContext, Bubble, Validation, and Step advance mode. Core remains independent from SQLite. A standalone `DAP.Data.Sqlite.Tests` round-trip executable uses a temporary database and does not contain production persistence implementation.
 
-The schema is a provider implementation detail, not the domain contract. Current implementation work remains Web-only even though persisted Runtime/Target data is designed to support both Web and Windows.
+The schema is a provider implementation detail, not the domain contract. Active Runtime implementation covers both Web and Windows through shared Core contracts and runtime-specific adapters.
 
 ## First Web bubble presenter
 
@@ -140,11 +139,11 @@ The Web bubble now makes target association explicit: `WebBubblePresenter` highl
 The TestCRM E2E harness is now wired to the production `DAP.Data.Sqlite` and `DAP.Runtime.Web` projects. Before the existing CRM workflow starts, it initializes a temporary DAP SQLite database, persists the first TestCRM GuideStep, reloads it through `SqliteGuideStepRepository`, resolves its real target through `WebTargetResolver`, presents it through `WebBubblePresenter`, and asserts the rendered bubble content. The fixture definition remains test-only; the persistence and bubble implementation are production code.
 
 
-The TestCRM E2E now starts the production `WebLearnerRuntime` for the SQLite-loaded first Step, verifies its initial bubble, explicitly reloads the active Content document, and then requires the runtime to restore the same Step bubble on the newly resolved `[name='name']` target without any test-side call to `WebBubblePresenter`. This is the first direct E2E assertion of the production lifecycle across document replacement. The test change is committed but must still be executed locally before it is considered a passing regression result.
+The TestCRM E2E now starts the production `WebLearnerRuntime` for the SQLite-loaded first Step, verifies its initial bubble, explicitly reloads the active Content document, and then requires the runtime to restore the same Step bubble on the newly resolved `[name='name']` target without any test-side call to `WebBubblePresenter`. This is the first direct E2E assertion of the production lifecycle across document replacement. This lifecycle behavior is covered by the current passing regression baseline.
 
 `DAP.Runtime.Web.Learner.WebLearnerRuntime` now provides the first production active-Step lifecycle. It reconciles the active Step every 100ms, always re-resolving from its `TargetDescriptor`; a replaced iframe/document or rerendered target is therefore reacquired instead of retaining stale Playwright identity. `WebBubblePresenter.EnsureShownAsync` is idempotent for the same Step and live DOM target, so reconciliation does not recreate/flicker the bubble on every pass. If the target is missing or ambiguous, the runtime hides stale guidance and continues waiting rather than guessing. Playwright navigation/frame races are retried by the next reconciliation cycle. `WebValidationEvaluator` now evaluates runtime-specific Web validation. The first supported rule is `value-not-empty`. For `AutomaticOnValidation` Steps, `WebLearnerRuntime` evaluates the same uniquely resolved target returned by bubble presentation; on success it hides the bubble and completes `RunActiveStepAsync`. Unsupported validation kinds fail explicitly. Manual Steps are not auto-completed.
 
-A runtime-neutral `StepContextDefinition` is now part of `GuideStep` and is persisted by SQLite. The Web adapter implements `WebStepContextGuard`; initial supported Web context predicates are `url-equals`, `url-contains`, `url-fragment-equals`, and `css-exists`, evaluated against the live frame identified by the Step's `FrameContext`. `WebLearnerRuntime` checks this guard before target resolution. This allows iframe/document replacement within the same logical route while suppressing the active Step after the user leaves that business context. The TestCRM customer-search fixture uses the stable screen marker `#customer-search` rather than coupling the Step to a route fragment, and E2E now asserts that the bubble disappears after navigation leaves customer search. These new changes require local execution before being considered passing regression coverage.
+A runtime-neutral `StepContextDefinition` is now part of `GuideStep` and is persisted by SQLite. The Web adapter implements `WebStepContextGuard`; initial supported Web context predicates are `url-equals`, `url-contains`, `url-fragment-equals`, and `css-exists`, evaluated against the live frame identified by the Step's `FrameContext`. `WebLearnerRuntime` checks this guard before target resolution. This allows iframe/document replacement within the same logical route while suppressing the active Step after the user leaves that business context. The TestCRM customer-search fixture uses the stable screen marker `#customer-search` rather than coupling the Step to a route fragment, and E2E now asserts that the bubble disappears after navigation leaves customer search. These behaviors are covered by the current passing regression baseline.
 
 ## Next milestone
 
@@ -170,7 +169,7 @@ A target is represented by a runtime-neutral TargetDescriptor rather than a sing
 
 ## Automatic Web Step validation
 
-The first production validation path is now implemented. `ValidationDefinition` remains runtime-neutral in Core; `WebValidationEvaluator` owns Web interpretation. The external-process TestCRM E2E now fills the customer-name target and requires the active bubble to disappear from successful `value-not-empty` validation before CRM navigation changes logical context. It then verifies that the completed Step does not reappear after route navigation. These new validation assertions require local execution before being marked passing.
+The first production validation path is now implemented. `ValidationDefinition` remains runtime-neutral in Core; `WebValidationEvaluator` owns Web interpretation. The external-process TestCRM E2E now fills the customer-name target and requires the active bubble to disappear from successful `value-not-empty` validation before CRM navigation changes logical context. It then verifies that the completed Step does not reappear after route navigation. These validation assertions are covered by the current passing regression baseline.
 
 
 ## Ordered Web guide lifecycle
@@ -553,18 +552,18 @@ Web `clicked` validation no longer stores completion in the guided application's
 ## Web E2E unified modes and Windows parity review — 2026-10-02
 - The representative Web E2E project is now `tests/DAP.TestCRM.Web.E2E/DAP.TestCRM.Web.E2E.csproj`.
 - Web E2E execution uses one canonical Customer -> Site -> Case -> Lead business flow. Mode switches must not create a second independently maintained business scenario.
-- `--crm-only` runs that canonical CRM flow without initializing/reading DAP.db, without loading the Guide, and without launching DAP.exe. This CRM-only baseline was locally verified through the terminal PASS.
+- Unguided runs the canonical CRM flow without launching DAP.exe or synchronizing learner bubbles, while remaining sequenced by the persisted Guide. This baseline is locally verified PASS.
 - The normal Fast + DAP path was locally re-verified after the unified-mode refactor: the persisted Guide loaded 53 Steps and the complete representative workflow ended in PASS.
 - `--manual-from-step <N>` preserves its existing semantics: execute the real preceding workflow in Fast mode, wait until production Guide Step N is visibly ready, then stop automation and hand control to the human tester. Step 47 handoff was locally verified.
 - Added `--visual-from-step <N>`: execute Steps before N in Fast mode, switch the same running canonical scenario to Visual at Step N, and continue automatically to the end. `--manual-from-step` and `--visual-from-step` are mutually exclusive.
 - Local verification of `--visual-from-step 47` showed the explicit `FAST -> VISUAL` transition at Step 47 and completed the workflow with terminal PASS.
 - Visual frame-replacement waiting no longer requires observing the transient `#content-frame-next` Attached state. The harness waits for the stable replacement outcome/current ready Content frame, avoiding a race where the transient frame can be created/promoted before Playwright observes it. The Step-47-to-end Visual verification passed through the previously failing Step 50.
 - In full Visual mode the final Step 53 bubble is intentionally left visible briefly before the automated final action so the final Guide instruction can be observed.
-- Current Web execution behaviors are therefore: full Fast, full Visual, Fast -> manual at N, Fast -> Visual at N, CRM-only, full manual Learner launcher, and explicit Guide reset. Browser selection remains `chromium|chrome|edge` where applicable.
+- Current Web execution behaviors are therefore: full Fast, full Visual, Fast -> manual at N, Fast -> Visual at N, Unguided, full manual Learner launcher, and explicit Guide reset. Browser selection remains `chromium|chrome|edge` where applicable.
 - Windows TestCRM was reviewed against the persisted 53-Step Web Guide. Most of the business workflow is relevant to Windows because both clients use the same server/API/business model, but Web-specific mechanics (DOM/iframe/frame URL/CSS targeting) must not be copied literally into Windows UIA tests.
-- Known Windows parity gaps before building the Windows CRM-only E2E: Case Resolution Notes is displayed/enabled but is not currently persisted in `CaseInput`; there is no Windows equivalent of the Web Step-15 activity-more interaction; and the Web Step-6 explicit Cases sort behavior does not currently have an equivalent explicit Windows implementation.
+- Known Windows parity gaps before building the Windows Unguided E2E: Case Resolution Notes is displayed/enabled but is not currently persisted in `CaseInput`; there is no Windows equivalent of the Web Step-15 activity-more interaction; and the Web Step-6 explicit Cases sort behavior does not currently have an equivalent explicit Windows implementation.
 - Windows validation/delete confirmations currently use WPF `MessageBox`, which is a valid platform-specific equivalent rather than the Web PS alert/confirm DOM. Dynamic Lead status behavior and conditional Selected Service UI are present and are suitable for equivalent Windows business-flow coverage.
-- Planned order remains: close required Windows CRM parity gaps -> build a Windows CRM-only UI Automation E2E against the real WPF client -> stabilize/PASS the business scenario -> only then integrate DAP Windows Runtime/target resolution/bubbles.
+- Planned order remains: close required Windows CRM parity gaps -> build a Windows Unguided UI Automation E2E against the real WPF client -> stabilize/PASS the business scenario -> only then integrate DAP Windows Runtime/target resolution/bubbles.
 
 
 
@@ -586,9 +585,9 @@ Architectural invariant: Web and Windows may depend on the shared backend contra
 The old combined root `DAP.TestCRM.csproj` and root launch profile were removed so the Web static files cannot accidentally become a backend dependency.
 
 
-## Windows CRM-only canonical E2E baseline — 2026-10-02
-- The Windows CRM-only UI Automation E2E is implemented in `tests/DAP.TestCRM.Windows.E2E` and executes the shared canonical core scenario from `tests/DAP.TestCRM.E2E.Common` against the real WPF TestCRM client.
-- Local verification reached terminal PASS: `PASS: Windows CRM-only canonical Customer -> Site -> Case -> Lead core scenario completed.`
+## Windows Unguided canonical E2E baseline — 2026-10-02
+- The Windows Unguided UI Automation E2E is implemented in `tests/DAP.TestCRM.Windows.E2E` and executes the shared canonical core scenario from `tests/DAP.TestCRM.E2E.Common` against the real WPF TestCRM client.
+- Local verification reached terminal PASS: `PASS: Windows Unguided canonical Customer -> Site -> Case -> Lead core scenario completed.`
 - The verified core covers Customer -> Site -> Case -> Lead navigation, Case creation/save/status FieldChange behavior, Resolution Notes enablement, required-field validation handling, Lead creation/save/status transitions, conditional Selected Service handling, Lead deletion confirmation, and return to Portal.
 - WPF ComboBoxes used by the scenario expose a custom UIA ValuePattern through `AutomationComboBox`, allowing deterministic value selection without physical popup interaction.
 - Case/Lead FieldChange responses are applied locally in the WPF client instead of immediately reloading the persisted record, preventing transient status changes from being reverted before Save.
@@ -596,12 +595,12 @@ The old combined root `DAP.TestCRM.csproj` and root launch profile were removed 
 - Modal WPF MessageBoxes are handled as real platform dialogs. Expected validation/delete dialogs are dismissed/confirmed explicitly; unexpected informational OK dialogs block further E2E actions until dismissed so the scenario cannot continue behind a modal window.
 - Default Windows E2E wait timeout is 5 seconds.
 - The activity-more interaction remains a Windows-specific UI area to align with the Web behavior; the canonical scenario no longer incorrectly calls validation dismissal immediately after `ShowMoreActivity`.
-- This PASS establishes the Windows CRM-only core baseline. It does not yet mean that the complete persisted 53-Step Web Guide has been reproduced in Windows; the next parity work is to extend the shared/core coverage toward the remaining canonical business steps before integrating DAP Windows Runtime bubbles/target resolution.
+- This PASS establishes the Windows Unguided core baseline. It does not yet mean that the complete persisted 53-Step Web Guide has been reproduced in Windows; the next parity work is to extend the shared/core coverage toward the remaining canonical business steps before integrating DAP Windows Runtime bubbles/target resolution.
 
 - Windows/Web activity-more parity correction: Web renders `#activity-more` but defines no click handler or alert for it. The Windows-only `MessageBox` ("אין פעילויות נוספות להצגה.") was therefore removed; `ActivityMoreButton` now has the same no-alert/no-op business behavior as Web. Commit baseline follows the already verified Windows core PASS; local rerun is required after pull.
-- Pending Windows parity milestone remains explicit: expand the current Windows CRM-only shared core scenario to cover the complete canonical 53-step business workflow before DAP Windows Runtime bubble/target integration is considered complete.
+- Pending Windows parity milestone remains explicit: expand the current Windows Unguided shared core scenario to cover the complete canonical 53-step business workflow before DAP Windows Runtime bubble/target integration is considered complete.
 
-- **Windows canonical 53-step CRM-only milestone: PASS (locally verified 2026-10-02).** `CanonicalCrmScenario.Run53Async` completed the full Customer -> Site -> Case -> Lead flow and terminated with `PASS: Windows CRM-only canonical 53-step Customer -> Site -> Case -> Lead scenario completed.` The Windows E2E now synchronizes async sort/create/delete/navigation transitions in the test harness. Test-only row AutomationIds were removed from the Windows target application; E2E target resolution remains the responsibility of the test harness. No full-53 PASS is claimed for DAP Runtime/bubbles yet; this milestone is the CRM-only Windows business-flow baseline.
+- **Windows canonical 53-step Unguided milestone: PASS (locally verified 2026-10-02).** `CanonicalCrmScenario.Run53Async` completed the full Customer -> Site -> Case -> Lead flow and terminated with `PASS: Windows Unguided canonical 53-step Customer -> Site -> Case -> Lead scenario completed.` The Windows E2E now synchronizes async sort/create/delete/navigation transitions in the test harness. Test-only row AutomationIds were removed from the Windows target application; E2E target resolution remains the responsibility of the test harness. No full-53 PASS is claimed for DAP Runtime/bubbles yet; this milestone is the Unguided Windows business-flow baseline.
 
 
 ## Numeric Guide/Step database identities — 2026-10-02
