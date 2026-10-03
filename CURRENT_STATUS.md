@@ -57,7 +57,7 @@ Recent parity refinements:
 - Windows E2E also registers process-exit/Ctrl+C cleanup for the child processes it owns. Hard termination may still leave a temporary run directory, but later runs never reuse it.
 - Web Guided/Manual/Unguided E2E now follows the same isolation rule: TestCRM Server, TestCRM Web, and (when applicable) DAP are built into a unique `%TEMP%\DAP\E2E\Web\<run-id>` tree and launched from there. Process-exit/Ctrl+C cleanup is registered before child startup, so an interrupted run cannot lock the repository's normal Web/TestCRM/DAP build outputs.
 
-The four-mode 53/53 PASS matrix above remains the last fully verified regression baseline. The newest manual-UX parity changes listed here were made after that baseline and must not be treated as a new full PASS until the affected runs are executed again.
+The four-mode 53/53 PASS matrix above remains the last fully verified regression baseline. The unified `--manual` launch path and per-run Web/Windows output isolation have not yet been reported as full regression PASS. The newest manual-UX parity changes listed here were made after that baseline and must not be treated as a new full PASS until the affected runs are executed again.
 
 Last updated: 2026-10-03
 
