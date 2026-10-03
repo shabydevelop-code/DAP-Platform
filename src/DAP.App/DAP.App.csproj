@@ -15,4 +15,10 @@
     <ProjectReference Include="../DAP.Runtime.Web/DAP.Runtime.Web.csproj" />
     <ProjectReference Include="../DAP.Runtime.Windows/DAP.Runtime.Windows.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="Localization\*.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
 </Project>
