@@ -52,13 +52,11 @@ tests/
   DAP.TestCRM.E2E.Common/
   DAP.TestCRM.Web.E2E/
   DAP.TestCRM.Windows.E2E/
-
-scripts/
-  run-testcrm-web-learner.ps1
-  run-testcrm-windows-learner.ps1
 ```
 
 Web and Windows Learner runtimes are both production code. Test projects automate or validate those runtimes but do not own production target resolution, validation, bubble presentation, or Guide progression semantics. Dependencies must continue to point inward toward Core abstractions.
+
+The canonical TestCRM E2E projects also own development launch orchestration for their platform. Full human runs use `--manual` in the same runner that owns Guided/Unguided execution, so server/app/browser/DAP startup and cleanup are not duplicated in separate PowerShell launchers. `--manual-from-step <N>` remains the focused handoff mode after the real preceding workflow has executed.
 
 ## Desktop application
 
