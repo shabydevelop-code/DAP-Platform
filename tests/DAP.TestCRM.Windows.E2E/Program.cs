@@ -200,9 +200,6 @@ async Task RunGuidedAsync(int? handoffStepOrder = null)
 
         var driver = new WindowsCrmScenarioDriver(windowsApp, window);
 
-        string BubbleFor(string stepId) =>
-            persistedSteps.Single(step => step.Id == stepId).Bubble.Content;
-
         void WaitForStep(string stepId)
         {
             var step = persistedSteps.Single(candidate => candidate.Id == stepId);
