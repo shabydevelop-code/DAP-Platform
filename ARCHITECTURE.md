@@ -426,3 +426,11 @@ The four canonical execution paths are all locally verified 53/53:
 Windows presentation follows the live UIA target across application-window movement and resizing. A manually dragged bubble preserves its relative offset for the active Step. Bubble/highlight presentation is hidden while the target application is minimized or loses foreground ownership, then restored from current UIA geometry when the application becomes active again.
 
 Web FieldChange synchronization treats document identity as part of readiness. When a server-backed status change reloads the active content document, E2E validation waits for a new browser document identity before accepting the application-ready marker; an old still-ready document is not sufficient.
+
+### Resumable learner start boundary
+
+A learner may start at a persisted Guide Step later than Step 1 only when the business application has already been brought to the corresponding real state. The canonical focused E2E runners establish that state without DAP, then launch the normal learner process at the requested Step.
+
+Runtime captures are part of the learner continuation state. DAP.App can receive a serialized capture dictionary through `--resume-context-file` when used with `--start-step`; the composition root validates the entries against the persisted Guide before passing them to the Web or Windows Guide Runtime. The runtimes use those values exactly as if the earlier capture Steps had executed in the same learner process.
+
+This keeps From-Step acceleration outside production target-resolution/validation logic while preserving the same persisted Guide semantics on Web and Windows.
