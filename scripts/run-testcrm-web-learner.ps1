@@ -189,8 +189,7 @@ try {
         $dapDll,
         "--learner-web", $GuideId,
         "--cdp", $cdpEndpoint,
-        "--page-url-contains", "localhost:5200",
-        "--show-completion"
+        "--page-url-contains", "localhost:5200"
     )
     if ($StartStep -gt 1) {
         $dapArgs += @("--start-step", [string]$StartStep)
