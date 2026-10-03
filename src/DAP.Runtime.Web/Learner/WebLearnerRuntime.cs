@@ -109,11 +109,19 @@ public sealed class WebLearnerRuntime
                     if (isClickedValidation)
                     {
                         _validationSession.Trace($"[DAP runtime] click completion at loop entry for Step '{step.Id}'.");
-                        // The validating action may navigate or replace the source
-                        // document. The persisted completion conditions, when any,
-                        // decide whether the business transition is actually done.
+                        // Once the click event is observed, the source target has
+                        // already fulfilled the primary validation. Do not resolve
+                        // that retiring/source target again while navigation or a
+                        // rerender is in flight. Persisted completion conditions
+                        // alone decide when the destination/business transition
+                        // is complete.
                         if (await AreCompletionConditionsSatisfiedAsync(page, step, cancellationToken))
                             return;
+
+                        _validationSession.Trace(
+                            $"[DAP runtime] persisted completion conditions pending for clicked Step '{step.Id}'.");
+                        await Task.Delay(_reconcileInterval, cancellationToken);
+                        continue;
                     }
 
                     var completedResolution = await _bubbles.ResolveTargetAsync(page, step, cancellationToken);
