@@ -24,7 +24,7 @@ Current parity and runtime baseline:
 - Guide seed changes do not silently overwrite an existing persisted Guide. Updates are applied explicitly with `--reset-guide`, preserving: **Seed initializes. DB owns. Runtime consumes.**
 - Closed-target rule remains authoritative: source inspection may be used for diagnosis and learning, never as a Runtime/resolver oracle.
 
-Current milestone: the canonical Web and Windows learner flows are both complete and regression-verified across all four execution modes. Next work can proceed from this 53/53 four-mode baseline rather than expanding Windows Guide coverage.
+Current milestone: the canonical Web and Windows learner flows are complete at the four-path 53/53 regression baseline (Web Guided/Unguided and Windows Guided/Unguided). Additional user-facing runner forms such as Visual, Manual, and From-Step are separate execution variants; focused Visual From Step 47 is also locally verified on both platforms.
 
 ### External UI localization — 2026-10-03
 
@@ -190,13 +190,13 @@ The TestCRM E2E now starts the production `WebLearnerRuntime` for the SQLite-loa
 
 A runtime-neutral `StepContextDefinition` is now part of `GuideStep` and is persisted by SQLite. The Web adapter implements `WebStepContextGuard`; initial supported Web context predicates are `url-equals`, `url-contains`, `url-fragment-equals`, and `css-exists`, evaluated against the live frame identified by the Step's `FrameContext`. `WebLearnerRuntime` checks this guard before target resolution. This allows iframe/document replacement within the same logical route while suppressing the active Step after the user leaves that business context. The TestCRM customer-search fixture uses the stable screen marker `#customer-search` rather than coupling the Step to a route fragment, and E2E now asserts that the bubble disappears after navigation leaves customer search. These behaviors are covered by the current passing regression baseline.
 
-## Next milestone
+## Historical milestone — initial Core/Web resolver phase
 
-The runtime-neutral target-resolution Core has now been started in `src/DAP.Core`. It defines `TargetDescriptor`, `Locator`, `Anchor`, `FrameContext`, runtime identity, and explicit `Resolved` / `NotFound` / `Ambiguous` resolution results. The Core has no Playwright, UIA, SQLite, or test-project dependency.
+At this earlier milestone, the runtime-neutral target-resolution Core had just been started in `src/DAP.Core`. It defines `TargetDescriptor`, `Locator`, `Anchor`, `FrameContext`, runtime identity, and explicit `Resolved` / `NotFound` / `Ambiguous` resolution results. The Core has no Playwright, UIA, SQLite, or test-project dependency.
 
 The target-resolver contract now exists in `DAP.Core`, and the initial Playwright-backed `WebTargetResolver` exists in `DAP.Runtime.Web`. The Web implementation re-resolves frame hierarchy per resolution request, filters candidates through all configured anchors, and returns explicit `NotFound` / `Resolved` / `Ambiguous` outcomes. Playwright remains outside Core. Initial anchor-relation evaluation currently supports CSS anchors; this is a deliberate first implementation boundary, not a Core limitation.
 
-Next: add focused production resolver tests outside the E2E implementation, then introduce the shared `Validation`, `Bubble`, and `GuideStep` Core models before wiring bubble presentation to the Learner Runtime. Bubble rendering remains production runtime code and must not be implemented inside the E2E project. The existing ten-scenario E2E baseline remains the regression baseline.
+Historical next-step note: focused resolver tests, shared `Validation`/`Bubble`/`GuideStep` models, and Learner Runtime wiring were still pending here. Those foundations have since been implemented; this paragraph is retained only as development history.
 
 
 ### Validation coverage
@@ -207,9 +207,9 @@ The validated E2E baseline already includes a real CRM value-validation flow in 
 A target is represented by a runtime-neutral TargetDescriptor rather than a single selector. It identifies the target through a primary locator plus zero or more anchors/context constraints. Resolution must discover candidates, apply the anchors, verify uniqueness, and return an explicit ambiguous/not-found result rather than guessing. The descriptor also carries the runtime and frame context required by the corresponding Web or Windows adapter. This model is intended to support re-resolution after DOM changes, iframe replacement, grid rerender/reorder, layout shifts, target disappearance/reappearance, and equivalent Windows UI changes.
 
 
-## DAP executable host
+## Historical milestone — initial DAP executable host
 
-`src/DAP.App` now exists as a real `net8.0-windows` WPF `WinExe` with assembly name `DAP`. It references Core, Data, SQLite, and the Web Runtime and acts as the production composition root. `--check` initializes the configured SQLite provider, composes the Web Learner runtime services, writes `%TEMP%\\DAP\\dap-check.txt`, and displays a WPF confirmation dialog so infrastructure-check success is visible even though DAP is a `WinExe`. `--learner-web <guide-id> --cdp <endpoint> [--page-url-contains <text>]` now implements the first independent Web attachment path through Playwright `ConnectOverCDPAsync`: it requires exactly one matching Chromium page, loads the persisted guide Steps, and runs the first Step from inside `DAP.exe`. This path still requires local build/runtime validation. The E2E harness now launches Chromium with a per-run CDP port, persists the fixture Step into a temporary SQLite database, starts `DAP.App` through a separate `dotnet` process with that database path and CDP endpoint, and expects the external DAP process to own bubble re-resolution/context behavior. The former in-process `WebLearnerRuntime` wiring has been removed from this E2E path. The E2E continues to host the Learner runtime in-process only as behavioral regression coverage. No separate Bubble.exe is planned; bubble lifecycle belongs to DAP.exe.
+At this earlier milestone, `src/DAP.App` had just become as a real `net8.0-windows` WPF `WinExe` with assembly name `DAP`. It references Core, Data, SQLite, and the Web Runtime and acts as the production composition root. `--check` initializes the configured SQLite provider, composes the Web Learner runtime services, writes `%TEMP%\\DAP\\dap-check.txt`, and displays a WPF confirmation dialog so infrastructure-check success is visible even though DAP is a `WinExe`. `--learner-web <guide-id> --cdp <endpoint> [--page-url-contains <text>]` now implements the first independent Web attachment path through Playwright `ConnectOverCDPAsync`: it requires exactly one matching Chromium page, loads the persisted guide Steps, and runs the first Step from inside `DAP.exe`. At that milestone this path still required local build/runtime validation. The then-current E2E harness launched Chromium with a per-run CDP port, persisted a fixture Step into a temporary SQLite database, started `DAP.App` through a separate `dotnet` process with that database path and CDP endpoint, and expected the external DAP process to own bubble re-resolution/context behavior. The former in-process `WebLearnerRuntime` wiring has been removed from this E2E path. The E2E continues to host the Learner runtime in-process only as behavioral regression coverage. No separate Bubble.exe is planned; bubble lifecycle belongs to DAP.exe.
 
 
 ## Automatic Web Step validation
@@ -234,31 +234,31 @@ The TestCRM E2E now builds DAP.App into a unique temporary E2E-owned output dire
 
 ## Click-validation event race
 
-A local visual E2E run exposed a race in the first event-based Web validation. Step 2 could present its bubble and the user/test could click the target before the next 100ms validation reconciliation installed the clicked listener. That click was then lost, leaving Step 2 active and allowing its bubble to reappear after DOM/context movement. WebBubblePresenter now arms clicked validation on the uniquely resolved target as part of bubble presentation, before the instruction becomes actionable; WebValidationEvaluator continues to consume the recorded state. This fix requires a local E2E rerun before the regression is marked closed. Bubble timing diagnostics now print every ensure-presentation call rather than suppressing calls below 250ms.
+A local visual E2E run exposed a race in the first event-based Web validation. Step 2 could present its bubble and the user/test could click the target before the next 100ms validation reconciliation installed the clicked listener. That click was then lost, leaving Step 2 active and allowing its bubble to reappear after DOM/context movement. WebBubblePresenter now arms clicked validation on the uniquely resolved target as part of bubble presentation, before the instruction becomes actionable; WebValidationEvaluator continues to consume the recorded state. Historical verification note: this fix initially required a local rerun. Later full Guided/Visual regression runs supersede that pending verification state.
 
 
-## Startup timing harness correction
+## Historical milestone — startup timing harness correction
 
-The 6.4-second Playwright.CreateAsync measurements were recorded after E2E process isolation changed DAP.App to a brand-new GUID-named temporary output directory on every run. Earlier direct-executable measurement from a stable build location was about 2.2 seconds total to first bubble. Because Playwright starts its packaged driver/runtime from the application output, repeatedly copying it to a never-before-used path can distort cold-start measurements (for example through first-use filesystem/security scanning). The E2E now uses a stable isolated `%TEMP%\DAP\E2E\app` output directory: it remains separate from the normal DAP.App bin directory, while the existing owned-process Ctrl+C cleanup protects subsequent builds. The directory is intentionally retained between runs. A local rerun is required before deciding whether Playwright lifecycle architecture needs optimization based on the previous 6.4-second measurements.
+The 6.4-second Playwright.CreateAsync measurements were recorded after E2E process isolation changed DAP.App to a brand-new GUID-named temporary output directory on every run. Earlier direct-executable measurement from a stable build location was about 2.2 seconds total to first bubble. Because Playwright starts its packaged driver/runtime from the application output, repeatedly copying it to a never-before-used path can distort cold-start measurements (for example through first-use filesystem/security scanning). At that historical point the E2E temporarily moved to a stable isolated `%TEMP%\DAP\E2E\app` output directory. That strategy has since been superseded: current Web and Windows canonical runners build into a unique GUID-based per-run root under `%TEMP%\DAP\E2E\Web\<run-id>` or `%TEMP%\DAP\E2E\Windows\<run-id>` and never reuse an abandoned executable path.
 
 
-## E2E orphan recovery for stable output
+## Historical milestone — orphan recovery for the former stable output
 
-The stable E2E DAP output exposed one remaining interruption case: an orphaned DAP.exe can survive a prior parent termination and lock `%TEMP%\DAP\E2E\app` before the next run reaches its own process cleanup. The E2E now performs ownership-scoped recovery before build: it enumerates processes named DAP and terminates a candidate only when its executable path exactly matches the harness-owned `%TEMP%\DAP\E2E\app\DAP.exe`. Other installed/development DAP processes are never terminated by this recovery. Normal finally/process-exit cleanup remains in place as the first line of defense.
+The former stable E2E DAP output exposed an orphan-lock problem and briefly used ownership-scoped recovery for `%TEMP%\DAP\E2E\app\DAP.exe`. That mechanism belongs to the superseded stable-output design. Current canonical runners use unique per-run executable roots, so later runs do not reuse or kill an abandoned DAP executable path.
 
 
 ## Immediate learner feedback for click validation
 
-For Web Steps using `ValidationDefinition("clicked")`, the browser-side capture listener now removes the active Step bubble immediately when the target is clicked, after recording the click validation state. The Learner Runtime still owns validation completion and ordered Step advancement on its reconciliation loop; immediate removal is presentation feedback only. This prevents a completed `לחץ כאן` instruction from remaining visibly attached to the target during the interval before the next runtime poll or while the host application begins its own server/DOM update. The behavior is generic to clicked validation and contains no TestCRM-specific logic. Local visual verification is required.
+For Web Steps using `ValidationDefinition("clicked")`, the browser-side capture listener now removes the active Step bubble immediately when the target is clicked, after recording the click validation state. The Learner Runtime still owns validation completion and ordered Step advancement on its reconciliation loop; immediate removal is presentation feedback only. This prevents a completed `לחץ כאן` instruction from remaining visibly attached to the target during the interval before the next runtime poll or while the host application begins its own server/DOM update. The behavior is generic to clicked validation and contains no TestCRM-specific logic. Later full Guided/Visual runs exercise this path; the earlier pending local-verification state is closed.
 
 
 ## DAP-side event validation state
 
-Web `clicked` validation no longer stores completion in the guided application's DOM. `WebValidationSession` exposes a Playwright page binding (`__dapReportValidation`) and records completed Step IDs in DAP.exe memory. Page bindings are available to frames and survive navigation, so a click can be retained even when the application immediately performs a server round trip and replaces the target iframe/document. `WebBubblePresenter` arms the target capture listener and reports the Step ID through the binding while dismissing the visible instruction immediately. `WebLearnerRuntime` checks DAP-side event completion before Step context evaluation and before presentation; therefore a validating action that itself leaves/replaces the Step context can still complete the Step and cannot cause the old bubble to be recreated. DOM-backed `clicked` polling was removed from `WebValidationEvaluator`. Local visual/E2E verification is required before marking this behavior verified.
+Web `clicked` validation no longer stores completion in the guided application's DOM. `WebValidationSession` exposes a Playwright page binding (`__dapReportValidation`) and records completed Step IDs in DAP.exe memory. Page bindings are available to frames and survive navigation, so a click can be retained even when the application immediately performs a server round trip and replaces the target iframe/document. `WebBubblePresenter` arms the target capture listener and reports the Step ID through the binding while dismissing the visible instruction immediately. `WebLearnerRuntime` checks DAP-side event completion before Step context evaluation and before presentation; therefore a validating action that itself leaves/replaces the Step context can still complete the Step and cannot cause the old bubble to be recreated. DOM-backed `clicked` polling was removed from `WebValidationEvaluator`. Later full Guided/Visual regression runs exercise the event-backed click path; the earlier pending verification state is closed.
 
 
-## Complete TestCRM learner Guide
-- The first production-backed Web Guide now spans one complete business flow instead of only the initial search.
+## Historical milestone — first complete 9-Step TestCRM learner segment
+- At this earlier milestone, the first production-backed Web Guide spanned one complete business segment instead of only the initial search.
 - Guide: customer search -> open customer -> open first site -> Cases tab -> create Case -> enter subject -> enter description -> save.
 - The Guide contains 9 persisted Steps using production Core contracts and the production Learner Runtime.
 - The E2E runner waits for the relevant production bubble before each guided action; it does not create or advance bubbles itself.
@@ -269,9 +269,9 @@ Web `clicked` validation no longer stores completion in the guided application's
 
 
 
-## Demo direction
-- Current target is the polished visual TestCRM system demonstration, not a separate manual-run harness.
-- The persisted 9-Step Guide remains the first guided business segment of that demonstration.
+## Historical milestone — early visual demo direction
+- At this earlier milestone the target was a polished visual TestCRM demonstration rather than a separate manual-run harness.
+- The persisted Guide contained 9 Steps at that time; it has since expanded to the canonical 53-Step workflow.
 - Next bubble work should extend the visual demo only where guidance is meaningful, especially across real CRM server/DOM transitions, validation and business-state changes; avoid adding bubbles merely for test coverage.
 
 
@@ -432,7 +432,7 @@ Web `clicked` validation no longer stores completion in the guided application's
 - The corresponding E2E clicks now use exactly the same semantic selector as the Guide. Before each click, the E2E asserts that the semantic target is unique and that its `data-business-id` equals the dynamically captured `createdCaseId`.
 - This preserves deterministic business-record verification without embedding a runtime-generated ID into the persisted Guide and removes the known case where the bubble arrow and visual E2E cursor could point at different Case rows.
 - The remaining late-flow Steps were reviewed against their visible E2E actions; Steps 41 and 48 intentionally use the first row on both sides, while breadcrumb/tab/delete/confirm/Header actions resolve the same logical controls.
-- Local visual E2E should be rerun after pull, with particular observation of Steps 41-53.
+- Historical note: this late-flow review initially requested another Visual rerun. Later full Visual PASS results supersede that pending check.
 
 
 ## Full Guide/E2E compatibility audit
