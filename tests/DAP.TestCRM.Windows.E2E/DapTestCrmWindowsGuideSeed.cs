@@ -343,7 +343,8 @@ internal static class DapTestCrmWindowsGuideSeed
 
         NavigationRowStep(
             "testcrm-windows-customer-site", 39,
-            "SitesGrid", "פתח את האתר הראשון",
+            "SitesGrid", "פתח את האתר מטה תל אביב",
+            "מטה תל אביב",
             completionCondition: new StepCompletionCondition("target-exists", ById("LeadsTab"))),
 
         ClickStep(
