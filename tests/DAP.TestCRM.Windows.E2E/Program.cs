@@ -223,13 +223,36 @@ async Task RunGuidedAsync()
         }
         await driver.OpenCreatedCase();
 
+        WaitForBubble(BubbleFor("testcrm-windows-case-in-progress"), dap);
+        await driver.SetCaseStatus("בטיפול");
+
+        WaitForBubble(BubbleFor("testcrm-windows-resolution-notes"), dap);
+        await driver.SetResolutionNotes("נבדקה תשתית הלקוח");
+
+        WaitForBubble(BubbleFor("testcrm-windows-activity-more"), dap);
+        await driver.ShowMoreActivity();
+
+        WaitForBubble(BubbleFor("testcrm-windows-case-closed"), dap);
+        await driver.SetCaseStatus("סגורה");
+
+        WaitForBubble(BubbleFor("testcrm-windows-case-subject-after-close"), dap);
+        await driver.SetCaseSubject("תקלה בחיבור לאינטרנט");
+
+        WaitForBubble(BubbleFor("testcrm-windows-attempt-close-save"), dap);
+        await driver.SaveCase();
+
+        WaitForBubble(BubbleFor("testcrm-windows-confirm-close-validation"), dap);
+        await driver.DismissValidation();
+
+        WaitForBubble(BubbleFor("testcrm-windows-close-reason"), dap);
+        await driver.SetCloseReason("טופל");
+
         if (!dap.WaitForExit(15_000))
-            throw new TimeoutException("DAP.exe did not complete after the validating Step 12 action.");
+            throw new TimeoutException("DAP.exe did not complete after the validating Step 20 action.");
         if (dap.ExitCode != 0)
             throw new Exception($"DAP.exe exited with code {dap.ExitCode}.");
 
-        WaitForElementById(window, "DeleteCaseButton", 5_000);
-        Console.WriteLine("PASS: DAP Windows Learner Runtime persisted Steps 1 -> 12 with real UIA targets, runtime capture, and bubbles.");
+        Console.WriteLine("PASS: DAP Windows Learner Runtime persisted Steps 1 -> 20 with real UIA targets, runtime capture, modal targeting, and bubbles.");
     }
     finally
     {
