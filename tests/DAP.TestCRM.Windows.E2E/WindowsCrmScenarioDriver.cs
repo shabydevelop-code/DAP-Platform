@@ -53,52 +53,14 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
         },$"{id} enabled");
         if(!e.TryGetCurrentPattern(ValuePattern.Pattern,out var p))throw new Exception($"{id} has no ValuePattern.");
         e.SetFocus();
-
-        // Wait for the actual UIA focus state before editing. SetFocus() can return
-        // before WPF has published HasKeyboardFocus=true, and an immediate SetValue
-        // + TAB can otherwise collapse the whole edit/blur lifecycle into one race.
-        Wait(() =>
-        {
-            var current=window.FindFirst(
-                TreeScope.Descendants,
-                new PropertyCondition(AutomationElement.AutomationIdProperty,id));
-            return current is not null && current.Current.HasKeyboardFocus ? current : null;
-        },$"{id} keyboard focus");
-
         ((ValuePattern)p).SetValue(value);
-
-        // Observe the new value while the editor is still focused. This keeps the
-        // synthetic learner aligned with the production contract: edit first,
-        // then commit by a real focus traversal.
-        Wait(() =>
-        {
-            var current=window.FindFirst(
-                TreeScope.Descendants,
-                new PropertyCondition(AutomationElement.AutomationIdProperty,id));
-            if(current is null
-               || !current.Current.HasKeyboardFocus
-               || !current.TryGetCurrentPattern(ValuePattern.Pattern,out var currentPattern))
-                return null;
-
-            return string.Equals(
-                ((ValuePattern)currentPattern).Current.Value,
-                value,
-                StringComparison.Ordinal)
-                ? current
-                : null;
-        },$"{id} focused value '{value}'");
-
-        KeyPress(VK_TAB);
-
+        window.SetFocus();
         Wait(()=>
         {
             var current=window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,id));
             if(current is null || !current.TryGetCurrentPattern(ValuePattern.Pattern,out var currentPattern))return null;
-            return string.Equals(((ValuePattern)currentPattern).Current.Value,value,StringComparison.Ordinal)
-                   && !current.Current.HasKeyboardFocus
-                ? current
-                : null;
-        },$"{id} committed value '{value}'");
+            return string.Equals(((ValuePattern)currentPattern).Current.Value,value,StringComparison.Ordinal) ? current : null;
+        },$"{id} value '{value}'");
     }
     void Select(string id,string value)
     {
