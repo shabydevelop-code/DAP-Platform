@@ -592,12 +592,11 @@ Web `clicked` validation no longer stores completion in the guided application's
 - Web E2E execution uses one canonical Customer -> Site -> Case -> Lead business flow. Mode switches must not create a second independently maintained business scenario.
 - Unguided runs the canonical CRM flow without launching DAP.exe or synchronizing learner bubbles, while remaining sequenced by the persisted Guide. This baseline is locally verified PASS.
 - The normal Fast + DAP path was locally re-verified after the unified-mode refactor: the persisted Guide loaded 53 Steps and the complete representative workflow ended in PASS.
-- `--manual-from-step <N>` preserves its existing semantics: execute the real preceding workflow in Fast mode, wait until production Guide Step N is visibly ready, then stop automation and hand control to the human tester. Step 47 handoff was locally verified.
-- Added `--visual-from-step <N>`: execute Steps before N in Fast mode, switch the same running canonical scenario to Visual at Step N, and continue automatically to the end. `--manual-from-step` and `--visual-from-step` are mutually exclusive.
-- Local verification of `--visual-from-step 47` showed the explicit `FAST -> VISUAL` transition at Step 47 and completed the workflow with terminal PASS.
-- Visual frame-replacement waiting no longer requires observing the transient `#content-frame-next` Attached state. The harness waits for the stable replacement outcome/current ready Content frame, avoiding a race where the transient frame can be created/promoted before Playwright observes it. The Step-47-to-end Visual verification passed through the previously failing Step 50.
+- Historical Web From-Step verification used Guided Fast before N. That implementation has now been superseded by ADR-044 and must not be treated as the current contract.
+- Current focused semantics are Unguided `1..N-1`, then Guided Manual or Guided Visual at N with resume context. `--manual-from-step` and `--visual-from-step` remain mutually exclusive.
+- Visual frame-replacement waiting no longer requires observing the transient `#content-frame-next` Attached state. The harness waits for the stable replacement outcome/current ready Content frame, avoiding a race where the transient frame can be created/promoted before Playwright observes it.
 - In full Visual mode the final Step 53 bubble is intentionally left visible briefly before the automated final action so the final Guide instruction can be observed.
-- Current Web execution behaviors are therefore: full Fast, full Visual, full Manual via `--manual`, Fast -> manual at N, Fast -> Visual at N, Unguided, and explicit Guide reset. Browser selection remains `chromium|chrome|edge` where applicable.
+- Current Web execution behaviors are therefore: full Fast, full Visual, full Manual via `--manual`, Unguided -> Manual at N, Unguided -> Visual at N, Unguided Full, and explicit Guide reset. Browser selection remains `chromium|chrome|edge` where applicable.
 - Windows TestCRM was reviewed against the persisted 53-Step Web Guide. Most of the business workflow is relevant to Windows because both clients use the same server/API/business model, but Web-specific mechanics (DOM/iframe/frame URL/CSS targeting) must not be copied literally into Windows UIA tests.
 - Known Windows parity gaps before building the Windows Unguided E2E: Case Resolution Notes is displayed/enabled but is not currently persisted in `CaseInput`; there is no Windows equivalent of the Web Step-15 activity-more interaction; and the Web Step-6 explicit Cases sort behavior does not currently have an equivalent explicit Windows implementation.
 - Windows validation/delete confirmations currently use WPF `MessageBox`, which is a valid platform-specific equivalent rather than the Web PS alert/confirm DOM. Dynamic Lead status behavior and conditional Selected Service UI are present and are suitable for equivalent Windows business-flow coverage.
@@ -704,7 +703,7 @@ The design rule remains: Guide/DB owns what completes a Step; Runtime owns how i
 
 ## Windows manual learner handoff — 2026-10-03
 
-The Windows TestCRM E2E runner supports `--manual-from-step <N>`, matching the Web handoff model. The runner starts the backend, Windows TestCRM, and production DAP Windows Learner Runtime from Step 1; it automates the canonical learner actions only until Step N is visibly ready, then stops synthetic UI actions and leaves DAP/TestCRM running for a human to continue manually through the remaining bubbles. This preserves earlier runtime captures and business context, so `--manual-from-step` must not be implemented by launching DAP directly at Step N on a fresh application state.
+The Windows TestCRM E2E runner supports `--manual-from-step <N>`, matching the Web handoff model. The runner starts backend and Windows TestCRM, executes Steps `1..N-1` without DAP to establish the real business state, preserves required runtime captures in resume context, then launches the production Windows Learner Runtime directly at Step N. Launching at N is valid only because the real preceding workflow and its capture context were preserved; starting at N on a fresh application state remains invalid.
 
 `--manual-from-step` cannot be combined with `--unguided`. When the operator finishes the manual session and presses ENTER in the E2E console, the runner cleans up the DAP, TestCRM, and backend processes it owns.
 
@@ -712,8 +711,8 @@ The Windows TestCRM E2E runner supports `--manual-from-step <N>`, matching the W
 - Windows canonical E2E now accepts the same `DAP_E2E_MODE=fast|visual` vocabulary as Web; `fast` remains the default and any other value fails explicitly.
 - `--guided` + `fast` is the existing automatic 53-Step Windows Guided run.
 - `--guided` + `visual` runs the same persisted 53-Step Guide and the same UIA action driver, but adds observable cursor movement and visual pacing before learner actions. No alternate test scenario or production shortcut was introduced.
-- Windows now also accepts `--visual-from-step <N>`, matching the current Web focused-run model: prior Steps execute in Fast mode and the same running Guided scenario switches to Visual when Step N is visibly active.
-- Existing `--manual-from-step <N>`, `--manual`, and `--unguided` remain available. Unguided also honors `DAP_E2E_MODE=fast|visual` for action pacing while still running without DAP.exe/bubbles.
+- Windows also accepts `--visual-from-step <N>`, matching Web: prior Steps execute as Unguided bootstrap, then DAP starts at Step N and automation continues in Guided Visual mode.
+- Existing `--manual-from-step <N>`, `--manual`, and `--unguided` remain available. Unguided has no Fast/Visual mode and ignores `DAP_E2E_MODE`.
 - The 5-second technical timeout policy is unchanged. Visual delays are presentation pacing only and do not increase resolver/synchronization timeouts.
 - Implementation is committed; a local Windows/UIA run is still required before claiming new Visual-mode PASS coverage.
 
