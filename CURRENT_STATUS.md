@@ -52,6 +52,7 @@ Recent parity refinements:
 - Windows initial Step presentation now attempts one-time automatic viewport adjustment through production-observable UIA scrolling. Targets that are clipped or too close to a scroll viewport edge are brought toward a comfortable central region before bubble placement. Reconciliation does not continuously re-center the target, so intentional learner scrolling remains authoritative after initial presentation.
 - Windows manual bubble dragging hides the directional pointer immediately when dragging begins and keeps it hidden for the remainder of that active Step. The next Step resets to automatic placement and restores its pointer.
 - Web reconciliation trace noise was reduced by removing repetitive successful context/EnsureShown lines while retaining meaningful state/race diagnostics.
+- Windows Step timing now logs the first bubble presentation once per active Step instead of logging every reconciliation refresh.
 
 The four-mode 53/53 PASS matrix above remains the last fully verified regression baseline. The newest manual-UX parity changes listed here were made after that baseline and must not be treated as a new full PASS until the affected runs are executed again.
 
