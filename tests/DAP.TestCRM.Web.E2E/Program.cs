@@ -68,22 +68,89 @@ static int ReserveTcpPort()
     return port;
 }
 
+var repoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+var testCrmProject = Path.Combine(repoRoot, "test-apps", "DAP.TestCRM", "Web", "DAP.TestCRM.Web.csproj");
+var testCrmBackendProject = Path.Combine(repoRoot, "test-apps", "DAP.TestCRM", "Server", "DAP.TestCRM.Server.csproj");
+var dapAppProject = Path.Combine(repoRoot, "src", "DAP.App", "DAP.App.csproj");
+var webRunRoot = Path.Combine(
+    Path.GetTempPath(),
+    "DAP",
+    "E2E",
+    "Web",
+    Guid.NewGuid().ToString("N"));
+var backendOutput = Path.Combine(webRunRoot, "Server");
+var webOutput = Path.Combine(webRunRoot, "Web");
+var dapOutput = Path.Combine(webRunRoot, "DAP");
+
+async Task BuildIsolatedAsync(string project, string output, string name)
+{
+    Directory.CreateDirectory(output);
+    Console.WriteLine($"Building {name} into isolated E2E output: {output}");
+
+    using var build = Process.Start(new ProcessStartInfo
+    {
+        FileName = "dotnet",
+        Arguments = $"build \"{project}\" --nologo --verbosity minimal --output \"{output}\"",
+        WorkingDirectory = repoRoot,
+        UseShellExecute = false,
+        CreateNoWindow = true,
+        RedirectStandardOutput = true,
+        RedirectStandardError = true
+    }) ?? throw new InvalidOperationException($"Could not start isolated build for {name}.");
+
+    var stdout = build.StandardOutput.ReadToEndAsync();
+    var stderr = build.StandardError.ReadToEndAsync();
+    await build.WaitForExitAsync();
+
+    if (build.ExitCode != 0)
+    {
+        throw new InvalidOperationException(
+            $"{name} isolated build failed with exit code {build.ExitCode}.{Environment.NewLine}" +
+            $"STDOUT:{Environment.NewLine}{await stdout}{Environment.NewLine}" +
+            $"STDERR:{Environment.NewLine}{await stderr}");
+    }
+}
+
+void TryKillOwnedProcessTree(Process? process)
+{
+    if (process is null)
+        return;
+
+    try
+    {
+        if (!process.HasExited)
+        {
+            process.Kill(entireProcessTree: true);
+            process.WaitForExit(5000);
+        }
+    }
+    catch (InvalidOperationException) { }
+    catch (System.ComponentModel.Win32Exception) { }
+}
+
 Process? ownedTestCrmProcess = null;
 Process? ownedTestCrmBackendProcess = null;
 {
-    var repoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
-    var testCrmProject = Path.Combine(repoRoot, "test-apps", "DAP.TestCRM", "Web", "DAP.TestCRM.Web.csproj");
-    var testCrmBackendProject = Path.Combine(repoRoot, "test-apps", "DAP.TestCRM", "Server", "DAP.TestCRM.Server.csproj");
     if (!File.Exists(testCrmProject))
         throw new FileNotFoundException("TestCRM Web project was not found.", testCrmProject);
     if (!File.Exists(testCrmBackendProject))
         throw new FileNotFoundException("TestCRM Server project was not found.", testCrmBackendProject);
+    if (!File.Exists(dapAppProject))
+        throw new FileNotFoundException("DAP.App project was not found.", dapAppProject);
+
+    await BuildIsolatedAsync(testCrmBackendProject, backendOutput, "TestCRM Server");
+    await BuildIsolatedAsync(testCrmProject, webOutput, "TestCRM Web");
+    if (!unguided)
+        await BuildIsolatedAsync(dapAppProject, dapOutput, "DAP");
+
+    var backendDll = Path.Combine(backendOutput, "DAP.TestCRM.Server.dll");
+    var webDll = Path.Combine(webOutput, "DAP.TestCRM.Web.dll");
 
     var backendPsi = new ProcessStartInfo
     {
         FileName = "dotnet",
-        Arguments = $"run --project \"{testCrmBackendProject}\" --no-launch-profile",
-        WorkingDirectory = repoRoot,
+        Arguments = $"\"{backendDll}\"",
+        WorkingDirectory = Path.GetDirectoryName(testCrmBackendProject)!,
         UseShellExecute = false,
         CreateNoWindow = true,
         RedirectStandardOutput = true,
@@ -110,8 +177,8 @@ Process? ownedTestCrmBackendProcess = null;
     var psi = new ProcessStartInfo
     {
         FileName = "dotnet",
-        Arguments = $"run --project \"{testCrmProject}\" --no-launch-profile",
-        WorkingDirectory = repoRoot,
+        Arguments = $"\"{webDll}\"",
+        WorkingDirectory = Path.GetDirectoryName(testCrmProject)!,
         UseShellExecute = false,
         CreateNoWindow = true,
         RedirectStandardOutput = true,
@@ -649,18 +716,20 @@ Process? dapProcess=null;
 Task<string>? dapStdOutTask=null;
 void KillOwnedDapProcess()
 {
-    if(dapProcess is null) return;
-    try
-    {
-        if(!dapProcess.HasExited)
-        {
-            dapProcess.Kill(entireProcessTree:true);
-            dapProcess.WaitForExit(5000);
-        }
-    }
-    catch(InvalidOperationException) { }
-    catch(System.ComponentModel.Win32Exception) { }
+    TryKillOwnedProcessTree(dapProcess);
 }
+
+void KillOwnedWebChildren()
+{
+    KillOwnedDapProcess();
+    TryKillOwnedProcessTree(ownedTestCrmProcess);
+    TryKillOwnedProcessTree(ownedTestCrmBackendProcess);
+}
+
+EventHandler webProcessExitCleanup = (_, _) => KillOwnedWebChildren();
+ConsoleCancelEventHandler webCancelCleanup = (_, _) => KillOwnedWebChildren();
+AppDomain.CurrentDomain.ProcessExit += webProcessExitCleanup;
+Console.CancelKeyPress += webCancelCleanup;
 
 try
 {
@@ -668,88 +737,7 @@ if(!unguided)
 {
 var dapStep=dapSteps[0];
 var dapSecondStep=dapSteps[1];
-var dapAppProject=Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","..","..","..","..","src","DAP.App","DAP.App.csproj"));
-if(!File.Exists(dapAppProject))
-    throw new Exception($"DAP.App project not found at {dapAppProject}");
-
-// Build into an E2E-owned output directory. A DAP process orphaned by an
-// interrupted earlier run can then only lock its own old output, never this run.
-var dapBuildOutput=Path.Combine(Path.GetTempPath(),"DAP","E2E","app");
-Directory.CreateDirectory(dapBuildOutput);
-var dapExecutable=Path.Combine(dapBuildOutput,"DAP.exe");
-
-// Ctrl+C or a hard parent-process termination can leave the E2E-owned DAP
-// process alive. Before rebuilding the stable output, remove only an orphan
-// whose executable path is exactly this harness-owned DAP.exe. Never kill
-// unrelated product DAP processes.
-foreach(var candidate in Process.GetProcessesByName("DAP"))
-{
-    using(candidate)
-    {
-        try
-        {
-            var candidatePath=candidate.MainModule?.FileName;
-            if(!string.Equals(
-                Path.GetFullPath(candidatePath ?? string.Empty),
-                Path.GetFullPath(dapExecutable),
-                StringComparison.OrdinalIgnoreCase))
-                continue;
-
-            Console.WriteLine($"Cleaning orphaned E2E DAP process {candidate.Id}.");
-            candidate.Kill(entireProcessTree:true);
-            candidate.WaitForExit(5000);
-        }
-        catch(InvalidOperationException) { }
-        catch(System.ComponentModel.Win32Exception) { }
-    }
-}
-
-// Build is deliberately outside the measured DAP startup path. Reuse the
-// stable E2E output only when no DAP source/project input is newer than the
-// executable. This keeps repeated runs fast without ever testing stale product
-// code after a source change.
-var dapSourceRoot=Path.GetFullPath(Path.Combine(Path.GetDirectoryName(dapAppProject)!,".."));
-var dapExecutableTimestamp=File.Exists(dapExecutable)
-    ? File.GetLastWriteTimeUtc(dapExecutable)
-    : DateTime.MinValue;
-var dapBuildInputExtensions=new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-{
-    ".cs", ".csproj", ".props", ".targets", ".json", ".sql", ".xaml", ".resx"
-};
-var dapBuildRequired=!File.Exists(dapExecutable)
-    || Directory.EnumerateFiles(dapSourceRoot,"*",SearchOption.AllDirectories)
-        .Where(path=>dapBuildInputExtensions.Contains(Path.GetExtension(path)))
-        .Any(path=>File.GetLastWriteTimeUtc(path)>dapExecutableTimestamp);
-
-if(dapBuildRequired)
-{
-    StartupMark("orphan cleanup completed; DAP.App build starting");
-    using(var dapBuildProcess=Process.Start(new ProcessStartInfo
-    {
-        FileName="dotnet",
-        Arguments=$"build \"{dapAppProject}\" --nologo --verbosity quiet --output \"{dapBuildOutput}\"",
-        UseShellExecute=false,
-        CreateNoWindow=true,
-        RedirectStandardOutput=true,
-        RedirectStandardError=true
-    }) ?? throw new Exception("DAP.App build process could not be started."))
-    {
-        var buildStdOutTask=dapBuildProcess.StandardOutput.ReadToEndAsync();
-        var buildStdErrTask=dapBuildProcess.StandardError.ReadToEndAsync();
-        await dapBuildProcess.WaitForExitAsync();
-        if(dapBuildProcess.ExitCode!=0)
-            throw new Exception(
-                $"DAP.App build failed. ExitCode={dapBuildProcess.ExitCode}.{Environment.NewLine}" +
-                $"STDOUT:{Environment.NewLine}{await buildStdOutTask}{Environment.NewLine}" +
-                $"STDERR:{Environment.NewLine}{await buildStdErrTask}");
-    }
-    StartupMark("DAP.App build completed");
-}
-else
-{
-    StartupMark("DAP.App build skipped; stable E2E output is current");
-}
-
+var dapExecutable=Path.Combine(dapOutput,"DAP.exe");
 if(!File.Exists(dapExecutable))
     throw new Exception($"Built DAP executable not found at {dapExecutable}");
 
@@ -759,6 +747,7 @@ dapProcess=new Process
     {
         FileName=dapExecutable,
         Arguments=$"--learner-web {DapTestCrmGuideSeed.GuideId} --cdp http://127.0.0.1:{dapCdpPort} --page-url-contains localhost:5200",
+        WorkingDirectory=dapOutput,
         UseShellExecute=false,
         CreateNoWindow=true,
         RedirectStandardOutput=true,
@@ -770,11 +759,6 @@ var dapStartupTimer=Stopwatch.StartNew();
 if(!dapProcess.Start())
     throw new Exception("DAP.exe process could not be started.");
 StartupMark("DAP.exe process started");
-
-// Ctrl+C can terminate the E2E before async finally cleanup gets a chance to
-// run. Register a synchronous process-exit safety net scoped only to the DAP
-// process created by this test.
-AppDomain.CurrentDomain.ProcessExit+=(_,_)=>KillOwnedDapProcess();
 
 dapStdOutTask=dapProcess.StandardOutput.ReadToEndAsync();
 dapProcess.ErrorDataReceived+=(_,eventArgs)=>
@@ -1336,6 +1320,9 @@ await page.WaitForTimeoutAsync(visualMode ? 1500 : 0);
 }
 finally
 {
+    AppDomain.CurrentDomain.ProcessExit -= webProcessExitCleanup;
+    Console.CancelKeyPress -= webCancelCleanup;
+
     KillOwnedDapProcess();
 
     if (ownedTestCrmProcess is not null)
@@ -1372,5 +1359,19 @@ finally
         {
             ownedTestCrmBackendProcess.Dispose();
         }
+    }
+
+    try
+    {
+        if (Directory.Exists(webRunRoot))
+            Directory.Delete(webRunRoot, recursive: true);
+    }
+    catch (IOException)
+    {
+        // A hard interruption can leave an isolated run directory temporarily
+        // locked. Future runs never reuse it, so it cannot block later builds.
+    }
+    catch (UnauthorizedAccessException)
+    {
     }
 }
