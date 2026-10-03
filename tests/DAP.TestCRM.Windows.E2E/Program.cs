@@ -504,24 +504,36 @@ AutomationElement WaitForBubble(string expectedInstruction, Process dapProcess, 
         AutomationElement? bubble = null;
         try
         {
-            var candidates = AutomationElement.RootElement.FindAll(
-                TreeScope.Descendants,
-                new PropertyCondition(AutomationElement.AutomationIdProperty, "DapLearnerBubble"));
-
-            bubble = candidates.Cast<AutomationElement>()
-                .FirstOrDefault(IsVisibleUiaElement);
-
-            // WPF top-level windows do not always expose AutomationId consistently
-            // through UIA when DAP is launched via "dotnet run". The bubble's
-            // accessible Name is the instruction itself, so use that as a second,
-            // source-independent identity path before declaring it missing.
-            bubble ??= AutomationElement.RootElement.FindAll(
+            // The learner bubble is a top-level WPF Window. Searching the entire
+            // desktop descendant tree can block for several seconds on unrelated UIA
+            // providers and consume the whole E2E timeout before we inspect the bubble.
+            // Restrict discovery to top-level windows and match either its stable
+            // AutomationId or the current instruction exposed as the accessible Name.
+            var topLevelWindows = AutomationElement.RootElement.FindAll(
                     TreeScope.Children,
-                    new AndCondition(
-                        new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Window),
-                        new PropertyCondition(AutomationElement.NameProperty, expectedInstruction)))
-                .Cast<AutomationElement>()
-                .FirstOrDefault(IsVisibleUiaElement);
+                    new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Window))
+                .Cast<AutomationElement>();
+
+            bubble = topLevelWindows
+                .FirstOrDefault(candidate =>
+                {
+                    try
+                    {
+                        return IsVisibleUiaElement(candidate)
+                               && (string.Equals(
+                                       candidate.Current.AutomationId,
+                                       "DapLearnerBubble",
+                                       StringComparison.Ordinal)
+                                   || string.Equals(
+                                       candidate.Current.Name,
+                                       expectedInstruction,
+                                       StringComparison.Ordinal));
+                    }
+                    catch (ElementNotAvailableException)
+                    {
+                        return false;
+                    }
+                });
 
             if (bubble is null && !diagnosticLogged && sw.ElapsedMilliseconds >= 1_000)
             {
