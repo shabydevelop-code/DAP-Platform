@@ -52,6 +52,14 @@ public sealed class WebValidationSession : IAsyncDisposable
     public bool IsCompleted(string stepId)
         => _completedSteps.ContainsKey(stepId);
 
+    public void ConsumeCompletion(string stepId)
+    {
+        _completedSteps.TryRemove(stepId, out _);
+        if (_completionSignals.TryRemove(stepId, out var signal))
+            signal.Dispose();
+        Trace($"[DAP validation] consumed non-click commit event for Step '{stepId}'.");
+    }
+
     public CancellationToken GetCompletionToken(string stepId)
     {
         if (IsCompleted(stepId))
