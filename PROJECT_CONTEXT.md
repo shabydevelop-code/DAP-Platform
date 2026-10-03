@@ -295,7 +295,7 @@ These are authoring semantics, not TestCRM/Grid-specific Runtime concepts. Core/
 
 ## TestCRM refactor verification and database separation (2026-10-02)
 - The TestCRM refactor to `Server/`, `Web/`, and `data/` was pulled and verified locally.
-- TestCRM starts successfully on `http://localhost:5200` after the WebRoot fix.
+- The TestCRM Web host starts successfully on `http://localhost:5200` after the WebRoot fix; the shared backend/API is on `http://localhost:5201`.
 - The representative `Customer -> Site -> Case -> Lead` E2E workflow passes after the refactor, including dynamic Lead deletion and Case deletion.
 - `tests/DAP.Data.Sqlite.Tests` contains infrastructure tests for DAP's SQLite persistence layer; it is not a TestCRM application/test-data directory and should remain under `tests/`.
 - DAP product persistence and TestCRM business persistence are intentionally separate:
@@ -323,7 +323,7 @@ These are authoring semantics, not TestCRM/Grid-specific Runtime concepts. Core/
 - Windows TestCRM was reviewed against the persisted 53-Step Web Guide. Most of the business workflow is relevant to Windows because both clients use the same server/API/business model, but Web-specific mechanics (DOM/iframe/frame URL/CSS targeting) must not be copied literally into Windows UIA tests.
 - Historical parity gaps identified before the Windows canonical flow was completed have been closed for the current 53-Step baseline; Web and Windows now execute aligned business scenarios with platform-specific implementations.
 - Windows validation/delete confirmations currently use WPF `MessageBox`, which is a valid platform-specific equivalent rather than the Web PS alert/confirm DOM. Dynamic Lead status behavior and conditional Selected Service UI are present and are suitable for equivalent Windows business-flow coverage.
-- Planned order remains: close required Windows CRM parity gaps -> build a Windows Unguided UI Automation E2E against the real WPF client -> stabilize/PASS the business scenario -> only then integrate DAP Windows Runtime/target resolution/bubbles.
+- That historical Windows parity plan is complete: the parity gaps were closed, the Windows Unguided UI Automation E2E was implemented and stabilized, and the production Windows Runtime/target resolution/bubbles were integrated and verified through the canonical 53-Step Guided baseline.
 
 
 
