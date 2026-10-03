@@ -473,3 +473,8 @@ The supported `DAP_E2E_MODE` vocabulary is `fast|visual` only. `demo` is removed
 
 Changes to `DAP_E2E_MODE`, `--guided`, `--unguided`, `--manual`, `--manual-from-step`, `--visual-from-step`, or equivalent focused-run semantics must be reviewed for both Web and Windows together. An intentional one-platform exception requires an explicit ADR instead of silent drift.
 
+
+### Implemented Windows execution-mode parity
+Windows now implements the shared runner-mode contract rather than merely documenting it. The canonical Windows E2E parses `DAP_E2E_MODE=fast|visual`, rejects unsupported values, supports `--visual-from-step <N>`, and uses the existing UIA action driver for both modes. Visual mode adds platform-native visible cursor movement and pacing around the same learner actions; Fast mode retains the prior automation behavior. Unguided execution can use the same pacing selection while remaining DAP-free.
+
+This change does not raise the 5-second timeout and does not introduce a separate Windows visual scenario. Local Windows/UIA validation is required before marking the new Visual paths verified.
