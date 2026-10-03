@@ -22,9 +22,12 @@ public sealed class WebGuideRuntime
         IPage page,
         IReadOnlyList<GuideStep> guideSteps,
         CancellationToken cancellationToken,
-        int? startStepOrder = null)
+        int? startStepOrder = null,
+        IReadOnlyDictionary<string, string>? initialCapturedValues = null)
     {
-        var capturedValues = new Dictionary<string, string>(StringComparer.Ordinal);
+        var capturedValues = initialCapturedValues is null
+            ? new Dictionary<string, string>(StringComparer.Ordinal)
+            : new Dictionary<string, string>(initialCapturedValues, StringComparer.Ordinal);
 
         var orderedSteps = guideSteps.OrderBy(step => step.Order).ToArray();
         var startIndex = 0;
@@ -105,6 +108,17 @@ public sealed class WebGuideRuntime
             return fragment.Replace(@"\", @"\\", StringComparison.Ordinal)
                 .Replace("'", @"\'", StringComparison.Ordinal);
         });
+
+    public static async Task<string?> CaptureStepValueAsync(
+        IPage page,
+        GuideStep step,
+        CancellationToken cancellationToken = default)
+    {
+        if (step.Capture is null)
+            return null;
+
+        return await ResolveCaptureAsync(page, step, cancellationToken);
+    }
 
     private static async Task<string?> ResolveCaptureAsync(
         IPage page,
