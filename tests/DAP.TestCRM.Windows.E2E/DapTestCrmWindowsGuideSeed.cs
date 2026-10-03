@@ -161,6 +161,44 @@ internal static class DapTestCrmWindowsGuideSeed
             "CasesGrid", "פתח את הפנייה שיצרת",
             @"^{{step:testcrm-windows-back-to-cases:capture}}$",
             descendantNameIsRegex: true,
-            columnHeaderName: "מזהה")
+            columnHeaderName: "מזהה"),
+
+        ValueStep(
+            "testcrm-windows-case-in-progress", 13,
+            "CaseStatus", "שנה את סטטוס הפנייה לבטיפול",
+            "value-equals", "בטיפול"),
+
+        ValueStep(
+            "testcrm-windows-resolution-notes", 14,
+            "CaseResolutionNotes", "הוסף הערות טיפול"),
+
+        ClickStep(
+            "testcrm-windows-activity-more", 15,
+            ById("ActivityMoreButton"), "הצג פעילויות נוספות"),
+
+        ValueStep(
+            "testcrm-windows-case-closed", 16,
+            "CaseStatus", "שנה את סטטוס הפנייה לסגורה",
+            "value-equals", "סגורה"),
+
+        ValueStep(
+            "testcrm-windows-case-subject-after-close", 17,
+            "CaseSubject", "הזן מחדש את נושא הפנייה"),
+
+        ClickStep(
+            "testcrm-windows-attempt-close-save", 18,
+            ById("SaveCaseButton"), "נסה לשמור את הפנייה"),
+
+        ClickStep(
+            "testcrm-windows-confirm-close-validation", 19,
+            TargetDescriptor.Create(
+                TargetRuntime.Windows,
+                new Locator("control-type", "button")),
+            "אשר את הודעת השגיאה"),
+
+        ValueStep(
+            "testcrm-windows-close-reason", 20,
+            "CaseCloseReason", "בחר בסיבת הסגירה \"טופל\"",
+            "value-equals", "טופל")
     };
 }
