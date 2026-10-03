@@ -214,13 +214,18 @@ internal static class DapTestCrmWindowsGuideSeed
                     TargetRuntime.Windows,
                     new Locator("name-regex", @"^(OK|אישור)$")))),
 
-        ClickStep(
+        new GuideStep(
             "testcrm-windows-confirm-close-validation", 19,
             TargetDescriptor.Create(
                 TargetRuntime.Windows,
                 new Locator("name-regex", @"^(OK|אישור)$")),
-            "אשר את הודעת השגיאה",
-            completionCondition: new StepCompletionCondition("target-exists", ById("CaseCloseReason"))),
+            new BubbleDefinition("אשר את הודעת השגיאה", BubblePlacement.Bottom),
+            new ValidationDefinition("target-disappeared"),
+            StepAdvanceMode.AutomaticOnValidation,
+            CompletionConditions: new[]
+            {
+                new StepCompletionCondition("target-exists", ById("CaseCloseReason"))
+            }),
 
         ValueStep(
             "testcrm-windows-close-reason", 20,
@@ -286,13 +291,18 @@ internal static class DapTestCrmWindowsGuideSeed
                     TargetRuntime.Windows,
                     new Locator("name-regex", @"^(OK|אישור)$")))),
 
-        ClickStep(
+        new GuideStep(
             "testcrm-windows-lead-validation-ok", 33,
             TargetDescriptor.Create(
                 TargetRuntime.Windows,
                 new Locator("name-regex", @"^(OK|אישור)$")),
-            "אשר את הודעת השגיאה",
-            completionCondition: new StepCompletionCondition("target-exists", ById("LeadSelectedService"))),
+            new BubbleDefinition("אשר את הודעת השגיאה", BubblePlacement.Bottom),
+            new ValidationDefinition("target-disappeared"),
+            StepAdvanceMode.AutomaticOnValidation,
+            CompletionConditions: new[]
+            {
+                new StepCompletionCondition("target-exists", ById("LeadSelectedService"))
+            }),
 
         ValueStep(
             "testcrm-windows-lead-service", 34,
@@ -313,13 +323,18 @@ internal static class DapTestCrmWindowsGuideSeed
                     TargetRuntime.Windows,
                     new Locator("name-regex", @"^(Yes|כן|אישור)$")))),
 
-        ClickStep(
+        new GuideStep(
             "testcrm-windows-confirm-delete-lead", 37,
             TargetDescriptor.Create(
                 TargetRuntime.Windows,
                 new Locator("name-regex", @"^(Yes|כן|אישור)$")),
-            "אשר את מחיקת הליד",
-            completionCondition: new StepCompletionCondition("target-exists", ById("NewLeadButton"))),
+            new BubbleDefinition("אשר את מחיקת הליד", BubblePlacement.Bottom),
+            new ValidationDefinition("target-disappeared"),
+            StepAdvanceMode.AutomaticOnValidation,
+            CompletionConditions: new[]
+            {
+                new StepCompletionCondition("target-exists", ById("NewLeadButton"))
+            }),
 
         ClickStep(
             "testcrm-windows-leads-to-customer", 38,
@@ -402,13 +417,18 @@ internal static class DapTestCrmWindowsGuideSeed
                     TargetRuntime.Windows,
                     new Locator("name-regex", @"^(Yes|כן|אישור)$")))),
 
-        ClickStep(
+        new GuideStep(
             "testcrm-windows-confirm-delete-case", 52,
             TargetDescriptor.Create(
                 TargetRuntime.Windows,
                 new Locator("name-regex", @"^(Yes|כן|אישור)$")),
-            "אשר את מחיקת הפנייה",
-            completionCondition: new StepCompletionCondition("target-exists", ById("NewCaseButton"))),
+            new BubbleDefinition("אשר את מחיקת הפנייה", BubblePlacement.Bottom),
+            new ValidationDefinition("target-disappeared"),
+            StepAdvanceMode.AutomaticOnValidation,
+            CompletionConditions: new[]
+            {
+                new StepCompletionCondition("target-exists", ById("NewCaseButton"))
+            }),
 
         ClickStep(
             "testcrm-windows-header-home", 53,
