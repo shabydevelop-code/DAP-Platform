@@ -5,7 +5,7 @@ public interface ICrmScenarioDriver
     Task SetCustomerSearch(string name);
     Task SubmitCustomerSearch();
     Task OpenFirstCustomer();
-    Task OpenFirstSite();
+    Task OpenSiteByName(string name);
     Task OpenCases();
     Task SortCasesByStatus();
     Task CreateCase();
@@ -28,8 +28,7 @@ public interface ICrmScenarioDriver
     Task DeleteLead();
     Task ConfirmDelete();
     Task OpenCustomerFromBreadcrumb();
-    Task OpenFirstLead();
-    Task OpenFirstCase();
+    Task OpenLeadByContactName(string contactName);
     Task DeleteCase();
     Task GoPortal();
 }
@@ -42,14 +41,14 @@ public static class CanonicalCrmScenario
     {
         static async Task Step(int n, Func<Task> action)
         {
-            Console.WriteLine($"Windows canonical Step {n}/53");
+            Console.WriteLine($"Canonical CRM Step {n}/53");
             await action();
         }
 
         await Step(1,()=>d.SetCustomerSearch("אלפא פתרונות בע\"מ"));
         await Step(2,d.SubmitCustomerSearch);
         await Step(3,d.OpenFirstCustomer);
-        await Step(4,d.OpenFirstSite);
+        await Step(4,()=>d.OpenSiteByName("מטה תל אביב"));
         await Step(5,d.OpenCases);
         await Step(6,d.SortCasesByStatus);
         await Step(7,d.CreateCase);
@@ -84,16 +83,16 @@ public static class CanonicalCrmScenario
         await Step(36,d.DeleteLead);
         await Step(37,d.ConfirmDelete);
         await Step(38,d.OpenCustomerFromBreadcrumb);
-        await Step(39,d.OpenFirstSite);
+        await Step(39,()=>d.OpenSiteByName("מטה תל אביב"));
         await Step(40,d.OpenLeads);
-        await Step(41,d.OpenFirstLead);
+        await Step(41,()=>d.OpenLeadByContactName("אבי כהן"));
         await Step(42,()=>d.SetLeadStatus("חדש"));
         await Step(43,()=>d.SetLeadStatus("נסגר בהצלחה"));
         await Step(44,()=>d.SetLeadStatus("חדש"));
         await Step(45,()=>d.SetLeadStatus("נסגר בהצלחה"));
         await Step(46,d.OpenSiteFromBreadcrumb);
         await Step(47,d.OpenCases);
-        await Step(48,d.OpenFirstCase);
+        await Step(48,d.OpenCreatedCase);
         await Step(49,d.OpenSiteFromBreadcrumb);
         await Step(50,d.OpenCreatedCase);
         await Step(51,d.DeleteCase);

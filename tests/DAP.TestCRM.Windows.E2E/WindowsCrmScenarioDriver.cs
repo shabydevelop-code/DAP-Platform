@@ -218,16 +218,22 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
         return Task.CompletedTask;
     }
 
-    public Task OpenFirstSite()
+    public Task OpenSiteByName(string name)
     {
-        FirstRow("SitesGrid");
+        var row=RowByCellText("SitesGrid",name);
+        if(row.TryGetCurrentPattern(SelectionItemPattern.Pattern,out var selection))
+            ((SelectionItemPattern)selection).Select();
+
+        Click(row,true);
         Wait(
             () => window.FindFirst(
                 TreeScope.Descendants,
                 new PropertyCondition(AutomationElement.AutomationIdProperty, "CasesTab")),
-            "Site screen");
+            $"Site screen for '{name}'");
         return Task.CompletedTask;
     }
+
+    public Task OpenFirstSite() => OpenSiteByName("מטה תל אביב");
     public Task OpenCases()
     {
         DismissUnexpectedInfoDialogs();

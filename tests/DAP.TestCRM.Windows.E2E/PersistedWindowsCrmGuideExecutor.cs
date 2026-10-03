@@ -43,7 +43,7 @@ internal sealed class PersistedWindowsCrmGuideExecutor
                 await driver.OpenFirstCustomer();
                 return;
             case "testcrm-windows-site-row":
-                await driver.OpenFirstSite();
+                await driver.OpenSiteByName("מטה תל אביב");
                 return;
             case "testcrm-windows-cases-tab":
                 await driver.OpenCases();
@@ -148,7 +148,7 @@ internal sealed class PersistedWindowsCrmGuideExecutor
                 await driver.OpenCustomerFromBreadcrumb();
                 return;
             case "testcrm-windows-customer-site":
-                await driver.OpenFirstSite();
+                await driver.OpenSiteByName("מטה תל אביב");
                 return;
             case "testcrm-windows-site-leads":
                 await driver.OpenLeads();

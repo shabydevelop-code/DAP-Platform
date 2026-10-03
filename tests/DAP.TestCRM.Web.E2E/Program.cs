@@ -839,7 +839,7 @@ await Click("#search-results tbody tr.clickable:first-child");
 await WaitReady();
 
 await WaitForGuideStep(4);
-await Click("tbody tr.clickable:first-child");
+await Click("tbody tr.clickable:has-text('מטה תל אביב')");
 await WaitReady();
 
 await WaitForGuideStep(5);
@@ -1099,7 +1099,7 @@ await WaitReady();
 frame=await Content();
 await frame.Locator("h2:has-text('אתרים')").WaitForAsync();
 await WaitForGuideStep(39);
-await Click("tbody tr.clickable:first-child");
+await Click("tbody tr.clickable:has-text('מטה תל אביב')");
 await WaitReady();
 frame=await Content();
 await WaitForGuideStep(40);
@@ -1109,7 +1109,7 @@ frame=await Content();
 await frame.Locator("h2:has-text('לידים')").WaitForAsync();
 await frame.Locator("tbody tr.clickable").First.WaitForAsync();
 await WaitForGuideStep(41);
-await Click("tbody tr.clickable:first-child");
+await Click("tbody tr.clickable:has-text('אבי כהן')");
 await WaitReady();
 frame=await Content();
 await frame.Locator("#delete-lead").WaitForAsync();
@@ -1154,9 +1154,9 @@ if(await frame.Locator("[name='selectedService']").CountAsync()!=1)
     throw new Exception("Final dependent business target is not uniquely resolved.");
 
 // 10. Business-context isolation.
-// Business scenario: after working in the current Lead, the agent opens another
-// Case under the same Site. DAP must resolve the new record's live target and
-// never retain the previous Lead/Case DOM context.
+// Business scenario: after working in the current Lead, the agent reopens the
+// Case created by this run under the same Site. DAP must resolve that persisted
+// business identity from the live grid and never retain the previous Lead context.
 var leadSiteCrumb=frame.Locator(".breadcrumb a[data-go^='#/site/'][data-go$='/leads']").First;
 await leadSiteCrumb.WaitForAsync();
 await WaitForGuideStep(46);
@@ -1174,7 +1174,10 @@ var caseRows=frame.Locator("button.grid-open");
 if(await caseRows.CountAsync()<1)
     throw new Exception("No Case rows available for business-context switch.");
 await WaitForGuideStep(48);
-await Click("tbody tr:first-child button.grid-open");
+var contextCreatedCaseTarget=frame.Locator($"button.grid-open[data-go='#/case/{createdCaseId}']");
+if(await contextCreatedCaseTarget.CountAsync()!=1)
+    throw new Exception("The Case created by this run is not uniquely available for the context reopen.");
+await Click($"button.grid-open[data-go='#/case/{createdCaseId}']");
 await WaitReady();
 frame=await Content();
 await frame.Locator("h1:has-text('פניה')").WaitForAsync();
