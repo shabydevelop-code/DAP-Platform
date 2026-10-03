@@ -102,6 +102,8 @@ Text/value validation must distinguish live editing from a committed learner act
 
 A failed non-click commit attempt is consumed. The Runtime must require a new edit/change and a new commit event before reevaluating Step progression. It must not leave an invalid prior commit permanently armed and then advance later merely because reconciliation observes a now-valid live value. Click validation is different: its observed action may remain sticky because the click can immediately replace the source document/control while persisted post-action conditions are still pending.
 
+On Windows, text-edit commit detection is driven by UIA value-change and focus-change events; polling may remain as a compatibility fallback for providers that omit events, but polling must not be the sole source of commit truth.
+
 This rule applies to both Web and Windows runtimes.
 
 ### Guide navigation and context
