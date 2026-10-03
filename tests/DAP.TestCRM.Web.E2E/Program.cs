@@ -810,27 +810,60 @@ if (manual)
     Console.WriteLine();
     Console.WriteLine("MANUAL WEB RUN: Step 1 is ready.");
     Console.WriteLine("Automatic learner actions are disabled. Perform the full Guide manually in the browser.");
-    Console.WriteLine("The run will close automatically when DAP completes the Guide or the Web target/browser is closed.");
+    Console.WriteLine("The run will close automatically when DAP completes the Guide or you close the owned browser/page.");
     Console.WriteLine("Press Ctrl+C only if you want to stop the run early.");
 
-    while (!dapProcess.HasExited
-           && browser.IsConnected
-           && !page.IsClosed
-           && ownedTestCrmProcess is { HasExited: false })
-    {
-        await Task.Delay(100);
-    }
+    // Do not poll Browser.IsConnected/Page.IsClosed as a liveness contract.
+    // The CDP/Playwright topology can transiently change observable connection
+    // state while the learner's browser is still open. Only explicit close /
+    // disconnect events count as an operator-closed Web target.
+    var pageClosed = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+    var browserDisconnected = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-    if (dapProcess.HasExited)
-    {
-        if (dapProcess.ExitCode != 0)
-            throw new Exception($"DAP.exe exited with code {dapProcess.ExitCode} during the manual Web learner run.");
+    void OnPageClosed(object? _, IPage __) => pageClosed.TrySetResult("page-closed");
+    void OnBrowserDisconnected(object? _, IBrowser __) => browserDisconnected.TrySetResult("browser-disconnected");
 
-        Console.WriteLine("DAP completed the manual Web Guide. Closing E2E-owned processes.");
-    }
-    else
+    page.Close += OnPageClosed;
+    browser.Disconnected += OnBrowserDisconnected;
+
+    try
     {
-        Console.WriteLine("Web target/browser closed. Ending the manual learner run and cleaning up owned processes.");
+        var dapExit = dapProcess.WaitForExitAsync();
+        var webHostExit = ownedTestCrmProcess!.WaitForExitAsync();
+
+        var completed = await Task.WhenAny(
+            dapExit,
+            pageClosed.Task,
+            browserDisconnected.Task,
+            webHostExit);
+
+        if (completed == dapExit)
+        {
+            await dapExit;
+            if (dapProcess.ExitCode != 0)
+                throw new Exception($"DAP.exe exited with code {dapProcess.ExitCode} during the manual Web learner run.");
+
+            Console.WriteLine("DAP completed the manual Web Guide. Closing E2E-owned processes.");
+        }
+        else if (completed == webHostExit)
+        {
+            await webHostExit;
+            throw new Exception(
+                $"TestCRM Web host exited unexpectedly during the manual learner run. ExitCode={ownedTestCrmProcess.ExitCode}.");
+        }
+        else
+        {
+            var reason = completed == pageClosed.Task
+                ? await pageClosed.Task
+                : await browserDisconnected.Task;
+            Console.WriteLine(
+                $"Owned Web target closed ({reason}). Ending the manual learner run and cleaning up owned processes.");
+        }
+    }
+    finally
+    {
+        page.Close -= OnPageClosed;
+        browser.Disconnected -= OnBrowserDisconnected;
     }
 
     return;
