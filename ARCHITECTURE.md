@@ -303,7 +303,7 @@ The canonical DAP.TestCRM runner-mode contract uses only two `DAP_E2E_MODE` name
 
 `demo` is not a supported alias. Web and Windows must keep the same public mode vocabulary and semantics; platform-specific implementation details may differ, but a mode must not silently acquire a different meaning on one platform. Any CLI/mode change must be reviewed for both canonical runners in the same change unless a documented exception is intentionally introduced.
 
-The Windows canonical runner implements this contract through the existing UIA scenario driver: `fast` retains direct synchronized automation, while `visual` adds observable native cursor movement and pacing around those same actions. `--visual-from-step <N>` switches that same running scenario from Fast to Visual at the requested Guide Step; no duplicate Windows scenario is maintained.
+The Windows canonical runner implements this contract through the existing UIA scenario driver: `fast` retains direct synchronized automation, while `visual` adds observable native cursor movement and pacing around those same actions. Focused `--visual-from-step <N>` runs are different from a full Visual run: Steps `1..N-1` execute as an Unguided business-state bootstrap with DAP.exe off, then DAP starts directly at Step N with validated resume context and the scenario continues in Guided Visual mode. No duplicate Windows scenario is maintained.
 
 The E2E runner uses a 5-second default Playwright timeout. Frame discovery polls every 100ms. Fixed delays must not be used as substitutes for actual application readiness; synchronization should use route, DOM, frame, server-state, or validation signals.
 
