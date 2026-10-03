@@ -448,3 +448,23 @@ When DAP uses an operating-system completion dialog, successful Guide completion
 The foreground/topmost request is scoped to the short-lived completion dialog itself. DAP must not leave a persistent Topmost application window or permanently steal foreground ownership after the learner dismisses the dialog.
 
 This is DAP-owned product UI behavior and belongs in `DAP.App`, not in target resolution, Guide data, or TestCRM-specific code. Web's in-browser completion bubble remains the normal Web completion UI; this rule applies where DAP intentionally shows an OS completion dialog.
+
+
+## ADR-043 — Canonical Web and Windows runner modes are a symmetric product contract
+
+**Status:** Accepted
+
+The canonical TestCRM Web and Windows runners must expose the same user-facing execution-mode vocabulary and preserve the same meaning for each shared mode wherever the platform supports that behavior.
+
+`DAP_E2E_MODE` has only two valid mode names in the canonical contract:
+
+- `fast` — validation-oriented execution without human/demo pacing.
+- `visual` — observable learner-action pacing intended for visual inspection.
+
+`demo` is not a supported mode name and must not be accepted or reintroduced as an alias for `visual` on either Web or Windows.
+
+Likewise, focused-run switches such as `--manual-from-step <N>` and `--visual-from-step <N>` are cross-platform concepts: their business meaning must remain aligned even when the concrete Web/Windows automation technology differs.
+
+Any addition, removal, rename, or semantic change to a public runner mode or focused-run switch on one platform must be reviewed and applied to the other platform in the same change, unless an explicit platform-specific exception is documented in this file.
+
+Platform implementation details may differ — Playwright/DOM for Web and UIA/native input for Windows — but those differences must not create accidental user-facing CLI/mode drift.
