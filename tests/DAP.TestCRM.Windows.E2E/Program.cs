@@ -287,7 +287,19 @@ async Task RunGuidedAsync(int? handoffStepOrder = null)
         {
 
         WaitForStep("testcrm-windows-customer-name");
-        await driver.SetCustomerSearch("אלפא פתרונות בע\"מ");
+
+        // Regression guard: an invalid committed value must not make the Step
+        // permanently "armed". After the invalid blur, completing the exact
+        // value while focus remains in the editor must still keep Step 1 active.
+        await driver.SetCustomerSearch("אלפא");
+        WaitForStep("testcrm-windows-customer-name");
+
+        await driver.SetCustomerSearchWithoutCommit("אלפא פתרונות בע\"מ");
+        Thread.Sleep(350);
+        WaitForStep("testcrm-windows-customer-name");
+        Console.WriteLine("DAP Windows text validation waits for a new blur after an invalid commit: PASS");
+
+        await driver.CommitCustomerSearchEdit();
 
         WaitForStep("testcrm-windows-customer-search-button");
         await driver.SubmitCustomerSearch();
