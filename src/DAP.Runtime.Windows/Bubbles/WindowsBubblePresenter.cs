@@ -26,6 +26,7 @@ public sealed class WindowsBubblePresenter
     private bool _dragging;
     private bool _manuallyPositioned;
     private string? _activeStepId;
+    private BubblePlacement _activePlacement = BubblePlacement.Bottom;
 
     public async Task ShowAsync(
         AutomationElement target,
@@ -66,10 +67,10 @@ public sealed class WindowsBubblePresenter
             _window.SizeToContent = SizeToContent.WidthAndHeight;
             _window.UpdateLayout();
 
-            var bubbleWidth = Math.Max(_bubble!.ActualWidth, 260);
-            var bubbleHeight = Math.Max(_bubble.ActualHeight, 90);
-            var windowWidth = bubbleWidth + PointerSpace * 2;
-            var windowHeight = bubbleHeight + PointerSpace * 2;
+            var bubbleWidth = _bubble!.ActualWidth;
+            var bubbleHeight = _bubble.ActualHeight;
+            var windowWidth = Math.Max(_window.ActualWidth, bubbleWidth + PointerSpace * 2);
+            var windowHeight = Math.Max(_window.ActualHeight, bubbleHeight + PointerSpace * 2);
 
             if (!_manuallyPositioned)
             {
@@ -80,8 +81,9 @@ public sealed class WindowsBubblePresenter
                     windowHeight,
                     SystemParameters.WorkArea);
 
-                _window.Left = placement.X;
-                _window.Top = placement.Y;
+                _activePlacement = placement.Side;
+                _window.Left = placement.Position.X;
+                _window.Top = placement.Position.Y;
             }
 
             if (!_window.IsVisible)
@@ -115,7 +117,9 @@ public sealed class WindowsBubblePresenter
         });
     }
 
-    private static Point ChoosePlacement(
+    private readonly record struct PlacementResult(Point Position, BubblePlacement Side);
+
+    private static PlacementResult ChoosePlacement(
         Rect target,
         BubblePlacement preferred,
         double width,
@@ -145,7 +149,7 @@ public sealed class WindowsBubblePresenter
 
             if (Fits(candidate, width, height, work)
                 && !new Rect(candidate.X, candidate.Y, width, height).IntersectsWith(target))
-                return candidate;
+                return new PlacementResult(candidate, side);
         }
 
         // Extremely small work areas can make every side impossible. Preserve
@@ -154,9 +158,11 @@ public sealed class WindowsBubblePresenter
             ? preferred
             : opposite;
         var fallback = CandidateFor(fallbackSide, target, width, height);
-        return new Point(
-            Math.Clamp(fallback.X, work.Left + 4, Math.Max(work.Left + 4, work.Right - width - 4)),
-            Math.Clamp(fallback.Y, work.Top + 4, Math.Max(work.Top + 4, work.Bottom - height - 4)));
+        return new PlacementResult(
+            new Point(
+                Math.Clamp(fallback.X, work.Left + 4, Math.Max(work.Left + 4, work.Right - width - 4)),
+                Math.Clamp(fallback.Y, work.Top + 4, Math.Max(work.Top + 4, work.Bottom - height - 4))),
+            fallbackSide);
     }
 
     private static Point ClampSecondaryAxis(
@@ -214,63 +220,68 @@ public sealed class WindowsBubblePresenter
         if (_window is null || _pointer is null || _bubble is null || _targetRect.IsEmpty)
             return;
 
-        var bubbleRect = new Rect(
-            _window.Left + PointerSpace,
-            _window.Top + PointerSpace,
-            _bubble.ActualWidth,
-            _bubble.ActualHeight);
-
         var targetCenter = new Point(
             _targetRect.Left + _targetRect.Width / 2,
             _targetRect.Top + _targetRect.Height / 2);
-        var bubbleCenter = new Point(
-            bubbleRect.Left + bubbleRect.Width / 2,
-            bubbleRect.Top + bubbleRect.Height / 2);
-
-        var dx = targetCenter.X - bubbleCenter.X;
-        var dy = targetCenter.Y - bubbleCenter.Y;
 
         const double size = 10d;
         Point p1;
         Point p2;
         Point tip;
 
-        if (Math.Abs(dx) >= Math.Abs(dy))
+        switch (_activePlacement)
         {
-            var y = PointerSpace + (_bubble.ActualHeight / 2);
-
-            if (dx >= 0)
+            case BubblePlacement.Left:
             {
                 var x = PointerSpace + _bubble.ActualWidth;
+                var targetY = targetCenter.Y - _window.Top;
+                var y = Math.Clamp(
+                    targetY,
+                    PointerSpace + size,
+                    PointerSpace + _bubble.ActualHeight - size);
                 p1 = new Point(x, y - size);
                 p2 = new Point(x, y + size);
                 tip = new Point(x + PointerSpace, y);
+                break;
             }
-            else
+            case BubblePlacement.Right:
             {
                 var x = PointerSpace;
+                var targetY = targetCenter.Y - _window.Top;
+                var y = Math.Clamp(
+                    targetY,
+                    PointerSpace + size,
+                    PointerSpace + _bubble.ActualHeight - size);
                 p1 = new Point(x, y - size);
                 p2 = new Point(x, y + size);
                 tip = new Point(0, y);
+                break;
             }
-        }
-        else
-        {
-            var x = PointerSpace + (_bubble.ActualWidth / 2);
-
-            if (dy >= 0)
+            case BubblePlacement.Top:
             {
                 var y = PointerSpace + _bubble.ActualHeight;
+                var targetX = targetCenter.X - _window.Left;
+                var x = Math.Clamp(
+                    targetX,
+                    PointerSpace + size,
+                    PointerSpace + _bubble.ActualWidth - size);
                 p1 = new Point(x - size, y);
                 p2 = new Point(x + size, y);
                 tip = new Point(x, y + PointerSpace);
+                break;
             }
-            else
+            default:
             {
                 var y = PointerSpace;
+                var targetX = targetCenter.X - _window.Left;
+                var x = Math.Clamp(
+                    targetX,
+                    PointerSpace + size,
+                    PointerSpace + _bubble.ActualWidth - size);
                 p1 = new Point(x - size, y);
                 p2 = new Point(x + size, y);
                 tip = new Point(x, 0);
+                break;
             }
         }
 
