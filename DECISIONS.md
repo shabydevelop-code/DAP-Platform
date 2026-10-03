@@ -421,7 +421,7 @@ Click validation remains intentionally sticky because the validating click may i
 
 A TestCRM `--manual` session ends when either the Guide/DAP completes or the owned target application is closed by the learner.
 
-For Web, closure/disconnection of the owned browser/page or exit of the owned Web host ends the manual run. For Windows, exit of the owned TestCRM Windows process ends the manual run. The runner then cleans up the remaining processes it owns and returns control to the launching terminal.
+For Web, only explicit closure of the owned page or browser-disconnect events count as a normal operator target close. Polling `Browser.IsConnected` / `Page.IsClosed` is not the manual-run liveness contract because transport state can produce false positives. Exit of the owned TestCRM Web host is unexpected and must surface as an error. For Windows, exit of the owned TestCRM Windows process ends the manual run. The runner then cleans up the remaining processes it owns and returns control to the launching terminal.
 
 The harness must not remain alive merely because DAP is still waiting after its guided target application has been closed. This rule applies only to runner-owned development/test topology and does not change production Runtime ownership boundaries.
 
