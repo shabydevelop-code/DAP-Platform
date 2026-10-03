@@ -18,12 +18,16 @@ Target resolution is candidate discovery followed by anchor matching and uniquen
 
 The physical storage representation of TargetDescriptor, including whether anchors are normalized tables or serialized JSON, remains an implementation decision until the Core model is stable.
 
-## Current implementation order
+## Implementation status and next architectural phase
 
-1. Define Core/domain contracts and models.
-2. Define persistence interfaces.
-3. Implement SQLite persistence adapter.
-4. Implement Learner Runtime and bubble lifecycle.
-5. Integrate Web Runtime.
-6. Integrate Windows Runtime.
-7. Build Instructor Runtime against the stable contracts.
+The original implementation order through the Learner runtimes is now complete:
+
+1. Core/domain contracts and models — implemented.
+2. Persistence interfaces — implemented.
+3. SQLite persistence adapter — implemented.
+4. Learner Runtime and bubble lifecycle — implemented.
+5. Web Runtime integration — implemented and exercised by the canonical 53-Step Guide.
+6. Windows Runtime integration — implemented and exercised by the canonical 53-Step Guide.
+7. Instructor/Editor Runtime and target-capture workflow — next major product phase.
+
+Future work must build the Instructor/Editor path against the same stable Core, persistence, and runtime-neutral target contracts rather than introducing a parallel guide model.
