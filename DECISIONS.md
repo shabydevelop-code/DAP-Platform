@@ -403,3 +403,14 @@ The Web runner must not use normal reusable repository build outputs as the exec
 
 Owned-process cleanup for DAP, TestCRM Web, and TestCRM Server is registered before child startup for process-exit and Ctrl+C notifications, in addition to normal `finally` cleanup. A hard OS termination may leave the unique temporary run directory behind; future runs never reuse it.
 
+## ADR-042 — Non-click validation uses consumable commit attempts
+
+**Status:** Accepted
+
+For value/text validation, a natural UI commit event represents one learner attempt rather than permanent Step completion. Text editors commit on blur after a real edit; discrete controls commit on their natural change event.
+
+If primary validation fails, that commit attempt is consumed. The Runtime must wait for a new edit/change followed by a new commit event before it may reevaluate progression. A previously invalid commit must never leave the Step permanently armed such that later live typing can advance the Guide without another blur/change.
+
+Web must preserve the active editor's changed-since-last-commit state across reconciliation rather than reinstalling listeners in a way that resets that state every poll. Windows must reset its text-edit baseline after consuming an invalid blur attempt.
+
+Click validation remains intentionally sticky because the validating click may immediately navigate, rerender, or destroy the source target while persisted completion conditions are still pending.
