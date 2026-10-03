@@ -381,6 +381,8 @@ The runner owns target-application startup, backend/browser setup where applicab
 
 Separate manual-launch scripts that duplicate the same startup/cleanup topology are not maintained. Product Runtime logic remains outside the E2E harness; the harness only owns development/test orchestration and synthetic learner actions.
 
+Executable-output isolation for these unified runners is defined by ADR-040 (Windows) and ADR-041 (Web); both use unique per-run temporary output roots rather than shared repository or shared temporary executable directories.
+
 ## ADR-040 — Windows TestCRM E2E uses isolated per-run executable outputs
 
 **Status:** Accepted
