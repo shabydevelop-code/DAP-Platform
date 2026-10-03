@@ -468,3 +468,5 @@ Likewise, focused-run switches such as `--manual-from-step <N>` and `--visual-fr
 Any addition, removal, rename, or semantic change to a public runner mode or focused-run switch on one platform must be reviewed and applied to the other platform in the same change, unless an explicit platform-specific exception is documented in this file.
 
 Platform implementation details may differ — Playwright/DOM for Web and UIA/native input for Windows — but those differences must not create accidental user-facing CLI/mode drift.
+
+Implementation note (2026-10-03): Windows now enforces `fast|visual` in the canonical runner and supports `--visual-from-step <N>`. Windows Visual uses the same UIA action path as Fast and adds visible native cursor movement/pacing; it is not a separate scenario. The standard 5-second technical timeout remains unchanged.
