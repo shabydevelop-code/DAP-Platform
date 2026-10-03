@@ -175,7 +175,7 @@ internal sealed class PersistedWindowsCrmGuideExecutor
                 await driver.OpenCases();
                 return;
             case "testcrm-windows-open-context-case":
-                await driver.OpenFirstCase();
+                await driver.OpenCaseBySubject("כרטיס כניסה");
                 return;
             case "testcrm-windows-context-back-site":
                 await driver.OpenSiteFromBreadcrumb();

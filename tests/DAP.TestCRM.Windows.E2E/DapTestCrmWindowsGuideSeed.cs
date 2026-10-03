@@ -394,7 +394,8 @@ internal static class DapTestCrmWindowsGuideSeed
 
         NavigationRowStep(
             "testcrm-windows-open-context-case", 48,
-            "CasesGrid", "פתח את הפנייה הראשונה",
+            "CasesGrid", "פתח את הפנייה כרטיס כניסה",
+            "כרטיס כניסה",
             completionCondition: new StepCompletionCondition("target-exists", ById("DeleteCaseButton"))),
 
         ClickStep(

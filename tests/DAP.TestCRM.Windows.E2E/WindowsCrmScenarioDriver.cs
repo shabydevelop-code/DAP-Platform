@@ -424,6 +424,17 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
         Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteCaseButton")),"Case form");
         return Task.CompletedTask;
     }
+    public Task OpenCaseBySubject(string subject)
+    {
+        var row=RowByCellText("CasesGrid",subject);
+        if(row.TryGetCurrentPattern(SelectionItemPattern.Pattern,out var selection))
+            ((SelectionItemPattern)selection).Select();
+
+        Click(row,true);
+        Wait(()=>window.FindFirst(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteCaseButton")),"Case form");
+        return Task.CompletedTask;
+    }
     public Task CreateLead()
     {
         DismissUnexpectedInfoDialogs();
