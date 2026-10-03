@@ -30,7 +30,7 @@ DAP.exe (.NET 8 / WPF)
 
 ## Repository structure
 
-Current implemented production/test projects:
+Current implemented production/test projects include:
 
 ```text
 src/
@@ -39,19 +39,26 @@ src/
   DAP.Data/
   DAP.Data.Sqlite/
   DAP.Runtime.Web/
+  DAP.Runtime.Windows/
 
 test-apps/
   DAP.TestCRM/
+    Server/
+    Web/
+    Windows/
 
 tests/
   DAP.Data.Sqlite.Tests/
-  DAP.TestCRM.E2E/
+  DAP.TestCRM.E2E.Common/
+  DAP.TestCRM.Web.E2E/
+  DAP.TestCRM.Windows.E2E/
 
 scripts/
-  run-testcrm-learner.ps1
+  run-testcrm-web-learner.ps1
+  run-testcrm-windows-learner.ps1
 ```
 
-`DAP.Runtime.Windows` and broader Windows/UIA test projects belong to the target architecture but are not implemented in the current repository baseline. Dependencies must continue to point inward toward Core abstractions.
+Web and Windows Learner runtimes are both production code. Test projects automate or validate those runtimes but do not own production target resolution, validation, bubble presentation, or Guide progression semantics. Dependencies must continue to point inward toward Core abstractions.
 
 ## Desktop application
 
@@ -159,6 +166,28 @@ Responsibilities include:
 - Observe and validate learner interaction.
 - Re-discover targets when applications/windows change.
 - Provide Windows target-selection capabilities required by Editor.
+
+### Windows interaction-completion semantics
+
+Polling may maintain presentation and re-resolution, but it must not make an editable text Step complete merely because an intermediate value currently satisfies validation.
+
+For text-edit targets, the Windows Runtime separates **interaction completion** from **validation**:
+- the target is observed while focused;
+- a real value change is observed;
+- the edit is considered committed only after focus leaves the target;
+- only then may the persisted value validation complete the Step.
+
+Discrete controls such as ComboBox selections commit on their natural selection/change action. This is the Windows equivalent of the Web Runtime's blur/change contract and keeps the shared Guide semantics independent from runtime-specific event mechanisms.
+
+### Windows initial target visibility
+
+A newly activated Step may bring its target into view once before first presentation. UIA `ScrollItemPattern` is used when available, and a scrollable ancestor's `ScrollPattern` may be used to move the target toward a comfortable central region rather than merely touching a viewport edge.
+
+This adjustment is initial-presentation behavior only. Normal reconciliation must not repeatedly center the target or override intentional learner scrolling.
+
+### Windows bubble drag lifecycle
+
+Automatic placement shows a directional pointer toward the resolved target. As soon as the learner starts dragging the explicit handle, manual placement becomes authoritative and the pointer is hidden immediately. The pointer stays hidden for the remainder of that active Step; changing Steps resets presentation to automatic placement and restores the pointer.
 
 ## Data architecture
 
