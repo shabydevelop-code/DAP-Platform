@@ -437,3 +437,14 @@ HTTP readiness alone is insufficient because a stale TestCRM process can answer 
 
 This keeps startup ownership explicit: an old or unrelated process cannot impersonate the current run, and the harness never takes destructive action against an unknown port owner.
 
+
+
+## ADR-040 — DAP-owned completion dialogs must surface in foreground
+
+**Status:** Accepted
+
+When DAP uses an operating-system completion dialog, successful Guide completion must be surfaced in the foreground instead of being allowed to open behind the target application.
+
+The foreground/topmost request is scoped to the short-lived completion dialog itself. DAP must not leave a persistent Topmost application window or permanently steal foreground ownership after the learner dismisses the dialog.
+
+This is DAP-owned product UI behavior and belongs in `DAP.App`, not in target resolution, Guide data, or TestCRM-specific code. Web's in-browser completion bubble remains the normal Web completion UI; this rule applies where DAP intentionally shows an OS completion dialog.
