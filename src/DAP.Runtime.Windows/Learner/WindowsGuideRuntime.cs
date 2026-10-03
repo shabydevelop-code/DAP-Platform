@@ -131,6 +131,17 @@ public sealed class WindowsGuideRuntime
         {
             while (!cancellationToken.IsCancellationRequested)
             {
+                // Completion is evaluated before the source context. A valid learner
+                // action may navigate away from that context while persisted
+                // post-action conditions become true on the destination screen.
+                if (clicked
+                    && clickCompleted.Task.IsCompleted
+                    && AreCompletionConditionsSatisfied(windowRoot, step))
+                {
+                    FinalizeCapture(windowRoot, step, capturedValues);
+                    return;
+                }
+
                 if (!IsStepContextActive(windowRoot, step))
                 {
                     if (!bubbleShownForStep)
