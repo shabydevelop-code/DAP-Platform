@@ -131,6 +131,14 @@ public sealed class WindowsGuideRuntime
         {
             while (!cancellationToken.IsCancellationRequested)
             {
+                if (!IsStepContextActive(windowRoot, step))
+                {
+                    if (!bubbleShownForStep)
+                        await _bubbles.HideAsync();
+                    await Task.Delay(_pollInterval, cancellationToken);
+                    continue;
+                }
+
                 TargetResolution<AutomationElement> resolution;
                 var resolutionStopwatch = Stopwatch.StartNew();
                 resolutionAttempt++;
@@ -152,7 +160,8 @@ public sealed class WindowsGuideRuntime
                         Console.Error.WriteLine($"[DAP Windows guide diagnostic] Step '{step.Id}' resolver threw ElementNotAvailableException.");
                     if (!bubbleShownForStep)
                         await _bubbles.HideAsync();
-                    if (targetDisappeared && targetWasResolved)
+                    if (targetDisappeared && targetWasResolved
+                        && AreCompletionConditionsSatisfied(windowRoot, step))
                         return;
                     await Task.Delay(_pollInterval, cancellationToken);
                     continue;
@@ -164,7 +173,8 @@ public sealed class WindowsGuideRuntime
                         Console.Error.WriteLine($"[DAP Windows guide diagnostic] Step '{step.Id}' resolution status={resolution.Status}; targetNull={resolution.Target is null}.");
                     if (!bubbleShownForStep)
                         await _bubbles.HideAsync();
-                    if (targetDisappeared && targetWasResolved)
+                    if (targetDisappeared && targetWasResolved
+                        && AreCompletionConditionsSatisfied(windowRoot, step))
                         return;
                     await Task.Delay(_pollInterval, cancellationToken);
                     continue;
@@ -263,7 +273,8 @@ public sealed class WindowsGuideRuntime
                     // resolved target. Target disappearance by itself is not enough:
                     // asynchronous WPF rerenders can replace a Button without any
                     // learner action and would otherwise create a false completion.
-                    if (clickCompleted.Task.IsCompleted)
+                    if (clickCompleted.Task.IsCompleted
+                        && AreCompletionConditionsSatisfied(windowRoot, step))
                     {
                         FinalizeCapture(windowRoot, step, capturedValues);
                         return;
@@ -283,7 +294,8 @@ public sealed class WindowsGuideRuntime
                 }
                 else if (step.AdvanceMode == StepAdvanceMode.AutomaticOnValidation
                          && step.Validation is not null
-                         && _validation.IsSatisfied(target, step.Validation))
+                         && _validation.IsSatisfied(target, step.Validation)
+                         && AreCompletionConditionsSatisfied(windowRoot, step))
                 {
                     return;
                 }
@@ -303,6 +315,103 @@ public sealed class WindowsGuideRuntime
                 catch (ElementNotAvailableException) { }
             }
             await _bubbles.HideAsync();
+        }
+    }
+
+    private bool AreCompletionConditionsSatisfied(
+        AutomationElement windowRoot,
+        GuideStep step)
+    {
+        if (step.CompletionConditions is null || step.CompletionConditions.Count == 0)
+            return true;
+
+        foreach (var condition in step.CompletionConditions)
+        {
+            if (condition.Target.Runtime != TargetRuntime.Windows)
+                throw new InvalidOperationException(
+                    $"Windows Guide Step '{step.Id}' contains a non-Windows completion target.");
+
+            TargetResolution<AutomationElement> resolution;
+            try
+            {
+                resolution = _resolver.Resolve(GetActiveResolutionRoot(windowRoot), condition.Target);
+            }
+            catch (ElementNotAvailableException)
+            {
+                resolution = TargetResolution<AutomationElement>.NotFound();
+            }
+
+            var kind = condition.Kind.Trim().ToLowerInvariant();
+            if (kind == "target-exists")
+            {
+                if (resolution.Status != TargetResolutionStatus.Resolved || resolution.Target is null)
+                    return false;
+                continue;
+            }
+
+            if (kind == "target-not-exists")
+            {
+                if (resolution.Status == TargetResolutionStatus.Resolved)
+                    return false;
+                if (resolution.Status == TargetResolutionStatus.Ambiguous)
+                    return false;
+                continue;
+            }
+
+            if (kind == "target-enabled")
+            {
+                if (resolution.Status != TargetResolutionStatus.Resolved
+                    || resolution.Target is null
+                    || !resolution.Target.Current.IsEnabled)
+                    return false;
+                continue;
+            }
+
+            if (kind == "value-equals")
+            {
+                if (resolution.Status != TargetResolutionStatus.Resolved
+                    || resolution.Target is null
+                    || condition.ExpectedValue is null
+                    || !_validation.IsSatisfied(
+                        resolution.Target,
+                        new ValidationDefinition("value-equals", condition.ExpectedValue)))
+                    return false;
+                continue;
+            }
+
+            throw new NotSupportedException(
+                $"Unsupported Windows completion condition kind '{condition.Kind}'.");
+        }
+
+        return true;
+    }
+
+    private static bool IsStepContextActive(AutomationElement windowRoot, GuideStep step)
+    {
+        if (step.Context is null)
+            return true;
+
+        try
+        {
+            var kind = step.Context.Kind.Trim().ToLowerInvariant();
+            Condition condition = kind switch
+            {
+                "automation-id-exists" => new PropertyCondition(
+                    AutomationElement.AutomationIdProperty,
+                    step.Context.Value),
+                "name-exists" => new PropertyCondition(
+                    AutomationElement.NameProperty,
+                    step.Context.Value),
+                _ => throw new NotSupportedException(
+                    $"Unsupported Windows Step context kind '{step.Context.Kind}'.")
+            };
+
+            return GetActiveResolutionRoot(windowRoot)
+                .FindFirst(TreeScope.Descendants, condition) is not null;
+        }
+        catch (ElementNotAvailableException)
+        {
+            return false;
         }
     }
 
