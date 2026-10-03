@@ -77,6 +77,7 @@ public static class DapApplicationHost
         }
 
         var resumeContext = await LoadResumeContextAsync(options.ResumeContextPath, cancellationToken);
+        ValidateResumeContext(steps, options.StartStep, resumeContext);
         if (resumeContext.Count > 0)
             StartupMark(startup, $"resume context loaded ({resumeContext.Count} captures)");
 
@@ -84,6 +85,39 @@ public static class DapApplicationHost
             return await RunWindowsAsync(options, steps, resumeContext, texts, startup, cancellationToken);
 
         return await RunWebAsync(options, steps, resumeContext, texts, startup, cancellationToken);
+    }
+
+    private static void ValidateResumeContext(
+        IReadOnlyList<DAP.Core.Guides.GuideStep> steps,
+        int? startStep,
+        IReadOnlyDictionary<string, string> resumeContext)
+    {
+        if (resumeContext.Count == 0)
+            return;
+
+        if (startStep is null)
+            throw new InvalidOperationException(
+                "A resume context requires --start-step so DAP has an explicit continuation point.");
+
+        var byId = steps.ToDictionary(step => step.Id, StringComparer.Ordinal);
+        foreach (var pair in resumeContext)
+        {
+            if (!byId.TryGetValue(pair.Key, out var sourceStep))
+                throw new InvalidOperationException(
+                    $"Resume context references unknown Guide Step '{pair.Key}'.");
+
+            if (sourceStep.Capture is null)
+                throw new InvalidOperationException(
+                    $"Resume context contains Step '{pair.Key}', but that Step does not declare a runtime capture.");
+
+            if (sourceStep.Order >= startStep.Value)
+                throw new InvalidOperationException(
+                    $"Resume capture for Step {sourceStep.Order} '{pair.Key}' is not earlier than requested start Step {startStep.Value}.");
+
+            if (string.IsNullOrWhiteSpace(pair.Value))
+                throw new InvalidOperationException(
+                    $"Resume capture for Step '{pair.Key}' is empty.");
+        }
     }
 
     private static async Task<IReadOnlyDictionary<string, string>> LoadResumeContextAsync(
