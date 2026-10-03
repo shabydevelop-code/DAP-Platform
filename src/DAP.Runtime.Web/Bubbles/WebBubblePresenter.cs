@@ -1,4 +1,5 @@
 using DAP.Core.Guides;
+using DAP.Core.Localization;
 using DAP.Core.Targets;
 using DAP.Runtime.Web.Targets;
 using Microsoft.Playwright;
@@ -9,11 +10,16 @@ namespace DAP.Runtime.Web.Bubbles;
 public sealed class WebBubblePresenter
 {
     private readonly WebTargetResolver _targets;
+    private readonly IUiTextProvider _texts;
     private readonly WebBubbleTheme _theme;
 
-    public WebBubblePresenter(WebTargetResolver targets, WebBubbleTheme? theme = null)
+    public WebBubblePresenter(
+        WebTargetResolver targets,
+        IUiTextProvider texts,
+        WebBubbleTheme? theme = null)
     {
         _targets = targets;
+        _texts = texts ?? throw new ArgumentNullException(nameof(texts));
         _theme = theme ?? WebBubbleTheme.Default;
     }
 
@@ -192,8 +198,8 @@ public sealed class WebBubblePresenter
 
     const dragHandle = root.createElement('div');
     dragHandle.dataset.dapDragHandle = '1';
-    dragHandle.setAttribute('aria-label', 'גרור להזזת הבועה');
-    dragHandle.title = 'גרור להזזת הבועה';
+    dragHandle.setAttribute('aria-label', b.dragBubbleText);
+    dragHandle.title = b.dragBubbleText;
     dragHandle.textContent = '⠿';
     Object.assign(dragHandle.style, {
         display: 'block',
@@ -225,7 +231,7 @@ public sealed class WebBubblePresenter
 
     if (b.stepNumber && b.totalSteps) {
         const progress = root.createElement('div');
-        progress.textContent = 'שלב ' + b.stepNumber + ' מתוך ' + b.totalSteps;
+        progress.textContent = b.stepProgressText;
         Object.assign(progress.style, {
             fontSize: '12px',
             opacity: '0.78',
@@ -518,6 +524,10 @@ public sealed class WebBubblePresenter
                 stepId = step.Id,
                 stepNumber,
                 totalSteps,
+                stepProgressText = stepNumber.HasValue && totalSteps.HasValue
+                    ? _texts.Format("Learner.StepProgress", stepNumber.Value, totalSteps.Value)
+                    : null,
+                dragBubbleText = _texts.Get("Learner.DragBubble"),
                 ensureOnly,
                 validationKind = step.Validation?.Kind,
                 theme = new
@@ -533,7 +543,7 @@ public sealed class WebBubblePresenter
                     fontFamily = _theme.FontFamily,
                     fontSize = _theme.FontSize,
                     lineHeight = _theme.LineHeight,
-                    direction = _theme.Direction,
+                    direction = _texts.IsRightToLeft ? "rtl" : "ltr",
                     targetHighlightColor = _theme.TargetHighlightColor,
                     targetHighlightWidth = _theme.TargetHighlightWidth,
                     targetHighlightShadow = _theme.TargetHighlightShadow,
@@ -564,6 +574,10 @@ public sealed class WebBubblePresenter
                     stepId = step.Id,
                     stepNumber,
                     totalSteps,
+                    stepProgressText = stepNumber.HasValue && totalSteps.HasValue
+                        ? _texts.Format("Learner.StepProgress", stepNumber.Value, totalSteps.Value)
+                        : null,
+                    dragBubbleText = _texts.Get("Learner.DragBubble"),
                     x = targetBox.X + targetBox.Width / 2,
                     y = targetBox.Y + targetBox.Height,
                     theme = new
@@ -579,7 +593,7 @@ public sealed class WebBubblePresenter
                         fontFamily = _theme.FontFamily,
                         fontSize = _theme.FontSize,
                         lineHeight = _theme.LineHeight,
-                        direction = _theme.Direction
+                        direction = _texts.IsRightToLeft ? "rtl" : "ltr"
                     }
                 };
                 await page.MainFrame.EvaluateAsync(
@@ -590,8 +604,8 @@ public sealed class WebBubblePresenter
                         bubble.dataset.dapStepId=b.stepId;
                         const dragHandle=document.createElement('div');
                         dragHandle.dataset.dapDragHandle='1';
-                        dragHandle.setAttribute('aria-label','גרור להזזת הבועה');
-                        dragHandle.title='גרור להזזת הבועה';
+                        dragHandle.setAttribute('aria-label',b.dragBubbleText);
+                        dragHandle.title=b.dragBubbleText;
                         dragHandle.textContent='⠿';
                         Object.assign(dragHandle.style,{
                             display:'block',width:'fit-content',marginLeft:'auto',marginRight:'auto',
@@ -601,7 +615,7 @@ public sealed class WebBubblePresenter
                         bubble.appendChild(dragHandle);
                         if(b.stepNumber && b.totalSteps) {
                             const progress=document.createElement('div');
-                            progress.textContent='שלב '+b.stepNumber+' מתוך '+b.totalSteps;
+                            progress.textContent=b.stepProgressText;
                             Object.assign(progress.style,{fontSize:'12px',opacity:'0.78',marginBottom:'5px',fontWeight:'600',cursor:'default'});
                             bubble.appendChild(progress);
                         }
@@ -697,8 +711,8 @@ public sealed class WebBubblePresenter
                 bubble.setAttribute('role','status');
                 const dragHandle=document.createElement('div');
                 dragHandle.dataset.dapDragHandle='1';
-                dragHandle.setAttribute('aria-label','גרור להזזת הבועה');
-                dragHandle.title='גרור להזזת הבועה';
+                dragHandle.setAttribute('aria-label',b.dragBubbleText);
+                dragHandle.title=b.dragBubbleText;
                 dragHandle.textContent='⠿';
                 Object.assign(dragHandle.style,{
                     display:'block',width:'fit-content',marginLeft:'auto',marginRight:'auto',
@@ -707,12 +721,12 @@ public sealed class WebBubblePresenter
                 });
                 bubble.appendChild(dragHandle);
                 const message=document.createElement('div');
-                message.textContent='המדריך הושלם בהצלחה';
+                message.textContent=b.guideCompletedText;
                 message.style.cursor='default';
                 bubble.appendChild(message);
                 const finishButton=document.createElement('button');
                 finishButton.type='button';
-                finishButton.textContent='סיום';
+                finishButton.textContent=b.finishText;
                 finishButton.dataset.dapGuideFinish='1';
                 Object.assign(finishButton.style,{
                     marginTop:'12px',padding:'6px 18px',cursor:'pointer',
@@ -784,7 +798,10 @@ public sealed class WebBubblePresenter
                 fontFamily = _theme.FontFamily,
                 fontSize = _theme.FontSize,
                 lineHeight = _theme.LineHeight,
-                direction = _theme.Direction
+                direction = _texts.IsRightToLeft ? "rtl" : "ltr",
+                dragBubbleText = _texts.Get("Learner.DragBubble"),
+                guideCompletedText = _texts.Get("Learner.GuideCompleted"),
+                finishText = _texts.Get("Learner.Finish")
             });
 
         await page.MainFrame.EvaluateAsync(
