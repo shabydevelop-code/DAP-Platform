@@ -357,7 +357,7 @@ Web `clicked` validation no longer stores completion in the guided application's
 - The E2E waits for each corresponding Guide Step before each visible learner action in the guided sequence.
 - `WaitForGuideStep` now searches all live page frames so the final Header-frame bubble can be observed without assuming all bubbles belong to the Content iframe.
 - Guide continuation after Close Reason no longer asserts that the bubble disappears at Step 20; Step 21 is the guided successful save.
-- The full 53-Step visual run still requires local execution after pull to validate all dynamic selectors and frame transitions end-to-end.
+- Historical note: at this point the full 53-Step Visual run had not yet been re-executed. Later sections record successful full Visual validation.
 
 
 ## Verified full 53-Step visual run
@@ -395,7 +395,7 @@ Web `clicked` validation no longer stores completion in the guided application's
 - DOM/frame replacement or layout movement during the settling window causes presentation to remain hidden and the normal reconciliation loop retries from a fresh resolution.
 - This is a generic Web Runtime rule, not TestCRM/PeopleSoft-specific logic and not a fixed post-action sleep.
 - Existing bubbles continue to use the normal reconciliation path; validation, context guards, target ambiguity rules, dragging and placement semantics are unchanged.
-- The previously verified 53-Step baseline predates this settling change; local visual E2E must be rerun after pull.
+- Historical note: this settling change initially awaited a rerun; later full Visual regression results supersede that pending state.
 
 
 ## Settling regression fix
@@ -403,7 +403,7 @@ Web `clicked` validation no longer stores completion in the guided application's
 - The settling check now keeps the first resolved Locator and re-evaluates that original node after the settling window. A replaced/detached node fails through `isConnected` (or transient Playwright failure), while a fresh second resolution independently confirms the uniquely resolved target and stable geometry.
 - Geometry is compared across the original node before/after the settling window and against the fresh resolution.
 - No E2E timeout was increased; the fix addresses the settling implementation itself.
-- Local 53-Step visual E2E must be rerun to verify this regression fix.
+- Historical note: this regression fix initially awaited a local Visual rerun; later Visual PASS results supersede that pending state.
 
 
 ## Transition settling correction
@@ -413,7 +413,7 @@ Web `clicked` validation no longer stores completion in the guided application's
 - The quiet-window rule is independent of network activity: a local JavaScript rerender and a server-backed rerender are treated the same, while a genuinely quiet transition continues after the short window.
 - At the end of the quiet window the target must still be connected and have non-zero geometry.
 - This replaces both failed settling implementations that caused the first bubble to time out.
-- Local 53-Step visual E2E remains required after pull.
+- Historical note: a Visual rerun was still pending at this point; later PASS results supersede this requirement.
 
 
 ## One-time Step presentation gate
@@ -422,7 +422,7 @@ Web `clicked` validation no longer stores completion in the guided application's
 - Once a Step is successfully presented, normal `EnsureShownAsync` reconciliation owns it for the remainder of that Step; later rerenders no longer force the already-active Step back through settling.
 - The settling-wait path no longer calls `HideAsync` repeatedly, eliminating the show/hide churn that amplified bubble flicker during rendering.
 - If the target disappears in the small gap between passing the gate and its first presentation, the gate is reset and must pass again.
-- Local 53-Step visual E2E and visual observation of server-render transitions remain required after pull.
+- Historical note: server-render transition observation was still pending at this point; later full Visual PASS results supersede this requirement.
 
 
 ## Guide/E2E target synchronization near end of visual flow
@@ -443,7 +443,7 @@ Web `clicked` validation no longer stores completion in the guided application's
 - This identity check works inside the target's own document, so it also covers Content-frame actions and the final Header-frame action.
 - Together with the semantic created-Case target check, the visual E2E now verifies both business-record identity where required and exact bubble/action DOM identity for visible learner actions.
 - The audit found no reason to turn technical assertions, measurements, readiness checks or the deliberate programmatic reload into Guide Steps; they remain non-visual E2E mechanics.
-- A local full 53-Step visual run is required after pull to execute the new invariant against the complete workflow.
+- Historical note: the exact DOM-identity invariant initially awaited a full Visual rerun; later full Visual PASS coverage supersedes this pending requirement.
 
 
 ## Step 12 ambiguity found by full compatibility run
@@ -451,7 +451,7 @@ Web `clicked` validation no longer stores completion in the guided application's
 - The resulting two matches correctly produced an ambiguous target; DAP did not guess and therefore did not present Step 12.
 - The E2E-created Case now uses the unique stable business subject `תקלה בחיבור לאינטרנט - בדיקת DAP` throughout creation, post-close restoration, assertions and Steps 12/50 semantic selectors.
 - This preserves the intended resolver invariant: Guide targets must resolve uniquely without relying on row position or injecting the runtime-generated Case ID into a Guide that was loaded before creation.
-- Full 53-Step local rerun remains required; the new exact DOM identity invariant will then validate each visible action against its active bubble target.
+- Historical note: this exact DOM-identity invariant later passed the full Visual workflow; the rerun is no longer pending.
 
 
 ## Test-fidelity correction
@@ -467,7 +467,7 @@ Web `clicked` validation no longer stores completion in the guided application's
 - Step 11 captures the persisted created-Case route. Steps 12 and 50 target `button.grid-open[data-go='<captured route>']`.
 - E2E learner actions independently use the Case ID observed from the real post-Save route. The existing exact DOM identity invariant therefore verifies that DAP's runtime-bound target and the learner action resolve to the same element.
 - No SQLite schema change and no TestCRM business/DOM adaptation were introduced for runtime identity.
-- Full 53-Step local visual run is required after pull.
+- Historical note: a full Visual rerun was pending at this point; later full Visual PASS results supersede this requirement.
 
 
 ## Persistent TestCRM Guide database
@@ -558,7 +558,7 @@ Web `clicked` validation no longer stores completion in the guided application's
 - `--manual-from-step` in the representative E2E harness is now generic. It accepts any Step order present in the persisted Guide, automates the real preceding workflow, then pauses when the requested production bubble is ready. The old hard-coded Step-53 restriction and Step-53-only handoff diagnostics were removed.
 - Manual verification after the cursor stabilization confirmed the drag interaction works as intended.
 - Relevant commits in this sequence: `81d2ae2`, `bb49a06`, `e2abeac`, `2d766c0`, `d6b0383`, `70af73f`, `afe49cd`, `b753033`, `4523342`, `2c688dc`, `5099256`, `ea9dbeb`, `d0ba364`, `29a07af`, `ab82b10`.
-- Full normal automated 53-Step E2E has not yet been re-run after this complete UX/drag-handle sequence; the earlier cross-browser baseline remains historical until that regression run is repeated.
+- Historical note: at this point the normal 53-Step run had not yet been repeated after the drag-handle sequence. Later canonical 53/53 PASS baselines supersede this pending state.
 
 ## GitHub repository access
 
@@ -632,10 +632,10 @@ The old combined root `DAP.TestCRM.csproj` and root launch profile were removed 
 - Modal WPF MessageBoxes are handled as real platform dialogs. Expected validation/delete dialogs are dismissed/confirmed explicitly; unexpected informational OK dialogs block further E2E actions until dismissed so the scenario cannot continue behind a modal window.
 - Default Windows E2E wait timeout is 5 seconds.
 - The activity-more interaction remains a Windows-specific UI area to align with the Web behavior; the canonical scenario no longer incorrectly calls validation dismissal immediately after `ShowMoreActivity`.
-- This PASS establishes the Windows Unguided core baseline. It does not yet mean that the complete persisted 53-Step Web Guide has been reproduced in Windows; the next parity work is to extend the shared/core coverage toward the remaining canonical business steps before integrating DAP Windows Runtime bubbles/target resolution.
+- Historical note: this was the earlier Windows Unguided core milestone before full 53-Step parity. The canonical Windows Guided and Unguided paths are now complete at 53/53.
 
-- Windows/Web activity-more parity correction: Web renders `#activity-more` but defines no click handler or alert for it. The Windows-only `MessageBox` ("אין פעילויות נוספות להצגה.") was therefore removed; `ActivityMoreButton` now has the same no-alert/no-op business behavior as Web. Commit baseline follows the already verified Windows core PASS; local rerun is required after pull.
-- Pending Windows parity milestone remains explicit: expand the current Windows Unguided shared core scenario to cover the complete canonical 53-step business workflow before DAP Windows Runtime bubble/target integration is considered complete.
+- Windows/Web activity-more parity correction: Web renders `#activity-more` but defines no click handler or alert for it. The Windows-only `MessageBox` ("אין פעילויות נוספות להצגה.") was therefore removed; `ActivityMoreButton` now has the same no-alert/no-op business behavior as Web. This correction is included in the later verified 53-Step Windows baseline.
+- Historical note: this Windows parity milestone has been completed. Both Windows Guided and Windows Unguided now cover the canonical 53-Step business workflow.
 
 - **Windows canonical 53-step Unguided milestone: PASS (locally verified 2026-10-02).** `CanonicalCrmScenario.Run53Async` completed the full Customer -> Site -> Case -> Lead flow and terminated with `PASS: Windows Unguided canonical 53-step Customer -> Site -> Case -> Lead scenario completed.` The Windows E2E now synchronizes async sort/create/delete/navigation transitions in the test harness. Test-only row AutomationIds were removed from the Windows target application; E2E target resolution remains the responsibility of the test harness. No full-53 PASS is claimed for DAP Runtime/bubbles yet; this milestone is the Unguided Windows business-flow baseline.
 
@@ -663,7 +663,7 @@ The old combined root `DAP.TestCRM.csproj` and root launch profile were removed 
 - The Web E2E runner was then changed to start and clean up TestCRM Server + Web itself.
 - A second full canonical Web E2E run passed with this self-contained topology, confirming that no separately pre-started TestCRM server terminals are required.
 - Current stable Web baseline: numeric persistence IDs + stable textual keys + 53-Step persisted Guide + self-contained full E2E PASS.
-- Next planned runtime milestone: Windows Learner Runtime, starting with persisted Windows Steps 1–2, production UIA target resolution, and real learner bubbles using the same DAP database architecture.
+- Historical note: Windows Learner Runtime was the next milestone here; it has since progressed to the full verified 53-Step Guided path.
 
 ## Windows persisted Guide 12-Step milestone — 2026-10-03
 
@@ -714,7 +714,7 @@ The Windows TestCRM E2E runner supports `--manual-from-step <N>`, matching the W
 - Windows also accepts `--visual-from-step <N>`, matching Web: prior Steps execute as Unguided bootstrap, then DAP starts at Step N and automation continues in Guided Visual mode.
 - Existing `--manual-from-step <N>`, `--manual`, and `--unguided` remain available. Unguided has no Fast/Visual mode and ignores `DAP_E2E_MODE`.
 - The 5-second technical timeout policy is unchanged. Visual delays are presentation pacing only and do not increase resolver/synchronization timeouts.
-- Implementation is committed; a local Windows/UIA run is still required before claiming new Visual-mode PASS coverage.
+- Focused Windows Visual From Step is now locally verified at Step 47. Full Windows Guided Visual Full remains a distinct run and should only be marked PASS when explicitly executed.
 
 - Runner precedence hardening: both Web and Windows now read `DAP_E2E_MODE` only for full `--guided`. `--unguided`, `--manual`, `--manual-from-step <N>`, and `--visual-from-step <N>` ignore stale shell mode values, so each public command has deterministic semantics independent of the previously executed command.
 
@@ -728,9 +728,9 @@ Implemented symmetrically for Web and Windows:
 - Full `--guided`, full `--manual`, and full `--unguided` behavior is unchanged.
 - No timeout was raised.
 
-Implementation is committed but not yet locally executed on the user's Windows machine; focused Web/Windows PASS must be re-verified after pull.
+Focused From-Step execution is now locally verified on both Web and Windows at Step 47, including Unguided bootstrap, resume context, DAP start at Step 47, and Guided Visual completion.
 
-- **Web From-Step bootstrap fix — 2026-10-04:** the first Unguided-bootstrap run exposed a harness invariant leak: `MoveTo()` still required the active production DAP bubble target during Steps before N, even though DAP is intentionally not running there. The invariant is now disabled only during the bootstrap prefix and is re-enabled immediately when DAP starts at Step N, before the first Guided learner action. Commit: `3957f99195774bce2b3d0b7710d98484442174d6`. Local rerun required.
+- **Web From-Step bootstrap fix — 2026-10-04:** the first Unguided-bootstrap run exposed a harness invariant leak: `MoveTo()` still required the active production DAP bubble target during Steps before N, even though DAP is intentionally not running there. The invariant is now disabled only during the bootstrap prefix and is re-enabled immediately when DAP starts at Step N, before the first Guided learner action. Commit: `3957f99195774bce2b3d0b7710d98484442174d6`. The subsequent Web `--visual-from-step 47` rerun completed successfully.
 
 - **Web/Windows Visual cursor parity — 2026-10-04:** Web Visual cursor travel now matches Windows Visual timing and easing: 12 frames, 18 ms per frame, cubic ease-out, and a 120 ms target dwell. This changes only visible cursor travel; Fast mode and technical timeouts are unchanged. Commit: `dcc8f7c52b26dff1eb4e9eb0c6a218e7e45accc6`.
 
