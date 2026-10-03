@@ -482,6 +482,14 @@ async Task RunGuidedAsync(int? handoffStepOrder = null)
         {
             Console.WriteLine("Windows manual learner run finished by operator request.");
         }
+        catch (TargetApplicationClosedException)
+        {
+            Console.WriteLine("Windows target application closed. Ending the run and cleaning up owned processes.");
+        }
+        catch (Exception) when (windowsApp is not null && windowsApp.HasExited)
+        {
+            Console.WriteLine("Windows target application closed. Ending the run and cleaning up owned processes.");
+        }
     }
     finally
     {
