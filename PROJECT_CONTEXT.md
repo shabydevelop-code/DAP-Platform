@@ -90,12 +90,21 @@ The production application must not require Python. DAP.exe uses the .NET Web Ru
 
 ## Localization
 
-The GUI must support Hebrew and English by user choice.
+DAP product UI localization is runtime-loaded from external JSON files shipped beside the compiled application:
 
-- Hebrew: RTL.
-- English: LTR.
-- GUI language and guide-content language are separate concepts.
-- GUI strings must be resource-based and must not be hard-coded into views.
+```text
+Localization/
+  language.json
+  he.json
+  en.json
+```
+
+`language.json` selects the active product UI language. The selected JSON file owns both product UI wording and UI direction. Editing these files does not require recompiling `DAP.exe`.
+
+There are no localization fallbacks: no embedded RESX translations, no hard-coded alternate UI strings, and no automatic fallback to another language. Missing files, missing required keys, or invalid direction are explicit configuration errors.
+
+Guide instructional content remains Guide/DB data. Product localization applies to DAP-owned interface text such as Step progress, drag-handle help, completion UI, and application messages. Developer diagnostics/logs remain technical code text.
+
 
 ## Data
 
