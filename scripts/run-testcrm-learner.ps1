@@ -8,12 +8,11 @@ param(
 
 $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$testCrmProject = Join-Path $repoRoot "test-apps\DAP.TestCRM\DAP.TestCRM.csproj"
+$backendProject = Join-Path $repoRoot "test-apps\DAP.TestCRM\Server\DAP.TestCRM.Server.csproj"
+$webProject = Join-Path $repoRoot "test-apps\DAP.TestCRM\Web\DAP.TestCRM.Web.csproj"
 $dapProject = Join-Path $repoRoot "src\DAP.App\DAP.App.csproj"
+$backendUrl = "http://localhost:5201"
 $testCrmUrl = "http://localhost:5200"
-$manualOutputRoot = Join-Path $env:TEMP "DAP\ManualLearner"
-$testCrmOutput = Join-Path $manualOutputRoot "TestCRM"
-$testCrmExe = Join-Path $testCrmOutput "DAP.TestCRM.exe"
 
 function Get-FreeTcpPort {
     $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 0)
@@ -26,9 +25,6 @@ function Stop-OwnedProcessTree($process) {
     if (-not $process) { return }
     try {
         if (-not $process.HasExited) {
-            # Start-Process may own a dotnet/browser process that has children.
-            # Kill only this launcher's process tree; never touch unrelated DAP,
-            # dotnet, Chrome, or Edge processes.
             & taskkill.exe /PID $process.Id /T /F 2>$null | Out-Null
         }
     } catch {
@@ -50,62 +46,79 @@ function Resolve-BrowserPath([string]$name) {
             (Join-Path $programFilesX86 "Microsoft\Edge\Application\msedge.exe")
         )
     }
+
     $path = $candidates | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
     if (-not $path) { throw "Could not find installed $name." }
     return $path
 }
 
-if (-not (Test-Path $testCrmProject)) { throw "TestCRM project not found: $testCrmProject" }
-if (-not (Test-Path $dapProject)) { throw "DAP.App project not found: $dapProject" }
-
-$browserPath = Resolve-BrowserPath $Browser
-$cdpPort = Get-FreeTcpPort
-$profileDir = Join-Path $env:TEMP ("DAP\ManualLearner\" + [Guid]::NewGuid())
-New-Item -ItemType Directory -Force -Path $profileDir | Out-Null
-
-$crm = $null
-$browserProcess = $null
-$dap = $null
-
-try {
-    # Build TestCRM into a Manual-Learner-owned output. Never execute it from
-    # the project's normal bin\Debug directory: an interrupted prior manual run
-    # must not lock normal development builds.
-    New-Item -ItemType Directory -Force -Path $testCrmOutput | Out-Null
-    Write-Host "Building TestCRM for manual learner run..."
-    & dotnet publish $testCrmProject --nologo --verbosity quiet --output $testCrmOutput --no-self-contained
-    if ($LASTEXITCODE -ne 0) { throw "TestCRM build failed." }
-    if (-not (Test-Path $testCrmExe)) { throw "TestCRM executable not found: $testCrmExe" }
-
-    Write-Host "Starting TestCRM..."
-    # The executable is launched directly, so launchSettings.json is not
-    # applied. Pin the same URL the manual launcher probes and opens.
-    $previousAspNetCoreUrls = $env:ASPNETCORE_URLS
-    $env:ASPNETCORE_URLS = $testCrmUrl
-    try {
-        $crm = Start-Process $testCrmExe -WorkingDirectory $testCrmOutput -PassThru
-    }
-    finally {
-        $env:ASPNETCORE_URLS = $previousAspNetCoreUrls
-    }
-
-    $deadline = (Get-Date).AddSeconds(30)
-    $ready = $false
+function Wait-Http([string]$url, [string]$name, $process, [int]$timeoutSeconds = 30) {
+    $deadline = (Get-Date).AddSeconds($timeoutSeconds)
     do {
+        if ($process.HasExited) {
+            throw "$name exited before becoming ready."
+        }
+
         try {
-            $response = Invoke-WebRequest -Uri $testCrmUrl -UseBasicParsing -TimeoutSec 1
-            $ready = $response.StatusCode -ge 200 -and $response.StatusCode -lt 500
+            $response = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 1
+            if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 500) {
+                return
+            }
         } catch {
             Start-Sleep -Milliseconds 250
         }
-    } until ($ready -or (Get-Date) -ge $deadline)
-    if (-not $ready) { throw "TestCRM did not become ready at $testCrmUrl." }
+    } until ((Get-Date) -ge $deadline)
 
-    # A focused manual run must put the target application into a state in
-    # which the requested Step can actually resolve. Step 53 is deliberately
-    # in the persistent shell Header iframe, so no business records need to be
-    # synthesized; navigating Content to the post-delete Cases screen mirrors
-    # the state immediately after Step 52 while keeping the real Header intact.
+    throw "$name did not become ready at $url."
+}
+
+foreach ($path in @($backendProject, $webProject, $dapProject)) {
+    if (-not (Test-Path $path)) { throw "Required project not found: $path" }
+}
+
+$browserPath = Resolve-BrowserPath $Browser
+$cdpPort = Get-FreeTcpPort
+$profileDir = Join-Path $env:TEMP ("DAP\ManualLearner\Web\" + [Guid]::NewGuid())
+New-Item -ItemType Directory -Force -Path $profileDir | Out-Null
+
+$backend = $null
+$web = $null
+$browserProcess = $null
+$dap = $null
+$dapExitCode = $null
+
+try {
+    Write-Host "Starting TestCRM backend..."
+    $previousUrls = $env:ASPNETCORE_URLS
+    $env:ASPNETCORE_URLS = $backendUrl
+    try {
+        $backend = Start-Process dotnet -ArgumentList @(
+            "run", "--project", $backendProject, "--no-launch-profile"
+        ) -WorkingDirectory $repoRoot -PassThru -NoNewWindow
+    }
+    finally {
+        $env:ASPNETCORE_URLS = $previousUrls
+    }
+
+    Wait-Http "$backendUrl/api/customers" "TestCRM backend" $backend
+
+    Write-Host "Starting TestCRM Web..."
+    $previousUrls = $env:ASPNETCORE_URLS
+    $previousBackendUrl = $env:TestCrmBackendUrl
+    $env:ASPNETCORE_URLS = $testCrmUrl
+    $env:TestCrmBackendUrl = $backendUrl
+    try {
+        $web = Start-Process dotnet -ArgumentList @(
+            "run", "--project", $webProject, "--no-launch-profile"
+        ) -WorkingDirectory $repoRoot -PassThru -NoNewWindow
+    }
+    finally {
+        $env:ASPNETCORE_URLS = $previousUrls
+        $env:TestCrmBackendUrl = $previousBackendUrl
+    }
+
+    Wait-Http $testCrmUrl "TestCRM Web" $web
+
     $startUrl = $testCrmUrl
     if ($GuideId -eq "testcrm-web-canonical-workflow" -and $StartStep -eq 53) {
         $startUrl = "$testCrmUrl/#/site/1/cases"
@@ -123,29 +136,20 @@ try {
     ) -PassThru
 
     $cdpEndpoint = "http://127.0.0.1:$cdpPort"
-    $deadline = (Get-Date).AddSeconds(15)
-    $cdpReady = $false
-    do {
-        try {
-            Invoke-WebRequest -Uri "$cdpEndpoint/json/version" -UseBasicParsing -TimeoutSec 1 | Out-Null
-            $cdpReady = $true
-        } catch {
-            Start-Sleep -Milliseconds 200
-        }
-    } until ($cdpReady -or (Get-Date) -ge $deadline)
-    if (-not $cdpReady) { throw "$Browser did not expose CDP at $cdpEndpoint." }
+    Wait-Http "$cdpEndpoint/json/version" "$Browser CDP" $browserProcess 15
 
     Write-Host ""
-    Write-Host "Manual learner run started."
+    Write-Host "Manual Web learner run started."
     Write-Host "Guide: $GuideId"
     Write-Host "Browser: $Browser"
     Write-Host "Start step: $StartStep"
     Write-Host "Perform every learner action yourself in the browser."
-    Write-Host "Close DAP or press Ctrl+C here to stop."
+    Write-Host "The completion UI is owned by DAP."
+    Write-Host "Press Ctrl+C here to stop early."
     Write-Host ""
 
     $dapArgs = @(
-        "run", "--project", $dapProject, "--",
+        "run", "--project", $dapProject, "--no-launch-profile", "--",
         "--learner-web", $GuideId,
         "--cdp", $cdpEndpoint,
         "--page-url-contains", "localhost:5200",
@@ -155,11 +159,8 @@ try {
         $dapArgs += @("--start-step", [string]$StartStep)
     }
 
-    $dap = Start-Process dotnet -ArgumentList $dapArgs -PassThru -NoNewWindow
+    $dap = Start-Process dotnet -ArgumentList $dapArgs -WorkingDirectory $repoRoot -PassThru -NoNewWindow
 
-    # Do not block in Process.WaitForExit(): a blocking .NET call prevents
-    # PowerShell from handling Ctrl+C promptly and therefore delays finally.
-    # Poll with an interruptible PowerShell command instead.
     while (-not $dap.HasExited) {
         Start-Sleep -Milliseconds 200
     }
@@ -168,11 +169,14 @@ try {
 }
 finally {
     Write-Host ""
-    Write-Host "Stopping manual learner run..."
+    Write-Host "Stopping manual Web learner run..."
     Stop-OwnedProcessTree $dap
-    Stop-OwnedProcessTree $crm
+    Stop-OwnedProcessTree $web
+    Stop-OwnedProcessTree $backend
     Stop-OwnedProcessTree $browserProcess
-    if (Test-Path $profileDir) { Remove-Item -Recurse -Force $profileDir -ErrorAction SilentlyContinue }
+    if (Test-Path $profileDir) {
+        Remove-Item -Recurse -Force $profileDir -ErrorAction SilentlyContinue
+    }
 }
 
 if ($null -ne $dapExitCode) {
