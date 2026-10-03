@@ -217,7 +217,7 @@ Console.CancelKeyPress += webCancelCleanup;
             return;
         testCrmWebStdOut.Enqueue(e.Data);
         while (testCrmWebStdOut.Count > 200)
-            testCrmWebStdOut.TryDequeue(out _);
+            testCrmWebStdOut.TryDequeue(out string? _);
         Console.WriteLine($"[TestCRM Web] {e.Data}");
     };
     ownedTestCrmProcess.ErrorDataReceived += (_, e) =>
@@ -226,7 +226,7 @@ Console.CancelKeyPress += webCancelCleanup;
             return;
         testCrmWebStdErr.Enqueue(e.Data);
         while (testCrmWebStdErr.Count > 200)
-            testCrmWebStdErr.TryDequeue(out _);
+            testCrmWebStdErr.TryDequeue(out string? _);
         Console.Error.WriteLine($"[TestCRM Web ERROR] {e.Data}");
     };
     ownedTestCrmProcess.BeginOutputReadLine();
