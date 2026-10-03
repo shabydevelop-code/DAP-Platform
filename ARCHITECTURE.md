@@ -328,3 +328,13 @@ The responsibility boundary is:
 Therefore, a test-only wait such as “after this click, wait until the destination form exists” is not sufficient if that destination is semantically required for the real Guide to advance safely. In that case, the destination/context check must be represented in the Guide model and persisted through the configured data provider, while the Runtime supplies the generic mechanism that evaluates it.
 
 This rule applies equally to Web and Windows Guides and is independent of the concrete database technology.
+
+## Persisted completion conditions and explicit runtime capture
+
+Guide Steps may now persist explicit post-action completion conditions. These conditions are part of learner-flow semantics, not E2E orchestration. The shared Core model carries the condition kind, its runtime-specific target descriptor, and an optional expected value. SQLite persists the ordered conditions per Step.
+
+Supported runtime semantics currently include target existence, target non-existence, target enabled state, and value equality. Web and Windows evaluate these conditions only after the Step's primary validation/action has completed, so a click or value change does not advance the Guide until the persisted destination/business state is also satisfied.
+
+Windows also honors persisted Step context guards for Windows-observable context kinds. Context controls whether a Step is active/presentable; completion conditions control whether a completed learner action is sufficient to advance.
+
+Web runtime capture is now explicit Guide data. A Step that captures a runtime value declares a StepCaptureDefinition in persistence. Runtime-value references use the shared {{step:<id>:capture}} token. The Web Runtime no longer infers capture ownership merely because a later locator references a URL-fragment token.
