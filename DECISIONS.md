@@ -391,3 +391,13 @@ The Windows E2E runner builds these executables into a unique per-run directory 
 
 This prevents an interrupted or orphaned learner process from locking `src/DAP.App/bin/Debug` and causing subsequent `dotnet run` builds to fail. Runner-owned child processes are cleaned up in normal `finally` handling and also on process-exit / Ctrl+C when those notifications are delivered. A hard OS termination may leave the isolated temporary directory behind, but later runs never reuse it, so it cannot block future builds.
 
+## ADR-041 — Web TestCRM E2E also uses isolated per-run executable outputs
+
+**Status:** Accepted
+
+Web TestCRM execution follows the same isolation principle as Windows. Each run builds TestCRM Server, TestCRM Web, and (for guided/manual modes) DAP into a unique directory under `%TEMP%\DAP\E2E\Web\<run-id>` and launches the owned processes from that directory.
+
+The Web runner must not use normal reusable repository build outputs as the executable location for long-lived child processes. This prevents interrupted or orphaned Web learner runs from locking the normal TestCRM or DAP build outputs and blocking later builds.
+
+Owned-process cleanup for DAP, TestCRM Web, and TestCRM Server is registered before child startup for process-exit and Ctrl+C notifications, in addition to normal `finally` cleanup. A hard OS termination may leave the unique temporary run directory behind; future runs never reuse it.
+
