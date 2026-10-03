@@ -154,7 +154,7 @@ internal sealed class PersistedWindowsCrmGuideExecutor
                 await driver.OpenLeads();
                 return;
             case "testcrm-windows-open-lead":
-                await driver.OpenFirstLead();
+                await driver.OpenLeadByContactName("אבי כהן");
                 return;
             case "testcrm-windows-layout-status-new":
                 await driver.SetLeadStatus(RequiredExpectedValue(step));

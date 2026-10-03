@@ -309,7 +309,7 @@ async Task RunGuidedAsync()
         await driver.OpenLeads();
 
         WaitForBubble(BubbleFor("testcrm-windows-open-lead"), dap);
-        await driver.OpenFirstLead();
+        await driver.OpenLeadByContactName("אבי כהן");
 
         WaitForBubble(BubbleFor("testcrm-windows-layout-status-new"), dap);
         await driver.SetLeadStatus("חדש");

@@ -354,7 +354,8 @@ internal static class DapTestCrmWindowsGuideSeed
 
         NavigationRowStep(
             "testcrm-windows-open-lead", 41,
-            "LeadsGrid", "פתח את הליד הראשון",
+            "LeadsGrid", "פתח את הליד של אבי כהן",
+            "אבי כהן",
             completionCondition: new StepCompletionCondition("target-exists", ById("DeleteLeadButton"))),
 
         ValueStep(

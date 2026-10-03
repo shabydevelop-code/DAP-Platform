@@ -406,6 +406,18 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
         Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteLeadButton")),"Lead form");
         return Task.CompletedTask;
     }
+    public Task OpenLeadByContactName(string contactName)
+    {
+        var row=RowByCellText("LeadsGrid",contactName);
+        if(row.TryGetCurrentPattern(SelectionItemPattern.Pattern,out var selection))
+            ((SelectionItemPattern)selection).Select();
+
+        Click(row,true);
+        Wait(()=>window.FindFirst(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteLeadButton")),"Lead form");
+        return Task.CompletedTask;
+    }
+
     public Task OpenFirstCase()
     {
         FirstRow("CasesGrid");
