@@ -296,10 +296,12 @@ This behavior is part of the permanent PeopleSoft interaction contract and appli
 
 ## E2E execution modes and synchronization
 
-The permanent DAP.TestCRM E2E suite supports two execution modes through the `DAP_E2E_MODE` environment variable:
+The canonical DAP.TestCRM runner-mode contract uses only two `DAP_E2E_MODE` names:
 
-- `fast` — default for validation. Artificial human-like cursor movement, typing delays, and demonstration pauses are skipped. TestCRM's artificial server-thinking delay is also bypassed for the E2E request. Real server, DOM, route, iframe, and validation readiness conditions remain enforced.
-- `visual` — demonstration mode. Human-like cursor movement, typing delays, processing feedback, and the artificial server-thinking delay are retained.
+- `fast` — default for validation. Artificial human-like cursor movement, typing delays, and visual-observation pauses are skipped. Artificial TestCRM thinking delays may be bypassed where that platform implements them, while real application readiness remains enforced.
+- `visual` — observable learner-action mode. Platform-appropriate cursor/input movement, typing/pacing, and visual processing feedback are retained where implemented.
+
+`demo` is not a supported alias. Web and Windows must keep the same public mode vocabulary and semantics; platform-specific implementation details may differ, but a mode must not silently acquire a different meaning on one platform. Any CLI/mode change must be reviewed for both canonical runners in the same change unless a documented exception is intentionally introduced.
 
 The E2E runner uses a 5-second default Playwright timeout. Frame discovery polls every 100ms. Fixed delays must not be used as substitutes for actual application readiness; synchronization should use route, DOM, frame, server-state, or validation signals.
 
