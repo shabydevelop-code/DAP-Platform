@@ -52,15 +52,24 @@ for (var i = 0; i < args.Length; i++)
 
 var unguided = args.Contains("--unguided", StringComparer.OrdinalIgnoreCase);
 var guided = args.Contains("--guided", StringComparer.OrdinalIgnoreCase);
+var manual = args.Contains("--manual", StringComparer.OrdinalIgnoreCase);
 
 if (unguided && guided)
     throw new ArgumentException("--guided and --unguided cannot be combined.");
+if (manual && (unguided || guided || manualFromStep is not null))
+    throw new ArgumentException("--manual cannot be combined with --guided, --unguided, or --manual-from-step.");
 if (unguided && manualFromStep is not null)
     throw new ArgumentException("--unguided and --manual-from-step cannot be combined.");
 
 if (unguided)
 {
     await RunPersistedUnguidedAsync();
+    return;
+}
+
+if (manual)
+{
+    await RunGuidedAsync(1);
     return;
 }
 
@@ -214,7 +223,10 @@ async Task RunGuidedAsync(int? handoffStepOrder = null)
                 return;
 
             Console.WriteLine();
-            Console.WriteLine($"MANUAL HANDOFF: Windows Step {step.Order}/{persistedSteps.Count} is ready.");
+            Console.WriteLine(
+                handoffStepOrder == 1
+                    ? $"MANUAL WINDOWS RUN: Step {step.Order}/{persistedSteps.Count} is ready."
+                    : $"MANUAL HANDOFF: Windows Step {step.Order}/{persistedSteps.Count} is ready.");
             Console.WriteLine("Automatic learner actions are paused. Continue manually in TestCRM by following the DAP bubbles.");
             Console.WriteLine("The run will close automatically when DAP completes the Guide.");
             Console.WriteLine("Press ENTER only if you want to stop the manual run before Guide completion.");
