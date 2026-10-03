@@ -15,6 +15,8 @@ var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "
 var appProject = Path.Combine(root, "test-apps", "DAP.TestCRM", "Windows", "DAP.TestCRM.Windows.csproj");
 var backendProject = Path.Combine(root, "test-apps", "DAP.TestCRM", "Server", "DAP.TestCRM.Server.csproj");
 var dapProject = Path.Combine(root, "src", "DAP.App", "DAP.App.csproj");
+var appProjectDirectory = Path.GetDirectoryName(appProject)!;
+var backendProjectDirectory = Path.GetDirectoryName(backendProject)!;
 
 if (args.Contains("--reset-guide", StringComparer.OrdinalIgnoreCase))
 {
@@ -168,21 +170,40 @@ async Task RunGuidedAsync(int? handoffStepOrder = null)
     Process? backend = null;
     Process? windowsApp = null;
     Process? dap = null;
+    var runRoot = Path.Combine(
+        Path.GetTempPath(),
+        "DAP",
+        "E2E",
+        "Windows",
+        Guid.NewGuid().ToString("N"));
+    var backendOutput = Path.Combine(runRoot, "Server");
+    var windowsOutput = Path.Combine(runRoot, "Windows");
+    var dapOutput = Path.Combine(runRoot, "DAP");
 
     try
     {
         EnsurePortFree(5201);
 
+        BuildIsolated(backendProject, backendOutput, "TestCRM Server");
+        BuildIsolated(appProject, windowsOutput, "TestCRM Windows");
+        BuildIsolated(dapProject, dapOutput, "DAP");
+
+        var backendDll = Path.Combine(backendOutput, "DAP.TestCRM.Server.dll");
+        var windowsExe = Path.Combine(windowsOutput, "DAP.TestCRM.Windows.exe");
+        var dapExe = Path.Combine(dapOutput, "DAP.exe");
+
         backend = StartProcess(
             "dotnet",
-            $"run --project \"{backendProject}\" --no-launch-profile",
-            new Dictionary<string, string?> { ["ASPNETCORE_URLS"] = "http://localhost:5201" });
+            $"\"{backendDll}\"",
+            new Dictionary<string, string?> { ["ASPNETCORE_URLS"] = "http://localhost:5201" },
+            workingDirectory: backendProjectDirectory);
 
         await WaitForHttpAsync("http://localhost:5201/api/customers", backend, "TestCRM backend");
 
         windowsApp = StartProcess(
-            "dotnet",
-            $"run --project \"{appProject}\" --no-launch-profile");
+            windowsExe,
+            string.Empty,
+            workingDirectory: appProjectDirectory);
 
         var window = WaitForMainWindow();
         var customerName = WaitForElementById(window, "CustomerNameSearch");
@@ -192,12 +213,12 @@ async Task RunGuidedAsync(int? handoffStepOrder = null)
             : string.Empty;
 
         dap = StartProcess(
-            "dotnet",
-            $"run --project \"{dapProject}\" --no-launch-profile --no-build -- " +
+            dapExe,
             $"--learner-windows {DapTestCrmWindowsGuideSeed.GuideId} " +
             $"--window-automation-id {mainWindowAutomationId}" +
             manualCompletionArgument,
-            redirectOutput: true);
+            redirectOutput: true,
+            workingDirectory: dapOutput);
 
         dap.OutputDataReceived += (_, e) =>
         {
@@ -439,6 +460,48 @@ async Task RunGuidedAsync(int? handoffStepOrder = null)
         if (dap is not null) StopOwnedProcessTree(dap);
         if (windowsApp is not null) StopOwnedProcessTree(windowsApp);
         if (backend is not null) StopOwnedProcessTree(backend);
+
+        try
+        {
+            if (Directory.Exists(runRoot))
+                Directory.Delete(runRoot, recursive: true);
+        }
+        catch (IOException)
+        {
+            // A hard process termination can leave the isolated run directory
+            // temporarily locked. It is safe to leave because no later run reuses it.
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
+    }
+}
+
+void BuildIsolated(string project, string output, string name)
+{
+    Directory.CreateDirectory(output);
+    Console.WriteLine($"Building {name} into isolated E2E output: {output}");
+
+    using var build = Process.Start(new ProcessStartInfo(
+        "dotnet",
+        $"build \"{project}\" --nologo --verbosity minimal --output \"{output}\"")
+    {
+        WorkingDirectory = root,
+        UseShellExecute = false,
+        RedirectStandardOutput = true,
+        RedirectStandardError = true
+    }) ?? throw new InvalidOperationException($"Could not start isolated build for {name}.");
+
+    var stdout = build.StandardOutput.ReadToEndAsync();
+    var stderr = build.StandardError.ReadToEndAsync();
+    build.WaitForExit();
+
+    if (build.ExitCode != 0)
+    {
+        throw new InvalidOperationException(
+            $"{name} isolated build failed with exit code {build.ExitCode}.{Environment.NewLine}" +
+            $"STDOUT:{Environment.NewLine}{stdout.GetAwaiter().GetResult()}{Environment.NewLine}" +
+            $"STDERR:{Environment.NewLine}{stderr.GetAwaiter().GetResult()}");
     }
 }
 
@@ -466,11 +529,12 @@ Process StartProcess(
     string fileName,
     string arguments,
     IReadOnlyDictionary<string, string?>? environment = null,
-    bool redirectOutput = false)
+    bool redirectOutput = false,
+    string? workingDirectory = null)
 {
     var psi = new ProcessStartInfo(fileName, arguments)
     {
-        WorkingDirectory = root,
+        WorkingDirectory = workingDirectory ?? root,
         UseShellExecute = false,
         RedirectStandardOutput = redirectOutput,
         RedirectStandardError = redirectOutput
