@@ -181,7 +181,7 @@ Browser/Playwright deployment dependencies must be packaged or validated explici
 
 Bubble content and per-step placement are guide data. The product's default visual language (colors, typography, border, radius, spacing, shadow, and equivalent presentation defaults) is runtime/theme configuration and is not duplicated in each GuideStep or persisted as per-step SQLite data.
 
-The Web Runtime currently exposes this through a central `WebBubbleTheme`, consumed by `WebBubblePresenter`. This keeps presentation policy separate from guide content and persistence. A future Windows Runtime should map the corresponding product theme to its native presentation technology rather than storing Web CSS in Core or in the guide database. Per-guide/per-step visual overrides should be introduced only if they become an explicit product requirement.
+The Web Runtime currently exposes this through a central `WebBubbleTheme`, consumed by `WebBubblePresenter`. This keeps presentation policy separate from guide content and persistence. The implemented Windows Runtime uses native WPF presentation and follows the same separation: product presentation policy is runtime/theme configuration rather than Web CSS or per-step persistence data. Per-guide/per-step visual overrides should be introduced only if they become an explicit product requirement.
 
 ## Windows Runtime
 
