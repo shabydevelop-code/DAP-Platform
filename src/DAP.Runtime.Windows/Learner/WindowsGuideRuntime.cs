@@ -243,7 +243,24 @@ public sealed class WindowsGuideRuntime
                             if (args.Property == ValuePattern.ValueProperty)
                             {
                                 if (!Equals(args.OldValue, args.NewValue))
+                                {
                                     Volatile.Write(ref textTargetChanged, 1);
+
+                                    // A fast edit can begin and lose focus entirely
+                                    // between reconciliation polls. Capture the
+                                    // focus state at the value-change signal itself
+                                    // so the later blur/poll can still form a real
+                                    // edit -> blur commit.
+                                    try
+                                    {
+                                        if (subscribedTextTarget?.Current.HasKeyboardFocus == true)
+                                            Volatile.Write(ref textTargetObservedFocused, 1);
+                                    }
+                                    catch (ElementNotAvailableException)
+                                    {
+                                    }
+                                }
+
                                 return;
                             }
 
