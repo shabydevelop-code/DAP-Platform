@@ -251,7 +251,7 @@ A target is represented by a runtime-neutral TargetDescriptor rather than a sing
 
 `src/DAP.App` is the production Windows executable host (`AssemblyName=DAP`, .NET 8 WPF). It is the composition root for persistence and runtime services. Learner bubble lifecycle belongs inside this process; there is no separate Bubble.exe.
 
-The canonical guided Web E2E launches the production `DAP.exe` process, which attaches to the E2E-owned Chromium instance over CDP and owns Web Guide/bubble runtime behavior. CRM-only intentionally does not launch `DAP.exe`.
+The canonical guided Web E2E launches the production `DAP.exe` process, which attaches to the E2E-owned Chromium instance over CDP and owns Web Guide/bubble runtime behavior. Unguided intentionally does not launch `DAP.exe`.
 
 An independent DAP.exe cannot consume an `IPage` created inside another process. Production Web execution therefore requires DAP.exe to own or explicitly attach to a browser/Playwright connection. `DAP.exe --learner-web <guide-id> --cdp <endpoint> [--page-url-contains <text>]` now attaches to an existing Chromium browser through Playwright's CDP connection, selects exactly one matching page, loads the guide from the configured data provider, and starts its first Web Learner Step. Ambiguous page selection fails explicitly rather than guessing. The canonical E2E harness uses this external `DAP.exe` process boundary.
 
@@ -284,15 +284,15 @@ A normal full Web E2E run therefore does not require manually pre-started TestCR
 
 The canonical Web Guide is `testcrm-web-canonical-workflow` and contains 53 persisted Steps. The full Web workflow was reverified after the numeric-ID persistence migration on 2026-10-02.
 
-## Canonical Web guided vs CRM-only topology
+## Canonical Web Guided vs Unguided topology
 
 The Web E2E has one canonical 53-Step business sequence backed by the persisted Guide `testcrm-web-canonical-workflow` in `DAP.db`.
 
 Guided execution is: `DAP.db -> Guide Steps -> DAP.exe -> DAP.Runtime.Web -> target/bubble/validation -> TestCRM Web -> TestCRM Server -> testcrm.db`.
 
-CRM-only execution is: `DAP.db -> Guide Steps -> E2E CRM action harness -> TestCRM Web -> TestCRM Server -> testcrm.db`.
+Unguided execution is: `DAP.db -> Guide Steps -> E2E CRM action harness -> TestCRM Web -> TestCRM Server -> testcrm.db`.
 
-CRM-only exists to run the same canonical CRM flow without learner bubbles. It must not evolve into a divergent TestCRM-specific QA path. Production Guide data owns the Step sequence, target semantics, validation, and context; the E2E harness owns only synthetic user actions/values needed to exercise those semantics.
+Unguided exists to run the same canonical CRM flow without learner bubbles. It must not evolve into a divergent TestCRM-specific QA path. Production Guide data owns the Step sequence, target semantics, validation, and context; the E2E harness owns only synthetic user actions/values needed to exercise those semantics.
 
 ## Windows Runtime topology
 
@@ -338,3 +338,24 @@ Supported runtime semantics currently include target existence, target non-exist
 Windows also honors persisted Step context guards for Windows-observable context kinds. Context controls whether a Step is active/presentable; completion conditions control whether a completed learner action is sufficient to advance.
 
 Web runtime capture is now explicit Guide data. A Step that captures a runtime value declares a StepCaptureDefinition in persistence. Runtime-value references use the shared {{step:<id>:capture}} token. The Web Runtime no longer infers capture ownership merely because a later locator references a URL-fragment token.
+
+
+## Canonical Web/Windows Guide parity — 2026-10-03
+
+The canonical TestCRM business workflow is now represented by two persisted 53-Step Guides:
+- `testcrm-web-canonical-workflow`
+- `testcrm-windows-canonical-workflow`
+
+They represent the same business scenario while using runtime-specific target descriptors. Guide parity means business identity, Step order, learner intent, and completion semantics remain aligned; it does **not** mean Web and Windows share selectors or one Step stores parallel platform targets.
+
+Business-identifying navigation must not rely on incidental row order when a stable identity is available. The current canonical parity uses explicit identities for `מטה תל אביב`, `אבי כהן`, and the Case created during the active run. Runtime capture carries the created Case identity into later Steps.
+
+The four canonical execution paths are all locally verified 53/53:
+- Web Guided
+- Web Unguided
+- Windows Guided
+- Windows Unguided
+
+Windows presentation follows the live UIA target across application-window movement and resizing. A manually dragged bubble preserves its relative offset for the active Step. Bubble/highlight presentation is hidden while the target application is minimized or loses foreground ownership, then restored from current UIA geometry when the application becomes active again.
+
+Web FieldChange synchronization treats document identity as part of readiness. When a server-backed status change reloads the active content document, E2E validation waits for a new browser document identity before accepting the application-ready marker; an old still-ready document is not sufficient.

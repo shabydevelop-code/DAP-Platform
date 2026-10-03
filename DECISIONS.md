@@ -307,3 +307,30 @@ The persisted Step definition owns the **what** of completion: target, learner a
 An E2E driver may automate the learner's action, but it must not contain hidden business rules that are required for progression and unavailable to the real learner Runtime. If an E2E assertion reveals that the next Step is only safe after a destination screen, field, modal, state, or context exists, that requirement must be promoted into the persisted Guide semantics before relying on it as part of the learner flow.
 
 Runtime implementation details such as polling, retries, UIA event handling, modal-window discovery, resolver strategy, and timing mechanics remain code-level concerns and do not belong in the Guide database unless they are explicitly configurable product semantics.
+
+
+## ADR-034 — Canonical Web and Windows Guides preserve business-scenario parity
+
+**Status:** Accepted
+
+The canonical TestCRM Web and Windows Guides each contain 53 persisted Steps and represent the same business workflow. Runtime-specific target technology may differ, but Step order, learner intent, business identity, and progression semantics must remain aligned.
+
+Where the intended business object has a stable identity, the Guide must encode that identity rather than rely on incidental row order such as "first row". The canonical workflow currently identifies `מטה תל אביב`, `אבי כהן`, and the Case created during the active run explicitly. Runtime capture may be used to carry identities created earlier in the Guide into later Steps.
+
+A change to one platform's canonical Guide that alters the business scenario must be reviewed against the other platform's Guide. Platform-specific mechanics may differ without requiring artificial schema symmetry.
+
+The canonical execution-mode names are **Guided** and **Unguided**. References to **CRM-only** in older ADRs are historical terminology for what is now called Unguided; they do not define a separate current execution mode.
+
+## ADR-035 — Windows learner presentation follows application window state
+
+**Status:** Accepted
+
+Windows learner bubble/highlight presentation remains bound to the active target application.
+
+- Moving or resizing the target application causes bubble/highlight geometry to be recomputed from current UIA bounds.
+- A learner-dragged bubble preserves its relative manual offset for the active Step.
+- Minimizing the target application or moving foreground ownership to another application hides learner presentation.
+- Restoring or returning foreground ownership causes presentation to be rebuilt from current UIA geometry.
+- Owned/modal windows of the target application remain part of the same interactive application context.
+
+This behavior is presentation/runtime infrastructure only and does not change persisted target identity, validation, capture, or Guide progression semantics.
