@@ -178,11 +178,16 @@ async Task RunGuidedAsync(int? handoffStepOrder = null)
         var window = WaitForMainWindow();
         var customerName = WaitForElementById(window, "CustomerNameSearch");
 
+        var manualCompletionArgument = handoffStepOrder is not null
+            ? " --show-completion"
+            : string.Empty;
+
         dap = StartProcess(
             "dotnet",
             $"run --project \"{dapProject}\" --no-launch-profile --no-build -- " +
             $"--learner-windows {DapTestCrmWindowsGuideSeed.GuideId} " +
-            $"--window-automation-id {mainWindowAutomationId}",
+            $"--window-automation-id {mainWindowAutomationId}" +
+            manualCompletionArgument,
             redirectOutput: true);
 
         dap.OutputDataReceived += (_, e) =>
