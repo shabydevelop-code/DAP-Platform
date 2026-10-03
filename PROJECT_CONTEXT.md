@@ -9,6 +9,7 @@ Locally verified baseline:
 - **Web Guided — PASS 53/53.**
 - **Windows Unguided — PASS 53/53.**
 - **Windows Guided — PASS 53/53.**
+- Windows Guided was re-verified again on 2026-10-03 after the text-commit regression work: all 53 persisted Steps completed through the production Windows Learner Runtime with real UIA targets, runtime capture, modal targeting, and bubbles. The former Step-8 `CaseSubject` stall is closed.
 
 Both persisted canonical Guides contain 53 Steps and represent the same Customer -> Site -> Case -> Lead business scenario:
 - `testcrm-web-canonical-workflow`
@@ -38,6 +39,7 @@ Current cross-runtime UX parity rules:
 - Manual bubble dragging makes manual placement authoritative for the active Step. The directional pointer disappears immediately when dragging begins and remains hidden until the Step changes.
 - TestCRM Windows Case sorting is exposed through the `סטטוס` grid header, matching the Web learner interaction instead of using a separate learner-facing sort button.
 - Web completion is the in-browser DAP completion UI; the Web `--manual` runner must not add a duplicate OS completion dialog.
+- DAP-owned OS completion dialogs must request foreground presentation when shown so the learner cannot miss successful completion behind the target application. The request is scoped to the completion dialog lifetime; it must not leave persistent Topmost state. This behavior was manually verified on 2026-10-03.
 
 Web FieldChange synchronization now waits for the actual replacement document identity before accepting readiness, preventing stale-document races.
 
@@ -447,7 +449,7 @@ Web and Windows full manual TestCRM runs are now modes of the canonical platform
 
 The Web E2E now also regression-checks natural text commit explicitly: after typing the exact Step-1 value it verifies Step 1 is still active before blur, then sends Tab and requires advancement to Step 2 only after that commit event.
 
-Commit semantics were hardened on both runtimes. For Web non-click validation, a blur/change report represents one commit attempt. If the committed value fails primary validation, DAP consumes that attempt and requires a new edit plus a new blur/change before reevaluating progression. Browser-side edit state is retained across reconciliation instead of being recreated every poll. Windows text validation now consumes an invalid blur attempt in the same way and resets its edit-cycle baseline. Commit detection is event-driven through a target-scoped UIA property subscription for `ValuePattern.ValueProperty` and `AutomationElement.HasKeyboardFocusProperty`, with polling retained only as fallback. The previous global focus-change listener was removed because the fast blur in the canonical Windows Step 1 flow was still missed. The Windows canonical E2E now produces the commit with a real TAB keystroke from the focused edit control rather than programmatically focusing the window. The Windows Guided E2E covers invalid commit -> refocus -> exact value while focused -> still Step 1 -> blur -> advance.
+Commit semantics are hardened on both runtimes. For Web non-click validation, a blur/change report represents one commit attempt. If the committed value fails primary validation, DAP consumes that attempt and requires a new edit plus a new blur/change before reevaluating progression. Browser-side edit state is retained across reconciliation instead of being recreated every poll. Windows text validation consumes an invalid blur attempt in the same way and resets its edit-cycle baseline. Commit detection uses a target-scoped UIA property subscription for `ValuePattern.ValueProperty` and `AutomationElement.HasKeyboardFocusProperty`, with polling retained only as fallback; the Runtime also captures target focus at the UIA value-change signal to cover fast edit/blur ordering without restoring the problematic global focus listener. Canonical Windows E2E text input waits for the provider's real UIA value-change notification and then commits with a real TAB traversal. This closed the Step-8 text-commit regression and was followed by a fresh Windows Guided 53/53 PASS.
 
 Web and Windows TestCRM runners now share the same executable-isolation rule.
 
