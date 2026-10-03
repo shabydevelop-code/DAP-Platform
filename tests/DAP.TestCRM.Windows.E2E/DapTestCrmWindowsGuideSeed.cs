@@ -234,7 +234,7 @@ internal static class DapTestCrmWindowsGuideSeed
 
         ClickStep(
             "testcrm-windows-save-closed-case", 21,
-            ById("SaveCaseButton"), "שמור את הפנייה הסגורה", completionCondition: new StepCompletionCondition("target-exists", ById("DeleteCaseButton"))),
+            ById("SaveCaseButton"), "שמור את הפנייה הסגורה", completionCondition: new StepCompletionCondition("target-replaced", ById("DeleteCaseButton"))),
 
         ClickStep(
             "testcrm-windows-return-site", 22,
@@ -312,7 +312,7 @@ internal static class DapTestCrmWindowsGuideSeed
         ClickStep(
             "testcrm-windows-save-lead", 35,
             ById("SaveLeadButton"), "שמור את הליד",
-            completionCondition: new StepCompletionCondition("target-exists", ById("DeleteLeadButton"))),
+            completionCondition: new StepCompletionCondition("target-replaced", ById("DeleteLeadButton"))),
 
         ClickStep(
             "testcrm-windows-delete-lead", 36,
