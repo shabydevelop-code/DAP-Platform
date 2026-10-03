@@ -130,6 +130,26 @@ void TryKillOwnedProcessTree(Process? process)
 
 Process? ownedTestCrmProcess = null;
 Process? ownedTestCrmBackendProcess = null;
+Process? dapProcess = null;
+Task<string>? dapStdOutTask = null;
+
+void KillOwnedDapProcess()
+{
+    TryKillOwnedProcessTree(dapProcess);
+}
+
+void KillOwnedWebChildren()
+{
+    KillOwnedDapProcess();
+    TryKillOwnedProcessTree(ownedTestCrmProcess);
+    TryKillOwnedProcessTree(ownedTestCrmBackendProcess);
+}
+
+EventHandler webProcessExitCleanup = (_, _) => KillOwnedWebChildren();
+ConsoleCancelEventHandler webCancelCleanup = (_, _) => KillOwnedWebChildren();
+AppDomain.CurrentDomain.ProcessExit += webProcessExitCleanup;
+Console.CancelKeyPress += webCancelCleanup;
+
 {
     if (!File.Exists(testCrmProject))
         throw new FileNotFoundException("TestCRM Web project was not found.", testCrmProject);
@@ -711,25 +731,6 @@ async Task WaitForGuideStep(int order)
         $"DAP Guide did not present Step {order}: {expected.Id}.{Environment.NewLine}" +
         $"DAP diagnostics:{Environment.NewLine}{recentDapDiagnostics}");
 }
-
-Process? dapProcess=null;
-Task<string>? dapStdOutTask=null;
-void KillOwnedDapProcess()
-{
-    TryKillOwnedProcessTree(dapProcess);
-}
-
-void KillOwnedWebChildren()
-{
-    KillOwnedDapProcess();
-    TryKillOwnedProcessTree(ownedTestCrmProcess);
-    TryKillOwnedProcessTree(ownedTestCrmBackendProcess);
-}
-
-EventHandler webProcessExitCleanup = (_, _) => KillOwnedWebChildren();
-ConsoleCancelEventHandler webCancelCleanup = (_, _) => KillOwnedWebChildren();
-AppDomain.CurrentDomain.ProcessExit += webProcessExitCleanup;
-Console.CancelKeyPress += webCancelCleanup;
 
 try
 {
