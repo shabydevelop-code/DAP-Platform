@@ -218,23 +218,23 @@ public sealed class WebBubblePresenter
             dragHandle.style.cursor = 'grab';
     });
 
+    const content = root.createElement('div');
+    content.textContent = b.content;
+    content.style.cursor = 'default';
+    bubble.appendChild(content);
+
     if (b.stepNumber && b.totalSteps) {
         const progress = root.createElement('div');
         progress.textContent = 'שלב ' + b.stepNumber + ' מתוך ' + b.totalSteps;
         Object.assign(progress.style, {
             fontSize: '12px',
             opacity: '0.78',
-            marginBottom: '5px',
+            marginTop: '8px',
             fontWeight: '600',
             cursor: 'default'
         });
         bubble.appendChild(progress);
     }
-
-    const content = root.createElement('div');
-    content.textContent = b.content;
-    content.style.cursor = 'default';
-    bubble.appendChild(content);
 
     const pointer = root.createElement('div');
     pointer.setAttribute('aria-hidden', 'true');
