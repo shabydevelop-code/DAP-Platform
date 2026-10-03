@@ -492,3 +492,5 @@ New canonical meanings:
 - Full runs retain their existing meanings.
 
 Local Web and Windows E2E execution is required after pull before these new focused paths are marked PASS.
+
+- Local verification after the Web/Windows Visual cursor pacing alignment: Web `--visual-from-step 47` completed successfully. This confirms the current focused-run contract in practice on Web: Unguided bootstrap before N, validated resume context into DAP, then Guided Visual from N, with the faster Windows-aligned cursor movement.
