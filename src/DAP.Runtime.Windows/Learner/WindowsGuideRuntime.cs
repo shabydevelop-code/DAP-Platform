@@ -268,11 +268,11 @@ public sealed class WindowsGuideRuntime
                 if (!initialVisibilityChecked)
                 {
                     initialVisibilityChecked = true;
-                    if (!IsFullyVisibleWithinViewport(windowRoot, target)
-                        && TryScrollIntoView(target))
+                    if (NeedsInitialViewportAdjustment(windowRoot, target)
+                        && TryScrollIntoComfortableView(target))
                     {
                         Console.Error.WriteLine(
-                            $"[DAP Windows guide] Step '{step.Id}' scrolled initial target into view.");
+                            $"[DAP Windows guide] Step '{step.Id}' centered initial target in its scroll viewport.");
                         await Task.Delay(_pollInterval, cancellationToken);
                         continue;
                     }
@@ -864,7 +864,64 @@ public sealed class WindowsGuideRuntime
         }
     }
 
-    private static bool IsFullyVisibleWithinViewport(
+    private static bool TryScrollIntoComfortableView(AutomationElement target)
+    {
+        var scrolled = TryScrollIntoView(target);
+
+        try
+        {
+            var walker = TreeWalker.ControlViewWalker;
+            for (var ancestor = walker.GetParent(target);
+                 ancestor is not null;
+                 ancestor = walker.GetParent(ancestor))
+            {
+                if (!ancestor.TryGetCurrentPattern(ScrollPattern.Pattern, out var rawPattern))
+                    continue;
+
+                var scroll = (ScrollPattern)rawPattern;
+                if (!scroll.Current.VerticallyScrollable)
+                    continue;
+
+                var viewport = ancestor.Current.BoundingRectangle;
+                var targetRect = target.Current.BoundingRectangle;
+                if (viewport.IsEmpty || targetRect.IsEmpty || viewport.Height <= 0)
+                    return scrolled;
+
+                var viewSize = scroll.Current.VerticalViewSize;
+                var currentPercent = scroll.Current.VerticalScrollPercent;
+                if (viewSize <= 0 || viewSize >= 100 || currentPercent < 0)
+                    return scrolled;
+
+                var targetCenter = targetRect.Top + targetRect.Height / 2d;
+                var viewportCenter = viewport.Top + viewport.Height / 2d;
+                var deltaPixels = targetCenter - viewportCenter;
+
+                // UIA exposes viewport size as a percentage of the full content.
+                // Convert the physical offset from viewport center into the
+                // corresponding scroll-range percentage and center the target.
+                var percentDelta =
+                    deltaPixels / viewport.Height
+                    * (100d * viewSize / (100d - viewSize));
+                var desiredPercent = Math.Clamp(currentPercent + percentDelta, 0d, 100d);
+
+                if (Math.Abs(desiredPercent - currentPercent) < 0.25d)
+                    return scrolled;
+
+                scroll.SetScrollPercent(ScrollPattern.NoScroll, desiredPercent);
+                return true;
+            }
+        }
+        catch (ElementNotAvailableException)
+        {
+        }
+        catch (InvalidOperationException)
+        {
+        }
+
+        return scrolled;
+    }
+
+    private static bool NeedsInitialViewportAdjustment(
         AutomationElement windowRoot,
         AutomationElement target)
     {
@@ -875,30 +932,47 @@ public sealed class WindowsGuideRuntime
                 || targetRect.IsEmpty
                 || targetRect.Width <= 0
                 || targetRect.Height <= 0)
-                return false;
+                return true;
 
             var windowRect = windowRoot.Current.BoundingRectangle;
             if (!windowRect.IsEmpty && !ContainsRect(windowRect, targetRect))
-                return false;
+                return true;
 
             var walker = TreeWalker.ControlViewWalker;
             for (var ancestor = walker.GetParent(target);
                  ancestor is not null && !SameElement(ancestor, windowRoot);
                  ancestor = walker.GetParent(ancestor))
             {
-                if (!ancestor.TryGetCurrentPattern(ScrollPattern.Pattern, out _))
+                if (!ancestor.TryGetCurrentPattern(ScrollPattern.Pattern, out var rawPattern))
                     continue;
 
-                var viewportRect = ancestor.Current.BoundingRectangle;
-                if (!viewportRect.IsEmpty && !ContainsRect(viewportRect, targetRect))
-                    return false;
+                var scroll = (ScrollPattern)rawPattern;
+                if (!scroll.Current.VerticallyScrollable)
+                    continue;
+
+                var viewport = ancestor.Current.BoundingRectangle;
+                if (viewport.IsEmpty)
+                    continue;
+
+                if (!ContainsRect(viewport, targetRect))
+                    return true;
+
+                // UIA ScrollIntoView only guarantees visibility and can leave a
+                // target pinned to an edge. Treat the outer 20% of the viewport
+                // as uncomfortable for a new DAP presentation so the bubble gets
+                // useful space around its target, matching the Web experience.
+                var center = targetRect.Top + targetRect.Height / 2d;
+                var comfortableTop = viewport.Top + viewport.Height * 0.20d;
+                var comfortableBottom = viewport.Bottom - viewport.Height * 0.20d;
+                if (center < comfortableTop || center > comfortableBottom)
+                    return true;
             }
 
-            return true;
+            return false;
         }
         catch (ElementNotAvailableException)
         {
-            return false;
+            return true;
         }
     }
 
