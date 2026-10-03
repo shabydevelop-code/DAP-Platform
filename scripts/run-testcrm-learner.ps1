@@ -11,14 +11,36 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 $backendProject = Join-Path $repoRoot "test-apps\DAP.TestCRM\Server\DAP.TestCRM.Server.csproj"
 $webProject = Join-Path $repoRoot "test-apps\DAP.TestCRM\Web\DAP.TestCRM.Web.csproj"
 $dapProject = Join-Path $repoRoot "src\DAP.App\DAP.App.csproj"
+$backendProjectDir = Split-Path -Parent $backendProject
+$webProjectDir = Split-Path -Parent $webProject
+$dapProjectDir = Split-Path -Parent $dapProject
 $backendUrl = "http://localhost:5201"
 $testCrmUrl = "http://localhost:5200"
+$runRoot = Join-Path $env:TEMP ("DAP\ManualLearner\Web\" + [Guid]::NewGuid())
+$backendOutput = Join-Path $runRoot "Server"
+$webOutput = Join-Path $runRoot "Web"
+$dapOutput = Join-Path $runRoot "DAP"
+$profileDir = Join-Path $runRoot "BrowserProfile"
 
 function Get-FreeTcpPort {
     $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 0)
     $listener.Start()
     try { return ([System.Net.IPEndPoint]$listener.LocalEndpoint).Port }
     finally { $listener.Stop() }
+}
+
+function Assert-PortFree([int]$port, [string]$name) {
+    $listener = $null
+    try {
+        $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, $port)
+        $listener.Start()
+    }
+    catch {
+        throw "$name cannot start because port $port is already in use. Close the previous TestCRM/manual/E2E run and try again."
+    }
+    finally {
+        if ($listener) { $listener.Stop() }
+    }
 }
 
 function Stop-OwnedProcessTree($process) {
@@ -72,13 +94,24 @@ function Wait-Http([string]$url, [string]$name, $process, [int]$timeoutSeconds =
     throw "$name did not become ready at $url."
 }
 
+function Build-Isolated([string]$project, [string]$output, [string]$name) {
+    New-Item -ItemType Directory -Force -Path $output | Out-Null
+    Write-Host "Building $name into isolated manual-run output..."
+    & dotnet build $project --nologo --verbosity minimal --output $output
+    if ($LASTEXITCODE -ne 0) {
+        throw "$name build failed."
+    }
+}
+
 foreach ($path in @($backendProject, $webProject, $dapProject)) {
     if (-not (Test-Path $path)) { throw "Required project not found: $path" }
 }
 
+Assert-PortFree 5201 "TestCRM backend"
+Assert-PortFree 5200 "TestCRM Web"
+
 $browserPath = Resolve-BrowserPath $Browser
 $cdpPort = Get-FreeTcpPort
-$profileDir = Join-Path $env:TEMP ("DAP\ManualLearner\Web\" + [Guid]::NewGuid())
 New-Item -ItemType Directory -Force -Path $profileDir | Out-Null
 
 $backend = $null
@@ -88,13 +121,19 @@ $dap = $null
 $dapExitCode = $null
 
 try {
+    Build-Isolated $backendProject $backendOutput "TestCRM Server"
+    Build-Isolated $webProject $webOutput "TestCRM Web"
+    Build-Isolated $dapProject $dapOutput "DAP"
+
+    $backendDll = Join-Path $backendOutput "DAP.TestCRM.Server.dll"
+    $webDll = Join-Path $webOutput "DAP.TestCRM.Web.dll"
+    $dapDll = Join-Path $dapOutput "DAP.dll"
+
     Write-Host "Starting TestCRM backend..."
     $previousUrls = $env:ASPNETCORE_URLS
     $env:ASPNETCORE_URLS = $backendUrl
     try {
-        $backend = Start-Process dotnet -ArgumentList @(
-            "run", "--project", $backendProject, "--no-launch-profile"
-        ) -WorkingDirectory $repoRoot -PassThru -NoNewWindow
+        $backend = Start-Process dotnet -ArgumentList @($backendDll) -WorkingDirectory $backendProjectDir -PassThru -NoNewWindow
     }
     finally {
         $env:ASPNETCORE_URLS = $previousUrls
@@ -108,9 +147,7 @@ try {
     $env:ASPNETCORE_URLS = $testCrmUrl
     $env:TestCrmBackendUrl = $backendUrl
     try {
-        $web = Start-Process dotnet -ArgumentList @(
-            "run", "--project", $webProject, "--no-launch-profile"
-        ) -WorkingDirectory $repoRoot -PassThru -NoNewWindow
+        $web = Start-Process dotnet -ArgumentList @($webDll) -WorkingDirectory $webProjectDir -PassThru -NoNewWindow
     }
     finally {
         $env:ASPNETCORE_URLS = $previousUrls
@@ -149,7 +186,7 @@ try {
     Write-Host ""
 
     $dapArgs = @(
-        "run", "--project", $dapProject, "--no-launch-profile", "--",
+        $dapDll,
         "--learner-web", $GuideId,
         "--cdp", $cdpEndpoint,
         "--page-url-contains", "localhost:5200",
@@ -159,7 +196,7 @@ try {
         $dapArgs += @("--start-step", [string]$StartStep)
     }
 
-    $dap = Start-Process dotnet -ArgumentList $dapArgs -WorkingDirectory $repoRoot -PassThru -NoNewWindow
+    $dap = Start-Process dotnet -ArgumentList $dapArgs -WorkingDirectory $dapProjectDir -PassThru -NoNewWindow
 
     while (-not $dap.HasExited) {
         Start-Sleep -Milliseconds 200
@@ -174,8 +211,8 @@ finally {
     Stop-OwnedProcessTree $web
     Stop-OwnedProcessTree $backend
     Stop-OwnedProcessTree $browserProcess
-    if (Test-Path $profileDir) {
-        Remove-Item -Recurse -Force $profileDir -ErrorAction SilentlyContinue
+    if (Test-Path $runRoot) {
+        Remove-Item -Recurse -Force $runRoot -ErrorAction SilentlyContinue
     }
 }
 
