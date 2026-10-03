@@ -240,7 +240,7 @@ Legacy databases that used textual primary keys are migrated in place, preservin
 
 The normal TestCRM Web E2E runner must be self-contained. It starts the shared TestCRM backend and Web host, waits for application readiness, executes the browser/DAP scenario, and cleans up only the processes it created.
 
-Manual pre-start of TestCRM Server or Web is not part of the normal E2E contract. This keeps Fast, Visual, CRM-only, and focused runtime validation reproducible from a single runner command.
+Manual pre-start of TestCRM Server or Web is not part of the normal E2E contract. This keeps Fast, Visual, Unguided (called CRM-only when this ADR was originally recorded), and focused runtime validation reproducible from a single runner command.
 
 
 ## ADR-028 — E2E timeout increases above 5 seconds require explicit approval
