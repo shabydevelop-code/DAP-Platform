@@ -116,6 +116,7 @@ public sealed class WindowsGuideRuntime
         var stepStopwatch = Stopwatch.StartNew();
         var resolutionAttempt = 0;
         var targetFirstResolvedLogged = false;
+        var initialVisibilityChecked = false;
         var completionTargetsBeforeAction = CaptureReplacementBaselines(windowRoot, step);
 
         Console.Error.WriteLine(
@@ -256,6 +257,24 @@ public sealed class WindowsGuideRuntime
                         capturedValues[step.Id] = capture;
                         Console.Error.WriteLine(
                             $"[DAP Windows guide] updated runtime capture for Step '{step.Id}' to '{capture}'.");
+                    }
+                }
+
+                // Match the Web learner behavior at Step entry: if the newly
+                // resolved target is clipped by the application window or by a
+                // scrollable ancestor, bring it into view once before presenting
+                // the bubble. Do not repeat this during reconciliation, otherwise
+                // DAP would fight intentional learner scrolling.
+                if (!initialVisibilityChecked)
+                {
+                    initialVisibilityChecked = true;
+                    if (!IsFullyVisibleWithinViewport(windowRoot, target)
+                        && TryScrollIntoView(target))
+                    {
+                        Console.Error.WriteLine(
+                            $"[DAP Windows guide] Step '{step.Id}' scrolled initial target into view.");
+                        await Task.Delay(_pollInterval, cancellationToken);
+                        continue;
                     }
                 }
 
@@ -825,19 +844,71 @@ public sealed class WindowsGuideRuntime
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool IsChild(IntPtr hWndParent, IntPtr hWnd);
 
-    private static void TryScrollIntoView(AutomationElement target)
+    private static bool TryScrollIntoView(AutomationElement target)
     {
         try
         {
-            if (target.TryGetCurrentPattern(ScrollItemPattern.Pattern, out var pattern))
-                ((ScrollItemPattern)pattern).ScrollIntoView();
+            if (!target.TryGetCurrentPattern(ScrollItemPattern.Pattern, out var pattern))
+                return false;
+
+            ((ScrollItemPattern)pattern).ScrollIntoView();
+            return true;
         }
         catch (ElementNotAvailableException)
         {
+            return false;
         }
         catch (InvalidOperationException)
         {
+            return false;
         }
+    }
+
+    private static bool IsFullyVisibleWithinViewport(
+        AutomationElement windowRoot,
+        AutomationElement target)
+    {
+        try
+        {
+            var targetRect = target.Current.BoundingRectangle;
+            if (target.Current.IsOffscreen
+                || targetRect.IsEmpty
+                || targetRect.Width <= 0
+                || targetRect.Height <= 0)
+                return false;
+
+            var windowRect = windowRoot.Current.BoundingRectangle;
+            if (!windowRect.IsEmpty && !ContainsRect(windowRect, targetRect))
+                return false;
+
+            var walker = TreeWalker.ControlViewWalker;
+            for (var ancestor = walker.GetParent(target);
+                 ancestor is not null && !SameElement(ancestor, windowRoot);
+                 ancestor = walker.GetParent(ancestor))
+            {
+                if (!ancestor.TryGetCurrentPattern(ScrollPattern.Pattern, out _))
+                    continue;
+
+                var viewportRect = ancestor.Current.BoundingRectangle;
+                if (!viewportRect.IsEmpty && !ContainsRect(viewportRect, targetRect))
+                    return false;
+            }
+
+            return true;
+        }
+        catch (ElementNotAvailableException)
+        {
+            return false;
+        }
+    }
+
+    private static bool ContainsRect(System.Windows.Rect outer, System.Windows.Rect inner)
+    {
+        const double tolerance = 1d;
+        return inner.Left >= outer.Left - tolerance
+               && inner.Top >= outer.Top - tolerance
+               && inner.Right <= outer.Right + tolerance
+               && inner.Bottom <= outer.Bottom + tolerance;
     }
 
     private static bool HasVisibleBounds(AutomationElement target)
