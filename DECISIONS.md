@@ -292,7 +292,7 @@ This strategy is based only on UIA information observable from a closed target a
 
 When a learner drags a Windows learner bubble, that manually selected position remains authoritative for the rest of the current Guide Step. Normal Runtime reconciliation must not move the bubble back to an automatically calculated target-relative position while the same Step remains active.
 
-The directional pointer is hidden after the manual drag, matching the Web learner-bubble interaction. When the active Step changes, manual placement is cleared and the next bubble returns to automatic placement with its pointer visible.
+The directional pointer is hidden immediately when manual dragging begins, not only after the drag ends, matching the Web learner-bubble interaction. It remains hidden for the rest of the active Step. When the active Step changes, manual placement is cleared and the next bubble returns to automatic placement with its pointer visible.
 
 This state is presentation-only and must not alter target resolution, validation, runtime capture, or Guide progression.
 
@@ -334,3 +334,24 @@ Windows learner bubble/highlight presentation remains bound to the active target
 - Owned/modal windows of the target application remain part of the same interactive application context.
 
 This behavior is presentation/runtime infrastructure only and does not change persisted target identity, validation, capture, or Guide progression semantics.
+
+## ADR-036 — Value validation completes on natural interaction commit
+
+**Status:** Accepted
+
+A value becoming temporarily valid is not sufficient by itself to complete an automatic learner Step. The Runtime must distinguish the learner's interaction-completion signal from the persisted validation condition.
+
+For editable text controls, completion is evaluated only after a real edit has occurred and the edit is committed by leaving the control. Web implements this through blur after change; Windows implements the equivalent behavior through UIA-observed focus/value state. Discrete controls such as selections commit on their natural change/selection action.
+
+The persisted `ValidationDefinition` continues to define whether the committed value is acceptable. Runtime-specific event/focus mechanics define when that validation is evaluated and do not require target-specific Guide data.
+
+## ADR-037 — Initial learner presentation may perform one-time target viewport adjustment
+
+**Status:** Accepted
+
+When a new Step target is outside the visible viewport, clipped by a scroll container, or positioned too close to a viewport edge for usable guidance, the Runtime may automatically scroll the target into a comfortable visible region before presenting the bubble.
+
+This behavior is limited to initial presentation of the active Step. Reconciliation must not continuously re-center the target or override intentional learner scrolling.
+
+Web may use DOM scrolling and Windows may use production-observable UI Automation scrolling such as `ScrollItemPattern` / `ScrollPattern`. The implementation must remain generic and must not depend on target application source code or private APIs.
+
