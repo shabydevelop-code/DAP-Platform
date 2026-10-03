@@ -123,10 +123,12 @@ async Task RunGuidedAsync()
     await new SqliteDatabaseInitializer(factory).InitializeAsync();
     var repository = new SqliteGuideStepRepository(factory);
     var persistedSteps = await repository.GetStepsAsync(DapTestCrmWindowsGuideSeed.GuideId);
-    if (persistedSteps.Count != 12)
+    var expectedStepCount = DapTestCrmWindowsGuideSeed.CreateSteps().Count;
+    if (persistedSteps.Count != expectedStepCount)
     {
         throw new InvalidOperationException(
-            $"Guide '{DapTestCrmWindowsGuideSeed.GuideId}' must contain exactly 12 persisted Steps for this milestone. " +
+            $"Guide '{DapTestCrmWindowsGuideSeed.GuideId}' contains {persistedSteps.Count} persisted Steps, " +
+            $"but the current seed defines {expectedStepCount}. " +
             "Run this project once with --reset-guide first.");
     }
 
