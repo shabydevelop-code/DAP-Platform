@@ -171,6 +171,13 @@ CREATE TABLE IF NOT EXISTS StepCaptures (
  GuideStepId INTEGER PRIMARY KEY, Runtime TEXT NOT NULL, LocatorStrategy TEXT NOT NULL,
  LocatorValue TEXT NOT NULL, Property TEXT NOT NULL, Pattern TEXT NULL,
  FOREIGN KEY (GuideStepId) REFERENCES GuideSteps(Id) ON DELETE CASCADE);
+CREATE TABLE IF NOT EXISTS StepCompletionConditions (
+ Id INTEGER PRIMARY KEY AUTOINCREMENT, GuideStepId INTEGER NOT NULL, ConditionOrder INTEGER NOT NULL,
+ Kind TEXT NOT NULL, ExpectedValue TEXT NULL, TargetJson TEXT NOT NULL,
+ FOREIGN KEY (GuideStepId) REFERENCES GuideSteps(Id) ON DELETE CASCADE,
+ UNIQUE (GuideStepId, ConditionOrder));
+CREATE INDEX IF NOT EXISTS IX_StepCompletionConditions_GuideStepId
+ ON StepCompletionConditions(GuideStepId);
 CREATE INDEX IF NOT EXISTS IX_GuideSteps_GuideId_StepOrder ON GuideSteps(GuideId, StepOrder);
 CREATE INDEX IF NOT EXISTS IX_TargetAnchors_GuideStepId ON TargetAnchors(GuideStepId);
 """;
