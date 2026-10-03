@@ -92,6 +92,14 @@ A Step identifies its runtime and contains:
 
 Runtime-specific target descriptors are interpreted by the corresponding runtime adapter.
 
+### Commit-based value validation
+
+Text/value validation must distinguish live editing from a committed learner action. For text editors, reaching a valid value while focus remains in the field is not sufficient to advance a Step. A natural blur represents one commit attempt. For discrete controls, the platform's natural change event is the commit attempt.
+
+A failed non-click commit attempt is consumed. The Runtime must require a new edit/change and a new commit event before reevaluating Step progression. It must not leave an invalid prior commit permanently armed and then advance later merely because reconciliation observes a now-valid live value. Click validation is different: its observed action may remain sticky because the click can immediately replace the source document/control while persisted post-action conditions are still pending.
+
+This rule applies to both Web and Windows runtimes.
+
 ### Guide navigation and context
 
 Guide navigation must not assume that the previous or next Step is renderable in the current application context.
