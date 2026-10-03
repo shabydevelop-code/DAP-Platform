@@ -248,12 +248,111 @@ async Task RunGuidedAsync()
         WaitForBubble(BubbleFor("testcrm-windows-close-reason"), dap);
         await driver.SetCloseReason("טופל");
 
-        if (!dap.WaitForExit(15_000))
-            throw new TimeoutException("DAP.exe did not complete after the validating Step 20 action.");
+        WaitForBubble(BubbleFor("testcrm-windows-save-closed-case"), dap);
+        await driver.SaveCase();
+
+        WaitForBubble(BubbleFor("testcrm-windows-return-site"), dap);
+        await driver.OpenSiteFromBreadcrumb();
+
+        WaitForBubble(BubbleFor("testcrm-windows-open-leads-tab"), dap);
+        await driver.OpenLeads();
+
+        WaitForBubble(BubbleFor("testcrm-windows-return-cases-tab"), dap);
+        await driver.OpenCases();
+
+        WaitForBubble(BubbleFor("testcrm-windows-open-leads-again"), dap);
+        await driver.OpenLeads();
+
+        WaitForBubble(BubbleFor("testcrm-windows-new-lead"), dap);
+        await driver.CreateLead();
+
+        WaitForBubble(BubbleFor("testcrm-windows-lead-contact"), dap);
+        await driver.SetLeadContact("דנה כהן");
+
+        WaitForBubble(BubbleFor("testcrm-windows-save-new-lead"), dap);
+        await driver.SaveLead();
+
+        WaitForBubble(BubbleFor("testcrm-windows-lead-close-success-1"), dap);
+        await driver.SetLeadStatus("נסגר בהצלחה");
+
+        WaitForBubble(BubbleFor("testcrm-windows-lead-new"), dap);
+        await driver.SetLeadStatus("חדש");
+
+        WaitForBubble(BubbleFor("testcrm-windows-lead-close-success-2"), dap);
+        await driver.SetLeadStatus("נסגר בהצלחה");
+
+        WaitForBubble(BubbleFor("testcrm-windows-lead-invalid-save"), dap);
+        await driver.SaveLead();
+
+        WaitForBubble(BubbleFor("testcrm-windows-lead-validation-ok"), dap);
+        await driver.DismissValidation();
+
+        WaitForBubble(BubbleFor("testcrm-windows-lead-service"), dap);
+        await driver.SetLeadService("תמיכה מורחבת");
+
+        WaitForBubble(BubbleFor("testcrm-windows-save-lead"), dap);
+        await driver.SaveLead();
+
+        WaitForBubble(BubbleFor("testcrm-windows-delete-lead"), dap);
+        await driver.DeleteLead();
+
+        WaitForBubble(BubbleFor("testcrm-windows-confirm-delete-lead"), dap);
+        await driver.ConfirmDelete();
+
+        WaitForBubble(BubbleFor("testcrm-windows-leads-to-customer"), dap);
+        await driver.OpenCustomerFromBreadcrumb();
+
+        WaitForBubble(BubbleFor("testcrm-windows-customer-site"), dap);
+        await driver.OpenFirstSite();
+
+        WaitForBubble(BubbleFor("testcrm-windows-site-leads"), dap);
+        await driver.OpenLeads();
+
+        WaitForBubble(BubbleFor("testcrm-windows-open-lead"), dap);
+        await driver.OpenFirstLead();
+
+        WaitForBubble(BubbleFor("testcrm-windows-layout-status-new"), dap);
+        await driver.SetLeadStatus("חדש");
+
+        WaitForBubble(BubbleFor("testcrm-windows-layout-status-closed"), dap);
+        await driver.SetLeadStatus("נסגר בהצלחה");
+
+        WaitForBubble(BubbleFor("testcrm-windows-race-status-new"), dap);
+        await driver.SetLeadStatus("חדש");
+
+        WaitForBubble(BubbleFor("testcrm-windows-race-status-closed"), dap);
+        await driver.SetLeadStatus("נסגר בהצלחה");
+
+        WaitForBubble(BubbleFor("testcrm-windows-lead-to-site"), dap);
+        await driver.OpenSiteFromBreadcrumb();
+
+        WaitForBubble(BubbleFor("testcrm-windows-site-cases-final"), dap);
+        await driver.OpenCases();
+
+        WaitForBubble(BubbleFor("testcrm-windows-open-context-case"), dap);
+        await driver.OpenFirstCase();
+
+        WaitForBubble(BubbleFor("testcrm-windows-context-back-site"), dap);
+        await driver.OpenSiteFromBreadcrumb();
+
+        WaitForBubble(BubbleFor("testcrm-windows-open-created-case-final"), dap);
+        await driver.OpenCreatedCase();
+
+        WaitForBubble(BubbleFor("testcrm-windows-delete-case"), dap);
+        await driver.DeleteCase();
+
+        WaitForBubble(BubbleFor("testcrm-windows-confirm-delete-case"), dap);
+        await driver.ConfirmDelete();
+
+        WaitForBubble(BubbleFor("testcrm-windows-header-home"), dap);
+        await driver.GoPortal();
+
+        if (!dap.WaitForExit(5_000))
+            throw new TimeoutException("DAP.exe did not complete after the final Step 53 action.");
         if (dap.ExitCode != 0)
             throw new Exception($"DAP.exe exited with code {dap.ExitCode}.");
 
-        Console.WriteLine("PASS: DAP Windows Learner Runtime persisted Steps 1 -> 20 with real UIA targets, runtime capture, modal targeting, and bubbles.");
+        Console.WriteLine("PASS: DAP Windows Learner Runtime completed all 53 persisted Guide Steps with real UIA targets, runtime capture, modal targeting, and bubbles.");
     }
     finally
     {
