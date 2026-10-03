@@ -98,7 +98,7 @@ if (unguided)
 
 if (manual)
 {
-    await RunGuidedAsync(handoffStepOrder: 1);
+    await RunGuidedAsync(handoffStepOrder: 1, fullManual: true);
     return;
 }
 
@@ -192,7 +192,8 @@ async Task RunPersistedUnguidedAsync()
 async Task RunGuidedAsync(
     int? handoffStepOrder = null,
     int? visualStartStepOrder = null,
-    bool visualFromStart = false)
+    bool visualFromStart = false,
+    bool fullManual = false)
 {
     var databaseOptions = SqliteDatabaseOptions.CreateDefault();
     var factory = new SqliteConnectionFactory(databaseOptions);
@@ -279,7 +280,7 @@ async Task RunGuidedAsync(
         var window = WaitForMainWindow();
         var customerName = WaitForElementById(window, "CustomerNameSearch");
 
-        var focusedStartStepOrder = handoffStepOrder ?? visualStartStepOrder;
+        var focusedStartStepOrder = fullManual ? null : handoffStepOrder ?? visualStartStepOrder;
         var bootstrapCaptures = new Dictionary<string, string>(StringComparer.Ordinal);
         var resumeContextPath = Path.Combine(runRoot, "resume-context.json");
 
@@ -332,9 +333,11 @@ async Task RunGuidedAsync(
         var driver = new WindowsCrmScenarioDriver(windowsApp, window, visualFromStart);
 
         Console.WriteLine(
-            handoffStepOrder is not null
-                ? $"E2E mode: unguided -> manual from Step {handoffStepOrder}"
-                : visualStartStepOrder is not null
+            fullManual
+                ? "E2E mode: manual"
+                : handoffStepOrder is not null
+                    ? $"E2E mode: unguided -> manual from Step {handoffStepOrder}"
+                    : visualStartStepOrder is not null
                     ? $"E2E mode: unguided -> visual from Step {visualStartStepOrder}"
                     : $"E2E mode: {(visualFromStart ? "visual" : "fast")}");
 
