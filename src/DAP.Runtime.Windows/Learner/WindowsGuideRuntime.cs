@@ -132,6 +132,17 @@ public sealed class WindowsGuideRuntime
         {
             while (!cancellationToken.IsCancellationRequested)
             {
+                // Keep learner overlays bound to the target application. When the
+                // target is minimized or the user switches to another application,
+                // hide both bubble and highlight. The next reconciliation pass
+                // restores them from fresh UIA bounds when the target becomes active.
+                if (!IsTargetWindowInteractive(windowRoot))
+                {
+                    await _bubbles.HideAsync();
+                    await Task.Delay(_pollInterval, cancellationToken);
+                    continue;
+                }
+
                 // Completion is evaluated before the source context. A valid learner
                 // action may navigate away from that context while persisted
                 // post-action conditions become true on the destination screen.
@@ -145,8 +156,7 @@ public sealed class WindowsGuideRuntime
 
                 if (!IsStepContextActive(windowRoot, step))
                 {
-                    if (!bubbleShownForStep)
-                        await _bubbles.HideAsync();
+                    await _bubbles.HideAsync();
                     await Task.Delay(_pollInterval, cancellationToken);
                     continue;
                 }
@@ -170,8 +180,7 @@ public sealed class WindowsGuideRuntime
                 {
                     if (step.Id == "testcrm-windows-back-to-cases")
                         Console.Error.WriteLine($"[DAP Windows guide diagnostic] Step '{step.Id}' resolver threw ElementNotAvailableException.");
-                    if (!bubbleShownForStep)
-                        await _bubbles.HideAsync();
+                    await _bubbles.HideAsync();
                     if (targetDisappeared && targetWasResolved
                         && AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction))
                         return;
@@ -183,8 +192,7 @@ public sealed class WindowsGuideRuntime
                 {
                     if (step.Id == "testcrm-windows-back-to-cases")
                         Console.Error.WriteLine($"[DAP Windows guide diagnostic] Step '{step.Id}' resolution status={resolution.Status}; targetNull={resolution.Target is null}.");
-                    if (!bubbleShownForStep)
-                        await _bubbles.HideAsync();
+                    await _bubbles.HideAsync();
                     if (targetDisappeared && targetWasResolved
                         && AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction))
                         return;
@@ -239,8 +247,7 @@ public sealed class WindowsGuideRuntime
                     {
                         if (step.Id == "testcrm-windows-back-to-cases")
                             Console.Error.WriteLine($"[DAP Windows guide diagnostic] Step '{step.Id}' target has no visible bounds.");
-                        if (!bubbleShownForStep)
-                            await _bubbles.HideAsync();
+                        await _bubbles.HideAsync();
                         await Task.Delay(_pollInterval, cancellationToken);
                         continue;
                     }
@@ -720,6 +727,43 @@ public sealed class WindowsGuideRuntime
         }
     }
 
+    private static bool IsTargetWindowInteractive(AutomationElement windowRoot)
+    {
+        try
+        {
+            var rootHandle = new IntPtr(windowRoot.Current.NativeWindowHandle);
+            if (rootHandle == IntPtr.Zero)
+                return true;
+
+            if (IsIconic(rootHandle))
+                return false;
+
+            var foreground = GetForegroundWindow();
+            if (foreground == IntPtr.Zero)
+                return true;
+
+            if (foreground == rootHandle || IsChild(rootHandle, foreground))
+                return true;
+
+            // Native/WPF modal dialogs are commonly top-level owned windows rather
+            // than HWND children. Follow the owner chain so expected CRM modals
+            // remain interactive without treating unrelated applications as active.
+            for (var current = foreground;
+                 current != IntPtr.Zero;
+                 current = GetWindow(current, GwOwner))
+            {
+                if (current == rootHandle)
+                    return true;
+            }
+
+            return false;
+        }
+        catch (ElementNotAvailableException)
+        {
+            return false;
+        }
+    }
+
     private static AutomationElement GetActiveResolutionRoot(AutomationElement windowRoot)
     {
         try
@@ -740,10 +784,22 @@ public sealed class WindowsGuideRuntime
         }
     }
 
+    private const uint GwOwner = 4;
     private const uint GwEnabledPopup = 6;
 
     [DllImport("user32.dll")]
     private static extern IntPtr GetWindow(IntPtr hWnd, uint uCmd);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool IsIconic(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool IsChild(IntPtr hWndParent, IntPtr hWnd);
 
     private static void TryScrollIntoView(AutomationElement target)
     {

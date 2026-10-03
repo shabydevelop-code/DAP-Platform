@@ -57,6 +57,7 @@ public sealed class WindowsBubblePresenter
                 _pointer!.Visibility = Visibility.Visible;
             }
 
+            var previousTargetRect = _targetRect;
             _targetRect = rect;
             UpdateTargetHighlight(rect);
             _content!.Text = step.Bubble.Content;
@@ -84,6 +85,24 @@ public sealed class WindowsBubblePresenter
                 _activePlacement = placement.Side;
                 _window.Left = placement.Position.X;
                 _window.Top = placement.Position.Y;
+            }
+            else if (!previousTargetRect.IsEmpty)
+            {
+                // A learner-dragged bubble keeps its manual offset from the target
+                // while the application window moves or resizes.
+                var deltaX = rect.Left + rect.Width / 2
+                             - (previousTargetRect.Left + previousTargetRect.Width / 2);
+                var deltaY = rect.Top + rect.Height / 2
+                             - (previousTargetRect.Top + previousTargetRect.Height / 2);
+                var work = SystemParameters.WorkArea;
+                _window.Left = Math.Clamp(
+                    _window.Left + deltaX,
+                    work.Left + 4,
+                    Math.Max(work.Left + 4, work.Right - windowWidth - 4));
+                _window.Top = Math.Clamp(
+                    _window.Top + deltaY,
+                    work.Top + 4,
+                    Math.Max(work.Top + 4, work.Bottom - windowHeight - 4));
             }
 
             if (!_window.IsVisible)
@@ -475,6 +494,14 @@ public sealed class WindowsBubblePresenter
         {
             if (!_manuallyPositioned && (_dragging || _window.IsVisible))
                 UpdatePointer();
+        };
+
+        _window.SourceInitialized += (_, _) =>
+        {
+            var hwnd = new WindowInteropHelper(_window).Handle;
+            var style = GetWindowLongPtr(hwnd, GwlExStyle).ToInt64();
+            style |= WsExNoActivate | WsExToolWindow;
+            SetWindowLongPtr(hwnd, GwlExStyle, new IntPtr(style));
         };
 
         AutomationProperties.SetAutomationId(_window, "DapLearnerBubble");
