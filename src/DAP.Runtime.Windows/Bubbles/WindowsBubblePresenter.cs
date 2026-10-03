@@ -7,6 +7,7 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using DAP.Core.Guides;
+using DAP.Core.Localization;
 
 namespace DAP.Runtime.Windows.Bubbles;
 
@@ -15,6 +16,7 @@ public sealed class WindowsBubblePresenter
     private const double PointerSpace = 16d;
     private const double TargetGap = 10d;
 
+    private readonly IUiTextProvider _texts;
     private Window? _window;
     private Window? _highlightWindow;
     private Border? _highlightBorder;
@@ -27,6 +29,11 @@ public sealed class WindowsBubblePresenter
     private bool _manuallyPositioned;
     private string? _activeStepId;
     private BubblePlacement _activePlacement = BubblePlacement.Bottom;
+
+    public WindowsBubblePresenter(IUiTextProvider texts)
+    {
+        _texts = texts ?? throw new ArgumentNullException(nameof(texts));
+    }
 
     public async Task ShowAsync(
         AutomationElement target,
@@ -61,7 +68,7 @@ public sealed class WindowsBubblePresenter
             _targetRect = rect;
             UpdateTargetHighlight(rect);
             _content!.Text = step.Bubble.Content;
-            _progress!.Text = $"שלב {stepNumber} מתוך {totalSteps}";
+            _progress!.Text = _texts.Format("Learner.StepProgress", stepNumber, totalSteps);
             AutomationProperties.SetName(_window!, step.Bubble.Content);
 
             _window!.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
@@ -409,7 +416,7 @@ public sealed class WindowsBubblePresenter
             Margin = new Thickness(0, 8, 0, 0),
             FontSize = 11,
             Foreground = new SolidColorBrush(Color.FromRgb(220, 228, 236)),
-            FlowDirection = FlowDirection.RightToLeft
+            FlowDirection = _texts.IsRightToLeft ? FlowDirection.RightToLeft : FlowDirection.LeftToRight
         };
 
         var dragHandle = new TextBlock
@@ -418,7 +425,7 @@ public sealed class WindowsBubblePresenter
             FontSize = 17,
             Foreground = new SolidColorBrush(Color.FromRgb(220, 228, 236)),
             Cursor = Cursors.SizeAll,
-            ToolTip = "גרור להזזת הבועה",
+            ToolTip = _texts.Get("Learner.DragBubble"),
             HorizontalAlignment = HorizontalAlignment.Center,
             Margin = new Thickness(0, 0, 0, 6)
         };
