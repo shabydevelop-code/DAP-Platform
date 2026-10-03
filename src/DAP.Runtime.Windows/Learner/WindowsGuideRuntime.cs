@@ -105,6 +105,10 @@ public sealed class WindowsGuideRuntime
         var clicked = string.Equals(step.Validation?.Kind, "clicked", StringComparison.OrdinalIgnoreCase);
         var targetDisappeared = string.Equals(step.Validation?.Kind, "target-disappeared", StringComparison.OrdinalIgnoreCase);
         var targetWasResolved = false;
+        string? initialTextValue = null;
+        var textTargetObservedFocused = false;
+        var textTargetChanged = false;
+        var textTargetCommitted = false;
         var clickCompleted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         AutomationEventHandler? clickHandler = null;
         AutomationElement? subscribedTarget = null;
@@ -201,6 +205,27 @@ public sealed class WindowsGuideRuntime
 
                 var target = resolution.Target;
                 targetWasResolved = true;
+
+                var isTextEditTarget = target.Current.ControlType == ControlType.Edit
+                    && step.AdvanceMode == StepAdvanceMode.AutomaticOnValidation
+                    && step.Validation is not null
+                    && !clicked
+                    && !targetDisappeared;
+
+                if (isTextEditTarget && target.TryGetCurrentPattern(ValuePattern.Pattern, out var textValuePattern))
+                {
+                    var currentTextValue = ((ValuePattern)textValuePattern).Current.Value;
+                    initialTextValue ??= currentTextValue;
+
+                    if (target.Current.HasKeyboardFocus)
+                        textTargetObservedFocused = true;
+
+                    if (!string.Equals(currentTextValue, initialTextValue, StringComparison.Ordinal))
+                        textTargetChanged = true;
+
+                    if (textTargetObservedFocused && textTargetChanged && !target.Current.HasKeyboardFocus)
+                        textTargetCommitted = true;
+                }
 
                 if (!targetFirstResolvedLogged)
                 {
@@ -311,6 +336,7 @@ public sealed class WindowsGuideRuntime
                 }
                 else if (step.AdvanceMode == StepAdvanceMode.AutomaticOnValidation
                          && step.Validation is not null
+                         && (!isTextEditTarget || textTargetCommitted)
                          && _validation.IsSatisfied(target, step.Validation)
                          && AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction))
                 {
