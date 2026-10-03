@@ -480,3 +480,16 @@ Windows now implements the shared runner-mode contract rather than merely docume
 This change does not raise the 5-second timeout and does not introduce a separate Windows visual scenario. Local Windows/UIA validation is required before marking the new Visual paths verified.
 
 Runner precedence is now explicit and implemented identically on Web and Windows: `DAP_E2E_MODE` affects only full `--guided`. Manual, Unguided, Manual-From-Step, and Visual-From-Step ignore stale environment mode values. Focused runs own their transition semantics: Fast -> Manual at N or Fast -> Visual at N.
+
+### From-Step bootstrap semantics — implemented
+
+Web and Windows focused runs now treat every Step before the requested start Step as setup only. `--manual-from-step <N>` and `--visual-from-step <N>` keep DAP.exe completely off during Steps `1..N-1`, execute the real persisted business flow as Unguided bootstrap, collect any persisted runtime captures needed later, and launch DAP directly at Step N with a validated resume context.
+
+The production learner runtimes accept initial captured values when starting from a later Step. DAP.App exposes this through `--resume-context-file` together with `--start-step`; the host rejects unknown, empty, non-capture, or non-prior resume entries. This is a general resume capability, not a TestCRM-only runtime shortcut.
+
+New canonical meanings:
+- Manual From Step: Unguided before N, Guided Manual from N.
+- Visual From Step: Unguided before N, Guided Visual from N.
+- Full runs retain their existing meanings.
+
+Local Web and Windows E2E execution is required after pull before these new focused paths are marked PASS.
