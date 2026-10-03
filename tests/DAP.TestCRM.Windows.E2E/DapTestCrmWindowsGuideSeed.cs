@@ -331,6 +331,85 @@ internal static class DapTestCrmWindowsGuideSeed
         ClickStep(
             "testcrm-windows-site-leads", 40,
             ById("LeadsTab"), "עבור ללשונית לידים",
-            completionCondition: new StepCompletionCondition("target-exists", ById("NewLeadButton")))
+            completionCondition: new StepCompletionCondition("target-exists", ById("NewLeadButton"))),
+
+        NavigationRowStep(
+            "testcrm-windows-open-lead", 41,
+            "LeadsGrid", "פתח את הליד הראשון",
+            completionCondition: new StepCompletionCondition("target-exists", ById("DeleteLeadButton"))),
+
+        ValueStep(
+            "testcrm-windows-layout-status-new", 42,
+            "LeadStatus", "שנה את סטטוס הליד לחדש",
+            "value-equals", "חדש",
+            completionCondition: new StepCompletionCondition("target-not-exists", ById("LeadSelectedService"))),
+
+        ValueStep(
+            "testcrm-windows-layout-status-closed", 43,
+            "LeadStatus", "שנה את סטטוס הליד לנסגר בהצלחה",
+            "value-equals", "נסגר בהצלחה",
+            completionCondition: new StepCompletionCondition("target-exists", ById("LeadSelectedService"))),
+
+        ValueStep(
+            "testcrm-windows-race-status-new", 44,
+            "LeadStatus", "החזר את סטטוס הליד לחדש",
+            "value-equals", "חדש",
+            completionCondition: new StepCompletionCondition("target-not-exists", ById("LeadSelectedService"))),
+
+        ValueStep(
+            "testcrm-windows-race-status-closed", 45,
+            "LeadStatus", "שנה שוב את סטטוס הליד לנסגר בהצלחה",
+            "value-equals", "נסגר בהצלחה",
+            completionCondition: new StepCompletionCondition("target-exists", ById("LeadSelectedService"))),
+
+        ClickStep(
+            "testcrm-windows-lead-to-site", 46,
+            ByIdAndName("Breadcrumb", "מטה תל אביב"), "חזור לאתר",
+            completionCondition: new StepCompletionCondition("target-exists", ById("CasesTab"))),
+
+        ClickStep(
+            "testcrm-windows-site-cases-final", 47,
+            ById("CasesTab"), "עבור ללשונית פניות",
+            completionCondition: new StepCompletionCondition("target-exists", ById("NewCaseButton"))),
+
+        NavigationRowStep(
+            "testcrm-windows-open-context-case", 48,
+            "CasesGrid", "פתח את הפנייה הראשונה",
+            completionCondition: new StepCompletionCondition("target-exists", ById("DeleteCaseButton"))),
+
+        ClickStep(
+            "testcrm-windows-context-back-site", 49,
+            ByIdAndName("Breadcrumb", "מטה תל אביב"), "חזור לאתר",
+            completionCondition: new StepCompletionCondition("target-exists", ById("CasesGrid"))),
+
+        NavigationRowStep(
+            "testcrm-windows-open-created-case-final", 50,
+            "CasesGrid", "פתח את הפנייה שיצרת",
+            @"^{{step:testcrm-windows-back-to-cases:capture}}$",
+            descendantNameIsRegex: true,
+            columnHeaderName: "מזהה",
+            completionCondition: new StepCompletionCondition("target-exists", ById("DeleteCaseButton"))),
+
+        ClickStep(
+            "testcrm-windows-delete-case", 51,
+            ById("DeleteCaseButton"), "מחק את הפנייה",
+            completionCondition: new StepCompletionCondition(
+                "target-exists",
+                TargetDescriptor.Create(
+                    TargetRuntime.Windows,
+                    new Locator("name-regex", @"^(Yes|כן|אישור)$")))),
+
+        ClickStep(
+            "testcrm-windows-confirm-delete-case", 52,
+            TargetDescriptor.Create(
+                TargetRuntime.Windows,
+                new Locator("name-regex", @"^(Yes|כן|אישור)$")),
+            "אשר את מחיקת הפנייה",
+            completionCondition: new StepCompletionCondition("target-exists", ById("NewCaseButton"))),
+
+        ClickStep(
+            "testcrm-windows-header-home", 53,
+            ById("PortalHeader"), "חזור למסך חיפוש הלקוח",
+            completionCondition: new StepCompletionCondition("target-exists", ById("CustomerNameSearch")))
     };
 }
