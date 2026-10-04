@@ -349,11 +349,11 @@ The normal TestCRM Web E2E runner owns the complete temporary test topology for 
 
 A normal full Web E2E run therefore does not require manually pre-started TestCRM servers.
 
-The canonical Web Guide is `testcrm-web-canonical-workflow` and contains 53 persisted Steps. The full Web workflow was reverified after the numeric-ID persistence migration on 2026-10-02.
+The canonical Web Guide seed is `testcrm-web-canonical-workflow` and now defines 54 Steps. The previous 53-Step persisted version was fully verified; because DB owns persisted Guide data, the 54-Step seed becomes active only after an explicit reset and requires fresh verification.
 
 ## Canonical Web Guided vs Unguided topology
 
-The Web E2E has one canonical 53-Step business sequence backed by the persisted Guide `testcrm-web-canonical-workflow` in `DAP.db`.
+The Web E2E has one canonical Guide sequence backed by `testcrm-web-canonical-workflow` in `DAP.db`; the repository seed currently defines 54 Steps, including one centered targetless informational pause.
 
 Guided execution is: `DAP.db -> Guide Steps -> DAP.exe -> DAP.Runtime.Web -> target/bubble/validation -> TestCRM Web -> TestCRM Server -> testcrm.db`.
 
@@ -409,7 +409,7 @@ Web runtime capture is now explicit Guide data. A Step that captures a runtime v
 
 ## Canonical Web/Windows Guide parity — 2026-10-03
 
-The canonical TestCRM business workflow is now represented by two persisted 53-Step Guides:
+The canonical TestCRM business workflow is represented by two aligned Guide seeds, now 54 Steps each:
 - `testcrm-web-canonical-workflow`
 - `testcrm-windows-canonical-workflow`
 
@@ -417,7 +417,7 @@ They represent the same business scenario while using runtime-specific target de
 
 Business-identifying navigation must not rely on incidental row order when a stable identity is available. The current canonical parity uses explicit identities for `מטה תל אביב`, `אבי כהן`, and the Case created during the active run. Runtime capture carries the created Case identity into later Steps.
 
-The four canonical execution paths are all locally verified 53/53:
+The previous 53-Step versions of the four canonical execution paths are all locally verified 53/53. The new 54-Step seeds require reset and rerun:
 - Web Guided
 - Web Unguided
 - Windows Guided
