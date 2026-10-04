@@ -73,6 +73,29 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
 
         VisualTarget(e);
 
+        // VisualTarget can call ScrollItemPattern.ScrollIntoView. In WPF this may
+        // move keyboard focus as a side effect. The learner runtime subscribes to
+        // the target only after the Step is presented, so make the visual driver
+        // establish a fresh, real focus transition after the mouse animation.
+        // Fast mode is intentionally unchanged.
+        if (visualMode)
+        {
+            var focusBeforeEdit = window.FindFirst(
+                TreeScope.Descendants,
+                new PropertyCondition(AutomationElement.AutomationIdProperty, id));
+            if (focusBeforeEdit is not null && focusBeforeEdit.Current.HasKeyboardFocus)
+            {
+                KeyPress(VK_TAB);
+                Wait(() =>
+                {
+                    var current = window.FindFirst(
+                        TreeScope.Descendants,
+                        new PropertyCondition(AutomationElement.AutomationIdProperty, id));
+                    return current is not null && !current.Current.HasKeyboardFocus ? current : null;
+                }, $"{id} visual pre-edit blur");
+            }
+        }
+
         using var valueChanged = new ManualResetEventSlim(false);
         AutomationPropertyChangedEventHandler? handler = null;
         handler = (_, args) =>
