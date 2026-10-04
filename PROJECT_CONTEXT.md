@@ -535,3 +535,10 @@ The packaged runners use `DAP_DIAGNOSTICS_ROOT` to resolve the prebuilt TestCRM 
 
 The intended customer sequence is: run Unguided first to prove the new environment and TestCRM automation path without DAP, then run Guided Fast/Visual and focused/manual modes to introduce DAP into the same known scenario.
 
+## Windows 54-Step Fast/Visual baseline — 2026-10-05
+
+The complete persisted Windows Guided Guide is locally verified 54/54 PASS in both Fast and Visual modes. Both modes execute the same Guide and the same synthetic learner actions. Visual is strictly a presentation layer over that action path: cursor movement and visual pacing may differ, but CRM actions, readiness conditions, validation semantics, and progression logic must not branch merely because Visual is enabled.
+
+The Step-8 `CaseSubject` regression was closed by restoring focused-value synchronization in the Windows E2E synthetic learner. After setting a text value, the driver verifies that the new value is observable while the editor is still keyboard-focused, waits for the provider value-change notification, and then commits through real TAB focus traversal. This is E2E synchronization with observable UIA state, not a TestCRM-specific Runtime rule. Commit: `889ee17d3e34692022085760dea2496b31c0cb69`.
+
+A clean repository run also verified that a stale `DAP_DIAGNOSTICS_ROOT` environment value cannot switch repository E2E into packaged-diagnostics mode. Packaged mode is selected only when the executing runner itself is under the diagnostics package Runners directory, preserving source/output isolation.
