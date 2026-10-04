@@ -109,9 +109,29 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
 
             ((ValuePattern)p).SetValue(value);
 
-            // Synchronize on the UIA provider's actual value-change notification.
-            // The production runtime observes the same signal; only after it has
-            // been published do we commit through real keyboard focus traversal.
+            // The Runtime and this driver are independent UIA subscribers. Waiting
+            // only for this driver's value callback does not guarantee that the
+            // Runtime has consumed the edit before TAB produces the blur. Keep the
+            // edit focused until the provider snapshot exposes the new value, then
+            // commit through the same real keyboard traversal as a learner.
+            Wait(() =>
+            {
+                var current=window.FindFirst(
+                    TreeScope.Descendants,
+                    new PropertyCondition(AutomationElement.AutomationIdProperty,id));
+                if(current is null
+                   || !current.Current.HasKeyboardFocus
+                   || !current.TryGetCurrentPattern(ValuePattern.Pattern,out var currentPattern))
+                    return null;
+
+                return string.Equals(
+                    ((ValuePattern)currentPattern).Current.Value,
+                    value,
+                    StringComparison.Ordinal)
+                    ? current
+                    : null;
+            },$"{id} focused value '{value}'");
+
             if(!valueChanged.Wait(5_000))
                 throw new TimeoutException($"Timed out waiting for {id} UIA value-change notification.");
 
