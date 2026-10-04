@@ -1540,7 +1540,7 @@ await Click($"button.grid-open[data-go='#/case/{createdCaseId}']");
 await WaitReady();
 
 await WaitForGuideStep(51);
-if(!unguided)
+if(!unguided && dapProcess is not null)
 {
     var informationConfirm=page.Locator("#dap-guide-centered [data-dap-guide-confirm='1']");
     await informationConfirm.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = 5000 });
