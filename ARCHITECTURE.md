@@ -463,3 +463,14 @@ On Web, centered bubbles use the active `WebBubbleTheme` and are positioned at 5
 Visual execution is test-harness behavior, not production target resolution. Both Web and Windows Visual runners expose the same learner-facing contract: the real Windows cursor visibly moves to the next interaction target before the synthetic learner action is executed.
 
 Windows obtains screen coordinates directly from UI Automation bounding rectangles. Web obtains the target bounding box from Playwright, translates browser viewport coordinates to screen coordinates using the live browser window metrics, and moves the native cursor. The subsequent action remains platform-native to the harness: Playwright for Web and UI Automation/native input for Windows.
+
+### Windows viewport visibility is a presentation concern
+
+For Windows target-attached Steps, learner-controlled scrolling after initial Step entry does not change the persisted Step state and must not block its validation semantics merely because the target is clipped by a scroll viewport.
+
+The Windows learner Runtime may perform the existing one-time initial viewport adjustment when a Step first resolves. During later reconciliation it does not repeatedly force the scroll position. Target resolution, observation, validation, and progression remain Runtime responsibilities.
+
+The Windows bubble presenter independently checks the live UIA geometry of vertically scrollable ancestors. When the target is clipped outside such a viewport, the attached bubble is hidden instead of being clamped/pinned at the visible edge. When the target returns to the visible viewport, normal presentation resumes from the current target geometry.
+
+A target that loses usable UIA bounds between reconciliation and presentation is treated as a transient replacement/rerender race for that presentation attempt; the stale bubble is hidden and the Runtime resolves again. This does not convert unrelated presentation failures into successful Steps.
+
