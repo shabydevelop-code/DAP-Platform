@@ -26,8 +26,8 @@ if (args.Contains("--reset-guide", StringComparer.OrdinalIgnoreCase))
     var factory = new SqliteConnectionFactory(options);
     await new SqliteDatabaseInitializer(factory).InitializeAsync();
     var repository = new SqliteGuideStepRepository(factory);
-    foreach (var step in DapTestCrmWindowsGuideSeed.CreateSteps())
-        await repository.SaveStepAsync(DapTestCrmWindowsGuideSeed.GuideId, step);
+    var resetSteps = DapTestCrmWindowsGuideSeed.CreateSteps();
+    await repository.ReplaceStepsAsync(DapTestCrmWindowsGuideSeed.GuideId, resetSteps);
 
     await repository.RenameGuideAsync(
         DapTestCrmWindowsGuideSeed.GuideId,
@@ -36,7 +36,7 @@ if (args.Contains("--reset-guide", StringComparer.OrdinalIgnoreCase))
 
     Console.WriteLine(
         $"Reset Guide '{DapTestCrmWindowsGuideSeed.GuideId}' " +
-        $"({DapTestCrmWindowsGuideSeed.CreateSteps().Count} steps) in {options.DatabasePath}");
+        $"({resetSteps.Count} steps) in {options.DatabasePath}");
     return;
 }
 
