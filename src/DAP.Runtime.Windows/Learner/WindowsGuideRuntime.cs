@@ -277,6 +277,14 @@ public sealed class WindowsGuideRuntime
                             {
                                 if (!Equals(args.OldValue, args.NewValue))
                                 {
+                                    if (step.Id is "testcrm-windows-case-subject" or "testcrm-windows-case-subject-after-close")
+                                    {
+                                        Console.Error.WriteLine(
+                                            $"[DAP Windows text diagnostic] Step '{step.Id}' Value changed: " +
+                                            $"old='{args.OldValue}'; new='{args.NewValue}'; " +
+                                            $"focused={SafeHasKeyboardFocus(subscribedTextTarget)}.");
+                                    }
+
                                     Volatile.Write(ref textTargetChanged, 1);
 
                                     // A fast edit can begin and lose focus entirely
@@ -302,16 +310,25 @@ public sealed class WindowsGuideRuntime
 
                             if (args.NewValue is bool hasKeyboardFocus && hasKeyboardFocus)
                             {
+                                if (step.Id is "testcrm-windows-case-subject" or "testcrm-windows-case-subject-after-close")
+                                    Console.Error.WriteLine($"[DAP Windows text diagnostic] Step '{step.Id}' focus gained.");
                                 Volatile.Write(ref textTargetObservedFocused, 1);
                                 return;
                             }
 
-                            if (args.NewValue is bool lostKeyboardFocus
-                                && !lostKeyboardFocus
-                                && Volatile.Read(ref textTargetObservedFocused) == 1
-                                && Volatile.Read(ref textTargetChanged) == 1)
+                            if (args.NewValue is bool lostKeyboardFocus && !lostKeyboardFocus)
                             {
-                                Volatile.Write(ref textTargetCommitted, 1);
+                                if (step.Id is "testcrm-windows-case-subject" or "testcrm-windows-case-subject-after-close")
+                                {
+                                    Console.Error.WriteLine(
+                                        $"[DAP Windows text diagnostic] Step '{step.Id}' focus lost: " +
+                                        $"observedFocused={Volatile.Read(ref textTargetObservedFocused)}; " +
+                                        $"changed={Volatile.Read(ref textTargetChanged)}.");
+                                }
+
+                                if (Volatile.Read(ref textTargetObservedFocused) == 1
+                                    && Volatile.Read(ref textTargetChanged) == 1)
+                                    Volatile.Write(ref textTargetCommitted, 1);
                             }
                         };
 
@@ -324,6 +341,17 @@ public sealed class WindowsGuideRuntime
                     }
 
                     initialTextValue ??= currentTextValue;
+
+                    if (step.Id is "testcrm-windows-case-subject" or "testcrm-windows-case-subject-after-close")
+                    {
+                        Console.Error.WriteLine(
+                            $"[DAP Windows text diagnostic] Step '{step.Id}': " +
+                            $"value='{currentTextValue}'; initial='{initialTextValue}'; " +
+                            $"focused={target.Current.HasKeyboardFocus}; " +
+                            $"observedFocused={Volatile.Read(ref textTargetObservedFocused)}; " +
+                            $"changed={Volatile.Read(ref textTargetChanged)}; " +
+                            $"committed={Volatile.Read(ref textTargetCommitted)}.");
+                    }
 
                     // Keep polling as a fallback for providers that do not emit
                     // every UIA property notification. The target-scoped
@@ -924,6 +952,20 @@ public sealed class WindowsGuideRuntime
             return null;
 
         return root.FindFirst(TreeScope.Descendants, condition);
+    }
+
+    private static bool SafeHasKeyboardFocus(AutomationElement? element)
+    {
+        if (element is null)
+            return false;
+        try
+        {
+            return element.Current.HasKeyboardFocus;
+        }
+        catch (ElementNotAvailableException)
+        {
+            return false;
+        }
     }
 
     private static bool SameElement(AutomationElement left, AutomationElement right)
