@@ -339,6 +339,7 @@ async Task RunGuidedAsync(
 
             if (bootstrapCaptures.Count > 0)
             {
+                Directory.CreateDirectory(runRoot);
                 File.WriteAllText(
                     resumeContextPath,
                     JsonSerializer.Serialize(bootstrapCaptures));
