@@ -93,7 +93,9 @@ public sealed class WindowsGuideRuntime
             preExistingTargetForCurrentStep = nextTargetBeforeCurrentAction;
         }
 
-        await _bubbles.HideAsync();
+        Console.Error.WriteLine("[DAP Windows guide] presenting completion bubble.");
+        await _bubbles.WaitForGuideCompletedDismissalAsync(cancellationToken);
+        Console.Error.WriteLine("[DAP Windows guide] completion bubble dismissed; Guide finished.");
     }
 
     private async Task RunStepAsync(
