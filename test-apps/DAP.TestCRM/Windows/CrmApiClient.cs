@@ -1,8 +1,20 @@
 using System.Net.Http;
 using System.Net.Http.Json;
+using System.Net;
 using System.Text.Json;
 
 namespace DAP.TestCRM.Windows;
+
+public sealed class CrmApiException : Exception
+{
+    public HttpStatusCode StatusCode { get; }
+
+    public CrmApiException(HttpStatusCode statusCode, string message)
+        : base(message)
+    {
+        StatusCode = statusCode;
+    }
+}
 
 public sealed class CrmApiClient
 {
@@ -61,9 +73,17 @@ public sealed class CrmApiClient
         if(r.IsSuccessStatusCode)return;
         var body=await r.Content.ReadAsStringAsync();
         var message=TryGetProblemMessage(body);
-        var detail=message ?? (string.IsNullOrWhiteSpace(body)?"No response body.":body);
-        throw new InvalidOperationException($"CRM API {r.RequestMessage?.Method} {path} returned {(int)r.StatusCode} ({r.StatusCode}): {detail}");
+        var detail=message ?? UserFriendlyStatusMessage(r.StatusCode);
+        throw new CrmApiException(r.StatusCode, detail);
     }
+
+    private static string UserFriendlyStatusMessage(HttpStatusCode statusCode) => statusCode switch
+    {
+        HttpStatusCode.NotFound => "הפריט המבוקש לא נמצא. ייתכן שהוא נמחק או השתנה.",
+        HttpStatusCode.Conflict => "לא ניתן לבצע את הפעולה במצב הנוכחי.",
+        HttpStatusCode.BadRequest => "לא ניתן להשלים את הפעולה. יש לבדוק את הנתונים שהוזנו.",
+        _ => "לא ניתן להשלים את הפעולה כרגע. נסה שוב."
+    };
 
     private static string? TryGetProblemMessage(string body)
     {
