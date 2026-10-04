@@ -286,9 +286,6 @@ async Task RunGuidedAsync(
 
         Process StartDap(int? startStepOrder)
         {
-            var manualCompletionArgument = handoffStepOrder is not null
-                ? " --show-completion"
-                : string.Empty;
             var startStepArgument = startStepOrder is not null
                 ? $" --start-step {startStepOrder.Value}"
                 : string.Empty;
@@ -307,8 +304,7 @@ async Task RunGuidedAsync(
                 $"--learner-windows {DapTestCrmWindowsGuideSeed.GuideId} " +
                 $"--window-automation-id {mainWindowAutomationId}" +
                 startStepArgument +
-                resumeContextArgument +
-                manualCompletionArgument,
+                resumeContextArgument,
                 redirectOutput: true,
                 workingDirectory: dapOutput);
 
@@ -615,8 +611,13 @@ async Task RunGuidedAsync(
         WaitForStep("testcrm-windows-header-home");
         await driver.GoPortal();
 
+        var completionBubble = WaitForCompletionBubble(dap);
+        if (driver.VisualMode)
+            Thread.Sleep(800);
+        ClickCompletionFinish(completionBubble);
+
         if (!dap.WaitForExit(5_000))
-            throw new TimeoutException("DAP.exe did not complete after the final Step 53 action.");
+            throw new TimeoutException("DAP.exe did not complete after the completion Finish action.");
         if (dap.ExitCode != 0)
             throw new Exception($"DAP.exe exited with code {dap.ExitCode}.");
 
@@ -990,6 +991,68 @@ AutomationElement WaitForBubble(string expectedInstruction, Process dapProcess, 
     throw new TimeoutException(
         $"Timed out waiting for DAP Windows bubble '{expectedInstruction}'. " +
         $"Last observed bubble: '{lastObservedInstruction ?? "<none>"}'.");
+}
+
+AutomationElement WaitForCompletionBubble(Process dapProcess, int timeout = 5_000)
+{
+    var sw = Stopwatch.StartNew();
+    while (sw.ElapsedMilliseconds < timeout)
+    {
+        if (dapProcess.HasExited)
+            throw new Exception(
+                $"DAP.exe exited before the Windows completion bubble was observed. ExitCode={dapProcess.ExitCode}.");
+
+        try
+        {
+            var topLevelWindows = AutomationElement.RootElement.FindAll(
+                    TreeScope.Children,
+                    new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Window))
+                .Cast<AutomationElement>();
+
+            var completion = topLevelWindows.FirstOrDefault(candidate =>
+            {
+                try
+                {
+                    return IsVisibleUiaElement(candidate)
+                           && string.Equals(
+                               candidate.Current.AutomationId,
+                               "DapLearnerCompletionBubble",
+                               StringComparison.Ordinal);
+                }
+                catch (ElementNotAvailableException)
+                {
+                    return false;
+                }
+            });
+
+            if (completion is not null)
+                return completion;
+        }
+        catch (ElementNotAvailableException)
+        {
+        }
+
+        Thread.Sleep(100);
+    }
+
+    throw new TimeoutException("Timed out waiting for DAP Windows completion bubble.");
+}
+
+void ClickCompletionFinish(AutomationElement completionBubble)
+{
+    var finish = completionBubble.FindFirst(
+        TreeScope.Descendants,
+        new PropertyCondition(
+            AutomationElement.AutomationIdProperty,
+            "DapLearnerCompletionFinish"));
+
+    if (finish is null)
+        throw new Exception("DAP Windows completion Finish action was not found.");
+
+    if (!finish.TryGetCurrentPattern(InvokePattern.Pattern, out var invoke))
+        throw new Exception("DAP Windows completion Finish action does not expose InvokePattern.");
+
+    ((InvokePattern)invoke).Invoke();
 }
 
 bool IsVisibleUiaElement(AutomationElement candidate)
