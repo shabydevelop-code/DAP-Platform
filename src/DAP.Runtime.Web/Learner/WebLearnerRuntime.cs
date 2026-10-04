@@ -88,10 +88,11 @@ public sealed class WebLearnerRuntime
                     $"Centered Guide Step '{step.Id}' must not define a target.");
             if (step.AdvanceMode != StepAdvanceMode.Manual
                 || step.Validation is not null
+                || step.Context is not null
                 || step.Capture is not null
                 || step.CompletionConditions is { Count: > 0 })
                 throw new InvalidOperationException(
-                    $"Centered Guide Step '{step.Id}' must be a pure Manual information Step with no validation, capture, or completion conditions.");
+                    $"Centered Guide Step '{step.Id}' must be a pure Manual information Step with no context, validation, capture, or completion conditions.");
 
             await _bubbles.WaitForCenteredStepDismissalAsync(
                 page,
@@ -99,6 +100,7 @@ public sealed class WebLearnerRuntime
                 stepNumber,
                 totalSteps,
                 cancellationToken);
+            _firstBubbleReported = true;
             return;
         }
 
