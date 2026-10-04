@@ -495,3 +495,15 @@ Focused From-Step execution has since been locally verified on both platforms at
 - Local verification after the Web/Windows Visual cursor pacing alignment: Web `--visual-from-step 47` completed successfully. This confirms the current focused-run contract in practice on Web: Unguided bootstrap before N, validated resume context into DAP, then Guided Visual from N, with the faster Windows-aligned cursor movement.
 
 - Web `--manual-from-step <N>` now follows the same lifecycle principle as Windows manual runs: after handoff it automatically ends when DAP completes or the owned Web target closes. It no longer requires pressing Enter merely to let the runner exit.
+
+## Centered targetless learner bubbles — 2026-10-04
+
+- DAP now supports persisted informational Guide Steps that are intentionally not attached to any application element.
+- Canonical definition: `Target = null`, `BubblePlacement.Center`, `StepAdvanceMode.Manual`.
+- Such a Step is information-only: no Context, Validation, Capture, or CompletionConditions.
+- Web and Windows both render the Step in the center of the learner surface, without target highlight or pointer.
+- The centered information bubble includes the normal Step progress text and a localized explicit confirmation action (`אישור` / `OK`).
+- Guide completion now reuses the same centered-bubble presentation family with completion-specific content and `סיום` / `Finish`.
+- Web completion is now truly centered vertically and horizontally instead of being horizontally centered near the top of the viewport.
+- The centered placement persists through the existing `BubblePlacement` SQLite field; no schema migration was required.
+- The canonical 53-Step TestCRM Guides were not modified to add an informational Step merely to exercise this capability.
