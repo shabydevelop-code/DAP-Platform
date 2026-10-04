@@ -779,3 +779,12 @@ Web reuses the existing `MoveTo` animation with an explicit opt-out from the act
 
 Implementation commits: `47bf7ab38e9ce1df00180ab8ec9f5acef214ba82`, `3e7accf6e62bb6dfe7843f4ae5b279c25a2221d1`, `bbfa47f47aca5d6afc9bdc0c0c192e66d406590b`, `ad36a7865d75b6ed86621a58f943e0610e29e19b`.
 
+### Web Visual real OS cursor — 2026-10-04
+
+The Web E2E Visual runner no longer injects `#dap-e2e-cursor` or `window.__dapE2ECursor`. Visual target motion now converts the Playwright target bounding box from browser viewport coordinates to Windows screen coordinates and moves the real operating-system cursor through Win32 `GetCursorPos` / `SetCursorPos`.
+
+The existing Visual motion contract is preserved: 12 cubic-ease-out frames, 18 ms per frame, and 120 ms dwell. Playwright still performs the actual browser interaction after the physical cursor reaches the target, preserving DOM-level synchronization and the active-Guide-target invariant. DAP-owned centered information/Finish controls use the same physical cursor path with the target invariant explicitly disabled because those controls intentionally have no application Target.
+
+Implementation commits: `0cac505d40eb092c52a5b5eeed32d2d7811814cd`, `9fc6768a338108f8caceceeed36e517bad53030b`.
+
+Local Web Visual verification is still required after pull before this change is marked PASS.
