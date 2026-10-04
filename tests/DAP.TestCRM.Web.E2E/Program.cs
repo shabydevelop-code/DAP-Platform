@@ -5,6 +5,7 @@ using System.Text.Json;
 using DAP.TestCRM.Web.E2E;
 using Microsoft.Playwright;
 using DAP.Core.Targets;
+using DAP.Core.Guides;
 using DAP.Data.Sqlite;
 using DAP.Data.Sqlite.Guides;
 using DAP.Runtime.Web.Learner;
