@@ -520,3 +520,18 @@ Before accepting a DAP product change, ask: **Could this behavior be configured 
 - Source access to TestCRM may be used for development diagnosis only. DAP runtime behavior must not depend on customer source access.
 - Do not infer learner actions globally from control type. A grid row/DataItem, for example, may require click, double-click, Enter, Space, selection only, or application-specific behavior. The future Instructor must capture/configure the intended action and its success condition.
 - FAST and VISUAL are E2E execution modes, not product semantics. They should exercise the same intended learner action; VISUAL may add presentation-oriented cursor motion and delay. When an application genuinely requires a physical mouse action, FAST may perform the physical action without animated cursor travel rather than changing the target application.
+
+
+## ADR-0XX — Fast and Visual share one Windows learner-action path
+
+**Status:** Accepted
+
+Windows E2E Fast and Visual are presentation modes over one canonical synthetic learner workflow; they are not separate test implementations.
+
+Every application-facing action must be semantically identical in both modes. Visual may add visible cursor travel and presentation pacing only. It must not add alternate CRM navigation, alternate validation rules, target-specific synchronization, or scrolling required only to make the Visual test pass.
+
+When the target application itself requires a physical mouse action that cannot be represented by the available UIA action pattern, that physical action remains part of the common action path. Fast may move the real cursor directly to the target; Visual may animate the same cursor movement before executing the same physical action.
+
+Readiness and synchronization remain based on observable application/UIA state rather than arbitrary Visual-only delays. The 5-second timeout policy is unchanged.
+
+This contract was re-verified by complete Windows Guided runs on the 54-Step canonical Guide: both Fast and Visual completed 54/54 with the same production Windows Learner Runtime. The text synchronization correction that restored Step 8 is commit `889ee17d3e34692022085760dea2496b31c0cb69`.
