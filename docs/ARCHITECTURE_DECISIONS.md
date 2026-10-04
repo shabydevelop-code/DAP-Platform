@@ -31,3 +31,11 @@ The original implementation order through the Learner runtimes is now complete:
 7. Instructor/Editor Runtime and target-capture workflow — next major product phase.
 
 Future work must build the Instructor/Editor path against the same stable Core, persistence, and runtime-neutral target contracts rather than introducing a parallel guide model.
+
+## Centered informational Step presentation
+
+A Guide Step may intentionally contain no target when its purpose is to present learner information rather than guide an interaction. The shared representation is `Target = null`, `BubblePlacement.Center`, and `StepAdvanceMode.Manual`.
+
+This is a runtime-neutral Guide capability. Web and Windows use their native presentation adapters but preserve the same semantics: centered placement, no target pointer/highlight, localized confirmation action, and explicit learner dismissal before advancing.
+
+Guide completion uses the same centered presentation family with completion-specific content and Finish action. This avoids a separate completion visual system and keeps Web/Windows learner presentation aligned.
