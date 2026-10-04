@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text.Json;
 using System.Windows.Automation;
+using DAP.Core.Guides;
 using DAP.Data.Sqlite;
 using DAP.Data.Sqlite.Guides;
 using DAP.TestCRM.E2E.Common;
