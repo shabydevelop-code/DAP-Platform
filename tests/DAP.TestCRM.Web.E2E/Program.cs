@@ -227,6 +227,23 @@ Console.CancelKeyPress += webCancelCleanup;
     {
         await BuildIsolatedAsync(testCrmBackendProject, backendOutput, "TestCRM Server");
         await BuildIsolatedAsync(testCrmProject, webOutput, "TestCRM Web");
+
+        // dotnet build --output does not carry the Web project's static content
+        // into this custom isolated output. The E2E host must be a faithful
+        // runnable copy, so mirror the source wwwroot into the owned run folder.
+        var sourceWebRoot = Path.Combine(Path.GetDirectoryName(testCrmProject)!, "wwwroot");
+        var isolatedWebRoot = Path.Combine(webOutput, "wwwroot");
+        if (!Directory.Exists(sourceWebRoot))
+            throw new DirectoryNotFoundException($"TestCRM Web root was not found: {sourceWebRoot}");
+        Directory.CreateDirectory(isolatedWebRoot);
+        foreach (var sourceFile in Directory.EnumerateFiles(sourceWebRoot, "*", SearchOption.AllDirectories))
+        {
+            var relativePath = Path.GetRelativePath(sourceWebRoot, sourceFile);
+            var destinationFile = Path.Combine(isolatedWebRoot, relativePath);
+            Directory.CreateDirectory(Path.GetDirectoryName(destinationFile)!);
+            File.Copy(sourceFile, destinationFile, overwrite: true);
+        }
+
         if (!unguided && publishedDapDirectory is null)
             await BuildIsolatedAsync(dapAppProject, dapOutput, "DAP");
     }
