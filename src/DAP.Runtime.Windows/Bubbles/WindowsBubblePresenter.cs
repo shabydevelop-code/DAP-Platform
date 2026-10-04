@@ -165,6 +165,8 @@ public sealed class WindowsBubblePresenter
                 MinWidth = 90
             };
 
+            AutomationProperties.SetAutomationId(finishButton, "DapLearnerCompletionFinish");
+
             var dragHandle = new TextBlock
             {
                 Text = "⠿",
