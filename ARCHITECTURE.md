@@ -349,7 +349,7 @@ The normal TestCRM Web E2E runner owns the complete temporary test topology for 
 
 A normal full Web E2E run therefore does not require manually pre-started TestCRM servers.
 
-The canonical Web Guide seed is `testcrm-web-canonical-workflow` and now defines 54 Steps. The previous 53-Step persisted version was fully verified; because DB owns persisted Guide data, the 54-Step seed becomes active only after an explicit reset and requires fresh verification.
+The canonical Web Guide seed is `testcrm-web-canonical-workflow` and now defines 54 Steps. Because DB owns persisted Guide data, the seed becomes active only after an explicit reset. The current 54-Step Web and Windows Guides have both been reset and focused `--visual-from-step 47` execution is locally verified; a fresh full four-path 54-Step regression matrix remains pending.
 
 ## Canonical Web Guided vs Unguided topology
 
@@ -417,7 +417,7 @@ They represent the same business scenario while using runtime-specific target de
 
 Business-identifying navigation must not rely on incidental row order when a stable identity is available. The current canonical parity uses explicit identities for `מטה תל אביב`, `אבי כהן`, and the Case created during the active run. Runtime capture carries the created Case identity into later Steps.
 
-The previous 53-Step versions of the four canonical execution paths are all locally verified 53/53. The new 54-Step seeds require reset and rerun:
+The previous 53-Step versions of the four canonical execution paths remain the last fully verified full-matrix baseline. The current 54-Step Guides are reset and focused Visual From Step 47 is verified on both platforms; full 54-Step Guided/Unguided reruns remain pending:
 - Web Guided
 - Web Unguided
 - Windows Guided
