@@ -616,7 +616,7 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     public Task DeleteCase(){Click(ById("DeleteCaseButton"));return Task.CompletedTask;}
     public Task GoPortal(){Click(ById("PortalHeader"));return Task.CompletedTask;}
 
-    void VisualTarget(AutomationElement element)
+    public void VisualTarget(AutomationElement element)
     {
         if (!visualMode)
             return;
