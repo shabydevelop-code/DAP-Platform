@@ -757,15 +757,13 @@ Process StartFocusedDap(int startStepOrder)
         resumeContextArgument=$" --resume-context-file \"{resumeContextPath}\"";
     }
 
-    var showCompletionArgument=manualFromStep is not null ? " --show-completion" : string.Empty;
     var process=new Process
     {
         StartInfo=new ProcessStartInfo
         {
             FileName=dapExecutable,
             Arguments=$"--learner-web {DapTestCrmGuideSeed.GuideId} --cdp http://127.0.0.1:{dapCdpPort} --page-url-contains localhost:5200 --start-step {startStepOrder}" +
-                      resumeContextArgument +
-                      showCompletionArgument,
+                      resumeContextArgument,
             WorkingDirectory=dapOutput,
             UseShellExecute=false,
             CreateNoWindow=true,
@@ -1537,6 +1535,24 @@ frame=await Content();
 if(!new Uri(frame.Url).Fragment.Equals("#/",StringComparison.Ordinal))
     throw new Exception("Header navigation did not return Content to the customer workspace.");
 await frame.Locator("h1:has-text('חיפוש לקוח')").WaitForAsync();
+
+if(!unguided)
+{
+    var completionBubble=page.Locator("#dap-guide-completed");
+    await completionBubble.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = 5000 });
+    var finishButton=completionBubble.Locator("[data-dap-guide-finish='1']");
+    await finishButton.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = 5000 });
+    if(visualMode)
+        await page.WaitForTimeoutAsync(800);
+    await finishButton.ClickAsync();
+
+    if(dapProcess is null)
+        throw new Exception("DAP.exe process is missing while completing the Guided Web run.");
+    if(!dapProcess.WaitForExit(5000))
+        throw new TimeoutException("DAP.exe did not complete after the Web completion Finish action.");
+    if(dapProcess.ExitCode!=0)
+        throw new Exception($"DAP.exe exited with code {dapProcess.ExitCode} after Web completion.");
+}
 
 if(lastScenarioGuideOrder!=dapSteps.Count)
     throw new Exception(
