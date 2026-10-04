@@ -7,7 +7,7 @@ The canonical execution modes are **Guided** and **Unguided**. The old `CRM-only
 Locally verified baseline:
 - **Last fully verified four-path baseline — 53/53.** Web Guided/Unguided and Windows Guided/Unguided all passed the previous 53-Step canonical Guides.
 - **Current repository seed — 54 Steps.** Web and Windows seeds now add a centered targetless information Step at Step 51 before Case deletion. The Step pauses the learner until the localized confirmation action is pressed.
-- **54/54 verification is pending.** Existing persisted `DAP.db` Guides remain authoritative until explicitly reset; after reset the four canonical paths must be rerun before claiming a new 54/54 PASS.
+- **Full 54/54 four-path verification is still pending.** The new 54-Step Web and Windows Guides have both been explicitly reset and focused `--visual-from-step 47` runs have been locally verified through the new centered information Step, final navigation, and completion. A fresh full Guided/Unguided 54/54 matrix is still required before replacing the historical four-path 53/53 baseline.
 - **Windows Guided regression re-verified — 2026-10-03.** After hardening Windows text-commit synchronization, the full persisted 53-Step Guided run again completed with the terminal PASS: `DAP Windows Learner Runtime completed all 53 persisted Guide Steps with real UIA targets, runtime capture, modal targeting, and bubbles.` The regression that stalled at Step 8 (`CaseSubject`) is closed.
 
 Current parity and runtime baseline:
@@ -23,7 +23,7 @@ Current parity and runtime baseline:
 - Guide seed changes do not silently overwrite an existing persisted Guide. Updates are applied explicitly with `--reset-guide`, preserving: **Seed initializes. DB owns. Runtime consumes.**
 - Closed-target rule remains authoritative: source inspection may be used for diagnosis and learning, never as a Runtime/resolver oracle.
 
-Current milestone: the previous four-path 53/53 regression baseline remains the last fully verified baseline; the repository seeds now define 54 Steps and require reset plus rerun before 54/54 is marked verified. Additional user-facing runner forms such as Visual, Manual, and From-Step are separate execution variants; focused Visual From Step 47 is also locally verified on both platforms.
+Current milestone: the previous four-path 53/53 regression baseline remains the last fully verified full-matrix baseline. The current 54-Step Guides are reset in the local database and focused Visual From Step 47 is now locally verified on both Web and Windows, including Step 51 information confirmation and the completion bubble. Full 54/54 Guided/Unguided matrix verification remains pending.
 
 ### External UI localization — 2026-10-03
 
@@ -773,7 +773,7 @@ Implementation commits: `e89a4af954f502b44cedef8949b4578cee3524b7`, `496a9f47985
 
 ### Visual cursor on DAP-owned bubble actions — 2026-10-04
 
-Visual mode now treats DAP-owned learner actions as visible learner interactions rather than invoking them invisibly. On both Web and Windows, the synthetic cursor moves with the same existing Visual motion contract to the centered information `אישור` action before confirmation and to the completion `סיום` action before finishing the Guide. Fast mode keeps the direct/non-visual action path.
+Visual mode now treats DAP-owned learner actions as visible learner interactions rather than invoking them invisibly. On both Web and Windows, the real operating-system cursor moves with the same Visual motion contract to the centered information `אישור` action before confirmation and to the completion `סיום` action before finishing the Guide. Fast mode keeps the direct/non-visual action path.
 
 Web reuses the existing `MoveTo` animation with an explicit opt-out from the active target invariant for DAP-owned overlay controls, because centered information and completion bubbles intentionally have no application Target. Windows exposes the existing `VisualTarget` cursor animation so the E2E helper can apply it to DAP UIA buttons as well as CRM controls.
 
@@ -787,4 +787,12 @@ The existing Visual motion contract is preserved: 12 cubic-ease-out frames, 18 m
 
 Implementation commits: `0cac505d40eb092c52a5b5eeed32d2d7811814cd`, `9fc6768a338108f8caceceeed36e517bad53030b`.
 
-Local Web Visual verification is still required after pull before this change is marked PASS.
+Local verification is complete for the focused Visual path on both platforms: Web `--visual-from-step 47` passed with the real OS cursor after removal of the synthetic DOM cursor, and Windows `--visual-from-step 47` also passed with native cursor movement to CRM targets, `אישור`, and `סיום`.
+
+### Focused 54-Step Visual verification — 2026-10-04
+
+After resetting both canonical Guides to the current 54-Step seed, the focused Visual path from Step 47 was locally verified on both platforms.
+
+- **Web — PASS:** `--visual-from-step 47` completed through Steps 47–54, including the centered targetless Step 51, real-cursor travel to `אישור`, final Case deletion, Step 54 navigation, real-cursor travel to `סיום`, and clean Guide completion. The old synthetic DOM cursor is no longer used.
+- **Windows — PASS:** `--visual-from-step 47` completed through the same aligned Steps, including the centered Step 51 and native cursor travel to both DAP-owned actions `אישור` and `סיום`.
+- These focused Visual PASS results verify the new centered-information and real-cursor behavior across Web and Windows. They do **not** yet replace the historical full four-path 53/53 matrix; full 54-Step Guided/Unguided regression runs remain pending.
