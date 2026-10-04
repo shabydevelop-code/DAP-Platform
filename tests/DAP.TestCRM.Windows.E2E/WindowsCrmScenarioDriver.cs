@@ -51,21 +51,11 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
             return;
         }
 
-        // Physical mouse fallback belongs only to Visual mode.
-        // Fast mode must never move the real cursor merely because an element
-        // lacks InvokePattern.
-        if(!visualMode)
-        {
-            if(twice && e.TryGetCurrentPattern(SelectionItemPattern.Pattern, out var selection))
-            {
-                ((SelectionItemPattern)selection).Select();
-                return;
-            }
-
-            throw new Exception(
-                $"Target '{e.Current.AutomationId}' has no supported UI Automation click pattern in fast mode.");
-        }
-
+        // Some real applications expose actions (for example a WPF DataGrid
+        // row opened by MouseDoubleClick) that cannot be completed through an
+        // available UI Automation invoke pattern. Keep the same physical action
+        // in Fast and Visual modes. VisualTarget above adds animated cursor
+        // travel only in Visual mode; Fast jumps directly to the target here.
         if(e.TryGetCurrentPattern(ScrollItemPattern.Pattern,out var sp))
             ((ScrollItemPattern)sp).ScrollIntoView();
 
