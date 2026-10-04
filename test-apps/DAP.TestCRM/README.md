@@ -241,3 +241,10 @@ Development ports:
 Architectural invariant: Web and Windows may depend on the shared backend contract, but neither client may depend on the other client. A Windows-only test deployment must work with Server + Windows after the Web directory is absent; a Web-only test deployment must work with Server + Web after the Windows directory is absent.
 
 The old combined root `DAP.TestCRM.csproj` and root launch profile were removed so the Web static files cannot accidentally become a backend dependency.
+
+## Windows learner-scroll regression coverage — 2026-10-04
+
+The Windows canonical workflow is also used to verify target-attached bubble behavior in a real scrollable CRM screen. After a Step is presented, manually scrolling its target outside the visible scroll viewport must hide the bubble rather than leave it pinned or dragged at the viewport edge. Returning the target to view must allow the bubble to reappear beside the live target.
+
+This was manually verified with `--manual-from-step 11` against the framework-dependent published DAP package at `C:\DAP-Production`. The current full Windows Guided Visual run against the same published package also completed all 54 Steps and exited cleanly.
+
