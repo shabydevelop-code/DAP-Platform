@@ -46,6 +46,12 @@ public sealed class WindowsBubblePresenter
         if (physicalRect.IsEmpty || physicalRect.Width <= 0 || physicalRect.Height <= 0)
             throw new InvalidOperationException($"Windows target '{step.Id}' has no visible bounds.");
 
+        if (!IsFullyVisibleInScrollableViewport(target, physicalRect))
+        {
+            await HideAsync();
+            return;
+        }
+
         var scale = GetTargetScale(target);
         var rect = new Rect(
             physicalRect.Left / scale,
@@ -680,4 +686,44 @@ public sealed class WindowsBubblePresenter
 
         AutomationProperties.SetAutomationId(_window, "DapLearnerBubble");
     }
+
+    private static bool IsFullyVisibleInScrollableViewport(AutomationElement target, Rect targetRect)
+    {
+        try
+        {
+            if (target.Current.IsOffscreen)
+                return false;
+
+            var walker = TreeWalker.ControlViewWalker;
+            for (var ancestor = walker.GetParent(target);
+                 ancestor is not null;
+                 ancestor = walker.GetParent(ancestor))
+            {
+                if (!ancestor.TryGetCurrentPattern(ScrollPattern.Pattern, out var rawPattern))
+                    continue;
+
+                var scroll = (ScrollPattern)rawPattern;
+                if (!scroll.Current.VerticallyScrollable)
+                    continue;
+
+                var viewport = ancestor.Current.BoundingRectangle;
+                if (viewport.IsEmpty)
+                    continue;
+
+                const double tolerance = 1d;
+                if (targetRect.Left < viewport.Left - tolerance
+                    || targetRect.Top < viewport.Top - tolerance
+                    || targetRect.Right > viewport.Right + tolerance
+                    || targetRect.Bottom > viewport.Bottom + tolerance)
+                    return false;
+            }
+
+            return true;
+        }
+        catch (ElementNotAvailableException)
+        {
+            return false;
+        }
+    }
+
 }
