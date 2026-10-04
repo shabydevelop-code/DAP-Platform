@@ -491,6 +491,6 @@ After the final Guide Step, both Web and Windows runtimes present the production
 
 ### ADR-046 — Centered targetless information Steps
 
-DAP supports learner information that does not identify or act on a target as a real persisted Guide Step rather than by inventing a fake target. The canonical representation is `Target = null`, `BubblePlacement.Center`, and `StepAdvanceMode.Manual`. Such a Step cannot carry validation, runtime capture, or completion conditions. The Runtime displays the shared centered bubble and advances only after the learner presses the localized confirmation action.
+DAP supports learner information that does not identify or act on a target as a real persisted Guide Step rather than by inventing a fake target. The canonical representation is `Target = null`, `BubblePlacement.Center`, and `StepAdvanceMode.Manual`. Such a Step cannot carry context, validation, runtime capture, or completion conditions. The Runtime displays the shared centered bubble and advances only after the learner presses the localized confirmation action.
 
 Guide completion reuses the same centered presentation primitive with completion-specific content and Finish text. This keeps targetless information and completion presentation aligned on Web and Windows and prevents separate visual implementations from drifting.
