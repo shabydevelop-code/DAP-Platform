@@ -16,20 +16,18 @@ public sealed record DapLaunchOptions(
     string? CdpEndpoint,
     string? PageUrlContains,
     string? WindowAutomationId,
-    bool ShowCompletion,
     int? StartStep,
     string? ResumeContextPath)
 {
     public static DapLaunchOptions? Parse(string[] args, IUiTextProvider texts)
     {
         if (args.Length == 1 && args[0] == "--check")
-            return new(DapLaunchMode.InfrastructureCheck, null, null, null, null, false, null, null);
+            return new(DapLaunchMode.InfrastructureCheck, null, null, null, null, null, null);
 
         if (args.Length >= 2 && args[0] == "--learner-web" && !string.IsNullOrWhiteSpace(args[1]))
         {
             string? cdp = null;
             string? pageUrlContains = null;
-            var showCompletion = false;
             int? startStep = null;
             string? resumeContextPath = null;
 
@@ -39,8 +37,6 @@ public sealed record DapLaunchOptions(
                     cdp = args[++i];
                 else if (args[i] == "--page-url-contains" && i + 1 < args.Length)
                     pageUrlContains = args[++i];
-                else if (args[i] == "--show-completion")
-                    showCompletion = true;
                 else if (args[i] == "--start-step" && i + 1 < args.Length
                          && int.TryParse(args[++i], out var parsedStartStep) && parsedStartStep > 0)
                     startStep = parsedStartStep;
@@ -52,7 +48,7 @@ public sealed record DapLaunchOptions(
             }
 
             if (!string.IsNullOrWhiteSpace(cdp))
-                return new(DapLaunchMode.LearnerWeb, args[1], cdp, pageUrlContains, null, showCompletion, startStep, resumeContextPath);
+                return new(DapLaunchMode.LearnerWeb, args[1], cdp, pageUrlContains, null, startStep, resumeContextPath);
 
             return Usage(texts);
         }
@@ -60,7 +56,6 @@ public sealed record DapLaunchOptions(
         if (args.Length >= 2 && args[0] == "--learner-windows" && !string.IsNullOrWhiteSpace(args[1]))
         {
             string? windowAutomationId = null;
-            var showCompletion = false;
             int? startStep = null;
             string? resumeContextPath = null;
 
@@ -68,8 +63,6 @@ public sealed record DapLaunchOptions(
             {
                 if (args[i] == "--window-automation-id" && i + 1 < args.Length)
                     windowAutomationId = args[++i];
-                else if (args[i] == "--show-completion")
-                    showCompletion = true;
                 else if (args[i] == "--start-step" && i + 1 < args.Length
                          && int.TryParse(args[++i], out var parsedStartStep) && parsedStartStep > 0)
                     startStep = parsedStartStep;
@@ -81,7 +74,7 @@ public sealed record DapLaunchOptions(
             }
 
             if (!string.IsNullOrWhiteSpace(windowAutomationId))
-                return new(DapLaunchMode.LearnerWindows, args[1], null, null, windowAutomationId, showCompletion, startStep, resumeContextPath);
+                return new(DapLaunchMode.LearnerWindows, args[1], null, null, windowAutomationId, startStep, resumeContextPath);
 
             return Usage(texts);
         }
