@@ -33,6 +33,9 @@
 9. Do not expose Previous as unconditional StepOrder navigation.
 10. Expose Previous only when the active runtime determines that the previous Step can be safely rendered in the current context.
 11. Preserve sufficient context/navigation metadata to support page changes, application changes, and Web/Windows runtime transitions.
+12. Support targetless informational Steps presented as centered learner bubbles with an explicit confirmation action.
+13. Do not require or invent a target descriptor for a purely informational Step.
+14. Present Guide completion through the same centered DAP bubble presentation family on Web and Windows.
 
 ## Web
 
