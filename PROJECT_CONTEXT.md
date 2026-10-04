@@ -5,13 +5,12 @@
 The canonical execution modes are **Guided** and **Unguided**. The old `CRM-only` naming is historical and should not be used for the current mode contract.
 
 Locally verified baseline:
-- **Web Unguided — PASS 53/53.**
-- **Web Guided — PASS 53/53.**
-- **Windows Unguided — PASS 53/53.**
-- **Windows Guided — PASS 53/53.**
+- **Last fully verified canonical baseline:** Web Guided/Unguided and Windows Guided/Unguided all passed the previous 53-Step Guides.
+- **Current repository seeds:** both canonical Guides now define 54 Steps after adding a centered information pause at Step 51.
+- **54/54 status:** pending explicit Guide reset and local rerun; do not claim 54/54 PASS yet.
 - Windows Guided was re-verified again on 2026-10-03 after the text-commit regression work: all 53 persisted Steps completed through the production Windows Learner Runtime with real UIA targets, runtime capture, modal targeting, and bubbles. The former Step-8 `CaseSubject` stall is closed.
 
-Both persisted canonical Guides contain 53 Steps and represent the same Customer -> Site -> Case -> Lead business scenario:
+Both canonical repository seeds now contain 54 Steps and represent the same Customer -> Site -> Case -> Lead business scenario. Existing persisted Guides can remain at the previous 53-Step version until explicitly reset:
 - `testcrm-web-canonical-workflow`
 - `testcrm-windows-canonical-workflow`
 
@@ -367,14 +366,14 @@ The old combined root `DAP.TestCRM.csproj` and root launch profile were removed 
 - DAP persistence uses numeric internal IDs for Guides and GuideSteps, with stable textual keys stored separately in `Guides.Key` and `GuideSteps.Key`.
 - Existing legacy SQLite databases using TEXT primary keys are migrated automatically by `SqliteDatabaseInitializer` while preserving Guide/Step keys, ordering, bubbles, validation, context, frame data and anchors.
 - The canonical TestCRM Web Guide key is `testcrm-web-canonical-workflow`; the previous `testcrm-create-case` key is migrated in place.
-- The canonical Web Guide currently contains 53 persisted Steps in the DAP database.
+- The canonical Web repository seed now contains 54 Steps. The persistent DAP database remains authoritative and may still hold the previous 53-Step Guide until reset.
 - Local verification on 2026-10-02 completed the full Web runtime workflow after the schema migration with terminal PASS: `PASS: representative Customer -> Site -> Case -> Lead workflow, including dynamic Lead deletion and Case deletion, completed.`
 - The normal Web E2E runner is self-contained: it starts the shared TestCRM backend on port 5201 and the Web host on port 5200, waits for readiness, runs the browser/DAP scenario, then terminates only the processes it owns.
 - Historical note: Windows Learner Runtime integration was the next milestone at this point. It has since been completed through the full persisted 53-Step Windows Guided baseline.
 
 ## Canonical E2E execution modes
 
-The canonical Web test Guide is `testcrm-web-canonical-workflow` with 53 persisted Steps in the configured DAP database. Both execution modes consume that same persisted Guide and the same canonical CRM business flow:
+The canonical Web test Guide is `testcrm-web-canonical-workflow`; the repository seed now defines 54 Steps, while an existing configured DAP database may still contain the previous 53-Step persisted version until reset. Both execution modes consume that same persisted Guide and the same canonical CRM business flow:
 
 - Normal/guided mode launches `DAP.exe` and verifies production Web Runtime behavior, bubbles, validation, and Guide progression.
 - Unguided omits `DAP.exe` and bubble synchronization but remains sequenced by the same 53 persisted Guide Steps. It is not an independent TestCRM QA script.
@@ -506,4 +505,6 @@ Focused From-Step execution has since been locally verified on both platforms at
 - Guide completion now reuses the same centered-bubble presentation family with completion-specific content and `סיום` / `Finish`.
 - Web completion is now truly centered vertically and horizontally instead of being horizontally centered near the top of the viewport.
 - The centered placement persists through the existing `BubblePlacement` SQLite field; no schema migration was required.
-- The canonical 53-Step TestCRM Guides were not modified to add an informational Step merely to exercise this capability.
+- The canonical Guides now intentionally include one centered informational Step near the end of the real learner flow: Step 51 warns that the Case created during the lesson is about to be deleted and requires `אישור` before progression.
+
+- Canonical Step 51 is now a targetless centered information Step on both Web and Windows. It appears after reopening the created Case and before deletion, displays `שים לב: בשלב הבא נמחק את הפנייה שיצרת במהלך הלומדה.`, and advances only after `אישור`. The former Steps 51–53 shift to 52–54. Unguided treats this presentation-only Step as a no-op while preserving Guide order. The new seed requires explicit reset before the persistent Guide changes.
