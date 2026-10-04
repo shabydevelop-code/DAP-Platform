@@ -448,7 +448,7 @@ The shared Guide model supports an informational learner Step that is not attach
 - `Target = null`
 - `Bubble.Placement = Center`
 - `AdvanceMode = Manual`
-- no Validation, Capture, or Step completion conditions
+- no Context, Validation, Capture, or Step completion conditions
 
 The Runtime presents this Step in the center of the learner surface, with no target highlight and no pointer. The bubble uses the same platform bubble theme/presentation infrastructure as ordinary guidance and exposes a localized explicit confirmation action (`Learner.Confirm`). The Step advances only when the learner confirms it.
 
