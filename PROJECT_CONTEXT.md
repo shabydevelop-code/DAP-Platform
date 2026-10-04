@@ -474,7 +474,7 @@ Changes to `DAP_E2E_MODE`, `--guided`, `--unguided`, `--manual`, `--manual-from-
 ### Implemented Windows execution-mode parity
 Windows now implements the shared runner-mode contract rather than merely documenting it. The canonical Windows E2E parses `DAP_E2E_MODE=fast|visual` only for full `--guided`, rejects unsupported values there, supports `--visual-from-step <N>`, and uses the existing UIA action driver for both Guided modes. Visual mode adds platform-native visible cursor movement and pacing around the same learner actions; Unguided has no Fast/Visual mode.
 
-This change does not raise the 5-second timeout and does not introduce a separate Windows visual scenario. Focused Windows Visual From Step has since been locally verified with `--visual-from-step 47`; full Guided Visual remains a separate execution mode and should only be claimed when explicitly run.
+This change does not raise the 5-second timeout and does not introduce a separate Windows visual scenario. Focused Windows Visual From Step and full Windows Guided Visual have since been verified on the 54-Step Guide.
 
 Runner precedence is now explicit and implemented identically on Web and Windows: `DAP_E2E_MODE` affects only full `--guided`. Manual, Unguided, Manual-From-Step, and Visual-From-Step ignore stale environment mode values. Focused runs own their transition semantics: Unguided -> Manual at N or Unguided -> Visual at N.
 
@@ -515,7 +515,7 @@ Both canonical Guides were reset to the current 54-Step seed and then verified w
 
 - Web: PASS through Step 54, including centered Step 51, real OS cursor movement to `אישור`, and real OS cursor movement to completion `סיום`.
 - Windows: PASS through Step 54 with the same aligned learner flow and native cursor movement to the same DAP-owned actions.
-- This verifies the newly added centered information Step and the real-cursor Visual contract cross-platform. Full 54-Step Guided/Unguided matrix regression remains a separate pending verification task.
+- This verifies the newly added centered information Step and the real-cursor Visual contract cross-platform. Full Guided Fast/Visual has since passed on both platforms; a fresh complete Unguided/Manual/focused matrix remains separate.
 
 ## Windows target-attached bubble behavior during learner scrolling — 2026-10-04
 
@@ -551,3 +551,18 @@ Web Fast and Visual execute the same learner-action path; mode-dependent per-cha
 
 This establishes the current full Guided Fast/Visual cross-platform baseline. It does not imply that Unguided, Manual, or all focused From-Step variants have been re-run as a complete 54-Step matrix.
 
+
+
+## Packaged Windows From-Step correction — 2026-10-05
+
+Packaged Windows focused execution exposed a diagnostics-runner defect that did not exist in repository runs: the repository build path implicitly created the GUID run root, while packaged execution skipped that build and could attempt to write `resume-context.json` into a directory that did not yet exist. The Windows E2E runner now explicitly creates the run root before writing resume context. This is diagnostics/E2E orchestration only; no production Runtime, resolver, bubble, Guide, or timeout semantics changed. Fix commit: `405c1b4e577ff193be96310b8df25d6b0dc30284`.
+
+After republishing the current customer package, Windows Production completed the full persisted 54-Step Guide successfully, and packaged `VisualFromStep` also continued successfully through Step 54.
+
+## Production Web first-bubble startup diagnosis — 2026-10-05
+
+A packaged Web Fast diagnostic measured 7217 ms from DAP.exe process start until the first bubble was observed. DAP's internal timing showed SQLite at 84 ms, Guide load at 144 ms, Web composition at 257 ms, `Playwright.CreateAsync()` at 6563 ms, CDP connected at 6670 ms, Web runtime start at 6673 ms, and first-bubble active-Step work at 159 ms.
+
+This disproves the earlier working hypothesis that the multi-second delay was only an artifact of a new GUID-named repository output path. The delay also occurs from the stable `C:\DAP-Production` package. Playwright .NET 1.55.0 source confirms that `Playwright.CreateAsync()` starts its stdio driver process and initializes the Playwright connection. The current measured bottleneck is therefore Playwright/driver initialization; the 10-second CDP timeout is not a fixed startup delay and must not be increased or blamed for this measurement.
+
+No startup optimization is accepted yet. A persistent/shared driver or another lifecycle change would be architectural work and must first be shown to be supported, robust, generic to closed customer applications, and compatible with DAP process ownership and cleanup.
