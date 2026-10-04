@@ -162,11 +162,7 @@ public static class DapApplicationHost
             await runtime.RunAsync(window, steps, cancellationToken, options.StartStep, resumeContext);
 
             if (options.ShowCompletion)
-            {
-                ShowForegroundInformation(
-                    texts.Get("Learner.CompletedMessage"),
-                    texts.Get("Learner.WindowTitle"));
-            }
+                await bubbles.WaitForGuideCompletedDismissalAsync(cancellationToken);
         }
         finally
         {
