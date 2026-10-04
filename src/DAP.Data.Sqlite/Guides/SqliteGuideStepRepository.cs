@@ -163,6 +163,120 @@ SELECT Id FROM GuideSteps WHERE GuideId=$guideId AND Key=$key;
         await transaction.CommitAsync(cancellationToken);
     }
 
+
+    public async Task ReplaceStepsAsync(
+        string guideId,
+        IReadOnlyList<GuideStep> steps,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(guideId);
+        ArgumentNullException.ThrowIfNull(steps);
+
+        if (steps.Select(step => step.Id).Distinct(StringComparer.Ordinal).Count() != steps.Count)
+            throw new ArgumentException("Replacement Guide Steps must have unique textual IDs.", nameof(steps));
+        if (steps.Select(step => step.Order).Distinct().Count() != steps.Count)
+            throw new ArgumentException("Replacement Guide Steps must have unique Step orders.", nameof(steps));
+
+        await using var connection = await _connections.OpenAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+        long numericGuideId;
+        await using (var guide = connection.CreateCommand())
+        {
+            guide.Transaction = (SqliteTransaction)transaction;
+            guide.CommandText = """
+INSERT INTO Guides(Key, Name) VALUES($key, $key)
+ON CONFLICT(Key) DO NOTHING;
+SELECT Id FROM Guides WHERE Key = $key;
+""";
+            guide.Parameters.AddWithValue("$key", guideId);
+            numericGuideId = Convert.ToInt64(await guide.ExecuteScalarAsync(cancellationToken));
+        }
+
+        await using (var deleteExisting = connection.CreateCommand())
+        {
+            deleteExisting.Transaction = (SqliteTransaction)transaction;
+            deleteExisting.CommandText = "DELETE FROM GuideSteps WHERE GuideId=$guideId;";
+            Add(deleteExisting, "$guideId", numericGuideId);
+            await deleteExisting.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        foreach (var step in steps.OrderBy(step => step.Order))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            long numericStepId;
+            await using (var command = connection.CreateCommand())
+            {
+                command.Transaction = (SqliteTransaction)transaction;
+                command.CommandText = """
+INSERT INTO GuideSteps(
+ GuideId,Key,StepOrder,AdvanceMode,Runtime,LocatorStrategy,LocatorValue,FrameContextJson,ContextKind,ContextValue,
+ BubbleContent,BubblePlacement,ValidationKind,ValidationExpectedValue,ValidationOptionsJson)
+VALUES($guideId,$key,$order,$advance,$runtime,$strategy,$value,$frame,$contextKind,$contextValue,$content,$placement,$validation,$expected,$options);
+SELECT last_insert_rowid();
+""";
+                Add(command,"$guideId",numericGuideId); Add(command,"$key",step.Id); Add(command,"$order",step.Order);
+                Add(command,"$advance",step.AdvanceMode.ToString()); Add(command,"$runtime",step.Target?.Runtime.ToString());
+                Add(command,"$strategy",step.Target?.Locator.Strategy); Add(command,"$value",step.Target?.Locator.Value);
+                Add(command,"$frame",step.Target?.FrameContext is null ? null : JsonSerializer.Serialize(step.Target.FrameContext.Path));
+                Add(command,"$contextKind",step.Context?.Kind); Add(command,"$contextValue",step.Context?.Value);
+                Add(command,"$content",step.Bubble.Content); Add(command,"$placement",step.Bubble.Placement.ToString());
+                Add(command,"$validation",step.Validation?.Kind); Add(command,"$expected",step.Validation?.ExpectedValue);
+                Add(command,"$options",step.Validation?.Options is null ? null : JsonSerializer.Serialize(step.Validation.Options));
+                numericStepId = Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken));
+            }
+
+            if (step.Target is not null)
+            {
+                for (var i = 0; i < step.Target.Anchors.Count; i++)
+                {
+                    var anchor = step.Target.Anchors[i];
+                    await using var insertAnchor = connection.CreateCommand();
+                    insertAnchor.Transaction = (SqliteTransaction)transaction;
+                    insertAnchor.CommandText = "INSERT INTO TargetAnchors(GuideStepId,AnchorOrder,Relation,LocatorStrategy,LocatorValue) VALUES($id,$order,$relation,$strategy,$value);";
+                    Add(insertAnchor,"$id",numericStepId); Add(insertAnchor,"$order",i);
+                    Add(insertAnchor,"$relation",anchor.Relation.ToString());
+                    Add(insertAnchor,"$strategy",anchor.Locator.Strategy); Add(insertAnchor,"$value",anchor.Locator.Value);
+                    await insertAnchor.ExecuteNonQueryAsync(cancellationToken);
+                }
+            }
+
+            if (step.Capture is not null)
+            {
+                await using var insertCapture = connection.CreateCommand();
+                insertCapture.Transaction = (SqliteTransaction)transaction;
+                insertCapture.CommandText = "INSERT INTO StepCaptures(GuideStepId,Runtime,LocatorStrategy,LocatorValue,Property,Pattern) VALUES($id,$runtime,$strategy,$value,$property,$pattern);";
+                Add(insertCapture,"$id",numericStepId);
+                Add(insertCapture,"$runtime",step.Capture.Runtime.ToString());
+                Add(insertCapture,"$strategy",step.Capture.Locator.Strategy);
+                Add(insertCapture,"$value",step.Capture.Locator.Value);
+                Add(insertCapture,"$property",step.Capture.Property);
+                Add(insertCapture,"$pattern",step.Capture.Pattern);
+                await insertCapture.ExecuteNonQueryAsync(cancellationToken);
+            }
+
+            if (step.CompletionConditions is not null)
+            {
+                for (var i = 0; i < step.CompletionConditions.Count; i++)
+                {
+                    var condition = step.CompletionConditions[i];
+                    await using var insertCompletion = connection.CreateCommand();
+                    insertCompletion.Transaction = (SqliteTransaction)transaction;
+                    insertCompletion.CommandText = "INSERT INTO StepCompletionConditions(GuideStepId,ConditionOrder,Kind,ExpectedValue,TargetJson) VALUES($id,$order,$kind,$expected,$target);";
+                    Add(insertCompletion,"$id",numericStepId);
+                    Add(insertCompletion,"$order",i);
+                    Add(insertCompletion,"$kind",condition.Kind);
+                    Add(insertCompletion,"$expected",condition.ExpectedValue);
+                    Add(insertCompletion,"$target",JsonSerializer.Serialize(condition.Target));
+                    await insertCompletion.ExecuteNonQueryAsync(cancellationToken);
+                }
+            }
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+    }
+
     public async Task RenameGuideAsync(
         string currentKey,
         string newKey,
