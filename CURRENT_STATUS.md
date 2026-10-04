@@ -738,6 +738,8 @@ Focused From-Step execution is now locally verified on both Web and Windows at S
 
 ### Windows completion bubble — 2026-10-04
 
-The Windows learner completion path no longer uses the foreground/topmost operating-system message box when completion UI is requested. `WindowsBubblePresenter` now presents a DAP-native completion bubble with localized `Learner.GuideCompleted` text, localized `Learner.Finish` button, and the standard drag handle. The target application remains open after dismissal. Automated Windows Guided runs that do not request completion UI retain their existing non-blocking completion behavior.
+The Windows learner completion path no longer uses the foreground/topmost operating-system message box. Completion is now part of the Guide runtime lifecycle, matching Web: after the final Step, a DAP-native completion bubble appears with localized `Learner.GuideCompleted` text, localized `Learner.Finish` button, and the standard drag handle. The target application remains open after dismissal.
 
-Implementation commits: `8b4e9b6834c58777fed65e5de5cdaac141507ee2` and `0e722fc845be689afb97898412f82267d483cb7d`. Local Windows manual verification is still required before marking the new completion presentation PASS.
+Automated Guided runs on both Web and Windows now exercise this same production completion UI and activate its real Finish action before expecting DAP.exe to exit. Manual runs leave that action to the learner. The former `--show-completion` launch switch was removed because completion is no longer optional.
+
+Implementation commits: `8b4e9b6834c58777fed65e5de5cdaac141507ee2`, `0e722fc845be689afb97898412f82267d483cb7d`, `9c6d1343eaaa14e9683588c7a05e957086ebf5c3`, `2de50a27456ad9149ffe24662436d34a5f4e4e32`, `e99b0ccf47cd0e8763b5a2bc3a522e5439330968`, `04abdc8ae73afe9734f5e98662b01ba5d990823e`, `d715318ffbdd41e075c441111f9138b2b61cd295`, and `640f4165f48754d52e8d53bb5d261c2d9f7c3b0d`. Local regression execution is still required after pull.
