@@ -828,3 +828,16 @@ Windows full Guided execution is now locally verified PASS in both E2E presentat
 - The stale packaged-diagnostics environment isolation fix was also verified in the clean repository run: repository E2E starts its own isolated temporary Server/Windows/DAP outputs rather than silently reusing `C:\DAP-Production\Diagnostics` merely because `DAP_DIAGNOSTICS_ROOT` remains set in the shell.
 
 This verifies the complete Windows Guided 54-Step path in both Fast and Visual modes. It does not by itself complete the full cross-platform Guided/Unguided 54-Step matrix; remaining Web/Unguided verification must be tracked separately.
+
+## Web full 54-Step Fast/Visual verification — 2026-10-05
+
+Web full Guided execution is now locally verified PASS in both E2E presentation modes against the persisted 54-Step canonical Guide.
+
+- **Fast — PASS 54/54:** terminal result: `PASS: representative Customer -> Site -> Case -> Lead workflow, including dynamic Lead deletion and Case deletion, completed.`
+- **Visual — PASS 54/54:** the same complete canonical Guided scenario produced the same terminal PASS.
+- Fast and Visual use the same application-action path. The Web E2E no longer changes per-character typing delay by mode; Visual differences are presentation-oriented cursor movement and pacing around the same learner actions. Implementation commit: `401f31a582797fcb9217e521e40c0557196736c1`.
+- Repository Web E2E isolated output now mirrors the TestCRM Web `wwwroot` into the owned temporary run directory so the self-contained Web host serves the actual client instead of starting without static assets. Implementation commit: `430c90176f82e636fbcea6685cd15f387b0f041d`.
+- Web E2E cleanup now covers startup/navigation failures as well as the scenario body. A reproduced navigation failure had left the runner-owned Web and Backend processes on ports 5200/5201; the outer cleanup scope now closes those owned processes on that failure path. Implementation commit: `d23c6d254b7d12d057d4ea713886db8089a8ca5b`.
+
+Together with the already verified Windows Guided Fast and Visual 54/54 runs, the complete Guided 54-Step Fast/Visual baseline is now PASS on both Web and Windows. Unguided/full-manual matrix verification remains separate.
+
