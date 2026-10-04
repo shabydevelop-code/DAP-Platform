@@ -728,6 +728,8 @@ async Task SaveSuccess()
     await f.Locator("#save-success").WaitForAsync();
 }
 
+try
+{
 Console.WriteLine("DAP TestCRM representative PeopleSoft-Web scenario");
 Console.WriteLine("Scenario 1: Case status FieldChange + Content iframe replacement");
 Console.WriteLine("Scenario 2: Case validation failure + preservation of unsaved values");
@@ -995,8 +997,6 @@ async Task WaitForGuideStep(int order)
         $"DAP diagnostics:{Environment.NewLine}{recentDapDiagnostics}");
 }
 
-try
-{
 if(!unguided && focusedStartStepOrder is null)
 {
 var dapStep=dapSteps[0];
