@@ -506,3 +506,5 @@ Visual mode represents an observable learner simulation and therefore uses the o
 - Fast mode does not animate the physical cursor.
 
 This keeps Web/Windows Visual semantics aligned without coupling production DAP Runtime behavior to test-only cursor simulation.
+
+Verification note (2026-10-04): ADR-047 is now locally verified in focused Visual execution on both platforms using `--visual-from-step 47`. Web uses the real Windows cursor after removal of the synthetic DOM cursor; Windows continues using the native cursor. In both runs the cursor visibly moves to the centered information `אישור` action and the completion `סיום` action before activation.
