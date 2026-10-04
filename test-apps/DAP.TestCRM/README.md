@@ -178,7 +178,7 @@ The permanent CRM currently provides business-shaped scenarios for DAP target/co
 
 ## Representative DAP regression scenario
 
-The current persisted DAP TestCRM Guide contains 53 Steps and is exercised against ten representative PeopleSoft-style scenarios:
+The current repository DAP TestCRM Guide seeds define 54 Steps and are exercised against ten representative PeopleSoft-style scenarios. Existing persisted Guides may remain at the previous 53-Step version until explicitly reset:
 
 1. Case status FieldChange + Content iframe replacement.
 2. Case validation failure + preservation of unsaved values.
@@ -209,7 +209,7 @@ The first real Windows TestCRM client now lives under `Windows/` as a WPF applic
 - It is a second client of the shared TestCRM HTTP API at `http://localhost:5201`.
 - It never opens `data/testcrm.db` directly; the TestCRM server remains the sole owner of SQLite access.
 - Web and Windows therefore operate on the same Customers, Sites, Cases, and Leads.
-- The Windows client supports the canonical Customer -> Site -> Case -> Lead workflow used by the aligned 53-Step Windows Guided/Unguided E2E scenarios, including create/update/delete and server-backed FieldChange/validation behavior.
+- The Windows client supports the canonical Customer -> Site -> Case -> Lead workflow used by the aligned Guide scenarios. The current seed contains 54 Steps, including a centered informational pause before final Case deletion, plus create/update/delete and server-backed FieldChange/validation behavior.
 - Important WPF controls have explicit `AutomationProperties.AutomationId` values so the application can later serve as a realistic UIA target for DAP Windows Runtime.
 
 Run the server first:
