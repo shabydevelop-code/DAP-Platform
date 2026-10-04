@@ -81,6 +81,28 @@ public sealed class WebLearnerRuntime
         int totalSteps,
         CancellationToken cancellationToken)
     {
+        if (step.Bubble.Placement == BubblePlacement.Center)
+        {
+            if (step.Target is not null)
+                throw new InvalidOperationException(
+                    $"Centered Guide Step '{step.Id}' must not define a target.");
+            if (step.AdvanceMode != StepAdvanceMode.Manual || step.Validation is not null)
+                throw new InvalidOperationException(
+                    $"Centered Guide Step '{step.Id}' must use Manual advance with no validation.");
+
+            await _bubbles.WaitForCenteredStepDismissalAsync(
+                page,
+                step,
+                stepNumber,
+                totalSteps,
+                cancellationToken);
+            return;
+        }
+
+        if (step.Target is null)
+            throw new InvalidOperationException(
+                $"Target-attached Guide Step '{step.Id}' must define a target.");
+
         var hasAutomaticValidation = step.AdvanceMode == StepAdvanceMode.AutomaticOnValidation
             && step.Validation is not null;
         var isClickedValidation = hasAutomaticValidation
