@@ -508,3 +508,15 @@ Visual mode represents an observable learner simulation and therefore uses the o
 This keeps Web/Windows Visual semantics aligned without coupling production DAP Runtime behavior to test-only cursor simulation.
 
 Verification note (2026-10-04): ADR-047 is now locally verified in focused Visual execution on both platforms using `--visual-from-step 47`. Web uses the real Windows cursor after removal of the synthetic DOM cursor; Windows continues using the native cursor. In both runs the cursor visibly moves to the centered information `אישור` action and the completion `סיום` action before activation.
+
+
+## Generality gate for fixes and E2E behavior
+
+Before accepting a DAP product change, ask: **Could this behavior be configured or captured by the future Instructor against a closed customer application whose source code is unavailable?**
+
+- If yes, it may be a product capability and should be represented declaratively rather than as application-specific code.
+- If the behavior is needed only for the E2E harness to operate TestCRM, keep it in the TestCRM E2E driver.
+- Do not modify TestCRM solely to make an E2E scenario pass when its current interaction is representative of real customer software.
+- Source access to TestCRM may be used for development diagnosis only. DAP runtime behavior must not depend on customer source access.
+- Do not infer learner actions globally from control type. A grid row/DataItem, for example, may require click, double-click, Enter, Space, selection only, or application-specific behavior. The future Instructor must capture/configure the intended action and its success condition.
+- FAST and VISUAL are E2E execution modes, not product semantics. They should exercise the same intended learner action; VISUAL may add presentation-oriented cursor motion and delay. When an application genuinely requires a physical mouse action, FAST may perform the physical action without animated cursor travel rather than changing the target application.
