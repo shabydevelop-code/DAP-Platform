@@ -817,3 +817,14 @@ The packaged runners use `DAP_DIAGNOSTICS_ROOT` to resolve the prebuilt TestCRM 
 
 The intended customer sequence is: run Unguided first to prove the new environment and TestCRM automation path without DAP, then run Guided Fast/Visual and focused/manual modes to introduce DAP into the same known scenario.
 
+## Windows full 54-Step Fast/Visual verification — 2026-10-05
+
+Windows full Guided execution is now locally verified PASS in both E2E presentation modes against the persisted 54-Step canonical Guide.
+
+- **Fast — PASS 54/54:** terminal result: `PASS: DAP Windows Learner Runtime completed all 54 persisted Guide Steps with real UIA targets, runtime capture, modal targeting, centered information, and bubbles.`
+- **Visual — PASS 54/54:** the same full 54-Step Guided scenario completed with the same terminal PASS.
+- The Step-8 `CaseSubject` regression was resolved by restoring focused-value synchronization in the Windows synthetic learner before TAB commit. After `SetValue`, the E2E driver now waits until the requested value is observable while the edit remains keyboard-focused, retains the UIA value-change synchronization, and only then commits through TAB. This restores the synchronization contract that had previously closed the same regression; no Runtime-specific workaround or timeout increase was introduced. Implementation commit: `889ee17d3e34692022085760dea2496b31c0cb69`.
+- Fast and Visual use the same application-action path. Visual adds only cursor presentation and display pacing through `VisualTarget` / `VisualPause`; it does not own alternate CRM workflow logic, target scrolling, validation semantics, or business actions. Physical mouse actions required by the target application, such as WPF DataGrid double-click, remain the same real action in both modes; Fast may jump the cursor directly while Visual animates travel first.
+- The stale packaged-diagnostics environment isolation fix was also verified in the clean repository run: repository E2E starts its own isolated temporary Server/Windows/DAP outputs rather than silently reusing `C:\DAP-Production\Diagnostics` merely because `DAP_DIAGNOSTICS_ROOT` remains set in the shell.
+
+This verifies the complete Windows Guided 54-Step path in both Fast and Visual modes. It does not by itself complete the full cross-platform Guided/Unguided 54-Step matrix; remaining Web/Unguided verification must be tracked separately.
