@@ -725,9 +725,17 @@ if(dapSteps.Select(step=>step.Order).Distinct().Count()!=dapSteps.Count
     || dapSteps.Max(step=>step.Order)!=dapSteps.Count)
     throw new Exception(
         $"DAP Guide '{DapTestCrmGuideSeed.GuideId}' must have contiguous unique Step orders 1..{dapSteps.Count}.");
-if(dapSteps.Any(step=>step.Target is null || step.Target.Runtime!=TargetRuntime.Web))
+if(dapSteps.Any(step =>
+       !(step.Target?.Runtime==TargetRuntime.Web
+         || (step.Target is null
+             && step.Bubble.Placement==BubblePlacement.Center
+             && step.AdvanceMode==StepAdvanceMode.Manual
+             && step.Context is null
+             && step.Validation is null
+             && step.Capture is null
+             && step.CompletionConditions is not { Count: > 0 }))))
     throw new Exception(
-        $"DAP Guide '{DapTestCrmGuideSeed.GuideId}' contains a Step without a Web target.");
+        $"DAP Guide '{DapTestCrmGuideSeed.GuideId}' contains a Step that is neither a Web target Step nor a valid centered information Step.");
 
 if(manualFromStep is not null && !dapSteps.Any(step => step.Order == manualFromStep.Value))
     throw new ArgumentOutOfRangeException(
