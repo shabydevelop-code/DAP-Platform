@@ -15,8 +15,17 @@ const string baseUrl = "http://localhost:5200";
 
 int? manualFromStep = null;
 int? visualFromStep = null;
+string? publishedDapDirectory = null;
 for (var i = 0; i < args.Length; i++)
 {
+    if (args[i].Equals("--published-dap", StringComparison.OrdinalIgnoreCase))
+    {
+        if (i + 1 >= args.Length || string.IsNullOrWhiteSpace(args[i + 1]))
+            throw new ArgumentException("--published-dap requires a directory containing DAP.exe.");
+        publishedDapDirectory = Path.GetFullPath(args[++i]);
+        continue;
+    }
+
     if (args[i].Equals("--manual-from-step", StringComparison.OrdinalIgnoreCase))
     {
         if (i + 1 >= args.Length || !int.TryParse(args[++i], out var parsedManualStep) || parsedManualStep < 1)
@@ -181,8 +190,10 @@ Console.CancelKeyPress += webCancelCleanup;
         throw new FileNotFoundException("TestCRM Web project was not found.", testCrmProject);
     if (!File.Exists(testCrmBackendProject))
         throw new FileNotFoundException("TestCRM Server project was not found.", testCrmBackendProject);
-    if (!File.Exists(dapAppProject))
+    if (publishedDapDirectory is null && !File.Exists(dapAppProject))
         throw new FileNotFoundException("DAP.App project was not found.", dapAppProject);
+    if (publishedDapDirectory is not null && !File.Exists(Path.Combine(publishedDapDirectory, "DAP.exe")))
+        throw new FileNotFoundException("Published DAP.exe was not found.", Path.Combine(publishedDapDirectory, "DAP.exe"));
 
     // Fail before building/launching anything if a prior or unrelated process
     // already owns the canonical TestCRM ports. The runner never kills an
@@ -192,7 +203,7 @@ Console.CancelKeyPress += webCancelCleanup;
 
     await BuildIsolatedAsync(testCrmBackendProject, backendOutput, "TestCRM Server");
     await BuildIsolatedAsync(testCrmProject, webOutput, "TestCRM Web");
-    if (!unguided)
+    if (!unguided && publishedDapDirectory is null)
         await BuildIsolatedAsync(dapAppProject, dapOutput, "DAP");
 
     var backendDll = Path.Combine(backendOutput, "DAP.TestCRM.Server.dll");
@@ -745,6 +756,7 @@ if(visualFromStep is not null && !dapSteps.Any(step => step.Order == visualFromS
         visualFromStep,
         $"Guide '{DapTestCrmGuideSeed.GuideId}' does not contain Step {visualFromStep}.");
 
+var effectiveDapDirectory = publishedDapDirectory ?? dapOutput;
 var dapStdErrLines=new System.Collections.Concurrent.ConcurrentQueue<string>();
 var focusedStartStepOrder = manualFromStep ?? visualFromStep;
 var bootstrapCaptures = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -752,9 +764,9 @@ var resumeContextPath = Path.Combine(webRunRoot, "resume-context.json");
 
 Process StartFocusedDap(int startStepOrder)
 {
-    var dapExecutable=Path.Combine(dapOutput,"DAP.exe");
+    var dapExecutable=Path.Combine(effectiveDapDirectory,"DAP.exe");
     if(!File.Exists(dapExecutable))
-        throw new Exception($"Built DAP executable not found at {dapExecutable}");
+        throw new Exception($"DAP executable not found at {dapExecutable}");
 
     var resumeContextArgument=string.Empty;
     if(bootstrapCaptures.Count>0)
@@ -770,7 +782,7 @@ Process StartFocusedDap(int startStepOrder)
             FileName=dapExecutable,
             Arguments=$"--learner-web {DapTestCrmGuideSeed.GuideId} --cdp http://127.0.0.1:{dapCdpPort} --page-url-contains localhost:5200 --start-step {startStepOrder}" +
                       resumeContextArgument,
-            WorkingDirectory=dapOutput,
+            WorkingDirectory=effectiveDapDirectory,
             UseShellExecute=false,
             CreateNoWindow=true,
             RedirectStandardOutput=true,
@@ -945,9 +957,9 @@ if(!unguided && focusedStartStepOrder is null)
 {
 var dapStep=dapSteps[0];
 var dapSecondStep=dapSteps[1];
-var dapExecutable=Path.Combine(dapOutput,"DAP.exe");
+var dapExecutable=Path.Combine(effectiveDapDirectory,"DAP.exe");
 if(!File.Exists(dapExecutable))
-    throw new Exception($"Built DAP executable not found at {dapExecutable}");
+    throw new Exception($"DAP executable not found at {dapExecutable}");
 
 dapProcess=new Process
 {
@@ -955,7 +967,7 @@ dapProcess=new Process
     {
         FileName=dapExecutable,
         Arguments=$"--learner-web {DapTestCrmGuideSeed.GuideId} --cdp http://127.0.0.1:{dapCdpPort} --page-url-contains localhost:5200",
-        WorkingDirectory=dapOutput,
+        WorkingDirectory=effectiveDapDirectory,
         UseShellExecute=false,
         CreateNoWindow=true,
         RedirectStandardOutput=true,
