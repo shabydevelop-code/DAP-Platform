@@ -606,7 +606,7 @@ async Task Fill(string selector,string value)
     var f=await Content(); var target=f.Locator(selector);
     await MoveTo(target); await target.ClickAsync();
     await page.Keyboard.PressAsync("Control+A");
-    await page.Keyboard.TypeAsync(value,new() { Delay = visualMode ? 75 : 0 });
+    await page.Keyboard.TypeAsync(value);
     await HumanPause();
 
     // Finishing text entry is a distinct learner action. Move focus away so
@@ -1138,7 +1138,7 @@ var exactValueTarget=(await Content()).Locator("[name='name']");
 await MoveTo(exactValueTarget);
 await exactValueTarget.ClickAsync();
 await page.Keyboard.PressAsync("Control+A");
-await page.Keyboard.TypeAsync("אלפא פתרונות בע\"מ",new() { Delay = visualMode ? 75 : 0 });
+await page.Keyboard.TypeAsync("אלפא פתרונות בע\"מ");
 await page.WaitForTimeoutAsync(350);
 
 // Reaching the valid value is not itself a text-edit commit. Step 1 must stay
