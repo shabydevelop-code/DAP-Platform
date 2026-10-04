@@ -1,29 +1,36 @@
 # Current Status
 
-## Verified four-mode persisted-Guide baseline — 2026-10-03
+## Current verified baseline — 2026-10-05
 
-The canonical execution modes are **Guided** and **Unguided**. The old `CRM-only` name is historical and should not be used for the current mode contract.
+The canonical persisted Guides contain **54 Steps** on both Web and Windows.
 
-Locally verified baseline:
-- **Last fully verified four-path baseline — 53/53.** Web Guided/Unguided and Windows Guided/Unguided all passed the previous 53-Step canonical Guides.
-- **Current repository seed — 54 Steps.** Web and Windows seeds now add a centered targetless information Step at Step 51 before Case deletion. The Step pauses the learner until the localized confirmation action is pressed.
-- **Full 54/54 four-path verification is still pending.** The new 54-Step Web and Windows Guides have both been explicitly reset and focused `--visual-from-step 47` runs have been locally verified through the new centered information Step, final navigation, and completion. A fresh full Guided/Unguided 54/54 matrix is still required before replacing the historical four-path 53/53 baseline.
-- **Windows Guided regression re-verified — 2026-10-03.** After hardening Windows text-commit synchronization, the full persisted 53-Step Guided run again completed with the terminal PASS: `DAP Windows Learner Runtime completed all 53 persisted Guide Steps with real UIA targets, runtime capture, modal targeting, and bubbles.` The regression that stalled at Step 8 (`CaseSubject`) is closed.
+Current verified execution baseline:
+- **Full Guided Fast/Visual is green cross-platform:** Web Fast, Web Visual, Windows Fast, and Windows Visual have each completed the full persisted 54-Step Guide.
+- **Windows Production package is verified 54/54 PASS** after republishing the current repository.
+- **Windows packaged Visual-From-Step is verified through Step 54.** A packaged-only defect that could fail before DAP launch because the temporary run root did not exist before writing `resume-context.json` was fixed in commit `405c1b4e577ff193be96310b8df25d6b0dc30284`.
+- The earlier Windows Production Fast failure at Step 12 did not reproduce after the current package was republished. No Runtime, bubble, resolver, or timeout workaround was introduced for that transient failure.
+- This baseline does **not** claim a fresh complete 54-Step matrix for Unguided, Manual, Manual-From-Step, and every focused start value.
 
-Current parity and runtime baseline:
-- Web and Windows repository seeds are aligned to the same canonical 54-Step Guide sequence; the added Step 51 is a centered informational pause and does not change the underlying CRM business workflow.
-- Ambiguous "first row" semantics were removed where business identity matters. Both runtimes now use explicit identities for `מטה תל אביב`, `אבי כהן`, and the Case created during the current run.
-- The created Case identity is captured at runtime and reused later by both Guides, including the context-reopen and final-reopen Steps.
-- Dynamic completion rules are persisted in the Guide rather than hidden only in E2E logic. This includes dependent-field appearance/disappearance and enabled-state checks.
-- Windows supports persisted `target-replaced` completion for save/re-render transitions.
-- Windows learner bubbles are visually aligned to the live UIA target, highlight the target, support explicit-handle dragging, preserve manual relative offset while the application window moves/resizes, hide on minimize/foreground loss, and restore from fresh UIA bounds on return.
-- Windows modal validation and delete-confirmation Steps are represented by persisted target/completion semantics rather than test-only progression rules.
-- Web FieldChange E2E synchronization waits for the actual replacement document identity before treating the refreshed page as ready, preventing the old ready document from satisfying post-change assertions.
+Current mode contract:
+- `Fast` and `Visual` are E2E presentation modes over the same synthetic learner action path. Visual may add visible cursor travel and presentation pacing; it must not change typing/commit semantics, business actions, readiness rules, validation, scrolling requirements, or progression.
+- `ManualFromStep` and `VisualFromStep` use an Unguided bootstrap for Steps before N and start DAP at N with validated resume context.
+- The diagnostics launcher accepts exactly: `Fast`, `Visual`, `Manual`, `Unguided`, `ManualFromStep`, and `VisualFromStep`. Names such as `GuidedFast` are not valid.
 - The 5-second E2E timeout policy remains unchanged.
-- Guide seed changes do not silently overwrite an existing persisted Guide. Updates are applied explicitly with `--reset-guide`, preserving: **Seed initializes. DB owns. Runtime consumes.**
-- Closed-target rule remains authoritative: source inspection may be used for diagnosis and learning, never as a Runtime/resolver oracle.
 
-Current milestone: the previous four-path 53/53 regression baseline remains the last fully verified full-matrix baseline. The current 54-Step Guides are reset in the local database and focused Visual From Step 47 is now locally verified on both Web and Windows, including Step 51 information confirmation and the completion bubble. Full 54/54 Guided/Unguided matrix verification remains pending.
+### Web first-bubble startup timing — Production measurement
+
+A packaged Production Web Fast run measured **7217 ms from DAP.exe start to first observed bubble**. Internal DAP instrumentation isolated the dominant cost:
+- SQLite initialized: 84 ms.
+- Guide loaded: 144 ms.
+- Web composition root created: 257 ms.
+- `Playwright.CreateAsync()` completed: 6563 ms.
+- CDP connection completed: 6670 ms.
+- Web Guide Runtime started: 6673 ms.
+- First bubble presentation then required 159 ms of active-Step work.
+
+The same Production diagnostic run measured 5613 ms for the E2E runner's own separate Playwright initialization. Inspection of Playwright .NET 1.55.0 confirms that `Playwright.CreateAsync()` creates a stdio transport, starts the packaged Playwright driver process with `run-driver`, and waits for Playwright initialization. Therefore the current Web startup bottleneck is Playwright/driver initialization, not SQLite, Guide loading, CDP connection, target resolution, or bubble rendering.
+
+No speculative Runtime optimization has been committed yet. In particular, the 10-second CDP connection timeout is a maximum timeout and is not the measured fixed startup delay. Any future optimization must remain generic for closed customer Web applications and must not introduce a TestCRM-specific shortcut.
 
 ### External UI localization — 2026-10-03
 
@@ -74,7 +81,7 @@ Last updated: 2026-10-03
 
 DAP is required to support closed third-party target applications. Production Runtime and Instructor/Editor behavior must not depend on access to target source code, internal databases, private APIs, or implementation details unavailable through DAP's production-observable interfaces. During development, TestCRM source may be inspected for diagnosis and learning: to understand why observed UI/runtime behavior occurs, study patterns that may also appear in closed applications, and distinguish fixture defects from generic DAP limitations. **Source inspection is allowed for diagnosis and learning; it is not allowed as a resolver/runtime oracle.** Any resulting fix must be generic, must rely only on production-observable interfaces at runtime, and must continue to work when the target is a black box. TestCRM is intentionally used to surface difficult black-box targeting/runtime conditions early, and inability to discover sufficient target information through production interfaces is treated as a DAP product capability gap rather than bypassed with source knowledge.
 
-## Verified baseline — 2026-10-02
+## Historical verified baseline — 2026-10-02
 
 - The repository seed for `testcrm-web-canonical-workflow` now defines 54 Steps. A previously persisted `DAP.db` may still contain 53 until `--reset-guide` is run.
 - Normal Web E2E is locally verified PASS for the full 53-Step Customer -> Site -> Case -> Lead workflow using `DAP.exe`, the production Web Runtime, real bubbles, validation, and persisted Guide data.
@@ -94,9 +101,9 @@ DAP is required to support closed third-party target applications. Production Ru
 - Windows Unguided executes the same persisted 53-Step canonical Guide without DAP Runtime/bubbles; it is the current replacement for the historical Unguided wording.
 - Windows persisted-Guide coverage is complete at 53/53. Instructor/Picker work can proceed without treating Learner Runtime coverage expansion as an outstanding prerequisite.
 
-## Current phase
+## Historical phase snapshot
 
-Web and Windows canonical 53-Step execution are stable in both Guided and Unguided modes. The four-mode persisted-Guide baseline is now complete at 53/53.
+At this 2026-10-02 milestone, Web and Windows canonical 53-Step execution was stable in Guided and Unguided modes. This is historical context; the current Guide and Guided Fast/Visual baseline are 54 Steps as documented above.
 
 ## Current E2E baseline
 
@@ -106,7 +113,7 @@ Web and Windows canonical 53-Step execution are stable in both Guided and Unguid
 - Canonical runner-mode vocabulary is intentionally limited to `fast|visual`; `demo` has been removed and must not be accepted as an alias. Web/Windows runner mode names and user-facing semantics are now an explicit parity contract:
 - E2E execution modes:
   - `fast` (default): skips artificial human/visual delays and TestCRM's artificial server-thinking delay.
-  - `visual`: preserves cursor movement, typing delays, processing feedback, and artificial server delay for demonstration.
+  - `visual`: preserves the same learner actions as Fast while adding visible cursor movement and presentation pacing; it may retain presentation-oriented processing feedback/artificial fixture delay, but must not change typing or commit semantics.
 - Any future runner-mode/CLI change must be reviewed for both Web and Windows in the same change; intentional platform-only behavior requires an explicit documented exception.
 - Real readiness conditions remain active in both modes. The E2E does not replace actual server/DOM/frame readiness with fixed sleeps.
 - PeopleSoft-style Content iframe replacement is handled by re-resolving the active frame and waiting for real route readiness.
