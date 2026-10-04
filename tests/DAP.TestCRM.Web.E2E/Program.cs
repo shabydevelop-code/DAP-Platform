@@ -105,6 +105,13 @@ var repoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..
 var testCrmProject = Path.Combine(repoRoot, "test-apps", "DAP.TestCRM", "Web", "DAP.TestCRM.Web.csproj");
 var testCrmBackendProject = Path.Combine(repoRoot, "test-apps", "DAP.TestCRM", "Server", "DAP.TestCRM.Server.csproj");
 var dapAppProject = Path.Combine(repoRoot, "src", "DAP.App", "DAP.App.csproj");
+var diagnosticsRoot = Environment.GetEnvironmentVariable("DAP_DIAGNOSTICS_ROOT");
+var packagedDiagnostics = !string.IsNullOrWhiteSpace(diagnosticsRoot);
+if (packagedDiagnostics)
+    diagnosticsRoot = Path.GetFullPath(diagnosticsRoot!);
+var packagedServerDirectory = packagedDiagnostics ? Path.Combine(diagnosticsRoot!, "TestCRM", "Server") : null;
+var packagedWebDirectory = packagedDiagnostics ? Path.Combine(diagnosticsRoot!, "TestCRM", "Web") : null;
+var packagedDapDirectory = packagedDiagnostics ? Path.GetFullPath(Path.Combine(diagnosticsRoot!, "..")) : null;
 var webRunRoot = Path.Combine(
     Path.GetTempPath(),
     "DAP",
@@ -193,11 +200,11 @@ AppDomain.CurrentDomain.ProcessExit += webProcessExitCleanup;
 Console.CancelKeyPress += webCancelCleanup;
 
 {
-    if (!File.Exists(testCrmProject))
+    if (!packagedDiagnostics && !File.Exists(testCrmProject))
         throw new FileNotFoundException("TestCRM Web project was not found.", testCrmProject);
-    if (!File.Exists(testCrmBackendProject))
+    if (!packagedDiagnostics && !File.Exists(testCrmBackendProject))
         throw new FileNotFoundException("TestCRM Server project was not found.", testCrmBackendProject);
-    if (publishedDapDirectory is null && !File.Exists(dapAppProject))
+    if (!packagedDiagnostics && publishedDapDirectory is null && !File.Exists(dapAppProject))
         throw new FileNotFoundException("DAP.App project was not found.", dapAppProject);
     if (publishedDapDirectory is not null && !File.Exists(Path.Combine(publishedDapDirectory, "DAP.exe")))
         throw new FileNotFoundException("Published DAP.exe was not found.", Path.Combine(publishedDapDirectory, "DAP.exe"));
@@ -208,19 +215,24 @@ Console.CancelKeyPress += webCancelCleanup;
     EnsurePortFree(5200);
     EnsurePortFree(5201);
 
-    await BuildIsolatedAsync(testCrmBackendProject, backendOutput, "TestCRM Server");
-    await BuildIsolatedAsync(testCrmProject, webOutput, "TestCRM Web");
-    if (!unguided && publishedDapDirectory is null)
-        await BuildIsolatedAsync(dapAppProject, dapOutput, "DAP");
+    if (!packagedDiagnostics)
+    {
+        await BuildIsolatedAsync(testCrmBackendProject, backendOutput, "TestCRM Server");
+        await BuildIsolatedAsync(testCrmProject, webOutput, "TestCRM Web");
+        if (!unguided && publishedDapDirectory is null)
+            await BuildIsolatedAsync(dapAppProject, dapOutput, "DAP");
+    }
 
-    var backendDll = Path.Combine(backendOutput, "DAP.TestCRM.Server.dll");
-    var webDll = Path.Combine(webOutput, "DAP.TestCRM.Web.dll");
+    var effectiveBackendDirectory = packagedDiagnostics ? packagedServerDirectory! : backendOutput;
+    var effectiveWebDirectory = packagedDiagnostics ? packagedWebDirectory! : webOutput;
+    var backendDll = Path.Combine(effectiveBackendDirectory, "DAP.TestCRM.Server.dll");
+    var webDll = Path.Combine(effectiveWebDirectory, "DAP.TestCRM.Web.dll");
 
     var backendPsi = new ProcessStartInfo
     {
         FileName = "dotnet",
         Arguments = $"\"{backendDll}\"",
-        WorkingDirectory = Path.GetDirectoryName(testCrmBackendProject)!,
+        WorkingDirectory = effectiveBackendDirectory,
         UseShellExecute = false,
         CreateNoWindow = true,
         RedirectStandardOutput = true,
@@ -248,7 +260,7 @@ Console.CancelKeyPress += webCancelCleanup;
     {
         FileName = "dotnet",
         Arguments = $"\"{webDll}\"",
-        WorkingDirectory = Path.GetDirectoryName(testCrmProject)!,
+        WorkingDirectory = effectiveWebDirectory,
         UseShellExecute = false,
         CreateNoWindow = true,
         RedirectStandardOutput = true,
@@ -763,7 +775,7 @@ if(visualFromStep is not null && !dapSteps.Any(step => step.Order == visualFromS
         visualFromStep,
         $"Guide '{DapTestCrmGuideSeed.GuideId}' does not contain Step {visualFromStep}.");
 
-var effectiveDapDirectory = publishedDapDirectory ?? dapOutput;
+var effectiveDapDirectory = publishedDapDirectory ?? packagedDapDirectory ?? dapOutput;
 var dapStdErrLines=new System.Collections.Concurrent.ConcurrentQueue<string>();
 var focusedStartStepOrder = manualFromStep ?? visualFromStep;
 var bootstrapCaptures = new Dictionary<string, string>(StringComparer.Ordinal);
