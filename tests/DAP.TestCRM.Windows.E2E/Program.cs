@@ -1033,6 +1033,7 @@ void ClickCenteredInformationConfirm()
     if (!confirm.TryGetCurrentPattern(InvokePattern.Pattern, out var invoke))
         throw new Exception("DAP Windows centered information Confirm action does not expose InvokePattern.");
 
+    driver.VisualTarget(confirm);
     ((InvokePattern)invoke).Invoke();
 }
 
@@ -1095,6 +1096,7 @@ void ClickCompletionFinish(AutomationElement completionBubble)
     if (!finish.TryGetCurrentPattern(InvokePattern.Pattern, out var invoke))
         throw new Exception("DAP Windows completion Finish action does not expose InvokePattern.");
 
+    driver.VisualTarget(finish);
     ((InvokePattern)invoke).Invoke();
 }
 
