@@ -521,7 +521,7 @@ async Task MoveTo(ILocator target, bool enforceActiveGuideTarget = true)
     var targetScreenX=(int)Math.Round(metrics.ScreenX+sideInset+box.X+localX);
     var targetScreenY=(int)Math.Round(metrics.ScreenY+topInset+box.Y+localY);
 
-    if(!GetCursorPos(out var currentCursor))
+    if(!NativeCursor.GetCursorPos(out var currentCursor))
         currentCursor=new NativePoint { X=targetScreenX, Y=targetScreenY };
 
     const int frames=12;
@@ -531,7 +531,7 @@ async Task MoveTo(ILocator target, bool enforceActiveGuideTarget = true)
         var eased=1-Math.Pow(1-progress,3);
         var x=(int)Math.Round(currentCursor.X+(targetScreenX-currentCursor.X)*eased);
         var y=(int)Math.Round(currentCursor.Y+(targetScreenY-currentCursor.Y)*eased);
-        if(!SetCursorPos(x,y))
+        if(!NativeCursor.SetCursorPos(x,y))
             throw new InvalidOperationException("Could not move the Windows cursor during Web Visual mode.");
         await page.WaitForTimeoutAsync(18);
     }
@@ -1701,8 +1701,11 @@ struct NativePoint
     public int Y;
 }
 
-[DllImport("user32.dll")]
-static extern bool SetCursorPos(int x, int y);
+static class NativeCursor
+{
+    [DllImport("user32.dll")]
+    public static extern bool SetCursorPos(int x, int y);
 
-[DllImport("user32.dll")]
-static extern bool GetCursorPos(out NativePoint point);
+    [DllImport("user32.dll")]
+    public static extern bool GetCursorPos(out NativePoint point);
+}
