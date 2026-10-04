@@ -106,9 +106,17 @@ var testCrmProject = Path.Combine(repoRoot, "test-apps", "DAP.TestCRM", "Web", "
 var testCrmBackendProject = Path.Combine(repoRoot, "test-apps", "DAP.TestCRM", "Server", "DAP.TestCRM.Server.csproj");
 var dapAppProject = Path.Combine(repoRoot, "src", "DAP.App", "DAP.App.csproj");
 var diagnosticsRoot = Environment.GetEnvironmentVariable("DAP_DIAGNOSTICS_ROOT");
-var packagedDiagnostics = !string.IsNullOrWhiteSpace(diagnosticsRoot);
-if (packagedDiagnostics)
+if (!string.IsNullOrWhiteSpace(diagnosticsRoot))
     diagnosticsRoot = Path.GetFullPath(diagnosticsRoot!);
+
+// DAP_DIAGNOSTICS_ROOT can survive in a developer PowerShell session after a
+// packaged diagnostic run. Never let that stale environment value silently turn
+// a repo E2E run into a mixed repo/package run. Packaged mode is valid only when
+// this runner itself is executing from that Diagnostics package.
+var packagedDiagnostics = diagnosticsRoot is not null
+    && Path.GetFullPath(AppContext.BaseDirectory).StartsWith(
+        Path.Combine(diagnosticsRoot, "Runners") + Path.DirectorySeparatorChar,
+        StringComparison.OrdinalIgnoreCase);
 var packagedServerDirectory = packagedDiagnostics ? Path.Combine(diagnosticsRoot!, "TestCRM", "Server") : null;
 var packagedWebDirectory = packagedDiagnostics ? Path.Combine(diagnosticsRoot!, "TestCRM", "Web") : null;
 var packagedDapDirectory = packagedDiagnostics ? Path.GetFullPath(Path.Combine(diagnosticsRoot!, "..")) : null;
