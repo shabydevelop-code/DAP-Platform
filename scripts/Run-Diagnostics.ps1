@@ -28,6 +28,11 @@ if ($Platform -eq "Web") {
 if (!(Test-Path $runner)) { throw "Diagnostic runner was not found: $runner" }
 if (!(Test-Path (Join-Path $productionRoot "DAP.exe"))) { throw "Production DAP.exe was not found: $productionRoot" }
 
+# Keep the packaged diagnostic Guide definition canonical on every customer run.
+# This resets only the dedicated TestCRM Guide for the selected platform.
+& $runner --reset-guide
+if ($LASTEXITCODE -ne 0) { throw "Diagnostic Guide initialization failed." }
+
 $runnerArgs = @()
 switch ($Mode) {
     "Fast" {
