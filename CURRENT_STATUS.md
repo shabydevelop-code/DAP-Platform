@@ -754,6 +754,6 @@ Web and Windows Guide completion now use the same general centered-bubble presen
 
 SQLite needs no schema migration because `BubblePlacement.Center` is stored through the existing textual `BubblePlacement` field. A persistence regression case was added for a centered targetless Step.
 
-Implementation commits include `bda50be89cd15ea067aff90bc3010c5a5855dd94`, `c2810f3867d7fc67924c20aa1a4d24e92348346f`, `32561e93823ed2bc2b66c2ef39cf4f6fba364116`, `a74fefaf82b70ba359b0263fe77b239e0f7899e4`, `6b59895caf01e1259bc43ea11a11b806232de266`, `cd57a1f8331c0f9c130b26ef0cd3d4579284c1f2`, `8ef79db91741848dd2efca18a8c9c143247f22c2`, `a527510dcc36ce4984bc043f7a938de2914220b1`, and `33254249f248be5264bfea8f3260686be630e8f7`.
+Implementation commits include `bda50be89cd15ea067aff90bc3010c5a5855dd94`, `c2810f3867d7fc67924c20aa1a4d24e92348346f`, `32561e93823ed2bc2b66c2ef39cf4f6fba364116`, `a74fefaf82b70ba359b0263fe77b239e0f7899e4`, `6b59895caf01e1259bc43ea11a11b806232de266`, `cd57a1f8331c0f9c130b26ef0cd3d4579284c1f2`, `8ef79db91741848dd2efca18a8c9c143247f22c2`, `a527510dcc36ce4984bc043f7a938de2914220b1`, `33254249f248be5264bfea8f3260686be630e8f7`, `7ed0cd2acc8722dcbd63e9de436d0c693ef9624e`, and `9a0c45ebb4229dc18c2ae2a51bee287a478ed6d4`.
 
 Local Web/Windows execution is still required after pull before marking the new centered presentation path verified.
