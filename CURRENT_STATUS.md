@@ -796,3 +796,14 @@ After resetting both canonical Guides to the current 54-Step seed, the focused V
 - **Web — PASS:** `--visual-from-step 47` completed through Steps 47–54, including the centered targetless Step 51, real-cursor travel to `אישור`, final Case deletion, Step 54 navigation, real-cursor travel to `סיום`, and clean Guide completion. The old synthetic DOM cursor is no longer used.
 - **Windows — PASS:** `--visual-from-step 47` completed through the same aligned Steps, including the centered Step 51 and native cursor travel to both DAP-owned actions `אישור` and `סיום`.
 - These focused Visual PASS results verify the new centered-information and real-cursor behavior across Web and Windows. They do **not** yet replace the historical full four-path 53/53 matrix; full 54-Step Guided/Unguided regression runs remain pending.
+
+### Windows learner bubble viewport behavior and production-package verification — 2026-10-04
+
+Windows target-attached bubbles now distinguish Step semantics from presentation visibility. Initial Step entry may perform the existing one-time viewport adjustment, but later learner scrolling is not fought by the Runtime. Reconciliation continues to resolve and validate the active Step; bubble presentation independently hides the attached bubble when its target is clipped outside a vertically scrollable viewport and restores it when the target is visible again. This prevents a bubble from being pinned or visually dragged along a viewport edge while preserving validation/progression behavior.
+
+A UIA race discovered during the production-package Visual run was also hardened: when a WPF target loses visible bounds between reconciliation and presentation, the learner Runtime treats that specific stale-target condition as transient, hides the stale bubble, and resolves again instead of terminating DAP.
+
+Implementation commits: `b061fa3446a3f53c410714c1255ec684fff6c307`, `ce10e7b7f6a89f1fdecf064318359578a2513c5e`, `437c7f176bdee0ee9132cb699c792a433c93c42d`, and `9001e806b1e4ae4e50aeac515cec15a3b8c7e3b6`.
+
+Verification against the framework-dependent published package at `C:\DAP-Production` is complete for Windows Guided Visual: the current 54-Step canonical workflow completed 54/54 and runner-owned DAP exited cleanly with no surviving DAP process. A focused `--manual-from-step 11` check then manually scrolled the active target out of view and back: the bubble did not remain pinned/dragged at the viewport edge, disappeared when the target left the visible scroll viewport, and returned beside the target when it became visible again. **PASS.**
+
