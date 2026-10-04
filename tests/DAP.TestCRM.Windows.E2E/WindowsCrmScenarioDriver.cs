@@ -51,7 +51,24 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
             return;
         }
 
-        if(e.TryGetCurrentPattern(ScrollItemPattern.Pattern,out var sp))((ScrollItemPattern)sp).ScrollIntoView();
+        // Physical mouse fallback belongs only to Visual mode.
+        // Fast mode must never move the real cursor merely because an element
+        // lacks InvokePattern.
+        if(!visualMode)
+        {
+            if(twice && e.TryGetCurrentPattern(SelectionItemPattern.Pattern, out var selection))
+            {
+                ((SelectionItemPattern)selection).Select();
+                return;
+            }
+
+            throw new Exception(
+                $"Target '{e.Current.AutomationId}' has no supported UI Automation click pattern in fast mode.");
+        }
+
+        if(e.TryGetCurrentPattern(ScrollItemPattern.Pattern,out var sp))
+            ((ScrollItemPattern)sp).ScrollIntoView();
+
         var r=e.Current.BoundingRectangle;
         var wr=window.Current.BoundingRectangle;
         if(r.IsEmpty)throw new Exception($"Target '{e.Current.AutomationId}' has no bounds.");
