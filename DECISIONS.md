@@ -488,3 +488,9 @@ This supersedes earlier documentation that described the prefix as Guided Fast. 
 ### ADR-045 — Guide completion is runtime-owned and always presented
 
 After the final Guide Step, both Web and Windows runtimes present the production DAP completion bubble and wait for its explicit Finish action. Completion is not an optional host-level message and is not controlled by a launch flag. Manual runs leave Finish to the learner; automated Guided E2E runs activate the same real completion action as a synthetic learner before asserting DAP process exit. The target business application remains open. The former `--show-completion` switch and Windows completion `MessageBox` are retired.
+
+### ADR-046 — Centered targetless information Steps
+
+DAP supports learner information that does not identify or act on a target as a real persisted Guide Step rather than by inventing a fake target. The canonical representation is `Target = null`, `BubblePlacement.Center`, and `StepAdvanceMode.Manual`. Such a Step cannot carry validation, runtime capture, or completion conditions. The Runtime displays the shared centered bubble and advances only after the learner presses the localized confirmation action.
+
+Guide completion reuses the same centered presentation primitive with completion-specific content and Finish text. This keeps targetless information and completion presentation aligned on Web and Windows and prevents separate visual implementations from drifting.
