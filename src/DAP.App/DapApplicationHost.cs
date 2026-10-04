@@ -1,7 +1,6 @@
 using Microsoft.Playwright;
 using System.Diagnostics;
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Automation;
@@ -161,8 +160,6 @@ public static class DapApplicationHost
             StartupMark(startup, "Windows guide runtime starting");
             await runtime.RunAsync(window, steps, cancellationToken, options.StartStep, resumeContext);
 
-            if (options.ShowCompletion)
-                await bubbles.WaitForGuideCompletedDismissalAsync(cancellationToken);
         }
         finally
         {
@@ -171,31 +168,6 @@ public static class DapApplicationHost
 
         return 0;
     }
-
-    private static void ShowForegroundInformation(string message, string title)
-    {
-        // Completion is DAP-owned UI and must not be hidden behind the target
-        // application. MB_SETFOREGROUND asks Windows to activate the dialog and
-        // MB_TOPMOST keeps only this short-lived modal above the target. No
-        // persistent Topmost window/state remains after the user dismisses it.
-        _ = MessageBoxW(
-            IntPtr.Zero,
-            message,
-            title,
-            MbOk | MbIconInformation | MbSetForeground | MbTopmost);
-    }
-
-    private const uint MbOk = 0x00000000;
-    private const uint MbIconInformation = 0x00000040;
-    private const uint MbSetForeground = 0x00010000;
-    private const uint MbTopmost = 0x00040000;
-
-    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-    private static extern int MessageBoxW(
-        IntPtr hWnd,
-        string lpText,
-        string lpCaption,
-        uint uType);
 
     private static async Task<AutomationElement> WaitForWindowAsync(
         string automationId,
@@ -271,12 +243,6 @@ public static class DapApplicationHost
             StartupMark(startup, "Web guide runtime starting");
             await guideRuntime.RunAsync(matchingPages[0], steps, cancellationToken, options.StartStep, resumeContext);
 
-            if (options.ShowCompletion)
-            {
-                ShowForegroundInformation(
-                    texts.Get("Learner.CompletedMessage"),
-                    texts.Get("Learner.WindowTitle"));
-            }
         }
         finally
         {
