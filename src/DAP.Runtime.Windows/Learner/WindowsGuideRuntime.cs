@@ -115,9 +115,12 @@ public sealed class WindowsGuideRuntime
             if (step.Target is not null)
                 throw new InvalidOperationException(
                     $"Centered Guide Step '{step.Id}' must not define a target.");
-            if (step.AdvanceMode != StepAdvanceMode.Manual || step.Validation is not null)
+            if (step.AdvanceMode != StepAdvanceMode.Manual
+                || step.Validation is not null
+                || step.Capture is not null
+                || step.CompletionConditions is { Count: > 0 })
                 throw new InvalidOperationException(
-                    $"Centered Guide Step '{step.Id}' must use Manual advance with no validation.");
+                    $"Centered Guide Step '{step.Id}' must be a pure Manual information Step with no validation, capture, or completion conditions.");
 
             await _bubbles.WaitForCenteredStepDismissalAsync(
                 step,
