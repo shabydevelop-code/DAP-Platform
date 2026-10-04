@@ -42,8 +42,18 @@ if (args.Contains("--reset-guide", StringComparer.OrdinalIgnoreCase))
 
 int? manualFromStep = null;
 int? visualFromStep = null;
+string? publishedDapDirectory = null;
 for (var i = 0; i < args.Length; i++)
 {
+    if (args[i].Equals("--published-dap", StringComparison.OrdinalIgnoreCase))
+    {
+        if (i + 1 >= args.Length || string.IsNullOrWhiteSpace(args[i + 1]))
+            throw new ArgumentException("--published-dap requires a directory containing DAP.exe.");
+
+        publishedDapDirectory = Path.GetFullPath(args[++i]);
+        continue;
+    }
+
     if (args[i].Equals("--manual-from-step", StringComparison.OrdinalIgnoreCase))
     {
         if (i + 1 >= args.Length
@@ -259,11 +269,15 @@ async Task RunGuidedAsync(
 
         BuildIsolated(backendProject, backendOutput, "TestCRM Server");
         BuildIsolated(appProject, windowsOutput, "TestCRM Windows");
-        BuildIsolated(dapProject, dapOutput, "DAP");
+        if (publishedDapDirectory is null)
+            BuildIsolated(dapProject, dapOutput, "DAP");
 
         var backendDll = Path.Combine(backendOutput, "DAP.TestCRM.Server.dll");
         var windowsExe = Path.Combine(windowsOutput, "DAP.TestCRM.Windows.exe");
-        var dapExe = Path.Combine(dapOutput, "DAP.exe");
+        var effectiveDapDirectory = publishedDapDirectory ?? dapOutput;
+        var dapExe = Path.Combine(effectiveDapDirectory, "DAP.exe");
+        if (!File.Exists(dapExe))
+            throw new FileNotFoundException("Published DAP.exe was not found.", dapExe);
 
         backend = StartProcess(
             "dotnet",
@@ -307,7 +321,7 @@ async Task RunGuidedAsync(
                 startStepArgument +
                 resumeContextArgument,
                 redirectOutput: true,
-                workingDirectory: dapOutput);
+                workingDirectory: effectiveDapDirectory);
 
             process.OutputDataReceived += (_, e) =>
             {
