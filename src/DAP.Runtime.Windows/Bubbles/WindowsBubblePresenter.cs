@@ -129,6 +129,126 @@ public sealed class WindowsBubblePresenter
         cancellationToken.ThrowIfCancellationRequested();
     }
 
+    public async Task WaitForGuideCompletedDismissalAsync(CancellationToken cancellationToken = default)
+    {
+        if (Application.Current is null)
+            return;
+
+        var dismissed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        Window? completionWindow = null;
+
+        await Application.Current.Dispatcher.InvokeAsync(() =>
+        {
+            if (_window?.IsVisible == true)
+                _window.Hide();
+            if (_highlightWindow?.IsVisible == true)
+                _highlightWindow.Hide();
+
+            var message = new TextBlock
+            {
+                Text = _texts.Get("Learner.GuideCompleted"),
+                TextWrapping = TextWrapping.Wrap,
+                FontSize = 15,
+                Foreground = Brushes.White,
+                MaxWidth = 360,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                TextAlignment = TextAlignment.Center,
+                FlowDirection = _texts.IsRightToLeft ? FlowDirection.RightToLeft : FlowDirection.LeftToRight
+            };
+
+            var finishButton = new Button
+            {
+                Content = _texts.Get("Learner.Finish"),
+                Margin = new Thickness(0, 12, 0, 0),
+                Padding = new Thickness(18, 6, 18, 6),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                MinWidth = 90
+            };
+
+            var dragHandle = new TextBlock
+            {
+                Text = "⠿",
+                FontSize = 17,
+                Foreground = new SolidColorBrush(Color.FromRgb(220, 228, 236)),
+                Cursor = Cursors.SizeAll,
+                ToolTip = _texts.Get("Learner.DragBubble"),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 6)
+            };
+
+            var stack = new StackPanel();
+            stack.Children.Add(dragHandle);
+            stack.Children.Add(message);
+            stack.Children.Add(finishButton);
+
+            var border = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(39, 67, 91)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(27, 48, 66)),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(18),
+                Child = stack
+            };
+
+            completionWindow = new Window
+            {
+                Content = border,
+                WindowStyle = WindowStyle.None,
+                ResizeMode = ResizeMode.NoResize,
+                AllowsTransparency = true,
+                Background = Brushes.Transparent,
+                ShowInTaskbar = false,
+                Topmost = true,
+                ShowActivated = false,
+                SizeToContent = SizeToContent.WidthAndHeight,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen
+            };
+
+            AutomationProperties.SetAutomationId(completionWindow, "DapLearnerCompletionBubble");
+            AutomationProperties.SetName(completionWindow, _texts.Get("Learner.GuideCompleted"));
+
+            finishButton.Click += (_, _) =>
+            {
+                if (completionWindow.IsVisible)
+                    completionWindow.Close();
+                dismissed.TrySetResult();
+            };
+
+            dragHandle.MouseLeftButtonDown += (_, e) =>
+            {
+                if (e.LeftButton != MouseButtonState.Pressed)
+                    return;
+
+                try
+                {
+                    completionWindow.DragMove();
+                }
+                catch (InvalidOperationException)
+                {
+                }
+            };
+
+            completionWindow.Closed += (_, _) => dismissed.TrySetResult();
+            completionWindow.Show();
+        });
+
+        using var registration = cancellationToken.Register(() =>
+        {
+            dismissed.TrySetCanceled(cancellationToken);
+            if (completionWindow is not null && Application.Current is not null)
+            {
+                _ = Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    if (completionWindow.IsVisible)
+                        completionWindow.Close();
+                });
+            }
+        });
+
+        await dismissed.Task;
+    }
+
     public async Task HideAsync()
     {
         if (Application.Current is null)
