@@ -7,7 +7,7 @@ The canonical execution modes are **Guided** and **Unguided**. The old `CRM-only
 Locally verified baseline:
 - **Last fully verified canonical baseline:** Web Guided/Unguided and Windows Guided/Unguided all passed the previous 53-Step Guides.
 - **Current repository seeds:** both canonical Guides now define 54 Steps after adding a centered information pause at Step 51.
-- **54/54 status:** pending explicit Guide reset and local rerun; do not claim 54/54 PASS yet.
+- **54-Step status:** both Web and Windows Guides have now been explicitly reset to 54 Steps. Focused `--visual-from-step 47` is locally verified PASS on both platforms, including the centered information Step and completion. Do not claim a full four-path 54/54 PASS until fresh full Guided/Unguided regressions are run.
 - Windows Guided was re-verified again on 2026-10-03 after the text-commit regression work: all 53 persisted Steps completed through the production Windows Learner Runtime with real UIA targets, runtime capture, modal targeting, and bubbles. The former Step-8 `CaseSubject` stall is closed.
 
 Both canonical repository seeds now contain 54 Steps and represent the same Customer -> Site -> Case -> Lead business scenario. Existing persisted Guides can remain at the previous 53-Step version until explicitly reset:
@@ -491,7 +491,7 @@ New canonical meanings:
 
 Focused From-Step execution has since been locally verified on both platforms at Step 47: Web and Windows both completed successfully with Unguided bootstrap before Step 47, resume context transferred into DAP, and Guided Visual execution from Step 47 onward.
 
-- Local verification after the Web/Windows Visual cursor pacing alignment: Web `--visual-from-step 47` completed successfully. This confirms the current focused-run contract in practice on Web: Unguided bootstrap before N, validated resume context into DAP, then Guided Visual from N, with the faster Windows-aligned cursor movement.
+- Local verification after the Web/Windows Visual cursor alignment: both Web and Windows `--visual-from-step 47` completed successfully on the current 54-Step Guides. Web now uses the real Windows cursor rather than a synthetic DOM cursor; both platforms visibly move that cursor to CRM targets and to the DAP-owned `אישור` / `סיום` actions.
 
 - Web `--manual-from-step <N>` now follows the same lifecycle principle as Windows manual runs: after handoff it automatically ends when DAP completes or the owned Web target closes. It no longer requires pressing Enter merely to let the runner exit.
 
@@ -508,3 +508,11 @@ Focused From-Step execution has since been locally verified on both platforms at
 - The canonical Guides now intentionally include one centered informational Step near the end of the real learner flow: Step 51 warns that the Case created during the lesson is about to be deleted and requires `אישור` before progression.
 
 - Canonical Step 51 is now a targetless centered information Step on both Web and Windows. It appears after reopening the created Case and before deletion, displays `שים לב: בשלב הבא נמחק את הפנייה שיצרת במהלך הלומדה.`, and advances only after `אישור`. The former Steps 51–53 shift to 52–54. Unguided treats this presentation-only Step as a no-op while preserving Guide order. The new seed requires explicit reset before the persistent Guide changes.
+
+## Focused 54-Step Visual verification — 2026-10-04
+
+Both canonical Guides were reset to the current 54-Step seed and then verified with `--visual-from-step 47`.
+
+- Web: PASS through Step 54, including centered Step 51, real OS cursor movement to `אישור`, and real OS cursor movement to completion `סיום`.
+- Windows: PASS through Step 54 with the same aligned learner flow and native cursor movement to the same DAP-owned actions.
+- This verifies the newly added centered information Step and the real-cursor Visual contract cross-platform. Full 54-Step Guided/Unguided matrix regression remains a separate pending verification task.
