@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using DAP.TestCRM.Web.E2E;
 using Microsoft.Playwright;
@@ -377,24 +378,6 @@ var requireActiveGuideTarget =
     !unguided && manualFromStep is null && visualFromStep is null;
 
 Console.WriteLine($"E2E mode: {(manual ? "manual" : unguided ? "unguided" : manualFromStep is not null ? $"unguided -> manual from Step {manualFromStep}" : visualFromStep is not null ? $"unguided -> visual from Step {visualFromStep}" : visualMode ? "visual" : "fast")}");
-if (visualMode || visualFromStep is not null)
-await page.AddInitScriptAsync(@"(() => {
-  const install=()=>{
-    if(window !== window.top) return;
-    if(document.getElementById('dap-e2e-cursor')) return;
-    const c=document.createElement('div'); c.id='dap-e2e-cursor';
-    c.innerHTML='<svg width=""18"" height=""24"" viewBox=""0 0 24 32"" xmlns=""http://www.w3.org/2000/svg""><path d=""M2 2 L2 25 L8 19 L13 30 L17 28 L12 17 L21 17 Z"" fill=""#2F80ED"" stroke=""white"" stroke-width=""2"" stroke-linejoin=""round""/></svg>';
-    Object.assign(c.style,{position:'fixed',left:'24px',top:'24px',width:'18px',height:'24px',zIndex:'2147483647',pointerEvents:'none',transition:'left .22s ease-out, top .22s ease-out, transform .08s ease-out',filter:'drop-shadow(1px 2px 1px rgba(0,0,0,.25))'});
-    document.documentElement.appendChild(c);
-    window.__dapE2ECursor={
-      move:(x,y)=>{c.style.left=x+'px';c.style.top=y+'px'},
-      down:()=>{c.style.transform='scale(.82)'},
-      up:()=>{c.style.transform='scale(1)'}
-    };
-  };
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',install); else install();
-})()");
-
 await page.AddInitScriptAsync("localStorage.setItem('dap-e2e-mode', '" + e2eMode + "'); document.documentElement.dataset.dapE2eMode = '" + e2eMode + "';");
 
 async Task<IFrame> Content()
@@ -490,7 +473,6 @@ async Task HumanPause(int ms=320)
 {
     if (visualMode) await page.WaitForTimeoutAsync(ms);
 }
-double cursorX=24,cursorY=24;
 async Task MoveTo(ILocator target, bool enforceActiveGuideTarget = true)
 {
     // Application learner actions must operate on the exact DOM element owned
@@ -521,24 +503,40 @@ async Task MoveTo(ILocator target, bool enforceActiveGuideTarget = true)
         return;
     }
 
-    var x=box.X+localX;
-    var y=box.Y+localY;
+    // Playwright reports the target in browser viewport coordinates. Convert
+    // that position to Windows screen coordinates so Visual mode moves the
+    // real operating-system cursor instead of drawing a synthetic DOM cursor.
+    var metrics=await page.EvaluateAsync<BrowserWindowMetrics>(
+        @"() => ({
+            ScreenX: window.screenX,
+            ScreenY: window.screenY,
+            OuterWidth: window.outerWidth,
+            OuterHeight: window.outerHeight,
+            InnerWidth: window.innerWidth,
+            InnerHeight: window.innerHeight
+        })");
 
-    // Keep Web Visual cursor motion aligned with Windows Visual: the same
-    // 12-frame cubic ease-out movement, 18 ms frame pacing, and 120 ms target
-    // dwell. Platform-specific input mechanisms differ, but the visible learner
-    // pacing should feel the same.
+    var sideInset=Math.Max(0,(metrics.OuterWidth-metrics.InnerWidth)/2d);
+    var topInset=Math.Max(0,metrics.OuterHeight-metrics.InnerHeight-sideInset);
+    var targetScreenX=(int)Math.Round(metrics.ScreenX+sideInset+box.X+localX);
+    var targetScreenY=(int)Math.Round(metrics.ScreenY+topInset+box.Y+localY);
+
+    if(!GetCursorPos(out var currentCursor))
+        currentCursor=new NativePoint { X=targetScreenX, Y=targetScreenY };
+
     const int frames=12;
     for(var frame=1;frame<=frames;frame++)
     {
         var progress=(double)frame/frames;
         var eased=1-Math.Pow(1-progress,3);
-        var sx=cursorX+(x-cursorX)*eased;
-        var sy=cursorY+(y-cursorY)*eased;
-        await page.EvaluateAsync("(p)=>window.__dapE2ECursor?.move(p.x,p.y)",new { x=sx,y=sy });
+        var x=(int)Math.Round(currentCursor.X+(targetScreenX-currentCursor.X)*eased);
+        var y=(int)Math.Round(currentCursor.Y+(targetScreenY-currentCursor.Y)*eased);
+        if(!SetCursorPos(x,y))
+            throw new InvalidOperationException("Could not move the Windows cursor during Web Visual mode.");
         await page.WaitForTimeoutAsync(18);
     }
-    cursorX=x; cursorY=y;
+
+    // Keep browser hover state synchronized with the physical cursor position.
     await target.HoverAsync(new() { Position = new() { X = localX, Y = localY } });
     await HumanPause(120);
 }
@@ -547,9 +545,7 @@ async Task Click(string selector)
     var f=await Content(); var target=f.Locator(selector);
     var replacesFrame=await target.GetAttributeAsync("data-frame-nav")=="replace";
     await MoveTo(target);
-    await page.EvaluateAsync("()=>window.__dapE2ECursor?.down()");
     await target.ClickAsync();
-    await page.EvaluateAsync("()=>window.__dapE2ECursor?.up()");
 
     if(replacesFrame)
     {
@@ -1689,3 +1685,24 @@ finally
 sealed class ManualWebHandoffCompleteException : Exception
 {
 }
+
+readonly record struct BrowserWindowMetrics(
+    double ScreenX,
+    double ScreenY,
+    double OuterWidth,
+    double OuterHeight,
+    double InnerWidth,
+    double InnerHeight);
+
+[StructLayout(LayoutKind.Sequential)]
+struct NativePoint
+{
+    public int X;
+    public int Y;
+}
+
+[DllImport("user32.dll")]
+static extern bool SetCursorPos(int x, int y);
+
+[DllImport("user32.dll")]
+static extern bool GetCursorPos(out NativePoint point);
