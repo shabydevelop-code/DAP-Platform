@@ -154,7 +154,14 @@ void TryKillOwnedProcessTree(Process? process)
         if (!process.HasExited)
         {
             process.Kill(entireProcessTree: true);
-            process.WaitForExit(5000);
+            if (!process.WaitForExit(5000) && !process.HasExited)
+            {
+                // A successful Kill request is asynchronous. Retry once so an
+                // E2E-owned DAP cannot survive the runner and keep a published
+                // package locked after Ctrl+C/process-exit cleanup.
+                process.Kill(entireProcessTree: true);
+                process.WaitForExit(5000);
+            }
         }
     }
     catch (InvalidOperationException) { }
