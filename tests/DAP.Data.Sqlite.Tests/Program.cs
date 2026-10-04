@@ -9,6 +9,7 @@ Directory.CreateDirectory(root);
 try
 {
     await VerifyFreshRoundTripAsync(Path.Combine(root,"fresh.db"));
+    await VerifyCenteredStepRoundTripAsync(Path.Combine(root,"centered.db"));
     await VerifyLegacyMigrationAsync(Path.Combine(root,"legacy.db"));
     Console.WriteLine("DAP SQLite guide persistence and legacy ID migration: PASS");
 }
@@ -47,6 +48,30 @@ WHERE g.Key='guide-1' AND s.Key='step-1';
             if(reader.GetString(i)!="integer")
                 throw new Exception($"Expected numeric SQLite ID at column {i}, got {reader.GetString(i)}.");
     }
+}
+
+static async Task VerifyCenteredStepRoundTripAsync(string path)
+{
+    var factory=new SqliteConnectionFactory(new SqliteDatabaseOptions(path));
+    await new SqliteDatabaseInitializer(factory).InitializeAsync();
+    var repository=new SqliteGuideStepRepository(factory);
+
+    var step=new GuideStep(
+        "info-step",1,
+        Target:null,
+        new BubbleDefinition("פרטי מידע ללומד",BubblePlacement.Center),
+        Validation:null,
+        AdvanceMode:StepAdvanceMode.Manual);
+
+    await repository.SaveStepAsync("guide-centered",step);
+    var loaded=(await repository.GetStepsAsync("guide-centered")).Single();
+
+    if(loaded.Target is not null
+       || loaded.Bubble.Placement!=BubblePlacement.Center
+       || loaded.AdvanceMode!=StepAdvanceMode.Manual
+       || loaded.Validation is not null
+       || loaded.Bubble.Content!="פרטי מידע ללומד")
+        throw new Exception("Centered targetless Guide Step did not survive SQLite round trip.");
 }
 
 static async Task VerifyLegacyMigrationAsync(string path)
