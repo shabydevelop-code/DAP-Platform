@@ -298,7 +298,7 @@ This behavior is part of the permanent PeopleSoft interaction contract and appli
 
 The canonical DAP.TestCRM runner-mode contract uses only two `DAP_E2E_MODE` names:
 
-- `fast` — default for validation. Artificial human-like cursor movement, typing delays, and visual-observation pauses are skipped. Artificial TestCRM thinking delays may be bypassed where that platform implements them, while real application readiness remains enforced.
+- `fast` — default for validation. Artificial human-like cursor animation and visual-observation pauses are skipped. Learner action and commit semantics remain identical to Visual. Artificial TestCRM thinking delays may be bypassed where that fixture implements them, while real application readiness remains enforced.
 - `visual` — observable learner-action mode. Platform-appropriate cursor/input movement, typing/pacing, and visual processing feedback are retained where implemented.
 
 `demo` is not a supported alias. Web and Windows must keep the same public mode vocabulary and semantics; platform-specific implementation details may differ, but a mode must not silently acquire a different meaning on one platform. Any CLI/mode change must be reviewed for both canonical runners in the same change unless a documented exception is intentionally introduced.
@@ -349,7 +349,7 @@ The normal TestCRM Web E2E runner owns the complete temporary test topology for 
 
 A normal full Web E2E run therefore does not require manually pre-started TestCRM servers.
 
-The canonical Web Guide seed is `testcrm-web-canonical-workflow` and now defines 54 Steps. Because DB owns persisted Guide data, the seed becomes active only after an explicit reset. The current 54-Step Web and Windows Guides have both been reset and focused `--visual-from-step 47` execution is locally verified; a fresh full four-path 54-Step regression matrix remains pending.
+The canonical Web Guide seed is `testcrm-web-canonical-workflow` and defines 54 Steps. Because DB owns persisted Guide data, seed changes become active only after an explicit reset. The current 54-Step Web and Windows Guides have been reset; full Guided Fast and Visual have passed on both platforms, and focused Visual-From-Step has also been verified.
 
 ## Canonical Web Guided vs Unguided topology
 
@@ -417,11 +417,7 @@ They represent the same business scenario while using runtime-specific target de
 
 Business-identifying navigation must not rely on incidental row order when a stable identity is available. The current canonical parity uses explicit identities for `מטה תל אביב`, `אבי כהן`, and the Case created during the active run. Runtime capture carries the created Case identity into later Steps.
 
-The previous 53-Step versions of the four canonical execution paths remain the last fully verified full-matrix baseline. The current 54-Step Guides are reset and focused Visual From Step 47 is verified on both platforms; full 54-Step Guided/Unguided reruns remain pending:
-- Web Guided
-- Web Unguided
-- Windows Guided
-- Windows Unguided
+The current Guided baseline is the 54-Step Guide. Full Guided Fast and Guided Visual are verified on both Web and Windows. The historical 53-Step four-path Guided/Unguided matrix remains useful only as historical regression context; it is no longer the current Guided baseline. A fresh complete 54-Step matrix for Unguided, Manual, and all focused variants is not implied by the Guided verification.
 
 Windows presentation follows the live UIA target across application-window movement and resizing. A manually dragged bubble preserves its relative offset for the active Step. Bubble/highlight presentation is hidden while the target application is minimized or loses foreground ownership, then restored from current UIA geometry when the application becomes active again.
 
@@ -485,3 +481,12 @@ The future Instructor should capture or let an author configure a declarative le
 Application-specific knowledge needed only to drive TestCRM belongs in the TestCRM E2E driver. It must not leak into DAP.Core, DAP.Runtime.Windows, TargetDescriptor, validation, or the Instructor as hard-coded assumptions. In particular, a DataItem must not imply double-click globally; different customer applications may require click, double-click, keyboard activation, selection only, or another action.
 
 TestCRM should remain representative of closed customer software. Do not change TestCRM merely to make an E2E test easier when the existing behavior is a legitimate real-world interaction pattern. Development may inspect TestCRM source to diagnose behavior, but production DAP must not depend on target-application source.
+
+
+## Web startup lifecycle and measured initialization boundary
+
+Production Web execution currently creates a Playwright instance inside `DAP.exe` before attaching over CDP to the selected browser. Playwright .NET 1.55.0 implements `Playwright.CreateAsync()` by creating a stdio transport, starting the packaged Playwright driver process with `run-driver`, and waiting for initialization before the CDP attach can occur.
+
+A packaged Production measurement on 2026-10-05 isolated this initialization as the dominant first-bubble startup cost: Web composition was ready at 257 ms, Playwright creation completed at 6563 ms, CDP connected at 6670 ms, and the Web Guide Runtime started at 6673 ms. First-bubble active-Step work then required 159 ms. The E2E runner independently spent 5613 ms creating its own Playwright instance.
+
+Therefore CDP's configured 10-second connection timeout is not a fixed startup delay, and target/bubble resolution is not the dominant measured cost. The architecture must not hide this by increasing timeouts. Any future optimization that keeps a Playwright driver/process alive or shares lifecycle infrastructure must preserve process ownership, deterministic cleanup, failure isolation, and support for arbitrary closed customer Web applications. No such optimization is part of the accepted architecture yet.
