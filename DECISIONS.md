@@ -535,3 +535,18 @@ When the target application itself requires a physical mouse action that cannot 
 Readiness and synchronization remain based on observable application/UIA state rather than arbitrary Visual-only delays. The 5-second timeout policy is unchanged.
 
 This contract was re-verified by complete Windows Guided runs on the 54-Step canonical Guide: both Fast and Visual completed 54/54 with the same production Windows Learner Runtime. The text synchronization correction that restored Step 8 is commit `889ee17d3e34692022085760dea2496b31c0cb69`.
+
+## ADR-048 — Fast and Visual share one cross-platform learner-action path
+
+**Status:** Accepted
+
+Fast and Visual are presentation modes over one canonical synthetic learner workflow on both Web and Windows. Every application-facing learner action must be semantically identical in both modes. Visual may add visible real-cursor travel and presentation pacing, but must not introduce alternate business navigation, validation rules, target-specific synchronization, scrolling, commit semantics, or a different application action merely to make Visual execution pass.
+
+Mode-dependent typing semantics are not permitted. Web therefore uses the same text-entry action in Fast and Visual; Visual pacing belongs outside the semantic typing action. When the target application genuinely requires a physical mouse action, that physical action remains part of the common path: Fast may position the cursor immediately while Visual may animate travel before the same action.
+
+Readiness and synchronization remain based on observable application state. Visual-only delays are presentation pacing and must not substitute for readiness. The existing 5-second technical-timeout policy is unchanged.
+
+Verification: the complete persisted 54-Step Guided workflow has now passed in all four full Guided combinations: Web Fast, Web Visual, Windows Fast, and Windows Visual. Web action-path alignment commit: `401f31a582797fcb9217e521e40c0557196736c1`. Windows focused-value synchronization baseline: `889ee17d3e34692022085760dea2496b31c0cb69`.
+
+This ADR generalizes and supersedes the platform-specific scope of the earlier `ADR-0XX — Fast and Visual share one Windows learner-action path`; that older entry remains as historical implementation context.
+
