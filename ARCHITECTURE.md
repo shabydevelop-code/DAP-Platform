@@ -457,3 +457,9 @@ The Runtime presents this Step in the center of the learner surface, with no tar
 Guide completion is implemented on top of the same centered-bubble presentation primitive. Completion supplies localized completion content and the localized Finish action instead of the informational confirmation action. Consequently Web and Windows completion bubbles share the same general centered presentation behavior as targetless information Steps.
 
 On Web, centered bubbles use the active `WebBubbleTheme` and are positioned at 50%/50% with a two-axis translation, so completion and information bubbles are visually centered rather than merely horizontally centered near the top of the viewport. On Windows, centered bubbles use the same native WPF bubble styling and `CenterScreen` placement.
+
+### Visual learner cursor contract
+
+Visual execution is test-harness behavior, not production target resolution. Both Web and Windows Visual runners expose the same learner-facing contract: the real Windows cursor visibly moves to the next interaction target before the synthetic learner action is executed.
+
+Windows obtains screen coordinates directly from UI Automation bounding rectangles. Web obtains the target bounding box from Playwright, translates browser viewport coordinates to screen coordinates using the live browser window metrics, and moves the native cursor. The subsequent action remains platform-native to the harness: Playwright for Web and UI Automation/native input for Windows.
