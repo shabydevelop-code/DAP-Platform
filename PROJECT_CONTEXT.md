@@ -542,3 +542,12 @@ The complete persisted Windows Guided Guide is locally verified 54/54 PASS in bo
 The Step-8 `CaseSubject` regression was closed by restoring focused-value synchronization in the Windows E2E synthetic learner. After setting a text value, the driver verifies that the new value is observable while the editor is still keyboard-focused, waits for the provider value-change notification, and then commits through real TAB focus traversal. This is E2E synchronization with observable UIA state, not a TestCRM-specific Runtime rule. Commit: `889ee17d3e34692022085760dea2496b31c0cb69`.
 
 A clean repository run also verified that a stale `DAP_DIAGNOSTICS_ROOT` environment value cannot switch repository E2E into packaged-diagnostics mode. Packaged mode is selected only when the executing runner itself is under the diagnostics package Runners directory, preserving source/output isolation.
+
+## Cross-platform Guided 54-Step Fast/Visual baseline — 2026-10-05
+
+The current canonical 54-Step Guided workflow is locally verified PASS in all four full Guided mode/platform combinations: Web Fast, Web Visual, Windows Fast, and Windows Visual.
+
+Web Fast and Visual execute the same learner-action path; mode-dependent per-character typing delay was removed so Visual remains a presentation layer around the same actions. The repository Web E2E isolated run now also copies TestCRM Web static assets into its owned temporary output, and its normal cleanup scope includes startup/navigation failures so runner-owned Web/Backend processes do not survive that exception path. Relevant commits: `401f31a582797fcb9217e521e40c0557196736c1`, `430c90176f82e636fbcea6685cd15f387b0f041d`, and `d23c6d254b7d12d057d4ea713886db8089a8ca5b`.
+
+This establishes the current full Guided Fast/Visual cross-platform baseline. It does not imply that Unguided, Manual, or all focused From-Step variants have been re-run as a complete 54-Step matrix.
+
