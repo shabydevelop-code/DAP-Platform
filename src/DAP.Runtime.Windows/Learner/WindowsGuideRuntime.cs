@@ -56,7 +56,10 @@ public sealed class WindowsGuideRuntime
         {
             var persistedStep = ordered[index];
             var step = MaterializeRuntimeValues(persistedStep, capturedValues);
-            if (step.Target?.Runtime != TargetRuntime.Windows)
+            var isCenteredStep = step.Target is null
+                && step.Bubble.Placement == BubblePlacement.Center;
+
+            if (!isCenteredStep && step.Target?.Runtime != TargetRuntime.Windows)
                 throw new InvalidOperationException(
                     $"Guide Step '{step.Id}' is not a Windows Step and cannot run in WindowsGuideRuntime.");
 
@@ -107,6 +110,27 @@ public sealed class WindowsGuideRuntime
         AutomationElement? preExistingTarget,
         IDictionary<string, string> capturedValues)
     {
+        if (step.Bubble.Placement == BubblePlacement.Center)
+        {
+            if (step.Target is not null)
+                throw new InvalidOperationException(
+                    $"Centered Guide Step '{step.Id}' must not define a target.");
+            if (step.AdvanceMode != StepAdvanceMode.Manual || step.Validation is not null)
+                throw new InvalidOperationException(
+                    $"Centered Guide Step '{step.Id}' must use Manual advance with no validation.");
+
+            await _bubbles.WaitForCenteredStepDismissalAsync(
+                step,
+                stepNumber,
+                totalSteps,
+                cancellationToken);
+            return;
+        }
+
+        if (step.Target is null)
+            throw new InvalidOperationException(
+                $"Target-attached Guide Step '{step.Id}' must define a target.");
+
         var clicked = string.Equals(step.Validation?.Kind, "clicked", StringComparison.OrdinalIgnoreCase);
         var targetDisappeared = string.Equals(step.Validation?.Kind, "target-disappeared", StringComparison.OrdinalIgnoreCase);
         var targetWasResolved = false;
