@@ -393,15 +393,15 @@ public sealed class WindowsGuideRuntime
                     }
                 }
 
-                if (!IsFullyVisibleWithinViewport(windowRoot, target))
+                if (!HasVisibleBounds(target))
                 {
-                    // Initial Step entry is the only place where DAP is allowed to
-                    // scroll the learner to a target. If the learner later scrolls
-                    // that target out of the viewport, hide the bubble until the
-                    // target becomes visible again instead of pinning the bubble to
-                    // a viewport edge or fighting the learner's scroll.
+                    // Do not force-scroll during reconciliation. Initial Step entry
+                    // already performs the one allowed viewport adjustment. Keep
+                    // completion/validation semantics independent of bubble
+                    // placement; the presenter decides whether a partially clipped
+                    // target is suitable for showing an attached bubble.
                     if (step.Id == "testcrm-windows-back-to-cases")
-                        Console.Error.WriteLine($"[DAP Windows guide diagnostic] Step '{step.Id}' target is outside the visible viewport.");
+                        Console.Error.WriteLine($"[DAP Windows guide diagnostic] Step '{step.Id}' target has no visible bounds.");
                     await _bubbles.HideAsync();
                     await Task.Delay(_pollInterval, cancellationToken);
                     continue;
