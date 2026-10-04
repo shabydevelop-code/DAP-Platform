@@ -602,6 +602,10 @@ async Task RunGuidedAsync(
         WaitForStep("testcrm-windows-open-created-case-final");
         await driver.OpenCreatedCase();
 
+        WaitForStep("testcrm-windows-before-delete-case-info");
+        if (dap is not null)
+            ClickCenteredInformationConfirm();
+
         WaitForStep("testcrm-windows-delete-case");
         await driver.DeleteCase();
 
@@ -621,7 +625,7 @@ async Task RunGuidedAsync(
         if (dap.ExitCode != 0)
             throw new Exception($"DAP.exe exited with code {dap.ExitCode}.");
 
-        Console.WriteLine("PASS: DAP Windows Learner Runtime completed all 53 persisted Guide Steps with real UIA targets, runtime capture, modal targeting, and bubbles.");
+        Console.WriteLine($"PASS: DAP Windows Learner Runtime completed all {persistedSteps.Count} persisted Guide Steps with real UIA targets, runtime capture, modal targeting, centered information, and bubbles.");
         }
         catch (ManualHandoffCompleteException)
         {
@@ -991,6 +995,44 @@ AutomationElement WaitForBubble(string expectedInstruction, Process dapProcess, 
     throw new TimeoutException(
         $"Timed out waiting for DAP Windows bubble '{expectedInstruction}'. " +
         $"Last observed bubble: '{lastObservedInstruction ?? "<none>"}'.");
+}
+
+void ClickCenteredInformationConfirm()
+{
+    var centered = AutomationElement.RootElement.FindAll(
+            TreeScope.Children,
+            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Window))
+        .Cast<AutomationElement>()
+        .FirstOrDefault(candidate =>
+        {
+            try
+            {
+                return IsVisibleUiaElement(candidate)
+                       && string.Equals(
+                           candidate.Current.AutomationId,
+                           "DapLearnerCenteredBubble",
+                           StringComparison.Ordinal);
+            }
+            catch (ElementNotAvailableException)
+            {
+                return false;
+            }
+        })
+        ?? throw new Exception("DAP Windows centered information bubble was not found.");
+
+    var confirm = centered.FindFirst(
+        TreeScope.Descendants,
+        new PropertyCondition(
+            AutomationElement.AutomationIdProperty,
+            "DapLearnerCenteredConfirm"));
+
+    if (confirm is null)
+        throw new Exception("DAP Windows centered information Confirm action was not found.");
+
+    if (!confirm.TryGetCurrentPattern(InvokePattern.Pattern, out var invoke))
+        throw new Exception("DAP Windows centered information Confirm action does not expose InvokePattern.");
+
+    ((InvokePattern)invoke).Invoke();
 }
 
 AutomationElement WaitForCompletionBubble(Process dapProcess, int timeout = 5_000)
