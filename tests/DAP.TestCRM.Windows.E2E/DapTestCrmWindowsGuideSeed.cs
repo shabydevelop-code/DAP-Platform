@@ -413,8 +413,17 @@ internal static class DapTestCrmWindowsGuideSeed
             columnHeaderName: "מזהה",
             completionCondition: new StepCompletionCondition("target-exists", ById("DeleteCaseButton"))),
 
+        new GuideStep(
+            "testcrm-windows-before-delete-case-info", 51,
+            Target: null,
+            new BubbleDefinition(
+                "שים לב: בשלב הבא נמחק את הפנייה שיצרת במהלך הלומדה.",
+                BubblePlacement.Center),
+            Validation: null,
+            AdvanceMode: StepAdvanceMode.Manual),
+
         ClickStep(
-            "testcrm-windows-delete-case", 51,
+            "testcrm-windows-delete-case", 52,
             ById("DeleteCaseButton"), "מחק את הפנייה",
             completionCondition: new StepCompletionCondition(
                 "target-exists",
@@ -423,7 +432,7 @@ internal static class DapTestCrmWindowsGuideSeed
                     new Locator("name-regex", @"^(Yes|כן|אישור)$")))),
 
         new GuideStep(
-            "testcrm-windows-confirm-delete-case", 52,
+            "testcrm-windows-confirm-delete-case", 53,
             TargetDescriptor.Create(
                 TargetRuntime.Windows,
                 new Locator("name-regex", @"^(Yes|כן|אישור)$")),
@@ -436,7 +445,7 @@ internal static class DapTestCrmWindowsGuideSeed
             }),
 
         ClickStep(
-            "testcrm-windows-header-home", 53,
+            "testcrm-windows-header-home", 54,
             ById("PortalHeader"), "חזור למסך חיפוש הלקוח",
             completionCondition: new StepCompletionCondition("target-exists", ById("CustomerNameSearch")))
     };
