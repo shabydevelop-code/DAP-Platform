@@ -635,9 +635,9 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
         if (!visualMode)
             return;
 
-        if (element.TryGetCurrentPattern(ScrollItemPattern.Pattern, out var scrollPattern))
-            ((ScrollItemPattern)scrollPattern).ScrollIntoView();
-
+        // Visual mode must preserve the exact same application action path as
+        // fast mode. Only add cursor movement and presentation delay here.
+        // Scrolling is owned by the learner/runtime, not by the E2E visual driver.
         var bounds = element.Current.BoundingRectangle;
         if (bounds.IsEmpty)
             return;
