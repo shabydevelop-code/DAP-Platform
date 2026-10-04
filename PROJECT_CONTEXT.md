@@ -493,3 +493,5 @@ New canonical meanings:
 Focused From-Step execution has since been locally verified on both platforms at Step 47: Web and Windows both completed successfully with Unguided bootstrap before Step 47, resume context transferred into DAP, and Guided Visual execution from Step 47 onward.
 
 - Local verification after the Web/Windows Visual cursor pacing alignment: Web `--visual-from-step 47` completed successfully. This confirms the current focused-run contract in practice on Web: Unguided bootstrap before N, validated resume context into DAP, then Guided Visual from N, with the faster Windows-aligned cursor movement.
+
+- Web `--manual-from-step <N>` now follows the same lifecycle principle as Windows manual runs: after handoff it automatically ends when DAP completes or the owned Web target closes. It no longer requires pressing Enter merely to let the runner exit.
