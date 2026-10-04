@@ -807,3 +807,13 @@ Implementation commits: `b061fa3446a3f53c410714c1255ec684fff6c307`, `ce10e7b7f6a
 
 Verification against the framework-dependent published package at `C:\DAP-Production` is complete for Windows Guided Visual: the current 54-Step canonical workflow completed 54/54 and runner-owned DAP exited cleanly with no surviving DAP process. A focused `--manual-from-step 11` check then manually scrolled the active target out of view and back: the bubble did not remain pinned/dragged at the viewport edge, disappeared when the target left the visible scroll viewport, and returned beside the target when it became visible again. **PASS.**
 
+### Customer production diagnostics package — 2026-10-04
+
+The customer Production package now has an explicit diagnostics payload rather than requiring the source repository on the customer machine. `scripts/Publish-Customer-Package.ps1` publishes the framework-dependent DAP product plus prebuilt TestCRM Server, Web client, Windows client, and both E2E runners under `<Production>\Diagnostics`. Customer diagnostics therefore run without `dotnet run`, without project files, and without compiling DAP/TestCRM on the customer machine.
+
+The packaged runners use `DAP_DIAGNOSTICS_ROOT` to resolve the prebuilt TestCRM binaries. Guided runs launch the exact sibling Production `DAP.exe`; Unguided runs intentionally omit DAP and provide the environment/application sanity baseline. Manual-From-Step and Visual-From-Step retain their canonical Unguided bootstrap before starting the same Production DAP at the requested Step.
+
+`Diagnostics\Run-Diagnostics.ps1` exposes the six canonical modes on both Web and Windows: Fast, Visual, Manual, Unguided, ManualFromStep, and VisualFromStep. It refreshes only the dedicated canonical TestCRM Guide for the selected platform before each diagnostic run so the customer check uses the packaged 54-Step definition.
+
+The intended customer sequence is: run Unguided first to prove the new environment and TestCRM automation path without DAP, then run Guided Fast/Visual and focused/manual modes to introduce DAP into the same known scenario.
+
