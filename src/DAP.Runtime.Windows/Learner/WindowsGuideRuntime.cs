@@ -393,22 +393,18 @@ public sealed class WindowsGuideRuntime
                     }
                 }
 
-                if (!HasVisibleBounds(target))
+                if (!IsFullyVisibleWithinViewport(windowRoot, target))
                 {
-                    var scrollStartedAt = stepStopwatch.ElapsedMilliseconds;
-                    TryScrollIntoView(target);
-                    Console.Error.WriteLine(
-                        $"[DAP Windows step timing] Step '{step.Id}' ScrollIntoView finished at " +
-                        $"+{stepStopwatch.ElapsedMilliseconds} ms " +
-                        $"(duration={stepStopwatch.ElapsedMilliseconds - scrollStartedAt} ms).");
-                    if (!HasVisibleBounds(target))
-                    {
-                        if (step.Id == "testcrm-windows-back-to-cases")
-                            Console.Error.WriteLine($"[DAP Windows guide diagnostic] Step '{step.Id}' target has no visible bounds.");
-                        await _bubbles.HideAsync();
-                        await Task.Delay(_pollInterval, cancellationToken);
-                        continue;
-                    }
+                    // Initial Step entry is the only place where DAP is allowed to
+                    // scroll the learner to a target. If the learner later scrolls
+                    // that target out of the viewport, hide the bubble until the
+                    // target becomes visible again instead of pinning the bubble to
+                    // a viewport edge or fighting the learner's scroll.
+                    if (step.Id == "testcrm-windows-back-to-cases")
+                        Console.Error.WriteLine($"[DAP Windows guide diagnostic] Step '{step.Id}' target is outside the visible viewport.");
+                    await _bubbles.HideAsync();
+                    await Task.Delay(_pollInterval, cancellationToken);
+                    continue;
                 }
 
                 if (clicked && (subscribedTarget is null || !SameElement(subscribedTarget, target)))
@@ -1077,6 +1073,48 @@ public sealed class WindowsGuideRuntime
         }
 
         return scrolled;
+    }
+
+    private static bool IsFullyVisibleWithinViewport(
+        AutomationElement windowRoot,
+        AutomationElement target)
+    {
+        try
+        {
+            var targetRect = target.Current.BoundingRectangle;
+            if (target.Current.IsOffscreen
+                || targetRect.IsEmpty
+                || targetRect.Width <= 0
+                || targetRect.Height <= 0)
+                return false;
+
+            var windowRect = windowRoot.Current.BoundingRectangle;
+            if (!windowRect.IsEmpty && !ContainsRect(windowRect, targetRect))
+                return false;
+
+            var walker = TreeWalker.ControlViewWalker;
+            for (var ancestor = walker.GetParent(target);
+                 ancestor is not null && !SameElement(ancestor, windowRoot);
+                 ancestor = walker.GetParent(ancestor))
+            {
+                if (!ancestor.TryGetCurrentPattern(ScrollPattern.Pattern, out var rawPattern))
+                    continue;
+
+                var scroll = (ScrollPattern)rawPattern;
+                if (!scroll.Current.VerticallyScrollable)
+                    continue;
+
+                var viewport = ancestor.Current.BoundingRectangle;
+                if (!viewport.IsEmpty && !ContainsRect(viewport, targetRect))
+                    return false;
+            }
+
+            return true;
+        }
+        catch (ElementNotAvailableException)
+        {
+            return false;
+        }
     }
 
     private static bool NeedsInitialViewportAdjustment(
