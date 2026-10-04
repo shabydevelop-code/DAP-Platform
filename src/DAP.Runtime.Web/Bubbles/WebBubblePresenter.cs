@@ -706,17 +706,52 @@ public sealed class WebBubblePresenter
             ? Task.FromResult(TargetResolution<ILocator>.NotFound())
             : _targets.ResolveAsync(page, step.Target, cancellationToken);
 
-    public async Task WaitForGuideCompletedDismissalAsync(IPage page, CancellationToken cancellationToken = default)
+    public Task WaitForGuideCompletedDismissalAsync(
+        IPage page,
+        CancellationToken cancellationToken = default)
+        => WaitForCenteredBubbleDismissalAsync(
+            page,
+            "dap-guide-completed",
+            _texts.Get("Learner.GuideCompleted"),
+            _texts.Get("Learner.Finish"),
+            "dapGuideFinish",
+            progressText: null,
+            cancellationToken);
+
+    public Task WaitForCenteredStepDismissalAsync(
+        IPage page,
+        GuideStep step,
+        int stepNumber,
+        int totalSteps,
+        CancellationToken cancellationToken = default)
+        => WaitForCenteredBubbleDismissalAsync(
+            page,
+            "dap-guide-centered",
+            step.Bubble.Content,
+            _texts.Get("Learner.Confirm"),
+            "dapGuideConfirm",
+            _texts.Format("Learner.StepProgress", stepNumber, totalSteps),
+            cancellationToken);
+
+    private async Task WaitForCenteredBubbleDismissalAsync(
+        IPage page,
+        string elementId,
+        string content,
+        string actionText,
+        string actionDataKey,
+        string? progressText,
+        CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         await HideAsync(page);
 
         await page.MainFrame.EvaluateAsync(
             @"b => {
-                document.getElementById('dap-guide-completed')?.remove();
+                document.getElementById(b.elementId)?.remove();
                 const bubble=document.createElement('div');
-                bubble.id='dap-guide-completed';
+                bubble.id=b.elementId;
                 bubble.setAttribute('role','status');
+
                 const dragHandle=document.createElement('div');
                 dragHandle.dataset.dapDragHandle='1';
                 dragHandle.setAttribute('aria-label',b.dragBubbleText);
@@ -728,24 +763,36 @@ public sealed class WebBubblePresenter
                     opacity:'0.72',marginBottom:'6px',cursor:'grab',touchAction:'none'
                 });
                 bubble.appendChild(dragHandle);
+
                 const message=document.createElement('div');
-                message.textContent=b.guideCompletedText;
+                message.textContent=b.content;
                 message.style.cursor='default';
                 bubble.appendChild(message);
-                const finishButton=document.createElement('button');
-                finishButton.type='button';
-                finishButton.textContent=b.finishText;
-                finishButton.dataset.dapGuideFinish='1';
-                Object.assign(finishButton.style,{
+
+                if(b.progressText){
+                    const progress=document.createElement('div');
+                    progress.textContent=b.progressText;
+                    Object.assign(progress.style,{
+                        marginTop:'8px',fontSize:'11px',opacity:'0.82',cursor:'default'
+                    });
+                    bubble.appendChild(progress);
+                }
+
+                const actionButton=document.createElement('button');
+                actionButton.type='button';
+                actionButton.textContent=b.actionText;
+                actionButton.dataset[b.actionDataKey]='1';
+                Object.assign(actionButton.style,{
                     marginTop:'12px',padding:'6px 18px',cursor:'pointer',
                     font:'inherit',borderRadius:'6px',
                     border:b.borderWidth+'px solid '+b.borderColor,
                     background:b.textColor,color:b.backgroundColor
                 });
-                bubble.appendChild(finishButton);
+                bubble.appendChild(actionButton);
+
                 Object.assign(bubble.style,{
-                    position:'fixed',zIndex:'2147483647',left:'50%',top:'24px',
-                    transform:'translateX(-50%)',maxWidth:b.maxWidth+'px',
+                    position:'fixed',zIndex:'2147483647',left:'50%',top:'50%',
+                    transform:'translate(-50%,-50%)',maxWidth:b.maxWidth+'px',
                     padding:b.padding,background:b.backgroundColor,color:b.textColor,
                     border:b.borderWidth+'px solid '+b.borderColor,
                     borderRadius:b.borderRadius+'px',boxShadow:b.boxShadow,
@@ -772,29 +819,43 @@ public sealed class WebBubblePresenter
                     bubble.style.top=q.top+'px';
                     bubble.setPointerCapture(event.pointerId);
                     bubble.style.cursor='grabbing';
-                    const handle=bubble.querySelector('[data-dap-drag-handle=""1""]'); if(handle) handle.style.cursor='grabbing';
-                    event.preventDefault(); event.stopPropagation();
+                    const handle=bubble.querySelector('[data-dap-drag-handle=""1""]');
+                    if(handle) handle.style.cursor='grabbing';
+                    event.preventDefault();
+                    event.stopPropagation();
                 });
                 bubble.addEventListener('pointermove',event=>{
                     if(!drag || event.pointerId!==drag.id) return;
                     const p=clamp(drag.left+event.clientX-drag.x,drag.top+event.clientY-drag.y);
-                    bubble.style.left=p.x+'px'; bubble.style.top=p.y+'px';
-                    event.preventDefault(); event.stopPropagation();
+                    bubble.style.left=p.x+'px';
+                    bubble.style.top=p.y+'px';
+                    event.preventDefault();
+                    event.stopPropagation();
                 });
-                const finish=event=>{
+                const finishDrag=event=>{
                     if(!drag || event.pointerId!==drag.id) return;
-                    drag=null; bubble.style.cursor='default'; const handle=bubble.querySelector('[data-dap-drag-handle=""1""]'); if(handle) handle.style.cursor='grab';
+                    drag=null;
+                    bubble.style.cursor='default';
+                    const handle=bubble.querySelector('[data-dap-drag-handle=""1""]');
+                    if(handle) handle.style.cursor='grab';
                     try{bubble.releasePointerCapture(event.pointerId);}catch{}
-                    event.preventDefault(); event.stopPropagation();
+                    event.preventDefault();
+                    event.stopPropagation();
                 };
-                bubble.addEventListener('pointerup',finish);
-                bubble.addEventListener('pointercancel',finish);
+                bubble.addEventListener('pointerup',finishDrag);
+                bubble.addEventListener('pointercancel',finishDrag);
                 bubble.addEventListener('click',event=>{
-                    if(event.target===finishButton) return;
-                    event.preventDefault();event.stopPropagation();
+                    if(event.target===actionButton) return;
+                    event.preventDefault();
+                    event.stopPropagation();
                 });
             }",
             new {
+                elementId,
+                content,
+                actionText,
+                actionDataKey,
+                progressText,
                 maxWidth = _theme.MaxWidth,
                 padding = _theme.Padding,
                 backgroundColor = _theme.BackgroundColor,
@@ -807,23 +868,27 @@ public sealed class WebBubblePresenter
                 fontSize = _theme.FontSize,
                 lineHeight = _theme.LineHeight,
                 direction = _texts.IsRightToLeft ? "rtl" : "ltr",
-                dragBubbleText = _texts.Get("Learner.DragBubble"),
-                guideCompletedText = _texts.Get("Learner.GuideCompleted"),
-                finishText = _texts.Get("Learner.Finish")
+                dragBubbleText = _texts.Get("Learner.DragBubble")
             });
 
         await page.MainFrame.EvaluateAsync(
-            @"() => new Promise(resolve => {
-                const bubble=document.getElementById('dap-guide-completed');
-                const finishButton=bubble?.querySelector('[data-dap-guide-finish=""1""]');
-                if(!bubble || !finishButton) { resolve(); return; }
-                finishButton.addEventListener('click', event => {
+            @"b => new Promise(resolve => {
+                const bubble=document.getElementById(b.elementId);
+                const actionButton=bubble?.querySelector('[data-'+b.actionAttribute+'=""1""]');
+                if(!bubble || !actionButton) { resolve(); return; }
+                actionButton.addEventListener('click', event => {
                     event.preventDefault();
                     event.stopPropagation();
                     bubble.remove();
                     resolve();
                 }, { once:true });
-            })");
+            })",
+            new {
+                elementId,
+                actionAttribute = actionDataKey == "dapGuideFinish"
+                    ? "dap-guide-finish"
+                    : "dap-guide-confirm"
+            });
     }
 
     public async Task HideAsync(IPage page)
