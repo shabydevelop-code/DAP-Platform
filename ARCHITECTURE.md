@@ -434,3 +434,9 @@ A learner may start at a persisted Guide Step later than Step 1 only when the bu
 Runtime captures are part of the learner continuation state. DAP.App can receive a serialized capture dictionary through `--resume-context-file` when used with `--start-step`; the composition root validates the entries against the persisted Guide before passing them to the Web or Windows Guide Runtime. The runtimes use those values exactly as if the earlier capture Steps had executed in the same learner process.
 
 This keeps From-Step acceleration outside production target-resolution/validation logic while preserving the same persisted Guide semantics on Web and Windows.
+
+### Windows Guide completion presentation
+
+Windows learner completion may use the same DAP-owned bubble language as ordinary learner guidance rather than an operating-system `MessageBox`. When completion UI is requested, the Windows presenter hides the active target bubble/highlight and shows a standalone completion bubble with localized completion text, an explicit localized Finish action, and the standard drag affordance. Completion UI is presentation-only: dismissing it ends the DAP learner experience and does not close the target business application.
+
+The completion bubble is not tied to a target descriptor because there is no active Step target after Guide completion. Automated Guided runs that do not request completion UI continue to terminate without waiting for human dismissal.
