@@ -430,7 +430,21 @@ public sealed class WindowsGuideRuntime
                     Console.Error.WriteLine($"[DAP Windows guide diagnostic] Step '{step.Id}' showing bubble.");
 
                 var bubbleStartedAt = stepStopwatch.ElapsedMilliseconds;
-                await _bubbles.ShowAsync(target, step, stepNumber, totalSteps, cancellationToken);
+                try
+                {
+                    await _bubbles.ShowAsync(target, step, stepNumber, totalSteps, cancellationToken);
+                }
+                catch (InvalidOperationException) when (!HasVisibleBounds(target))
+                {
+                    // UIA targets can be replaced or lose their bounds between
+                    // reconciliation and presentation (for example while WPF
+                    // navigates from a grid to a detail view). Treat that race as
+                    // transient: hide the stale bubble and resolve again instead
+                    // of terminating the learner runtime.
+                    await _bubbles.HideAsync();
+                    await Task.Delay(_pollInterval, cancellationToken);
+                    continue;
+                }
                 if (!bubbleFirstShownLogged)
                 {
                     Console.Error.WriteLine(
