@@ -44,7 +44,10 @@ public sealed class WebGuideRuntime
             var persistedStep = orderedSteps[stepIndex];
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (persistedStep.Target?.Runtime != TargetRuntime.Web)
+            var isCenteredStep = persistedStep.Target is null
+                && persistedStep.Bubble.Placement == BubblePlacement.Center;
+
+            if (!isCenteredStep && persistedStep.Target?.Runtime != TargetRuntime.Web)
                 throw new InvalidOperationException(
                     $"Guide Step '{persistedStep.Id}' is not a Web Step and cannot run in WebGuideRuntime.");
 
