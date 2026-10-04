@@ -5,14 +5,13 @@
 The canonical execution modes are **Guided** and **Unguided**. The old `CRM-only` name is historical and should not be used for the current mode contract.
 
 Locally verified baseline:
-- **Web Unguided — PASS 53/53.** Executes all 53 persisted Steps from `testcrm-web-canonical-workflow` through the E2E action executor without DAP.exe/bubbles.
-- **Web Guided — PASS 53/53.** Executes the same persisted 53-Step Guide through DAP.exe, the production Web Runtime, real target resolution, validation, runtime capture, and learner bubbles.
-- **Windows Unguided — PASS 53/53.** Executes all 53 persisted Steps from `testcrm-windows-canonical-workflow` through the Windows E2E action executor without DAP.exe/bubbles.
-- **Windows Guided — PASS 53/53.** Executes the same persisted 53-Step Guide through DAP.exe, the production Windows Runtime, real UIA targets, runtime capture, modal targeting, completion conditions, and learner bubbles.
+- **Last fully verified four-path baseline — 53/53.** Web Guided/Unguided and Windows Guided/Unguided all passed the previous 53-Step canonical Guides.
+- **Current repository seed — 54 Steps.** Web and Windows seeds now add a centered targetless information Step at Step 51 before Case deletion. The Step pauses the learner until the localized confirmation action is pressed.
+- **54/54 verification is pending.** Existing persisted `DAP.db` Guides remain authoritative until explicitly reset; after reset the four canonical paths must be rerun before claiming a new 54/54 PASS.
 - **Windows Guided regression re-verified — 2026-10-03.** After hardening Windows text-commit synchronization, the full persisted 53-Step Guided run again completed with the terminal PASS: `DAP Windows Learner Runtime completed all 53 persisted Guide Steps with real UIA targets, runtime capture, modal targeting, and bubbles.` The regression that stalled at Step 8 (`CaseSubject`) is closed.
 
 Current parity and runtime baseline:
-- Web and Windows Guides are aligned to the same canonical 53-step business scenario.
+- Web and Windows repository seeds are aligned to the same canonical 54-Step Guide sequence; the added Step 51 is a centered informational pause and does not change the underlying CRM business workflow.
 - Ambiguous "first row" semantics were removed where business identity matters. Both runtimes now use explicit identities for `מטה תל אביב`, `אבי כהן`, and the Case created during the current run.
 - The created Case identity is captured at runtime and reused later by both Guides, including the context-reopen and final-reopen Steps.
 - Dynamic completion rules are persisted in the Guide rather than hidden only in E2E logic. This includes dependent-field appearance/disappearance and enabled-state checks.
@@ -24,7 +23,7 @@ Current parity and runtime baseline:
 - Guide seed changes do not silently overwrite an existing persisted Guide. Updates are applied explicitly with `--reset-guide`, preserving: **Seed initializes. DB owns. Runtime consumes.**
 - Closed-target rule remains authoritative: source inspection may be used for diagnosis and learning, never as a Runtime/resolver oracle.
 
-Current milestone: the canonical Web and Windows learner flows are complete at the four-path 53/53 regression baseline (Web Guided/Unguided and Windows Guided/Unguided). Additional user-facing runner forms such as Visual, Manual, and From-Step are separate execution variants; focused Visual From Step 47 is also locally verified on both platforms.
+Current milestone: the previous four-path 53/53 regression baseline remains the last fully verified baseline; the repository seeds now define 54 Steps and require reset plus rerun before 54/54 is marked verified. Additional user-facing runner forms such as Visual, Manual, and From-Step are separate execution variants; focused Visual From Step 47 is also locally verified on both platforms.
 
 ### External UI localization — 2026-10-03
 
@@ -77,7 +76,7 @@ DAP is required to support closed third-party target applications. Production Ru
 
 ## Verified baseline — 2026-10-02
 
-- The canonical Web Guide `testcrm-web-canonical-workflow` contains 53 persisted Steps in `DAP.db`.
+- The repository seed for `testcrm-web-canonical-workflow` now defines 54 Steps. A previously persisted `DAP.db` may still contain 53 until `--reset-guide` is run.
 - Normal Web E2E is locally verified PASS for the full 53-Step Customer -> Site -> Case -> Lead workflow using `DAP.exe`, the production Web Runtime, real bubbles, validation, and persisted Guide data.
 - Web Unguided is locally verified PASS for the same canonical 53-Step workflow sequenced by the same persisted Guide, with `DAP.exe` and bubble synchronization intentionally omitted.
 - Unguided is not a separate TestCRM QA workflow. It is the same canonical business scenario executed without the learner presentation/runtime process.
@@ -90,7 +89,7 @@ DAP is required to support closed third-party target applications. Production Ru
 - `src/DAP.Runtime.Windows` now exists as production code using Microsoft UI Automation.
 - It includes production target resolution, WPF learner bubble presentation, Windows validation, and ordered Windows Guide execution.
 - `DAP.exe --learner-windows <guide-key> --window-automation-id <id>` loads persisted Guide data and runs Windows Steps.
-- The persisted Windows TestCRM Guide `testcrm-windows-canonical-workflow` contains the full 53 production-runtime Steps.
+- The repository seed for `testcrm-windows-canonical-workflow` now defines 54 production-runtime Steps. A previously persisted Guide remains 53 until explicitly reset.
 - All 53 persisted Windows Steps are locally verified PASS in both Windows Guided and Windows Unguided execution; Guided uses the real DAP Windows Learner Runtime, UIA targets, runtime capture, modal targeting, completion conditions, and bubbles.
 - Windows Unguided executes the same persisted 53-Step canonical Guide without DAP Runtime/bubbles; it is the current replacement for the historical Unguided wording.
 - Windows persisted-Guide coverage is complete at 53/53. Instructor/Picker work can proceed without treating Learner Runtime coverage expansion as an outstanding prerequisite.
@@ -595,7 +594,7 @@ Web `clicked` validation no longer stores completion in the guided application's
 - Historical Web From-Step verification used Guided Fast before N. That implementation has now been superseded by ADR-044 and must not be treated as the current contract.
 - Current focused semantics are Unguided `1..N-1`, then Guided Manual or Guided Visual at N with resume context. `--manual-from-step` and `--visual-from-step` remain mutually exclusive.
 - Visual frame-replacement waiting no longer requires observing the transient `#content-frame-next` Attached state. The harness waits for the stable replacement outcome/current ready Content frame, avoiding a race where the transient frame can be created/promoted before Playwright observes it.
-- In full Visual mode the final Step 53 bubble is intentionally left visible briefly before the automated final action so the final Guide instruction can be observed.
+- In full Visual mode the final Step 54 bubble is intentionally left visible briefly before the automated final action so the final Guide instruction can be observed.
 - Current Web execution behaviors are therefore: full Fast, full Visual, full Manual via `--manual`, Unguided -> Manual at N, Unguided -> Visual at N, Unguided Full, and explicit Guide reset. Browser selection remains `chromium|chrome|edge` where applicable.
 - Windows TestCRM was reviewed against the persisted 53-Step Web Guide. Most of the business workflow is relevant to Windows because both clients use the same server/API/business model, but Web-specific mechanics (DOM/iframe/frame URL/CSS targeting) must not be copied literally into Windows UIA tests.
 - Known Windows parity gaps before building the Windows Unguided E2E: Case Resolution Notes is displayed/enabled but is not currently persisted in `CaseInput`; there is no Windows equivalent of the Web Step-15 activity-more interaction; and the Web Step-6 explicit Cases sort behavior does not currently have an equivalent explicit Windows implementation.
@@ -709,8 +708,8 @@ The Windows TestCRM E2E runner supports `--manual-from-step <N>`, matching the W
 
 ### Windows E2E mode parity with Web — 2026-10-03
 - Windows canonical E2E now accepts the same `DAP_E2E_MODE=fast|visual` vocabulary as Web; `fast` remains the default and any other value fails explicitly.
-- `--guided` + `fast` is the existing automatic 53-Step Windows Guided run.
-- `--guided` + `visual` runs the same persisted 53-Step Guide and the same UIA action driver, but adds observable cursor movement and visual pacing before learner actions. No alternate test scenario or production shortcut was introduced.
+- `--guided` + `fast` follows the canonical persisted Windows Guide; after the new seed is reset into `DAP.db` this sequence contains 54 Steps.
+- `--guided` + `visual` runs the same persisted canonical Guide and the same UIA action driver, but adds observable cursor movement and visual pacing before learner actions. No alternate test scenario or production shortcut was introduced.
 - Windows also accepts `--visual-from-step <N>`, matching Web: prior Steps execute as Unguided bootstrap, then DAP starts at Step N and automation continues in Guided Visual mode.
 - Existing `--manual-from-step <N>`, `--manual`, and `--unguided` remain available. Unguided has no Fast/Visual mode and ignores `DAP_E2E_MODE`.
 - The 5-second technical timeout policy is unchanged. Visual delays are presentation pacing only and do not increase resolver/synchronization timeouts.
@@ -757,3 +756,7 @@ SQLite needs no schema migration because `BubblePlacement.Center` is stored thro
 Implementation commits include `bda50be89cd15ea067aff90bc3010c5a5855dd94`, `c2810f3867d7fc67924c20aa1a4d24e92348346f`, `32561e93823ed2bc2b66c2ef39cf4f6fba364116`, `a74fefaf82b70ba359b0263fe77b239e0f7899e4`, `6b59895caf01e1259bc43ea11a11b806232de266`, `cd57a1f8331c0f9c130b26ef0cd3d4579284c1f2`, `8ef79db91741848dd2efca18a8c9c143247f22c2`, `a527510dcc36ce4984bc043f7a938de2914220b1`, `33254249f248be5264bfea8f3260686be630e8f7`, `7ed0cd2acc8722dcbd63e9de436d0c693ef9624e`, and `9a0c45ebb4229dc18c2ae2a51bee287a478ed6d4`.
 
 Local Web/Windows execution is still required after pull before marking the new centered presentation path verified.
+
+### Canonical centered information Step — 2026-10-04
+
+The Web and Windows canonical repository seeds now include a real centered information Step at order 51, immediately before deleting the Case created during the learner flow. Text: `שים לב: בשלב הבא נמחק את הפנייה שיצרת במהלך הלומדה.` The Step has no target, uses `BubblePlacement.Center`, uses Manual advance, and blocks Guided progression until the learner presses the localized `אישור` action. Subsequent deletion/confirmation/header Steps move to orders 52/53/54. Unguided execution preserves the persisted order but treats this pure information Step as a no-op because no DAP presentation surface exists. Existing persisted Guides are not silently overwritten; run `--reset-guide` before testing the new 54-Step seed.
