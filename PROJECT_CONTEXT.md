@@ -525,3 +525,13 @@ Presentation visibility is separate from Step completion semantics. If the learn
 
 This behavior was manually verified with the current production package by starting from Step 11, scrolling the target out of view, and returning it to view. The bubble disappeared and restored as intended. The full Windows Guided Visual 54-Step production-package run also passed after this change.
 
+### Customer production diagnostics package — 2026-10-04
+
+The customer Production package now has an explicit diagnostics payload rather than requiring the source repository on the customer machine. `scripts/Publish-Customer-Package.ps1` publishes the framework-dependent DAP product plus prebuilt TestCRM Server, Web client, Windows client, and both E2E runners under `<Production>\Diagnostics`. Customer diagnostics therefore run without `dotnet run`, without project files, and without compiling DAP/TestCRM on the customer machine.
+
+The packaged runners use `DAP_DIAGNOSTICS_ROOT` to resolve the prebuilt TestCRM binaries. Guided runs launch the exact sibling Production `DAP.exe`; Unguided runs intentionally omit DAP and provide the environment/application sanity baseline. Manual-From-Step and Visual-From-Step retain their canonical Unguided bootstrap before starting the same Production DAP at the requested Step.
+
+`Diagnostics\Run-Diagnostics.ps1` exposes the six canonical modes on both Web and Windows: Fast, Visual, Manual, Unguided, ManualFromStep, and VisualFromStep. It refreshes only the dedicated canonical TestCRM Guide for the selected platform before each diagnostic run so the customer check uses the packaged 54-Step definition.
+
+The intended customer sequence is: run Unguided first to prove the new environment and TestCRM automation path without DAP, then run Guided Fast/Visual and focused/manual modes to introduce DAP into the same known scenario.
+
