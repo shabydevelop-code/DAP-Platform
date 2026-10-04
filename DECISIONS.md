@@ -484,3 +484,7 @@ The focused-run semantics are therefore:
 - `--visual-from-step N`: Unguided `1..N-1`, then Guided Visual from N.
 
 This supersedes earlier documentation that described the prefix as Guided Fast. Full Guided Fast, full Guided Visual, full Manual, and full Unguided runs are unchanged. No E2E timeout was increased; the 5-second technical timeout policy remains in force.
+
+### ADR-045 — Guide completion is runtime-owned and always presented
+
+After the final Guide Step, both Web and Windows runtimes present the production DAP completion bubble and wait for its explicit Finish action. Completion is not an optional host-level message and is not controlled by a launch flag. Manual runs leave Finish to the learner; automated Guided E2E runs activate the same real completion action as a synthetic learner before asserting DAP process exit. The target business application remains open. The former `--show-completion` switch and Windows completion `MessageBox` are retired.
