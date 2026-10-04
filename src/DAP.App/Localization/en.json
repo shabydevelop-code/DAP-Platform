@@ -4,6 +4,7 @@
   "Learner.DragBubble": "Drag to move the bubble",
   "Learner.GuideCompleted": "Guide completed successfully",
   "Learner.Finish": "Finish",
+  "Learner.Confirm": "OK",
   "Learner.CompletedMessage": "The guide completed successfully.",
   "Learner.WindowTitle": "DAP Learner",
   "Learner.GuideHasNoSteps": "Guide '{0}' has no steps.",
