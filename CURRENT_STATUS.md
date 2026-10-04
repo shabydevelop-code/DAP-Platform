@@ -771,3 +771,11 @@ The Web and Windows canonical repository seeds now include a real centered infor
 
 Implementation commits: `e89a4af954f502b44cedef8949b4578cee3524b7`, `496a9f47985ebe12bfb328bff6c2b7c0952b51f9`, `1ae8c109a9e42c6ca1680cae4d7e8476ad99c264`, `b5227c78d2a0a3866e6cf8f9e2e95aee3d83ccb1`.
 
+### Visual cursor on DAP-owned bubble actions — 2026-10-04
+
+Visual mode now treats DAP-owned learner actions as visible learner interactions rather than invoking them invisibly. On both Web and Windows, the synthetic cursor moves with the same existing Visual motion contract to the centered information `אישור` action before confirmation and to the completion `סיום` action before finishing the Guide. Fast mode keeps the direct/non-visual action path.
+
+Web reuses the existing `MoveTo` animation with an explicit opt-out from the active target invariant for DAP-owned overlay controls, because centered information and completion bubbles intentionally have no application Target. Windows exposes the existing `VisualTarget` cursor animation so the E2E helper can apply it to DAP UIA buttons as well as CRM controls.
+
+Implementation commits: `47bf7ab38e9ce1df00180ab8ec9f5acef214ba82`, `3e7accf6e62bb6dfe7843f4ae5b279c25a2221d1`, `bbfa47f47aca5d6afc9bdc0c0c192e66d406590b`, `ad36a7865d75b6ed86621a58f943e0610e29e19b`.
+
