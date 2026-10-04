@@ -129,13 +129,42 @@ public sealed class WindowsBubblePresenter
         cancellationToken.ThrowIfCancellationRequested();
     }
 
-    public async Task WaitForGuideCompletedDismissalAsync(CancellationToken cancellationToken = default)
+    public Task WaitForGuideCompletedDismissalAsync(
+        CancellationToken cancellationToken = default)
+        => WaitForCenteredBubbleDismissalAsync(
+            "DapLearnerCompletionBubble",
+            "DapLearnerCompletionFinish",
+            _texts.Get("Learner.GuideCompleted"),
+            _texts.Get("Learner.Finish"),
+            progressText: null,
+            cancellationToken);
+
+    public Task WaitForCenteredStepDismissalAsync(
+        GuideStep step,
+        int stepNumber,
+        int totalSteps,
+        CancellationToken cancellationToken = default)
+        => WaitForCenteredBubbleDismissalAsync(
+            "DapLearnerCenteredBubble",
+            "DapLearnerCenteredConfirm",
+            step.Bubble.Content,
+            _texts.Get("Learner.Confirm"),
+            _texts.Format("Learner.StepProgress", stepNumber, totalSteps),
+            cancellationToken);
+
+    private async Task WaitForCenteredBubbleDismissalAsync(
+        string windowAutomationId,
+        string actionAutomationId,
+        string content,
+        string actionText,
+        string? progressText,
+        CancellationToken cancellationToken)
     {
         if (Application.Current is null)
             return;
 
         var dismissed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        Window? completionWindow = null;
+        Window? centeredWindow = null;
 
         await Application.Current.Dispatcher.InvokeAsync(() =>
         {
@@ -146,7 +175,7 @@ public sealed class WindowsBubblePresenter
 
             var message = new TextBlock
             {
-                Text = _texts.Get("Learner.GuideCompleted"),
+                Text = content,
                 TextWrapping = TextWrapping.Wrap,
                 FontSize = 15,
                 Foreground = Brushes.White,
@@ -156,16 +185,15 @@ public sealed class WindowsBubblePresenter
                 FlowDirection = _texts.IsRightToLeft ? FlowDirection.RightToLeft : FlowDirection.LeftToRight
             };
 
-            var finishButton = new Button
+            var actionButton = new Button
             {
-                Content = _texts.Get("Learner.Finish"),
+                Content = actionText,
                 Margin = new Thickness(0, 12, 0, 0),
                 Padding = new Thickness(18, 6, 18, 6),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 MinWidth = 90
             };
-
-            AutomationProperties.SetAutomationId(finishButton, "DapLearnerCompletionFinish");
+            AutomationProperties.SetAutomationId(actionButton, actionAutomationId);
 
             var dragHandle = new TextBlock
             {
@@ -181,7 +209,23 @@ public sealed class WindowsBubblePresenter
             var stack = new StackPanel();
             stack.Children.Add(dragHandle);
             stack.Children.Add(message);
-            stack.Children.Add(finishButton);
+
+            if (!string.IsNullOrWhiteSpace(progressText))
+            {
+                stack.Children.Add(new TextBlock
+                {
+                    Text = progressText,
+                    Margin = new Thickness(0, 8, 0, 0),
+                    FontSize = 11,
+                    Foreground = new SolidColorBrush(Color.FromRgb(220, 228, 236)),
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    FlowDirection = _texts.IsRightToLeft
+                        ? FlowDirection.RightToLeft
+                        : FlowDirection.LeftToRight
+                });
+            }
+
+            stack.Children.Add(actionButton);
 
             var border = new Border
             {
@@ -189,11 +233,11 @@ public sealed class WindowsBubblePresenter
                 BorderBrush = new SolidColorBrush(Color.FromRgb(27, 48, 66)),
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(8),
-                Padding = new Thickness(18),
+                Padding = new Thickness(14),
                 Child = stack
             };
 
-            completionWindow = new Window
+            centeredWindow = new Window
             {
                 Content = border,
                 WindowStyle = WindowStyle.None,
@@ -207,13 +251,13 @@ public sealed class WindowsBubblePresenter
                 WindowStartupLocation = WindowStartupLocation.CenterScreen
             };
 
-            AutomationProperties.SetAutomationId(completionWindow, "DapLearnerCompletionBubble");
-            AutomationProperties.SetName(completionWindow, _texts.Get("Learner.GuideCompleted"));
+            AutomationProperties.SetAutomationId(centeredWindow, windowAutomationId);
+            AutomationProperties.SetName(centeredWindow, content);
 
-            finishButton.Click += (_, _) =>
+            actionButton.Click += (_, _) =>
             {
-                if (completionWindow.IsVisible)
-                    completionWindow.Close();
+                if (centeredWindow.IsVisible)
+                    centeredWindow.Close();
                 dismissed.TrySetResult();
             };
 
@@ -224,26 +268,26 @@ public sealed class WindowsBubblePresenter
 
                 try
                 {
-                    completionWindow.DragMove();
+                    centeredWindow.DragMove();
                 }
                 catch (InvalidOperationException)
                 {
                 }
             };
 
-            completionWindow.Closed += (_, _) => dismissed.TrySetResult();
-            completionWindow.Show();
+            centeredWindow.Closed += (_, _) => dismissed.TrySetResult();
+            centeredWindow.Show();
         });
 
         using var registration = cancellationToken.Register(() =>
         {
             dismissed.TrySetCanceled(cancellationToken);
-            if (completionWindow is not null && Application.Current is not null)
+            if (centeredWindow is not null && Application.Current is not null)
             {
                 _ = Application.Current.Dispatcher.InvokeAsync(() =>
                 {
-                    if (completionWindow.IsVisible)
-                        completionWindow.Close();
+                    if (centeredWindow.IsVisible)
+                        centeredWindow.Close();
                 });
             }
         });
