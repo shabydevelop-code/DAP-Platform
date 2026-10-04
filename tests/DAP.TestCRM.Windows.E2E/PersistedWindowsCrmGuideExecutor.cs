@@ -183,6 +183,10 @@ internal sealed class PersistedWindowsCrmGuideExecutor
             case "testcrm-windows-open-created-case-final":
                 await driver.OpenCreatedCase();
                 return;
+            case "testcrm-windows-before-delete-case-info":
+                // Unguided execution has no DAP presentation surface. Preserve the
+                // persisted Guide order but treat a pure information Step as a no-op.
+                return;
             case "testcrm-windows-delete-case":
                 await driver.DeleteCase();
                 return;
@@ -217,9 +221,19 @@ internal sealed class PersistedWindowsCrmGuideExecutor
                     $"Persisted Windows Guide must have contiguous Step order 1..N. " +
                     $"Expected {expectedOrder}, found {steps[index].Order}.");
 
-            if (steps[index].Target?.Runtime != DAP.Core.Targets.TargetRuntime.Windows)
+            var step=steps[index];
+            var centeredInformation = step.Target is null
+                && step.Bubble.Placement == BubblePlacement.Center
+                && step.AdvanceMode == StepAdvanceMode.Manual
+                && step.Context is null
+                && step.Validation is null
+                && step.Capture is null
+                && step.CompletionConditions is not { Count: > 0 };
+
+            if (!centeredInformation
+                && step.Target?.Runtime != DAP.Core.Targets.TargetRuntime.Windows)
                 throw new InvalidOperationException(
-                    $"Guide Step '{steps[index].Id}' is not a Windows target.");
+                    $"Guide Step '{step.Id}' is neither a Windows target Step nor a valid centered information Step.");
         }
     }
 }
