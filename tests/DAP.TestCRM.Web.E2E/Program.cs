@@ -716,9 +716,10 @@ if(dapSteps.Count==0)
     throw new Exception(
         $"DAP Guide '{DapTestCrmGuideSeed.GuideId}' does not exist in the persistent database. " +
         "Initialize/reset the Guide explicitly before running the E2E.");
-if(dapSteps.Count!=53)
+var expectedGuideStepCount=DapTestCrmGuideSeed.CreateSteps().Count;
+if(dapSteps.Count!=expectedGuideStepCount)
     throw new Exception(
-        $"DAP Guide '{DapTestCrmGuideSeed.GuideId}' must contain exactly 53 Steps for the canonical Web scenario; found {dapSteps.Count}.");
+        $"DAP Guide '{DapTestCrmGuideSeed.GuideId}' must contain exactly {expectedGuideStepCount} Steps for the canonical Web scenario; found {dapSteps.Count}.");
 if(dapSteps.Select(step=>step.Order).Distinct().Count()!=dapSteps.Count
     || dapSteps.Min(step=>step.Order)!=1
     || dapSteps.Max(step=>step.Order)!=dapSteps.Count)
@@ -855,7 +856,7 @@ async Task WaitForGuideStep(int order)
                 // Normal bubbles live with their target frame. A constrained
                 // child frame can instead use the presentation-only top-level
                 // proxy, so the harness must recognize both production surfaces.
-                foreach(var selector in new[] { "#dap-guide-bubble", "#dap-guide-bubble-proxy" })
+                foreach(var selector in new[] { "#dap-guide-bubble", "#dap-guide-bubble-proxy", "#dap-guide-centered" })
                 {
                     var bubble=liveFrame.Locator(selector);
                     if(await bubble.CountAsync()==1 && await bubble.IsVisibleAsync())
@@ -1529,12 +1530,23 @@ if(await finalCreatedCaseTarget.CountAsync()!=1)
     throw new Exception("The Case created by this run is not uniquely available for final reopen.");
 await Click($"button.grid-open[data-go='#/case/{createdCaseId}']");
 await WaitReady();
+
 await WaitForGuideStep(51);
+if(!unguided)
+{
+    var informationConfirm=page.Locator("#dap-guide-centered [data-dap-guide-confirm='1']");
+    await informationConfirm.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = 5000 });
+    if(visualMode)
+        await page.WaitForTimeoutAsync(500);
+    await informationConfirm.ClickAsync();
+}
+
+await WaitForGuideStep(52);
 await Click("#delete-case");
 frame=await Content();
 var confirmDelete=frame.Locator("#ps-confirm [data-answer='yes']");
 await confirmDelete.WaitForAsync();
-await WaitForGuideStep(52);
+await WaitForGuideStep(53);
 await MoveTo(confirmDelete);
 await confirmDelete.ClickAsync();
 await WaitReady();
@@ -1549,7 +1561,7 @@ if(await frame.Locator($"button.grid-open[data-go='#/case/{createdCaseId}']").Co
 var headerFrame=page.Frames.FirstOrDefault(x=>x.Name=="dap-header")
     ?? throw new Exception("Header frame was not found.");
 var header=headerFrame.Locator("#portal-header");
-await WaitForGuideStep(53);
+await WaitForGuideStep(54);
 // Keep the final Guide bubble visible long enough to be observed in visual mode
 // before the E2E performs the action that completes the Guide.
 if(visualMode)
@@ -1585,7 +1597,7 @@ if(lastScenarioGuideOrder!=dapSteps.Count)
         $"Canonical Web scenario completed after Guide Step {lastScenarioGuideOrder}; expected {dapSteps.Count}.");
 
 Console.WriteLine(unguided
-    ? "PASS: Web unguided executed the canonical 53-step scenario sequenced by the persisted Guide in DAP.db, without DAP.exe or bubbles."
+    ? $"PASS: Web unguided executed the canonical {dapSteps.Count}-step scenario sequenced by the persisted Guide in DAP.db, without DAP.exe or bubbles."
     : "PASS: representative Customer -> Site -> Case -> Lead workflow, including dynamic Lead deletion and Case deletion, completed.");
 await page.WaitForTimeoutAsync(visualMode ? 1500 : 0);
 }
