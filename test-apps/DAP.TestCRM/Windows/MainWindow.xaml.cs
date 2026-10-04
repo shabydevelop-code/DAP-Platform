@@ -63,7 +63,34 @@ public partial class MainWindow : Window
     StackPanel V()=>new(){Orientation=Orientation.Vertical,HorizontalAlignment=HorizontalAlignment.Stretch,FlowDirection=FlowDirection.RightToLeft,Margin=new(24,0,24,0)};
     ScrollViewer S(UIElement content)=>new(){Content=content,HorizontalContentAlignment=HorizontalAlignment.Stretch,VerticalContentAlignment=VerticalAlignment.Top,FlowDirection=FlowDirection.RightToLeft,HorizontalScrollBarVisibility=ScrollBarVisibility.Disabled,VerticalScrollBarVisibility=ScrollBarVisibility.Auto};
     void Crumbs(params (string text,Func<Task>? go)[] xs){BreadcrumbPanel.Children.Clear();foreach(var x in xs){if(x.go==null)BreadcrumbPanel.Children.Add(new TextBlock{Text=x.text+" / ",Margin=new(2)});else{var b=B(x.text,"Breadcrumb",async(_,_)=>await x.go());b.Padding=new(2);b.Margin=new(2);BreadcrumbPanel.Children.Add(b);}}}
-    async Task Safe(Func<Task> f){try{StatusText.Text="מעבד...";await f();}catch(Exception ex){MessageBox.Show(this,ex.Message,"DAP Test CRM",MessageBoxButton.OK,MessageBoxImage.Error);}finally{StatusText.Text="";}}
+    async Task Safe(Func<Task> f)
+    {
+        try
+        {
+            StatusText.Text="מעבד...";
+            await f();
+        }
+        catch(CrmApiException ex)
+        {
+            MessageBox.Show(this,ex.Message,"לא ניתן להשלים את הפעולה",MessageBoxButton.OK,MessageBoxImage.Warning);
+        }
+        catch(HttpRequestException)
+        {
+            MessageBox.Show(this,"לא ניתן להתחבר למערכת כרגע. נסה שוב בעוד מספר רגעים.","בעיית תקשורת",MessageBoxButton.OK,MessageBoxImage.Warning);
+        }
+        catch(TaskCanceledException)
+        {
+            MessageBox.Show(this,"הפעולה נמשכה זמן רב מדי ולא הושלמה. נסה שוב.","הפעולה לא הושלמה",MessageBoxButton.OK,MessageBoxImage.Warning);
+        }
+        catch(Exception)
+        {
+            MessageBox.Show(this,"אירעה שגיאה בעת ביצוע הפעולה. נסה שוב.","לא ניתן להשלים את הפעולה",MessageBoxButton.OK,MessageBoxImage.Error);
+        }
+        finally
+        {
+            StatusText.Text="";
+        }
+    }
 
     async Task ShowSearch(string name="",string phone="",string email="",bool run=false)
     {
