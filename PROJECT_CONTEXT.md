@@ -566,3 +566,13 @@ A packaged Web Fast diagnostic measured 7217 ms from DAP.exe process start until
 This disproves the earlier working hypothesis that the multi-second delay was only an artifact of a new GUID-named repository output path. The delay also occurs from the stable `C:\DAP-Production` package. Playwright .NET 1.55.0 source confirms that `Playwright.CreateAsync()` starts its stdio driver process and initializes the Playwright connection. The current measured bottleneck is therefore Playwright/driver initialization; the 10-second CDP timeout is not a fixed startup delay and must not be increased or blamed for this measurement.
 
 No startup optimization is accepted yet. A persistent/shared driver or another lifecycle change would be architectural work and must first be shown to be supported, robust, generic to closed customer applications, and compatible with DAP process ownership and cleanup.
+
+## Instructor direction and AI boundary — 2026-10-05
+
+The next architecture-validation phase uses the existing Web and Windows TestCRM systems more strictly, treating them as if they were closed customer applications. The purpose is to expose gaps in target identity, action representation, completion/transition conditions, runtime observation, and persistence before expanding the schema speculatively.
+
+AI is explicitly a development aid in this phase. It may help analyze before/after states, diagnose difficult scenarios, identify missing general mechanisms, and accelerate implementation. The resulting production capability must not depend on AI.
+
+The production Instructor is expected to provide its own deterministic observation workflow: capture externally observable state before an author action, observe the action and resulting state, compare the states, identify/rank candidate changes, allow the author to confirm the intended completion/transition condition, and persist an explicit Guide definition. The production Learner must then evaluate that definition and diagnose supported page/window/context changes without AI.
+
+Schema/Core/Runtime changes should be driven by concrete scenarios that the current model cannot represent reliably. Do not enlarge the database schema merely to anticipate hypothetical cases. A capability discovered with AI assistance is complete only when the customer-side system can author/run the supported behavior without AI and without target-application source access.
