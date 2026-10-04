@@ -735,3 +735,9 @@ Focused From-Step execution is now locally verified on both Web and Windows at S
 - **Web/Windows Visual cursor parity — 2026-10-04:** Web Visual cursor travel now matches Windows Visual timing and easing: 12 frames, 18 ms per frame, cubic ease-out, and a 120 ms target dwell. This changes only visible cursor travel; Fast mode and technical timeouts are unchanged. Commit: `dcc8f7c52b26dff1eb4e9eb0c6a218e7e45accc6`.
 
 - **Web Visual From-Step re-verified after cursor parity — 2026-10-04:** `--visual-from-step 47` passed locally after pulling the Web cursor pacing alignment. The run completed successfully with Steps 1–46 as Unguided bootstrap, DAP starting at Step 47 with resume context, and Guided Visual execution from Step 47 onward. The Web cursor pacing now matches the Windows Visual movement profile and was manually observed as satisfactory.
+
+### Windows completion bubble — 2026-10-04
+
+The Windows learner completion path no longer uses the foreground/topmost operating-system message box when completion UI is requested. `WindowsBubblePresenter` now presents a DAP-native completion bubble with localized `Learner.GuideCompleted` text, localized `Learner.Finish` button, and the standard drag handle. The target application remains open after dismissal. Automated Windows Guided runs that do not request completion UI retain their existing non-blocking completion behavior.
+
+Implementation commits: `8b4e9b6834c58777fed65e5de5cdaac141507ee2` and `0e722fc845be689afb97898412f82267d483cb7d`. Local Windows manual verification is still required before marking the new completion presentation PASS.
