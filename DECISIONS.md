@@ -575,3 +575,15 @@ Consequently:
 - Do not adopt a persistent/shared Playwright driver merely because it appears faster. Such a lifecycle change must first preserve deterministic ownership/cleanup, isolation, failure behavior, and support for arbitrary closed customer Web applications.
 
 The current decision is diagnostic: the bottleneck is identified, but no speculative production optimization is accepted yet.
+
+## ADR-051 — AI is a development aid, not a production dependency
+
+**Decision:** Production DAP must not require an AI system for either Instructor authoring or Learner execution.
+
+During DAP development, AI may be used freely as an engineering aid to inspect TestCRM behavior, compare before/after states, identify gaps in the model, propose general mechanisms, and accelerate implementation. This development assistance must not become a hidden runtime dependency.
+
+The production Instructor must independently observe externally available application state, compare state before and after an author action, detect meaningful structural/state changes, rank or present candidate transition/completion conditions, and persist an explicit deterministic Guide definition. The production Learner must independently resolve targets, observe application changes, evaluate the persisted conditions, diagnose supported page/window/context transitions, and advance the Guide without AI.
+
+The acceptance boundary for a new capability is therefore: AI may help discover or design the capability during development, but after the capability and Guide definition exist, the customer-side DAP installation must be able to author and execute the supported behavior without AI.
+
+This decision does not prohibit a future optional AI feature. Any such feature must remain optional and must not be required for the deterministic production authoring/execution contract.
