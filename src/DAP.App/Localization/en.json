@@ -11,5 +11,5 @@
   "App.InfrastructureCheckTitle": "DAP Infrastructure Check",
   "App.InfrastructureReady": "DAP.exe is ready.\n\nDatabase: {0}\n\nDiagnostics: {1}",
   "App.WindowTitle": "DAP",
-  "App.Usage": "Usage:\\nDAP.exe --check\\nDAP.exe --learner-web <guide-key> --cdp <endpoint> [--page-url-contains <text>] [--show-completion] [--start-step <order>]\\nDAP.exe --learner-windows <guide-key> --window-automation-id <id> [--show-completion] [--start-step <order>]"
+  "App.Usage": "Usage:\\nDAP.exe --check\\nDAP.exe --learner-web <guide-key> --cdp <endpoint> [--page-url-contains <text>] [--start-step <order>]\\nDAP.exe --learner-windows <guide-key> --window-automation-id <id> [--start-step <order>]"
 }
