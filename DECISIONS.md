@@ -155,7 +155,7 @@ The permanent DAP.TestCRM E2E runner supports two execution modes through `DAP_E
 
 `fast` is the default validation mode. It skips artificial human-like interaction delays and bypasses TestCRM's artificial server-thinking delay for E2E requests. It does not bypass real application readiness: server responses, route completion, DOM/frame replacement, validation, and other actual synchronization conditions remain required.
 
-`visual` is demonstration mode and retains cursor movement, typing delays, processing feedback, and the artificial server-thinking delay.
+`visual` is the observable presentation mode. It retains visible cursor movement and presentation pacing/feedback around the same learner actions used by Fast. Mode-dependent typing or commit semantics are not permitted. Artificial TestCRM thinking delay may remain fixture presentation behavior, but it must not replace real readiness.
 
 The two modes must share the same test logic. Maintaining separate test implementations is not permitted merely to support visual demonstration.
 
@@ -262,7 +262,7 @@ Before proposing any timeout above 5 seconds, the failing transition and its rea
 
 Web Unguided is the canonical CRM business flow without `DAP.exe` and learner bubbles. It is not a separate TestCRM QA scenario.
 
-Normal Guided Web execution and Unguided both consume the persisted `testcrm-web-canonical-workflow` Guide from the configured DAP data provider and follow the same 53-Step sequence. Guided mode additionally synchronizes with production DAP Runtime/bubble state; Unguided omits that presentation/runtime synchronization.
+Normal Guided Web execution and Unguided both consume the persisted `testcrm-web-canonical-workflow` Guide from the configured DAP data provider and follow the same canonical persisted sequence. The current seed contains 54 Steps; historical 53-Step results remain historical only. Guided mode additionally synchronizes with production DAP Runtime/bubble state; Unguided omits that presentation/runtime synchronization.
 
 Production Guide data must not be polluted with test-only action/value fields merely to make Unguided executable. When a Guide validation is intentionally generic, such as `value-not-empty`, the synthetic value entered by the E2E remains a test-fixture concern.
 
@@ -550,3 +550,28 @@ Verification: the complete persisted 54-Step Guided workflow has now passed in a
 
 This ADR generalizes and supersedes the platform-specific scope of the earlier `ADR-0XX — Fast and Visual share one Windows learner-action path`; that older entry remains as historical implementation context.
 
+
+
+## ADR-049 — Packaged focused runners must create their own transient state root
+
+**Status:** Accepted
+
+A focused diagnostics runner must explicitly create every transient directory it owns before writing resume or bootstrap state. It must not rely on a repository build operation to create that directory as a side effect, because packaged diagnostics skip repository builds.
+
+This rule was applied to Windows packaged From-Step execution after `resume-context.json` could be written beneath a nonexistent GUID run root. The fix is confined to E2E/diagnostics orchestration and does not alter production Runtime, target resolution, Guide semantics, bubbles, or the 5-second timeout policy. Fix commit: `405c1b4e577ff193be96310b8df25d6b0dc30284`.
+
+## ADR-050 — Web first-bubble startup optimization must address Playwright initialization, not timeouts
+
+**Status:** Accepted
+
+Measured Production startup shows that the dominant Web first-bubble latency is `Playwright.CreateAsync()`, not SQLite initialization, Guide loading, CDP attachment, target resolution, or bubble rendering. In the measured packaged run, DAP reached Web composition at 257 ms, completed Playwright creation at 6563 ms, connected CDP at 6670 ms, and started the Web Guide Runtime at 6673 ms; first-bubble active-Step work then took 159 ms.
+
+Playwright .NET 1.55.0 starts its packaged stdio driver process during `Playwright.CreateAsync()` and waits for initialization. The configured 10-second CDP timeout is a maximum failure bound, not the measured fixed delay.
+
+Consequently:
+- Do not increase a timeout to hide first-bubble startup latency.
+- Do not add TestCRM-specific startup shortcuts.
+- Do not claim that GUID-based repository output is the sole cause; the delay is reproduced from the stable Production package.
+- Do not adopt a persistent/shared Playwright driver merely because it appears faster. Such a lifecycle change must first preserve deterministic ownership/cleanup, isolation, failure behavior, and support for arbitrary closed customer Web applications.
+
+The current decision is diagnostic: the bottleneck is identified, but no speculative production optimization is accepted yet.
