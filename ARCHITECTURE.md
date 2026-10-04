@@ -440,3 +440,20 @@ This keeps From-Step acceleration outside production target-resolution/validatio
 Guide completion is a normal learner lifecycle state on both Web and Windows, not an optional host dialog. After the final persisted Step completes, the runtime presents a DAP-owned completion bubble with localized completion text and an explicit localized Finish action. Windows uses the native WPF bubble presenter; Web uses the Web bubble presenter. The completion bubble is not tied to a target descriptor because there is no active Step target after Guide completion.
 
 Manual runs wait for the learner to activate Finish. Automated Guided runs exercise the same production completion UI and the E2E synthetic learner activates the real Finish action before expecting DAP.exe to exit. Dismissing completion ends the DAP learner experience and does not close the target business application. The former `--show-completion` switch and Windows operating-system completion `MessageBox` are obsolete.
+
+### Centered targetless learner bubbles
+
+The shared Guide model supports an informational learner Step that is not attached to any target. It is represented without a new persistence table or target workaround:
+
+- `Target = null`
+- `Bubble.Placement = Center`
+- `AdvanceMode = Manual`
+- no Validation, Capture, or Step completion conditions
+
+The Runtime presents this Step in the center of the learner surface, with no target highlight and no pointer. The bubble uses the same platform bubble theme/presentation infrastructure as ordinary guidance and exposes a localized explicit confirmation action (`Learner.Confirm`). The Step advances only when the learner confirms it.
+
+`BubblePlacement.Center` is persisted through the existing `BubblePlacement` string column, so no SQLite schema migration is required.
+
+Guide completion is implemented on top of the same centered-bubble presentation primitive. Completion supplies localized completion content and the localized Finish action instead of the informational confirmation action. Consequently Web and Windows completion bubbles share the same general centered presentation behavior as targetless information Steps.
+
+On Web, centered bubbles use the active `WebBubbleTheme` and are positioned at 50%/50% with a two-axis translation, so completion and information bubbles are visually centered rather than merely horizontally centered near the top of the viewport. On Windows, centered bubbles use the same native WPF bubble styling and `CenterScreen` placement.
