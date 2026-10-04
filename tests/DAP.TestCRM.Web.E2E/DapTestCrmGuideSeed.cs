@@ -191,11 +191,21 @@ public static class DapTestCrmGuideSeed
         ClickStep("testcrm-open-context-case", 48, "button.grid-open[data-go='{{step:testcrm-back-to-cases:capture}}']", "פתח שוב את הפנייה שיצרת", "h2:has-text('פניות')", completionCss: "#delete-case"),
         ClickStep("testcrm-context-back-site", 49, ".breadcrumb a[data-go^='#/site/']", "חזור לאתר", "h1:has-text('פניה')", completionCss: "h2:has-text('פניות')"),
         ClickStep("testcrm-open-created-case-final", 50, "button.grid-open[data-go='{{step:testcrm-back-to-cases:capture}}']", "פתח את הפנייה שיצרת", "h2:has-text('פניות')", completionCss: "#delete-case"),
-        ClickStep("testcrm-delete-case", 51, "#delete-case", "מחק את הפנייה", "#delete-case", completionCss: "#ps-confirm"),
-        ClickStep("testcrm-confirm-delete-case", 52, "#ps-confirm [data-answer='yes']", "אשר את מחיקת הפנייה", "#ps-confirm", completionCss: "h2:has-text('פניות')"),
 
         new GuideStep(
-            "testcrm-header-home", 53,
+            "testcrm-before-delete-case-info", 51,
+            Target: null,
+            new BubbleDefinition(
+                "שים לב: בשלב הבא נמחק את הפנייה שיצרת במהלך הלומדה.",
+                BubblePlacement.Center),
+            Validation: null,
+            AdvanceMode: StepAdvanceMode.Manual),
+
+        ClickStep("testcrm-delete-case", 52, "#delete-case", "מחק את הפנייה", "#delete-case", completionCss: "#ps-confirm"),
+        ClickStep("testcrm-confirm-delete-case", 53, "#ps-confirm [data-answer='yes']", "אשר את מחיקת הפנייה", "#ps-confirm", completionCss: "h2:has-text('פניות')"),
+
+        new GuideStep(
+            "testcrm-header-home", 54,
             TargetDescriptor.Create(TargetRuntime.Web, new Locator("css", "#portal-header"),
                 frameContext: new FrameContext(new[] { new Locator("css", "iframe[name='dap-header']") })),
             new BubbleDefinition("חזור למסך חיפוש הלקוח", BubblePlacement.Bottom),
