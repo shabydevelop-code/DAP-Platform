@@ -6,7 +6,8 @@ public enum BubblePlacement
     Top,
     Right,
     Bottom,
-    Left
+    Left,
+    Center
 }
 
 public sealed record BubbleDefinition(
