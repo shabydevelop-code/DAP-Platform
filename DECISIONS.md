@@ -494,3 +494,15 @@ After the final Guide Step, both Web and Windows runtimes present the production
 DAP supports learner information that does not identify or act on a target as a real persisted Guide Step rather than by inventing a fake target. The canonical representation is `Target = null`, `BubblePlacement.Center`, and `StepAdvanceMode.Manual`. Such a Step cannot carry context, validation, runtime capture, or completion conditions. The Runtime displays the shared centered bubble and advances only after the learner presses the localized confirmation action.
 
 Guide completion reuses the same centered presentation primitive with completion-specific content and Finish text. This keeps targetless information and completion presentation aligned on Web and Windows and prevents separate visual implementations from drifting.
+
+### ADR-047 — Visual mode uses the real OS cursor
+
+Visual mode represents an observable learner simulation and therefore uses the operating-system mouse cursor on both supported learner platforms.
+
+- Windows Visual continues to animate the real Windows cursor to UIA-resolved controls.
+- Web Visual no longer renders or animates a synthetic DOM cursor.
+- Web converts Playwright target viewport coordinates to Windows screen coordinates and animates the real OS cursor with the same 12-frame cubic ease-out / 18 ms frame pacing / 120 ms dwell contract used by Windows.
+- Playwright remains responsible for the Web interaction itself (click/hover/type and DOM synchronization); moving the physical cursor is the visual presentation layer, not a replacement for target resolution or validation.
+- Fast mode does not animate the physical cursor.
+
+This keeps Web/Windows Visual semantics aligned without coupling production DAP Runtime behavior to test-only cursor simulation.
