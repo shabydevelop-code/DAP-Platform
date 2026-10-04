@@ -877,13 +877,39 @@ async Task WaitForGuideStep(int order)
                             {
                                 Console.WriteLine();
                                 Console.WriteLine($"MANUAL HANDOFF: Step {order} is ready.");
-                                Console.WriteLine("Automation is paused. Inspect and interact with the open browser now.");
-                                Console.WriteLine("Press ENTER here when you are finished to close the run.");
-                                Console.ReadLine();
-                                await browser.CloseAsync();
-                                if(ownedTestCrmProcess is { HasExited: false })
-                                    ownedTestCrmProcess.Kill(entireProcessTree: true);
-                                Environment.Exit(0);
+                                Console.WriteLine("Automatic learner actions are paused. Continue manually in the browser by following the DAP bubbles.");
+                                Console.WriteLine("The run will close automatically when DAP completes the Guide or the owned browser/page is closed.");
+                                Console.WriteLine("Press Ctrl+C only if you want to stop the run early.");
+
+                                var dapExit=dapProcess!.WaitForExitAsync();
+                                var webHostExit=ownedTestCrmProcess!.WaitForExitAsync();
+                                var completed=await Task.WhenAny(
+                                    dapExit,
+                                    ownedWebTargetClosed.Task,
+                                    webHostExit);
+
+                                if(completed==dapExit)
+                                {
+                                    await dapExit;
+                                    if(dapProcess.ExitCode!=0)
+                                        throw new Exception($"DAP.exe exited with code {dapProcess.ExitCode} during the manual Web From-Step run.");
+
+                                    Console.WriteLine("DAP completed the manual Web From-Step Guide. Cleaning up E2E-owned processes.");
+                                }
+                                else if(completed==webHostExit)
+                                {
+                                    await webHostExit;
+                                    throw new Exception(
+                                        $"TestCRM Web host exited unexpectedly during the manual Web From-Step run. ExitCode={ownedTestCrmProcess.ExitCode}.");
+                                }
+                                else
+                                {
+                                    var reason=await ownedWebTargetClosed.Task;
+                                    Console.WriteLine(
+                                        $"Owned Web target closed ({reason}). Ending the manual Web From-Step run and cleaning up owned processes.");
+                                }
+
+                                throw new ManualWebHandoffCompleteException();
                             }
                             return;
                         }
@@ -1563,6 +1589,10 @@ Console.WriteLine(unguided
     : "PASS: representative Customer -> Site -> Case -> Lead workflow, including dynamic Lead deletion and Case deletion, completed.");
 await page.WaitForTimeoutAsync(visualMode ? 1500 : 0);
 }
+catch (ManualWebHandoffCompleteException)
+{
+    Console.WriteLine("Manual Web From-Step run finished.");
+}
 catch (Exception) when (ownedWebTargetClosed.Task.IsCompleted)
 {
     var closeReason = await ownedWebTargetClosed.Task;
@@ -1627,4 +1657,8 @@ finally
     catch (UnauthorizedAccessException)
     {
     }
+}
+
+sealed class ManualWebHandoffCompleteException : Exception
+{
 }
