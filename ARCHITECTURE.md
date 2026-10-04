@@ -490,3 +490,18 @@ Production Web execution currently creates a Playwright instance inside `DAP.exe
 A packaged Production measurement on 2026-10-05 isolated this initialization as the dominant first-bubble startup cost: Web composition was ready at 257 ms, Playwright creation completed at 6563 ms, CDP connected at 6670 ms, and the Web Guide Runtime started at 6673 ms. First-bubble active-Step work then required 159 ms. The E2E runner independently spent 5613 ms creating its own Playwright instance.
 
 Therefore CDP's configured 10-second connection timeout is not a fixed startup delay, and target/bubble resolution is not the dominant measured cost. The architecture must not hide this by increasing timeouts. Any future optimization that keeps a Playwright driver/process alive or shares lifecycle infrastructure must preserve process ownership, deterministic cleanup, failure isolation, and support for arbitrary closed customer Web applications. No such optimization is part of the accepted architecture yet.
+
+## AI boundary and production autonomy
+
+AI is an engineering aid during development of DAP, not a required production service.
+
+During development, AI may be used to analyze TestCRM and other representative applications, compare before/after application states, identify missing abstractions, propose target anchors or transition rules, and help design or implement general capabilities.
+
+The shipped production system must remain autonomous without AI:
+
+- The Instructor must be able to observe externally available application state through the supported Web/Windows adapters, capture state before and after an author action, compare those states, identify and rank candidate changes, and let the author persist explicit target/action/completion definitions.
+- The Learner Runtime must resolve targets, observe supported page/window/context changes, evaluate persisted completion/transition definitions, and advance deterministically without consulting an AI model.
+- AI-derived development insight is acceptable only after it has been translated into a general deterministic capability or persisted Guide definition that the production system can evaluate itself.
+- Customer application source code is not part of this contract. Production observation and diagnosis must use the same externally observable surfaces available against a closed customer application.
+
+A future AI-assisted product feature may be added as an optional layer, but it must not become a prerequisite for the core Instructor or Learner workflow.
