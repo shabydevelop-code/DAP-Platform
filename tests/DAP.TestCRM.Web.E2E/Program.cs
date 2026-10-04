@@ -491,13 +491,13 @@ async Task HumanPause(int ms=320)
     if (visualMode) await page.WaitForTimeoutAsync(ms);
 }
 double cursorX=24,cursorY=24;
-async Task MoveTo(ILocator target)
+async Task MoveTo(ILocator target, bool enforceActiveGuideTarget = true)
 {
-    // Every visible learner action must operate on the exact DOM element owned
-    // by the active production bubble. This turns Guide/E2E synchronization
-    // into an executable invariant instead of relying on visually similar
-    // selectors in two separate places.
-    if(requireActiveGuideTarget)
+    // Application learner actions must operate on the exact DOM element owned
+    // by the active production bubble. DAP-owned overlay actions (centered
+    // information confirmation and Guide completion) are intentionally not
+    // target-attached, so callers can disable this invariant explicitly.
+    if(enforceActiveGuideTarget && requireActiveGuideTarget)
     {
         var matchesActiveGuideTarget=await target.EvaluateAsync<bool>(
             @"el => {
@@ -1546,7 +1546,10 @@ if(!unguided && dapProcess is not null)
     var informationConfirm=page.Locator("#dap-guide-centered [data-dap-guide-confirm='1']");
     await informationConfirm.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = 5000 });
     if(visualMode)
+    {
         await page.WaitForTimeoutAsync(500);
+        await MoveTo(informationConfirm, enforceActiveGuideTarget: false);
+    }
     await informationConfirm.ClickAsync();
 }
 
@@ -1590,7 +1593,10 @@ if(!unguided)
     var finishButton=completionBubble.Locator("[data-dap-guide-finish='1']");
     await finishButton.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = 5000 });
     if(visualMode)
+    {
         await page.WaitForTimeoutAsync(800);
+        await MoveTo(finishButton, enforceActiveGuideTarget: false);
+    }
     await finishButton.ClickAsync();
 
     if(dapProcess is null)
