@@ -745,3 +745,15 @@ Automated Guided runs on both Web and Windows now exercise this same production 
 Implementation commits: `8b4e9b6834c58777fed65e5de5cdaac141507ee2`, `0e722fc845be689afb97898412f82267d483cb7d`, `9c6d1343eaaa14e9683588c7a05e957086ebf5c3`, `2de50a27456ad9149ffe24662436d34a5f4e4e32`, `e99b0ccf47cd0e8763b5a2bc3a522e5439330968`, `04abdc8ae73afe9734f5e98662b01ba5d990823e`, `d715318ffbdd41e075c441111f9138b2b61cd295`, and `640f4165f48754d52e8d53bb5d261c2d9f7c3b0d`. Local regression execution is still required after pull.
 
 - **Web Manual From-Step lifecycle fix — 2026-10-04:** the focused manual Web handoff no longer blocks on `Console.ReadLine()`. After handoff, the runner waits for either DAP.exe to finish the Guide or the owned browser/page to close; either condition returns through normal E2E cleanup. Ctrl+C remains the explicit early-stop path. Commit: `26dc115ceff41cfcfd23b24dc7b213a02158061a`.
+
+### Centered information bubble capability — 2026-10-04
+
+Implemented cross-platform support for targetless informational Guide Steps. A persisted Step can now use `Target = null`, `BubblePlacement.Center`, and `StepAdvanceMode.Manual`; Web and Windows present it in the center of the screen with the ordinary DAP bubble styling, no pointer/highlight, Step progress, and a localized confirmation button. Runtime validation rejects centered Steps that incorrectly define a target, automatic validation, capture, or completion conditions.
+
+Web and Windows Guide completion now use the same general centered-bubble presentation primitive. This also corrects Web completion positioning from horizontal-only centering at the top of the viewport to true horizontal and vertical centering.
+
+SQLite needs no schema migration because `BubblePlacement.Center` is stored through the existing textual `BubblePlacement` field. A persistence regression case was added for a centered targetless Step.
+
+Implementation commits include `bda50be89cd15ea067aff90bc3010c5a5855dd94`, `c2810f3867d7fc67924c20aa1a4d24e92348346f`, `32561e93823ed2bc2b66c2ef39cf4f6fba364116`, `a74fefaf82b70ba359b0263fe77b239e0f7899e4`, `6b59895caf01e1259bc43ea11a11b806232de266`, `cd57a1f8331c0f9c130b26ef0cd3d4579284c1f2`, `8ef79db91741848dd2efca18a8c9c143247f22c2`, `a527510dcc36ce4984bc043f7a938de2914220b1`, and `33254249f248be5264bfea8f3260686be630e8f7`.
+
+Local Web/Windows execution is still required after pull before marking the new centered presentation path verified.
