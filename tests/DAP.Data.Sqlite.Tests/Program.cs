@@ -9,6 +9,7 @@ Directory.CreateDirectory(root);
 try
 {
     await VerifyFreshRoundTripAsync(Path.Combine(root,"fresh.db"));
+    await VerifyAtomicReplacementReordersStepsAsync(Path.Combine(root,"replace.db"));
     await VerifyCenteredStepRoundTripAsync(Path.Combine(root,"centered.db"));
     await VerifyLegacyMigrationAsync(Path.Combine(root,"legacy.db"));
     Console.WriteLine("DAP SQLite guide persistence and legacy ID migration: PASS");
@@ -48,6 +49,58 @@ WHERE g.Key='guide-1' AND s.Key='step-1';
             if(reader.GetString(i)!="integer")
                 throw new Exception($"Expected numeric SQLite ID at column {i}, got {reader.GetString(i)}.");
     }
+}
+
+static async Task VerifyAtomicReplacementReordersStepsAsync(string path)
+{
+    var factory=new SqliteConnectionFactory(new SqliteDatabaseOptions(path));
+    await new SqliteDatabaseInitializer(factory).InitializeAsync();
+    var repository=new SqliteGuideStepRepository(factory);
+
+    await repository.SaveStepAsync(
+        "replace-guide",
+        new GuideStep(
+            "step-a",1,
+            TargetDescriptor.Create(TargetRuntime.Web,new Locator("css","#a")),
+            new BubbleDefinition("A",BubblePlacement.Bottom),
+            new ValidationDefinition("clicked")));
+    await repository.SaveStepAsync(
+        "replace-guide",
+        new GuideStep(
+            "step-b",2,
+            TargetDescriptor.Create(TargetRuntime.Web,new Locator("css","#b")),
+            new BubbleDefinition("B",BubblePlacement.Bottom),
+            new ValidationDefinition("clicked")));
+
+    var replacement=new GuideStep[]
+    {
+        new(
+            "step-a",1,
+            TargetDescriptor.Create(TargetRuntime.Web,new Locator("css","#a")),
+            new BubbleDefinition("A",BubblePlacement.Bottom),
+            new ValidationDefinition("clicked")),
+        new(
+            "step-info",2,
+            Target:null,
+            new BubbleDefinition("Info",BubblePlacement.Center),
+            Validation:null,
+            AdvanceMode:StepAdvanceMode.Manual),
+        new(
+            "step-b",3,
+            TargetDescriptor.Create(TargetRuntime.Web,new Locator("css","#b")),
+            new BubbleDefinition("B",BubblePlacement.Bottom),
+            new ValidationDefinition("clicked"))
+    };
+
+    await repository.ReplaceStepsAsync("replace-guide",replacement);
+    var loaded=await repository.GetStepsAsync("replace-guide");
+
+    if(loaded.Count!=3
+       || loaded[0].Id!="step-a" || loaded[0].Order!=1
+       || loaded[1].Id!="step-info" || loaded[1].Order!=2
+       || loaded[1].Bubble.Placement!=BubblePlacement.Center
+       || loaded[2].Id!="step-b" || loaded[2].Order!=3)
+        throw new Exception("Atomic Guide replacement did not replace/reorder Steps exactly.");
 }
 
 static async Task VerifyCenteredStepRoundTripAsync(string path)
