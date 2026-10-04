@@ -19,6 +19,13 @@ var backendProject = Path.Combine(root, "test-apps", "DAP.TestCRM", "Server", "D
 var dapProject = Path.Combine(root, "src", "DAP.App", "DAP.App.csproj");
 var appProjectDirectory = Path.GetDirectoryName(appProject)!;
 var backendProjectDirectory = Path.GetDirectoryName(backendProject)!;
+var diagnosticsRoot = Environment.GetEnvironmentVariable("DAP_DIAGNOSTICS_ROOT");
+var packagedDiagnostics = !string.IsNullOrWhiteSpace(diagnosticsRoot);
+if (packagedDiagnostics)
+    diagnosticsRoot = Path.GetFullPath(diagnosticsRoot!);
+var packagedServerDirectory = packagedDiagnostics ? Path.Combine(diagnosticsRoot!, "TestCRM", "Server") : null;
+var packagedWindowsDirectory = packagedDiagnostics ? Path.Combine(diagnosticsRoot!, "TestCRM", "Windows") : null;
+var packagedDapDirectory = packagedDiagnostics ? Path.GetFullPath(Path.Combine(diagnosticsRoot!, "..")) : null;
 
 if (args.Contains("--reset-guide", StringComparer.OrdinalIgnoreCase))
 {
@@ -164,16 +171,27 @@ async Task RunPersistedUnguidedAsync()
     {
         EnsurePortFree(5201);
 
-        backend = StartProcess(
-            "dotnet",
-            $"run --project \"{backendProject}\" --no-launch-profile",
-            new Dictionary<string, string?> { ["ASPNETCORE_URLS"] = "http://localhost:5201" });
+        backend = packagedDiagnostics
+            ? StartProcess(
+                "dotnet",
+                $"\"{Path.Combine(packagedServerDirectory!, "DAP.TestCRM.Server.dll")}\"",
+                new Dictionary<string, string?> { ["ASPNETCORE_URLS"] = "http://localhost:5201" },
+                workingDirectory: packagedServerDirectory)
+            : StartProcess(
+                "dotnet",
+                $"run --project \"{backendProject}\" --no-launch-profile",
+                new Dictionary<string, string?> { ["ASPNETCORE_URLS"] = "http://localhost:5201" });
 
         await WaitForHttpAsync("http://localhost:5201/api/customers", backend, "TestCRM backend");
 
-        windowsApp = StartProcess(
-            "dotnet",
-            $"run --project \"{appProject}\" --no-launch-profile");
+        windowsApp = packagedDiagnostics
+            ? StartProcess(
+                Path.Combine(packagedWindowsDirectory!, "DAP.TestCRM.Windows.exe"),
+                string.Empty,
+                workingDirectory: packagedWindowsDirectory)
+            : StartProcess(
+                "dotnet",
+                $"run --project \"{appProject}\" --no-launch-profile");
 
         var window = WaitForMainWindow();
         var executor = new PersistedWindowsCrmGuideExecutor(
@@ -267,14 +285,19 @@ async Task RunGuidedAsync(
     {
         EnsurePortFree(5201);
 
-        BuildIsolated(backendProject, backendOutput, "TestCRM Server");
-        BuildIsolated(appProject, windowsOutput, "TestCRM Windows");
-        if (publishedDapDirectory is null)
-            BuildIsolated(dapProject, dapOutput, "DAP");
+        if (!packagedDiagnostics)
+        {
+            BuildIsolated(backendProject, backendOutput, "TestCRM Server");
+            BuildIsolated(appProject, windowsOutput, "TestCRM Windows");
+            if (publishedDapDirectory is null)
+                BuildIsolated(dapProject, dapOutput, "DAP");
+        }
 
-        var backendDll = Path.Combine(backendOutput, "DAP.TestCRM.Server.dll");
-        var windowsExe = Path.Combine(windowsOutput, "DAP.TestCRM.Windows.exe");
-        var effectiveDapDirectory = publishedDapDirectory ?? dapOutput;
+        var effectiveBackendDirectory = packagedDiagnostics ? packagedServerDirectory! : backendOutput;
+        var effectiveWindowsDirectory = packagedDiagnostics ? packagedWindowsDirectory! : windowsOutput;
+        var backendDll = Path.Combine(effectiveBackendDirectory, "DAP.TestCRM.Server.dll");
+        var windowsExe = Path.Combine(effectiveWindowsDirectory, "DAP.TestCRM.Windows.exe");
+        var effectiveDapDirectory = publishedDapDirectory ?? packagedDapDirectory ?? dapOutput;
         var dapExe = Path.Combine(effectiveDapDirectory, "DAP.exe");
         if (!File.Exists(dapExe))
             throw new FileNotFoundException("Published DAP.exe was not found.", dapExe);
@@ -283,14 +306,14 @@ async Task RunGuidedAsync(
             "dotnet",
             $"\"{backendDll}\"",
             new Dictionary<string, string?> { ["ASPNETCORE_URLS"] = "http://localhost:5201" },
-            workingDirectory: backendProjectDirectory);
+            workingDirectory: effectiveBackendDirectory);
 
         await WaitForHttpAsync("http://localhost:5201/api/customers", backend, "TestCRM backend");
 
         windowsApp = StartProcess(
             windowsExe,
             string.Empty,
-            workingDirectory: appProjectDirectory);
+            workingDirectory: effectiveWindowsDirectory);
 
         var window = WaitForMainWindow();
         var customerName = WaitForElementById(window, "CustomerNameSearch");
