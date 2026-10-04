@@ -80,16 +80,10 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
 
         VisualTarget(e);
 
-        using var focusObserved = new ManualResetEventSlim(false);
         using var valueChanged = new ManualResetEventSlim(false);
         AutomationPropertyChangedEventHandler? handler = null;
         handler = (_, args) =>
         {
-            if(args.Property == AutomationElement.HasKeyboardFocusProperty
-               && args.NewValue is bool hasFocus
-               && hasFocus)
-                focusObserved.Set();
-
             if(args.Property == ValuePattern.ValueProperty
                && string.Equals(args.NewValue as string,value,StringComparison.Ordinal))
                 valueChanged.Set();
@@ -99,7 +93,6 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
             e,
             TreeScope.Element,
             handler,
-            AutomationElement.HasKeyboardFocusProperty,
             ValuePattern.ValueProperty);
 
         try
@@ -113,14 +106,6 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
                     new PropertyCondition(AutomationElement.AutomationIdProperty,id));
                 return current is not null && current.Current.HasKeyboardFocus ? current : null;
             },$"{id} keyboard focus");
-
-            // A focused property snapshot can become true before UIA has
-            // delivered the focus transition to subscribers. The learner runtime
-            // deliberately requires that real focus transition before accepting
-            // edit -> blur as a commit, so synchronize the E2E action on the same
-            // provider event instead of racing immediately into SetValue + Tab.
-            if(!focusObserved.Wait(5_000))
-                throw new TimeoutException($"Timed out waiting for {id} UIA focus notification.");
 
             ((ValuePattern)p).SetValue(value);
 
