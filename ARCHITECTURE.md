@@ -474,3 +474,14 @@ The Windows bubble presenter independently checks the live UIA geometry of verti
 
 A target that loses usable UIA bounds between reconciliation and presentation is treated as a transient replacement/rerender race for that presentation attempt; the stale bubble is hidden and the Runtime resolves again. This does not convert unrelated presentation failures into successful Steps.
 
+
+
+## Instructor boundary: customer-application independence
+
+DAP is a general digital-assistance platform, not a TestCRM-specific automation system. The production runtime, target descriptors, validation model, and future Instructor must remain usable against customer applications for which DAP has no source-code access.
+
+The future Instructor should capture or let an author configure a declarative learning step: target identity and anchors, the learner action (for example click, double-click, text edit, selection, Enter/Space when appropriate), and the observable success/transition condition. The Instructor may observe an author's real interaction and propose this definition, but the author must be able to confirm or correct it.
+
+Application-specific knowledge needed only to drive TestCRM belongs in the TestCRM E2E driver. It must not leak into DAP.Core, DAP.Runtime.Windows, TargetDescriptor, validation, or the Instructor as hard-coded assumptions. In particular, a DataItem must not imply double-click globally; different customer applications may require click, double-click, keyboard activation, selection only, or another action.
+
+TestCRM should remain representative of closed customer software. Do not change TestCRM merely to make an E2E test easier when the existing behavior is a legitimate real-world interaction pattern. Development may inspect TestCRM source to diagnose behavior, but production DAP must not depend on target-application source.
