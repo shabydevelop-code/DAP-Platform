@@ -516,3 +516,12 @@ Both canonical Guides were reset to the current 54-Step seed and then verified w
 - Web: PASS through Step 54, including centered Step 51, real OS cursor movement to `אישור`, and real OS cursor movement to completion `סיום`.
 - Windows: PASS through Step 54 with the same aligned learner flow and native cursor movement to the same DAP-owned actions.
 - This verifies the newly added centered information Step and the real-cursor Visual contract cross-platform. Full 54-Step Guided/Unguided matrix regression remains a separate pending verification task.
+
+## Windows target-attached bubble behavior during learner scrolling — 2026-10-04
+
+Windows learner scrolling after a Step is presented must not be overridden by DAP. The initial Step-entry viewport adjustment remains allowed, but reconciliation must not repeatedly scroll the learner back to the target.
+
+Presentation visibility is separate from Step completion semantics. If the learner scrolls a target outside a vertically scrollable viewport, the target-attached bubble is hidden rather than pinned or dragged at a viewport edge. Runtime reconciliation and persisted Guide validation continue normally. When the target becomes visible again, the bubble may be presented again from the current target geometry.
+
+This behavior was manually verified with the current production package by starting from Step 11, scrolling the target out of view, and returning it to view. The bubble disappeared and restored as intended. The full Windows Guided Visual 54-Step production-package run also passed after this change.
+
