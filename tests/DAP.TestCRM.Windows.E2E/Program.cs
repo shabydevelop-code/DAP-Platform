@@ -605,7 +605,7 @@ async Task RunGuidedAsync(
 
         WaitForStep("testcrm-windows-before-delete-case-info");
         if (dap is not null)
-            ClickCenteredInformationConfirm();
+            ClickCenteredInformationConfirm(driver);
 
         WaitForStep("testcrm-windows-delete-case");
         await driver.DeleteCase();
@@ -616,10 +616,10 @@ async Task RunGuidedAsync(
         WaitForStep("testcrm-windows-header-home");
         await driver.GoPortal();
 
-        var completionBubble = WaitForCompletionBubble(dap);
+        var completionBubble = WaitForCompletionBubble(dap!);
         if (driver.VisualMode)
             Thread.Sleep(800);
-        ClickCompletionFinish(completionBubble);
+        ClickCompletionFinish(completionBubble, driver);
 
         if (!dap.WaitForExit(5_000))
             throw new TimeoutException("DAP.exe did not complete after the completion Finish action.");
@@ -998,7 +998,7 @@ AutomationElement WaitForBubble(string expectedInstruction, Process dapProcess, 
         $"Last observed bubble: '{lastObservedInstruction ?? "<none>"}'.");
 }
 
-void ClickCenteredInformationConfirm()
+void ClickCenteredInformationConfirm(WindowsCrmScenarioDriver driver)
 {
     var centered = AutomationElement.RootElement.FindAll(
             TreeScope.Children,
@@ -1082,7 +1082,7 @@ AutomationElement WaitForCompletionBubble(Process dapProcess, int timeout = 5_00
     throw new TimeoutException("Timed out waiting for DAP Windows completion bubble.");
 }
 
-void ClickCompletionFinish(AutomationElement completionBubble)
+void ClickCompletionFinish(AutomationElement completionBubble, WindowsCrmScenarioDriver driver)
 {
     var finish = completionBubble.FindFirst(
         TreeScope.Descendants,
