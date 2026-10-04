@@ -8,6 +8,7 @@ Digital Adoption Platform for guided learning across Web and Windows application
 - Web guides powered by a dedicated Web Runtime.
 - Windows guides powered by a dedicated Windows Runtime.
 - Hybrid guides may move between Web and Windows steps.
+- Guides may also contain centered informational Steps with no target, shown with an explicit learner confirmation action.
 - Full Hebrew and English GUI support, including RTL/LTR.
 - Database-independent architecture. SQLite is the initial provider.
 - Target machines are assumed to have the .NET 8 Desktop Runtime installed.
