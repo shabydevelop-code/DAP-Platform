@@ -115,15 +115,35 @@
   }
   function reconcile(){if(!active)return;const z=resolveTarget(active.step.target);if(z.status!=="resolved"){hideBubble();return}if(z.element!==active.element){const step=active.step;const g=globalThis.__dapWebRuntime?.guide;showBubble(step,g?g.index+1:null,g?.steps.length);}}
   function inputValue(el){return "value" in el ? String(el.value ?? "") : "";}
-  function validationSatisfied(el,v){if(!v)return false;const kind=String(v.kind??v.Kind??"").toLowerCase(),expected=v.expectedValue??v.ExpectedValue;if(kind==="clicked")return true;if(kind==="value-not-empty")return inputValue(el).trim().length>0;if(kind==="value-equals")return expected!=null&&inputValue(el)===String(expected);throw new Error("Unsupported Web validation kind '"+kind+"'.");}
-  function emitStepEvent(type,step,extra={}){document.dispatchEvent(new CustomEvent("dap:web-runtime-step-event",{detail:{type,stepId:step.id,...extra}}));}
-  function advanceGuide(step){const g=globalThis.__dapWebRuntime?.guide;if(!g||g.steps[g.index]?.id!==step.id)return;const mode=String(step.advanceMode??"automaticOnValidation").replace(/[^a-z]/gi,"").toLowerCase();if(mode!=="automaticonvalidation")return;g.index++;if(g.index>=g.steps.length){hideBubble();emitStepEvent("guide-completed",step,{guideId:g.guideId});return;}const next=g.steps[g.index];showBubble(next,g.index+1,g.steps.length);emitStepEvent("step-presented",next,{guideId:g.guideId,stepNumber:g.index+1,totalSteps:g.steps.length});}
-  document.addEventListener("click",e=>{if(active&&validationKind(active.step)==="clicked"&&(active.element===e.target||active.element.contains(e.target))){const s=active.step;emitStepEvent("validation-satisfied",s,{kind:"clicked"});queueMicrotask(()=>advanceGuide(s));}},true);
-  const edited=new WeakSet();
   function validationKind(step){return String(step?.validation?.kind??step?.validation?.Kind??"").toLowerCase();}
+  function emitAdapterEvent(type,step,extra={}){
+    chrome.runtime.sendMessage({
+      type:"dap-adapter-event",
+      payload:{type,stepId:step?.id??null,...extra}
+    }).catch(()=>{});
+  }
+
+  // The extension reports natural browser commit events only. It deliberately
+  // does not evaluate guide validation and never advances guide state.
+  const edited=new WeakSet();
+  document.addEventListener("click",e=>{
+    if(active&&validationKind(active.step)==="clicked"&&(active.element===e.target||active.element.contains(e.target)))
+      emitAdapterEvent("validation-commit",active.step,{kind:"clicked"});
+  },true);
   document.addEventListener("input",e=>{if(active&&active.element===e.target)edited.add(e.target)},true);
-  document.addEventListener("change",e=>{if(!active||active.element!==e.target||!active.step.validation||validationKind(active.step)==="clicked")return;const tag=e.target.tagName?.toLowerCase(),type=(e.target.getAttribute?.("type")||"").toLowerCase(),text=tag==="textarea"||(tag==="input"&&!["checkbox","radio","button","submit","reset"].includes(type));if(text){edited.add(e.target);return}if(validationSatisfied(e.target,active.step.validation)){const s=active.step;emitStepEvent("validation-satisfied",s,{kind:validationKind(s)});queueMicrotask(()=>advanceGuide(s));}},true);
-  document.addEventListener("blur",e=>{if(!active||active.element!==e.target||!active.step.validation||validationKind(active.step)==="clicked"||!edited.has(e.target))return;edited.delete(e.target);if(validationSatisfied(e.target,active.step.validation)){const s=active.step;emitStepEvent("validation-satisfied",s,{kind:validationKind(s)});queueMicrotask(()=>advanceGuide(s));}},true);
+  document.addEventListener("change",e=>{
+    if(!active||active.element!==e.target||!active.step.validation||validationKind(active.step)==="clicked")return;
+    const tag=e.target.tagName?.toLowerCase(),type=(e.target.getAttribute?.("type")||"").toLowerCase();
+    const text=tag==="textarea"||(tag==="input"&&!["checkbox","radio","button","submit","reset"].includes(type));
+    if(text){edited.add(e.target);return;}
+    emitAdapterEvent("validation-commit",active.step,{kind:validationKind(active.step),value:inputValue(e.target)});
+  },true);
+  document.addEventListener("blur",e=>{
+    if(!active||active.element!==e.target||!active.step.validation||validationKind(active.step)==="clicked"||!edited.has(e.target))return;
+    edited.delete(e.target);
+    emitAdapterEvent("validation-commit",active.step,{kind:validationKind(active.step),value:inputValue(e.target)});
+  },true);
+
   const listeners = new Set();
   const observer = new MutationObserver(records => {
     for (const listener of listeners) listener(records);
@@ -140,32 +160,11 @@
 
   start();
 
-  async function loadGuide(guideId) {
-    const requestId = crypto.randomUUID();
-    const response = await chrome.runtime.sendMessage({
-      type: "dap-native", requestId, payload: { type: "getGuide", guideId }
-    });
-    if (!response?.ok) throw new Error(response?.error || "Failed to load DAP guide.");
-    return response.steps || [];
-  }
-
-  async function startGuide(guideId) {
-    const steps = await loadGuide(guideId);
-    if (!steps.length) throw new Error("Guide '"+guideId+"' has no steps.");
-    const state = { guideId, steps, index: 0 };
-    globalThis.__dapWebRuntime.guide = state;
-    const result = showBubble(steps[0], 1, steps.length);
-    return { guideId, stepCount: steps.length, stepId: steps[0].id, result };
-  }
-
   globalThis.__dapWebRuntime = {
     version: "0.1.0",
     resolveTarget,
     showBubble,
     hideBubble,
-    loadGuide,
-    startGuide,
-    guide: null,
     onMutation(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);
@@ -174,7 +173,6 @@
 
   addEventListener("resize",reconcile,{passive:true}); addEventListener("scroll",reconcile,{passive:true,capture:true});
   document.addEventListener("dap:web-runtime-command",e=>{const q=e.detail||{};try{let result;if(q.type==="showStep")result=showBubble(q.step,q.stepNumber,q.totalSteps);else if(q.type==="hide"){hideBubble();result={status:"hidden"};}else if(q.type==="resolve")result=resolveTarget(q.target);else throw new Error("Unknown DAP command");document.dispatchEvent(new CustomEvent("dap:web-runtime-result",{detail:{requestId:q.requestId,ok:true,result}}));}catch(error){document.dispatchEvent(new CustomEvent("dap:web-runtime-result",{detail:{requestId:q.requestId,ok:false,error:String(error?.message||error)}}));}});
-  chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{if(message?.type!=="dap-start-guide")return;(async()=>{try{const result=await startGuide(message.guideId);sendResponse({ok:true,...result});}catch(error){sendResponse({ok:false,error:String(error?.message||error)});}})();return true;});
   document.dispatchEvent(new CustomEvent("dap:web-runtime-ready", {
     detail: { version: globalThis.__dapWebRuntime.version }
   }));
