@@ -106,7 +106,9 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
         // No frameId here. Until a TargetDescriptor FrameContext is mapped to a
         // concrete browser frame, the extension must query all injected frames.
         // Sending frameId=0 incorrectly forces the command into the top frame.
-        var line = JsonSerializer.Serialize(new { type = "adapterCommand", requestId, command });
+        var line = JsonSerializer.Serialize(
+            new { type = "adapterCommand", requestId, command },
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
         await File.AppendAllTextAsync(_commandPath, line + Environment.NewLine, commandToken);
 
         while (true)
