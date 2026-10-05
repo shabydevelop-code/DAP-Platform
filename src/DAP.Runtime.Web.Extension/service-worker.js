@@ -69,8 +69,22 @@ connect().onMessage.addListener(async message => {
       } catch {}
     }
     if (!replies.length) {
+      // Declarative content-script injection can be unavailable after extension
+      // reloads or host-access changes. Recover explicitly, then retry once.
+      await chrome.scripting.executeScript({
+        target: {tabId, allFrames:true},
+        files: ["content-runtime.js"]
+      });
+      for (const frame of frames) {
+        try {
+          const response = await chrome.tabs.sendMessage(tabId, payload, {frameId:frame.frameId});
+          if (response?.ok) replies.push({frameId:frame.frameId,response});
+        } catch {}
+      }
+    }
+    if (!replies.length) {
       const details = frames.map(f => f.frameId + ":" + (f.url || "<no-url>")).join(", ");
-      throw new Error("DAP Web Runtime content script is not available in any frame of the active tab. tabId=" + tabId + "; frames=[" + details + "]");
+      throw new Error("DAP Web Runtime content script is not available after explicit injection. tabId=" + tabId + "; frames=[" + details + "]");
     }
 
     if (message.command?.type === "resolveTarget") {
