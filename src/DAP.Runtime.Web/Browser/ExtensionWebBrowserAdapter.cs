@@ -242,8 +242,24 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
         }
         return true;
     }
-    public Task<WebBubblePresentation> EnsureBubbleShownAsync(GuideStep step, int stepNumber, int totalSteps, CancellationToken cancellationToken = default) => throw Pending(nameof(EnsureBubbleShownAsync));
-    public Task HideBubbleAsync(CancellationToken cancellationToken = default) => throw Pending(nameof(HideBubbleAsync));
+    public async Task<WebBubblePresentation> EnsureBubbleShownAsync(GuideStep step, int stepNumber, int totalSteps, CancellationToken cancellationToken = default)
+    {
+        if (step.Target is null) return new(WebTargetResolutionStatus.NotFound, 0);
+        var response = await SendCommandAsync(new { type = "ensureBubble", step, stepNumber, totalSteps, framePath = step.Target.FrameContext?.Path }, cancellationToken);
+        var result = response.GetProperty("result");
+        var status = result.GetProperty("status").GetString();
+        var count = result.TryGetProperty("count", out var n) ? n.GetInt32() : 0;
+        return new(status switch
+        {
+            "resolved" => WebTargetResolutionStatus.Resolved,
+            "ambiguous" => WebTargetResolutionStatus.Ambiguous,
+            _ => WebTargetResolutionStatus.NotFound
+        }, count);
+    }
+    public async Task HideBubbleAsync(CancellationToken cancellationToken = default)
+    {
+        await SendCommandAsync(new { type = "hideBubble" }, cancellationToken);
+    }
     public Task WaitForCenteredStepDismissalAsync(GuideStep step, int stepNumber, int totalSteps, CancellationToken cancellationToken = default) => throw Pending(nameof(WaitForCenteredStepDismissalAsync));
     public Task WaitForGuideCompletedDismissalAsync(CancellationToken cancellationToken = default) => throw Pending(nameof(WaitForGuideCompletedDismissalAsync));
     public async Task<string?> CaptureAsync(GuideStep step, CancellationToken cancellationToken = default)
