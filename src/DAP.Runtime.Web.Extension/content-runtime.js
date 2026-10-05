@@ -31,11 +31,19 @@
           return;
         }
         const token = crypto.randomUUID();
+        let settled = false;
+        let timer = null;
+        const finish = response => {
+          if (settled) return;
+          settled = true;
+          if (timer !== null) clearTimeout(timer);
+          removeEventListener("message", handler);
+          sendResponse(response);
+        };
         const handler = event => {
           if (event.source !== frame.contentWindow || event.data?.type !== "dap-frame-identify-response" || event.data?.token !== token) return;
-          removeEventListener("message", handler);
           const rect=frame.getBoundingClientRect();
-          sendResponse({ok:true,result:{
+          finish({ok:true,result:{
             status:"resolved",
             count:1,
             frameToken:token,
@@ -44,7 +52,7 @@
         };
         addEventListener("message", handler);
         frame.contentWindow.postMessage({type:"dap-frame-identify",token}, "*");
-        setTimeout(() => { removeEventListener("message", handler); sendResponse({ok:true,result:{status:"notFound",count:0}}); }, 1000);
+        timer=setTimeout(() => finish({ok:true,result:{status:"notFound",count:0}}), 1000);
         return true;
       }
       if (command.type === "resolveTarget") {
