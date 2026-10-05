@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Buffers.Binary;
 using System.IO.Pipes;
 using System.Text;
@@ -9,6 +10,9 @@ using DAP.Data.Sqlite.Guides;
 const string RuntimePipeName = "dap-web-runtime-v1";
 const string TestPipeName = "dap-web-e2e-v1";
 
+using var nativeLog = new NativeHostLog();
+nativeLog.Write("process-start", $"pid={Environment.ProcessId}; args=[{string.Join(", ", args)}]");
+
 var repository = new SqliteGuideStepRepository(new SqliteConnectionFactory(SqliteDatabaseOptions.CreateDefault()));
 var input = Console.OpenStandardInput();
 var output = Console.OpenStandardOutput();
@@ -17,17 +21,22 @@ json.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
 
 using var shutdown = new CancellationTokenSource();
 var nativeOutput = new NativeOutputWriter(output, json);
-var runtimeBridge = new DapPipeBridge(RuntimePipeName, nativeOutput, json);
-var testBridge = new DapPipeBridge(TestPipeName, nativeOutput, json);
+var runtimeBridge = new DapPipeBridge(RuntimePipeName, nativeOutput, json, nativeLog);
+var testBridge = new DapPipeBridge(TestPipeName, nativeOutput, json, nativeLog);
 var runtimeBridgeTask = runtimeBridge.RunAsync(shutdown.Token);
 var testBridgeTask = testBridge.RunAsync(shutdown.Token);
 
 try
 {
+    nativeLog.Write("native-loop", "waiting for browser messages");
     while (true)
     {
         var lengthBytes = new byte[4];
-        if (!await ReadExactAsync(input, lengthBytes)) break;
+        if (!await ReadExactAsync(input, lengthBytes))
+        {
+            nativeLog.Write("native-stdin-closed", "browser closed Native Messaging stdin");
+            break;
+        }
 
         var length = BinaryPrimitives.ReadInt32LittleEndian(lengthBytes);
         if (length <= 0 || length > 4 * 1024 * 1024)
@@ -122,15 +131,17 @@ sealed class DapPipeBridge
     private readonly string _pipeName;
     private readonly NativeOutputWriter _nativeOutput;
     private readonly JsonSerializerOptions _json;
+    private readonly NativeHostLog _log;
     private readonly SemaphoreSlim _writeGate = new(1, 1);
     private readonly object _gate = new();
     private NamedPipeClientStream? _pipe;
 
-    public DapPipeBridge(string pipeName, NativeOutputWriter nativeOutput, JsonSerializerOptions json)
+    public DapPipeBridge(string pipeName, NativeOutputWriter nativeOutput, JsonSerializerOptions json, NativeHostLog log)
     {
         _pipeName = pipeName;
         _nativeOutput = nativeOutput;
         _json = json;
+        _log = log;
     }
 
     public async Task RunAsync(CancellationToken cancellationToken)
@@ -142,9 +153,11 @@ sealed class DapPipeBridge
             {
                 client = new NamedPipeClientStream(
                     ".", _pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
+                _log.Write("pipe-connect-attempt", _pipeName);
                 await client.ConnectAsync(cancellationToken);
 
                 lock (_gate) _pipe = client;
+                _log.Write("pipe-connected", _pipeName);
 
                 using var reader = new StreamReader(client, Encoding.UTF8, false, 4096, leaveOpen: true);
                 while (!cancellationToken.IsCancellationRequested)
@@ -161,9 +174,14 @@ sealed class DapPipeBridge
             {
                 break;
             }
-            catch (IOException)
+            catch (IOException ex)
             {
+                _log.Write("pipe-io", _pipeName + ": " + ex.Message);
                 // DAP may start later or restart independently of the extension.
+            }
+            catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+            {
+                _log.Write("pipe-error", _pipeName + ": " + ex);
             }
             finally
             {
@@ -229,3 +247,37 @@ sealed record NativeRequest(
     JsonElement? Command,
     JsonElement? Payload,
     JsonElement? Response);
+
+
+sealed class NativeHostLog : IDisposable
+{
+    private readonly object _gate = new();
+    private readonly StreamWriter _writer;
+
+    public NativeHostLog()
+    {
+        var directory = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "DAP",
+            "Logs");
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, "native-host.log");
+        _writer = new StreamWriter(
+            new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.ReadWrite),
+            new UTF8Encoding(false))
+        {
+            AutoFlush = true
+        };
+    }
+
+    public void Write(string kind, string message)
+    {
+        lock (_gate)
+        {
+            _writer.WriteLine(
+                $"{DateTimeOffset.Now:O} [{Environment.ProcessId}] {kind}: {message}");
+        }
+    }
+
+    public void Dispose() => _writer.Dispose();
+}
