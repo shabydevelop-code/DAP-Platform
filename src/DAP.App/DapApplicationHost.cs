@@ -210,7 +210,7 @@ public static class DapApplicationHost
         // Production Web path: the learner owns guide behavior while the
         // browser extension is only the browser adapter. No Playwright/CDP is
         // created or connected here.
-        using var browserAdapter = new ExtensionWebBrowserAdapter();
+        using var browserAdapter = new ExtensionWebBrowserAdapter(texts);
         var stepRuntime = new AdapterWebLearnerRuntime(browserAdapter);
         var guideRuntime = new AdapterWebGuideRuntime(stepRuntime, browserAdapter);
         StartupMark(startup, "Web extension adapter composition root created");
