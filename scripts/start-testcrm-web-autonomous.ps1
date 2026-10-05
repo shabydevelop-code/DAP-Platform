@@ -222,8 +222,9 @@ Write-Host "Production Runtime pipe server ready."
 Write-Host "Opening TestCRM in $Browser profile '$($browserInfo.Profile)'..."
 # Do not force --new-window. Reuse the selected profile's existing browser
 # window when one exists; otherwise Chrome/Edge creates the first window.
-Start-Process $browserInfo.Exe -ArgumentList @(
-    "--profile-directory=$($browserInfo.Profile)",
+$profileArgument = '--profile-directory="' + $browserInfo.Profile + '"'
+Start-Process -FilePath $browserInfo.Exe -ArgumentList @(
+    $profileArgument,
     "http://localhost:5200/"
 )
 
