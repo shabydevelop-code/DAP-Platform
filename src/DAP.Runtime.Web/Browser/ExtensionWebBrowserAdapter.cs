@@ -240,7 +240,8 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
                 // extension loaded at the same time. The first host that can
                 // successfully resolve the active application becomes the
                 // selected browser session for this DAP Runtime instance.
-                _ = Task.Run(() => ReadPipeLoopAsync(server, cancellationToken), CancellationToken.None);
+                var connectedServer = server;
+                _ = Task.Run(() => ReadPipeLoopAsync(connectedServer, cancellationToken), CancellationToken.None);
                 server = null;
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
