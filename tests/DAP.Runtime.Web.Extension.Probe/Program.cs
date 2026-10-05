@@ -89,3 +89,39 @@ if (!validationSatisfied) throw new Exception("Expected non-empty customer-name 
 
 await adapter.ConsumeValidationCommitAsync(validationStep);
 Console.WriteLine("PASS: Extension reported the natural blur commit and DAP evaluated value-not-empty without Playwright.");
+
+
+var equalsStep = validationStep with {
+    Id = "probe-value-equals",
+    Validation = new ValidationDefinition("value-equals", "DAP")
+};
+Console.WriteLine();
+Console.WriteLine("Value-equals probe: enter exactly DAP in the customer-name field and press Tab.");
+var equalsCommit = await adapter.WaitForValidationCommitAsync(equalsStep);
+if (equalsCommit is null) throw new Exception("Expected value-equals target to resolve.");
+if (!await adapter.IsPrimaryValidationSatisfiedAsync(equalsStep))
+    throw new Exception("Expected exact value DAP to satisfy value-equals.");
+await adapter.ConsumeValidationCommitAsync(equalsStep);
+Console.WriteLine("PASS: DAP evaluated value-equals after the natural blur commit.");
+
+var completionStep = new GuideStep(
+    "probe-completion", 6, contextTarget, new BubbleDefinition("probe"),
+    CompletionConditions: new[] {
+        new StepCompletionCondition("target-exists", validationTarget),
+        new StepCompletionCondition("target-enabled", validationTarget),
+        new StepCompletionCondition("value-equals", validationTarget, "DAP"),
+        new StepCompletionCondition("target-not-exists", TargetDescriptor.Create(
+            TargetRuntime.Web, new Locator("css", "#dap-completion-probe-missing")))
+    });
+if (!await adapter.AreCompletionConditionsSatisfiedAsync(completionStep))
+    throw new Exception("Expected extension completion conditions to be satisfied.");
+Console.WriteLine("PASS: Extension completion conditions passed without Playwright.");
+
+var captureStep = new GuideStep(
+    "probe-capture", 7, validationTarget, new BubbleDefinition("probe"),
+    Capture: new StepCaptureDefinition(
+        TargetRuntime.Web, new Locator("css", "#customer-search input[name=\"name\"]"), "value", "^(DAP)$"));
+var captured = await adapter.CaptureAsync(captureStep);
+Console.WriteLine($"Captured value:        {captured}");
+if (captured != "DAP") throw new Exception("Expected capture value DAP.");
+Console.WriteLine("PASS: Extension capture returned and regex-processed the browser value without Playwright.");
