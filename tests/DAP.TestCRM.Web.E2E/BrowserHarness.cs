@@ -650,7 +650,7 @@ internal sealed class CdpConnection : IAsyncDisposable
                 WebSocketReceiveResult result;
                 do
                 {
-                    result = await _socket.ReceiveAsync(buffer, _cts.Token);
+                    result = await _socket.ReceiveAsync(new ArraySegment<byte>(buffer), _cts.Token);
                     if (result.MessageType == WebSocketMessageType.Close) return;
                     stream.Write(buffer, 0, result.Count);
                 }
