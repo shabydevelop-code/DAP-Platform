@@ -1,6 +1,4 @@
 using System.Diagnostics;
-using System.Net;
-using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using DAP.TestCRM.Web.E2E;
@@ -69,15 +67,6 @@ if (manual && (unguided || explicitGuided || manualFromStep is not null || visua
     throw new ArgumentException("--manual cannot be combined with --guided, --unguided, --manual-from-step, or --visual-from-step.");
 if (unguided && (manualFromStep is not null || visualFromStep is not null))
     throw new ArgumentException("--unguided cannot be combined with --manual-from-step or --visual-from-step.");
-
-static int ReserveTcpPort()
-{
-    var listener = new TcpListener(IPAddress.Loopback, 0);
-    listener.Start();
-    var port = ((IPEndPoint)listener.LocalEndpoint).Port;
-    listener.Stop();
-    return port;
-}
 
 static void EnsurePortFree(int port)
 {
@@ -374,9 +363,6 @@ void StartupMark(string stage)
     harnessLastMark=now;
 }
 
-var dapCdpPort = ReserveTcpPort();
-StartupMark("browser debugging port reserved");
-
 var e2eBrowser = Environment.GetEnvironmentVariable("DAP_E2E_BROWSER")?.Trim().ToLowerInvariant() ?? "chromium";
 if (e2eBrowser is not ("chromium" or "chrome" or "edge"))
     throw new ArgumentException(
@@ -397,17 +383,13 @@ if (explicitGuided && !manual && !unguided && manualFromStep is null && visualFr
 var extensionDirectory = Path.Combine(repoRoot, "src", "DAP.Runtime.Web.Extension");
 await using var browser = await BrowserHarness.LaunchAsync(
     e2eBrowser,
-    dapCdpPort,
-    extensionDirectory);
-StartupMark($"{e2eBrowser} launched without Playwright");
+    0,
+    extensionDirectory,
+    baseUrl);
+StartupMark($"{e2eBrowser} launched through the installed DAP extension profile");
 
 var page = browser.Page;
 page.SetDefaultTimeout(5000);
-await page.SetExtraHttpHeadersAsync(new Dictionary<string,string>
-{
-    ["X-DAP-E2E-Mode"] = e2eMode
-});
-
 var ownedWebTargetClosed = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
 void OnOwnedBrowserDisconnected(object? _, EventArgs __) => ownedWebTargetClosed.TrySetResult("browser-disconnected");
 browser.Disconnected += OnOwnedBrowserDisconnected;
@@ -800,6 +782,7 @@ Process StartFocusedDap(int startStepOrder)
         }
     };
     process.StartInfo.Environment["DAP_DATABASE_PATH"]=dapDbPath!;
+    process.StartInfo.Environment["DAP_WEB_SESSION_ID"]=browser.SessionId;
 
     if(!process.Start())
         throw new Exception("DAP.exe process could not be started for focused Web run.");
@@ -1024,6 +1007,7 @@ dapProcess=new Process
     }
 };
 dapProcess.StartInfo.Environment["DAP_DATABASE_PATH"]=dapDbPath!;
+dapProcess.StartInfo.Environment["DAP_WEB_SESSION_ID"]=browser.SessionId;
 var dapStartupTimer=Stopwatch.StartNew();
 if(!dapProcess.Start())
     throw new Exception("DAP.exe process could not be started.");
