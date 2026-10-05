@@ -124,9 +124,16 @@ Get-Process "DAP.Runtime.Web.NativeHost" -ErrorAction SilentlyContinue |
         $_.WaitForExit(5000)
     }
 
-Write-Host "Building production Native Host..."
-dotnet build ".\src\DAP.Runtime.Web.NativeHost\DAP.Runtime.Web.NativeHost.csproj" --nologo --verbosity minimal
-if ($LASTEXITCODE -ne 0) { throw "Native Host build failed." }
+Write-Host "Building and registering production Native Host..."
+& ".\src\DAP.Runtime.Web.NativeHost\install-native-host.ps1" -ExtensionId $registration.ExtensionId -Configuration "Debug"
+if ($LASTEXITCODE -ne 0) { throw "Native Host registration failed." }
+
+$registeredManifest = Get-Content $registration.ManifestPath -Raw | ConvertFrom-Json
+$registeredExe = [IO.Path]::GetFullPath([string]$registeredManifest.path)
+if (-not (Test-Path $registeredExe)) {
+    throw "Registered Native Host executable does not exist: $registeredExe"
+}
+Write-Host "Native Host registered executable: $registeredExe"
 
 Write-Host "Building DAP Learner..."
 dotnet build ".\src\DAP.App\DAP.App.csproj" --nologo --verbosity minimal
