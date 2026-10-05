@@ -182,6 +182,17 @@
         sendResponse({ok:true,result:{status:result.status,count:result.count}});
         return;
       }
+      if(command.type==="probeResolveTarget"){
+        const resolved=resolveTarget(command.resolved);
+        const missing=resolveTarget(command.missing);
+        const ambiguous=resolveTarget(command.ambiguous);
+        sendResponse({ok:true,result:{
+          resolved:{status:resolved.status,count:resolved.count},
+          missing:{status:missing.status,count:missing.count},
+          ambiguous:{status:ambiguous.status,count:ambiguous.count}
+        }});
+        return;
+      }
       sendResponse({ok:false,error:"Unsupported DAP adapter command '"+String(command.type||"")+"'."});
     }catch(error){
       sendResponse({ok:false,error:String(error?.message||error)});
