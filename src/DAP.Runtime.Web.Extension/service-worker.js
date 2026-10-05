@@ -192,7 +192,26 @@ async function handleNativeMessage(message) {
       const count = resolved.length + ambiguous;
 
       if (count === 1 && resolved.length === 1) {
-        postAdapterResponse(connect(), message.requestId, {ok:true,result:{status:"resolved",count:1}}, tabId, resolved[0].frameId);
+        const resolvedReply = resolved[0];
+        const result = resolvedReply.response?.result || {};
+        if (result.needsTopLevel === true && result.topRect) {
+          const proxyResponse = await chrome.tabs.sendMessage(tabId, {
+            type:"dap-adapter-command",
+            requestId:message.requestId + "-proxy",
+            command:{
+              type:"showBubbleProxy",
+              step:message.command.step,
+              stepNumber:message.command.stepNumber,
+              totalSteps:message.command.totalSteps,
+              targetRect:result.topRect
+            }
+          }, {frameId:0});
+          if (!proxyResponse?.ok) {
+            postAdapterResponse(connect(), message.requestId, proxyResponse || {ok:false,error:"Top-level bubble proxy failed."}, tabId, 0);
+            return;
+          }
+        }
+        postAdapterResponse(connect(), message.requestId, {ok:true,result:{status:"resolved",count:1}}, tabId, resolvedReply.frameId);
         return;
       }
 
