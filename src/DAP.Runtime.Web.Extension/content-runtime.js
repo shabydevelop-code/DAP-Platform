@@ -1,7 +1,11 @@
 (() => {
   "use strict";
 
-  if (globalThis.__dapWebRuntime) return;
+  // Do not return before registering the adapter endpoint. After an extension
+  // reload a tab may still contain an older __dapWebRuntime object while the
+  // new extension context needs to install its current message listener.
+  if (globalThis.__dapAdapterEndpointVersion === "0.2.0") return;
+  globalThis.__dapAdapterEndpointVersion = "0.2.0";
 
   // Register the adapter message endpoint before the legacy POC runtime is
   // initialized. Target resolution is looked up at message time, so an
@@ -351,8 +355,9 @@
 
   start();
 
+  const existingRuntime = globalThis.__dapWebRuntime;
   globalThis.__dapWebRuntime = {
-    version: "0.1.0",
+    version: "0.2.0",
     resolveTarget,
     showBubble,
     hideBubble,
