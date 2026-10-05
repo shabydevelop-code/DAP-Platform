@@ -190,12 +190,52 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             _ => throw new NotSupportedException($"Unsupported Web validation kind '{step.Validation.Kind}'.")
         };
     }
-    public Task<bool> AreCompletionConditionsSatisfiedAsync(GuideStep step, CancellationToken cancellationToken = default) => throw Pending(nameof(AreCompletionConditionsSatisfiedAsync));
+    public async Task<bool> AreCompletionConditionsSatisfiedAsync(GuideStep step, CancellationToken cancellationToken = default)
+    {
+        if (step.CompletionConditions is null || step.CompletionConditions.Count == 0) return true;
+        foreach (var condition in step.CompletionConditions)
+        {
+            if (condition.Target.Runtime != TargetRuntime.Web)
+                throw new InvalidOperationException($"Web Guide Step '{step.Id}' contains a non-Web completion target.");
+            var response = await SendCommandAsync(new { type = "inspectTarget", target = condition.Target }, cancellationToken);
+            var result = response.GetProperty("result");
+            var resolved = result.GetProperty("status").GetString() == "resolved";
+            switch (condition.Kind.Trim().ToLowerInvariant())
+            {
+                case "target-exists": if (!resolved) return false; break;
+                case "target-not-exists": if (resolved) return false; break;
+                case "target-enabled":
+                    if (!resolved || !result.TryGetProperty("enabled", out var enabled) || !enabled.GetBoolean()) return false;
+                    break;
+                case "value-equals":
+                    if (!resolved || condition.ExpectedValue is null ||
+                        !result.TryGetProperty("value", out var value) ||
+                        !string.Equals(value.GetString(), condition.ExpectedValue, StringComparison.Ordinal)) return false;
+                    break;
+                default: throw new NotSupportedException($"Unsupported Web completion condition kind '{condition.Kind}'.");
+            }
+        }
+        return true;
+    }
     public Task<WebBubblePresentation> EnsureBubbleShownAsync(GuideStep step, int stepNumber, int totalSteps, CancellationToken cancellationToken = default) => throw Pending(nameof(EnsureBubbleShownAsync));
     public Task HideBubbleAsync(CancellationToken cancellationToken = default) => throw Pending(nameof(HideBubbleAsync));
     public Task WaitForCenteredStepDismissalAsync(GuideStep step, int stepNumber, int totalSteps, CancellationToken cancellationToken = default) => throw Pending(nameof(WaitForCenteredStepDismissalAsync));
     public Task WaitForGuideCompletedDismissalAsync(CancellationToken cancellationToken = default) => throw Pending(nameof(WaitForGuideCompletedDismissalAsync));
-    public Task<string?> CaptureAsync(GuideStep step, CancellationToken cancellationToken = default) => throw Pending(nameof(CaptureAsync));
+    public async Task<string?> CaptureAsync(GuideStep step, CancellationToken cancellationToken = default)
+    {
+        if (step.Capture is null) return null;
+        if (step.Capture.Runtime != TargetRuntime.Web)
+            throw new InvalidOperationException("Web adapter can capture only Web runtime values.");
+        var response = await SendCommandAsync(new { type = "capture", capture = step.Capture }, cancellationToken);
+        var result = response.GetProperty("result");
+        if (result.GetProperty("status").GetString() != "resolved" ||
+            !result.TryGetProperty("value", out var value) || value.ValueKind == JsonValueKind.Null) return null;
+        var raw = value.GetString();
+        if (raw is null || string.IsNullOrEmpty(step.Capture.Pattern)) return raw;
+        var match = System.Text.RegularExpressions.Regex.Match(raw, step.Capture.Pattern, System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+        if (!match.Success) return null;
+        return match.Groups.Count > 1 ? match.Groups[1].Value : match.Value;
+    }
 
     public void Dispose()
     {
