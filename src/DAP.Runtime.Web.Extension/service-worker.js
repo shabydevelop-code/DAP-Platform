@@ -105,6 +105,12 @@ connect().onMessage.addListener(async message => {
       return;
     }
 
+    if (message.command?.type === "isContextActive") {
+      const active = replies.some(reply => reply.response?.result?.active === true);
+      postAdapterResponse(connect(), message.requestId, {ok:true,result:{active}}, tabId, null);
+      return;
+    }
+
     postAdapterResponse(connect(), message.requestId, replies[0].response, tabId, replies[0].frameId);
   } catch (error) {
     postAdapterResponse(connect(), message.requestId, { ok:false, error:String(error?.message || error) }, message.tabId ?? null, message.frameId ?? 0);
