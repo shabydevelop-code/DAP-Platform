@@ -60,7 +60,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        // Match the proven Playwright adapter: arming validation must not
+        // Match the proven Web learner semantics: arming validation must not
         // require the target to exist yet. The target may appear only after a
         // server refresh/document replacement. The live DOM listener is bound
         // when EnsureBubbleShownAsync resolves the current target.
