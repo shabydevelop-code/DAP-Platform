@@ -948,3 +948,30 @@ The test harness may orchestrate servers, browser processes, DAP processes, data
 Before implementing any Web change, verify it preserves this single-path rule. If a proposed solution introduces a second browser-control mechanism, stop and redesign before committing.
 
 **Current correction:** any CDP-based BrowserHarness introduced during the Zero Playwright migration is temporary invalid work and must be removed/replaced before the milestone can be considered complete.
+
+
+## Zero Playwright implementation correction — extension-native E2E
+
+The invalid CDP-based E2E BrowserHarness has been replaced. The Web E2E runner now uses the same browser boundary as the product:
+
+```text
+Web E2E runner
+  ↕ dap-web-e2e-v1 named pipe
+Native Messaging Host
+  ↕ Chrome/Edge Native Messaging
+DAP Web Runtime extension
+  ↕ extension content runtime
+TestCRM DOM
+```
+
+Key rules/state:
+- Chrome/Edge is launched as a normal installed browser profile; no temporary profile, remote debugging port, CDP, Playwright, Selenium, or Puppeteer is used.
+- The DAP extension must already be installed/reloaded in that browser profile.
+- E2E browser actions and DOM assertions are explicit test-driver commands routed through the DAP extension.
+- Each run gets a unique `dap-e2e-session` token in the TestCRM tab URL.
+- `DAP.exe` receives the same session through `DAP_WEB_SESSION_ID`, so learner-runtime commands and E2E actions target the same browser tab.
+- The Native Host bridges both the production Runtime pipe and the E2E pipe; this is one browser-access architecture, not a second automation stack.
+- Visual mode may still move the real operating-system cursor, while target lookup/action semantics remain extension-routed.
+- The five-second timeout ceiling remains unchanged.
+
+The Zero Playwright milestone is not complete until the extension-native 54-Step canonical run passes in Chrome and Edge and the required public run modes are verified.
