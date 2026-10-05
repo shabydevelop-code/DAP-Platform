@@ -1,0 +1,7 @@
+{
+  "name": "com.dap.web_runtime",
+  "description": "DAP Web Runtime Native Messaging Host",
+  "path": "C:\\Program Files\\DAP\\DAP.Runtime.Web.NativeHost.exe",
+  "type": "stdio",
+  "allowed_origins": ["chrome-extension://REPLACE_WITH_EXTENSION_ID/"]
+}
