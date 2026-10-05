@@ -14,6 +14,7 @@ namespace DAP.TestCRM.Web.E2E;
 internal sealed class BrowserHarness : IAsyncDisposable
 {
     private const string PipeName = "dap-web-e2e-v1";
+    private const string RequiredTestDriverVersion = "1.0.0";
     private static readonly TimeSpan CommandTimeout = TimeSpan.FromSeconds(5);
 
     private readonly ConcurrentDictionary<string, TaskCompletionSource<JsonElement>> _pending = new(StringComparer.Ordinal);
@@ -71,7 +72,28 @@ internal sealed class BrowserHarness : IAsyncDisposable
             readyCts.CancelAfter(CommandTimeout);
             try
             {
-                await harness.SendCommandAsync(new { type = "testPing" }, readyCts.Token);
+                var ping = await harness.SendCommandAsync(new { type = "testPing" }, readyCts.Token);
+                var result = ping.GetProperty("result");
+                var driverVersion = result.TryGetProperty("testDriverVersion", out var driverVersionElement)
+                    ? driverVersionElement.GetString()
+                    : null;
+                var extensionVersion = result.TryGetProperty("extensionVersion", out var extensionVersionElement)
+                    ? extensionVersionElement.GetString()
+                    : null;
+
+                if (!string.Equals(driverVersion, RequiredTestDriverVersion, StringComparison.Ordinal))
+                {
+                    throw new InvalidOperationException(
+                        $"DAP browser extension is stale or incompatible. " +
+                        $"Required test-driver protocol {RequiredTestDriverVersion}, " +
+                        $"connected protocol {driverVersion ?? "<missing>"}, " +
+                        $"extension version {extensionVersion ?? "<unknown>"}. " +
+                        "Reload the unpacked DAP Web Runtime extension before running Web E2E.");
+                }
+
+                Console.WriteLine(
+                    $"DAP extension handshake: version {extensionVersion ?? "<unknown>"}, " +
+                    $"test-driver protocol {driverVersion}.");
             }
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
