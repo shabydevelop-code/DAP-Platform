@@ -677,3 +677,25 @@ Key rules/state:
 - The five-second timeout ceiling remains unchanged.
 
 The Zero Playwright milestone is not complete until the extension-native 54-Step canonical run passes in Chrome and Edge and the required public run modes are verified.
+
+## Hard product rule — autonomous Learner Runtime
+
+The core product is not an automation demo and the E2E Runner is not part of learner execution.
+
+A persisted Guide must run with only:
+
+```text
+Guide database
+→ DAP Learner Runtime
+→ production Web/Windows adapter
+→ target application
+```
+
+The Runtime must independently determine context, resolve the target from persisted descriptors/anchors, present the bubble, observe the learner action, evaluate validation and completion conditions, capture required runtime values, and advance to the next Step. It must re-resolve after application changes and must never guess on ambiguity.
+
+The Runner may automate a human for testing, but it must not provide target identity, validation success, completion state, transition decisions, or any other fact needed by the product. If deleting the Runner changes whether a published Guide can execute, the implementation is invalid.
+
+The future Instructor may be developed with AI and may optionally use AI as an authoring aid, but published Guide semantics must be deterministic and persisted. Production learner execution must not require AI.
+
+Immediate development priority: prove the canonical persisted TestCRM Guide manually with the Runner absent, using only TestCRM + DAP Learner Runtime + persisted DB + the production adapter. Automated Runner parity is secondary until this autonomous path is verified.
+
