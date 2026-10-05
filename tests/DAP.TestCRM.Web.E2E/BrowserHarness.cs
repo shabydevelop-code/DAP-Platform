@@ -378,6 +378,15 @@ internal sealed class BrowserFrame
         return await _page.EvaluateExpressionAsync<T>(expression);
     }
 
+    public async Task EvaluateAsync(string script)
+    {
+        var normalized = script.Trim();
+        var expression = _frameSelector is null
+            ? $"({normalized})()"
+            : $"(()=>{{const __w={WindowExpression}; if(!__w) throw new Error('Frame unavailable'); return __w.eval({Js("(")} + {Js(normalized)} + {Js(")()")});}})()";
+        await _page.EvaluateRawAsync(expression);
+    }
+
     public async Task RefreshUrlAsync()
     {
         Url = await _page.EvaluateExpressionAsync<string>(
