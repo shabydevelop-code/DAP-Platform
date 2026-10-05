@@ -365,7 +365,17 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
     public async Task<WebBubblePresentation> EnsureBubbleShownAsync(GuideStep step, int stepNumber, int totalSteps, CancellationToken cancellationToken = default)
     {
         if (step.Target is null) return new(WebTargetResolutionStatus.NotFound, 0);
-        var response = await SendCommandAsync(new { type = "ensureBubble", step, stepNumber, totalSteps, framePath = step.Target.FrameContext?.Path }, cancellationToken);
+        var response = await SendCommandAsync(new
+        {
+            type = "ensureBubble",
+            step,
+            stepNumber,
+            totalSteps,
+            progressText = _texts?.Format("Learner.StepProgress", stepNumber, totalSteps) ?? $"שלב {stepNumber} מתוך {totalSteps}",
+            dragText = _texts?.Get("Learner.DragBubble") ?? "גרור להזזת הבועה",
+            direction = _texts?.IsRightToLeft == false ? "ltr" : "rtl",
+            framePath = step.Target.FrameContext?.Path
+        }, cancellationToken);
         var result = response.GetProperty("result");
         var status = result.GetProperty("status").GetString();
         var count = result.TryGetProperty("count", out var n) ? n.GetInt32() : 0;
