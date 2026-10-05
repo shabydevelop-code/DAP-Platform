@@ -210,9 +210,31 @@
     return null;
   }
 
+  function queryPlaywrightCss(selector) {
+    // DAP's persisted Web locators were authored and regression-tested through
+    // Playwright. Native querySelectorAll does not understand Playwright's
+    // :has-text() pseudo-class, so preserve that selector contract explicitly
+    // instead of changing Guide data during the Extension migration.
+    const textFilters = [];
+    const nativeSelector = String(selector).replace(
+      /:has-text\((["'])(.*?)\1\)/g,
+      (_match, _quote, text) => {
+        textFilters.push(normalize(text).toLowerCase());
+        return "";
+      });
+
+    const candidates = [...document.querySelectorAll(nativeSelector || "*")];
+    if (!textFilters.length) return candidates;
+
+    return candidates.filter(el => {
+      const text = normalize(el.textContent).toLowerCase();
+      return textFilters.every(wanted => text.includes(wanted));
+    });
+  }
+
   function createCandidates(locator) {
     const strategy = locator.strategy.trim().toLowerCase();
-    if (strategy === "css") return [...document.querySelectorAll(locator.value)];
+    if (strategy === "css") return queryPlaywrightCss(locator.value);
     if (strategy === "text") return byText(locator.value);
     if (strategy === "label") return byLabel(locator.value);
     if (strategy === "role") {
