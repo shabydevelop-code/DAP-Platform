@@ -519,7 +519,7 @@ internal sealed class BrowserLocator
     {
         _frame.Page.ActiveFrame = _frame;
         await _frame.Page.EvaluateRawAsync(
-            $"(()=>{{const e={ElementExpression}; if(!e) throw new Error('Target not found'); e.value={BrowserFrame.Js(value)}; e.dispatchEvent(new Event('input',{{bubbles:true}})); e.dispatchEvent(new Event('change',{{bubbles:true}})); return null;}})()");
+            $"(()=>{{const e={ElementExpression}; if(!e) throw new Error('Target not found'); const w=e.ownerDocument.defaultView; e.value={BrowserFrame.Js(value)}; e.dispatchEvent(new w.Event('input',{{bubbles:true}})); e.dispatchEvent(new w.Event('change',{{bubbles:true}})); return null;}})()");
     }
 
     public async Task<T> EvaluateAsync<T>(string script)
@@ -575,14 +575,14 @@ internal sealed class BrowserKeyboard
         }
 
         await _page.EvaluateRawAsync(
-            $"(()=>{{const d={frame.DocumentExpression}; const e=d?.activeElement; if(!e) return null; e.dispatchEvent(new KeyboardEvent('keydown',{{key:{BrowserFrame.Js(key)},bubbles:true}})); e.dispatchEvent(new KeyboardEvent('keyup',{{key:{BrowserFrame.Js(key)},bubbles:true}})); return null;}})()");
+            $"(()=>{{const d={frame.DocumentExpression}; const e=d?.activeElement; if(!e) return null; const w=d.defaultView; e.dispatchEvent(new w.KeyboardEvent('keydown',{{key:{BrowserFrame.Js(key)},bubbles:true}})); e.dispatchEvent(new w.KeyboardEvent('keyup',{{key:{BrowserFrame.Js(key)},bubbles:true}})); return null;}})()");
     }
 
     public async Task TypeAsync(string value)
     {
         var frame = _page.ActiveFrame ?? _page.MainFrame;
         await _page.EvaluateRawAsync(
-            $"(()=>{{const d={frame.DocumentExpression}; const e=d?.activeElement; if(!e||!('value' in e)) throw new Error('No active text editor'); const start=typeof e.selectionStart==='number'?e.selectionStart:0; const end=typeof e.selectionEnd==='number'?e.selectionEnd:start; e.value=String(e.value||'').slice(0,start)+{BrowserFrame.Js(value)}+String(e.value||'').slice(end); e.dispatchEvent(new Event('input',{{bubbles:true}})); return null;}})()");
+            $"(()=>{{const d={frame.DocumentExpression}; const e=d?.activeElement; if(!e||!('value' in e)) throw new Error('No active text editor'); const start=typeof e.selectionStart==='number'?e.selectionStart:0; const end=typeof e.selectionEnd==='number'?e.selectionEnd:start; e.value=String(e.value||'').slice(0,start)+{BrowserFrame.Js(value)}+String(e.value||'').slice(end); e.dispatchEvent(new d.defaultView.Event('input',{{bubbles:true}})); return null;}})()");
     }
 }
 
