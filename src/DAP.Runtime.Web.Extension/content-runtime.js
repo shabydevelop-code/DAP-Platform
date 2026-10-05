@@ -11,6 +11,28 @@
     if (message?.type !== "dap-adapter-command") return;
     try {
       const command = message.command || {};
+      if (command.type === "resolveFrameChild") {
+        const matches = createCandidates(command.locator);
+        if (matches.length !== 1) {
+          sendResponse({ok:true,result:{status:matches.length ? "ambiguous" : "notFound",count:matches.length}});
+          return;
+        }
+        const frame = matches[0];
+        if (!(frame instanceof HTMLIFrameElement || frame instanceof HTMLFrameElement) || !frame.contentWindow) {
+          sendResponse({ok:true,result:{status:"notFound",count:0}});
+          return;
+        }
+        const token = crypto.randomUUID();
+        const handler = event => {
+          if (event.source !== frame.contentWindow || event.data?.type !== "dap-frame-identify-response" || event.data?.token !== token) return;
+          removeEventListener("message", handler);
+          sendResponse({ok:true,result:{status:"resolved",count:1,frameToken:token}});
+        };
+        addEventListener("message", handler);
+        frame.contentWindow.postMessage({type:"dap-frame-identify",token}, "*");
+        setTimeout(() => { removeEventListener("message", handler); sendResponse({ok:true,result:{status:"notFound",count:0}}); }, 1000);
+        return true;
+      }
       if (command.type === "resolveTarget") {
         const result = resolveTarget(command.target);
         sendResponse({ok:true,result:{status:result.status,count:result.count}});
@@ -111,6 +133,12 @@
     } catch (error) {
       sendResponse({ok:false,error:String(error?.message||error)});
     }
+  });
+
+  addEventListener("message", event => {
+    if (event.data?.type !== "dap-frame-identify" || !event.data?.token) return;
+    event.source?.postMessage({type:"dap-frame-identify-response",token:event.data.token}, {targetOrigin:"*"});
+    chrome.runtime.sendMessage({type:"dap-frame-identified",token:event.data.token}).catch(()=>{});
   });
 
   const normalize = value => String(value ?? "").replace(/\s+/g, " ").trim();
