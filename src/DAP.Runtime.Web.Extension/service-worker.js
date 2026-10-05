@@ -111,6 +111,16 @@ connect().onMessage.addListener(async message => {
       return;
     }
 
+    if (message.command?.type === "inspectTarget" || message.command?.type === "capture") {
+      const resolved = replies.filter(r => r.response?.result?.status === "resolved");
+      const ambiguous = replies.reduce((n, r) => n + (r.response?.result?.status === "ambiguous" ? Number(r.response.result.count || 0) : 0), 0);
+      const count = resolved.length + ambiguous;
+      if (count === 0) postAdapterResponse(connect(), message.requestId, {ok:true,result:{status:"notFound",count:0}}, tabId, null);
+      else if (count !== 1) postAdapterResponse(connect(), message.requestId, {ok:true,result:{status:"ambiguous",count}}, tabId, null);
+      else postAdapterResponse(connect(), message.requestId, resolved[0].response, tabId, resolved[0].frameId);
+      return;
+    }
+
     if (message.command?.type === "armValidation") {
       const resolved = replies.filter(r => r.response?.result?.status === "resolved");
       const ambiguous = replies.reduce((n, r) => n + (r.response?.result?.status === "ambiguous" ? Number(r.response.result.count || 0) : 0), 0);
