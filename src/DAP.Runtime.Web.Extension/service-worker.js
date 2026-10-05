@@ -373,6 +373,40 @@ async function handleTestDriverMessage(message) {
       return;
     }
 
+    if (command.type === "testResolveFrame") {
+      const framePath = Array.isArray(command.framePath) ? command.framePath : [];
+      const resolved = await resolveFramePath(tabId, framePath, requestId + "-test-resolve");
+      if (!resolved.ok) {
+        connect().postMessage({
+          type: "testDriverResponse",
+          requestId,
+          response: resolved.response
+        });
+        return;
+      }
+
+      const info = await sendToFrame(
+        tabId,
+        resolved.frameId,
+        requestId + "-test-info",
+        { type: "testFrameInfo" }
+      );
+
+      connect().postMessage({
+        type: "testDriverResponse",
+        requestId,
+        response: {
+          ok: true,
+          result: {
+            frameId: resolved.frameId,
+            name: info?.result?.name || "",
+            url: info?.result?.url || ""
+          }
+        }
+      });
+      return;
+    }
+
     if (command.type === "testCloseTab") {
       await chrome.tabs.remove(tabId);
       connect().postMessage({
