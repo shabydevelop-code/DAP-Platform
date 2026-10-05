@@ -254,9 +254,25 @@
   }
 
   const theme={backgroundColor:"#312E5A",textColor:"#FFFFFF",borderColor:"#8B83C7",borderWidth:1,borderRadius:8,maxWidth:320,padding:"12px 16px",boxShadow:"0 10px 28px rgba(32,29,67,.28)",fontFamily:"Arial, sans-serif",fontSize:14,lineHeight:1.4,targetHighlightColor:"#A99FE8",targetHighlightWidth:2,targetHighlightShadow:"0 0 0 3px rgba(169,159,232,.22)",pointerSize:9}; let active=null;
-  function hideBubble(){if(!active)return;active.cleanup?.();active=null;}
+  function hideBubble(){
+    // A page can survive an extension reload while its old isolated-world
+    // JavaScript state is discarded. Remove any DOM presentation by id as
+    // well as the presentation owned by this content-script instance.
+    const stale=document.getElementById("dap-guide-bubble");
+    if(active){
+      active.cleanup?.();
+      active=null;
+    } else {
+      stale?.remove();
+    }
+  }
   function showBubble(step,stepNumber,totalSteps){
     hideBubble();const z=resolveTarget(step.target);if(z.status!=="resolved")return z;const el=z.element,root=el.ownerDocument;
+    // Mirror WebBubblePresenter: never allow a stale bubble from an older
+    // extension context to coexist with the current Step presentation.
+    const existing=root.getElementById("dap-guide-bubble");
+    existing?.__dapCleanup?.();
+    existing?.remove();
     const ir=el.getBoundingClientRect();if(!(ir.width>0&&ir.height>0&&ir.bottom>0&&ir.right>0&&ir.top<innerHeight&&ir.left<innerWidth))el.scrollIntoView({behavior:"auto",block:"center",inline:"nearest"});
     const previous={outline:el.style.outline,outlineOffset:el.style.outlineOffset,boxShadow:el.style.boxShadow};
     el.style.outline=theme.targetHighlightWidth+"px solid "+theme.targetHighlightColor;el.style.outlineOffset="0px";el.style.boxShadow=theme.targetHighlightShadow;
