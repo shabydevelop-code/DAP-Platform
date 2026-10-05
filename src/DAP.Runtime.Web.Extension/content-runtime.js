@@ -114,10 +114,21 @@
           sendResponse({ok:true,result:{status:result.status,count:result.count}});
           return;
         }
+
+        if (command.armId && command.step?.validation)
+          armValidationTarget(command.step, result.element, command.armId);
+
         if (bubbleState?.bubble && bubbleState.step?.id === command.step?.id && bubbleState.element === result.element) {
-          sendResponse({ok:true,result:{status:"resolved",count:1}});
+          sendResponse({ok:true,result:{
+            status:"resolved",
+            count:1,
+            rect:result.rect,
+            needsTopLevel:bubbleState.needsTopLevel===true,
+            topRect:bubbleState.topRect??null
+          }});
           return;
         }
+
         const shown = showBubble(command.step, command.stepNumber, command.totalSteps, command);
         sendResponse({ok:true,result:shown});
         return;
@@ -523,6 +534,7 @@
   }
   function showBubble(step,stepNumber,totalSteps,presentation={}){
     hideBubble();const z=resolveTarget(step.target);if(z.status!=="resolved")return z;const el=z.element,root=el.ownerDocument;
+    if(presentation.armId&&step?.validation)armValidationTarget(step,el,presentation.armId);
     // Mirror WebBubblePresenter: never allow a stale bubble from an older
     // extension context to coexist with the current Step presentation.
     const existing=root.getElementById("dap-guide-bubble");
@@ -543,7 +555,7 @@
     const place=()=>{if(manual){const q=b.getBoundingClientRect(),n=clamp(q.left,q.top);b.style.left=n.x+"px";b.style.top=n.y+"px";b.style.visibility="visible";return}b.style.visibility="hidden";if(!el.isConnected)return;const r=el.getBoundingClientRect(),q=b.getBoundingClientRect(),gap=theme.pointerSize+8;if(!(r.width>0&&r.height>0&&r.bottom>0&&r.right>0&&r.top<innerHeight&&r.left<innerWidth))return;const coords=x=>x==="Top"?[r.left+(r.width-q.width)/2,r.top-q.height-gap]:x==="Left"?[r.left-q.width-gap,r.top+(r.height-q.height)/2]:x==="Right"?[r.right+gap,r.top+(r.height-q.height)/2]:[r.left+(r.width-q.width)/2,r.bottom+gap];const preferred=String(step.bubble?.placement||"Auto");const sides=[preferred==="Auto"?"Bottom":preferred,"Top","Right","Left","Bottom"].filter((x,i,a)=>a.indexOf(x)===i);const candidates=sides.map(side=>{let[x,y]=coords(side);if(side==="Top"||side==="Bottom")x=Math.max(margin,Math.min(x,innerWidth-q.width-margin));else y=Math.max(margin,Math.min(y,innerHeight-q.height-margin));const inside=x>=margin&&y>=margin&&x+q.width<=innerWidth-margin&&y+q.height<=innerHeight-margin;const overlap=!(x+q.width<=r.left||x>=r.right||y+q.height<=r.top||y>=r.bottom);const overflow=Math.max(0,margin-x)+Math.max(0,margin-y)+Math.max(0,x+q.width-(innerWidth-margin))+Math.max(0,y+q.height-(innerHeight-margin));return{side,x,y,inside,overlap,overflow}});let chosen=candidates.find(x=>x.inside&&!x.overlap);if(!chosen){const safe=candidates.filter(x=>!x.overlap).sort((a,z)=>a.overflow-z.overflow);chosen=safe[0]}if(!chosen||!chosen.inside){b.dataset.actualPlacement="Overlay";b.style.pointerEvents="none";pointer.style.display="none";return}b.style.pointerEvents="";b.style.left=chosen.x+"px";b.style.top=chosen.y+"px";pointer.style.display="";pointerFor(chosen.side);b.style.visibility="visible";b.dataset.actualPlacement=chosen.side};
     const down=e=>{if(e.button!==0||!e.target.closest('[data-dap-drag-handle="1"]'))return;const q=b.getBoundingClientRect();drag={id:e.pointerId,x:e.clientX,y:e.clientY,left:q.left,top:q.top};b.setPointerCapture(e.pointerId);handle.style.setProperty("cursor","grabbing","important");e.preventDefault()};const move=e=>{if(!drag||e.pointerId!==drag.id)return;const n=clamp(drag.left+e.clientX-drag.x,drag.top+e.clientY-drag.y);b.style.left=n.x+"px";b.style.top=n.y+"px"};const up=e=>{if(!drag||e.pointerId!==drag.id)return;manual=true;drag=null;handle.style.setProperty("cursor","grab","important");pointer.style.display="none";b.dataset.manualPosition="true";try{b.releasePointerCapture(e.pointerId)}catch{}};
     b.addEventListener("pointerdown",down);b.addEventListener("pointermove",move);b.addEventListener("pointerup",up);b.addEventListener("pointercancel",up);const ro=new ResizeObserver(place);ro.observe(el);ro.observe(b);addEventListener("scroll",place,true);addEventListener("resize",place);place();
-    bubbleState={bubble:b,step,element:el,stepNumber,totalSteps,progressText:presentation.progressText,dragText:presentation.dragText,direction:presentation.direction,cleanup:()=>{ro.disconnect();removeEventListener("scroll",place,true);removeEventListener("resize",place);b.remove();el.style.outline=previous.outline;el.style.outlineOffset=previous.outlineOffset;el.style.boxShadow=previous.boxShadow}};
+    bubbleState={bubble:b,step,element:el,stepNumber,totalSteps,armId:presentation.armId??null,progressText:presentation.progressText,dragText:presentation.dragText,direction:presentation.direction,cleanup:()=>{ro.disconnect();removeEventListener("scroll",place,true);removeEventListener("resize",place);b.remove();el.style.outline=previous.outline;el.style.outlineOffset=previous.outlineOffset;el.style.boxShadow=previous.boxShadow}};
     let topRect=null;
     if(b.dataset.actualPlacement==="Overlay"){
       try{
@@ -557,7 +569,10 @@
         topRect={x,y,width:z.rect.width,height:z.rect.height};
       }catch{}
     }
-    return{status:"resolved",count:1,rect:z.rect,needsTopLevel:b.dataset.actualPlacement==="Overlay",topRect};
+    const needsTopLevel=b.dataset.actualPlacement==="Overlay";
+    bubbleState.needsTopLevel=needsTopLevel;
+    bubbleState.topRect=topRect;
+    return{status:"resolved",count:1,rect:z.rect,needsTopLevel,topRect};
   }
   function reconcile(){
     if(!bubbleState)return;
@@ -567,7 +582,7 @@
       const step=bubbleState.step;
       const stepNumber=bubbleState.stepNumber;
       const totalSteps=bubbleState.totalSteps;
-      showBubble(step,stepNumber,totalSteps,{progressText:bubbleState.progressText,dragText:bubbleState.dragText,direction:bubbleState.direction});
+      showBubble(step,stepNumber,totalSteps,{armId:bubbleState.armId,progressText:bubbleState.progressText,dragText:bubbleState.dragText,direction:bubbleState.direction});
     }
   }
   function inputValue(el){return "value" in el ? String(el.value ?? "") : "";}
