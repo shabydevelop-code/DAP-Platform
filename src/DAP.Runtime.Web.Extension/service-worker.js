@@ -1,4 +1,5 @@
 const HOST = "com.dap.web_runtime";
+const TEST_DRIVER_VERSION = "1.0.0";
 const identifiedFrames = new Map();
 let port = null;
 
@@ -373,7 +374,15 @@ async function handleTestDriverMessage(message) {
       connect().postMessage({
         type: "testDriverResponse",
         requestId,
-        response: { ok: true, result: { tabId, url: tab.url || "" } }
+        response: {
+          ok: true,
+          result: {
+            tabId,
+            url: tab.url || "",
+            testDriverVersion: TEST_DRIVER_VERSION,
+            extensionVersion: chrome.runtime.getManifest().version
+          }
+        }
       });
       return;
     }
