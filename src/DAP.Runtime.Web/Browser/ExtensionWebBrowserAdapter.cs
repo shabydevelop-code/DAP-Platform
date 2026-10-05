@@ -55,18 +55,22 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
         _texts = texts;
         _acceptLoop = Task.Run(() => AcceptPipeLoopAsync(_transportCts.Token));
     }
-    public async Task ArmValidationAsync(GuideStep step, CancellationToken cancellationToken = default)
+    public Task ArmValidationAsync(GuideStep step, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        // Match the proven Playwright adapter: arming validation must not
+        // require the target to exist yet. The target may appear only after a
+        // server refresh/document replacement. The live DOM listener is bound
+        // when EnsureBubbleShownAsync resolves the current target.
         var armId = Guid.NewGuid().ToString("N");
         lock (_validationGate)
         {
             _commits.Remove(step.Id);
             _armedValidationIds[step.Id] = armId;
         }
-        var armed = await SendCommandAsync(new { type = "armValidation", step, armId, framePath = step.Target?.FrameContext?.Path }, cancellationToken);
-        var result = armed.GetProperty("result");
-        if (result.GetProperty("status").GetString() != "resolved")
-            throw new InvalidOperationException($"Validation target for Step '{step.Id}' did not resolve exactly once.");
+
+        return Task.CompletedTask;
     }
 
     public async Task<WebValidationCommit?> WaitForValidationCommitAsync(GuideStep step, CancellationToken cancellationToken = default)
@@ -365,12 +369,17 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
     public async Task<WebBubblePresentation> EnsureBubbleShownAsync(GuideStep step, int stepNumber, int totalSteps, CancellationToken cancellationToken = default)
     {
         if (step.Target is null) return new(WebTargetResolutionStatus.NotFound, 0);
+        string? armId;
+        lock (_validationGate)
+            _armedValidationIds.TryGetValue(step.Id, out armId);
+
         var response = await SendCommandAsync(new
         {
             type = "ensureBubble",
             step,
             stepNumber,
             totalSteps,
+            armId,
             progressText = _texts?.Format("Learner.StepProgress", stepNumber, totalSteps) ?? $"שלב {stepNumber} מתוך {totalSteps}",
             dragText = _texts?.Get("Learner.DragBubble") ?? "גרור להזזת הבועה",
             direction = _texts?.IsRightToLeft == false ? "ltr" : "rtl",
