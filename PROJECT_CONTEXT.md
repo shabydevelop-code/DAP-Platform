@@ -81,13 +81,12 @@ Web and Windows runtimes share the same Guide / Step / Validation / Progress mod
 
 ## Runtime technologies
 
-- Web: Microsoft Playwright for .NET.
+- Web learner production path: Manifest V3 browser extension + Native Messaging bridge + `.NET ExtensionWebBrowserAdapter`.
+- Web regression/compatibility baseline: Microsoft Playwright for .NET behind the same browser-adapter contract.
 - Windows: Microsoft UI Automation (UIA).
 - Desktop GUI: .NET 8 + WPF.
 
-Playwright and UIA are production runtime components behind DAP runtime contracts; they are not temporary POC technologies.
-
-The production application must not require Python. DAP.exe uses the .NET Web Runtime directly.
+The production application must not require Python. The Web extension is a browser adapter; the .NET Runtime remains authoritative for learner/Guide policy. Playwright remains the behavioral baseline during migration but is not the `DAP.exe --learner-web` production composition.
 
 ## Localization
 
@@ -134,7 +133,7 @@ After significant implementation changes, update the relevant Markdown documenta
 
 The shared architecture and Core contracts are designed from the start for both Web and Windows runtimes. Runtime-neutral models such as TargetDescriptor, Locator, Anchor, Validation, Bubble, GuideStep, and related contracts must therefore avoid Web-only or Windows-only assumptions unless represented through an explicit runtime-specific extension/adapter.
 
-The current implementation phase covers both production Learner runtimes: Web through Microsoft Playwright for .NET and Windows through Microsoft UI Automation/WPF. Both consume the same shared Core Guide/Target/Validation contracts through runtime-specific adapters.
+The current implementation phase covers both production Learner runtimes: Web through the browser-extension adapter and Windows through Microsoft UI Automation/WPF. Both consume the same shared Core Guide/Target/Validation contracts through runtime-specific adapters. The Playwright adapter remains available as a regression/compatibility implementation while extension parity is validated.
 
 ## Repository identity and test isolation
 
@@ -576,3 +575,21 @@ AI is explicitly a development aid in this phase. It may help analyze before/aft
 The production Instructor is expected to provide its own deterministic observation workflow: capture externally observable state before an author action, observe the action and resulting state, compare the states, identify/rank candidate changes, allow the author to confirm the intended completion/transition condition, and persist an explicit Guide definition. The production Learner must then evaluate that definition and diagnose supported page/window/context changes without AI.
 
 Schema/Core/Runtime changes should be driven by concrete scenarios that the current model cannot represent reliably. Do not enlarge the database schema merely to anticipate hypothetical cases. A capability discovered with AI assistance is complete only when the customer-side system can author/run the supported behavior without AI and without target-application source access.
+
+## Web extension migration milestone — 2026-10-05
+
+The persisted 54-Step `testcrm-web-canonical-workflow` was completed manually end-to-end through the production extension adapter path. This validates the integrated learner path across the canonical Customer -> Site -> Case -> Lead scenario, including server-backed refresh/reload, iframe replacement, conditional targets, validation rejection/recovery, runtime capture, context return, deletion, the cross-frame Header target, and explicit Guide completion.
+
+The active Web adapter transport is direct:
+
+```text
+DAP.exe ↔ Named Pipe ↔ Native Host ↔ Native Messaging ↔ Extension ↔ DOM
+```
+
+The previous JSONL journals are not the active transport. The extension does not own Guide sequencing. Browser lifecycle handling now includes content readiness probing, idempotent reinjection, explicit frame-path re-resolution, and safe handling of stale content-script contexts after extension reload.
+
+The migration used `Generic-Web-Training-Platform` only as a reference for already-proven extension messaging/lifecycle patterns. DAP does not adopt its extension-owned training engine; DAP keeps learner policy in .NET.
+
+Current verified learner details include natural blur/change commit events, click ACK/replay semantics, validation rebinding after DOM replacement, valid-commit latching across pending server completion conditions, top-level proxy presentation for constrained frames, and stable explicit-handle proxy dragging with `grabbing` held until release.
+
+Do not interpret this milestone as repository-wide Playwright removal. A fresh automated extension-backed browser/mode regression matrix remains separate verification work.
