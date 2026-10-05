@@ -52,15 +52,20 @@ internal sealed class BrowserHarness : IAsyncDisposable
         try
         {
             var executable = ResolveBrowserExecutable(browserName);
+            var extensionId = ResolveRegisteredExtensionId();
+            var profileDirectory = ResolveProfileWithExtension(browserName, extensionId);
             var sessionUrl = AddSession(initialUrl, harness.SessionId);
 
             _ = Process.Start(new ProcessStartInfo
             {
                 FileName = executable,
-                Arguments = $"--new-window \"{sessionUrl}\"",
+                Arguments = $"--profile-directory=\"{profileDirectory}\" --new-window \"{sessionUrl}\"",
                 UseShellExecute = false,
                 CreateNoWindow = false
             }) ?? throw new InvalidOperationException($"Could not launch browser '{browserName}'.");
+
+            Console.WriteLine(
+                $"Web E2E browser profile: {profileDirectory} (DAP extension {extensionId})");
 
             using var readyCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             readyCts.CancelAfter(CommandTimeout);
@@ -72,7 +77,8 @@ internal sealed class BrowserHarness : IAsyncDisposable
             {
                 throw new TimeoutException(
                     "DAP browser extension did not connect to the Web E2E driver within 5 seconds. " +
-                    "Ensure DAP Web Runtime is installed/reloaded in the selected Chrome/Edge profile.");
+                    "The runner selected the browser profile that contains the registered DAP extension; " +
+                    "reload that extension and verify its Native Messaging host registration.");
             }
 
             return harness;
@@ -342,6 +348,96 @@ internal sealed class BrowserHarness : IAsyncDisposable
         var addition = "dap-e2e-session=" + Uri.EscapeDataString(sessionId);
         builder.Query = string.IsNullOrEmpty(query) ? addition : query + "&" + addition;
         return builder.Uri.ToString();
+    }
+
+    private static string ResolveRegisteredExtensionId()
+    {
+        var manifestPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "DAP", "NativeMessaging", "com.dap.web_runtime.json");
+
+        if (!File.Exists(manifestPath))
+            throw new FileNotFoundException(
+                "DAP Native Messaging manifest was not found. Re-run install-native-host.ps1.",
+                manifestPath);
+
+        using var document = JsonDocument.Parse(File.ReadAllText(manifestPath));
+        if (!document.RootElement.TryGetProperty("allowed_origins", out var origins) ||
+            origins.ValueKind != JsonValueKind.Array)
+            throw new InvalidOperationException("DAP Native Messaging manifest has no allowed_origins.");
+
+        foreach (var originElement in origins.EnumerateArray())
+        {
+            var origin = originElement.GetString();
+            const string prefix = "chrome-extension://";
+            if (origin is null || !origin.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            var id = origin[prefix.Length..].TrimEnd('/');
+            if (!string.IsNullOrWhiteSpace(id))
+                return id;
+        }
+
+        throw new InvalidOperationException(
+            "DAP Native Messaging manifest does not contain a Chrome extension origin.");
+    }
+
+    private static string ResolveProfileWithExtension(string browserName, string extensionId)
+    {
+        var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        var userData = browserName.Trim().ToLowerInvariant() switch
+        {
+            "edge" => Path.Combine(local, "Microsoft", "Edge", "User Data"),
+            "chromium" => Path.Combine(local, "Chromium", "User Data"),
+            _ => Path.Combine(local, "Google", "Chrome", "User Data")
+        };
+
+        if (!Directory.Exists(userData))
+            throw new DirectoryNotFoundException(
+                $"Browser user-data directory was not found: {userData}");
+
+        var profiles = Directory.EnumerateDirectories(userData)
+            .Where(path =>
+            {
+                var name = Path.GetFileName(path);
+                return string.Equals(name, "Default", StringComparison.OrdinalIgnoreCase) ||
+                       name.StartsWith("Profile ", StringComparison.OrdinalIgnoreCase);
+            })
+            .OrderBy(path => string.Equals(Path.GetFileName(path), "Default", StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+            .ThenBy(path => path, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var profilePath in profiles)
+        {
+            var preferencesPath = Path.Combine(profilePath, "Preferences");
+            if (!File.Exists(preferencesPath)) continue;
+
+            try
+            {
+                using var document = JsonDocument.Parse(File.ReadAllText(preferencesPath));
+                if (!document.RootElement.TryGetProperty("extensions", out var extensions) ||
+                    !extensions.TryGetProperty("settings", out var settings) ||
+                    !settings.TryGetProperty(extensionId, out var entry))
+                    continue;
+
+                if (entry.TryGetProperty("state", out var state) &&
+                    state.ValueKind == JsonValueKind.Number &&
+                    state.GetInt32() == 0)
+                    continue;
+
+                return Path.GetFileName(profilePath);
+            }
+            catch (JsonException)
+            {
+                // Chrome may be updating Preferences while the runner probes it.
+            }
+            catch (IOException)
+            {
+            }
+        }
+
+        throw new InvalidOperationException(
+            $"Could not find browser profile containing DAP extension '{extensionId}'. " +
+            "Load/reload the unpacked DAP Web Runtime extension in this browser first.");
     }
 
     private static string ResolveBrowserExecutable(string browserName)
