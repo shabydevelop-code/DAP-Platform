@@ -43,10 +43,13 @@
         const handler = event => {
           if (event.source !== frame.contentWindow || event.data?.type !== "dap-frame-identify-response" || event.data?.token !== token) return;
           const rect=frame.getBoundingClientRect();
+          let frameUrl = null;
+          try { frameUrl = frame.contentWindow.location.href; } catch {}
           finish({ok:true,result:{
             status:"resolved",
             count:1,
             frameToken:token,
+            frameUrl,
             rect:{x:rect.x,y:rect.y,width:rect.width,height:rect.height}
           }});
         };
