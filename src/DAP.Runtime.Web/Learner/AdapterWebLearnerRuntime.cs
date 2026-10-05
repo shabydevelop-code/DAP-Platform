@@ -57,20 +57,27 @@ public sealed class AdapterWebLearnerRuntime
             if (commitTask?.IsCompletedSuccessfully == true)
             {
                 var primary = clicked || await _browser.IsPrimaryValidationSatisfiedAsync(step, cancellationToken);
-                if (primary && await _browser.AreCompletionConditionsSatisfiedAsync(step, cancellationToken))
+                if (primary)
                 {
-                    await _browser.HideBubbleAsync(cancellationToken);
-                    return;
-                }
+                    if (await _browser.AreCompletionConditionsSatisfiedAsync(step, cancellationToken))
+                    {
+                        await _browser.HideBubbleAsync(cancellationToken);
+                        return;
+                    }
 
-                // Invalid non-click commit: wait for the learner's next natural
-                // commit event. Do not poll intermediate input values.
-                if (!clicked)
+                    // Match the proven Playwright runtime exactly:
+                    // once a non-click natural commit satisfies the primary
+                    // validation, keep that completion latched while a
+                    // server-driven completion condition is still pending.
+                    // The learner must not be forced to change the control a
+                    // second time merely because the DOM/document refresh
+                    // completed after the original change event.
+                }
+                else if (!clicked)
                 {
-                    // The event is a one-shot natural commit (blur/change).
-                    // Remove it before arming the next wait; otherwise the
-                    // already-completed session would immediately satisfy the
-                    // new wait and turn value validation into polling.
+                    // Only an invalid non-click commit is consumed. A valid
+                    // commit remains completed until its persisted completion
+                    // conditions become true.
                     await _browser.ConsumeValidationCommitAsync(step, cancellationToken);
                     commitTask = _browser.WaitForValidationCommitAsync(step, cancellationToken);
                 }
