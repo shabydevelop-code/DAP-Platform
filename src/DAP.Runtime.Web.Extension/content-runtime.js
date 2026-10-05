@@ -31,6 +31,16 @@
         sendResponse({ok:true,result:{active}});
         return;
       }
+      if (command.type === "readTargetValue") {
+        const result = resolveTarget(command.target);
+        if (result.status !== "resolved") {
+          sendResponse({ok:true,result:{status:result.status,count:result.count,value:null}});
+          return;
+        }
+        const value = "value" in result.element ? String(result.element.value ?? "") : "";
+        sendResponse({ok:true,result:{status:"resolved",count:1,value}});
+        return;
+      }
       if (command.type === "waitForDomQuiet") {
         const quietMs = Math.max(0, Number(command.quietMilliseconds || 0));
         let timer;
