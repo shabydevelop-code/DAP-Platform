@@ -13,8 +13,6 @@ public enum DapLaunchMode
 public sealed record DapLaunchOptions(
     DapLaunchMode Mode,
     string? GuideId,
-    string? CdpEndpoint,
-    string? PageUrlContains,
     string? WindowAutomationId,
     int? StartStep,
     string? ResumeContextPath)
@@ -22,22 +20,16 @@ public sealed record DapLaunchOptions(
     public static DapLaunchOptions? Parse(string[] args, IUiTextProvider texts)
     {
         if (args.Length == 1 && args[0] == "--check")
-            return new(DapLaunchMode.InfrastructureCheck, null, null, null, null, null, null);
+            return new(DapLaunchMode.InfrastructureCheck, null, null, null, null);
 
         if (args.Length >= 2 && args[0] == "--learner-web" && !string.IsNullOrWhiteSpace(args[1]))
         {
-            string? cdp = null;
-            string? pageUrlContains = null;
             int? startStep = null;
             string? resumeContextPath = null;
 
             for (var i = 2; i < args.Length; i++)
             {
-                if (args[i] == "--cdp" && i + 1 < args.Length)
-                    cdp = args[++i];
-                else if (args[i] == "--page-url-contains" && i + 1 < args.Length)
-                    pageUrlContains = args[++i];
-                else if (args[i] == "--start-step" && i + 1 < args.Length
+                if (args[i] == "--start-step" && i + 1 < args.Length
                          && int.TryParse(args[++i], out var parsedStartStep) && parsedStartStep > 0)
                     startStep = parsedStartStep;
                 else if (args[i] == "--resume-context-file" && i + 1 < args.Length
@@ -47,10 +39,7 @@ public sealed record DapLaunchOptions(
                     return Usage(texts);
             }
 
-            // Web learner now uses the browser extension adapter. Keep the
-            // legacy --cdp option accepted temporarily so existing runners do
-            // not break, but it is no longer required or consumed.
-            return new(DapLaunchMode.LearnerWeb, args[1], cdp, pageUrlContains, null, startStep, resumeContextPath);
+            return new(DapLaunchMode.LearnerWeb, args[1], null, startStep, resumeContextPath);
         }
 
         if (args.Length >= 2 && args[0] == "--learner-windows" && !string.IsNullOrWhiteSpace(args[1]))
@@ -74,7 +63,7 @@ public sealed record DapLaunchOptions(
             }
 
             if (!string.IsNullOrWhiteSpace(windowAutomationId))
-                return new(DapLaunchMode.LearnerWindows, args[1], null, null, windowAutomationId, startStep, resumeContextPath);
+                return new(DapLaunchMode.LearnerWindows, args[1], windowAutomationId, startStep, resumeContextPath);
 
             return Usage(texts);
         }
