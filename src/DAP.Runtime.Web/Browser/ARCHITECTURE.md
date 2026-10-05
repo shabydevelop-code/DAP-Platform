@@ -203,3 +203,11 @@ The script is startup orchestration only and terminates after launching the owne
 
 After launch, the runtime topology is exactly the production topology documented above. A human performs the learner actions while the persisted Guide and production Runtime make every target, validation, completion, capture, and progression decision.
 
+## Stable presentation and production-tab affinity
+
+After a production application tab has been identified uniquely from persisted Guide semantics, the extension keeps that browser-tab identity for the active Native Messaging connection. Normal navigation, iframe replacement, and DOM changes inside the same application must not trigger a browser-wide tab scan on every learner reconciliation cycle.
+
+Bubble presentation is also required to be idempotent and visually stable. Repeated reconciliation for the same Step/target must not hide and recreate the bubble. Short-lived target disappearance during DOM/server replacement receives a small grace window before presentation teardown; if the target remains absent the normal NotFound path applies, and if it is replaced the Runtime re-resolves and reattaches deterministically.
+
+These optimizations do not weaken ambiguity handling or move Guide decisions into the extension.
+
