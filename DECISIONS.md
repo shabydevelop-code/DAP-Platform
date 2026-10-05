@@ -765,3 +765,15 @@ Before treating automated 54-Step Runner execution as the primary acceptance sig
 
 The Runner returns afterward only as regression automation for behavior already proven to be autonomous.
 
+## ADR-053 — Production Web tab selection is Guide-driven, never Runner/count-driven
+
+**Status:** Accepted
+
+The production Web learner must not identify its target application by assuming that exactly one browser tab happens to match a development URL pattern. Browser-tab identity is a production runtime concern and must be derived from production-observable, persisted Guide semantics.
+
+For a target-attached Step, the extension evaluates eligible tabs using the Step's persisted frame context, Step context, target descriptor, and anchors. A tab is selectable only when the relevant persisted evidence resolves there. Exactly one matching application tab is required. Zero matches means NotFound; multiple matching application tabs are Ambiguous and DAP must not guess.
+
+An E2E session token may still identify a tab for test-driver commands, but that token is test orchestration only and must never be required by the production Learner Runtime.
+
+This rule is required for Runner-free execution and supersedes the temporary development assumption that the production adapter could bind to "the only localhost tab".
+
