@@ -708,3 +708,60 @@ Key rules/state:
 - The five-second timeout ceiling remains unchanged.
 
 The Zero Playwright milestone is not complete until the extension-native 54-Step canonical run passes in Chrome and Edge and the required public run modes are verified.
+
+## ADR-052 — Learner Runtime must be fully autonomous; Runner is test-only
+
+**Status:** Accepted
+
+A published Guide must be executable end-to-end by the production Learner Runtime without any E2E Runner, Instructor process, AI service, target-application source access, test-only state oracle, or hidden automation assistance.
+
+The production execution contract is:
+
+```text
+Persisted Guide data
+        ↓
+DAP Learner Runtime
+        ↓
+Web / Windows production adapter
+        ↓
+Target application
+```
+
+The persisted Guide and production Runtime together must contain everything required to:
+- determine whether the current application context is appropriate for the active Step;
+- resolve the Step target from its persisted `TargetDescriptor`, frame/window context, and ordered anchors;
+- refuse to guess when resolution is NotFound or Ambiguous;
+- present the learner bubble on the resolved target;
+- observe the learner's real interaction;
+- evaluate persisted validation rules;
+- evaluate persisted completion conditions after server/UI transitions;
+- capture/materialize runtime values when declared;
+- choose and start the next persisted Step/transition;
+- re-resolve after DOM, frame, window, layout, or target replacement.
+
+The E2E Runner is **not part of the product runtime contract**. It may start test applications, launch DAP, perform synthetic learner actions, assert outcomes, collect diagnostics, and clean up processes. It must never supply information or decisions that the real Learner Runtime requires in order to identify a target, validate a Step, detect completion, preserve Guide state, or select the next Step.
+
+A Runner-assisted Guide that cannot run identically when the Runner is absent is considered architecturally invalid, even if the automated test passes.
+
+The same rule applies to Web and Windows. The Web extension and Windows UIA adapter are production observation/action boundaries, not independent Guide engines. Guide sequencing and business progression remain Runtime-owned and driven by persisted Guide semantics.
+
+### Authoring boundary
+
+The future Instructor may use AI during DAP development and may optionally use AI as an authoring aid, but a published Guide must persist a deterministic representation of all required runtime semantics. At minimum this includes, where applicable:
+
+- Step identity/order/transition;
+- application context;
+- target descriptor and anchors;
+- bubble content/presentation metadata;
+- learner action/validation definition;
+- completion conditions;
+- runtime capture/materialization rules.
+
+Once published, the Guide must run without AI.
+
+### Current verification priority
+
+Before treating automated 54-Step Runner execution as the primary acceptance signal, the canonical TestCRM Guide must be verified in a **Runner-free learner session**: only TestCRM, DAP Learner Runtime, the persisted database, and the production Web extension/Windows adapter may participate while a human performs the learner actions.
+
+The Runner returns afterward only as regression automation for behavior already proven to be autonomous.
+
