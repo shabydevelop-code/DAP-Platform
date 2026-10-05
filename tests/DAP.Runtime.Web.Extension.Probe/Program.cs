@@ -96,20 +96,25 @@ var equalsStep = validationStep with {
     Validation = new ValidationDefinition("value-equals", "DAP")
 };
 Console.WriteLine();
-Console.WriteLine("Value-equals proof: enter exactly DAP but KEEP FOCUS in the field for at least 2 seconds.");
-Console.WriteLine("The probe will first prove that typing alone does not produce a commit.");
+Console.WriteLine("Value-equals proof: clear the field first. Then type exactly DAP and KEEP FOCUS in the field.");
+Console.WriteLine("The probe waits until DAP is actually present, then proves that no commit occurs for 2 seconds while focus remains.");
 await adapter.ArmValidationAsync(equalsStep);
+
+while (!await adapter.IsPrimaryValidationSatisfiedAsync(equalsStep))
+    await Task.Delay(100);
+
+Console.WriteLine("DAP observed in the field. Keep focus there; checking for an early commit now...");
 using (var earlyCts = new CancellationTokenSource(TimeSpan.FromSeconds(2)))
 {
     try
     {
         var early = await adapter.WaitForArmedValidationCommitAsync(equalsStep, earlyCts.Token);
         if (early is not null)
-            throw new Exception("Validation committed before blur/Tab.");
+            throw new Exception("Validation committed before blur/Tab after DAP was typed.");
     }
     catch (OperationCanceledException) when (earlyCts.IsCancellationRequested)
     {
-        Console.WriteLine("PASS: No validation commit occurred while the edited text field retained focus.");
+        Console.WriteLine("PASS: DAP was typed and no validation commit occurred while the field retained focus.");
     }
 }
 Console.WriteLine("Now press Tab or otherwise leave the field.");
