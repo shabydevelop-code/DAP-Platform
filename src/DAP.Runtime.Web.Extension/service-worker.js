@@ -68,8 +68,10 @@ connect().onMessage.addListener(async message => {
         if (response?.ok) replies.push({frameId:frame.frameId,response});
       } catch {}
     }
-    if (!replies.length)
-      throw new Error("DAP Web Runtime content script is not available in any frame of the active tab.");
+    if (!replies.length) {
+      const details = frames.map(f => f.frameId + ":" + (f.url || "<no-url>")).join(", ");
+      throw new Error("DAP Web Runtime content script is not available in any frame of the active tab. tabId=" + tabId + "; frames=[" + details + "]");
+    }
 
     if (message.command?.type === "resolveTarget") {
       let count = 0;
