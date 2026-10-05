@@ -103,7 +103,7 @@ using (var earlyCts = new CancellationTokenSource(TimeSpan.FromSeconds(2)))
 {
     try
     {
-        var early = await adapter.WaitForValidationCommitAsync(equalsStep, earlyCts.Token);
+        var early = await adapter.WaitForArmedValidationCommitAsync(equalsStep, earlyCts.Token);
         if (early is not null)
             throw new Exception("Validation committed before blur/Tab.");
     }
@@ -113,7 +113,7 @@ using (var earlyCts = new CancellationTokenSource(TimeSpan.FromSeconds(2)))
     }
 }
 Console.WriteLine("Now press Tab or otherwise leave the field.");
-var equalsCommit = await adapter.WaitForValidationCommitAsync(equalsStep);
+var equalsCommit = await adapter.WaitForArmedValidationCommitAsync(equalsStep);
 if (equalsCommit is null) throw new Exception("Expected value-equals commit after blur.");
 if (!await adapter.IsPrimaryValidationSatisfiedAsync(equalsStep))
     throw new Exception("Expected exact value DAP to satisfy value-equals after blur.");
