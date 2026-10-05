@@ -36,7 +36,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
 
     public async Task<WebValidationCommit?> WaitForValidationCommitAsync(GuideStep step, CancellationToken cancellationToken = default)
     {
-        var armed = await SendCommandAsync(new { type = "armValidation", step }, cancellationToken);
+        var armed = await SendCommandAsync(new { type = "armValidation", step, framePath = step.Target?.FrameContext?.Path }, cancellationToken);
         var armedResult = armed.GetProperty("result");
         if (armedResult.GetProperty("status").GetString() != "resolved")
             return null;
@@ -89,7 +89,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
 
     public async Task<WebTargetResolution> ResolveTargetAsync(TargetDescriptor descriptor, CancellationToken cancellationToken = default)
     {
-        var response = await SendCommandAsync(new { type = "resolveTarget", target = descriptor }, cancellationToken);
+        var response = await SendCommandAsync(new { type = "resolveTarget", target = descriptor, framePath = descriptor.FrameContext?.Path }, cancellationToken);
         var result = response.GetProperty("result");
         var status = result.GetProperty("status").GetString();
         var count = result.TryGetProperty("count", out var n) ? n.GetInt32() : 0;
@@ -157,7 +157,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             return false;
 
         var response = await SendCommandAsync(
-            new { type = "isContextActive", context = step.Context },
+            new { type = "isContextActive", context = step.Context, framePath = step.Target.FrameContext?.Path },
             cancellationToken);
         return response.GetProperty("result").GetProperty("active").GetBoolean();
     }
@@ -167,7 +167,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             return false;
 
         var response = await SendCommandAsync(
-            new { type = "waitForDomQuiet", quietMilliseconds = Math.Max(0, (int)quietWindow.TotalMilliseconds) },
+            new { type = "waitForDomQuiet", quietMilliseconds = Math.Max(0, (int)quietWindow.TotalMilliseconds), framePath = step.Target.FrameContext?.Path },
             cancellationToken);
         return response.GetProperty("result").GetProperty("stable").GetBoolean();
     }
@@ -179,7 +179,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             ReadPendingEvents();
             return _commits.TryGetValue(step.Id, out var q) && q.Count > 0;
         }
-        var response = await SendCommandAsync(new { type = "readTargetValue", target = step.Target }, cancellationToken);
+        var response = await SendCommandAsync(new { type = "readTargetValue", target = step.Target, framePath = step.Target.FrameContext?.Path }, cancellationToken);
         var result = response.GetProperty("result");
         if (result.GetProperty("status").GetString() != "resolved") return false;
         var value = result.TryGetProperty("value", out var v) && v.ValueKind != JsonValueKind.Null ? v.GetString() ?? "" : "";
@@ -197,7 +197,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
         {
             if (condition.Target.Runtime != TargetRuntime.Web)
                 throw new InvalidOperationException($"Web Guide Step '{step.Id}' contains a non-Web completion target.");
-            var response = await SendCommandAsync(new { type = "inspectTarget", target = condition.Target }, cancellationToken);
+            var response = await SendCommandAsync(new { type = "inspectTarget", target = condition.Target, framePath = condition.Target.FrameContext?.Path }, cancellationToken);
             var result = response.GetProperty("result");
             var resolved = result.GetProperty("status").GetString() == "resolved";
             switch (condition.Kind.Trim().ToLowerInvariant())
@@ -226,7 +226,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
         if (step.Capture is null) return null;
         if (step.Capture.Runtime != TargetRuntime.Web)
             throw new InvalidOperationException("Web adapter can capture only Web runtime values.");
-        var response = await SendCommandAsync(new { type = "capture", capture = step.Capture }, cancellationToken);
+        var response = await SendCommandAsync(new { type = "capture", capture = step.Capture, framePath = step.Target?.FrameContext?.Path }, cancellationToken);
         var result = response.GetProperty("result");
         if (result.GetProperty("status").GetString() != "resolved" ||
             !result.TryGetProperty("value", out var value) || value.ValueKind == JsonValueKind.Null) return null;
