@@ -117,9 +117,27 @@
 
   start();
 
+  async function loadGuide(guideId) {
+    const requestId = crypto.randomUUID();
+    const response = await chrome.runtime.sendMessage({
+      type: "dap-native", requestId, payload: { type: "getGuide", guideId }
+    });
+    if (!response?.ok) throw new Error(response?.error || "Failed to load DAP guide.");
+    return response.steps || [];
+  }
+
+  async function startGuide(guideId) {
+    const steps = await loadGuide(guideId);
+    if (!steps.length) throw new Error("Guide '"+guideId+"' has no steps.");
+    const state = { guideId, steps, index: 0 };
+    globalThis.__dapWebRuntime.guide = state;
+    const result = showBubble(steps[0], 1, steps.length);
+    return { guideId, stepCount: steps.length, stepId: steps[0].id, result };
+  }
+
   globalThis.__dapWebRuntime = {
     version: "0.1.0",
-    resolveTarget,\n    showBubble,\n    hideBubble,
+    resolveTarget,\n    showBubble,\n    hideBubble,\n    loadGuide,\n    startGuide,\n    guide: null,
     onMutation(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);
