@@ -31,6 +31,30 @@
         sendResponse({ok:true,result:{active}});
         return;
       }
+      if (command.type === "waitForDomQuiet") {
+        const quietMs = Math.max(0, Number(command.quietMilliseconds || 0));
+        let timer;
+        let settled = false;
+        const finish = () => {
+          if (settled) return;
+          settled = true;
+          observer.disconnect();
+          sendResponse({ok:true,result:{stable:true}});
+        };
+        const arm = () => {
+          clearTimeout(timer);
+          timer = setTimeout(finish, quietMs);
+        };
+        const observer = new MutationObserver(arm);
+        const root = document.documentElement;
+        if (!root) {
+          sendResponse({ok:true,result:{stable:false}});
+          return;
+        }
+        observer.observe(root, {subtree:true,childList:true,attributes:true,characterData:true});
+        arm();
+        return true;
+      }
       sendResponse({ok:false,error:"Unsupported DAP adapter command '"+String(command.type||"")+"'."});
     } catch (error) {
       sendResponse({ok:false,error:String(error?.message||error)});
