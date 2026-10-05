@@ -156,13 +156,6 @@ catch {
     throw
 }
 
-Write-Host "Opening $Browser profile '$($browserInfo.Profile)' with the production DAP extension..."
-Start-Process $browserInfo.Exe -ArgumentList @(
-    "--profile-directory=$($browserInfo.Profile)",
-    "--new-window",
-    "http://localhost:5200/"
-)
-
 # No E2E session id is set. The production learner therefore uses its normal
 # extension adapter path and receives no information from an E2E/test driver.
 Remove-Item Env:DAP_WEB_SESSION_ID -ErrorAction SilentlyContinue
@@ -173,6 +166,9 @@ New-Item -ItemType Directory -Path $diagnosticRoot -Force | Out-Null
 $dapStdout = Join-Path $diagnosticRoot "dap.stdout.log"
 $dapStderr = Join-Path $diagnosticRoot "dap.stderr.log"
 
+# Start the production learner before opening the target page. This guarantees
+# that the runtime named-pipe server already exists when the browser extension
+# starts/reconnects its Native Host.
 Write-Host "Starting autonomous DAP Web Learner for Guide '$GuideKey'..."
 $dap = Start-Process dotnet -ArgumentList @(
     "run","--no-build",
@@ -180,11 +176,26 @@ $dap = Start-Process dotnet -ArgumentList @(
     "--","--learner-web",$GuideKey
 ) -WorkingDirectory $repoRoot -RedirectStandardOutput $dapStdout -RedirectStandardError $dapStderr -PassThru
 
-Start-Sleep -Milliseconds 500
+Start-Sleep -Milliseconds 300
 if ($dap.HasExited) {
     $stderr = if (Test-Path $dapStderr) { Get-Content $dapStderr -Raw } else { "" }
     $stdout = if (Test-Path $dapStdout) { Get-Content $dapStdout -Raw } else { "" }
     throw "DAP Learner exited during autonomous startup. STDERR:$([Environment]::NewLine)$stderr$([Environment]::NewLine)STDOUT:$([Environment]::NewLine)$stdout"
+}
+
+Write-Host "Opening TestCRM in $Browser profile '$($browserInfo.Profile)'..."
+# Do not force --new-window. Reuse the selected profile's existing browser
+# window when one exists; otherwise Chrome/Edge creates the first window.
+Start-Process $browserInfo.Exe -ArgumentList @(
+    "--profile-directory=$($browserInfo.Profile)",
+    "http://localhost:5200/"
+)
+
+Start-Sleep -Milliseconds 700
+if ($dap.HasExited) {
+    $stderr = if (Test-Path $dapStderr) { Get-Content $dapStderr -Raw } else { "" }
+    $stdout = if (Test-Path $dapStdout) { Get-Content $dapStdout -Raw } else { "" }
+    throw "DAP Learner exited after browser startup. STDERR:$([Environment]::NewLine)$stderr$([Environment]::NewLine)STDOUT:$([Environment]::NewLine)$stdout"
 }
 
 Write-Host ""
