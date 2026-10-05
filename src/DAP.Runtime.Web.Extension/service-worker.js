@@ -220,6 +220,9 @@ async function handleNativeMessage(message) {
   try {
     const tabId = message.tabId ?? await resolveTargetTab();
     const command = { ...(message.command || {}) };
+    const originalFramePath = Array.isArray(command.framePath)
+      ? command.framePath.map(locator => ({ ...locator }))
+      : [];
 
     if (command.type === "hideBubble") {
       await hideEveryFrame(tabId, requestId);
@@ -310,7 +313,9 @@ async function handleNativeMessage(message) {
           progressText: command.progressText,
           dragText: command.dragText,
           direction: command.direction,
-          targetRect
+          targetRect,
+          localTargetRect: localRect || null,
+          topFrameLocator: originalFramePath.length === 1 ? originalFramePath[0] : null
         }
       );
 
