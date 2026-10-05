@@ -31,8 +31,17 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
         _eventPath = eventPath ?? Path.Combine(directory, "events.jsonl");
         _commandPath = commandPath ?? Path.Combine(directory, "commands.jsonl");
         _responsePath = responsePath ?? Path.Combine(directory, "responses.jsonl");
-        if (File.Exists(_eventPath)) _offset = new FileInfo(_eventPath).Length;
-        if (File.Exists(_responsePath)) _responseOffset = new FileInfo(_responsePath).Length;
+
+        // These files are transport journals, not durable history. A new DAP
+        // runtime session must not make a newly started NativeHost replay every
+        // command left by previous probe/runtime sessions before it reaches the
+        // current request.
+        Directory.CreateDirectory(directory);
+        ResetSharedJournal(_commandPath);
+        ResetSharedJournal(_responsePath);
+        ResetSharedJournal(_eventPath);
+        _offset = 0;
+        _responseOffset = 0;
     }
 
     public async Task ArmValidationAsync(GuideStep step, CancellationToken cancellationToken = default)
@@ -169,6 +178,13 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             }
             await Task.Delay(25, commandToken);
         }
+    }
+
+    private static void ResetSharedJournal(string path)
+    {
+        using var stream = new FileStream(
+            path, FileMode.Create, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete);
+        stream.Flush();
     }
 
     private static async Task AppendSharedLineAsync(string path, string line, CancellationToken cancellationToken)
