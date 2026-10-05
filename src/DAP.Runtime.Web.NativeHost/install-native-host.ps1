@@ -22,7 +22,19 @@ $keys=@(
  "HKCU:\Software\Google\Chrome\NativeMessagingHosts\com.dap.web_runtime",
  "HKCU:\Software\Microsoft\Edge\NativeMessagingHosts\com.dap.web_runtime"
 )
-foreach($key in $keys){New-Item -Force -Path $key | Out-Null; Set-Item -Path $key -Value $manifestPath}
+foreach($key in $keys){
+  New-Item -Force -Path $key | Out-Null
+  Set-Item -Path $key -Value $manifestPath
+  $actual=(Get-Item $key).GetValue("")
+  if($actual -ne $manifestPath){throw "Native Messaging registry verification failed for $key"}
+}
+$written=Get-Content $manifestPath -Raw | ConvertFrom-Json
+if([IO.Path]::GetFullPath([string]$written.path) -ne [IO.Path]::GetFullPath($exe)){
+  throw "Native Messaging manifest path verification failed."
+}
+if(-not (@($written.allowed_origins) -contains "chrome-extension://$ExtensionId/")){
+  throw "Native Messaging allowed_origins verification failed."
+}
 Write-Host "DAP native host registered for Chrome and Edge."
 Write-Host "Manifest: $manifestPath"
 Write-Host "Executable: $exe"
