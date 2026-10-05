@@ -248,3 +248,20 @@ The Windows canonical workflow is also used to verify target-attached bubble beh
 
 This was manually verified with `--manual-from-step 11` against the framework-dependent published DAP package at `C:\DAP-Production`. The current full Windows Guided Visual run against the same published package also completed all 54 Steps and exited cleanly.
 
+
+## Web extension learner milestone — 2026-10-05
+
+The persisted 54-Step Web Guide has been completed manually end-to-end through the production browser-extension adapter path:
+
+```powershell
+cd C:\yossi\ChatGpt\DAP-Platform
+dotnet run --project .\src\DAP.App\DAP.App.csproj -- --learner-web testcrm-web-canonical-workflow
+```
+
+This run exercised the same canonical Customer -> Site -> Case -> Lead business flow, including server-backed FieldChange, iframe/document replacement, conditional fields, validation failure/recovery, runtime capture, business-context return, dynamic Lead deletion, Case deletion, cross-frame Header interaction, and final Guide completion.
+
+The cross-frame Header Step uses `#portal-header` inside `iframe[name='dap-header']`. Its target remains the whole header element, not the inner `DAP Test CRM` text node. When the child frame cannot contain the bubble, presentation may be promoted to the top-level page while click validation remains bound to the original header target.
+
+Focused Step 54 execution was also used to verify promoted-bubble dragging: manual position remains authoritative during reconciliation and the cursor stays in the active `grabbing` state until release.
+
+This verification covers the production learner path. It does not replace a future automated extension-backed cross-browser/mode matrix.
