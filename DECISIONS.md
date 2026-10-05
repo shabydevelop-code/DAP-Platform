@@ -641,3 +641,43 @@ Definition of done:
 - production and development/test environments do not diverge into separate Web browser architectures.
 
 This milestone replaces smaller intermediate migration goals. Playwright may remain only as historical/reference code until removed during completion of this milestone; it is not an acceptable steady-state dependency for Web Runtime or Web test execution.
+
+
+## Web architecture guardrail — Zero Playwright means one browser path
+
+This is a hard architectural rule for all future Web work.
+
+**Zero Playwright does not mean replacing Playwright with another browser-automation stack.**
+The Web product and its Web E2E verification must use the same browser-access architecture:
+
+```text
+DAP Runtime / Web E2E driver
+        ↕
+Extension-facing protocol
+        ↕
+Native Host
+        ↕
+Browser Extension
+        ↕
+Browser DOM
+```
+
+Forbidden as an alternate Web control path:
+- Microsoft.Playwright / Playwright;
+- direct CDP / remote-debugging-port browser control;
+- Selenium;
+- Puppeteer;
+- a private BrowserHarness that evaluates DOM or dispatches input through CDP;
+- any second browser-control architecture used only by tests.
+
+Allowed:
+- launching Chrome/Edge as an OS process when needed;
+- using the DAP browser extension and Native Messaging as the browser-control boundary;
+- adding explicit E2E/test-driver commands to the same extension protocol, provided they do not change production learner semantics;
+- OS-level cursor movement for Visual mode where this is part of the existing test UX.
+
+The test harness may orchestrate servers, browser processes, DAP processes, data setup, timing, assertions, and cleanup, but browser navigation/DOM actions/element inspection must cross the DAP extension boundary rather than a separate automation technology.
+
+Before implementing any Web change, verify it preserves this single-path rule. If a proposed solution introduces a second browser-control mechanism, stop and redesign before committing.
+
+**Current correction:** any CDP-based BrowserHarness introduced during the Zero Playwright migration is temporary invalid work and must be removed/replaced before the milestone can be considered complete.
