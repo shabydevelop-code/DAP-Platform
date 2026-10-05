@@ -91,9 +91,14 @@
     };
   }
 
+  const theme={background:"#312E5A",text:"#FFFFFF",border:"#8B83C7",highlight:"#A99FE8"}; let active=null;
+  function hideBubble(){if(!active)return;active.bubble.remove();active.highlight.remove();active=null;}
+  function place(b,r){const g=12,q=b.getBoundingClientRect(),v=[[r.left+r.width/2-q.width/2,r.bottom+g],[r.left+r.width/2-q.width/2,r.top-q.height-g],[r.right+g,r.top+r.height/2-q.height/2],[r.left-q.width-g,r.top+r.height/2-q.height/2]];let x=v[0];for(const z of v)if(z[0]>=8&&z[1]>=8&&z[0]+q.width<=innerWidth-8&&z[1]+q.height<=innerHeight-8){x=z;break}b.style.left=Math.max(8,Math.min(innerWidth-q.width-8,x[0]))+"px";b.style.top=Math.max(8,Math.min(innerHeight-q.height-8,x[1]))+"px";}
+  function showBubble(step,stepNumber,totalSteps){hideBubble();const z=resolveTarget(step.target);if(z.status!=="resolved")return z;z.element.scrollIntoView({block:"center",inline:"nearest"});const r=z.element.getBoundingClientRect(),h=document.createElement("div"),b=document.createElement("div");Object.assign(h.style,{position:"fixed",pointerEvents:"none",zIndex:"2147483645",left:(r.left-2)+"px",top:(r.top-2)+"px",width:(r.width+4)+"px",height:(r.height+4)+"px",border:"2px solid "+theme.highlight,borderRadius:"4px",boxSizing:"border-box",boxShadow:"0 0 0 3px rgba(169,159,232,.22)"});Object.assign(b.style,{position:"fixed",zIndex:"2147483646",maxWidth:"320px",padding:"12px 16px",borderRadius:"8px",border:"1px solid "+theme.border,background:theme.background,color:theme.text,boxShadow:"0 10px 28px rgba(32,29,67,.28)",fontFamily:"Arial,sans-serif",fontSize:"14px",lineHeight:"1.4",direction:"rtl",boxSizing:"border-box"});b.textContent=step.bubble?.content||"";if(stepNumber&&totalSteps){const s=document.createElement("div");s.textContent=stepNumber+" / "+totalSteps;s.style.cssText="margin-top:8px;font-size:11px;opacity:.75;text-align:left;direction:ltr";b.appendChild(s)}document.documentElement.append(h,b);place(b,r);active={bubble:b,highlight:h,step};return{status:"resolved",count:1,rect:z.rect};}
+  function reconcile(){if(!active)return;const z=resolveTarget(active.step.target);if(z.status!=="resolved"){hideBubble();return}const r=z.element.getBoundingClientRect();Object.assign(active.highlight.style,{left:(r.left-2)+"px",top:(r.top-2)+"px",width:(r.width+4)+"px",height:(r.height+4)+"px"});place(active.bubble,r);}
   const listeners = new Set();
   const observer = new MutationObserver(records => {
-    for (const listener of listeners) listener(records);
+    for (const listener of listeners) listener(records);\n    queueMicrotask(reconcile);
   });
 
   const start = () => {
@@ -108,13 +113,15 @@
 
   globalThis.__dapWebRuntime = {
     version: "0.1.0",
-    resolveTarget,
+    resolveTarget,\n    showBubble,\n    hideBubble,
     onMutation(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);
     }
   };
 
+  addEventListener("resize",reconcile,{passive:true}); addEventListener("scroll",reconcile,{passive:true,capture:true});
+  document.addEventListener("dap:web-runtime-command",e=>{const q=e.detail||{};try{let result;if(q.type==="showStep")result=showBubble(q.step,q.stepNumber,q.totalSteps);else if(q.type==="hide"){hideBubble();result={status:"hidden"};}else if(q.type==="resolve")result=resolveTarget(q.target);else throw new Error("Unknown DAP command");document.dispatchEvent(new CustomEvent("dap:web-runtime-result",{detail:{requestId:q.requestId,ok:true,result}}));}catch(error){document.dispatchEvent(new CustomEvent("dap:web-runtime-result",{detail:{requestId:q.requestId,ok:false,error:String(error?.message||error)}}));}});
   document.dispatchEvent(new CustomEvent("dap:web-runtime-ready", {
     detail: { version: globalThis.__dapWebRuntime.version }
   }));
