@@ -139,7 +139,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
         var line = JsonSerializer.Serialize(
             new { type = "adapterCommand", requestId, command },
             new JsonSerializerOptions(JsonSerializerDefaults.Web));
-        await File.AppendAllTextAsync(_commandPath, line + Environment.NewLine, commandToken);
+        await AppendSharedLineAsync(_commandPath, line, commandToken);
 
         while (true)
         {
@@ -168,6 +168,31 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
                 }
             }
             await Task.Delay(25, commandToken);
+        }
+    }
+
+    private static async Task AppendSharedLineAsync(string path, string line, CancellationToken cancellationToken)
+    {
+        // NativeHost tails this journal concurrently. Open explicitly with
+        // FileShare.ReadWrite instead of File.AppendAllTextAsync, whose sharing
+        // mode can collide with the reader during normal runtime traffic.
+        var bytes = System.Text.Encoding.UTF8.GetBytes(line + Environment.NewLine);
+        for (var attempt = 0; ; attempt++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                await using var stream = new FileStream(
+                    path, FileMode.Append, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete,
+                    bufferSize: 4096, useAsync: true);
+                await stream.WriteAsync(bytes, cancellationToken);
+                await stream.FlushAsync(cancellationToken);
+                return;
+            }
+            catch (IOException) when (attempt < 20)
+            {
+                await Task.Delay(10, cancellationToken);
+            }
         }
     }
 
