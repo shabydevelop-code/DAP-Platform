@@ -31,6 +31,38 @@
         sendResponse({ok:true,result:{active}});
         return;
       }
+      if (command.type === "inspectTarget") {
+        const result = resolveTarget(command.target);
+        if (result.status !== "resolved") {
+          sendResponse({ok:true,result:{status:result.status,count:result.count,value:null,enabled:false,text:null}});
+          return;
+        }
+        const el = result.element;
+        sendResponse({ok:true,result:{
+          status:"resolved",count:1,
+          value:"value" in el ? String(el.value ?? "") : "",
+          enabled:!(el.disabled === true || el.getAttribute("aria-disabled") === "true"),
+          text:el.textContent ?? ""
+        }});
+        return;
+      }
+      if (command.type === "capture") {
+        const capture = command.capture;
+        let raw = null;
+        if (capture.property === "frame-url") raw = location.href;
+        else if (capture.property === "frame-url-fragment") raw = location.hash;
+        else {
+          const matches = createCandidates(capture.locator);
+          if (matches.length !== 1) {
+            sendResponse({ok:true,result:{status:matches.length ? "ambiguous" : "notFound",count:matches.length,value:null}});
+            return;
+          }
+          raw = capture.property === "text" ? matches[0].textContent :
+                capture.property === "value" && "value" in matches[0] ? String(matches[0].value ?? "") : null;
+        }
+        sendResponse({ok:true,result:{status:raw == null ? "notFound" : "resolved",count:raw == null ? 0 : 1,value:raw}});
+        return;
+      }
       if (command.type === "armValidation") {
         const result = resolveTarget(command.step?.target);
         if (result.status !== "resolved") {
