@@ -68,7 +68,7 @@ static async Task<long> ForwardPendingCommandsAsync(string path, long offset, St
     using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
     if (offset > stream.Length) offset = 0;
     stream.Position = offset;
-    using var reader = new StreamReader(stream);
+    using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 1024, leaveOpen: true);
     string? line;
     while ((line = await reader.ReadLineAsync()) is not null)
     {
@@ -81,9 +81,9 @@ static async Task<long> ForwardPendingCommandsAsync(string path, long offset, St
         await output.WriteAsync(bytes);
         await output.FlushAsync();
     }
-    // StreamReader buffers ahead, so stream.Position is not a reliable
-    // per-line cursor. At EOF it is, however, the exact byte position to resume
-    // from on the next polling pass.
+    // StreamReader may buffer beyond the last decoded line. Dispose it first
+    // so its buffer is released, then use the underlying stream's EOF position.
+    reader.Dispose();
     return stream.Position;
 }
 
