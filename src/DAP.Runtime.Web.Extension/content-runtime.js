@@ -509,6 +509,28 @@
 
   function showBubbleProxy(step,stepNumber,totalSteps,targetRect,presentation={}){
     document.getElementById("dap-guide-bubble-proxy")?.remove();
+
+    // For a one-level FrameContext, re-read the actual iframe box from the
+    // top-level document at presentation time. This removes coordinate drift
+    // caused by stale frame geometry during resize/reload and keeps the proxy
+    // visually attached to full-frame targets such as the CRM header.
+    if (presentation.topFrameLocator && presentation.localTargetRect) {
+      try {
+        const frames=createCandidates(presentation.topFrameLocator);
+        if(frames.length===1){
+          const frameRect=frames[0].getBoundingClientRect();
+          const local=presentation.localTargetRect;
+          const spansWidth=Number(local.width||0)>=frameRect.width*0.9;
+          const spansHeight=Number(local.height||0)>=frameRect.height*0.9;
+          targetRect={
+            x:frameRect.x+(spansWidth?0:Number(local.x||0)),
+            y:frameRect.y+(spansHeight?0:Number(local.y||0)),
+            width:spansWidth?frameRect.width:Number(local.width||0),
+            height:spansHeight?frameRect.height:Number(local.height||0)
+          };
+        }
+      }catch{}
+    }
     const bubble=document.createElement("div");
     bubble.id="dap-guide-bubble-proxy";
     bubble.dataset.dapStepId=step.id;
