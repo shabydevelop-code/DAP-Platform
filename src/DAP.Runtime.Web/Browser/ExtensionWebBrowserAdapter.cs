@@ -156,7 +156,16 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             cancellationToken);
         return response.GetProperty("result").GetProperty("active").GetBoolean();
     }
-    public Task<bool> IsStableForPresentationAsync(GuideStep step, TimeSpan quietWindow, CancellationToken cancellationToken = default) => throw Pending(nameof(IsStableForPresentationAsync));
+    public async Task<bool> IsStableForPresentationAsync(GuideStep step, TimeSpan quietWindow, CancellationToken cancellationToken = default)
+    {
+        if (step.Target?.Runtime != TargetRuntime.Web)
+            return false;
+
+        var response = await SendCommandAsync(
+            new { type = "waitForDomQuiet", quietMilliseconds = Math.Max(0, (int)quietWindow.TotalMilliseconds) },
+            cancellationToken);
+        return response.GetProperty("result").GetProperty("stable").GetBoolean();
+    }
     public Task<bool> IsPrimaryValidationSatisfiedAsync(GuideStep step, CancellationToken cancellationToken = default) => throw Pending(nameof(IsPrimaryValidationSatisfiedAsync));
     public Task<bool> AreCompletionConditionsSatisfiedAsync(GuideStep step, CancellationToken cancellationToken = default) => throw Pending(nameof(AreCompletionConditionsSatisfiedAsync));
     public Task<WebBubblePresentation> EnsureBubbleShownAsync(GuideStep step, int stepNumber, int totalSteps, CancellationToken cancellationToken = default) => throw Pending(nameof(EnsureBubbleShownAsync));
