@@ -19,7 +19,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
     private readonly string _commandPath;
     private readonly string _responsePath;
     private long _responseOffset;
-    private readonly Dictionary<string, Queue<WebValidationCommit>> _commits = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, Queue<WebValidationCommit>> _commits = new(StringComparer.Ordinal);\n    private readonly Dictionary<string, string> _armedValidationIds = new(StringComparer.Ordinal);
     private readonly SemaphoreSlim _signal = new(0);
     private long _offset;
     private bool _disposed;
@@ -38,7 +38,9 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
     {
         ReadPendingEvents();
         _commits.Remove(step.Id);
-        var armed = await SendCommandAsync(new { type = "armValidation", step, framePath = step.Target?.FrameContext?.Path }, cancellationToken);
+        var armId = Guid.NewGuid().ToString("N");
+        _armedValidationIds[step.Id] = armId;
+        var armed = await SendCommandAsync(new { type = "armValidation", step, armId, framePath = step.Target?.FrameContext?.Path }, cancellationToken);
         var result = armed.GetProperty("result");
         if (result.GetProperty("status").GetString() != "resolved")
             throw new InvalidOperationException($"Validation target for Step '{step.Id}' did not resolve exactly once.");
@@ -90,6 +92,8 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             if (!payload.TryGetProperty("type", out var type) || type.GetString() != "validation-commit") continue;
             var stepId = payload.TryGetProperty("stepId", out var sid) ? sid.GetString() : null;
             if (string.IsNullOrWhiteSpace(stepId)) continue;
+            var armId = payload.TryGetProperty("armId", out var aid) ? aid.GetString() : null;
+            if (string.IsNullOrWhiteSpace(armId) || !_armedValidationIds.TryGetValue(stepId, out var expectedArmId) || !string.Equals(armId, expectedArmId, StringComparison.Ordinal)) continue;
             var kind = payload.TryGetProperty("kind", out var k) ? k.GetString() ?? "" : "";
             if (!_commits.TryGetValue(stepId, out var queue))
                 _commits[stepId] = queue = new Queue<WebValidationCommit>();
