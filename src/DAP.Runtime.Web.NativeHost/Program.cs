@@ -6,7 +6,8 @@ using System.Text.Json.Serialization;
 using DAP.Data.Sqlite;
 using DAP.Data.Sqlite.Guides;
 
-const string PipeName = "dap-web-runtime-v1";
+const string RuntimePipeName = "dap-web-runtime-v1";
+const string TestPipeName = "dap-web-e2e-v1";
 
 var repository = new SqliteGuideStepRepository(new SqliteConnectionFactory(SqliteDatabaseOptions.CreateDefault()));
 var input = Console.OpenStandardInput();
@@ -16,8 +17,10 @@ json.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
 
 using var shutdown = new CancellationTokenSource();
 var nativeOutput = new NativeOutputWriter(output, json);
-var bridge = new DapPipeBridge(PipeName, nativeOutput, json);
-var bridgeTask = bridge.RunAsync(shutdown.Token);
+var runtimeBridge = new DapPipeBridge(RuntimePipeName, nativeOutput, json);
+var testBridge = new DapPipeBridge(TestPipeName, nativeOutput, json);
+var runtimeBridgeTask = runtimeBridge.RunAsync(shutdown.Token);
+var testBridgeTask = testBridge.RunAsync(shutdown.Token);
 
 try
 {
@@ -48,8 +51,10 @@ try
                         steps = await repository.GetStepsAsync(request.GuideId)
                     },
                 "ping" => new { requestId = request?.RequestId, ok = true, type = "pong" },
-                "adapterEvent" => await bridge.ForwardToDapAsync(request!, shutdown.Token),
-                "adapterResponse" => await bridge.ForwardToDapAsync(request!, shutdown.Token),
+                "adapterEvent" => await runtimeBridge.ForwardToDapAsync(request!, shutdown.Token),
+                "adapterResponse" => await runtimeBridge.ForwardToDapAsync(request!, shutdown.Token),
+                "testDriverResponse" => await testBridge.ForwardToDapAsync(request!, shutdown.Token),
+                "testDriverEvent" => await testBridge.ForwardToDapAsync(request!, shutdown.Token),
                 _ => new { requestId = request?.RequestId, ok = false, error = "Unsupported native request." }
             };
         }
@@ -64,7 +69,8 @@ try
 finally
 {
     shutdown.Cancel();
-    try { await bridgeTask; } catch (OperationCanceledException) { }
+    try { await runtimeBridgeTask; } catch (OperationCanceledException) { }
+    try { await testBridgeTask; } catch (OperationCanceledException) { }
 }
 
 static async Task<bool> ReadExactAsync(Stream stream, byte[] buffer)
@@ -187,6 +193,8 @@ sealed class DapPipeBridge
             request.RequestId,
             request.TabId,
             request.FrameId,
+            request.SessionId,
+            command = request.Command,
             payload = request.Payload,
             response = request.Response
         }, _json) + "\n";
@@ -217,5 +225,7 @@ sealed record NativeRequest(
     string? GuideId,
     int? TabId,
     int? FrameId,
+    string? SessionId,
+    JsonElement? Command,
     JsonElement? Payload,
     JsonElement? Response);
