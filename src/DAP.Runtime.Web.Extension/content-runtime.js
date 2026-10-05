@@ -387,28 +387,29 @@
     });
     bubble.appendChild(handle);
 
-    if(options.progressText){
-      const progress=document.createElement("div");
-      progress.textContent=options.progressText;
-      Object.assign(progress.style,{
-        fontSize:"12px",opacity:".78",marginBottom:"6px",fontWeight:"600",cursor:"default"
-      });
-      bubble.appendChild(progress);
-    }
-
     const content=document.createElement("div");
     content.textContent=options.content;
     content.style.cursor="default";
     bubble.appendChild(content);
+
+    if(options.progressText){
+      const progress=document.createElement("div");
+      progress.textContent=options.progressText;
+      Object.assign(progress.style,{
+        marginTop:"8px",fontSize:"11px",opacity:".82",cursor:"default"
+      });
+      bubble.appendChild(progress);
+    }
 
     const button=document.createElement("button");
     button.type="button";
     button.textContent=options.actionText;
     button.dataset[options.actionDataKey]="1";
     Object.assign(button.style,{
-      marginTop:"12px",padding:"7px 14px",borderRadius:"6px",
-      border:"1px solid "+theme.borderColor,background:"#FFFFFF",
-      color:theme.backgroundColor,fontWeight:"700",cursor:"pointer"
+      marginTop:"12px",padding:"6px 18px",cursor:"pointer",
+      font:"inherit",borderRadius:"6px",
+      border:theme.borderWidth+"px solid "+theme.borderColor,
+      background:theme.textColor,color:theme.backgroundColor
     });
     bubble.appendChild(button);
 
@@ -434,7 +435,9 @@
     const beginDrag=e=>{
       if(e.button!==0||!e.target.closest('[data-dap-drag-handle="1"]'))return;
       const q=bubble.getBoundingClientRect();
-      bubble.style.transform="";
+      bubble.style.transform="none";
+      bubble.style.left=q.left+"px";
+      bubble.style.top=q.top+"px";
       drag={id:e.pointerId,x:e.clientX,y:e.clientY,left:q.left,top:q.top};
       bubble.setPointerCapture(e.pointerId);
       handle.style.cursor="grabbing";
@@ -454,8 +457,15 @@
     bubble.addEventListener("pointermove",move);
     bubble.addEventListener("pointerup",finish);
     bubble.addEventListener("pointercancel",finish);
+    bubble.addEventListener("click",event=>{
+      if(event.target===button)return;
+      event.preventDefault();
+      event.stopPropagation();
+    });
 
-    button.addEventListener("click",()=>{
+    button.addEventListener("click",event=>{
+      event.preventDefault();
+      event.stopPropagation();
       bubble.remove();
       void chrome.runtime.sendMessage({
         type:"dap-adapter-event",
@@ -475,6 +485,7 @@
     bubble.dataset.dapStepId=step.id;
     const handle=document.createElement("div");
     handle.dataset.dapDragHandle="1";
+    handle.setAttribute("aria-label",presentation.dragText||"גרור להזזת הבועה");
     handle.textContent="⠿";
     handle.title=presentation.dragText||"גרור להזזת הבועה";
     Object.assign(handle.style,{display:"block",width:"fit-content",marginLeft:"auto",marginRight:"auto",textAlign:"center",fontSize:"18px",lineHeight:"14px",opacity:".72",marginBottom:"6px",cursor:"grab",touchAction:"none"});
@@ -521,7 +532,7 @@
     const previous={outline:el.style.outline,outlineOffset:el.style.outlineOffset,boxShadow:el.style.boxShadow};
     el.style.outline=theme.targetHighlightWidth+"px solid "+theme.targetHighlightColor;el.style.outlineOffset="0px";el.style.boxShadow=theme.targetHighlightShadow;
     const b=root.createElement("div");b.id="dap-guide-bubble";b.dataset.dapStepId=step.id;b.dataset.placement=String(step.bubble?.placement||"Auto");b.__dapTarget=el;b.setAttribute("role","status");
-    const handle=root.createElement("div");handle.dataset.dapDragHandle="1";handle.textContent="⠿";handle.title=presentation.dragText||"גרור להזזת הבועה";Object.assign(handle.style,{display:"block",width:"fit-content",marginLeft:"auto",marginRight:"auto",textAlign:"center",fontSize:"18px",lineHeight:"14px",opacity:".72",marginBottom:"6px",cursor:"grab",touchAction:"none"});
+    const handle=root.createElement("div");handle.dataset.dapDragHandle="1";handle.setAttribute("aria-label",presentation.dragText||"גרור להזזת הבועה");handle.textContent="⠿";handle.title=presentation.dragText||"גרור להזזת הבועה";Object.assign(handle.style,{display:"block",width:"fit-content",marginLeft:"auto",marginRight:"auto",textAlign:"center",fontSize:"18px",lineHeight:"14px",opacity:".72",marginBottom:"6px",cursor:"grab",touchAction:"none"});
     const content=root.createElement("div");content.textContent=step.bubble?.content||"";content.style.cursor="default";b.append(handle,content);
     if(stepNumber&&totalSteps){const p=root.createElement("div");p.textContent=presentation.progressText||("שלב "+stepNumber+" מתוך "+totalSteps);Object.assign(p.style,{fontSize:"12px",opacity:".78",marginTop:"8px",fontWeight:"600",cursor:"default"});b.appendChild(p);}
     const pointer=root.createElement("div");pointer.dataset.dapPointer="1";Object.assign(pointer.style,{position:"absolute",width:"0",height:"0",cursor:"default"});b.appendChild(pointer);
