@@ -221,11 +221,38 @@ async function resolveFramePath(tabId, framePath, requestId) {
 
     identifiedFrames.delete(token);
 
-    if (!identified || identified.tabId !== tabId) {
-      throw new Error("DAP could not map the resolved iframe element to a browser frame.");
+    if (identified && identified.tabId === tabId) {
+      frameId = identified.frameId;
+      continue;
     }
 
-    frameId = identified.frameId;
+    // The DOM probe has already proven exactly one iframe element. Chrome can
+    // replace/promote that iframe while retaining its original browsing-context
+    // name, so frame names are not a stable identity. Map the resolved DOM frame
+    // to webNavigation by parent relationship + exact live document URL, and
+    // accept it only when that mapping is unique. Never guess.
+    const frameUrl = probe.result.frameUrl;
+    if (frameUrl) {
+      const frames = await chrome.webNavigation.getAllFrames({ tabId }) || [];
+      const matches = frames.filter(frame =>
+        frame.parentFrameId === frameId &&
+        frame.url === frameUrl
+      );
+
+      if (matches.length === 1) {
+        frameId = matches[0].frameId;
+        continue;
+      }
+
+      if (matches.length > 1) {
+        throw new Error(
+          "DAP frame mapping is ambiguous for live iframe URL '" +
+          frameUrl + "' under parent frame " + frameId + "."
+        );
+      }
+    }
+
+    throw new Error("DAP could not map the resolved iframe element to a unique browser frame.");
   }
 
   return { ok: true, frameId, offsetX, offsetY, frameRect: currentFrameRect };
