@@ -191,6 +191,150 @@
         sendResponse({ok:true,result:{status:"resolved",count:1,value}});
         return;
       }
+      if (command.type === "testFrameInfo") {
+        sendResponse({ok:true,result:{name:window.name||"",url:location.href}});
+        return;
+      }
+      if (command.type === "testWindowMetrics") {
+        sendResponse({ok:true,result:{
+          screenX:window.screenX,screenY:window.screenY,
+          outerWidth:window.outerWidth,outerHeight:window.outerHeight,
+          innerWidth:window.innerWidth,innerHeight:window.innerHeight
+        }});
+        return;
+      }
+      if (command.type === "testDocumentTimeOrigin") {
+        sendResponse({ok:true,result:{value:performance.timeOrigin}});
+        return;
+      }
+      if (command.type === "testReload") {
+        sendResponse({ok:true,result:{status:"reloading"}});
+        queueMicrotask(()=>location.reload());
+        return;
+      }
+      if (command.type === "testSetLocalStorage") {
+        localStorage.setItem(String(command.key||""),String(command.value||""));
+        if (command.datasetKey)
+          document.documentElement.dataset[String(command.datasetKey)] = String(command.value||"");
+        sendResponse({ok:true,result:{status:"set"}});
+        return;
+      }
+      if (command.type === "testWheel") {
+        window.scrollBy(Number(command.deltaX||0),Number(command.deltaY||0));
+        sendResponse({ok:true,result:{status:"scrolled"}});
+        return;
+      }
+      if (command.type === "testLocator") {
+        const resolved = resolveTestLocator(command.path);
+        const op = String(command.op||"");
+        if (op === "count") {
+          sendResponse({ok:true,result:{count:resolved.matches.length}});
+          return;
+        }
+        const el = resolved.element;
+        if (!el) {
+          sendResponse({ok:true,result:{status:"notFound",count:0}});
+          return;
+        }
+        const w = el.ownerDocument.defaultView;
+        if (op === "attribute") {
+          sendResponse({ok:true,result:{status:"resolved",value:el.getAttribute(String(command.name||""))}});
+          return;
+        }
+        if (op === "text") {
+          sendResponse({ok:true,result:{status:"resolved",value:el.textContent??""}});
+          return;
+        }
+        if (op === "inputValue") {
+          sendResponse({ok:true,result:{status:"resolved",value:"value" in el?String(el.value??""):""}});
+          return;
+        }
+        if (op === "visible") {
+          const r=el.getBoundingClientRect(),s=w.getComputedStyle(el);
+          sendResponse({ok:true,result:{status:"resolved",value:r.width>0&&r.height>0&&s.visibility!=="hidden"&&s.display!=="none"}});
+          return;
+        }
+        if (op === "disabled") {
+          sendResponse({ok:true,result:{status:"resolved",value:el.disabled===true||el.getAttribute("aria-disabled")==="true"}});
+          return;
+        }
+        if (op === "scrollIntoView") {
+          const r=el.getBoundingClientRect();
+          if (!(r.top>=0&&r.left>=0&&r.bottom<=w.innerHeight&&r.right<=w.innerWidth))
+            el.scrollIntoView({block:"center",inline:"nearest"});
+          sendResponse({ok:true,result:{status:"resolved"}});
+          return;
+        }
+        if (op === "box") {
+          const r=el.getBoundingClientRect();
+          sendResponse({ok:true,result:{status:"resolved",box:{x:r.x,y:r.y,width:r.width,height:r.height}}});
+          return;
+        }
+        if (op === "tagName") {
+          sendResponse({ok:true,result:{status:"resolved",value:el.tagName}});
+          return;
+        }
+        if (op === "matchesActiveGuideTarget") {
+          const bubble=el.ownerDocument.getElementById("dap-guide-bubble");
+          sendResponse({ok:true,result:{status:"resolved",value:!!bubble&&bubble.__dapTarget===el}});
+          return;
+        }
+        if (op === "focus") {
+          el.focus?.();
+          sendResponse({ok:true,result:{status:"resolved"}});
+          return;
+        }
+        if (op === "click") {
+          el.focus?.();
+          el.click();
+          sendResponse({ok:true,result:{status:"resolved"}});
+          return;
+        }
+        if (op === "hover") {
+          const r=el.getBoundingClientRect();
+          const x=r.left+Number(command.localX??r.width/2);
+          const y=r.top+Number(command.localY??r.height/2);
+          el.dispatchEvent(new w.MouseEvent("mousemove",{bubbles:true,clientX:x,clientY:y}));
+          el.dispatchEvent(new w.MouseEvent("mouseover",{bubbles:true,clientX:x,clientY:y}));
+          sendResponse({ok:true,result:{status:"resolved"}});
+          return;
+        }
+        if (op === "select") {
+          el.value=String(command.value??"");
+          el.dispatchEvent(new w.Event("input",{bubbles:true}));
+          el.dispatchEvent(new w.Event("change",{bubbles:true}));
+          sendResponse({ok:true,result:{status:"resolved"}});
+          return;
+        }
+        throw new Error("Unsupported DAP test locator op '"+op+"'.");
+      }
+      if (command.type === "testKeyboard") {
+        const el=document.activeElement;
+        if (!el) {
+          sendResponse({ok:true,result:{status:"noActiveElement"}});
+          return;
+        }
+        const key=String(command.key||"");
+        if (key.toLowerCase()==="control+a") el.select?.();
+        else if (key.toLowerCase()==="tab") el.blur?.();
+        else {
+          el.dispatchEvent(new KeyboardEvent("keydown",{key,bubbles:true}));
+          el.dispatchEvent(new KeyboardEvent("keyup",{key,bubbles:true}));
+        }
+        sendResponse({ok:true,result:{status:"ok"}});
+        return;
+      }
+      if (command.type === "testType") {
+        const el=document.activeElement;
+        if (!el || !("value" in el)) throw new Error("No active text editor.");
+        const value=String(command.value??"");
+        const start=typeof el.selectionStart==="number"?el.selectionStart:0;
+        const end=typeof el.selectionEnd==="number"?el.selectionEnd:start;
+        el.value=String(el.value||"").slice(0,start)+value+String(el.value||"").slice(end);
+        el.dispatchEvent(new Event("input",{bubbles:true}));
+        sendResponse({ok:true,result:{status:"ok"}});
+        return;
+      }
       if (command.type === "waitForDomQuiet") {
         const quietMs = Math.max(0, Number(command.quietMilliseconds || 0));
         let timer;
@@ -244,6 +388,43 @@
       // the next adapter command.
     }
   });
+
+  function queryTestSelector(root, selector) {
+    const marker=":has-text(";
+    const index=selector.indexOf(marker);
+    let css=selector,text=null;
+    if(index>=0){
+      const start=index+marker.length;
+      const quote=selector[start];
+      const end=(quote==="'"||quote==='"')?selector.indexOf(quote,start+1):-1;
+      const close=end>=0?selector.indexOf(")",end+1):-1;
+      if(end>=0&&close>=0){
+        text=selector.slice(start+1,end);
+        css=selector.slice(0,index)+selector.slice(close+1);
+      }
+    }
+    let matches=[...(root?.querySelectorAll?.(css)||[])];
+    if(text!==null) matches=matches.filter(el=>(el.textContent||"").includes(text));
+    return matches;
+  }
+
+  function resolveTestLocator(path) {
+    const parts=Array.isArray(path)?path:[];
+    let root=document,matches=[],element=null;
+    for(let i=0;i<parts.length;i++){
+      const part=parts[i]||{};
+      matches=queryTestSelector(root,String(part.selector||""));
+      if(part.index!==null&&part.index!==undefined)
+        element=matches[Number(part.index)]||null;
+      else
+        element=matches[0]||null;
+      if(i<parts.length-1){
+        if(!element) return {matches:[],element:null};
+        root=element;
+      }
+    }
+    return {matches,element};
+  }
 
   const normalize = value => String(value ?? "").replace(/\s+/g, " ").trim();
 
