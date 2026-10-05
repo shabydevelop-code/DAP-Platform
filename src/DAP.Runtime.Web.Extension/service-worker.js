@@ -1,3 +1,4 @@
+const identifiedFrames = new Map();
 const HOST = "com.dap.web_runtime";
 let port;
 function connect() {
@@ -8,6 +9,11 @@ function connect() {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message?.type === "dap-frame-identified" && message.token) {
+    identifiedFrames.set(message.token, {tabId:sender.tab?.id ?? null, frameId:sender.frameId ?? 0});
+    sendResponse({ok:true});
+    return false;
+  }
   if (message?.type === "dap-native") {
     const p = connect();
     const requestId = message.requestId || crypto.randomUUID();
@@ -54,6 +60,33 @@ connect().onMessage.addListener(async message => {
         throw new Error("DAP adapter expected exactly one eligible localhost application tab but found " + candidates.length + ". tabs=[" + details + "]");
       }
       tabId = candidates[0].id;
+    }
+
+    if (message.command?.framePath?.length) {
+      let frameId = 0;
+      for (const locator of message.command.framePath) {
+        const probe = await chrome.tabs.sendMessage(tabId, {
+          type:"dap-adapter-command", requestId:message.requestId,
+          command:{type:"resolveFrameChild",locator}
+        }, {frameId});
+        if (!probe?.ok || probe.result?.status !== "resolved") {
+          postAdapterResponse(connect(), message.requestId, probe || {ok:true,result:{status:"notFound",count:0}}, tabId, frameId);
+          return;
+        }
+        const token = probe.result.frameToken;
+        let identified = identifiedFrames.get(token);
+        for (let i=0; !identified && i<20; i++) {
+          await new Promise(resolve => setTimeout(resolve, 25));
+          identified = identifiedFrames.get(token);
+        }
+        identifiedFrames.delete(token);
+        if (!identified || identified.tabId !== tabId) throw new Error("DAP could not map resolved iframe DOM element to browser frame.");
+        frameId = identified.frameId;
+      }
+      const command = {...message.command}; delete command.framePath;
+      const response = await chrome.tabs.sendMessage(tabId, {type:"dap-adapter-command",requestId:message.requestId,command}, {frameId});
+      postAdapterResponse(connect(), message.requestId, response, tabId, frameId);
+      return;
     }
 
     const payload = { type: "dap-adapter-command", requestId: message.requestId, command: message.command };
