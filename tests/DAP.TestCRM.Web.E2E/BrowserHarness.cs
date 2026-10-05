@@ -299,6 +299,22 @@ internal sealed class BrowserPage
     internal async Task DispatchMouseMoveAsync(double x, double y)
         => await _cdp.SendAsync("Input.dispatchMouseEvent", new { type = "mouseMoved", x, y });
 
+    internal async Task DispatchClickAsync(double x, double y)
+    {
+        await _cdp.SendAsync("Input.dispatchMouseEvent", new
+        {
+            type = "mouseMoved", x, y
+        });
+        await _cdp.SendAsync("Input.dispatchMouseEvent", new
+        {
+            type = "mousePressed", x, y, button = "left", clickCount = 1
+        });
+        await _cdp.SendAsync("Input.dispatchMouseEvent", new
+        {
+            type = "mouseReleased", x, y, button = "left", clickCount = 1
+        });
+    }
+
     internal async Task DispatchWheelAsync(double x, double y, double deltaX, double deltaY)
         => await _cdp.SendAsync("Input.dispatchMouseEvent", new
         {
@@ -503,8 +519,12 @@ internal sealed class BrowserLocator
     public async Task ClickAsync()
     {
         _frame.Page.ActiveFrame = _frame;
-        await _frame.Page.EvaluateRawAsync(
-            $"(()=>{{const e={ElementExpression}; if(!e) throw new Error('Target not found'); e.focus?.(); e.click(); return null;}})()");
+        await ScrollIntoViewIfNeededAsync();
+        var box = await BoundingBoxAsync()
+            ?? throw new BrowserHarnessException("Target has no bounding box.");
+        await _frame.Page.DispatchClickAsync(
+            box.X + box.Width / 2,
+            box.Y + box.Height / 2);
     }
 
     public async Task HoverAsync(BrowserHoverOptions? options = null)
