@@ -1010,3 +1010,42 @@ This is now the primary Web product-capability verification path. The learner pe
 
 The production extension now treats "no matching application tab yet" as a normal learner state instead of a transport exception. Context checks return inactive and target checks return NotFound until the persisted Guide semantics identify exactly one matching tab. Ambiguous matches still fail explicitly.
 
+## Runner-free Web learner verification — PASS 54/54
+
+The production Web Learner Runtime has now been manually verified end-to-end against the persisted `testcrm-web-canonical-workflow` with no E2E Runner process active.
+
+Verified execution topology:
+
+```text
+Persisted SQLite Guide
+        ↓
+DAP Learner Runtime
+        ↓
+ExtensionWebBrowserAdapter
+        ↓
+Native Host / Native Messaging
+        ↓
+Browser Extension
+        ↓
+TestCRM Web
+```
+
+Verification result:
+- Manual Runner-free Web — PASS 54/54.
+- A human performed the learner actions.
+- Step 1 was presented by the production Runtime from the persisted Guide.
+- Runtime validation and progression advanced through all 54 Steps.
+- The run completed without an E2E session token and without E2E test-driver assistance.
+- The Runner did not provide target identity, validation results, completion state, captures, transitions, or application-state facts.
+- The production extension and Native Host path remained the only browser-access path.
+
+This is direct product-level proof of ADR-052 for Web: the canonical persisted Guide is runnable end-to-end by the Learner Runtime itself, with the Runner fully absent.
+
+During this verification the production path also proved the required startup and reconciliation behavior:
+- the Learner may start before the application tab exists;
+- absence of a matching application tab is treated as normal NotFound/inactive state rather than transport failure;
+- the production tab is resolved from persisted Guide semantics rather than an E2E session;
+- Native Messaging and Named Pipe transport reconnect independently of the Runner.
+
+The current Web product acceptance baseline is therefore autonomous learner PASS 54/54. E2E Runner work now returns to its proper role: regression automation of behavior already proven in the production learner path.
+
