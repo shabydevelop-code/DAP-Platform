@@ -261,39 +261,59 @@
     }).catch(()=>{});
   }
 
-  // The extension reports natural browser commit events only. It deliberately
-  // does not evaluate guide validation and never advances guide state.
+  // Match WebBubblePresenter validation semantics exactly. The extension is
+  // transport only: it reports the same natural browser commit events and DAP
+  // remains the owner of validation/completion state.
   function armValidationTarget(step, element, armId) {
     if (active?.validationOnly) hideBubble();
-    // Arming must start a fresh edit cycle. A WeakSet entry can survive a
-    // previous validation arm because the DOM element itself is reused.
-    edited.delete(element);
-    active = { step, element, armId: armId ?? null, validationOnly:true, cleanup:()=>{} };
-  }
+    const kind = validationKind(step);
 
-  const edited=new WeakSet();
-  document.addEventListener("click",e=>{
-    if(active&&validationKind(active.step)==="clicked"&&(active.element===e.target||active.element.contains(e.target)))
-      emitAdapterEvent("validation-commit",active.step,{kind:"clicked"});
-  },true);
-  document.addEventListener("input",e=>{if(active&&active.element===e.target)edited.add(e.target)},true);
-  document.addEventListener("change",e=>{
-    if(!active||active.element!==e.target||!active.step.validation||validationKind(active.step)==="clicked")return;
-    const tag=e.target.tagName?.toLowerCase(),type=(e.target.getAttribute?.("type")||"").toLowerCase();
-    const text=tag==="textarea"||(tag==="input"&&!["checkbox","radio","button","submit","reset"].includes(type));
-    if(text){edited.add(e.target);return;}
-    emitAdapterEvent("validation-commit",active.step,{kind:validationKind(active.step),value:inputValue(e.target),browserEvent:"change",documentHasFocus:document.hasFocus(),targetIsActive:document.activeElement===e.target});
-  },true);
-  document.addEventListener("blur",e=>{
-    if(!active||active.element!==e.target||!active.step.validation||validationKind(active.step)==="clicked"||!edited.has(e.target))return;
-    // Window/document deactivation also fires blur on the focused control.
-    // That is not a field commit: when the browser regains focus the same
-    // control remains active. Match the learner semantics by committing only
-    // when focus actually moves away inside the document.
-    if(!document.hasFocus()&&document.activeElement===e.target)return;
-    edited.delete(e.target);
-    emitAdapterEvent("validation-commit",active.step,{kind:validationKind(active.step),value:inputValue(e.target),browserEvent:"blur",documentHasFocus:document.hasFocus(),targetIsActive:document.activeElement===e.target,relatedTargetTag:e.relatedTarget?.tagName??null});
-  },true);
+    if (kind === "clicked") {
+      if (element.__dapValidationClickHandler)
+        element.removeEventListener("click", element.__dapValidationClickHandler, true);
+
+      const clickHandler = () => {
+        emitAdapterEvent("validation-commit", step, {kind:"clicked", armId});
+      };
+      element.__dapValidationClickHandler = clickHandler;
+      element.addEventListener("click", clickHandler, {capture:true});
+    } else if (kind && element.__dapValidationStepId !== step.id) {
+      if (element.__dapValidationCommitHandler)
+        element.removeEventListener(element.__dapValidationCommitEvent, element.__dapValidationCommitHandler, true);
+      if (element.__dapValidationInputHandler)
+        element.removeEventListener("input", element.__dapValidationInputHandler, true);
+      if (element.__dapValidationChangeHandler)
+        element.removeEventListener("change", element.__dapValidationChangeHandler, true);
+
+      const tag = element.tagName?.toLowerCase();
+      const type = (element.getAttribute?.("type") || "").toLowerCase();
+      const isTextEditor = tag === "textarea" ||
+        (tag === "input" && !["checkbox","radio","button","submit","reset"].includes(type));
+      const eventName = isTextEditor ? "blur" : "change";
+      const state = {changed:false};
+
+      if (isTextEditor) {
+        const markChanged = () => { state.changed = true; };
+        element.__dapValidationInputHandler = markChanged;
+        element.__dapValidationChangeHandler = markChanged;
+        element.addEventListener("input", markChanged, {capture:true});
+        element.addEventListener("change", markChanged, {capture:true});
+      }
+
+      const commit = () => {
+        if (isTextEditor && !state.changed) return;
+        state.changed = false;
+        emitAdapterEvent("validation-commit", step, {kind, armId});
+      };
+
+      element.__dapValidationStepId = step.id;
+      element.__dapValidationCommitHandler = commit;
+      element.__dapValidationCommitEvent = eventName;
+      element.addEventListener(eventName, commit, {capture:true});
+    }
+
+    active = {step, element, armId:armId ?? null, validationOnly:true, cleanup:()=>{}};
+  }
 
   const listeners = new Set();
   const observer = new MutationObserver(records => {
