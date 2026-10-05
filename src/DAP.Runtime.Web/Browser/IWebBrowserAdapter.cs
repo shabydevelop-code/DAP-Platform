@@ -6,8 +6,8 @@ namespace DAP.Runtime.Web.Browser;
 /// <summary>
 /// Browser boundary for the Web learner. Guide sequencing, validation policy,
 /// context, capture and reconciliation remain owned by DAP Runtime.
-/// Implementations may use Playwright (regression baseline) or the production
-/// browser extension.
+/// The production implementation uses the browser extension. The contract keeps
+/// browser mechanics isolated from learner policy and test automation.
 /// </summary>
 public interface IWebBrowserAdapter
 {
