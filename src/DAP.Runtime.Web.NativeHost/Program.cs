@@ -31,6 +31,7 @@ while (true)
                     steps = await repository.GetStepsAsync(request.GuideId) },
             "ping" => new { requestId = request?.RequestId, ok = true, type = "pong" },
             "adapterEvent" => await ForwardAdapterEventAsync(request!, json),
+            "adapterResponse" => await ForwardAdapterResponseAsync(request!, json),
             _ => new { requestId = request?.RequestId, ok = false, error = "Unsupported native request." }
         };
     }
@@ -79,10 +80,28 @@ static async Task<object> ForwardAdapterEventAsync(NativeRequest request, JsonSe
     return new { requestId = request.RequestId, ok = true };
 }
 
+static async Task<object> ForwardAdapterResponseAsync(NativeRequest request, JsonSerializerOptions json)
+{
+    var directory = Path.Combine(Path.GetTempPath(), "DAP", "WebAdapter");
+    Directory.CreateDirectory(directory);
+    var path = Path.Combine(directory, "responses.jsonl");
+    var line = JsonSerializer.Serialize(new
+    {
+        utc = DateTimeOffset.UtcNow,
+        request.RequestId,
+        request.TabId,
+        request.FrameId,
+        response = request.Response
+    }, json);
+    await File.AppendAllTextAsync(path, line + Environment.NewLine, Encoding.UTF8);
+    return new { requestId = request.RequestId, ok = true };
+}
+
 sealed record NativeRequest(
     string? Type,
     string? RequestId,
     string? GuideId,
     int? TabId,
     int? FrameId,
-    JsonElement? Payload);
+    JsonElement? Payload,
+    JsonElement? Response);
