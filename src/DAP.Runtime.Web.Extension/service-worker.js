@@ -111,6 +111,12 @@ connect().onMessage.addListener(async message => {
       return;
     }
 
+    if (message.command?.type === "waitForDomQuiet") {
+      const stable = replies.every(reply => reply.response?.result?.stable === true);
+      postAdapterResponse(connect(), message.requestId, {ok:true,result:{stable}}, tabId, null);
+      return;
+    }
+
     postAdapterResponse(connect(), message.requestId, replies[0].response, tabId, replies[0].frameId);
   } catch (error) {
     postAdapterResponse(connect(), message.requestId, { ok:false, error:String(error?.message || error) }, message.tabId ?? null, message.frameId ?? 0);
