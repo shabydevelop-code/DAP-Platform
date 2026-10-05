@@ -111,6 +111,22 @@ connect().onMessage.addListener(async message => {
       return;
     }
 
+    if (message.command?.type === "armValidation") {
+      const resolved = replies.filter(r => r.response?.result?.status === "resolved");
+      const ambiguous = replies.reduce((n, r) => n + (r.response?.result?.status === "ambiguous" ? Number(r.response.result.count || 0) : 0), 0);
+      const count = resolved.length + ambiguous;
+      const status = count === 0 ? "notFound" : count === 1 ? "resolved" : "ambiguous";
+      if (status === "resolved") {
+        for (const reply of replies) {
+          if (reply.response?.result?.status !== "resolved") continue;
+          postAdapterResponse(connect(), message.requestId, {ok:true,result:{status,count:1}}, tabId, reply.frameId);
+          return;
+        }
+      }
+      postAdapterResponse(connect(), message.requestId, {ok:true,result:{status,count}}, tabId, null);
+      return;
+    }
+
     if (message.command?.type === "readTargetValue") {
       const matches = replies.filter(r => r.response?.result?.status === "resolved");
       const ambiguous = replies.reduce((n, r) => n + (r.response?.result?.status === "ambiguous" ? Number(r.response.result.count || 0) : 0), 0);
