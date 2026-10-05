@@ -65,3 +65,27 @@ var stable = await adapter.IsStableForPresentationAsync(
 Console.WriteLine($"DOM quiet window:     {stable}");
 if (!stable) throw new Exception("Expected TestCRM DOM to become quiet for 250 ms.");
 Console.WriteLine("PASS: Extension IsStableForPresentationAsync observed a 250 ms DOM quiet window without Playwright.");
+
+
+var validationTarget = TargetDescriptor.Create(
+    TargetRuntime.Web,
+    new Locator("css", "#customer-search input[name=\"name\"]"));
+var validationStep = new GuideStep(
+    "probe-validation", 5, validationTarget, new BubbleDefinition("probe"),
+    Validation: new ValidationDefinition("value-not-empty"));
+
+Console.WriteLine();
+Console.WriteLine("Validation probe is armed on the customer-name search field.");
+Console.WriteLine("In TestCRM, type any value in the customer-name field. Do not leave the field yet.");
+Console.WriteLine("The probe must remain waiting until you press Tab or otherwise blur the field.");
+
+var commit = await adapter.WaitForValidationCommitAsync(validationStep);
+if (commit is null) throw new Exception("Expected validation target to resolve exactly once.");
+Console.WriteLine($"Validation commit:     {commit.Kind}");
+
+var validationSatisfied = await adapter.IsPrimaryValidationSatisfiedAsync(validationStep);
+Console.WriteLine($"Validation satisfied:  {validationSatisfied}");
+if (!validationSatisfied) throw new Exception("Expected non-empty customer-name value to satisfy validation after blur.");
+
+await adapter.ConsumeValidationCommitAsync(validationStep);
+Console.WriteLine("PASS: Extension reported the natural blur commit and DAP evaluated value-not-empty without Playwright.");
