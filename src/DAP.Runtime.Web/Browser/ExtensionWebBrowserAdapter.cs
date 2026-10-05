@@ -14,6 +14,7 @@ namespace DAP.Runtime.Web.Browser;
 /// </summary>
 public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
 {
+    private static readonly TimeSpan CommandTimeout = TimeSpan.FromSeconds(5);
     private readonly string _eventPath;
     private readonly string _commandPath;
     private readonly string _responsePath;
@@ -97,17 +98,24 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
 
     private async Task<JsonElement> SendCommandAsync(object command, CancellationToken cancellationToken)
     {
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutCts.CancelAfter(CommandTimeout);
+        var commandToken = timeoutCts.Token;
         var requestId = Guid.NewGuid().ToString("N");
         Directory.CreateDirectory(Path.GetDirectoryName(_commandPath)!);
         // No frameId here. Until a TargetDescriptor FrameContext is mapped to a
         // concrete browser frame, the extension must query all injected frames.
         // Sending frameId=0 incorrectly forces the command into the top frame.
         var line = JsonSerializer.Serialize(new { type = "adapterCommand", requestId, command });
-        await File.AppendAllTextAsync(_commandPath, line + Environment.NewLine, cancellationToken);
+        await File.AppendAllTextAsync(_commandPath, line + Environment.NewLine, commandToken);
 
         while (true)
         {
-            cancellationToken.ThrowIfCancellationRequested();
+            if (commandToken.IsCancellationRequested)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                throw new TimeoutException($"Extension adapter command '{requestId}' timed out after {CommandTimeout.TotalSeconds:0} seconds.");
+            }
             if (File.Exists(_responsePath))
             {
                 using var stream = new FileStream(_responsePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
@@ -127,7 +135,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
                     return response;
                 }
             }
-            await Task.Delay(25, cancellationToken);
+            await Task.Delay(25, commandToken);
         }
     }
 
