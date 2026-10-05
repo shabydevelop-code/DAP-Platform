@@ -162,21 +162,40 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
                 using var stream = new FileStream(_responsePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
                 if (_responseOffset > stream.Length) _responseOffset = 0;
                 stream.Position = _responseOffset;
-                using var reader = new StreamReader(stream);
+                using var reader = new StreamReader(stream, System.Text.Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 1024, leaveOpen: true);
                 string? responseLine;
+                JsonElement? matchedResponse = null;
                 while ((responseLine = reader.ReadLine()) is not null)
                 {
-                    _responseOffset = stream.Position;
                     if (string.IsNullOrWhiteSpace(responseLine)) continue;
                     using var doc = JsonDocument.Parse(responseLine);
                     if (!doc.RootElement.TryGetProperty("requestId", out var id) || id.GetString() != requestId) continue;
-                    var response = doc.RootElement.GetProperty("response").Clone();
+                    matchedResponse = doc.RootElement.GetProperty("response").Clone();
+                    break;
+                }
+
+                // StreamReader buffers ahead. Update the cursor only after the
+                // reader is disposed, otherwise subsequent adapter responses can
+                // be skipped even though the browser/native-host path succeeded.
+                reader.Dispose();
+                _responseOffset = stream.Position;
+
+                if (matchedResponse is JsonElement response)
+                {
                     if (response.TryGetProperty("ok", out var ok) && !ok.GetBoolean())
                         throw new InvalidOperationException(response.TryGetProperty("error", out var error) ? error.GetString() : "Extension adapter command failed.");
                     return response;
                 }
             }
-            await Task.Delay(25, commandToken);
+
+            try
+            {
+                await Task.Delay(25, commandToken);
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                throw new TimeoutException($"Extension adapter command '{requestId}' timed out after {CommandTimeout.TotalSeconds:0} seconds.");
+            }
         }
     }
 
