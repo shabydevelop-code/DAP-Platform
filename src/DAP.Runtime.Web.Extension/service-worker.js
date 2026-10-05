@@ -75,16 +75,20 @@ connect().onMessage.addListener(async message => {
         target: {tabId, allFrames:true},
         files: ["content-runtime.js"]
       });
+      const retryErrors = [];
       for (const frame of frames) {
         try {
           const response = await chrome.tabs.sendMessage(tabId, payload, {frameId:frame.frameId});
           if (response?.ok) replies.push({frameId:frame.frameId,response});
-        } catch {}
+          else retryErrors.push(frame.frameId + ": response=" + JSON.stringify(response));
+        } catch (error) {
+          retryErrors.push(frame.frameId + ": " + String(error?.message || error));
+        }
       }
-    }
-    if (!replies.length) {
-      const details = frames.map(f => f.frameId + ":" + (f.url || "<no-url>")).join(", ");
-      throw new Error("DAP Web Runtime content script is not available after explicit injection. tabId=" + tabId + "; frames=[" + details + "]");
+      if (!replies.length) {
+        const details = frames.map(f => f.frameId + ":" + (f.url || "<no-url>")).join(", ");
+        throw new Error("DAP Web Runtime content script is not available after explicit injection. tabId=" + tabId + "; frames=[" + details + "]; sendErrors=[" + retryErrors.join(" | ") + "]");
+      }
     }
 
     if (message.command?.type === "resolveTarget") {
