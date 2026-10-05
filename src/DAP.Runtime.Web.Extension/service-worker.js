@@ -244,7 +244,7 @@ async function hideEveryFrame(tabId, requestId) {
       );
     } catch {
       // A frame can disappear while the page is rebuilding. Hide is best-effort
-      // across retired frames, matching Playwright cleanup semantics.
+      // across retired frames, matching established Web cleanup semantics.
     }
   }
 }
@@ -441,7 +441,7 @@ async function handleNativeMessage(message) {
       return;
     }
 
-    // Playwright baseline semantics:
+    // Web baseline semantics:
     // no FrameContext means page.MainFrame; a non-empty FrameContext is resolved
     // explicitly from the top frame. Do not broadcast target commands to every frame.
     let frameId = 0;
@@ -471,7 +471,7 @@ async function handleNativeMessage(message) {
     ) {
       const localRect = response.result.rect;
 
-      // Reconstruct Playwright BoundingBoxAsync page coordinates from the
+      // Reconstruct top-level browser page coordinates from the
       // browser-routed frame path. For a target that spans almost the entire
       // child frame (for example the application header), anchor the proxy to
       // the child frame's visible box rather than to a potentially stale local
