@@ -98,14 +98,39 @@ async function ensureContentScript(tabId, frameId) {
       { frameId }
     );
     if (ready?.ok) return;
-  } catch (error) {
-    if (!isMissingReceiverError(error)) throw error;
+  } catch {
+    // A page can retain an isolated world from the previous unpacked-extension
+    // generation. Treat any failed readiness probe as a stale/missing endpoint
+    // and install the current runtime into this exact browser frame.
   }
 
   await chrome.scripting.executeScript({
     target: { tabId, frameIds: [frameId] },
     files: ["content-runtime.js"]
   });
+
+  const ready = await chrome.tabs.sendMessage(
+    tabId,
+    { type: "dap-adapter-command", command: { type: "ping" } },
+    { frameId }
+  );
+  if (!ready?.ok)
+    throw new Error("DAP content runtime did not become ready after injection.");
+}
+
+async function ensureTabFramesReady(tabId) {
+  const frames = await chrome.webNavigation.getAllFrames({ tabId }) || [];
+  for (const frame of frames) {
+    try {
+      await ensureContentScript(tabId, frame.frameId);
+    } catch (error) {
+      // A frame can disappear while TestCRM/server applications rebuild their
+      // document tree. It will be re-discovered by the next command.
+      const current = await chrome.webNavigation.getFrame({ tabId, frameId: frame.frameId })
+        .catch(() => null);
+      if (current) throw error;
+    }
+  }
 }
 
 async function sendToFrame(tabId, frameId, requestId, command) {
@@ -141,6 +166,12 @@ async function resolveTargetTab() {
 }
 
 async function resolveFramePath(tabId, framePath, requestId) {
+  // Frame-element -> browser-frame identification uses a short postMessage
+  // handshake. Ensure every currently live frame runs the current extension
+  // generation first; otherwise a child left behind by an extension reload can
+  // answer the DOM handshake but be unable to report its chrome frameId.
+  await ensureTabFramesReady(tabId);
+
   let frameId = 0;
   let offsetX = 0;
   let offsetY = 0;
