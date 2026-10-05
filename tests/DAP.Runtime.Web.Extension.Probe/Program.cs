@@ -56,3 +56,12 @@ if (!cssActive) throw new Exception("Expected #content-frame CSS context to be a
 if (cssInactive) throw new Exception("Expected missing CSS context to be inactive.");
 
 Console.WriteLine("PASS: Extension IsContextActiveAsync returned active / inactive browser context facts without Playwright.");
+
+
+var stableStep = new GuideStep(
+    "probe-stability", 4, contextTarget, new BubbleDefinition("probe"));
+var stable = await adapter.IsStableForPresentationAsync(
+    stableStep, TimeSpan.FromMilliseconds(250));
+Console.WriteLine($"DOM quiet window:     {stable}");
+if (!stable) throw new Exception("Expected TestCRM DOM to become quiet for 250 ms.");
+Console.WriteLine("PASS: Extension IsStableForPresentationAsync observed a 250 ms DOM quiet window without Playwright.");
