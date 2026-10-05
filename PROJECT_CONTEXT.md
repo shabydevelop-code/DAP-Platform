@@ -699,3 +699,23 @@ The future Instructor may be developed with AI and may optionally use AI as an a
 
 Immediate development priority: prove the canonical persisted TestCRM Guide manually with the Runner absent, using only TestCRM + DAP Learner Runtime + persisted DB + the production adapter. Automated Runner parity is secondary until this autonomous path is verified.
 
+## Autonomous Web learner baseline — verified 54/54
+
+The Runner-free Web acceptance path is now verified.
+
+A human completed the full persisted 54-Step `testcrm-web-canonical-workflow` using only TestCRM, the DAP database, DAP Learner Runtime, Native Host, and the production browser extension. No E2E Runner process participated in execution.
+
+Therefore the following product contract is proven for the canonical Web scenario:
+
+```text
+Guide database
+→ DAP Learner Runtime
+→ production Web adapter
+→ browser extension
+→ target application
+```
+
+The Runtime independently handled persisted context, target resolution, learner validation, completion conditions, runtime progression, re-resolution across application changes, and final Guide completion. The human supplied only normal application interactions.
+
+This verification satisfies the Web side of the hard autonomous-Learner rule in ADR-052 for the canonical TestCRM Guide. Future Web Runner/E2E changes must preserve this behavior and must remain regression automation rather than a source of product semantics.
+
