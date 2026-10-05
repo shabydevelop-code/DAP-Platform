@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using DAP.Core.Guides;
+using DAP.Core.Localization;
 using DAP.Core.Targets;
 
 namespace DAP.Runtime.Web.Browser;
@@ -29,14 +30,20 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
     private readonly SemaphoreSlim _connectedSignal = new(0);
     private readonly CancellationTokenSource _transportCts = new();
     private readonly object _pipeGate = new();
+    private readonly IUiTextProvider? _texts;
     private NamedPipeServerStream? _pipe;
     private readonly Task _acceptLoop;
+    private TaskCompletionSource<bool>? _centeredDismissal;
+    private TaskCompletionSource<bool>? _guideCompletedDismissal;
     private bool _disposed;
 
-    public ExtensionWebBrowserAdapter(string? eventPath = null, string? commandPath = null, string? responsePath = null)
+    public ExtensionWebBrowserAdapter(
+        IUiTextProvider? texts = null,
+        string? eventPath = null,
+        string? commandPath = null,
+        string? responsePath = null)
     {
-        // Legacy path parameters remain only for source compatibility.
-        // Browser-adapter traffic is now direct, full-duplex IPC.
+        _texts = texts;
         _acceptLoop = Task.Run(() => AcceptPipeLoopAsync(_transportCts.Token));
     }
     public async Task ArmValidationAsync(GuideStep step, CancellationToken cancellationToken = default)
@@ -89,7 +96,23 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
 
     private void ProcessAdapterEvent(JsonElement payload)
     {
-        if (!payload.TryGetProperty("type", out var type) || type.GetString() != "validation-commit") return;
+        if (!payload.TryGetProperty("type", out var typeElement)) return;
+        var eventType = typeElement.GetString();
+
+        if (eventType == "centered-dismissed")
+        {
+            _centeredDismissal?.TrySetResult(true);
+            return;
+        }
+
+        if (eventType == "guide-completed-dismissed")
+        {
+            _guideCompletedDismissal?.TrySetResult(true);
+            return;
+        }
+
+        if (eventType != "validation-commit") return;
+
         var stepId = payload.TryGetProperty("stepId", out var sid) ? sid.GetString() : null;
         if (string.IsNullOrWhiteSpace(stepId)) return;
         var armId = payload.TryGetProperty("armId", out var aid) ? aid.GetString() : null;
@@ -255,9 +278,6 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             await _connectedSignal.WaitAsync(cancellationToken);
         }
     }
-    private static NotSupportedException Pending(string operation)
-        => new($"Extension Web adapter operation '{operation}' has not been migrated yet.");
-
     public async Task<bool> IsContextActiveAsync(GuideStep step, CancellationToken cancellationToken = default)
     {
         if (step.Context is null)
@@ -344,8 +364,54 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
     {
         await SendCommandAsync(new { type = "hideBubble" }, cancellationToken);
     }
-    public Task WaitForCenteredStepDismissalAsync(GuideStep step, int stepNumber, int totalSteps, CancellationToken cancellationToken = default) => throw Pending(nameof(WaitForCenteredStepDismissalAsync));
-    public Task WaitForGuideCompletedDismissalAsync(CancellationToken cancellationToken = default) => throw Pending(nameof(WaitForGuideCompletedDismissalAsync));
+    public async Task WaitForCenteredStepDismissalAsync(
+        GuideStep step,
+        int stepNumber,
+        int totalSteps,
+        CancellationToken cancellationToken = default)
+    {
+        _centeredDismissal = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        try
+        {
+            await SendCommandAsync(new
+            {
+                type = "showCenteredStep",
+                step,
+                stepNumber,
+                totalSteps,
+                progressText = _texts?.Format("Learner.StepProgress", stepNumber, totalSteps) ?? $"שלב {stepNumber} מתוך {totalSteps}",
+                actionText = _texts?.Get("Learner.Confirm") ?? "אישור",
+                dragText = _texts?.Get("Learner.DragBubble") ?? "גרור להזזת הבועה"
+            }, cancellationToken);
+
+            await _centeredDismissal.Task.WaitAsync(cancellationToken);
+        }
+        finally
+        {
+            _centeredDismissal = null;
+        }
+    }
+
+    public async Task WaitForGuideCompletedDismissalAsync(CancellationToken cancellationToken = default)
+    {
+        _guideCompletedDismissal = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        try
+        {
+            await SendCommandAsync(new
+            {
+                type = "showGuideCompleted",
+                content = _texts?.Get("Learner.GuideCompleted") ?? "המדריך הושלם בהצלחה",
+                actionText = _texts?.Get("Learner.Finish") ?? "סיום",
+                dragText = _texts?.Get("Learner.DragBubble") ?? "גרור להזזת הבועה"
+            }, cancellationToken);
+
+            await _guideCompletedDismissal.Task.WaitAsync(cancellationToken);
+        }
+        finally
+        {
+            _guideCompletedDismissal = null;
+        }
+    }
     public async Task<string?> CaptureAsync(GuideStep step, CancellationToken cancellationToken = default)
     {
         if (step.Capture is null) return null;
