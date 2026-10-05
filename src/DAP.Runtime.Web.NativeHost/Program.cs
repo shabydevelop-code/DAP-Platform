@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using DAP.Data.Sqlite;
 using DAP.Data.Sqlite.Guides;
 
@@ -8,6 +9,7 @@ var repository = new SqliteGuideStepRepository(new SqliteConnectionFactory(Sqlit
 var input = Console.OpenStandardInput();
 var output = Console.OpenStandardOutput();
 var json = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+json.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
 
 while (true)
 {
