@@ -282,12 +282,12 @@
     const tag=e.target.tagName?.toLowerCase(),type=(e.target.getAttribute?.("type")||"").toLowerCase();
     const text=tag==="textarea"||(tag==="input"&&!["checkbox","radio","button","submit","reset"].includes(type));
     if(text){edited.add(e.target);return;}
-    emitAdapterEvent("validation-commit",active.step,{kind:validationKind(active.step),value:inputValue(e.target)});
+    emitAdapterEvent("validation-commit",active.step,{kind:validationKind(active.step),value:inputValue(e.target),browserEvent:"change",documentHasFocus:document.hasFocus(),targetIsActive:document.activeElement===e.target});
   },true);
   document.addEventListener("blur",e=>{
     if(!active||active.element!==e.target||!active.step.validation||validationKind(active.step)==="clicked"||!edited.has(e.target))return;
     edited.delete(e.target);
-    emitAdapterEvent("validation-commit",active.step,{kind:validationKind(active.step),value:inputValue(e.target)});
+    emitAdapterEvent("validation-commit",active.step,{kind:validationKind(active.step),value:inputValue(e.target),browserEvent:"blur",documentHasFocus:document.hasFocus(),targetIsActive:document.activeElement===e.target,relatedTargetTag:e.relatedTarget?.tagName??null});
   },true);
 
   const listeners = new Set();
