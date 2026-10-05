@@ -1063,3 +1063,11 @@ Extension versions for this pass: manifest 0.2.2 and content runtime 0.4.2.
 
 This is a responsiveness/UX optimization only. It does not change persisted Guide semantics, validation ownership, completion conditions, or the five-second timeout ceiling. The canonical Runner-free 54-Step path must be rechecked after extension reload.
 
+### Web responsiveness regression — document replacement recovery
+
+The first bubble-stability optimization exposed a production lifecycle regression at canonical Step 3: during the search-result server/document transition, an asynchronous content-script response channel could close after the old document was retired. Chrome surfaced this as `A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received`, which incorrectly terminated the Learner Runtime.
+
+The production service worker now treats this family of frame/message-channel closures as transient document-lifecycle events. It retries once against the current live content runtime. If the document is still transitioning, presentation-settle/context commands return normal `stable=false` / inactive semantics and target commands return NotFound so the existing reconciliation loop can continue. No timeout was increased and no Guide semantics were weakened.
+
+Extension manifest version: 0.2.3.
+
