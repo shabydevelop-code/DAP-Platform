@@ -1087,4 +1087,12 @@
   document.dispatchEvent(new CustomEvent("dap:web-runtime-ready", {
     detail: { version: globalThis.__dapWebRuntime.version }
   }));
+
+  try {
+    const ready = chrome.runtime.sendMessage({ type: "dap-runtime-ready" });
+    ready?.catch?.(()=>{});
+  } catch {
+    // A page may momentarily retain an invalidated isolated world after
+    // unpacked-extension reload. The next injected runtime will report ready.
+  }
 })();
