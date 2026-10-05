@@ -36,6 +36,11 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
 
     public async Task<WebValidationCommit?> WaitForValidationCommitAsync(GuideStep step, CancellationToken cancellationToken = default)
     {
+        var armed = await SendCommandAsync(new { type = "armValidation", step }, cancellationToken);
+        var armedResult = armed.GetProperty("result");
+        if (armedResult.GetProperty("status").GetString() != "resolved")
+            return null;
+
         while (true)
         {
             ReadPendingEvents();
