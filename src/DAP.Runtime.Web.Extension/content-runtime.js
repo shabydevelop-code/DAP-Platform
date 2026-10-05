@@ -3,6 +3,25 @@
 
   if (globalThis.__dapWebRuntime) return;
 
+  // Register the adapter message endpoint before the legacy POC runtime is
+  // initialized. Target resolution is looked up at message time, so an
+  // initialization failure later in this script can no longer make the frame
+  // appear to have no DAP content script at all.
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message?.type !== "dap-adapter-command") return;
+    try {
+      const command = message.command || {};
+      if (command.type === "resolveTarget") {
+        const result = resolveTarget(command.target);
+        sendResponse({ok:true,result:{status:result.status,count:result.count}});
+        return;
+      }
+      sendResponse({ok:false,error:"Unsupported DAP adapter command '"+String(command.type||"")+"'."});
+    } catch (error) {
+      sendResponse({ok:false,error:String(error?.message||error)});
+    }
+  });
+
   const normalize = value => String(value ?? "").replace(/\s+/g, " ").trim();
 
   function byText(value) {
@@ -173,32 +192,6 @@
 
   addEventListener("resize",reconcile,{passive:true}); addEventListener("scroll",reconcile,{passive:true,capture:true});
   document.addEventListener("dap:web-runtime-command",e=>{const q=e.detail||{};try{let result;if(q.type==="showStep")result=showBubble(q.step,q.stepNumber,q.totalSteps);else if(q.type==="hide"){hideBubble();result={status:"hidden"};}else if(q.type==="resolve")result=resolveTarget(q.target);else throw new Error("Unknown DAP command");document.dispatchEvent(new CustomEvent("dap:web-runtime-result",{detail:{requestId:q.requestId,ok:true,result}}));}catch(error){document.dispatchEvent(new CustomEvent("dap:web-runtime-result",{detail:{requestId:q.requestId,ok:false,error:String(error?.message||error)}}));}});
-  chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
-    if(message?.type!=="dap-adapter-command")return;
-    try{
-      const command=message.command||{};
-      if(command.type==="resolveTarget"){
-        const result=resolveTarget(command.target);
-        sendResponse({ok:true,result:{status:result.status,count:result.count}});
-        return;
-      }
-      if(command.type==="probeResolveTarget"){
-        const resolved=resolveTarget(command.resolved);
-        const missing=resolveTarget(command.missing);
-        const ambiguous=resolveTarget(command.ambiguous);
-        sendResponse({ok:true,result:{
-          resolved:{status:resolved.status,count:resolved.count},
-          missing:{status:missing.status,count:missing.count},
-          ambiguous:{status:ambiguous.status,count:ambiguous.count}
-        }});
-        return;
-      }
-      sendResponse({ok:false,error:"Unsupported DAP adapter command '"+String(command.type||"")+"'."});
-    }catch(error){
-      sendResponse({ok:false,error:String(error?.message||error)});
-    }
-  });
-
   document.dispatchEvent(new CustomEvent("dap:web-runtime-ready", {
     detail: { version: globalThis.__dapWebRuntime.version }
   }));
