@@ -113,8 +113,14 @@ function postAdapterResponse(requestId, response, tabId, frameId) {
   });
 }
 
-function isMissingReceiverError(error) {
-  return String(error?.message || "").includes("Receiving end does not exist");
+function isTransientReceiverError(error) {
+  const message = String(error?.message || error || "");
+  return message.includes("Receiving end does not exist") ||
+    message.includes("message channel closed before a response was received") ||
+    message.includes("The message port closed before a response was received") ||
+    message.includes("No frame with id") ||
+    message.includes("Frame with ID") ||
+    message.includes("The frame was removed");
 }
 
 async function ensureContentScript(tabId, frameId) {
@@ -166,10 +172,20 @@ async function sendToFrame(tabId, frameId, requestId, command) {
   try {
     return await chrome.tabs.sendMessage(tabId, payload, { frameId });
   } catch (error) {
-    if (!isMissingReceiverError(error)) throw error;
+    if (!isTransientReceiverError(error)) throw error;
+  }
 
+  // A SPA/server refresh can retire the document after it received the
+  // command but before its asynchronous sendResponse fires. Re-resolve the
+  // current browser frame/content runtime once and retry against the live
+  // document. This is browser lifecycle recovery only; no Guide decision is
+  // changed and no timeout is increased.
+  try {
     await ensureContentScript(tabId, frameId);
-    return chrome.tabs.sendMessage(tabId, payload, { frameId });
+    return await chrome.tabs.sendMessage(tabId, payload, { frameId });
+  } catch (error) {
+    if (!isTransientReceiverError(error)) throw error;
+    return null;
   }
 }
 
@@ -673,6 +689,24 @@ async function handleNativeMessage(message) {
     delete command.framePath;
 
     const response = await sendToFrame(tabId, frameId, requestId, command);
+
+    if (response == null) {
+      if (command.type === "waitForDomQuiet") {
+        postAdapterResponse(requestId, { ok: true, result: { stable: false } }, tabId, frameId);
+        return;
+      }
+      if (command.type === "isContextActive") {
+        postAdapterResponse(requestId, { ok: true, result: { active: false } }, tabId, frameId);
+        return;
+      }
+      postAdapterResponse(
+        requestId,
+        { ok: true, result: { status: "notFound", count: 0 } },
+        tabId,
+        frameId
+      );
+      return;
+    }
 
     if (
       command.type === "ensureBubble" &&
