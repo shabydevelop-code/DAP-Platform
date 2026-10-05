@@ -191,14 +191,33 @@ Start-Process $browserInfo.Exe -ArgumentList @(
     "http://localhost:5200/"
 )
 
-Start-Sleep -Milliseconds 700
-if ($dap.HasExited) {
+$transportDeadline = [DateTime]::UtcNow.AddSeconds(5)
+$transportReady = $false
+while ([DateTime]::UtcNow -lt $transportDeadline) {
+    if ($dap.HasExited) {
+        $stderr = if (Test-Path $dapStderr) { Get-Content $dapStderr -Raw } else { "" }
+        $stdout = if (Test-Path $dapStdout) { Get-Content $dapStdout -Raw } else { "" }
+        throw "DAP Learner exited after browser startup. STDERR:$([Environment]::NewLine)$stderr$([Environment]::NewLine)STDOUT:$([Environment]::NewLine)$stdout"
+    }
+
+    if (Test-Path $dapStderr) {
+        $stderrNow = Get-Content $dapStderr -Raw
+        if ($stderrNow -match '\[DAP runtime\] selected browser extension host\.') {
+            $transportReady = $true
+            break
+        }
+    }
+
+    Start-Sleep -Milliseconds 100
+}
+
+if (-not $transportReady) {
     $stderr = if (Test-Path $dapStderr) { Get-Content $dapStderr -Raw } else { "" }
-    $stdout = if (Test-Path $dapStdout) { Get-Content $dapStdout -Raw } else { "" }
-    throw "DAP Learner exited after browser startup. STDERR:$([Environment]::NewLine)$stderr$([Environment]::NewLine)STDOUT:$([Environment]::NewLine)$stdout"
+    throw "DAP Learner did not establish the production browser-extension transport within 5 seconds. STDERR:$([Environment]::NewLine)$stderr"
 }
 
 Write-Host ""
+Write-Host "Production extension transport connected."
 Write-Host "Autonomous learner session started."
 Write-Host "TestCRM Web PID: $($web.Id)"
 Write-Host "TestCRM Backend PID: $($backend.Id)"
