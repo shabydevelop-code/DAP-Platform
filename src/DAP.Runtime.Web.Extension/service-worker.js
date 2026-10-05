@@ -3,9 +3,13 @@ const HOST = "com.dap.web_runtime";
 let port;
 function connect() {
   if (port) return port;
-  port = chrome.runtime.connectNative(HOST);
-  port.onDisconnect.addListener(() => { port = null; });
-  return port;
+  const connectedPort = chrome.runtime.connectNative(HOST);
+  port = connectedPort;
+  connectedPort.onMessage.addListener(handleNativeMessage);
+  connectedPort.onDisconnect.addListener(() => {
+    if (port === connectedPort) port = null;
+  });
+  return connectedPort;
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -44,7 +48,7 @@ function postAdapterResponse(p, requestId, response, tabId, frameId) {
   p.postMessage({ type: "adapterResponse", requestId, tabId, frameId, response });
 }
 
-connect().onMessage.addListener(async message => {
+async function handleNativeMessage(message) {
   if (message?.type !== "adapterCommand" || !message.requestId) return;
   try {
     let tabId = message.tabId;
@@ -190,4 +194,6 @@ connect().onMessage.addListener(async message => {
   } catch (error) {
     postAdapterResponse(connect(), message.requestId, { ok:false, error:String(error?.message || error) }, message.tabId ?? null, message.frameId ?? 0);
   }
-});
+}
+
+connect();
