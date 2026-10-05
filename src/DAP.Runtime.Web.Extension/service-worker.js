@@ -111,6 +111,16 @@ connect().onMessage.addListener(async message => {
       return;
     }
 
+    if (message.command?.type === "readTargetValue") {
+      const matches = replies.filter(r => r.response?.result?.status === "resolved");
+      const ambiguous = replies.reduce((n, r) => n + (r.response?.result?.status === "ambiguous" ? Number(r.response.result.count || 0) : 0), 0);
+      const count = matches.length + ambiguous;
+      if (count === 0) postAdapterResponse(connect(), message.requestId, {ok:true,result:{status:"notFound",count:0,value:null}}, tabId, null);
+      else if (count !== 1) postAdapterResponse(connect(), message.requestId, {ok:true,result:{status:"ambiguous",count,value:null}}, tabId, null);
+      else postAdapterResponse(connect(), message.requestId, matches[0].response, tabId, matches[0].frameId);
+      return;
+    }
+
     if (message.command?.type === "waitForDomQuiet") {
       const stable = replies.every(reply => reply.response?.result?.stable === true);
       postAdapterResponse(connect(), message.requestId, {ok:true,result:{stable}}, tabId, null);
