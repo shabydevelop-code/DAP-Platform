@@ -3,14 +3,30 @@
   "name": "DAP Web Runtime",
   "version": "0.1.0",
   "description": "Browser-native DAP Web learner runtime POC.",
-  "permissions": ["storage"],
-  "host_permissions": ["http://localhost/*", "https://localhost/*"],
-  "content_scripts": [{
-    "matches": ["http://localhost/*", "https://localhost/*"],
-    "js": ["content-runtime.js"],
-    "run_at": "document_start",
-    "all_frames": true,
-    "match_about_blank": true,
-    "match_origin_as_fallback": true
-  }]
+  "permissions": [
+    "storage",
+    "nativeMessaging"
+  ],
+  "host_permissions": [
+    "http://localhost/*",
+    "https://localhost/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "http://localhost/*",
+        "https://localhost/*"
+      ],
+      "js": [
+        "content-runtime.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": true,
+      "match_about_blank": true,
+      "match_origin_as_fallback": true
+    }
+  ],
+  "background": {
+    "service_worker": "service-worker.js"
+  }
 }
