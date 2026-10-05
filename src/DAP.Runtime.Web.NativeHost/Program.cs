@@ -14,7 +14,10 @@ json.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
 var adapterDirectory = Path.Combine(Path.GetTempPath(), "DAP", "WebAdapter");
 Directory.CreateDirectory(adapterDirectory);
 var commandPath = Path.Combine(adapterDirectory, "commands.jsonl");
-long commandOffset = File.Exists(commandPath) ? new FileInfo(commandPath).Length : 0;
+// Read the journal from the beginning. Commands carry unique request IDs, and
+// starting at EOF can drop a command written just before Chrome starts/restarts
+// the native host.
+long commandOffset = 0;
 
 while (true)
 {
