@@ -72,7 +72,6 @@ static async Task<long> ForwardPendingCommandsAsync(string path, long offset, St
     string? line;
     while ((line = await reader.ReadLineAsync()) is not null)
     {
-        offset = stream.Position;
         if (string.IsNullOrWhiteSpace(line)) continue;
         using var doc = JsonDocument.Parse(line);
         var bytes = JsonSerializer.SerializeToUtf8Bytes(doc.RootElement, json);
@@ -82,7 +81,10 @@ static async Task<long> ForwardPendingCommandsAsync(string path, long offset, St
         await output.WriteAsync(bytes);
         await output.FlushAsync();
     }
-    return offset;
+    // StreamReader buffers ahead, so stream.Position is not a reliable
+    // per-line cursor. At EOF it is, however, the exact byte position to resume
+    // from on the next polling pass.
+    return stream.Position;
 }
 
 static async Task<bool> ReadExactAsync(Stream stream, byte[] buffer)
