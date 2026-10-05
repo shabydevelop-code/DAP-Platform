@@ -105,7 +105,8 @@
   document.addEventListener("blur",e=>{if(active&&active.element===e.target&&active.step.validation&&active.step.validation.kind!=="clicked"&&validationSatisfied(e.target,active.step.validation)){emitStepEvent("validation-satisfied",active.step,{kind:active.step.validation.kind});}},true);
   const listeners = new Set();
   const observer = new MutationObserver(records => {
-    for (const listener of listeners) listener(records);\n    queueMicrotask(reconcile);
+    for (const listener of listeners) listener(records);
+    queueMicrotask(reconcile);
   });
 
   const start = () => {
@@ -138,7 +139,12 @@
 
   globalThis.__dapWebRuntime = {
     version: "0.1.0",
-    resolveTarget,\n    showBubble,\n    hideBubble,\n    loadGuide,\n    startGuide,\n    guide: null,
+    resolveTarget,
+    showBubble,
+    hideBubble,
+    loadGuide,
+    startGuide,
+    guide: null,
     onMutation(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);
