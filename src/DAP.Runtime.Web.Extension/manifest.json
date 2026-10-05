@@ -5,7 +5,8 @@
   "description": "Browser-native DAP Web learner runtime POC.",
   "permissions": [
     "storage",
-    "nativeMessaging"
+    "nativeMessaging",
+    "tabs"
   ],
   "host_permissions": [
     "http://localhost/*",
@@ -28,5 +29,8 @@
   ],
   "background": {
     "service_worker": "service-worker.js"
+  },
+  "action": {
+    "default_popup": "popup.html"
   }
 }
