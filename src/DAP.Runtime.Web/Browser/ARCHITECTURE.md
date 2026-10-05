@@ -195,3 +195,11 @@ A hard acceptance rule applies: if a persisted Web Guide can complete only while
 
 Accordingly, the current product-first verification target is a Runner-free manual canonical Guide run with only TestCRM, DAP Learner Runtime, the persisted Guide database, and the installed production extension active. Automated extension-native E2E remains a regression layer after that autonomous path is proven.
 
+## Runner-free development launch
+
+`scripts/start-testcrm-web-autonomous.ps1` is the canonical development entry point for proving Web learner autonomy.
+
+The script is startup orchestration only and terminates after launching the owned development processes. It does not use the E2E pipe, does not set `DAP_WEB_SESSION_ID`, and does not send browser test-driver commands.
+
+After launch, the runtime topology is exactly the production topology documented above. A human performs the learner actions while the persisted Guide and production Runtime make every target, validation, completion, capture, and progression decision.
+
