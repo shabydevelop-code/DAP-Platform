@@ -61,7 +61,7 @@ public sealed class PlaywrightWebBrowserAdapter : IWebBrowserAdapter
             })", quietWindow.TotalMilliseconds);
     }
 
-    public async Task<WebValidationCommit?> WaitForValidationCommitAsync(GuideStep step, CancellationToken cancellationToken = default)
+    public Task ArmValidationAsync(GuideStep step, CancellationToken cancellationToken = default)\n        => _session.EnsureBridgeAsync(_page);\n\n    public async Task<WebValidationCommit?> WaitForValidationCommitAsync(GuideStep step, CancellationToken cancellationToken = default)
     {
         await _session.EnsureBridgeAsync(_page);
         await _session.WaitForCompletionAsync(step.Id).WaitAsync(cancellationToken);
