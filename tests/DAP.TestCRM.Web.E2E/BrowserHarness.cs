@@ -408,30 +408,48 @@ internal sealed class BrowserHarness : IAsyncDisposable
 
         foreach (var profilePath in profiles)
         {
-            var preferencesPath = Path.Combine(profilePath, "Preferences");
-            if (!File.Exists(preferencesPath)) continue;
-
-            try
+            var preferenceFiles = new[]
             {
-                using var document = JsonDocument.Parse(File.ReadAllText(preferencesPath));
-                if (!document.RootElement.TryGetProperty("extensions", out var extensions) ||
-                    !extensions.TryGetProperty("settings", out var settings) ||
-                    !settings.TryGetProperty(extensionId, out var entry))
-                    continue;
+                Path.Combine(profilePath, "Preferences"),
+                Path.Combine(profilePath, "Secure Preferences")
+            };
 
-                if (entry.TryGetProperty("state", out var state) &&
-                    state.ValueKind == JsonValueKind.Number &&
-                    state.GetInt32() == 0)
-                    continue;
+            foreach (var preferencesPath in preferenceFiles)
+            {
+                if (!File.Exists(preferencesPath)) continue;
 
-                return Path.GetFileName(profilePath);
-            }
-            catch (JsonException)
-            {
-                // Chrome may be updating Preferences while the runner probes it.
-            }
-            catch (IOException)
-            {
+                try
+                {
+                    var jsonText = File.ReadAllText(preferencesPath);
+
+                    // Unpacked extensions are commonly recorded under
+                    // extensions.settings in Secure Preferences rather than
+                    // Preferences. First try the structured location, then use
+                    // the extension id as a conservative fallback signal for
+                    // Chrome profile ownership.
+                    using var document = JsonDocument.Parse(jsonText);
+                    if (document.RootElement.TryGetProperty("extensions", out var extensions) &&
+                        extensions.TryGetProperty("settings", out var settings) &&
+                        settings.TryGetProperty(extensionId, out var entry))
+                    {
+                        if (entry.TryGetProperty("state", out var state) &&
+                            state.ValueKind == JsonValueKind.Number &&
+                            state.GetInt32() == 0)
+                            continue;
+
+                        return Path.GetFileName(profilePath);
+                    }
+
+                    if (jsonText.Contains(extensionId, StringComparison.OrdinalIgnoreCase))
+                        return Path.GetFileName(profilePath);
+                }
+                catch (JsonException)
+                {
+                    // Chrome may be updating a preference file while the runner probes it.
+                }
+                catch (IOException)
+                {
+                }
             }
         }
 
