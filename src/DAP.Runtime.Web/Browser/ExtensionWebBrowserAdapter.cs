@@ -144,7 +144,18 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
     private static NotSupportedException Pending(string operation)
         => new($"Extension Web adapter operation '{operation}' has not been migrated yet.");
 
-    public Task<bool> IsContextActiveAsync(GuideStep step, CancellationToken cancellationToken = default) => throw Pending(nameof(IsContextActiveAsync));
+    public async Task<bool> IsContextActiveAsync(GuideStep step, CancellationToken cancellationToken = default)
+    {
+        if (step.Context is null)
+            return true;
+        if (step.Target?.Runtime != TargetRuntime.Web)
+            return false;
+
+        var response = await SendCommandAsync(
+            new { type = "isContextActive", context = step.Context },
+            cancellationToken);
+        return response.GetProperty("result").GetProperty("active").GetBoolean();
+    }
     public Task<bool> IsStableForPresentationAsync(GuideStep step, TimeSpan quietWindow, CancellationToken cancellationToken = default) => throw Pending(nameof(IsStableForPresentationAsync));
     public Task<bool> IsPrimaryValidationSatisfiedAsync(GuideStep step, CancellationToken cancellationToken = default) => throw Pending(nameof(IsPrimaryValidationSatisfiedAsync));
     public Task<bool> AreCompletionConditionsSatisfiedAsync(GuideStep step, CancellationToken cancellationToken = default) => throw Pending(nameof(AreCompletionConditionsSatisfiedAsync));
