@@ -38,7 +38,15 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
     private bool _disposed;
 
     public ExtensionWebBrowserAdapter(
-        IUiTextProvider? texts = null,
+        string? eventPath = null,
+        string? commandPath = null,
+        string? responsePath = null)
+        : this(null, eventPath, commandPath, responsePath)
+    {
+    }
+
+    public ExtensionWebBrowserAdapter(
+        IUiTextProvider? texts,
         string? eventPath = null,
         string? commandPath = null,
         string? responsePath = null)
