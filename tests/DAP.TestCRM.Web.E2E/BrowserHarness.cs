@@ -41,13 +41,9 @@ internal sealed class BrowserHarness : IAsyncDisposable
 
     public static async Task<BrowserHarness> LaunchAsync(
         string browserName,
-        int debuggingPort,
-        string extensionDirectory,
-        string initialUrl = "about:blank",
+        string initialUrl,
         CancellationToken cancellationToken = default)
     {
-        _ = debuggingPort;
-        _ = extensionDirectory;
 
         if (string.Equals(initialUrl, "about:blank", StringComparison.OrdinalIgnoreCase))
             throw new ArgumentException("Extension-native Web E2E requires an application URL at browser launch.", nameof(initialUrl));
