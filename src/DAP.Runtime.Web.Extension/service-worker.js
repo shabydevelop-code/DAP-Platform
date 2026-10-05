@@ -153,23 +153,101 @@ async function sendToFrame(tabId, frameId, requestId, command) {
   }
 }
 
-async function resolveTargetTab() {
+async function productionCandidateTabs() {
   const tabs = await chrome.tabs.query({
     url: ["http://localhost/*", "https://localhost/*"]
   });
+  return tabs.filter(tab => tab.id != null);
+}
 
-  const candidates = tabs.filter(tab => tab.id != null);
-  if (candidates.length !== 1) {
-    const details = candidates
-      .map(tab => tab.id + ":" + (tab.url || "<no-url>"))
-      .join(", ");
-    throw new Error(
-      "DAP adapter expected exactly one eligible localhost application tab but found " +
-      candidates.length + ". tabs=[" + details + "]"
+async function productionCommandMatchesTab(tabId, command, requestId) {
+  try {
+    const framePath = Array.isArray(command.framePath) ? command.framePath : [];
+    const frameResolution = await resolveFramePath(
+      tabId,
+      framePath,
+      requestId + "-tab-probe"
     );
+    if (!frameResolution.ok) return false;
+
+    const frameId = frameResolution.frameId;
+
+    if (command.type === "isContextActive") {
+      const probe = await sendToFrame(
+        tabId,
+        frameId,
+        requestId + "-context-probe",
+        { type: "isContextActive", context: command.context }
+      );
+      return probe?.ok === true && probe.result?.active === true;
+    }
+
+    const target = command.target || command.step?.target || null;
+    if (target) {
+      const probe = await sendToFrame(
+        tabId,
+        frameId,
+        requestId + "-target-probe",
+        { type: "resolveTarget", target }
+      );
+      return probe?.ok === true && probe.result?.status === "resolved";
+    }
+
+    // A frame path is itself persisted application context. If it resolves
+    // uniquely in this tab, it is valid evidence for commands that do not carry
+    // a target (for example DOM-settle checks).
+    return framePath.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+async function resolveProductionTab(command, requestId) {
+  const candidates = await productionCandidateTabs();
+  if (candidates.length === 0)
+    throw new Error("DAP could not find any eligible Web application tab.");
+
+  // Never bind the product to "the only localhost tab". Derive the application
+  // tab from the persisted Step semantics sent by the Runtime.
+  const matches = [];
+  for (const tab of candidates) {
+    if (await productionCommandMatchesTab(tab.id, command, requestId))
+      matches.push(tab);
   }
 
-  return candidates[0].id;
+  if (matches.length === 1)
+    return matches[0].id;
+
+  // Commands without Step evidence are allowed only when there is exactly one
+  // eligible candidate. Normal targeted Steps establish the application tab
+  // through persisted context/target data before such commands are needed.
+  const hasEvidence =
+    command.type === "isContextActive" ||
+    !!command.target ||
+    !!command.step?.target ||
+    (Array.isArray(command.framePath) && command.framePath.length > 0);
+
+  if (!hasEvidence && candidates.length === 1)
+    return candidates[0].id;
+
+  const details = candidates
+    .map(tab => tab.id + ":" + (tab.url || "<no-url>"))
+    .join(", ");
+
+  if (matches.length === 0)
+    throw new Error(
+      "DAP could not identify the application tab from the persisted Guide Step. " +
+      "No eligible tab matched its context/target. tabs=[" + details + "]"
+    );
+
+  const matchedDetails = matches
+    .map(tab => tab.id + ":" + (tab.url || "<no-url>"))
+    .join(", ");
+  throw new Error(
+    "DAP application-tab resolution is ambiguous: " + matches.length +
+    " tabs match the persisted Guide Step. DAP will not guess. matches=[" +
+    matchedDetails + "]"
+  );
 }
 
 async function resolveFramePath(tabId, framePath, requestId) {
@@ -495,12 +573,12 @@ async function handleNativeMessage(message) {
   const requestId = message.requestId;
 
   try {
+    const command = { ...(message.command || {}) };
     const tabId = message.tabId ?? (
       message.sessionId
         ? await resolveTestTab(String(message.sessionId))
-        : await resolveTargetTab()
+        : await resolveProductionTab(command, requestId)
     );
-    const command = { ...(message.command || {}) };
     const originalFramePath = Array.isArray(command.framePath)
       ? command.framePath.map(locator => ({ ...locator }))
       : [];
