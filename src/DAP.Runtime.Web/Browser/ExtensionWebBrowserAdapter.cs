@@ -99,7 +99,10 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
     {
         var requestId = Guid.NewGuid().ToString("N");
         Directory.CreateDirectory(Path.GetDirectoryName(_commandPath)!);
-        var line = JsonSerializer.Serialize(new { type = "adapterCommand", requestId, frameId = 0, command });
+        // No frameId here. Until a TargetDescriptor FrameContext is mapped to a
+        // concrete browser frame, the extension must query all injected frames.
+        // Sending frameId=0 incorrectly forces the command into the top frame.
+        var line = JsonSerializer.Serialize(new { type = "adapterCommand", requestId, command });
         await File.AppendAllTextAsync(_commandPath, line + Environment.NewLine, cancellationToken);
 
         while (true)
