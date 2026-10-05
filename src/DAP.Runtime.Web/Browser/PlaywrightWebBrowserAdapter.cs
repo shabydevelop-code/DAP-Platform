@@ -89,6 +89,12 @@ public sealed class PlaywrightWebBrowserAdapter : IWebBrowserAdapter
     public Task HideBubbleAsync(CancellationToken cancellationToken = default)
         => _bubbles.HideAsync(_page);
 
+    public Task WaitForCenteredStepDismissalAsync(GuideStep step, int stepNumber, int totalSteps, CancellationToken cancellationToken = default)
+        => _bubbles.WaitForCenteredStepDismissalAsync(_page, step, stepNumber, totalSteps, cancellationToken);
+
+    public Task WaitForGuideCompletedDismissalAsync(CancellationToken cancellationToken = default)
+        => _bubbles.WaitForGuideCompletedDismissalAsync(_page, cancellationToken);
+
     public Task<string?> CaptureAsync(GuideStep step, CancellationToken cancellationToken = default)
         => WebGuideRuntime.CaptureStepValueAsync(_page, step, cancellationToken);
 
