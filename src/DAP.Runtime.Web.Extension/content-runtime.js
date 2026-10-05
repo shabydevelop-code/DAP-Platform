@@ -4,7 +4,15 @@
   // Do not return before registering the adapter endpoint. After an extension
   // reload a tab may still contain an older __dapWebRuntime object while the
   // new extension context needs to install its current message listener.
-  if (globalThis.__dapAdapterEndpointVersion === "0.4.1") return;
+  if (globalThis.__dapAdapterEndpointVersion === "0.4.1") {
+    // Re-injection / an already-live page must still wake the MV3 service
+    // worker so it can (re)establish Native Messaging after DAP starts.
+    try {
+      const ready = chrome.runtime.sendMessage({ type: "dap-runtime-ready" });
+      ready?.catch?.(()=>{});
+    } catch {}
+    return;
+  }
   globalThis.__dapAdapterEndpointVersion = "0.4.1";
 
   // Register the adapter message endpoint before the legacy POC runtime is
