@@ -247,12 +247,18 @@ async function handleNativeMessage(message) {
       response.result?.needsTopLevel === true
     ) {
       const localRect = response.result.rect;
-      const targetRect = response.result.topRect || (localRect ? {
+
+      // Match Playwright BoundingBoxAsync semantics: derive page coordinates
+      // from the resolved frame path plus the target's local client rect.
+      // Do not prefer a content-script window.frameElement walk here; that
+      // path can drift from the browser's actual frame routing after document
+      // replacement and was the cause of the detached-looking Step 54 proxy.
+      const targetRect = localRect ? {
         x: frameOffsetX + Number(localRect.x || 0),
         y: frameOffsetY + Number(localRect.y || 0),
         width: Number(localRect.width || 0),
         height: Number(localRect.height || 0)
-      } : null);
+      } : (response.result.topRect || null);
 
       if (!targetRect) {
         postAdapterResponse(
