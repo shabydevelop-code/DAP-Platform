@@ -213,7 +213,13 @@ while ([DateTime]::UtcNow -lt $transportDeadline) {
 
 if (-not $transportReady) {
     $stderr = if (Test-Path $dapStderr) { Get-Content $dapStderr -Raw } else { "" }
-    throw "DAP Learner did not establish the production browser-extension transport within 5 seconds. STDERR:$([Environment]::NewLine)$stderr"
+    $nativeHostLog = Join-Path $env:LOCALAPPDATA "DAP\Logs\native-host.log"
+    $nativeTail = if (Test-Path $nativeHostLog) {
+        (Get-Content $nativeHostLog -Tail 80) -join [Environment]::NewLine
+    } else {
+        "<native-host.log not created>"
+    }
+    throw "DAP Learner did not establish the production browser-extension transport within 5 seconds. DAP STDERR:$([Environment]::NewLine)$stderr$([Environment]::NewLine)NATIVE HOST LOG:$([Environment]::NewLine)$nativeTail"
 }
 
 Write-Host ""
