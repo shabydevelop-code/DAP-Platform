@@ -104,6 +104,11 @@
         sendResponse({ok:true,result:{status:shown.status,count:shown.count}});
         return;
       }
+      if (command.type === "showBubbleProxy") {
+        const result=showBubbleProxy(command.step,command.stepNumber,command.totalSteps,command.targetRect);
+        sendResponse({ok:true,result});
+        return;
+      }
       if (command.type === "hideBubble") {
         hideBubble();
         sendResponse({ok:true,result:{status:"hidden"}});
@@ -259,12 +264,56 @@
     // JavaScript state is discarded. Remove any DOM presentation by id as
     // well as the presentation owned by this content-script instance.
     const stale=document.getElementById("dap-guide-bubble");
+    document.getElementById("dap-guide-bubble-proxy")?.remove();
     if(active){
       active.cleanup?.();
       active=null;
     } else {
       stale?.remove();
     }
+  }
+
+  function showBubbleProxy(step,stepNumber,totalSteps,targetRect){
+    document.getElementById("dap-guide-bubble-proxy")?.remove();
+    const bubble=document.createElement("div");
+    bubble.id="dap-guide-bubble-proxy";
+    bubble.dataset.dapStepId=step.id;
+    const handle=document.createElement("div");
+    handle.dataset.dapDragHandle="1";
+    handle.textContent="⠿";
+    handle.title="גרור בועית";
+    Object.assign(handle.style,{display:"block",width:"fit-content",marginLeft:"auto",marginRight:"auto",textAlign:"center",fontSize:"18px",lineHeight:"14px",opacity:".72",marginBottom:"6px",cursor:"grab",touchAction:"none"});
+    bubble.appendChild(handle);
+    const content=document.createElement("div");
+    content.textContent=step.bubble?.content||"";
+    content.style.cursor="default";
+    bubble.appendChild(content);
+    if(stepNumber&&totalSteps){
+      const progress=document.createElement("div");
+      progress.textContent="שלב "+stepNumber+" מתוך "+totalSteps;
+      Object.assign(progress.style,{fontSize:"12px",opacity:".78",marginTop:"8px",fontWeight:"600",cursor:"default"});
+      bubble.appendChild(progress);
+    }
+    Object.assign(bubble.style,{position:"fixed",zIndex:"2147483647",maxWidth:theme.maxWidth+"px",padding:theme.padding,background:theme.backgroundColor,color:theme.textColor,border:theme.borderWidth+"px solid "+theme.borderColor,borderRadius:theme.borderRadius+"px",boxShadow:theme.boxShadow,fontFamily:theme.fontFamily,fontSize:theme.fontSize+"px",lineHeight:String(theme.lineHeight),direction:"rtl",pointerEvents:"auto",visibility:"hidden",cursor:"default",touchAction:"none",userSelect:"none"});
+    document.body.appendChild(bubble);
+    const q=bubble.getBoundingClientRect(),margin=8,gap=8;
+    const centerX=targetRect.x+targetRect.width/2;
+    const bottomY=targetRect.y+targetRect.height;
+    const left=Math.max(margin,Math.min(centerX-q.width/2,innerWidth-q.width-margin));
+    let top=bottomY+gap;
+    if(top+q.height>innerHeight-margin)top=Math.max(margin,targetRect.y-q.height-gap);
+    bubble.style.left=left+"px";
+    bubble.style.top=Math.max(margin,Math.min(top,innerHeight-q.height-margin))+"px";
+    bubble.style.visibility="visible";
+
+    let drag=null;
+    const clamp=(x,y)=>({x:Math.max(margin,Math.min(x,innerWidth-q.width-margin)),y:Math.max(margin,Math.min(y,innerHeight-q.height-margin))});
+    bubble.addEventListener("pointerdown",e=>{if(e.button!==0||!e.target.closest('[data-dap-drag-handle="1"]'))return;const r=bubble.getBoundingClientRect();drag={id:e.pointerId,x:e.clientX,y:e.clientY,left:r.left,top:r.top};bubble.setPointerCapture(e.pointerId);handle.style.cursor="grabbing";e.preventDefault();e.stopPropagation()});
+    bubble.addEventListener("pointermove",e=>{if(!drag||e.pointerId!==drag.id)return;const n=clamp(drag.left+e.clientX-drag.x,drag.top+e.clientY-drag.y);bubble.style.left=n.x+"px";bubble.style.top=n.y+"px";e.preventDefault();e.stopPropagation()});
+    const finish=e=>{if(!drag||e.pointerId!==drag.id)return;drag=null;handle.style.cursor="grab";try{bubble.releasePointerCapture(e.pointerId)}catch{}e.preventDefault();e.stopPropagation()};
+    bubble.addEventListener("pointerup",finish);
+    bubble.addEventListener("pointercancel",finish);
+    return {status:"resolved",count:1};
   }
   function showBubble(step,stepNumber,totalSteps){
     hideBubble();const z=resolveTarget(step.target);if(z.status!=="resolved")return z;const el=z.element,root=el.ownerDocument;
