@@ -30,6 +30,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
     private readonly SemaphoreSlim _connectedSignal = new(0);
     private readonly CancellationTokenSource _transportCts = new();
     private readonly object _pipeGate = new();
+    private readonly object _validationGate = new();
     private readonly IUiTextProvider? _texts;
     private NamedPipeServerStream? _pipe;
     private readonly Task _acceptLoop;
@@ -56,9 +57,12 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
     }
     public async Task ArmValidationAsync(GuideStep step, CancellationToken cancellationToken = default)
     {
-        _commits.Remove(step.Id);
         var armId = Guid.NewGuid().ToString("N");
-        _armedValidationIds[step.Id] = armId;
+        lock (_validationGate)
+        {
+            _commits.Remove(step.Id);
+            _armedValidationIds[step.Id] = armId;
+        }
         var armed = await SendCommandAsync(new { type = "armValidation", step, armId, framePath = step.Target?.FrameContext?.Path }, cancellationToken);
         var result = armed.GetProperty("result");
         if (result.GetProperty("status").GetString() != "resolved")
@@ -75,7 +79,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
     {
         while (true)
         {
-                lock (_commits)
+                lock (_validationGate)
             {
                 if (_commits.TryGetValue(step.Id, out var queue) && queue.Count > 0)
                     return queue.Peek();
@@ -94,7 +98,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
 
     public Task ConsumeValidationCommitAsync(GuideStep step, CancellationToken cancellationToken = default)
     {
-        lock (_commits)
+        lock (_validationGate)
         {
             if (_commits.TryGetValue(step.Id, out var queue) && queue.Count > 0)
                 queue.Dequeue();
@@ -124,9 +128,13 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
         var stepId = payload.TryGetProperty("stepId", out var sid) ? sid.GetString() : null;
         if (string.IsNullOrWhiteSpace(stepId)) return;
         var armId = payload.TryGetProperty("armId", out var aid) ? aid.GetString() : null;
-        if (string.IsNullOrWhiteSpace(armId) ||
-            !_armedValidationIds.TryGetValue(stepId, out var expectedArmId) ||
-            !string.Equals(armId, expectedArmId, StringComparison.Ordinal)) return;
+        lock (_validationGate)
+        {
+            if (string.IsNullOrWhiteSpace(armId) ||
+                !_armedValidationIds.TryGetValue(stepId, out var expectedArmId) ||
+                !string.Equals(armId, expectedArmId, StringComparison.Ordinal))
+                return;
+        }
 
         var kind = payload.TryGetProperty("kind", out var k) ? k.GetString() ?? "" : "";
         var browserEvent = payload.TryGetProperty("browserEvent", out var be) ? be.GetString() : null;
@@ -134,7 +142,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
         var targetIsActive = payload.TryGetProperty("targetIsActive", out var tia) && tia.ValueKind == JsonValueKind.True;
         Console.WriteLine($"[DAP validation event] step={stepId} kind={kind} browserEvent={browserEvent ?? "unknown"} documentHasFocus={hasFocus} targetIsActive={targetIsActive}");
 
-        lock (_commits)
+        lock (_validationGate)
         {
             if (!_commits.TryGetValue(stepId, out var queue))
                 _commits[stepId] = queue = new Queue<WebValidationCommit>();
@@ -313,7 +321,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
         if (step.Validation is null || step.Target is null) return false;
         if (string.Equals(step.Validation.Kind, "clicked", StringComparison.Ordinal))
         {
-                lock (_commits)
+                lock (_validationGate)
                 return _commits.TryGetValue(step.Id, out var q) && q.Count > 0;
         }
         var response = await SendCommandAsync(new { type = "readTargetValue", target = step.Target, framePath = step.Target.FrameContext?.Path }, cancellationToken);
@@ -447,6 +455,8 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             _pipe = null;
         }
         foreach (var pending in _pendingResponses.Values) pending.TrySetCanceled();
+        _centeredDismissal?.TrySetCanceled();
+        _guideCompletedDismissal?.TrySetCanceled();
         _signal.Dispose();
         _pipeWriteLock.Dispose();
         _connectedSignal.Dispose();
