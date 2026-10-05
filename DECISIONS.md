@@ -624,3 +624,20 @@ A valid non-click commit remains completed while a server-driven completion cond
 Content-script reinjection after missing receivers and safe handling of invalidated contexts after extension reload are browser lifecycle requirements, not TestCRM-specific workarounds.
 
 Bubble dragging remains an explicit-handle interaction. During an active drag, reconciliation must not restore automatic placement, and the cursor remains `grabbing` until pointer release/cancel.
+
+
+## Web Zero-Playwright milestone — 2026-10-05
+
+The single active Web milestone is now **Zero Playwright**.
+
+Definition of done:
+- no active `Microsoft.Playwright` package dependency in Web Runtime or Web E2E projects;
+- no active `Playwright.CreateAsync()`, `IPage`, `IFrame`, `ILocator`, or equivalent Playwright browser-control code in the Web execution path;
+- `DAP.exe --learner-web` continues to use the browser-extension adapter path;
+- the Web E2E/manual harness also uses the extension/browser-native path rather than a separate Playwright browser-control stack;
+- the existing public Web run modes remain available with the same intent: Guided Fast Full, Guided Visual Full, Manual From Step, Unguided Full, Visual From Step, and Manual Full;
+- Chrome and Edge remain supported;
+- the persisted 54-Step canonical Web Guide continues to pass through the unified extension-based architecture;
+- production and development/test environments do not diverge into separate Web browser architectures.
+
+This milestone replaces smaller intermediate migration goals. Playwright may remain only as historical/reference code until removed during completion of this milestone; it is not an acceptable steady-state dependency for Web Runtime or Web test execution.
