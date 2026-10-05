@@ -47,6 +47,11 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
     public async Task<WebValidationCommit?> WaitForValidationCommitAsync(GuideStep step, CancellationToken cancellationToken = default)
     {
         await ArmValidationAsync(step, cancellationToken);
+        return await WaitForArmedValidationCommitAsync(step, cancellationToken);
+    }
+
+    public async Task<WebValidationCommit?> WaitForArmedValidationCommitAsync(GuideStep step, CancellationToken cancellationToken = default)
+    {
         while (true)
         {
             ReadPendingEvents();
