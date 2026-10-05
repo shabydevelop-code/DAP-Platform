@@ -1,9 +1,12 @@
 using System.Buffers.Binary;
+using System.IO.Pipes;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using DAP.Data.Sqlite;
 using DAP.Data.Sqlite.Guides;
+
+const string PipeName = "dap-web-runtime-v1";
 
 var repository = new SqliteGuideStepRepository(new SqliteConnectionFactory(SqliteDatabaseOptions.CreateDefault()));
 var input = Console.OpenStandardInput();
@@ -11,80 +14,57 @@ var output = Console.OpenStandardOutput();
 var json = new JsonSerializerOptions(JsonSerializerDefaults.Web);
 json.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
 
-var adapterDirectory = Path.Combine(Path.GetTempPath(), "DAP", "WebAdapter");
-Directory.CreateDirectory(adapterDirectory);
-var commandPath = Path.Combine(adapterDirectory, "commands.jsonl");
-// Read the journal from the beginning. Commands carry unique request IDs, and
-// starting at EOF can drop a command written just before Chrome starts/restarts
-// the native host.
-long commandOffset = 0;
+using var shutdown = new CancellationTokenSource();
+var nativeOutput = new NativeOutputWriter(output, json);
+var bridge = new DapPipeBridge(PipeName, nativeOutput, json);
+var bridgeTask = bridge.RunAsync(shutdown.Token);
 
-while (true)
+try
 {
-    var lengthBytes = new byte[4];
-    var headerRead = ReadExactAsync(input, lengthBytes);
-    while (!headerRead.IsCompleted)
+    while (true)
     {
-        commandOffset = await ForwardPendingCommandsAsync(commandPath, commandOffset, output, json);
-        await Task.WhenAny(headerRead, Task.Delay(25));
-    }
-    if (!await headerRead) break;
-    var length = BinaryPrimitives.ReadInt32LittleEndian(lengthBytes);
-    if (length <= 0 || length > 4 * 1024 * 1024) throw new InvalidDataException($"Invalid native message length {length}.");
-    var payload = new byte[length];
-    if (!await ReadExactAsync(input, payload)) break;
+        var lengthBytes = new byte[4];
+        if (!await ReadExactAsync(input, lengthBytes)) break;
 
-    NativeRequest? request = JsonSerializer.Deserialize<NativeRequest>(payload, json);
-    object response;
-    try
-    {
-        response = request?.Type switch
+        var length = BinaryPrimitives.ReadInt32LittleEndian(lengthBytes);
+        if (length <= 0 || length > 4 * 1024 * 1024)
+            throw new InvalidDataException($"Invalid native message length {length}.");
+
+        var payload = new byte[length];
+        if (!await ReadExactAsync(input, payload)) break;
+
+        NativeRequest? request = JsonSerializer.Deserialize<NativeRequest>(payload, json);
+        object response;
+        try
         {
-            "getGuide" when !string.IsNullOrWhiteSpace(request.GuideId) =>
-                new { requestId = request.RequestId, ok = true, guideId = request.GuideId,
-                    steps = await repository.GetStepsAsync(request.GuideId) },
-            "ping" => new { requestId = request?.RequestId, ok = true, type = "pong" },
-            "adapterEvent" => await ForwardAdapterEventAsync(request!, json),
-            "adapterResponse" => await ForwardAdapterResponseAsync(request!, json),
-            _ => new { requestId = request?.RequestId, ok = false, error = "Unsupported native request." }
-        };
-    }
-    catch (Exception ex)
-    {
-        response = new { requestId = request?.RequestId, ok = false, error = ex.Message };
-    }
+            response = request?.Type switch
+            {
+                "getGuide" when !string.IsNullOrWhiteSpace(request.GuideId) =>
+                    new
+                    {
+                        requestId = request.RequestId,
+                        ok = true,
+                        guideId = request.GuideId,
+                        steps = await repository.GetStepsAsync(request.GuideId)
+                    },
+                "ping" => new { requestId = request?.RequestId, ok = true, type = "pong" },
+                "adapterEvent" => await bridge.ForwardToDapAsync(request!, shutdown.Token),
+                "adapterResponse" => await bridge.ForwardToDapAsync(request!, shutdown.Token),
+                _ => new { requestId = request?.RequestId, ok = false, error = "Unsupported native request." }
+            };
+        }
+        catch (Exception ex)
+        {
+            response = new { requestId = request?.RequestId, ok = false, error = ex.Message };
+        }
 
-    var bytes = JsonSerializer.SerializeToUtf8Bytes(response, json);
-    var prefix = new byte[4];
-    BinaryPrimitives.WriteInt32LittleEndian(prefix, bytes.Length);
-    await output.WriteAsync(prefix);
-    await output.WriteAsync(bytes);
-    await output.FlushAsync();
+        await nativeOutput.SendAsync(response, shutdown.Token);
+    }
 }
-
-static async Task<long> ForwardPendingCommandsAsync(string path, long offset, Stream output, JsonSerializerOptions json)
+finally
 {
-    if (!File.Exists(path)) return offset;
-    using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-    if (offset > stream.Length) offset = 0;
-    stream.Position = offset;
-    using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 1024, leaveOpen: true);
-    string? line;
-    while ((line = await reader.ReadLineAsync()) is not null)
-    {
-        if (string.IsNullOrWhiteSpace(line)) continue;
-        using var doc = JsonDocument.Parse(line);
-        var bytes = JsonSerializer.SerializeToUtf8Bytes(doc.RootElement, json);
-        var prefix = new byte[4];
-        BinaryPrimitives.WriteInt32LittleEndian(prefix, bytes.Length);
-        await output.WriteAsync(prefix);
-        await output.WriteAsync(bytes);
-        await output.FlushAsync();
-    }
-    // StreamReader may buffer beyond the last decoded line. Dispose it first
-    // so its buffer is released, then use the underlying stream's EOF position.
-    reader.Dispose();
-    return stream.Position;
+    shutdown.Cancel();
+    try { await bridgeTask; } catch (OperationCanceledException) { }
 }
 
 static async Task<bool> ReadExactAsync(Stream stream, byte[] buffer)
@@ -99,41 +79,136 @@ static async Task<bool> ReadExactAsync(Stream stream, byte[] buffer)
     return true;
 }
 
-static async Task<object> ForwardAdapterEventAsync(NativeRequest request, JsonSerializerOptions json)
+sealed class NativeOutputWriter
 {
-    // Native Messaging starts one host process per extension connection. Until
-    // DAP owns this process directly, persist adapter events in a local IPC
-    // journal so the .NET adapter can consume browser facts without moving
-    // guide policy into the extension.
-    var directory = Path.Combine(Path.GetTempPath(), "DAP", "WebAdapter");
-    Directory.CreateDirectory(directory);
-    var path = Path.Combine(directory, "events.jsonl");
-    var line = JsonSerializer.Serialize(new
+    private readonly Stream _output;
+    private readonly JsonSerializerOptions _json;
+    private readonly SemaphoreSlim _gate = new(1, 1);
+
+    public NativeOutputWriter(Stream output, JsonSerializerOptions json)
     {
-        utc = DateTimeOffset.UtcNow,
-        request.TabId,
-        request.FrameId,
-        payload = request.Payload
-    }, json);
-    await File.AppendAllTextAsync(path, line + Environment.NewLine, Encoding.UTF8);
-    return new { requestId = request.RequestId, ok = true };
+        _output = output;
+        _json = json;
+    }
+
+    public async Task SendAsync(object message, CancellationToken cancellationToken)
+    {
+        var bytes = JsonSerializer.SerializeToUtf8Bytes(message, _json);
+        var prefix = new byte[4];
+        BinaryPrimitives.WriteInt32LittleEndian(prefix, bytes.Length);
+
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            await _output.WriteAsync(prefix, cancellationToken);
+            await _output.WriteAsync(bytes, cancellationToken);
+            await _output.FlushAsync(cancellationToken);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
 }
 
-static async Task<object> ForwardAdapterResponseAsync(NativeRequest request, JsonSerializerOptions json)
+sealed class DapPipeBridge
 {
-    var directory = Path.Combine(Path.GetTempPath(), "DAP", "WebAdapter");
-    Directory.CreateDirectory(directory);
-    var path = Path.Combine(directory, "responses.jsonl");
-    var line = JsonSerializer.Serialize(new
+    private readonly string _pipeName;
+    private readonly NativeOutputWriter _nativeOutput;
+    private readonly JsonSerializerOptions _json;
+    private readonly SemaphoreSlim _writeGate = new(1, 1);
+    private readonly object _gate = new();
+    private NamedPipeClientStream? _pipe;
+
+    public DapPipeBridge(string pipeName, NativeOutputWriter nativeOutput, JsonSerializerOptions json)
     {
-        utc = DateTimeOffset.UtcNow,
-        request.RequestId,
-        request.TabId,
-        request.FrameId,
-        response = request.Response
-    }, json);
-    await File.AppendAllTextAsync(path, line + Environment.NewLine, Encoding.UTF8);
-    return new { requestId = request.RequestId, ok = true };
+        _pipeName = pipeName;
+        _nativeOutput = nativeOutput;
+        _json = json;
+    }
+
+    public async Task RunAsync(CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            NamedPipeClientStream? client = null;
+            try
+            {
+                client = new NamedPipeClientStream(
+                    ".", _pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
+                await client.ConnectAsync(cancellationToken);
+
+                lock (_gate) _pipe = client;
+
+                using var reader = new StreamReader(client, Encoding.UTF8, false, 4096, leaveOpen: true);
+                while (!cancellationToken.IsCancellationRequested)
+                {
+                    var line = await reader.ReadLineAsync(cancellationToken);
+                    if (line is null) break;
+                    if (string.IsNullOrWhiteSpace(line)) continue;
+
+                    using var document = JsonDocument.Parse(line);
+                    await _nativeOutput.SendAsync(document.RootElement.Clone(), cancellationToken);
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (IOException)
+            {
+                // DAP may start later or restart independently of the extension.
+            }
+            finally
+            {
+                lock (_gate)
+                {
+                    if (ReferenceEquals(_pipe, client)) _pipe = null;
+                }
+                client?.Dispose();
+            }
+
+            if (!cancellationToken.IsCancellationRequested)
+                await Task.Delay(100, cancellationToken);
+        }
+    }
+
+    public async Task<object> ForwardToDapAsync(NativeRequest request, CancellationToken cancellationToken)
+    {
+        NamedPipeClientStream? pipe;
+        lock (_gate) pipe = _pipe;
+
+        if (pipe is not { IsConnected: true })
+            return new { requestId = request.RequestId, ok = false, error = "DAP Web Runtime is not connected." };
+
+        var line = JsonSerializer.Serialize(new
+        {
+            type = request.Type,
+            request.RequestId,
+            request.TabId,
+            request.FrameId,
+            payload = request.Payload,
+            response = request.Response
+        }, _json) + "\n";
+        var bytes = Encoding.UTF8.GetBytes(line);
+
+        await _writeGate.WaitAsync(cancellationToken);
+        try
+        {
+            lock (_gate) pipe = _pipe;
+            if (pipe is not { IsConnected: true })
+                return new { requestId = request.RequestId, ok = false, error = "DAP Web Runtime disconnected." };
+
+            await pipe.WriteAsync(bytes, cancellationToken);
+            await pipe.FlushAsync(cancellationToken);
+        }
+        finally
+        {
+            _writeGate.Release();
+        }
+
+        return new { requestId = request.RequestId, ok = true };
+    }
 }
 
 sealed record NativeRequest(
