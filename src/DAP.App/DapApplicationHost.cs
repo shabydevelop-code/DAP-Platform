@@ -1,4 +1,3 @@
-using Microsoft.Playwright;
 using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
@@ -8,10 +7,8 @@ using DAP.Data.Sqlite;
 using DAP.App.Localization;
 using DAP.Core.Localization;
 using DAP.Data.Sqlite.Guides;
-using DAP.Runtime.Web.Bubbles;
 using DAP.Runtime.Web.Browser;
 using DAP.Runtime.Web.Learner;
-using DAP.Runtime.Web.Targets;
 using DAP.Runtime.Windows.Bubbles;
 using DAP.Runtime.Windows.Learner;
 using DAP.Runtime.Windows.Targets;
@@ -210,36 +207,14 @@ public static class DapApplicationHost
         Stopwatch startup,
         CancellationToken cancellationToken)
     {
-        var resolver = new WebTargetResolver();
-        var bubbles = new WebBubblePresenter(resolver, texts);
-        StartupMark(startup, "Web composition root created");
-
-        using var playwright = await Playwright.CreateAsync();
-        StartupMark(startup, "Playwright created");
-        await using var browser = await playwright.Chromium.ConnectOverCDPAsync(
-            options.CdpEndpoint!,
-            new BrowserTypeConnectOverCDPOptions { Timeout = 10_000 });
-        StartupMark(startup, "Chromium CDP connected");
-
-        var pages = browser.Contexts.SelectMany(context => context.Pages).ToArray();
-        var matchingPages = string.IsNullOrWhiteSpace(options.PageUrlContains)
-            ? pages
-            : pages.Where(page => page.Url.Contains(options.PageUrlContains, StringComparison.OrdinalIgnoreCase)).ToArray();
-
-        StartupMark(startup, $"browser page selected ({matchingPages.Length} match)");
-        if (matchingPages.Length != 1)
-        {
-            MessageBox.Show(
-                texts.Format("Learner.BrowserPageCountError", matchingPages.Length),
-                texts.Get("Learner.WindowTitle"),
-                MessageBoxButton.OK,
-                MessageBoxImage.Error);
-            return 4;
-        }
-
-        var browserAdapter = new PlaywrightWebBrowserAdapter(matchingPages[0], bubbles);
+        // Production Web path: the learner owns guide behavior while the
+        // browser extension is only the browser adapter. No Playwright/CDP is
+        // created or connected here.
+        using var browserAdapter = new ExtensionWebBrowserAdapter();
         var stepRuntime = new AdapterWebLearnerRuntime(browserAdapter);
         var guideRuntime = new AdapterWebGuideRuntime(stepRuntime, browserAdapter);
+        StartupMark(startup, "Web extension adapter composition root created");
+
         try
         {
             StartupMark(startup, "Web adapter guide runtime starting");
