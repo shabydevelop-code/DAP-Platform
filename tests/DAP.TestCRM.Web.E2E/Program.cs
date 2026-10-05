@@ -4,7 +4,6 @@ using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using DAP.TestCRM.Web.E2E;
-using Microsoft.Playwright;
 using DAP.Core.Targets;
 using DAP.Core.Guides;
 using DAP.Data.Sqlite;
@@ -377,27 +376,13 @@ void StartupMark(string stage)
 }
 
 var dapCdpPort = ReserveTcpPort();
-StartupMark("CDP port reserved");
-using var playwright = await Playwright.CreateAsync();
-StartupMark("Playwright created");
+StartupMark("browser debugging port reserved");
 
 var e2eBrowser = Environment.GetEnvironmentVariable("DAP_E2E_BROWSER")?.Trim().ToLowerInvariant() ?? "chromium";
-var browserChannel = e2eBrowser switch
-{
-    "chrome" => "chrome",
-    "edge" => "msedge",
-    "chromium" => null,
-    _ => throw new ArgumentException(
-        $"Unsupported DAP_E2E_BROWSER '{e2eBrowser}'. Supported values: chromium, chrome, edge.")
-};
+if (e2eBrowser is not ("chromium" or "chrome" or "edge"))
+    throw new ArgumentException(
+        $"Unsupported DAP_E2E_BROWSER '{e2eBrowser}'. Supported values: chromium, chrome, edge.");
 
-await using var browser = await playwright.Chromium.LaunchAsync(new()
-{
-    Channel = browserChannel,
-    Headless = false,
-    Args = new[] { "--start-maximized", $"--remote-debugging-port={dapCdpPort}" }
-});
-StartupMark($"{e2eBrowser} launched");
 // DAP_E2E_MODE belongs only to a full --guided run. All other public
 // switches have absolute semantics and must not inherit a stale PowerShell
 // environment value from an earlier run.
@@ -410,17 +395,25 @@ if (explicitGuided && !manual && !unguided && manualFromStep is null && visualFr
             $"Unsupported DAP_E2E_MODE '{e2eMode}'. Supported values: fast, visual.");
 }
 
-var context = await browser.NewContextAsync(new() { ViewportSize = ViewportSize.NoViewport, ExtraHTTPHeaders = new Dictionary<string,string> { ["X-DAP-E2E-Mode"] = e2eMode } });
-var page = await context.NewPageAsync();
+var extensionDirectory = Path.Combine(repoRoot, "src", "DAP.Runtime.Web.Extension");
+await using var browser = await BrowserHarness.LaunchAsync(
+    e2eBrowser,
+    dapCdpPort,
+    extensionDirectory);
+StartupMark($"{e2eBrowser} launched without Playwright");
+
+var page = browser.Page;
 page.SetDefaultTimeout(5000);
+await page.SetExtraHttpHeadersAsync(new Dictionary<string,string>
+{
+    ["X-DAP-E2E-Mode"] = e2eMode
+});
 
 var ownedWebTargetClosed = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-void OnOwnedPageClosed(object? _, IPage __) => ownedWebTargetClosed.TrySetResult("page-closed");
-void OnOwnedBrowserDisconnected(object? _, IBrowser __) => ownedWebTargetClosed.TrySetResult("browser-disconnected");
-page.Close += OnOwnedPageClosed;
+void OnOwnedBrowserDisconnected(object? _, EventArgs __) => ownedWebTargetClosed.TrySetResult("browser-disconnected");
 browser.Disconnected += OnOwnedBrowserDisconnected;
 
-StartupMark("browser context and page created");
+StartupMark("browser page connected");
 
 var visualMode = e2eMode == "visual";
 var fastMode = !visualMode;
@@ -435,67 +428,44 @@ var requireActiveGuideTarget =
 Console.WriteLine($"E2E mode: {(manual ? "manual" : unguided ? "unguided" : manualFromStep is not null ? $"unguided -> manual from Step {manualFromStep}" : visualFromStep is not null ? $"unguided -> visual from Step {visualFromStep}" : visualMode ? "visual" : "fast")}");
 await page.AddInitScriptAsync("localStorage.setItem('dap-e2e-mode', '" + e2eMode + "'); document.documentElement.dataset.dapE2eMode = '" + e2eMode + "';");
 
-async Task<IFrame> Content()
+async Task<BrowserFrame> Content()
 {
-    // Re-query the current DOM iframe on every attempt. A locator/element handle
-    // captured before a PeopleSoft-style reload/replacement can point at a
-    // retiring frame and must never be treated as the active content context.
-    // Guide-step timeout detects a technical transition failure. Human-paced
-    // Visual timing is handled separately by HumanPause.
     const int attempts=50;
     for(var i=0;i<attempts;i++)
     {
         try
         {
-            var element=page.Locator("#content-frame");
-            if(await element.CountAsync()==1)
+            var frame=await page.FindFrameByNameAsync("dap-content");
+            if(frame is not null)
             {
-                var handle=await element.ElementHandleAsync();
-                var frame=handle is null ? null : await handle.ContentFrameAsync();
-                if(frame is not null && !frame.IsDetached &&
-                   await frame.Locator("html[data-dap-ready='1']").CountAsync()>0)
+                await frame.RefreshUrlAsync();
+                if(await frame.Locator("html[data-dap-ready='1']").CountAsync()>0)
                     return frame;
             }
         }
-        catch(PlaywrightException) { }
+        catch(BrowserHarnessException) { }
         await page.WaitForTimeoutAsync(100);
     }
+
     var diagnosticParts = new List<string>();
     try
     {
         var iframe = page.Locator("#content-frame");
-        var iframeCount = await iframe.CountAsync();
-        diagnosticParts.Add($"#content-frame count={iframeCount}");
+        diagnosticParts.Add($"#content-frame count={await iframe.CountAsync()}");
+        diagnosticParts.Add($"src={await iframe.GetAttributeAsync("src") ?? "<null>"}");
 
-        if (iframeCount == 1)
+        var frame = await page.FindFrameByNameAsync("dap-content");
+        diagnosticParts.Add($"contentFrame={(frame is null ? "null" : "present")}");
+        if(frame is not null)
         {
-            var src = await iframe.GetAttributeAsync("src");
-            diagnosticParts.Add($"src={src ?? "<null>"}");
-
-            var handle = await iframe.ElementHandleAsync();
-            var frame = handle is null ? null : await handle.ContentFrameAsync();
-            diagnosticParts.Add($"contentFrame={(frame is null ? "null" : "present")}");
-
-            if (frame is not null)
-            {
-                diagnosticParts.Add($"detached={frame.IsDetached}");
-                diagnosticParts.Add($"frameUrl={frame.Url}");
-
-                if (!frame.IsDetached)
-                {
-                    var html = frame.Locator("html");
-                    var ready = await html.GetAttributeAsync("data-dap-ready");
-                    var routeState = await html.GetAttributeAsync("data-dap-route-state");
-                    var routeError = await html.GetAttributeAsync("data-dap-route-error");
-                    var apiUrl = await html.GetAttributeAsync("data-dap-api");
-                    var apiState = await html.GetAttributeAsync("data-dap-api-state");
-                    diagnosticParts.Add($"data-dap-ready={ready ?? "<null>"}");
-                    diagnosticParts.Add($"route-state={routeState ?? "<null>"}");
-                    diagnosticParts.Add($"route-error={routeError ?? "<null>"}");
-                    diagnosticParts.Add($"api={apiUrl ?? "<null>"}");
-                    diagnosticParts.Add($"api-state={apiState ?? "<null>"}");
-                }
-            }
+            await frame.RefreshUrlAsync();
+            diagnosticParts.Add($"frameUrl={frame.Url}");
+            var html=frame.Locator("html");
+            diagnosticParts.Add($"data-dap-ready={await html.GetAttributeAsync("data-dap-ready") ?? "<null>"}");
+            diagnosticParts.Add($"route-state={await html.GetAttributeAsync("data-dap-route-state") ?? "<null>"}");
+            diagnosticParts.Add($"route-error={await html.GetAttributeAsync("data-dap-route-error") ?? "<null>"}");
+            diagnosticParts.Add($"api={await html.GetAttributeAsync("data-dap-api") ?? "<null>"}");
+            diagnosticParts.Add($"api-state={await html.GetAttributeAsync("data-dap-api-state") ?? "<null>"}");
         }
 
         diagnosticParts.Add("pageFrames=[" + string.Join(", ", page.Frames.Select(x => $"{x.Name}:{x.Url}")) + "]");
@@ -520,7 +490,7 @@ async Task WaitReady()
     var f = await Content();
     await f.Locator("#server-busy").WaitForAsync(new()
     {
-        State = WaitForSelectorState.Hidden,
+        State = BrowserWaitState.Hidden,
         Timeout = 5000
     });
 }
@@ -528,7 +498,7 @@ async Task HumanPause(int ms=320)
 {
     if (visualMode) await page.WaitForTimeoutAsync(ms);
 }
-async Task MoveTo(ILocator target, bool enforceActiveGuideTarget = true)
+async Task MoveTo(BrowserLocator target, bool enforceActiveGuideTarget = true)
 {
     // Application learner actions must operate on the exact DOM element owned
     // by the active production bubble. DAP-owned overlay actions (centered
@@ -558,7 +528,7 @@ async Task MoveTo(ILocator target, bool enforceActiveGuideTarget = true)
         return;
     }
 
-    // Playwright reports the target in browser viewport coordinates. Convert
+    // The browser harness reports the target in browser viewport coordinates. Convert
     // that position to Windows screen coordinates so Visual mode moves the
     // real operating-system cursor instead of drawing a synthetic DOM cursor.
     var metrics=await page.EvaluateAsync<BrowserWindowMetrics>(
@@ -605,14 +575,14 @@ async Task Click(string selector)
     if(replacesFrame)
     {
         // The transient #content-frame-next can be created and promoted before
-        // Playwright observes its Attached state (especially in visual mode).
+        // the browser harness observes its Attached state (especially in visual mode).
         // Wait for the stable outcome instead: the active Content frame has
         // finished the replacement lifecycle and reports itself ready.
         await page.Locator("#content-frame").WaitForAsync(new() {
-            State = WaitForSelectorState.Attached, Timeout = 10000
+            State = BrowserWaitState.Attached, Timeout = 10000
         });
         await page.Locator("#content-frame-next").WaitForAsync(new() {
-            State = WaitForSelectorState.Detached, Timeout = 10000
+            State = BrowserWaitState.Detached, Timeout = 10000
         });
         await Content();
     }
@@ -639,25 +609,20 @@ async Task WaitForContentDocumentReplacement(double previousTimeOrigin)
     {
         try
         {
-            var element=page.Locator("#content-frame");
-            if(await element.CountAsync()==1)
+            var frame=await page.FindFrameByNameAsync("dap-content");
+            if(frame is not null)
             {
-                var handle=await element.ElementHandleAsync();
-                var frame=handle is null ? null : await handle.ContentFrameAsync();
-                if(frame is not null && !frame.IsDetached)
+                var currentTimeOrigin=await frame.EvaluateAsync<double>("() => performance.timeOrigin");
+                if(Math.Abs(currentTimeOrigin-previousTimeOrigin)>0.01)
                 {
-                    var currentTimeOrigin=await frame.EvaluateAsync<double>("() => performance.timeOrigin");
-                    if(Math.Abs(currentTimeOrigin-previousTimeOrigin)>0.01)
-                    {
-                        await WaitReady();
-                        return;
-                    }
+                    await WaitReady();
+                    return;
                 }
             }
         }
-        catch(PlaywrightException)
+        catch(BrowserHarnessException)
         {
-            // A reload can temporarily invalidate the old execution context.
+            // A reload can temporarily invalidate the current document.
         }
 
         await page.WaitForTimeoutAsync(100);
@@ -691,7 +656,7 @@ async Task Select(string selector,string value)
     else
         await WaitReady();
 }
-async Task HumanScrollTo(ILocator target)
+async Task HumanScrollTo(BrowserLocator target)
 {
     // Scroll in small visible wheel steps. Do not jump directly to the target
     // unless the browser still needs a final minimal alignment.
@@ -826,7 +791,7 @@ Process StartFocusedDap(int startStepOrder)
         StartInfo=new ProcessStartInfo
         {
             FileName=dapExecutable,
-            Arguments=$"--learner-web {DapTestCrmGuideSeed.GuideId} --cdp http://127.0.0.1:{dapCdpPort} --page-url-contains localhost:5200 --start-step {startStepOrder}" +
+            Arguments=$"--learner-web {DapTestCrmGuideSeed.GuideId} --start-step {startStepOrder}" +
                       resumeContextArgument,
             WorkingDirectory=effectiveDapDirectory,
             UseShellExecute=false,
@@ -857,6 +822,47 @@ Process StartFocusedDap(int startStepOrder)
     return process;
 }
 
+async Task<string?> CaptureBootstrapStepValueAsync(GuideStep step)
+{
+    if(step.Capture is null) return null;
+
+    BrowserFrame frame;
+    if(step.Target?.FrameContext?.Path is { Count: > 0 })
+    {
+        // Canonical Web TestCRM uses named single-level frames. Resolve the
+        // actual live frame through the public browser surface rather than the
+        // former Playwright runtime helper.
+        var locator=step.Target.FrameContext.Path[0];
+        var name=locator.Value.Contains("dap-header",StringComparison.Ordinal)
+            ? "dap-header"
+            : "dap-content";
+        frame=await page.FindFrameByNameAsync(name)
+            ?? throw new InvalidOperationException($"Bootstrap frame '{name}' was not available.");
+    }
+    else
+    {
+        frame=page.MainFrame;
+    }
+
+    await frame.RefreshUrlAsync();
+    string? raw=step.Capture.Property switch
+    {
+        "frame-url" => frame.Url,
+        "frame-url-fragment" => new Uri(frame.Url).Fragment,
+        "text" => await frame.Locator(step.Capture.Locator.Value).TextContentAsync(),
+        "value" => await frame.Locator(step.Capture.Locator.Value).InputValueAsync(),
+        _ => throw new NotSupportedException($"Unsupported Web bootstrap capture property '{step.Capture.Property}'.")
+    };
+
+    if(raw is null || string.IsNullOrEmpty(step.Capture.Pattern)) return raw;
+    var match=System.Text.RegularExpressions.Regex.Match(
+        raw,
+        step.Capture.Pattern,
+        System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+    if(!match.Success) return null;
+    return match.Groups.Count>1 ? match.Groups[1].Value : match.Value;
+}
+
 var lastScenarioGuideOrder=0;
 async Task WaitForGuideStep(int order)
 {
@@ -884,7 +890,7 @@ async Task WaitForGuideStep(int order)
     {
         if(expected.Capture is not null)
         {
-            var captured=await WebGuideRuntime.CaptureStepValueAsync(page, expected);
+            var captured=await CaptureBootstrapStepValueAsync(expected);
             if(string.IsNullOrWhiteSpace(captured))
                 throw new InvalidOperationException(
                     $"Web bootstrap could not capture runtime value for Step {order} '{expected.Id}'.");
@@ -980,7 +986,7 @@ async Task WaitForGuideStep(int order)
                     }
                 }
             }
-            catch(PlaywrightException) { }
+            catch(BrowserHarnessException) { }
         }
         await page.WaitForTimeoutAsync(100);
     }
@@ -1010,7 +1016,7 @@ dapProcess=new Process
     StartInfo=new ProcessStartInfo
     {
         FileName=dapExecutable,
-        Arguments=$"--learner-web {DapTestCrmGuideSeed.GuideId} --cdp http://127.0.0.1:{dapCdpPort} --page-url-contains localhost:5200",
+        Arguments=$"--learner-web {DapTestCrmGuideSeed.GuideId}",
         WorkingDirectory=effectiveDapDirectory,
         UseShellExecute=false,
         CreateNoWindow=true,
@@ -1076,18 +1082,9 @@ if (manual)
     Console.WriteLine("The run will close automatically when DAP completes the Guide or you close the owned browser/page.");
     Console.WriteLine("Press Ctrl+C only if you want to stop the run early.");
 
-    // Do not poll Browser.IsConnected/Page.IsClosed as a liveness contract.
-    // The CDP/Playwright topology can transiently change observable connection
-    // state while the learner's browser is still open. Only explicit close /
-    // disconnect events count as an operator-closed Web target.
-    var pageClosed = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
     var browserDisconnected = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-
-    void OnPageClosed(object? _, IPage __) => pageClosed.TrySetResult("page-closed");
-    void OnBrowserDisconnected(object? _, IBrowser __) => browserDisconnected.TrySetResult("browser-disconnected");
-
-    page.Close += OnPageClosed;
-    browser.Disconnected += OnBrowserDisconnected;
+    void OnManualBrowserDisconnected(object? _, EventArgs __) => browserDisconnected.TrySetResult("browser-disconnected");
+    browser.Disconnected += OnManualBrowserDisconnected;
 
     try
     {
@@ -1096,7 +1093,6 @@ if (manual)
 
         var completed = await Task.WhenAny(
             dapExit,
-            pageClosed.Task,
             browserDisconnected.Task,
             webHostExit);
 
@@ -1118,17 +1114,12 @@ if (manual)
         }
         else
         {
-            var reason = completed == pageClosed.Task
-                ? await pageClosed.Task
-                : await browserDisconnected.Task;
-            Console.WriteLine(
-                $"Owned Web target closed ({reason}). Ending the manual learner run and cleaning up owned processes.");
+            Console.WriteLine("Owned Web browser closed. Ending the manual learner run and cleaning up owned processes.");
         }
     }
     finally
     {
-        page.Close -= OnPageClosed;
-        browser.Disconnected -= OnBrowserDisconnected;
+        browser.Disconnected -= OnManualBrowserDisconnected;
     }
 
     return;
@@ -1357,7 +1348,7 @@ var beforeReloadRoute=frame.Url;
 if(!beforeReloadRoute.Contains($"#/case/{createdCaseId}",StringComparison.Ordinal))
     throw new Exception("Expected to remain on the created Case before Content reload.");
 await frame.EvaluateAsync("() => location.reload()");
-await page.Locator("#content-frame").WaitForAsync(new() { State = WaitForSelectorState.Attached, Timeout = 10000 });
+await page.Locator("#content-frame").WaitForAsync(new() { State = BrowserWaitState.Attached, Timeout = 10000 });
 frame=await Content();
 await frame.Locator("h1:has-text('פניה')").WaitForAsync();
 if(!frame.Url.Contains($"#/case/{createdCaseId}",StringComparison.Ordinal))
@@ -1596,7 +1587,7 @@ await WaitForGuideStep(51);
 if(!unguided && dapProcess is not null)
 {
     var informationConfirm=page.Locator("#dap-guide-centered [data-dap-guide-confirm='1']");
-    await informationConfirm.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = 5000 });
+    await informationConfirm.WaitForAsync(new() { State = BrowserWaitState.Visible, Timeout = 5000 });
     if(visualMode)
     {
         await page.WaitForTimeoutAsync(500);
@@ -1622,7 +1613,7 @@ if(await frame.Locator($"button.grid-open[data-go='#/case/{createdCaseId}']").Co
 // 11. Cross-frame navigation: a user action in the Header frame changes the active
 // Content document. This is a real user-facing interaction and intentionally does not
 // call internal TestCRM navigation functions.
-var headerFrame=page.Frames.FirstOrDefault(x=>x.Name=="dap-header")
+var headerFrame=await page.FindFrameByNameAsync("dap-header")
     ?? throw new Exception("Header frame was not found.");
 var header=headerFrame.Locator("#portal-header");
 await WaitForGuideStep(54);
@@ -1641,9 +1632,9 @@ await frame.Locator("h1:has-text('חיפוש לקוח')").WaitForAsync();
 if(!unguided)
 {
     var completionBubble=page.Locator("#dap-guide-completed");
-    await completionBubble.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = 5000 });
+    await completionBubble.WaitForAsync(new() { State = BrowserWaitState.Visible, Timeout = 5000 });
     var finishButton=completionBubble.Locator("[data-dap-guide-finish='1']");
-    await finishButton.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = 5000 });
+    await finishButton.WaitForAsync(new() { State = BrowserWaitState.Visible, Timeout = 5000 });
     if(visualMode)
     {
         await page.WaitForTimeoutAsync(800);
@@ -1679,7 +1670,6 @@ catch (Exception) when (ownedWebTargetClosed.Task.IsCompleted)
 }
 finally
 {
-    page.Close -= OnOwnedPageClosed;
     browser.Disconnected -= OnOwnedBrowserDisconnected;
 
     AppDomain.CurrentDomain.ProcessExit -= webProcessExitCleanup;
