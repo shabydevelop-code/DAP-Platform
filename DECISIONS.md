@@ -777,3 +777,7 @@ An E2E session token may still identify a tab for test-driver commands, but that
 
 This rule is required for Runner-free execution and supersedes the temporary development assumption that the production adapter could bind to "the only localhost tab".
 
+### ADR-053 clarification — application absence is not transport failure
+
+The production learner may start before the target Web application is open, and a live application may temporarily leave a persisted context during navigation or document replacement. Therefore zero matching application tabs is a normal reconciliation state: context checks return inactive and target checks return NotFound. The Runtime keeps reconciling according to normal learner policy. Only multiple matching application tabs are Ambiguous and must fail rather than guess.
+
