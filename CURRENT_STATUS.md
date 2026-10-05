@@ -1049,3 +1049,17 @@ During this verification the production path also proved the required startup an
 
 The current Web product acceptance baseline is therefore autonomous learner PASS 54/54. E2E Runner work now returns to its proper role: regression automation of behavior already proven in the production learner path.
 
+## Web responsiveness / bubble-stability optimization
+
+After the Runner-free 54/54 product pass, manual use exposed two UX problems: slow reactions and repeated bubble flicker during active Steps.
+
+The first optimization pass is now implemented in the production extension path:
+- the uniquely resolved production application tab is pinned for the active Native Messaging connection instead of rescanning all eligible browser tabs on every reconcile command;
+- the attached bubble no longer toggles visibility off/on during every placement recalculation;
+- content-side DOM reconciliation now tolerates a short transient target disappearance window before tearing down the bubble, allowing server/DOM replacement to settle without visible flicker;
+- target replacement is still re-resolved deterministically; ambiguity remains a hard failure and no target guessing was introduced.
+
+Extension versions for this pass: manifest 0.2.2 and content runtime 0.4.2.
+
+This is a responsiveness/UX optimization only. It does not change persisted Guide semantics, validation ownership, completion conditions, or the five-second timeout ceiling. The canonical Runner-free 54-Step path must be rechecked after extension reload.
+
