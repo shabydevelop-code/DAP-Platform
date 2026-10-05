@@ -166,3 +166,32 @@ Key rules/state:
 - The five-second timeout ceiling remains unchanged.
 
 The Zero Playwright milestone is not complete until the extension-native 54-Step canonical run passes in Chrome and Edge and the required public run modes are verified.
+
+## Product independence from the E2E Runner
+
+The production Web learner must be fully functional when the E2E Runner does not exist.
+
+The only production path is:
+
+```text
+Persisted Guide
+    ↓
+AdapterWebGuideRuntime / AdapterWebLearnerRuntime
+    ↓
+ExtensionWebBrowserAdapter
+    ↓ Named Pipe / Native Messaging
+Browser Extension
+    ↓
+Live browser DOM
+```
+
+The Runtime owns all learner semantics: active-Step state, context checks, target-resolution intent, validation decisions, completion-condition evaluation, runtime capture/materialization, and Step advancement.
+
+The extension owns only browser-observable mechanics: frame routing, DOM resolution/observation, event capture, bubble presentation, and reporting facts/events to the Runtime.
+
+The E2E Runner may use explicit test-driver commands through the same extension boundary to simulate learner actions and make assertions. Those commands must never become a source of facts or decisions required by production learner execution.
+
+A hard acceptance rule applies: if a persisted Web Guide can complete only while the Runner is connected, the Web architecture is invalid regardless of E2E pass status.
+
+Accordingly, the current product-first verification target is a Runner-free manual canonical Guide run with only TestCRM, DAP Learner Runtime, the persisted Guide database, and the installed production extension active. Automated extension-native E2E remains a regression layer after that autonomous path is proven.
+
