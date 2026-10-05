@@ -34,7 +34,13 @@
         const handler = event => {
           if (event.source !== frame.contentWindow || event.data?.type !== "dap-frame-identify-response" || event.data?.token !== token) return;
           removeEventListener("message", handler);
-          sendResponse({ok:true,result:{status:"resolved",count:1,frameToken:token}});
+          const rect=frame.getBoundingClientRect();
+          sendResponse({ok:true,result:{
+            status:"resolved",
+            count:1,
+            frameToken:token,
+            rect:{x:rect.x,y:rect.y,width:rect.width,height:rect.height}
+          }});
         };
         addEventListener("message", handler);
         frame.contentWindow.postMessage({type:"dap-frame-identify",token}, "*");
