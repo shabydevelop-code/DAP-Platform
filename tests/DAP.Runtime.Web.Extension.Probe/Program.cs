@@ -125,3 +125,39 @@ var captured = await adapter.CaptureAsync(captureStep);
 Console.WriteLine($"Captured value:        {captured}");
 if (captured != "DAP") throw new Exception("Expected capture value DAP.");
 Console.WriteLine("PASS: Extension capture returned and regex-processed the browser value without Playwright.");
+
+
+var contentFrame = new FrameContext(new[] { new Locator("css", "#content-frame") });
+var framedNameTarget = TargetDescriptor.Create(
+    TargetRuntime.Web,
+    new Locator("css", "#customer-search input[name=\"name\"]"),
+    frameContext: contentFrame);
+var framedResolution = await adapter.ResolveTargetAsync(framedNameTarget);
+Console.WriteLine($"FrameContext target:   {framedResolution.Status} ({framedResolution.MatchCount})");
+if (framedResolution.Status != WebTargetResolutionStatus.Resolved || framedResolution.MatchCount != 1)
+    throw new Exception("Expected customer-name target to resolve through #content-frame.");
+var wrongFrameTarget = TargetDescriptor.Create(
+    TargetRuntime.Web,
+    new Locator("css", "#customer-search input[name=\"name\"]"),
+    frameContext: new FrameContext(new[] { new Locator("css", "#header-frame") }));
+var wrongFrameResolution = await adapter.ResolveTargetAsync(wrongFrameTarget);
+if (wrongFrameResolution.Status != WebTargetResolutionStatus.NotFound)
+    throw new Exception("Expected customer-name target not to resolve through #header-frame.");
+Console.WriteLine("PASS: Extension resolved exact FrameContext paths without scanning unrelated frames.");
+
+var clickTarget = TargetDescriptor.Create(
+    TargetRuntime.Web,
+    new Locator("css", "#customer-search button.primary"),
+    frameContext: contentFrame);
+var clickStep = new GuideStep(
+    "probe-clicked", 8, clickTarget, new BubbleDefinition("probe"),
+    Validation: new ValidationDefinition("clicked"));
+Console.WriteLine();
+Console.WriteLine("Clicked probe: click the Search button. The content frame may navigate/reload.");
+var clickCommit = await adapter.WaitForValidationCommitAsync(clickStep);
+if (clickCommit is null || clickCommit.Kind != "clicked")
+    throw new Exception("Expected clicked validation commit.");
+if (!await adapter.IsPrimaryValidationSatisfiedAsync(clickStep))
+    throw new Exception("Expected DAP to retain clicked completion after browser document changes.");
+await adapter.ConsumeValidationCommitAsync(clickStep);
+Console.WriteLine("PASS: Clicked validation survived the browser action and remained owned by DAP.");
