@@ -11,10 +11,21 @@ var output = Console.OpenStandardOutput();
 var json = new JsonSerializerOptions(JsonSerializerDefaults.Web);
 json.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
 
+var adapterDirectory = Path.Combine(Path.GetTempPath(), "DAP", "WebAdapter");
+Directory.CreateDirectory(adapterDirectory);
+var commandPath = Path.Combine(adapterDirectory, "commands.jsonl");
+long commandOffset = File.Exists(commandPath) ? new FileInfo(commandPath).Length : 0;
+
 while (true)
 {
     var lengthBytes = new byte[4];
-    if (!await ReadExactAsync(input, lengthBytes)) break;
+    var headerRead = ReadExactAsync(input, lengthBytes);
+    while (!headerRead.IsCompleted)
+    {
+        commandOffset = await ForwardPendingCommandsAsync(commandPath, commandOffset, output, json);
+        await Task.WhenAny(headerRead, Task.Delay(25));
+    }
+    if (!await headerRead) break;
     var length = BinaryPrimitives.ReadInt32LittleEndian(lengthBytes);
     if (length <= 0 || length > 4 * 1024 * 1024) throw new InvalidDataException($"Invalid native message length {length}.");
     var payload = new byte[length];
@@ -46,6 +57,29 @@ while (true)
     await output.WriteAsync(prefix);
     await output.WriteAsync(bytes);
     await output.FlushAsync();
+}
+
+static async Task<long> ForwardPendingCommandsAsync(string path, long offset, Stream output, JsonSerializerOptions json)
+{
+    if (!File.Exists(path)) return offset;
+    using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+    if (offset > stream.Length) offset = 0;
+    stream.Position = offset;
+    using var reader = new StreamReader(stream);
+    string? line;
+    while ((line = await reader.ReadLineAsync()) is not null)
+    {
+        offset = stream.Position;
+        if (string.IsNullOrWhiteSpace(line)) continue;
+        using var doc = JsonDocument.Parse(line);
+        var bytes = JsonSerializer.SerializeToUtf8Bytes(doc.RootElement, json);
+        var prefix = new byte[4];
+        BinaryPrimitives.WriteInt32LittleEndian(prefix, bytes.Length);
+        await output.WriteAsync(prefix);
+        await output.WriteAsync(bytes);
+        await output.FlushAsync();
+    }
+    return offset;
 }
 
 static async Task<bool> ReadExactAsync(Stream stream, byte[] buffer)
