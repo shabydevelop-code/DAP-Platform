@@ -1071,3 +1071,11 @@ The production service worker now treats this family of frame/message-channel cl
 
 Extension manifest version: 0.2.3.
 
+### Web clicked-step interaction isolation
+
+Runner-free manual verification after the responsiveness changes exposed a clicked Step where the target application's own navigation did not execute. The content runtime had been calling `hideBubble()` synchronously from the validation click capture handler before the application's click handlers ran.
+
+The production click path no longer mutates DAP presentation during capture. It reports the persisted `clicked` validation event while leaving the target application's DOM/action path untouched; the .NET Learner Runtime remains responsible for hiding the bubble after validation and completion are accepted. Browser-default navigation/submission deferral/replay semantics remain unchanged where required.
+
+Content runtime version: 0.4.3. Extension manifest version: 0.2.4.
+
