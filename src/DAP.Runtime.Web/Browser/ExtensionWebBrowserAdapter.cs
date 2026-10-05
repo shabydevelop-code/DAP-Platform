@@ -30,6 +30,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
     private readonly object _pipeGate = new();
     private readonly object _validationGate = new();
     private readonly IUiTextProvider? _texts;
+    private readonly string? _sessionId;
     private readonly List<NamedPipeServerStream> _pipes = new();
     private NamedPipeServerStream? _selectedPipe;
     private readonly Task _acceptLoop;
@@ -52,6 +53,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
         string? responsePath = null)
     {
         _texts = texts;
+        _sessionId = Environment.GetEnvironmentVariable("DAP_WEB_SESSION_ID");
         _acceptLoop = Task.Run(() => AcceptPipeLoopAsync(_transportCts.Token));
     }
     public Task ArmValidationAsync(GuideStep step, CancellationToken cancellationToken = default)
@@ -182,7 +184,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             var json = new JsonSerializerOptions(JsonSerializerDefaults.Web);
             json.Converters.Add(new JsonStringEnumConverter());
             var line = JsonSerializer.Serialize(
-                new { type = "adapterCommand", requestId, command },
+                new { type = "adapterCommand", requestId, sessionId = _sessionId, command },
                 json);
             await WritePipeLineAsync(line, commandToken);
 
