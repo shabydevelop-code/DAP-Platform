@@ -274,7 +274,7 @@ internal sealed class BrowserPage
     internal async Task<T> EvaluateExpressionAsync<T>(string expression)
     {
         var raw = await EvaluateRawAsync(expression);
-        if (typeof(T) == typeof(object) || typeof(T) == typeof(object?))
+        if (typeof(T) == typeof(object))
             return default!;
         return JsonSerializer.Deserialize<T>(raw, JsonOptions) !;
     }
@@ -372,7 +372,9 @@ internal sealed class BrowserFrame
     public async Task<T> EvaluateAsync<T>(string script)
     {
         var normalized = script.Trim();
-        var expression = $"(()=>{{const __w={WindowExpression}; if(!__w) throw new Error('Frame unavailable'); return ({normalized}).call(__w);}})()";
+        var expression = _frameSelector is null
+            ? $"({normalized})()"
+            : $"(()=>{{const __w={WindowExpression}; if(!__w) throw new Error('Frame unavailable'); return __w.eval({Js("(")} + {Js(normalized)} + {Js(")()")});}})()";
         return await _page.EvaluateExpressionAsync<T>(expression);
     }
 
@@ -682,8 +684,19 @@ internal sealed class BrowserHarnessException : Exception
 }
 
 internal sealed record BrowserBox(double X, double Y, double Width, double Height);
-internal sealed record BrowserPoint(double X, double Y);
+internal sealed class BrowserPoint
+{
+    public double X { get; init; }
+    public double Y { get; init; }
+}
 internal sealed record BrowserViewport(double Width, double Height);
-internal sealed record BrowserHoverOptions(BrowserPoint? Position = null);
-internal sealed record BrowserWaitOptions(BrowserWaitState State = BrowserWaitState.Visible, double? Timeout = null);
+internal sealed class BrowserHoverOptions
+{
+    public BrowserPoint? Position { get; init; }
+}
+internal sealed class BrowserWaitOptions
+{
+    public BrowserWaitState State { get; init; } = BrowserWaitState.Visible;
+    public double? Timeout { get; init; }
+}
 internal enum BrowserWaitState { Visible, Hidden, Attached, Detached }
