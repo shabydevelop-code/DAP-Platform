@@ -800,3 +800,19 @@ A human performed the application actions. The production Runtime and persisted 
 
 This 54/54 completion is the acceptance proof that Web learner execution does not require the Runner. Any future change that makes the same persisted Guide depend on Runner-provided facts or decisions violates ADR-052, even if automated tests pass.
 
+### ADR-052 re-verification — Web 54/54 after responsiveness changes
+
+The autonomous Web acceptance proof was repeated after the responsiveness and presentation-stability work.
+
+The canonical persisted 54-Step Guide again completed end-to-end with no E2E Runner process active. The verified extension versions were manifest `0.2.4` and content runtime `0.4.3`.
+
+This confirms that performance/UX work must preserve the same architectural contract: the production Runtime and persisted Guide remain authoritative for context, target resolution, validation, completion, capture, and progression, while the extension provides browser observation/presentation mechanics only.
+
+The following behaviors are now part of the verified production baseline:
+- repeated reconciliation must not visually recreate an unchanged bubble;
+- transient document/frame replacement must be recovered as lifecycle state rather than treated as fatal execution failure;
+- target-application click handling must remain undisturbed by DAP presentation cleanup;
+- retaining a uniquely resolved production tab is an optimization only and must not weaken ambiguity handling.
+
+Any future optimization that breaks the Runner-free 54/54 canonical Guide violates ADR-052.
+
