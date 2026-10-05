@@ -34,13 +34,19 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
         if (File.Exists(_responsePath)) _responseOffset = new FileInfo(_responsePath).Length;
     }
 
+    public async Task ArmValidationAsync(GuideStep step, CancellationToken cancellationToken = default)
+    {
+        ReadPendingEvents();
+        _commits.Remove(step.Id);
+        var armed = await SendCommandAsync(new { type = "armValidation", step, framePath = step.Target?.FrameContext?.Path }, cancellationToken);
+        var result = armed.GetProperty("result");
+        if (result.GetProperty("status").GetString() != "resolved")
+            throw new InvalidOperationException($"Validation target for Step '{step.Id}' did not resolve exactly once.");
+    }
+
     public async Task<WebValidationCommit?> WaitForValidationCommitAsync(GuideStep step, CancellationToken cancellationToken = default)
     {
-        var armed = await SendCommandAsync(new { type = "armValidation", step, framePath = step.Target?.FrameContext?.Path }, cancellationToken);
-        var armedResult = armed.GetProperty("result");
-        if (armedResult.GetProperty("status").GetString() != "resolved")
-            return null;
-
+        await ArmValidationAsync(step, cancellationToken);
         while (true)
         {
             ReadPendingEvents();
