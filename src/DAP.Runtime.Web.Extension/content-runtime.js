@@ -223,8 +223,26 @@
 
   addEventListener("message", event => {
     if (event.data?.type !== "dap-frame-identify" || !event.data?.token) return;
-    event.source?.postMessage({type:"dap-frame-identify-response",token:event.data.token}, {targetOrigin:"*"});
-    chrome.runtime.sendMessage({type:"dap-frame-identified",token:event.data.token}).catch(()=>{});
+
+    event.source?.postMessage(
+      {type:"dap-frame-identify-response",token:event.data.token},
+      {targetOrigin:"*"}
+    );
+
+    // An unpacked-extension reload invalidates the old content-script context
+    // before the page itself is refreshed. In that state chrome.runtime calls
+    // can throw synchronously, so a Promise .catch() alone is insufficient.
+    try {
+      const pending = chrome.runtime.sendMessage({
+        type:"dap-frame-identified",
+        token:event.data.token
+      });
+      pending?.catch?.(()=>{});
+    } catch {
+      // The current isolated world belongs to an invalidated extension
+      // context. The service worker will inject the fresh content runtime on
+      // the next adapter command.
+    }
   });
 
   const normalize = value => String(value ?? "").replace(/\s+/g, " ").trim();
