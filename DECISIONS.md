@@ -781,3 +781,22 @@ This rule is required for Runner-free execution and supersedes the temporary dev
 
 The production learner may start before the target Web application is open, and a live application may temporarily leave a persisted context during navigation or document replacement. Therefore zero matching application tabs is a normal reconciliation state: context checks return inactive and target checks return NotFound. The Runtime keeps reconciling according to normal learner policy. Only multiple matching application tabs are Ambiguous and must fail rather than guess.
 
+### ADR-052 verification record — Web canonical Guide PASS 54/54
+
+The Web side of this ADR has now been verified directly.
+
+The persisted `testcrm-web-canonical-workflow` completed all 54 Steps in a manual learner session with the E2E Runner completely absent. The active product path was:
+
+```text
+SQLite Guide
+→ DAP Learner Runtime
+→ Web production adapter
+→ Native Host / Native Messaging
+→ Browser Extension
+→ TestCRM
+```
+
+A human performed the application actions. The production Runtime and persisted Guide owned target resolution, validation, completion evaluation, capture/materialization where declared, Step progression, and re-resolution across application changes.
+
+This 54/54 completion is the acceptance proof that Web learner execution does not require the Runner. Any future change that makes the same persisted Guide depend on Runner-provided facts or decisions violates ADR-052, even if automated tests pass.
+
