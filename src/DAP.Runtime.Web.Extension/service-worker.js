@@ -144,6 +144,7 @@ async function resolveFramePath(tabId, framePath, requestId) {
   let frameId = 0;
   let offsetX = 0;
   let offsetY = 0;
+  let currentFrameRect = null;
 
   for (const locator of framePath || []) {
     const probe = await sendToFrame(
@@ -165,6 +166,12 @@ async function resolveFramePath(tabId, framePath, requestId) {
     if (frameRect) {
       offsetX += Number(frameRect.x || 0);
       offsetY += Number(frameRect.y || 0);
+      currentFrameRect = {
+        x: offsetX,
+        y: offsetY,
+        width: Number(frameRect.width || 0),
+        height: Number(frameRect.height || 0)
+      };
     }
 
     const token = probe.result.frameToken;
@@ -184,7 +191,7 @@ async function resolveFramePath(tabId, framePath, requestId) {
     frameId = identified.frameId;
   }
 
-  return { ok: true, frameId, offsetX, offsetY };
+  return { ok: true, frameId, offsetX, offsetY, frameRect: currentFrameRect };
 }
 
 async function hideEveryFrame(tabId, requestId) {
@@ -226,6 +233,7 @@ async function handleNativeMessage(message) {
     let frameId = 0;
     let frameOffsetX = 0;
     let frameOffsetY = 0;
+    let resolvedFrameRect = null;
     if (Array.isArray(command.framePath) && command.framePath.length > 0) {
       const frameResolution = await resolveFramePath(tabId, command.framePath, requestId);
       if (!frameResolution.ok) {
@@ -235,6 +243,7 @@ async function handleNativeMessage(message) {
       frameId = frameResolution.frameId;
       frameOffsetX = frameResolution.offsetX || 0;
       frameOffsetY = frameResolution.offsetY || 0;
+      resolvedFrameRect = frameResolution.frameRect || null;
     }
 
     delete command.framePath;
@@ -248,17 +257,36 @@ async function handleNativeMessage(message) {
     ) {
       const localRect = response.result.rect;
 
-      // Match Playwright BoundingBoxAsync semantics: derive page coordinates
-      // from the resolved frame path plus the target's local client rect.
-      // Do not prefer a content-script window.frameElement walk here; that
-      // path can drift from the browser's actual frame routing after document
-      // replacement and was the cause of the detached-looking Step 54 proxy.
-      const targetRect = localRect ? {
+      // Reconstruct Playwright BoundingBoxAsync page coordinates from the
+      // browser-routed frame path. For a target that spans almost the entire
+      // child frame (for example the application header), anchor the proxy to
+      // the child frame's visible box rather than to a potentially stale local
+      // width reported during an iframe resize. This keeps the proxy visually
+      // attached to the actual cross-frame target without changing target
+      // resolution or validation semantics.
+      const routedRect = localRect ? {
         x: frameOffsetX + Number(localRect.x || 0),
         y: frameOffsetY + Number(localRect.y || 0),
         width: Number(localRect.width || 0),
         height: Number(localRect.height || 0)
-      } : (response.result.topRect || null);
+      } : null;
+
+      let targetRect = routedRect || response.result.topRect || null;
+
+      if (targetRect && resolvedFrameRect && localRect) {
+        const localWidth = Number(localRect.width || 0);
+        const localHeight = Number(localRect.height || 0);
+        const frameWidth = Number(resolvedFrameRect.width || 0);
+        const frameHeight = Number(resolvedFrameRect.height || 0);
+
+        const spansFrameWidth = frameWidth > 0 && localWidth >= frameWidth * 0.9;
+        const spansFrameHeight = frameHeight > 0 && localHeight >= frameHeight * 0.9;
+
+        if (spansFrameWidth)
+          targetRect = { ...targetRect, x: resolvedFrameRect.x, width: frameWidth };
+        if (spansFrameHeight)
+          targetRect = { ...targetRect, y: resolvedFrameRect.y, height: frameHeight };
+      }
 
       if (!targetRect) {
         postAdapterResponse(
