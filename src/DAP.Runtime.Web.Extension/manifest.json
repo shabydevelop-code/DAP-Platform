@@ -6,7 +6,8 @@
   "permissions": [
     "storage",
     "nativeMessaging",
-    "tabs"
+    "tabs",
+    "webNavigation"
   ],
   "host_permissions": [
     "http://localhost/*",
