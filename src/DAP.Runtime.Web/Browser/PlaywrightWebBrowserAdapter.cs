@@ -19,6 +19,7 @@ public sealed class PlaywrightWebBrowserAdapter : IWebBrowserAdapter
     private readonly WebStepContextGuard _context;
     private readonly WebValidationEvaluator _validation;
     private readonly WebValidationSession _session;
+    private readonly WebCompletionConditionEvaluator _completion = new();
 
     public PlaywrightWebBrowserAdapter(
         IPage page,
@@ -77,7 +78,7 @@ public sealed class PlaywrightWebBrowserAdapter : IWebBrowserAdapter
     }
 
     public Task<bool> AreCompletionConditionsSatisfiedAsync(GuideStep step, CancellationToken cancellationToken = default)
-        => throw new NotSupportedException("Completion-condition extraction is the next migration slice; current WebLearnerRuntime remains authoritative.");
+        => _completion.AreSatisfiedAsync(_page, step, cancellationToken);
 
     public async Task<WebBubblePresentation> EnsureBubbleShownAsync(GuideStep step, int stepNumber, int totalSteps, CancellationToken cancellationToken = default)
     {
