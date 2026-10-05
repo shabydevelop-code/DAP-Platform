@@ -28,7 +28,19 @@ public sealed class AdapterWebLearnerRuntime
         GuideStep step, int stepNumber, int totalSteps, CancellationToken cancellationToken)
     {
         if (step.Bubble.Placement == BubblePlacement.Center)
-            throw new NotSupportedException("Centered-step adapter parity is not wired yet; existing runtime remains authoritative.");
+        {
+            if (step.Target is not null
+                || step.AdvanceMode != StepAdvanceMode.Manual
+                || step.Validation is not null
+                || step.Context is not null
+                || step.Capture is not null
+                || step.CompletionConditions is { Count: > 0 })
+                throw new InvalidOperationException($"Centered Guide Step '{step.Id}' must be a pure Manual information Step with no target, context, validation, capture, or completion conditions.");
+
+            await _browser.WaitForCenteredStepDismissalAsync(step, stepNumber, totalSteps, cancellationToken);
+            _firstBubbleReported = true;
+            return;
+        }
 
         if (step.Target is null)
             throw new InvalidOperationException($"Target-attached Guide Step '{step.Id}' must define a target.");
@@ -92,4 +104,10 @@ public sealed class AdapterWebLearnerRuntime
                 await Task.Delay(_reconcileInterval, cancellationToken);
         }
     }
+
+    public Task WaitForGuideCompletedDismissalAsync(CancellationToken cancellationToken = default)
+        => _browser.WaitForGuideCompletedDismissalAsync(cancellationToken);
+
+    public Task StopAsync(CancellationToken cancellationToken = default)
+        => _browser.HideBubbleAsync(cancellationToken);
 }
