@@ -18,7 +18,7 @@ DAP.exe (.NET 8 / WPF)
           +-- Progress
           +-- Localization contracts
           |
-          +-- Web Runtime -------- Microsoft Playwright for .NET
+          +-- Web Runtime -------- Browser Extension Adapter + .NET Runtime
           |
           +-- Windows Runtime ---- Microsoft UI Automation
           |
@@ -127,7 +127,27 @@ The Step model must carry sufficient context/navigation metadata for runtimes to
 
 ## Web Runtime
 
-The production Web Runtime uses Microsoft Playwright for .NET directly from the .NET application.
+The production learner Web path uses the browser extension adapter while the .NET Runtime remains the behavioral owner. Playwright remains a regression/compatibility implementation behind the same browser-adapter contract until extension parity is fully demonstrated across the required automated matrix; it is no longer the composition used by `DAP.exe --learner-web`.
+
+Production browser path:
+
+```text
+DAP.exe / .NET learner policy
+    ↕
+ExtensionWebBrowserAdapter
+    ↕ Named Pipe
+DAP.Runtime.Web.NativeHost
+    ↕ Chrome Native Messaging
+Manifest V3 service worker
+    ↕ browser frame message
+content-runtime.js
+    ↕
+DOM
+```
+
+The Native Host is a transport bridge, not a Guide engine. The service worker owns browser routing/injection mechanics, and the content runtime owns browser-observable DOM mechanics and learner presentation. Guide sequencing, validation decisions, completion-condition evaluation policy, runtime capture/materialization, and Step progression remain in .NET.
+
+The extension transport must not use file journals as an application protocol. The former JSONL command/response/event journals were migration scaffolding and are no longer the active production learner transport.
 
 Python is not a deployment dependency.
 
@@ -143,6 +163,18 @@ Responsibilities include:
 - Treat the frame path as part of Web target context. A target may live in a different iframe from surrounding application chrome, and both the frame and target must be re-resolved after refresh/replacement.
 - Support multi-frame server applications where persistent header/navigation and active business content are hosted in separate iframes.
 - Provide Web recording/target-capture capabilities required by Editor.
+
+### Browser-extension lifecycle and parity contract
+
+The extension is required to preserve the established Playwright behavior rather than invent a second learner model.
+
+- A missing `FrameContext` means the top-level document; a persisted frame path is resolved explicitly and re-resolved after replacement.
+- Content-script readiness is probed before commands; missing receivers are repaired by idempotent injection.
+- Extension reload may invalidate an old isolated world while the page remains alive. Runtime messaging from that stale context must fail safely, and the service worker must be able to inject the current content runtime on the next command.
+- A validating click that can trigger a browser-default navigation/submission must report completion and receive DAP acknowledgement before the default action is replayed. Programmatic application click handlers remain part of the original user action.
+- Value validation is commit-based. Valid commits remain latched while post-action completion conditions are pending; only invalid non-click commits are consumed and require a new learner commit attempt.
+- Presentation promotion across frames does not change target ownership. Promoted bubbles must preserve drag/manual-position semantics through reconciliation; automatic placement must not overwrite an active drag.
+- The 5-second timeout rule remains unchanged; browser-extension migration is not justification for increasing timeouts.
 
 ### Bubble presentation surface vs target surface
 
@@ -175,7 +207,7 @@ Therefore the Web Runtime must:
 
 This is the default design assumption for the Web Runtime's server-backed application mode, not a TestCRM-specific workaround.
 
-Browser/Playwright deployment dependencies must be packaged or validated explicitly by the product installer/startup process; they must not be left as an undocumented machine assumption.
+Browser-extension deployment requirements, Native Messaging host registration, supported browser availability, and the .NET Desktop Runtime must be packaged or validated explicitly by the product installer/startup process; they must not be left as undocumented machine assumptions. Playwright packaging remains relevant only to regression/test paths that still use the compatibility adapter.
 
 ### Bubble visual theme
 
