@@ -8,7 +8,6 @@ using DAP.Core.Targets;
 using DAP.Core.Guides;
 using DAP.Data.Sqlite;
 using DAP.Data.Sqlite.Guides;
-using DAP.Runtime.Web.Learner;
 
 const string baseUrl = "http://localhost:5200";
 
