@@ -19,7 +19,8 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
     private readonly string _commandPath;
     private readonly string _responsePath;
     private long _responseOffset;
-    private readonly Dictionary<string, Queue<WebValidationCommit>> _commits = new(StringComparer.Ordinal);\n    private readonly Dictionary<string, string> _armedValidationIds = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, Queue<WebValidationCommit>> _commits = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> _armedValidationIds = new(StringComparer.Ordinal);
     private readonly SemaphoreSlim _signal = new(0);
     private long _offset;
     private bool _disposed;
