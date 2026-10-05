@@ -15,7 +15,8 @@ public interface IWebBrowserAdapter
     Task<bool> IsContextActiveAsync(GuideStep step, CancellationToken cancellationToken = default);
     Task<bool> IsStableForPresentationAsync(GuideStep step, TimeSpan quietWindow, CancellationToken cancellationToken = default);
     Task ArmValidationAsync(GuideStep step, CancellationToken cancellationToken = default);
-    Task<WebValidationCommit?> WaitForValidationCommitAsync(GuideStep step, CancellationToken cancellationToken = default);\n    Task<WebValidationCommit?> WaitForArmedValidationCommitAsync(GuideStep step, CancellationToken cancellationToken = default);
+    Task<WebValidationCommit?> WaitForValidationCommitAsync(GuideStep step, CancellationToken cancellationToken = default);
+    Task<WebValidationCommit?> WaitForArmedValidationCommitAsync(GuideStep step, CancellationToken cancellationToken = default);
     Task ConsumeValidationCommitAsync(GuideStep step, CancellationToken cancellationToken = default);
     Task<bool> IsPrimaryValidationSatisfiedAsync(GuideStep step, CancellationToken cancellationToken = default);
     Task<bool> AreCompletionConditionsSatisfiedAsync(GuideStep step, CancellationToken cancellationToken = default);
