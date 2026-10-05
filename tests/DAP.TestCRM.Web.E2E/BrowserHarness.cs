@@ -443,7 +443,7 @@ internal sealed class BrowserLocator
 
     public async Task<bool> IsVisibleAsync()
         => await _frame.Page.EvaluateExpressionAsync<bool>(
-            $"(()=>{{const e={ElementExpression}; if(!e) return false; const r=e.getBoundingClientRect(); const s=getComputedStyle(e); return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none';}})()");
+            $"(()=>{{const e={ElementExpression}; if(!e) return false; const r=e.getBoundingClientRect(); const w=e.ownerDocument.defaultView; const s=w.getComputedStyle(e); return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none';}})()");
 
     public async Task<bool> IsDisabledAsync()
         => await _frame.Page.EvaluateExpressionAsync<bool>(
@@ -451,7 +451,7 @@ internal sealed class BrowserLocator
 
     public async Task ScrollIntoViewIfNeededAsync()
         => await _frame.Page.EvaluateRawAsync(
-            $"(()=>{{const e={ElementExpression}; if(!e) return null; const r=e.getBoundingClientRect(); if(!(r.top>=0&&r.left>=0&&r.bottom<=innerHeight&&r.right<=innerWidth)) e.scrollIntoView({{block:'center',inline:'nearest'}}); return null;}})()");
+            $"(()=>{{const e={ElementExpression}; if(!e) return null; const r=e.getBoundingClientRect(); const w=e.ownerDocument.defaultView; if(!(r.top>=0&&r.left>=0&&r.bottom<=w.innerHeight&&r.right<=w.innerWidth)) e.scrollIntoView({{block:'center',inline:'nearest'}}); return null;}})()");
 
     public async Task<BrowserBox?> BoundingBoxAsync()
     {
