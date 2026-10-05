@@ -55,6 +55,12 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
         _texts = texts;
         _sessionId = Environment.GetEnvironmentVariable("DAP_WEB_SESSION_ID");
         _acceptLoop = Task.Run(() => AcceptPipeLoopAsync(_transportCts.Token));
+        _ = _acceptLoop.ContinueWith(
+            task => Console.Error.WriteLine(
+                $"[DAP runtime] Web pipe accept loop faulted: {task.Exception?.GetBaseException()}"),
+            CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
     }
     public Task ArmValidationAsync(GuideStep step, CancellationToken cancellationToken = default)
     {
@@ -236,7 +242,9 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
                     PipeTransmissionMode.Byte,
                     PipeOptions.Asynchronous);
 
+                Console.Error.WriteLine($"[DAP runtime] Web pipe server waiting: {PipeName}");
                 await server.WaitForConnectionAsync(cancellationToken);
+                Console.Error.WriteLine($"[DAP runtime] Web pipe client connected: {PipeName}");
 
                 lock (_pipeGate)
                     _pipes.Add(server);
@@ -256,9 +264,15 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             {
                 break;
             }
-            catch (IOException)
+            catch (IOException ex)
             {
+                Console.Error.WriteLine($"[DAP runtime] Web pipe I/O error: {ex}");
                 // A Native Messaging host may restart after an extension reload.
+            }
+            catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+            {
+                Console.Error.WriteLine($"[DAP runtime] Web pipe accept error: {ex}");
+                throw;
             }
             finally
             {
