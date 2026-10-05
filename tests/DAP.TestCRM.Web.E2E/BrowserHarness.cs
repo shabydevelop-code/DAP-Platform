@@ -641,7 +641,16 @@ internal sealed class BrowserPage
         }
         catch (BrowserHarnessException)
         {
-            return null;
+            // During initial page startup Chrome already exposes the content
+            // browsing context by its final name, while the iframe-element ->
+            // frameId handshake may still be warming up. Use the exact current
+            // browsing-context name as a safe fallback. After TestCRM performs
+            // its replacement/promotion lifecycle the live iframe resolver
+            // remains authoritative because Chrome can retain dap-content-next
+            // as the browsing-context name.
+            var exact = (await GetFramesAsync())
+                .FirstOrDefault(frame => string.Equals(frame.Name, name, StringComparison.Ordinal));
+            return exact;
         }
     }
 
