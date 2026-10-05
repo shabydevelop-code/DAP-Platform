@@ -186,7 +186,15 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             var line = JsonSerializer.Serialize(
                 new { type = "adapterCommand", requestId, sessionId = _sessionId, command },
                 json);
-            await WritePipeLineAsync(line, commandToken);
+            try
+            {
+                await WritePipeLineAsync(line, commandToken);
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                throw new TimeoutException(
+                    $"DAP browser extension / Native Host did not connect to the production Runtime within {CommandTimeout.TotalSeconds:0} seconds.");
+            }
 
             try
             {
