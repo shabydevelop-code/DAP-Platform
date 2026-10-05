@@ -166,7 +166,25 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             cancellationToken);
         return response.GetProperty("result").GetProperty("stable").GetBoolean();
     }
-    public Task<bool> IsPrimaryValidationSatisfiedAsync(GuideStep step, CancellationToken cancellationToken = default) => throw Pending(nameof(IsPrimaryValidationSatisfiedAsync));
+    public async Task<bool> IsPrimaryValidationSatisfiedAsync(GuideStep step, CancellationToken cancellationToken = default)
+    {
+        if (step.Validation is null || step.Target is null) return false;
+        if (string.Equals(step.Validation.Kind, "clicked", StringComparison.Ordinal))
+        {
+            ReadPendingEvents();
+            return _commits.TryGetValue(step.Id, out var q) && q.Count > 0;
+        }
+        var response = await SendCommandAsync(new { type = "readTargetValue", target = step.Target }, cancellationToken);
+        var result = response.GetProperty("result");
+        if (result.GetProperty("status").GetString() != "resolved") return false;
+        var value = result.TryGetProperty("value", out var v) && v.ValueKind != JsonValueKind.Null ? v.GetString() ?? "" : "";
+        return step.Validation.Kind switch
+        {
+            "value-not-empty" => !string.IsNullOrWhiteSpace(value),
+            "value-equals" => step.Validation.ExpectedValue is not null && string.Equals(value, step.Validation.ExpectedValue, StringComparison.Ordinal),
+            _ => throw new NotSupportedException($"Unsupported Web validation kind '{step.Validation.Kind}'.")
+        };
+    }
     public Task<bool> AreCompletionConditionsSatisfiedAsync(GuideStep step, CancellationToken cancellationToken = default) => throw Pending(nameof(AreCompletionConditionsSatisfiedAsync));
     public Task<WebBubblePresentation> EnsureBubbleShownAsync(GuideStep step, int stepNumber, int totalSteps, CancellationToken cancellationToken = default) => throw Pending(nameof(EnsureBubbleShownAsync));
     public Task HideBubbleAsync(CancellationToken cancellationToken = default) => throw Pending(nameof(HideBubbleAsync));
