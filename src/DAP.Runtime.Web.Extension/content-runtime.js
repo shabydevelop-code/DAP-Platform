@@ -173,6 +173,21 @@
 
   addEventListener("resize",reconcile,{passive:true}); addEventListener("scroll",reconcile,{passive:true,capture:true});
   document.addEventListener("dap:web-runtime-command",e=>{const q=e.detail||{};try{let result;if(q.type==="showStep")result=showBubble(q.step,q.stepNumber,q.totalSteps);else if(q.type==="hide"){hideBubble();result={status:"hidden"};}else if(q.type==="resolve")result=resolveTarget(q.target);else throw new Error("Unknown DAP command");document.dispatchEvent(new CustomEvent("dap:web-runtime-result",{detail:{requestId:q.requestId,ok:true,result}}));}catch(error){document.dispatchEvent(new CustomEvent("dap:web-runtime-result",{detail:{requestId:q.requestId,ok:false,error:String(error?.message||error)}}));}});
+  chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
+    if(message?.type!=="dap-adapter-command")return;
+    try{
+      const command=message.command||{};
+      if(command.type==="resolveTarget"){
+        const result=resolveTarget(command.target);
+        sendResponse({ok:true,result:{status:result.status,count:result.count}});
+        return;
+      }
+      sendResponse({ok:false,error:"Unsupported DAP adapter command '"+String(command.type||"")+"'."});
+    }catch(error){
+      sendResponse({ok:false,error:String(error?.message||error)});
+    }
+  });
+
   document.dispatchEvent(new CustomEvent("dap:web-runtime-ready", {
     detail: { version: globalThis.__dapWebRuntime.version }
   }));
