@@ -96,11 +96,27 @@ var equalsStep = validationStep with {
     Validation = new ValidationDefinition("value-equals", "DAP")
 };
 Console.WriteLine();
-Console.WriteLine("Value-equals probe: enter exactly DAP in the customer-name field and press Tab.");
+Console.WriteLine("Value-equals proof: enter exactly DAP but KEEP FOCUS in the field for at least 2 seconds.");
+Console.WriteLine("The probe will first prove that typing alone does not produce a commit.");
+await adapter.ArmValidationAsync(equalsStep);
+using (var earlyCts = new CancellationTokenSource(TimeSpan.FromSeconds(2)))
+{
+    try
+    {
+        var early = await adapter.WaitForValidationCommitAsync(equalsStep, earlyCts.Token);
+        if (early is not null)
+            throw new Exception("Validation committed before blur/Tab.");
+    }
+    catch (OperationCanceledException) when (earlyCts.IsCancellationRequested)
+    {
+        Console.WriteLine("PASS: No validation commit occurred while the edited text field retained focus.");
+    }
+}
+Console.WriteLine("Now press Tab or otherwise leave the field.");
 var equalsCommit = await adapter.WaitForValidationCommitAsync(equalsStep);
-if (equalsCommit is null) throw new Exception("Expected value-equals target to resolve.");
+if (equalsCommit is null) throw new Exception("Expected value-equals commit after blur.");
 if (!await adapter.IsPrimaryValidationSatisfiedAsync(equalsStep))
-    throw new Exception("Expected exact value DAP to satisfy value-equals.");
+    throw new Exception("Expected exact value DAP to satisfy value-equals after blur.");
 await adapter.ConsumeValidationCommitAsync(equalsStep);
 Console.WriteLine("PASS: DAP evaluated value-equals after the natural blur commit.");
 
