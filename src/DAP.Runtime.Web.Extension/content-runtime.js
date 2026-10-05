@@ -91,7 +91,7 @@
           sendResponse({ok:true,result:{status:result.status,count:result.count}});
           return;
         }
-        armValidationTarget(command.step, result.element);
+        armValidationTarget(command.step, result.element, command.armId);
         sendResponse({ok:true,result:{status:"resolved",count:1}});
         return;
       }
@@ -257,15 +257,15 @@
   function emitAdapterEvent(type,step,extra={}){
     chrome.runtime.sendMessage({
       type:"dap-adapter-event",
-      payload:{type,stepId:step?.id??null,...extra}
+      payload:{type,stepId:step?.id??null,armId:active?.armId??null,...extra}
     }).catch(()=>{});
   }
 
   // The extension reports natural browser commit events only. It deliberately
   // does not evaluate guide validation and never advances guide state.
-  function armValidationTarget(step, element) {
+  function armValidationTarget(step, element, armId) {
     if (active?.validationOnly) hideBubble();
-    active = { step, element, validationOnly:true, cleanup:()=>{} };
+    active = { step, element, armId: armId ?? null, validationOnly:true, cleanup:()=>{} };
   }
 
   const edited=new WeakSet();
