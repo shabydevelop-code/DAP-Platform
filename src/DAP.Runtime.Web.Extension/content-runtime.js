@@ -16,6 +16,21 @@
         sendResponse({ok:true,result:{status:result.status,count:result.count}});
         return;
       }
+      if (command.type === "isContextActive") {
+        const context = command.context;
+        if (!context) {
+          sendResponse({ok:true,result:{active:true}});
+          return;
+        }
+        let active;
+        if (context.kind === "url-equals") active = location.href === context.value;
+        else if (context.kind === "url-contains") active = location.href.includes(context.value);
+        else if (context.kind === "url-fragment-equals") active = location.hash === context.value;
+        else if (context.kind === "css-exists") active = document.querySelectorAll(context.value).length > 0;
+        else throw new Error("Unsupported Web Step context kind '" + context.kind + "'.");
+        sendResponse({ok:true,result:{active}});
+        return;
+      }
       sendResponse({ok:false,error:"Unsupported DAP adapter command '"+String(command.type||"")+"'."});
     } catch (error) {
       sendResponse({ok:false,error:String(error?.message||error)});
