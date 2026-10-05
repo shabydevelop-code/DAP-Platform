@@ -265,6 +265,9 @@
   // does not evaluate guide validation and never advances guide state.
   function armValidationTarget(step, element, armId) {
     if (active?.validationOnly) hideBubble();
+    // Arming must start a fresh edit cycle. A WeakSet entry can survive a
+    // previous validation arm because the DOM element itself is reused.
+    edited.delete(element);
     active = { step, element, armId: armId ?? null, validationOnly:true, cleanup:()=>{} };
   }
 
