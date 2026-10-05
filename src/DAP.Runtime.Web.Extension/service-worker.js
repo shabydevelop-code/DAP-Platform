@@ -44,10 +44,16 @@ connect().onMessage.addListener(async message => {
     let tabId = message.tabId;
     const requestedFrameId = message.frameId;
     if (tabId == null) {
-      const tabs = await chrome.tabs.query({active:true, lastFocusedWindow:true});
-      if (tabs.length !== 1 || tabs[0].id == null)
-        throw new Error("DAP adapter could not resolve exactly one active browser tab.");
-      tabId = tabs[0].id;
+      // Never bind DAP to whichever browser tab happens to be active. During
+      // this POC the extension is scoped to localhost, so select the single
+      // eligible application tab deterministically.
+      const tabs = await chrome.tabs.query({url:["http://localhost/*","https://localhost/*"]});
+      const candidates = tabs.filter(tab => tab.id != null);
+      if (candidates.length !== 1) {
+        const details = candidates.map(tab => tab.id + ":" + (tab.url || "<no-url>")).join(", ");
+        throw new Error("DAP adapter expected exactly one eligible localhost application tab but found " + candidates.length + ". tabs=[" + details + "]");
+      }
+      tabId = candidates[0].id;
     }
 
     const payload = { type: "dap-adapter-command", requestId: message.requestId, command: message.command };
