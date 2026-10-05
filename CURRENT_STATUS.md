@@ -996,3 +996,13 @@ The Runner remains valuable only as regression automation after the autonomous l
 
 For Web, the next meaningful verification is therefore a Runner-free manual canonical run using the extension-backed production learner. Failures found there are Runtime/adapter/product capability gaps and must be fixed in production code or persisted Guide semantics rather than in Runner-only logic.
 
+## Runner-free Web learner launcher
+
+A dedicated development launcher now exists at `scripts/start-testcrm-web-autonomous.ps1`.
+
+Its sole responsibility is startup orchestration: build the production Native Host and DAP executable, start TestCRM backend/Web, open the browser profile containing the installed DAP extension, start `DAP.exe --learner-web testcrm-web-canonical-workflow`, and then exit.
+
+It deliberately does **not** create an E2E session, does not connect to `dap-web-e2e-v1`, does not perform learner actions, does not inspect the DOM for assertions, and does not provide target/validation/completion/transition facts to DAP. Once startup completes, the active system is only TestCRM + the persisted DAP database + DAP Learner Runtime + the production browser extension.
+
+This is now the primary Web product-capability verification path. The learner performs the canonical Guide manually; any failure is treated as a production Runtime/adapter/persisted-Guide capability gap rather than repaired in the E2E Runner.
+
