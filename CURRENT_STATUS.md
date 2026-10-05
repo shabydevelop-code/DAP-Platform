@@ -1079,3 +1079,27 @@ The production click path no longer mutates DAP presentation during capture. It 
 
 Content runtime version: 0.4.3. Extension manifest version: 0.2.4.
 
+## Runner-free Web post-optimization verification — PASS 54/54
+
+After the Web responsiveness, presentation-stability, document-replacement recovery, and clicked-step interaction-isolation changes, the full persisted `testcrm-web-canonical-workflow` was manually re-run end-to-end with no E2E Runner process active.
+
+Verification result:
+- **Runner-free Web manual — PASS 54/54.**
+- Extension manifest version: `0.2.4`.
+- Content runtime version: `0.4.3`.
+- All 54 persisted Steps completed successfully.
+- The production path remained:
+  `SQLite Guide → DAP Learner Runtime → Web adapter → Native Host / Native Messaging → Browser Extension → TestCRM`.
+- No E2E session token or test-driver assistance participated in Guide execution.
+
+This re-verifies ADR-052 after the UX/performance fixes and confirms that the latest production Web path preserves the full canonical learner behavior.
+
+The specific production regressions uncovered and corrected during this pass were:
+- transient message-channel closure during document replacement no longer terminates the Learner Runtime;
+- repeated presentation reconciliation no longer hides/re-shows the same bubble on every placement recalculation;
+- short-lived target disappearance during server/DOM replacement is tolerated before teardown;
+- the uniquely resolved production application tab is retained for the active connection instead of rescanning all candidate tabs on every reconciliation cycle;
+- clicked validation no longer mutates DAP presentation synchronously before the target application's own click path runs.
+
+Current Web product baseline: autonomous learner **PASS 54/54** on extension `0.2.4` / content runtime `0.4.3`.
+
