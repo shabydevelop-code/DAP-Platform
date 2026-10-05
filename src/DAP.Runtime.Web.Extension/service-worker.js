@@ -273,6 +273,9 @@ async function handleNativeMessage(message) {
           step: command.step,
           stepNumber: command.stepNumber,
           totalSteps: command.totalSteps,
+          progressText: command.progressText,
+          dragText: command.dragText,
+          direction: command.direction,
           targetRect
         }
       );
