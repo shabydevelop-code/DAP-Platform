@@ -14,9 +14,9 @@ Use .NET 8 and WPF for the production desktop application.
 
 ## ADR-003 — Web Runtime
 
-**Status:** Accepted
+**Status:** Superseded by ADR-026
 
-Use Microsoft Playwright for .NET as the production Web Runtime technology. DAP.exe integrates with the .NET runtime directly; Python is not a product dependency. Playwright remains behind DAP runtime contracts rather than becoming a dependency of the Core domain.
+Microsoft Playwright for .NET established the proven Web learner behavior and remains a regression/compatibility adapter behind DAP runtime contracts. It is no longer the production learner browser-access mechanism used by `DAP.exe --learner-web`. Python remains outside the product dependency set.
 
 ## ADR-004 — Windows Runtime
 
@@ -587,3 +587,40 @@ The production Instructor must independently observe externally available applic
 The acceptance boundary for a new capability is therefore: AI may help discover or design the capability during development, but after the capability and Guide definition exist, the customer-side DAP installation must be able to author and execute the supported behavior without AI.
 
 This decision does not prohibit a future optional AI feature. Any such feature must remain optional and must not be required for the deterministic production authoring/execution contract.
+
+## ADR-026 — Production Web learner uses a browser extension adapter
+
+**Status:** Accepted
+
+The production Web learner path uses a Manifest V3 browser extension as the browser-access adapter while the shared learner/Guide policy remains in .NET.
+
+The production boundary is:
+
+```text
+DAP.exe Runtime
+  ↕ Named Pipe
+DAP.Runtime.Web.NativeHost
+  ↕ Native Messaging
+Extension service worker
+  ↕ frame messaging
+content runtime
+  ↕ DOM
+```
+
+The extension is not allowed to become an independent Guide engine. .NET remains authoritative for Guide sequencing, validation decisions, completion conditions, capture/materialization, and Step advancement. The extension supplies browser facts/events, frame routing, DOM observation, and Web learner presentation.
+
+Playwright remains the behavioral oracle during migration and a compatibility/regression adapter until the required extension-backed automated matrix demonstrates parity. Existing Playwright behavior is the specification; extension-specific behavior must not silently change learner semantics.
+
+The former JSONL journal transport is rejected as the production adapter transport. Direct IPC between `DAP.exe` and the Native Host uses a named pipe; Native Messaging remains the browser-supported boundary between the Native Host and the extension.
+
+## ADR-027 — Extension migration must preserve proven Web semantics
+
+**Status:** Accepted
+
+The extension adapter must preserve the established Web Runtime semantics, including explicit frame-path resolution, no guessing on ambiguity, live target re-resolution after DOM/frame replacement, commit-based value validation, click acknowledgement before replay of browser-default navigation/submission, persisted completion-condition handling, and cross-frame presentation promotion without changing validation ownership.
+
+A valid non-click commit remains completed while a server-driven completion condition is pending. Only an invalid non-click commit is consumed and requires a new learner commit attempt.
+
+Content-script reinjection after missing receivers and safe handling of invalidated contexts after extension reload are browser lifecycle requirements, not TestCRM-specific workarounds.
+
+Bubble dragging remains an explicit-handle interaction. During an active drag, reconciliation must not restore automatic placement, and the cursor remains `grabbing` until pointer release/cancel.
