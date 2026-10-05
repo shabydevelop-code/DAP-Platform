@@ -116,23 +116,33 @@ Assert-PortFree 5201
 $registration = Resolve-ExtensionRegistration
 $browserInfo = Resolve-BrowserInfo $Browser $registration.ExtensionId
 
-# The Native Host executable registered with Chrome/Edge lives in the project's
-# normal bin output. Stop only that host process before rebuilding it.
-Get-Process "DAP.Runtime.Web.NativeHost" -ErrorAction SilentlyContinue |
-    ForEach-Object {
-        Stop-Process -Id $_.Id -Force
-        $_.WaitForExit(5000)
-    }
-
-Write-Host "Building and registering production Native Host..."
-& ".\src\DAP.Runtime.Web.NativeHost\install-native-host.ps1" -ExtensionId $registration.ExtensionId -Configuration "Debug"
-if ($LASTEXITCODE -ne 0) { throw "Native Host registration failed." }
+# Autonomous product verification must not tear down the production browser
+# transport as a side effect of test/development startup. If a Native Host is
+# already running, preserve it. Reinstall only when registration/executable is
+# missing; code updates to the Native Host are an explicit install step.
+$nativeHostProcesses = @(Get-Process "DAP.Runtime.Web.NativeHost" -ErrorAction SilentlyContinue)
 
 $registeredManifest = Get-Content $registration.ManifestPath -Raw | ConvertFrom-Json
 $registeredExe = [IO.Path]::GetFullPath([string]$registeredManifest.path)
+
+if (-not (Test-Path $registeredExe)) {
+    Write-Host "Native Host registration is missing or stale; installing..."
+    & ".\src\DAP.Runtime.Web.NativeHost\install-native-host.ps1" -ExtensionId $registration.ExtensionId -Configuration "Debug"
+    if ($LASTEXITCODE -ne 0) { throw "Native Host registration failed." }
+    $registeredManifest = Get-Content $registration.ManifestPath -Raw | ConvertFrom-Json
+    $registeredExe = [IO.Path]::GetFullPath([string]$registeredManifest.path)
+}
+
 if (-not (Test-Path $registeredExe)) {
     throw "Registered Native Host executable does not exist: $registeredExe"
 }
+
+if ($nativeHostProcesses.Count -gt 0) {
+    Write-Host "Preserving running production Native Host PID(s): $($nativeHostProcesses.Id -join ', ')"
+} else {
+    Write-Host "No Native Host process is currently running; the browser extension will start it through Native Messaging."
+}
+
 Write-Host "Native Host registered executable: $registeredExe"
 
 Write-Host "Building DAP Learner..."
@@ -245,7 +255,13 @@ if (-not $transportReady) {
     } else {
         "<native-host.log not created>"
     }
-    throw "DAP Learner did not establish the production browser-extension transport within 5 seconds. DAP STDERR:$([Environment]::NewLine)$stderr$([Environment]::NewLine)NATIVE HOST LOG:$([Environment]::NewLine)$nativeTail"
+    $nativePids = @(Get-Process "DAP.Runtime.Web.NativeHost" -ErrorAction SilentlyContinue).Id
+    $nativeState = if ($nativePids.Count -gt 0) {
+        "running PID(s): " + ($nativePids -join ", ")
+    } else {
+        "no Native Host process is running"
+    }
+    throw "DAP Learner did not establish the production browser-extension transport within 5 seconds. Native Host state: $nativeState. DAP STDERR:$([Environment]::NewLine)$stderr$([Environment]::NewLine)NATIVE HOST LOG:$([Environment]::NewLine)$nativeTail"
 }
 
 Write-Host ""
