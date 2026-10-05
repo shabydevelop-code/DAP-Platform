@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.IO.Pipes;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using DAP.Core.Guides;
 using DAP.Core.Targets;
 
@@ -136,9 +137,11 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
 
         try
         {
+            var json = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+            json.Converters.Add(new JsonStringEnumConverter());
             var line = JsonSerializer.Serialize(
                 new { type = "adapterCommand", requestId, command },
-                new JsonSerializerOptions(JsonSerializerDefaults.Web));
+                json);
             await WritePipeLineAsync(line, commandToken);
 
             try
