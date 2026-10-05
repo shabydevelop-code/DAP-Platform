@@ -146,7 +146,8 @@ internal sealed class BrowserHarness : IAsyncDisposable
                     _pipes.Add(server);
                 _connectedSignal.Release();
 
-                _ = Task.Run(() => ReadPipeLoopAsync(server, cancellationToken), CancellationToken.None);
+                var connectedServer = server;
+                _ = Task.Run(() => ReadPipeLoopAsync(connectedServer, cancellationToken), CancellationToken.None);
                 server = null;
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
