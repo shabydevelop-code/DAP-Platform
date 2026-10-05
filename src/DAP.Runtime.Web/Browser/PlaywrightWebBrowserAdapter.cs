@@ -71,6 +71,12 @@ public sealed class PlaywrightWebBrowserAdapter : IWebBrowserAdapter
         return new(step.Id, step.Validation?.Kind ?? "");
     }
 
+    public async Task<WebValidationCommit?> WaitForArmedValidationCommitAsync(GuideStep step, CancellationToken cancellationToken = default)
+    {
+        await _session.WaitForCompletionAsync(step.Id).WaitAsync(cancellationToken);
+        return new(step.Id, step.Validation?.Kind ?? "");
+    }
+
     public Task ConsumeValidationCommitAsync(GuideStep step, CancellationToken cancellationToken = default)
     {
         _session.ConsumeCompletion(step.Id);
