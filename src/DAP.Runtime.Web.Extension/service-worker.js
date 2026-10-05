@@ -35,6 +35,22 @@ function waitForNativeResponse(nativePort, requestId, timeoutMs = 5000) {
   });
 }
 
+function ensureNativeConnection() {
+  try { connect(); } catch {}
+}
+
+// MV3 workers can be suspended while DAP is not running. A normal browser
+// navigation is therefore also a production transport wake-up signal. This is
+// transport lifecycle only; it does not identify the Guide target or advance a
+// Step.
+chrome.runtime.onStartup.addListener(ensureNativeConnection);
+chrome.runtime.onInstalled.addListener(ensureNativeConnection);
+chrome.tabs.onUpdated.addListener((_tabId, changeInfo) => {
+  const url = changeInfo.url || "";
+  if (url.startsWith("http://") || url.startsWith("https://"))
+    ensureNativeConnection();
+});
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === "dap-runtime-ready") {
     connect();
