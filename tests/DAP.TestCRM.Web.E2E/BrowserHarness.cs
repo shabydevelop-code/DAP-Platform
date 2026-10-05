@@ -429,6 +429,7 @@ internal sealed class BrowserLocator
     }
 
     public BrowserLocator First => new(_frame, _selector, 0, _parent);
+    public BrowserLocator Nth(int index) => new(_frame, _selector, index, _parent);
     public BrowserLocator Locator(string selector) => new(_frame, selector, null, this);
 
     private string ElementsExpression
