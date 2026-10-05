@@ -39,7 +39,7 @@ public sealed class PlaywrightWebBrowserAdapter : IWebBrowserAdapter
     {
         var step = new GuideStep("__resolve__", 0, descriptor, new BubbleDefinition(""));
         var r = await _bubbles.ResolveTargetAsync(_page, step, cancellationToken);
-        return new(Map(r.Status), r.AmbiguousCount);
+        return new(Map(r.Status), r.CandidateCount);
     }
 
     public Task<bool> IsContextActiveAsync(GuideStep step, CancellationToken cancellationToken = default)
@@ -83,7 +83,7 @@ public sealed class PlaywrightWebBrowserAdapter : IWebBrowserAdapter
     public async Task<WebBubblePresentation> EnsureBubbleShownAsync(GuideStep step, int stepNumber, int totalSteps, CancellationToken cancellationToken = default)
     {
         var r = await _bubbles.EnsureShownAsync(_page, step, stepNumber, totalSteps, cancellationToken);
-        return new(Map(r.Status), r.AmbiguousCount);
+        return new(Map(r.Status), r.CandidateCount);
     }
 
     public Task HideBubbleAsync(CancellationToken cancellationToken = default)
