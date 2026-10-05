@@ -15,16 +15,22 @@ namespace DAP.Runtime.Web.Browser;
 public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
 {
     private readonly string _eventPath;
+    private readonly string _commandPath;
+    private readonly string _responsePath;
+    private long _responseOffset;
     private readonly Dictionary<string, Queue<WebValidationCommit>> _commits = new(StringComparer.Ordinal);
     private readonly SemaphoreSlim _signal = new(0);
     private long _offset;
     private bool _disposed;
 
-    public ExtensionWebBrowserAdapter(string? eventPath = null)
+    public ExtensionWebBrowserAdapter(string? eventPath = null, string? commandPath = null, string? responsePath = null)
     {
-        _eventPath = eventPath ?? Path.Combine(Path.GetTempPath(), "DAP", "WebAdapter", "events.jsonl");
-        if (File.Exists(_eventPath))
-            _offset = new FileInfo(_eventPath).Length;
+        var directory = Path.Combine(Path.GetTempPath(), "DAP", "WebAdapter");
+        _eventPath = eventPath ?? Path.Combine(directory, "events.jsonl");
+        _commandPath = commandPath ?? Path.Combine(directory, "commands.jsonl");
+        _responsePath = responsePath ?? Path.Combine(directory, "responses.jsonl");
+        if (File.Exists(_eventPath)) _offset = new FileInfo(_eventPath).Length;
+        if (File.Exists(_responsePath)) _responseOffset = new FileInfo(_responsePath).Length;
     }
 
     public async Task<WebValidationCommit?> WaitForValidationCommitAsync(GuideStep step, CancellationToken cancellationToken = default)
@@ -75,10 +81,56 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
         }
     }
 
+    public async Task<WebTargetResolution> ResolveTargetAsync(TargetDescriptor descriptor, CancellationToken cancellationToken = default)
+    {
+        var response = await SendCommandAsync(new { type = "resolveTarget", target = descriptor }, cancellationToken);
+        var result = response.GetProperty("result");
+        var status = result.GetProperty("status").GetString();
+        var count = result.TryGetProperty("count", out var n) ? n.GetInt32() : 0;
+        return new WebTargetResolution(status switch
+        {
+            "resolved" => WebTargetResolutionStatus.Resolved,
+            "ambiguous" => WebTargetResolutionStatus.Ambiguous,
+            _ => WebTargetResolutionStatus.NotFound
+        }, count);
+    }
+
+    private async Task<JsonElement> SendCommandAsync(object command, CancellationToken cancellationToken)
+    {
+        var requestId = Guid.NewGuid().ToString("N");
+        Directory.CreateDirectory(Path.GetDirectoryName(_commandPath)!);
+        var line = JsonSerializer.Serialize(new { type = "adapterCommand", requestId, frameId = 0, command });
+        await File.AppendAllTextAsync(_commandPath, line + Environment.NewLine, cancellationToken);
+
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (File.Exists(_responsePath))
+            {
+                using var stream = new FileStream(_responsePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                if (_responseOffset > stream.Length) _responseOffset = 0;
+                stream.Position = _responseOffset;
+                using var reader = new StreamReader(stream);
+                string? responseLine;
+                while ((responseLine = reader.ReadLine()) is not null)
+                {
+                    _responseOffset = stream.Position;
+                    if (string.IsNullOrWhiteSpace(responseLine)) continue;
+                    using var doc = JsonDocument.Parse(responseLine);
+                    if (!doc.RootElement.TryGetProperty("requestId", out var id) || id.GetString() != requestId) continue;
+                    var response = doc.RootElement.GetProperty("response").Clone();
+                    if (response.TryGetProperty("ok", out var ok) && !ok.GetBoolean())
+                        throw new InvalidOperationException(response.TryGetProperty("error", out var error) ? error.GetString() : "Extension adapter command failed.");
+                    return response;
+                }
+            }
+            await Task.Delay(25, cancellationToken);
+        }
+    }
+
     private static NotSupportedException Pending(string operation)
         => new($"Extension Web adapter operation '{operation}' has not been migrated yet.");
 
-    public Task<WebTargetResolution> ResolveTargetAsync(TargetDescriptor descriptor, CancellationToken cancellationToken = default) => throw Pending(nameof(ResolveTargetAsync));
     public Task<bool> IsContextActiveAsync(GuideStep step, CancellationToken cancellationToken = default) => throw Pending(nameof(IsContextActiveAsync));
     public Task<bool> IsStableForPresentationAsync(GuideStep step, TimeSpan quietWindow, CancellationToken cancellationToken = default) => throw Pending(nameof(IsStableForPresentationAsync));
     public Task<bool> IsPrimaryValidationSatisfiedAsync(GuideStep step, CancellationToken cancellationToken = default) => throw Pending(nameof(IsPrimaryValidationSatisfiedAsync));
