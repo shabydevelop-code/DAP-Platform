@@ -93,13 +93,57 @@ public sealed class AdapterWebLearnerRuntime
                 presentationGatePassed = true;
             }
 
-            var presentation = await _browser.EnsureBubbleShownAsync(step, stepNumber, totalSteps, cancellationToken);
+            WebBubblePresentation presentation;
+            if (clicked && commitTask is not null)
+            {
+                var presentationTask = _browser.EnsureBubbleShownAsync(step, stepNumber, totalSteps, cancellationToken);
+                var winner = await Task.WhenAny(presentationTask, commitTask);
+
+                if (winner == commitTask && commitTask.IsCompletedSuccessfully)
+                {
+                    // A validating click may replace the source document while
+                    // presentation is still reconciling against it. Completion
+                    // must win that race; never wait on the retiring document.
+                    _ = presentationTask.ContinueWith(
+                        completed => _ = completed.Exception,
+                        CancellationToken.None,
+                        TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+                        TaskScheduler.Default);
+
+                    if (await _browser.AreCompletionConditionsSatisfiedAsync(step, cancellationToken))
+                    {
+                        await _browser.HideBubbleAsync(cancellationToken);
+                        return;
+                    }
+
+                    await Task.Delay(_reconcileInterval, cancellationToken);
+                    continue;
+                }
+
+                presentation = await presentationTask;
+            }
+            else
+            {
+                presentation = await _browser.EnsureBubbleShownAsync(step, stepNumber, totalSteps, cancellationToken);
+            }
+
             if (presentation.Status == WebTargetResolutionStatus.Resolved)
                 _firstBubbleReported = true;
             else
             {
                 await _browser.HideBubbleAsync(cancellationToken);
                 presentationGatePassed = false;
+            }
+
+            // Re-check click completion after reconciliation. The browser event
+            // can arrive just after the presentation race was decided.
+            if (clicked && commitTask?.IsCompletedSuccessfully == true)
+            {
+                if (await _browser.AreCompletionConditionsSatisfiedAsync(step, cancellationToken))
+                {
+                    await _browser.HideBubbleAsync(cancellationToken);
+                    return;
+                }
             }
 
             if (commitTask is not null)
