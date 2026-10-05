@@ -122,7 +122,31 @@ var dapOutput = Path.Combine(webRunRoot, "DAP");
 
 async Task BuildNativeHostAsync()
 {
-    Console.WriteLine("Building DAP Native Host for extension-native E2E transport.");
+    Console.WriteLine("Refreshing DAP Native Host for extension-native E2E transport.");
+
+    // The registered Native Host loads directly from this project's normal bin
+    // directory, so any running host locks the DLLs MSBuild must replace.
+    // Terminate stale/current host instances before building, not after.
+    foreach (var process in Process.GetProcessesByName("DAP.Runtime.Web.NativeHost"))
+    {
+        try
+        {
+            if (!process.HasExited)
+            {
+                Console.WriteLine($"Stopping DAP Native Host PID {process.Id} before rebuild.");
+                process.Kill(entireProcessTree: true);
+                if (!process.WaitForExit(5000))
+                    throw new InvalidOperationException(
+                        $"DAP Native Host PID {process.Id} did not exit within 5 seconds.");
+            }
+        }
+        catch (InvalidOperationException) when (process.HasExited) { }
+        catch (System.ComponentModel.Win32Exception) { }
+        finally
+        {
+            process.Dispose();
+        }
+    }
 
     using var build = Process.Start(new ProcessStartInfo
     {
@@ -147,25 +171,7 @@ async Task BuildNativeHostAsync()
             $"STDERR:{Environment.NewLine}{await stderr}");
     }
 
-    foreach (var process in Process.GetProcessesByName("DAP.Runtime.Web.NativeHost"))
-    {
-        try
-        {
-            if (!process.HasExited)
-            {
-                process.Kill(entireProcessTree: true);
-                process.WaitForExit(5000);
-            }
-        }
-        catch (InvalidOperationException) { }
-        catch (System.ComponentModel.Win32Exception) { }
-        finally
-        {
-            process.Dispose();
-        }
-    }
-
-    Console.WriteLine("DAP Native Host refreshed; the extension will reconnect with the current binary.");
+    Console.WriteLine("DAP Native Host rebuilt; the extension will reconnect with the current binary.");
 }
 
 async Task BuildIsolatedAsync(string project, string output, string name)
