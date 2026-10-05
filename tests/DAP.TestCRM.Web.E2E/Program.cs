@@ -94,6 +94,7 @@ var repoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..
 var testCrmProject = Path.Combine(repoRoot, "test-apps", "DAP.TestCRM", "Web", "DAP.TestCRM.Web.csproj");
 var testCrmBackendProject = Path.Combine(repoRoot, "test-apps", "DAP.TestCRM", "Server", "DAP.TestCRM.Server.csproj");
 var dapAppProject = Path.Combine(repoRoot, "src", "DAP.App", "DAP.App.csproj");
+var nativeHostProject = Path.Combine(repoRoot, "src", "DAP.Runtime.Web.NativeHost", "DAP.Runtime.Web.NativeHost.csproj");
 var diagnosticsRoot = Environment.GetEnvironmentVariable("DAP_DIAGNOSTICS_ROOT");
 if (!string.IsNullOrWhiteSpace(diagnosticsRoot))
     diagnosticsRoot = Path.GetFullPath(diagnosticsRoot!);
@@ -118,6 +119,54 @@ var webRunRoot = Path.Combine(
 var backendOutput = Path.Combine(webRunRoot, "Server");
 var webOutput = Path.Combine(webRunRoot, "Web");
 var dapOutput = Path.Combine(webRunRoot, "DAP");
+
+async Task BuildNativeHostAsync()
+{
+    Console.WriteLine("Building DAP Native Host for extension-native E2E transport.");
+
+    using var build = Process.Start(new ProcessStartInfo
+    {
+        FileName = "dotnet",
+        Arguments = $"build \"{nativeHostProject}\" --nologo --verbosity minimal",
+        WorkingDirectory = repoRoot,
+        UseShellExecute = false,
+        CreateNoWindow = true,
+        RedirectStandardOutput = true,
+        RedirectStandardError = true
+    }) ?? throw new InvalidOperationException("Could not start DAP Native Host build.");
+
+    var stdout = build.StandardOutput.ReadToEndAsync();
+    var stderr = build.StandardError.ReadToEndAsync();
+    await build.WaitForExitAsync();
+
+    if (build.ExitCode != 0)
+    {
+        throw new InvalidOperationException(
+            $"DAP Native Host build failed with exit code {build.ExitCode}.{Environment.NewLine}" +
+            $"STDOUT:{Environment.NewLine}{await stdout}{Environment.NewLine}" +
+            $"STDERR:{Environment.NewLine}{await stderr}");
+    }
+
+    foreach (var process in Process.GetProcessesByName("DAP.Runtime.Web.NativeHost"))
+    {
+        try
+        {
+            if (!process.HasExited)
+            {
+                process.Kill(entireProcessTree: true);
+                process.WaitForExit(5000);
+            }
+        }
+        catch (InvalidOperationException) { }
+        catch (System.ComponentModel.Win32Exception) { }
+        finally
+        {
+            process.Dispose();
+        }
+    }
+
+    Console.WriteLine("DAP Native Host refreshed; the extension will reconnect with the current binary.");
+}
 
 async Task BuildIsolatedAsync(string project, string output, string name)
 {
@@ -203,6 +252,8 @@ Console.CancelKeyPress += webCancelCleanup;
         throw new FileNotFoundException("TestCRM Server project was not found.", testCrmBackendProject);
     if (!packagedDiagnostics && publishedDapDirectory is null && !File.Exists(dapAppProject))
         throw new FileNotFoundException("DAP.App project was not found.", dapAppProject);
+    if (!packagedDiagnostics && !File.Exists(nativeHostProject))
+        throw new FileNotFoundException("DAP Native Host project was not found.", nativeHostProject);
     if (publishedDapDirectory is not null && !File.Exists(Path.Combine(publishedDapDirectory, "DAP.exe")))
         throw new FileNotFoundException("Published DAP.exe was not found.", Path.Combine(publishedDapDirectory, "DAP.exe"));
 
@@ -214,6 +265,12 @@ Console.CancelKeyPress += webCancelCleanup;
 
     if (!packagedDiagnostics)
     {
+        // The Chrome/Edge registration points to the Native Host project's
+        // normal bin output. Build that exact binary and terminate stale host
+        // processes before opening the browser so the extension must reconnect
+        // through the current Zero-Playwright transport.
+        await BuildNativeHostAsync();
+
         await BuildIsolatedAsync(testCrmBackendProject, backendOutput, "TestCRM Server");
         await BuildIsolatedAsync(testCrmProject, webOutput, "TestCRM Web");
 
