@@ -75,12 +75,31 @@ var validationStep = new GuideStep(
     Validation: new ValidationDefinition("value-not-empty"));
 
 Console.WriteLine();
-Console.WriteLine("Validation probe is armed on the customer-name search field.");
-Console.WriteLine("In TestCRM, type any value in the customer-name field. Do not leave the field yet.");
-Console.WriteLine("The probe must remain waiting until you press Tab or otherwise blur the field.");
+Console.WriteLine("Validation proof: clear the customer-name field, type any non-empty value, and KEEP FOCUS in the field.");
+Console.WriteLine("The probe waits until it sees the typed value, then proves that typing alone does not commit.");
+await adapter.ArmValidationAsync(validationStep);
 
-var commit = await adapter.WaitForValidationCommitAsync(validationStep);
-if (commit is null) throw new Exception("Expected validation target to resolve exactly once.");
+while (!await adapter.IsPrimaryValidationSatisfiedAsync(validationStep))
+    await Task.Delay(100);
+
+Console.WriteLine("Non-empty value observed. Keep focus there; checking for an early commit now...");
+using (var earlyValidationCts = new CancellationTokenSource(TimeSpan.FromSeconds(2)))
+{
+    try
+    {
+        var early = await adapter.WaitForArmedValidationCommitAsync(validationStep, earlyValidationCts.Token);
+        if (early is not null)
+            throw new Exception("value-not-empty committed before blur/Tab after text was typed.");
+    }
+    catch (OperationCanceledException) when (earlyValidationCts.IsCancellationRequested)
+    {
+        Console.WriteLine("PASS: Non-empty text was typed and no validation commit occurred while the field retained focus.");
+    }
+}
+
+Console.WriteLine("Now press Tab or otherwise leave the field.");
+var commit = await adapter.WaitForArmedValidationCommitAsync(validationStep);
+if (commit is null) throw new Exception("Expected validation commit after blur.");
 Console.WriteLine($"Validation commit:     {commit.Kind}");
 
 var validationSatisfied = await adapter.IsPrimaryValidationSatisfiedAsync(validationStep);
