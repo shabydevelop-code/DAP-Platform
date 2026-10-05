@@ -33,3 +33,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return false;
   }
 });
+
+function postAdapterResponse(p, requestId, response, tabId, frameId) {
+  p.postMessage({ type: "adapterResponse", requestId, tabId, frameId, response });
+}
+
+connect().onMessage.addListener(async message => {
+  if (message?.type !== "adapterCommand" || !message.requestId) return;
+  try {
+    const tabId = message.tabId;
+    const frameId = message.frameId ?? 0;
+    if (tabId == null) throw new Error("adapterCommand requires tabId.");
+    const response = await chrome.tabs.sendMessage(
+      tabId,
+      { type: "dap-adapter-command", requestId: message.requestId, command: message.command },
+      { frameId });
+    postAdapterResponse(connect(), message.requestId, response, tabId, frameId);
+  } catch (error) {
+    postAdapterResponse(connect(), message.requestId, { ok:false, error:String(error?.message || error) }, message.tabId ?? null, message.frameId ?? 0);
+  }
+});
