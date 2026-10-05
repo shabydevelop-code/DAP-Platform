@@ -184,6 +184,41 @@ async function handleNativeMessage(message) {
       return;
     }
 
+    if (message.command?.type === "ensureBubble") {
+      const resolved = replies.filter(r => r.response?.result?.status === "resolved");
+      const ambiguous = replies.reduce(
+        (n, r) => n + (r.response?.result?.status === "ambiguous" ? Number(r.response.result.count || 0) : 0),
+        0);
+      const count = resolved.length + ambiguous;
+
+      if (count === 1 && resolved.length === 1) {
+        postAdapterResponse(connect(), message.requestId, {ok:true,result:{status:"resolved",count:1}}, tabId, resolved[0].frameId);
+        return;
+      }
+
+      // Match the Playwright resolver contract: an unresolved or ambiguous
+      // target must not leave any stale presentation behind in another frame.
+      const hidePayload = {
+        type: "dap-adapter-command",
+        requestId: message.requestId + "-hide",
+        command: { type: "hideBubble" }
+      };
+      for (const frame of frames) {
+        try {
+          await chrome.tabs.sendMessage(tabId, hidePayload, {frameId:frame.frameId});
+        } catch {}
+      }
+
+      const status = count === 0 ? "notFound" : "ambiguous";
+      postAdapterResponse(connect(), message.requestId, {ok:true,result:{status,count}}, tabId, null);
+      return;
+    }
+
+    if (message.command?.type === "hideBubble") {
+      postAdapterResponse(connect(), message.requestId, {ok:true,result:{status:"hidden"}}, tabId, null);
+      return;
+    }
+
     if (message.command?.type === "waitForDomQuiet") {
       const stable = replies.every(reply => reply.response?.result?.stable === true);
       postAdapterResponse(connect(), message.requestId, {ok:true,result:{stable}}, tabId, null);
