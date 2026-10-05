@@ -975,3 +975,24 @@ Key rules/state:
 - The five-second timeout ceiling remains unchanged.
 
 The Zero Playwright milestone is not complete until the extension-native 54-Step canonical run passes in Chrome and Edge and the required public run modes are verified.
+
+## Current architectural priority — autonomous learner before Runner parity
+
+The current priority is to prove that the production Learner Runtime can execute the persisted canonical Guide without any E2E Runner assistance.
+
+Acceptance path:
+
+```text
+TestCRM
++ persisted DAP database
++ DAP Learner Runtime
++ production Web extension / Windows UIA adapter
++ human learner actions
+```
+
+No Runner process may provide target-resolution facts, validation results, completion conditions, runtime captures, Step transitions, or hidden application-state information.
+
+The Runner remains valuable only as regression automation after the autonomous learner path is proven. A successful automated 54-Step run is not sufficient if the same Guide cannot execute with the Runner removed.
+
+For Web, the next meaningful verification is therefore a Runner-free manual canonical run using the extension-backed production learner. Failures found there are Runtime/adapter/product capability gaps and must be fixed in production code or persisted Guide semantics rather than in Runner-only logic.
+
