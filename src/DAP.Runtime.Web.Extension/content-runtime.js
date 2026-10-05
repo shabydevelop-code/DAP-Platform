@@ -101,7 +101,7 @@
           return;
         }
         const shown = showBubble(command.step, command.stepNumber, command.totalSteps);
-        sendResponse({ok:true,result:{status:shown.status,count:shown.count}});
+        sendResponse({ok:true,result:shown});
         return;
       }
       if (command.type === "showBubbleProxy") {
