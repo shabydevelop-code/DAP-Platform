@@ -17,6 +17,49 @@ Current mode contract:
 - The diagnostics launcher accepts exactly: `Fast`, `Visual`, `Manual`, `Unguided`, `ManualFromStep`, and `VisualFromStep`. Names such as `GuidedFast` are not valid.
 - The 5-second E2E timeout policy remains unchanged.
 
+### Web learner browser-extension migration — 2026-10-05
+
+The production `DAP.exe --learner-web` composition now runs the shared .NET learner/guide policy through `ExtensionWebBrowserAdapter` instead of the Playwright adapter. Playwright remains in the repository as the proven behavioral regression oracle and compatibility/test adapter; this milestone does **not** claim that every Playwright package/reference has been removed from the repository or E2E infrastructure.
+
+Current production Web browser path:
+
+```text
+DAP.exe / AdapterWebGuideRuntime
+    ↕
+ExtensionWebBrowserAdapter
+    ↕  Named Pipe
+DAP.Runtime.Web.NativeHost
+    ↕  Chrome Native Messaging
+Manifest V3 service worker
+    ↕
+content-runtime.js in the resolved browser frame
+    ↕
+target DOM
+```
+
+The earlier temporary JSONL transport (`commands.jsonl`, `responses.jsonl`, `events.jsonl`) is no longer the active adapter transport. The direct named-pipe bridge removes journal polling, cursor/offset replay, stale-response races, and file-lock coupling while retaining the existing 5-second command timeout policy.
+
+The extension is a browser adapter only. Guide sequencing, validation decisions, completion conditions, capture materialization, Step progression, and the canonical Guide model remain owned by the .NET Runtime. The content script may observe DOM/browser events and render the Web learner surface, but it must not become an independent Guide engine.
+
+The migration was aligned against two already-proven references:
+- the existing Playwright Web Runtime is the behavioral specification;
+- `Generic-Web-Training-Platform` was inspected for proven extension lifecycle/messaging patterns such as content readiness, injection/reinjection, frame communication, and page lifecycle handling. Its extension-owned training-engine architecture was **not** copied into DAP.
+
+Implemented parity mechanisms in the extension path include:
+- explicit `FrameContext` routing and frame re-resolution after iframe/document replacement;
+- target re-resolution rather than retained DOM identity;
+- browser-native content readiness probing and idempotent content-script reinjection;
+- protection against invalidated content-script contexts after extension reload;
+- natural Web commit semantics: text edit + blur, discrete-control change, and click events;
+- click ACK/replay behavior for browser-default navigation/submission capable controls;
+- live validation rebinding when a target appears or is replaced;
+- valid non-click commits remain latched while server-driven completion conditions are still pending, matching the proven Playwright Runtime behavior;
+- top-level visual proxy bubbles for targets in constrained child frames while validation remains owned by the original target/frame;
+- explicit-handle bubble dragging, stable manual placement during reconciliation, and `grabbing` cursor state for the full drag lifetime;
+- centered manual information Steps and the explicit Guide-completion bubble.
+
+A manual production-path run of the persisted `testcrm-web-canonical-workflow` completed all **54/54 Steps** through the extension adapter. The run covered the canonical Customer -> Site -> Case -> Lead workflow, including server-backed FieldChange, validation failure, iframe/document replacement, conditional targets, context return, runtime capture, deletion flows, the cross-frame Header Step, and final completion. Focused Step 54 execution was also used to verify the promoted bubble drag lifecycle. This is a production-path learner milestone; a fresh automated extension-backed parity matrix across every Web E2E mode/browser is still separate follow-up work.
+
 ### Web first-bubble startup timing — Production measurement
 
 A packaged Production Web Fast run measured **7217 ms from DAP.exe start to first observed bubble**. Internal DAP instrumentation isolated the dominant cost:
