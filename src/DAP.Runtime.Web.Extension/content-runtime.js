@@ -620,6 +620,11 @@
     };
 
     const place=()=>{
+      // Reconciliation can update the target many times per second. While the
+      // learner is actively dragging, never let automatic placement overwrite
+      // the pointer-owned position.
+      if(drag)return;
+
       if(manuallyPositioned){
         const q=bubble.getBoundingClientRect();
         const next=clamp(q.left,q.top);
@@ -656,7 +661,10 @@
       const r=bubble.getBoundingClientRect();
       drag={id:e.pointerId,x:e.clientX,y:e.clientY,left:r.left,top:r.top};
       bubble.setPointerCapture(e.pointerId);
+      bubble.style.setProperty("cursor","grabbing","important");
       handle.style.setProperty("cursor","grabbing","important");
+      document.documentElement.style.setProperty("cursor","grabbing","important");
+      document.body?.style.setProperty("cursor","grabbing","important");
       e.preventDefault();
       e.stopPropagation();
     });
@@ -674,7 +682,10 @@
       if(!drag||e.pointerId!==drag.id)return;
       manuallyPositioned=true;
       drag=null;
+      bubble.style.setProperty("cursor","default","important");
       handle.style.setProperty("cursor","grab","important");
+      document.documentElement.style.removeProperty("cursor");
+      document.body?.style.removeProperty("cursor");
       pointer.style.display="none";
       bubble.dataset.manualPosition="true";
       try{bubble.releasePointerCapture(e.pointerId)}catch{}
@@ -690,6 +701,8 @@
     bubble.__dapCleanup=()=>{
       removeEventListener("resize",place);
       removeEventListener("scroll",place,true);
+      document.documentElement.style.removeProperty("cursor");
+      document.body?.style.removeProperty("cursor");
     };
 
     place();
