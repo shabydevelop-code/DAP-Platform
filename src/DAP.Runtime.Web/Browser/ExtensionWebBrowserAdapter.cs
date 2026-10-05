@@ -1,3 +1,6 @@
+using System.Collections.Concurrent;
+using System.IO.Pipes;
+using System.Text;
 using System.Text.Json;
 using DAP.Core.Guides;
 using DAP.Core.Targets;
@@ -14,39 +17,29 @@ namespace DAP.Runtime.Web.Browser;
 /// </summary>
 public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
 {
+    private const string PipeName = "dap-web-runtime-v1";
     private static readonly TimeSpan CommandTimeout = TimeSpan.FromSeconds(5);
-    private readonly string _eventPath;
-    private readonly string _commandPath;
-    private readonly string _responsePath;
-    private long _responseOffset;
+
+    private readonly ConcurrentDictionary<string, TaskCompletionSource<JsonElement>> _pendingResponses = new(StringComparer.Ordinal);
     private readonly Dictionary<string, Queue<WebValidationCommit>> _commits = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> _armedValidationIds = new(StringComparer.Ordinal);
     private readonly SemaphoreSlim _signal = new(0);
-    private long _offset;
+    private readonly SemaphoreSlim _pipeWriteLock = new(1, 1);
+    private readonly SemaphoreSlim _connectedSignal = new(0);
+    private readonly CancellationTokenSource _transportCts = new();
+    private readonly object _pipeGate = new();
+    private NamedPipeServerStream? _pipe;
+    private readonly Task _acceptLoop;
     private bool _disposed;
 
     public ExtensionWebBrowserAdapter(string? eventPath = null, string? commandPath = null, string? responsePath = null)
     {
-        var directory = Path.Combine(Path.GetTempPath(), "DAP", "WebAdapter");
-        _eventPath = eventPath ?? Path.Combine(directory, "events.jsonl");
-        _commandPath = commandPath ?? Path.Combine(directory, "commands.jsonl");
-        _responsePath = responsePath ?? Path.Combine(directory, "responses.jsonl");
-
-        // These files are transport journals, not durable history. A new DAP
-        // runtime session must not make a newly started NativeHost replay every
-        // command left by previous probe/runtime sessions before it reaches the
-        // current request.
-        Directory.CreateDirectory(directory);
-        ResetSharedJournal(_commandPath);
-        ResetSharedJournal(_responsePath);
-        ResetSharedJournal(_eventPath);
-        _offset = 0;
-        _responseOffset = 0;
+        // Legacy path parameters remain only for source compatibility.
+        // Browser-adapter traffic is now direct, full-duplex IPC.
+        _acceptLoop = Task.Run(() => AcceptPipeLoopAsync(_transportCts.Token));
     }
-
     public async Task ArmValidationAsync(GuideStep step, CancellationToken cancellationToken = default)
     {
-        ReadPendingEvents();
         _commits.Remove(step.Id);
         var armId = Guid.NewGuid().ToString("N");
         _armedValidationIds[step.Id] = armId;
@@ -66,9 +59,11 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
     {
         while (true)
         {
-            ReadPendingEvents();
-            if (_commits.TryGetValue(step.Id, out var queue) && queue.Count > 0)
-                return queue.Peek();
+                lock (_commits)
+            {
+                if (_commits.TryGetValue(step.Id, out var queue) && queue.Count > 0)
+                    return queue.Peek();
+            }
 
             // Observe cancellation explicitly. Task.WhenAny by itself returns a
             // canceled child task without throwing, which previously left this loop
@@ -83,44 +78,38 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
 
     public Task ConsumeValidationCommitAsync(GuideStep step, CancellationToken cancellationToken = default)
     {
-        ReadPendingEvents();
-        if (_commits.TryGetValue(step.Id, out var queue) && queue.Count > 0)
-            queue.Dequeue();
+        lock (_commits)
+        {
+            if (_commits.TryGetValue(step.Id, out var queue) && queue.Count > 0)
+                queue.Dequeue();
+        }
         return Task.CompletedTask;
     }
 
-    private void ReadPendingEvents()
+    private void ProcessAdapterEvent(JsonElement payload)
     {
-        if (!File.Exists(_eventPath)) return;
+        if (!payload.TryGetProperty("type", out var type) || type.GetString() != "validation-commit") return;
+        var stepId = payload.TryGetProperty("stepId", out var sid) ? sid.GetString() : null;
+        if (string.IsNullOrWhiteSpace(stepId)) return;
+        var armId = payload.TryGetProperty("armId", out var aid) ? aid.GetString() : null;
+        if (string.IsNullOrWhiteSpace(armId) ||
+            !_armedValidationIds.TryGetValue(stepId, out var expectedArmId) ||
+            !string.Equals(armId, expectedArmId, StringComparison.Ordinal)) return;
 
-        using var stream = new FileStream(_eventPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-        if (_offset > stream.Length) _offset = 0;
-        stream.Position = _offset;
-        using var reader = new StreamReader(stream);
-        string? line;
-        while ((line = reader.ReadLine()) is not null)
+        var kind = payload.TryGetProperty("kind", out var k) ? k.GetString() ?? "" : "";
+        var browserEvent = payload.TryGetProperty("browserEvent", out var be) ? be.GetString() : null;
+        var hasFocus = payload.TryGetProperty("documentHasFocus", out var dhf) && dhf.ValueKind == JsonValueKind.True;
+        var targetIsActive = payload.TryGetProperty("targetIsActive", out var tia) && tia.ValueKind == JsonValueKind.True;
+        Console.WriteLine($"[DAP validation event] step={stepId} kind={kind} browserEvent={browserEvent ?? "unknown"} documentHasFocus={hasFocus} targetIsActive={targetIsActive}");
+
+        lock (_commits)
         {
-            _offset = stream.Position;
-            if (string.IsNullOrWhiteSpace(line)) continue;
-            using var doc = JsonDocument.Parse(line);
-            if (!doc.RootElement.TryGetProperty("payload", out var payload)) continue;
-            if (!payload.TryGetProperty("type", out var type) || type.GetString() != "validation-commit") continue;
-            var stepId = payload.TryGetProperty("stepId", out var sid) ? sid.GetString() : null;
-            if (string.IsNullOrWhiteSpace(stepId)) continue;
-            var armId = payload.TryGetProperty("armId", out var aid) ? aid.GetString() : null;
-            if (string.IsNullOrWhiteSpace(armId) || !_armedValidationIds.TryGetValue(stepId, out var expectedArmId) || !string.Equals(armId, expectedArmId, StringComparison.Ordinal)) continue;
-            var kind = payload.TryGetProperty("kind", out var k) ? k.GetString() ?? "" : "";
-            var browserEvent = payload.TryGetProperty("browserEvent", out var be) ? be.GetString() : null;
-            var hasFocus = payload.TryGetProperty("documentHasFocus", out var dhf) && dhf.ValueKind == JsonValueKind.True;
-            var targetIsActive = payload.TryGetProperty("targetIsActive", out var tia) && tia.ValueKind == JsonValueKind.True;
-            Console.WriteLine($"[DAP validation event] step={stepId} kind={kind} browserEvent={browserEvent ?? "unknown"} documentHasFocus={hasFocus} targetIsActive={targetIsActive}");
             if (!_commits.TryGetValue(stepId, out var queue))
                 _commits[stepId] = queue = new Queue<WebValidationCommit>();
             queue.Enqueue(new WebValidationCommit(stepId, kind));
-            _signal.Release();
         }
+        _signal.Release();
     }
-
     public async Task<WebTargetResolution> ResolveTargetAsync(TargetDescriptor descriptor, CancellationToken cancellationToken = default)
     {
         var response = await SendCommandAsync(new { type = "resolveTarget", target = descriptor, framePath = descriptor.FrameContext?.Path }, cancellationToken);
@@ -141,96 +130,128 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
         timeoutCts.CancelAfter(CommandTimeout);
         var commandToken = timeoutCts.Token;
         var requestId = Guid.NewGuid().ToString("N");
-        Directory.CreateDirectory(Path.GetDirectoryName(_commandPath)!);
-        // No frameId here. Until a TargetDescriptor FrameContext is mapped to a
-        // concrete browser frame, the extension must query all injected frames.
-        // Sending frameId=0 incorrectly forces the command into the top frame.
-        var line = JsonSerializer.Serialize(
-            new { type = "adapterCommand", requestId, command },
-            new JsonSerializerOptions(JsonSerializerDefaults.Web));
-        await AppendSharedLineAsync(_commandPath, line, commandToken);
+        var completion = new TaskCompletionSource<JsonElement>(TaskCreationOptions.RunContinuationsAsynchronously);
+        if (!_pendingResponses.TryAdd(requestId, completion))
+            throw new InvalidOperationException("Could not register DAP extension request.");
 
-        while (true)
+        try
         {
-            if (commandToken.IsCancellationRequested)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                throw new TimeoutException($"Extension adapter command '{requestId}' timed out after {CommandTimeout.TotalSeconds:0} seconds.");
-            }
-            if (File.Exists(_responsePath))
-            {
-                using var stream = new FileStream(_responsePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-                if (_responseOffset > stream.Length) _responseOffset = 0;
-                stream.Position = _responseOffset;
-                using var reader = new StreamReader(stream, System.Text.Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 1024, leaveOpen: true);
-                string? responseLine;
-                JsonElement? matchedResponse = null;
-                while ((responseLine = reader.ReadLine()) is not null)
-                {
-                    if (string.IsNullOrWhiteSpace(responseLine)) continue;
-                    using var doc = JsonDocument.Parse(responseLine);
-                    if (!doc.RootElement.TryGetProperty("requestId", out var id) || id.GetString() != requestId) continue;
-                    matchedResponse = doc.RootElement.GetProperty("response").Clone();
-                    break;
-                }
-
-                // StreamReader buffers ahead. Update the cursor only after the
-                // reader is disposed, otherwise subsequent adapter responses can
-                // be skipped even though the browser/native-host path succeeded.
-                reader.Dispose();
-                _responseOffset = stream.Position;
-
-                if (matchedResponse is JsonElement response)
-                {
-                    if (response.TryGetProperty("ok", out var ok) && !ok.GetBoolean())
-                        throw new InvalidOperationException(response.TryGetProperty("error", out var error) ? error.GetString() : "Extension adapter command failed.");
-                    return response;
-                }
-            }
+            var line = JsonSerializer.Serialize(
+                new { type = "adapterCommand", requestId, command },
+                new JsonSerializerOptions(JsonSerializerDefaults.Web));
+            await WritePipeLineAsync(line, commandToken);
 
             try
             {
-                await Task.Delay(25, commandToken);
+                var response = await completion.Task.WaitAsync(commandToken);
+                if (response.TryGetProperty("ok", out var ok) && !ok.GetBoolean())
+                    throw new InvalidOperationException(
+                        response.TryGetProperty("error", out var error)
+                            ? error.GetString()
+                            : "Extension adapter command failed.");
+                return response;
             }
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
                 throw new TimeoutException($"Extension adapter command '{requestId}' timed out after {CommandTimeout.TotalSeconds:0} seconds.");
             }
         }
-    }
-
-    private static void ResetSharedJournal(string path)
-    {
-        using var stream = new FileStream(
-            path, FileMode.Create, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete);
-        stream.Flush();
-    }
-
-    private static async Task AppendSharedLineAsync(string path, string line, CancellationToken cancellationToken)
-    {
-        // NativeHost tails this journal concurrently. Open explicitly with
-        // FileShare.ReadWrite instead of File.AppendAllTextAsync, whose sharing
-        // mode can collide with the reader during normal runtime traffic.
-        var bytes = System.Text.Encoding.UTF8.GetBytes(line + Environment.NewLine);
-        for (var attempt = 0; ; attempt++)
+        finally
         {
-            cancellationToken.ThrowIfCancellationRequested();
+            _pendingResponses.TryRemove(requestId, out _);
+        }
+    }
+
+    private async Task AcceptPipeLoopAsync(CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            NamedPipeServerStream? server = null;
             try
             {
-                await using var stream = new FileStream(
-                    path, FileMode.Append, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete,
-                    bufferSize: 4096, useAsync: true);
-                await stream.WriteAsync(bytes, cancellationToken);
-                await stream.FlushAsync(cancellationToken);
-                return;
+                server = new NamedPipeServerStream(
+                    PipeName, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+                await server.WaitForConnectionAsync(cancellationToken);
+                lock (_pipeGate) _pipe = server;
+                _connectedSignal.Release();
+                await ReadPipeLoopAsync(server, cancellationToken);
             }
-            catch (IOException) when (attempt < 20)
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
-                await Task.Delay(10, cancellationToken);
+                break;
+            }
+            catch (IOException)
+            {
+                // Native Messaging host may restart after an extension reload.
+            }
+            finally
+            {
+                lock (_pipeGate)
+                {
+                    if (ReferenceEquals(_pipe, server)) _pipe = null;
+                }
+                server?.Dispose();
             }
         }
     }
 
+    private async Task ReadPipeLoopAsync(Stream stream, CancellationToken cancellationToken)
+    {
+        using var reader = new StreamReader(stream, Encoding.UTF8, false, 4096, leaveOpen: true);
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            var line = await reader.ReadLineAsync(cancellationToken);
+            if (line is null) return;
+            if (string.IsNullOrWhiteSpace(line)) continue;
+
+            using var document = JsonDocument.Parse(line);
+            var root = document.RootElement;
+            if (!root.TryGetProperty("type", out var typeElement)) continue;
+            var type = typeElement.GetString();
+
+            if (type == "adapterResponse")
+            {
+                var requestId = root.TryGetProperty("requestId", out var id) ? id.GetString() : null;
+                if (requestId is not null &&
+                    root.TryGetProperty("response", out var response) &&
+                    _pendingResponses.TryGetValue(requestId, out var completion))
+                    completion.TrySetResult(response.Clone());
+                continue;
+            }
+
+            if (type == "adapterEvent" && root.TryGetProperty("payload", out var payload))
+                ProcessAdapterEvent(payload.Clone());
+        }
+    }
+
+    private async Task WritePipeLineAsync(string line, CancellationToken cancellationToken)
+    {
+        while (true)
+        {
+            NamedPipeServerStream? pipe;
+            lock (_pipeGate) pipe = _pipe;
+
+            if (pipe is { IsConnected: true })
+            {
+                await _pipeWriteLock.WaitAsync(cancellationToken);
+                try
+                {
+                    lock (_pipeGate) pipe = _pipe;
+                    if (pipe is not { IsConnected: true }) continue;
+                    var bytes = Encoding.UTF8.GetBytes(line + "\n");
+                    await pipe.WriteAsync(bytes, cancellationToken);
+                    await pipe.FlushAsync(cancellationToken);
+                    return;
+                }
+                finally
+                {
+                    _pipeWriteLock.Release();
+                }
+            }
+
+            await _connectedSignal.WaitAsync(cancellationToken);
+        }
+    }
     private static NotSupportedException Pending(string operation)
         => new($"Extension Web adapter operation '{operation}' has not been migrated yet.");
 
@@ -261,8 +282,8 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
         if (step.Validation is null || step.Target is null) return false;
         if (string.Equals(step.Validation.Kind, "clicked", StringComparison.Ordinal))
         {
-            ReadPendingEvents();
-            return _commits.TryGetValue(step.Id, out var q) && q.Count > 0;
+                lock (_commits)
+                return _commits.TryGetValue(step.Id, out var q) && q.Count > 0;
         }
         var response = await SendCommandAsync(new { type = "readTargetValue", target = step.Target, framePath = step.Target.FrameContext?.Path }, cancellationToken);
         var result = response.GetProperty("result");
@@ -342,6 +363,16 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        _transportCts.Cancel();
+        lock (_pipeGate)
+        {
+            _pipe?.Dispose();
+            _pipe = null;
+        }
+        foreach (var pending in _pendingResponses.Values) pending.TrySetCanceled();
         _signal.Dispose();
+        _pipeWriteLock.Dispose();
+        _connectedSignal.Dispose();
+        _transportCts.Dispose();
     }
 }
