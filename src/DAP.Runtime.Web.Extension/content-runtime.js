@@ -113,6 +113,34 @@
         sendResponse({ok:true,result});
         return;
       }
+      if (command.type === "showCenteredStep") {
+        showCenteredMessage({
+          elementId:"dap-guide-centered",
+          content:command.step?.bubble?.content||"",
+          actionText:command.actionText||"אישור",
+          actionDataKey:"dapGuideConfirm",
+          progressText:command.progressText||null,
+          dragText:command.dragText||"גרור להזזת הבועה",
+          eventType:"centered-dismissed",
+          stepId:command.step?.id||null
+        });
+        sendResponse({ok:true,result:{status:"shown"}});
+        return;
+      }
+      if (command.type === "showGuideCompleted") {
+        showCenteredMessage({
+          elementId:"dap-guide-completed",
+          content:command.content||"",
+          actionText:command.actionText||"סיום",
+          actionDataKey:"dapGuideFinish",
+          progressText:null,
+          dragText:command.dragText||"גרור להזזת הבועה",
+          eventType:"guide-completed-dismissed",
+          stepId:null
+        });
+        sendResponse({ok:true,result:{status:"shown"}});
+        return;
+      }
       if (command.type === "hideBubble") {
         hideBubble();
         sendResponse({ok:true,result:{status:"hidden"}});
@@ -318,11 +346,112 @@
     // well as the presentation owned by this content-script instance.
     const stale=document.getElementById("dap-guide-bubble");
     document.getElementById("dap-guide-bubble-proxy")?.remove();
+    document.getElementById("dap-guide-centered")?.remove();
+    document.getElementById("dap-guide-completed")?.remove();
     if(bubbleState){
       bubbleState.cleanup?.();
       bubbleState=null;
     }
     stale?.remove();
+  }
+
+  function showCenteredMessage(options){
+    hideBubble();
+    const bubble=document.createElement("div");
+    bubble.id=options.elementId;
+    bubble.setAttribute("role","status");
+
+    const handle=document.createElement("div");
+    handle.dataset.dapDragHandle="1";
+    handle.setAttribute("aria-label",options.dragText);
+    handle.title=options.dragText;
+    handle.textContent="⠿";
+    Object.assign(handle.style,{
+      display:"block",width:"fit-content",marginLeft:"auto",marginRight:"auto",
+      textAlign:"center",fontSize:"18px",lineHeight:"14px",opacity:".72",
+      marginBottom:"6px",cursor:"grab",touchAction:"none"
+    });
+    bubble.appendChild(handle);
+
+    if(options.progressText){
+      const progress=document.createElement("div");
+      progress.textContent=options.progressText;
+      Object.assign(progress.style,{
+        fontSize:"12px",opacity:".78",marginBottom:"6px",fontWeight:"600",cursor:"default"
+      });
+      bubble.appendChild(progress);
+    }
+
+    const content=document.createElement("div");
+    content.textContent=options.content;
+    content.style.cursor="default";
+    bubble.appendChild(content);
+
+    const button=document.createElement("button");
+    button.type="button";
+    button.textContent=options.actionText;
+    button.dataset[options.actionDataKey]="1";
+    Object.assign(button.style,{
+      marginTop:"12px",padding:"7px 14px",borderRadius:"6px",
+      border:"1px solid "+theme.borderColor,background:"#FFFFFF",
+      color:theme.backgroundColor,fontWeight:"700",cursor:"pointer"
+    });
+    bubble.appendChild(button);
+
+    Object.assign(bubble.style,{
+      position:"fixed",zIndex:"2147483647",maxWidth:theme.maxWidth+"px",
+      padding:theme.padding,background:theme.backgroundColor,color:theme.textColor,
+      border:theme.borderWidth+"px solid "+theme.borderColor,
+      borderRadius:theme.borderRadius+"px",boxShadow:theme.boxShadow,
+      fontFamily:theme.fontFamily,fontSize:theme.fontSize+"px",
+      lineHeight:String(theme.lineHeight),direction:"rtl",
+      left:"50%",top:"50%",transform:"translate(-50%,-50%)",
+      cursor:"default",touchAction:"none",userSelect:"none"
+    });
+
+    let drag=null;
+    const clamp=(x,y)=>{
+      const q=bubble.getBoundingClientRect(),m=8;
+      return{
+        x:Math.max(m,Math.min(x,Math.max(m,innerWidth-q.width-m))),
+        y:Math.max(m,Math.min(y,Math.max(m,innerHeight-q.height-m)))
+      };
+    };
+    const beginDrag=e=>{
+      if(e.button!==0||!e.target.closest('[data-dap-drag-handle="1"]'))return;
+      const q=bubble.getBoundingClientRect();
+      bubble.style.transform="";
+      drag={id:e.pointerId,x:e.clientX,y:e.clientY,left:q.left,top:q.top};
+      bubble.setPointerCapture(e.pointerId);
+      handle.style.cursor="grabbing";
+      e.preventDefault();
+    };
+    const move=e=>{
+      if(!drag||e.pointerId!==drag.id)return;
+      const next=clamp(drag.left+e.clientX-drag.x,drag.top+e.clientY-drag.y);
+      bubble.style.left=next.x+"px";bubble.style.top=next.y+"px";
+    };
+    const finish=e=>{
+      if(!drag||e.pointerId!==drag.id)return;
+      drag=null;handle.style.cursor="grab";
+      try{bubble.releasePointerCapture(e.pointerId)}catch{}
+    };
+    bubble.addEventListener("pointerdown",beginDrag);
+    bubble.addEventListener("pointermove",move);
+    bubble.addEventListener("pointerup",finish);
+    bubble.addEventListener("pointercancel",finish);
+
+    button.addEventListener("click",()=>{
+      bubble.remove();
+      void chrome.runtime.sendMessage({
+        type:"dap-adapter-event",
+        payload:{type:options.eventType,stepId:options.stepId}
+      }).catch(()=>{});
+    },{once:true});
+
+    document.body.appendChild(bubble);
+    button.focus({preventScroll:true});
+    return bubble;
   }
 
   function showBubbleProxy(step,stepNumber,totalSteps,targetRect){
