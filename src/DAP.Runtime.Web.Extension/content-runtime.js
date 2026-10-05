@@ -466,7 +466,7 @@
     return null;
   }
 
-  function queryPlaywrightCss(selector, root = document) {
+  function queryExtendedCss(selector, root = document) {
     const source = String(selector || "");
     const textFilters = [];
     const nativeSelector = source.replace(
@@ -485,7 +485,7 @@
     });
   }
 
-  function matchesPlaywrightCss(el, selector) {
+  function matchesExtendedCss(el, selector) {
     const source = String(selector || "");
     const textFilters = [];
     const nativeSelector = source.replace(
@@ -504,7 +504,7 @@
 
   function createCandidates(locator) {
     const strategy = locator.strategy.trim().toLowerCase();
-    if (strategy === "css") return queryPlaywrightCss(locator.value);
+    if (strategy === "css") return queryExtendedCss(locator.value);
     if (strategy === "text") {
       const wanted = normalize(locator.value).toLowerCase();
       return [...document.querySelectorAll("body *")]
@@ -528,17 +528,17 @@
       case "ancestor":
       case "context": {
         for (let current = el; current; current = current.parentElement) {
-          if (matchesPlaywrightCss(current, selector)) return true;
+          if (matchesExtendedCss(current, selector)) return true;
         }
         return false;
       }
       case "descendant":
-        return queryPlaywrightCss(selector, el).length > 0;
+        return queryExtendedCss(selector, el).length > 0;
       case "sibling":
         return !!(el.parentElement &&
-          [...el.parentElement.children].some(x => x !== el && matchesPlaywrightCss(x, selector)));
+          [...el.parentElement.children].some(x => x !== el && matchesExtendedCss(x, selector)));
       case "nearby":
-        return !!(el.parentElement && queryPlaywrightCss(selector, el.parentElement).length > 0);
+        return !!(el.parentElement && queryExtendedCss(selector, el.parentElement).length > 0);
       default:
         return false;
     }
