@@ -382,11 +382,8 @@ if (explicitGuided && !manual && !unguided && manualFromStep is null && visualFr
             $"Unsupported DAP_E2E_MODE '{e2eMode}'. Supported values: fast, visual.");
 }
 
-var extensionDirectory = Path.Combine(repoRoot, "src", "DAP.Runtime.Web.Extension");
 await using var browser = await BrowserHarness.LaunchAsync(
     e2eBrowser,
-    0,
-    extensionDirectory,
     baseUrl);
 StartupMark($"{e2eBrowser} launched through the installed DAP extension profile");
 
@@ -815,7 +812,7 @@ async Task<string?> CaptureBootstrapStepValueAsync(GuideStep step)
     {
         // Canonical Web TestCRM uses named single-level frames. Resolve the
         // actual live frame through the public browser surface rather than the
-        // former Playwright runtime helper.
+        // former browser-runtime helper.
         var locator=step.Target.FrameContext.Path[0];
         var name=locator.Value.Contains("dap-header",StringComparison.Ordinal)
             ? "dap-header"
