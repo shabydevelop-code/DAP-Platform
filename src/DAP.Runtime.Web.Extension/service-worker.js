@@ -41,9 +41,14 @@ function postAdapterResponse(p, requestId, response, tabId, frameId) {
 connect().onMessage.addListener(async message => {
   if (message?.type !== "adapterCommand" || !message.requestId) return;
   try {
-    const tabId = message.tabId;
+    let tabId = message.tabId;
     const frameId = message.frameId ?? 0;
-    if (tabId == null) throw new Error("adapterCommand requires tabId.");
+    if (tabId == null) {
+      const tabs = await chrome.tabs.query({active:true, lastFocusedWindow:true});
+      if (tabs.length !== 1 || tabs[0].id == null)
+        throw new Error("DAP adapter could not resolve exactly one active browser tab.");
+      tabId = tabs[0].id;
+    }
     const response = await chrome.tabs.sendMessage(
       tabId,
       { type: "dap-adapter-command", requestId: message.requestId, command: message.command },
