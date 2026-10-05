@@ -142,6 +142,8 @@ async function resolveTargetTab() {
 
 async function resolveFramePath(tabId, framePath, requestId) {
   let frameId = 0;
+  let offsetX = 0;
+  let offsetY = 0;
 
   for (const locator of framePath || []) {
     const probe = await sendToFrame(
@@ -157,6 +159,12 @@ async function resolveFramePath(tabId, framePath, requestId) {
         response: probe || { ok: true, result: { status: "notFound", count: 0 } },
         frameId
       };
+    }
+
+    const frameRect = probe.result.rect;
+    if (frameRect) {
+      offsetX += Number(frameRect.x || 0);
+      offsetY += Number(frameRect.y || 0);
     }
 
     const token = probe.result.frameToken;
@@ -176,7 +184,7 @@ async function resolveFramePath(tabId, framePath, requestId) {
     frameId = identified.frameId;
   }
 
-  return { ok: true, frameId };
+  return { ok: true, frameId, offsetX, offsetY };
 }
 
 async function hideEveryFrame(tabId, requestId) {
@@ -216,6 +224,8 @@ async function handleNativeMessage(message) {
     // no FrameContext means page.MainFrame; a non-empty FrameContext is resolved
     // explicitly from the top frame. Do not broadcast target commands to every frame.
     let frameId = 0;
+    let frameOffsetX = 0;
+    let frameOffsetY = 0;
     if (Array.isArray(command.framePath) && command.framePath.length > 0) {
       const frameResolution = await resolveFramePath(tabId, command.framePath, requestId);
       if (!frameResolution.ok) {
@@ -223,6 +233,8 @@ async function handleNativeMessage(message) {
         return;
       }
       frameId = frameResolution.frameId;
+      frameOffsetX = frameResolution.offsetX || 0;
+      frameOffsetY = frameResolution.offsetY || 0;
     }
 
     delete command.framePath;
@@ -232,9 +244,26 @@ async function handleNativeMessage(message) {
     if (
       command.type === "ensureBubble" &&
       response?.ok &&
-      response.result?.needsTopLevel === true &&
-      response.result?.topRect
+      response.result?.needsTopLevel === true
     ) {
+      const localRect = response.result.rect;
+      const targetRect = response.result.topRect || (localRect ? {
+        x: frameOffsetX + Number(localRect.x || 0),
+        y: frameOffsetY + Number(localRect.y || 0),
+        width: Number(localRect.width || 0),
+        height: Number(localRect.height || 0)
+      } : null);
+
+      if (!targetRect) {
+        postAdapterResponse(
+          requestId,
+          { ok:false, error:"DAP could not derive top-level target geometry for bubble proxy." },
+          tabId,
+          frameId
+        );
+        return;
+      }
+
       const proxy = await sendToFrame(
         tabId,
         0,
@@ -244,7 +273,7 @@ async function handleNativeMessage(message) {
           step: command.step,
           stepNumber: command.stepNumber,
           totalSteps: command.totalSteps,
-          targetRect: response.result.topRect
+          targetRect
         }
       );
 
