@@ -4,7 +4,7 @@
   // Do not return before registering the adapter endpoint. After an extension
   // reload a tab may still contain an older __dapWebRuntime object while the
   // new extension context needs to install its current message listener.
-  if (globalThis.__dapAdapterEndpointVersion === "0.4.2") {
+  if (globalThis.__dapAdapterEndpointVersion === "0.4.3") {
     // Re-injection / an already-live page must still wake the MV3 service
     // worker so it can (re)establish Native Messaging after DAP starts.
     try {
@@ -13,7 +13,7 @@
     } catch {}
     return;
   }
-  globalThis.__dapAdapterEndpointVersion = "0.4.2";
+  globalThis.__dapAdapterEndpointVersion = "0.4.3";
 
   // Register the adapter message endpoint before the legacy POC runtime is
   // initialized. Target resolution is looked up at message time, so an
@@ -24,7 +24,7 @@
     try {
       const command = message.command || {};
       if (command.type === "ping") {
-        sendResponse({ok:true,result:{ready:true,version:"0.4.2"}});
+        sendResponse({ok:true,result:{ready:true,version:"0.4.3"}});
         return;
       }
       if (command.type === "resolveFrameChild") {
@@ -1007,8 +1007,10 @@
         element.removeEventListener("click", element.__dapValidationClickHandler, true);
 
       const clickHandler = event => {
-        hideBubble();
-
+        // Do not mutate DAP presentation synchronously in capture phase.
+        // Application click handlers must observe the untouched DOM and own
+        // their normal navigation/action. The .NET Runtime hides the bubble
+        // only after validation/completion has been accepted.
         const currentArmId = element.__dapValidationArmId;
         const tag = element.tagName?.toLowerCase();
         const type = (element.getAttribute?.("type") || "").toLowerCase();
@@ -1110,7 +1112,7 @@
 
   const existingRuntime = globalThis.__dapWebRuntime;
   globalThis.__dapWebRuntime = {
-    version: "0.4.2",
+    version: "0.4.3",
     resolveTarget,
     showBubble,
     hideBubble,
