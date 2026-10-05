@@ -2,6 +2,7 @@ const HOST = "com.dap.web_runtime";
 const TEST_DRIVER_VERSION = "1.0.0";
 const identifiedFrames = new Map();
 let port = null;
+let productionTabId = null;
 
 function connect() {
   if (port) return port;
@@ -11,7 +12,10 @@ function connect() {
 
   connected.onMessage.addListener(handleNativeMessage);
   connected.onDisconnect.addListener(() => {
-    if (port === connected) port = null;
+    if (port === connected) {
+      port = null;
+      productionTabId = null;
+    }
   });
 
   return connected;
@@ -219,6 +223,19 @@ async function productionCommandMatchesTab(tabId, command, requestId) {
 }
 
 async function resolveProductionTab(command, requestId) {
+  // Once one tab has been identified uniquely from persisted Guide semantics,
+  // keep that browser-tab identity for the current production connection.
+  // Navigation/frame/DOM changes happen inside the same application tab and
+  // should not force a full browser-wide tab scan on every 100 ms reconcile.
+  if (productionTabId != null) {
+    try {
+      const tab = await chrome.tabs.get(productionTabId);
+      if (tab?.id != null)
+        return productionTabId;
+    } catch {}
+    productionTabId = null;
+  }
+
   const candidates = await productionCandidateTabs();
   if (candidates.length === 0)
     return null;
@@ -231,8 +248,10 @@ async function resolveProductionTab(command, requestId) {
       matches.push(tab);
   }
 
-  if (matches.length === 1)
-    return matches[0].id;
+  if (matches.length === 1) {
+    productionTabId = matches[0].id;
+    return productionTabId;
+  }
 
   // Commands without Step evidence are allowed only when there is exactly one
   // eligible candidate. Normal targeted Steps establish the application tab
@@ -243,8 +262,10 @@ async function resolveProductionTab(command, requestId) {
     !!command.step?.target ||
     (Array.isArray(command.framePath) && command.framePath.length > 0);
 
-  if (!hasEvidence && candidates.length === 1)
-    return candidates[0].id;
+  if (!hasEvidence && candidates.length === 1) {
+    productionTabId = candidates[0].id;
+    return productionTabId;
+  }
 
   const details = candidates
     .map(tab => tab.id + ":" + (tab.url || "<no-url>"))
