@@ -4,8 +4,8 @@
   // Do not return before registering the adapter endpoint. After an extension
   // reload a tab may still contain an older __dapWebRuntime object while the
   // new extension context needs to install its current message listener.
-  if (globalThis.__dapAdapterEndpointVersion === "0.2.0") return;
-  globalThis.__dapAdapterEndpointVersion = "0.2.0";
+  if (globalThis.__dapAdapterEndpointVersion === "0.3.0") return;
+  globalThis.__dapAdapterEndpointVersion = "0.3.0";
 
   // Register the adapter message endpoint before the legacy POC runtime is
   // initialized. Target resolution is looked up at message time, so an
@@ -15,6 +15,10 @@
     if (message?.type !== "dap-adapter-command") return;
     try {
       const command = message.command || {};
+      if (command.type === "ping") {
+        sendResponse({ok:true,result:{ready:true,version:"0.3.0"}});
+        return;
+      }
       if (command.type === "resolveFrameChild") {
         const matches = createCandidates(command.locator);
         if (matches.length !== 1) {
@@ -52,7 +56,7 @@
         if (context.kind === "url-equals") active = location.href === context.value;
         else if (context.kind === "url-contains") active = location.href.includes(context.value);
         else if (context.kind === "url-fragment-equals") active = location.hash === context.value;
-        else if (context.kind === "css-exists") active = document.querySelectorAll(context.value).length > 0;
+        else if (context.kind === "css-exists") active = createCandidates({strategy:"css",value:context.value}).length > 0;
         else throw new Error("Unsupported Web Step context kind '" + context.kind + "'.");
         sendResponse({ok:true,result:{active}});
         return;
@@ -96,7 +100,7 @@
           sendResponse({ok:true,result:{status:result.status,count:result.count}});
           return;
         }
-        if (active?.bubble && active.step?.id === command.step?.id && active.element === result.element) {
+        if (bubbleState?.bubble && bubbleState.step?.id === command.step?.id && bubbleState.element === result.element) {
           sendResponse({ok:true,result:{status:"resolved",count:1}});
           return;
         }
@@ -210,20 +214,17 @@
     return null;
   }
 
-  function queryPlaywrightCss(selector) {
-    // DAP's persisted Web locators were authored and regression-tested through
-    // Playwright. Native querySelectorAll does not understand Playwright's
-    // :has-text() pseudo-class, so preserve that selector contract explicitly
-    // instead of changing Guide data during the Extension migration.
+  function queryPlaywrightCss(selector, root = document) {
+    const source = String(selector || "");
     const textFilters = [];
-    const nativeSelector = String(selector).replace(
+    const nativeSelector = source.replace(
       /:has-text\((["'])(.*?)\1\)/g,
       (_match, _quote, text) => {
         textFilters.push(normalize(text).toLowerCase());
         return "";
       });
 
-    const candidates = [...document.querySelectorAll(nativeSelector || "*")];
+    const candidates = [...root.querySelectorAll(nativeSelector || "*")];
     if (!textFilters.length) return candidates;
 
     return candidates.filter(el => {
@@ -232,10 +233,31 @@
     });
   }
 
+  function matchesPlaywrightCss(el, selector) {
+    const source = String(selector || "");
+    const textFilters = [];
+    const nativeSelector = source.replace(
+      /:has-text\((["'])(.*?)\1\)/g,
+      (_match, _quote, text) => {
+        textFilters.push(normalize(text).toLowerCase());
+        return "";
+      });
+
+    if (nativeSelector && !el.matches(nativeSelector)) return false;
+    if (!textFilters.length) return true;
+
+    const text = normalize(el.textContent).toLowerCase();
+    return textFilters.every(wanted => text.includes(wanted));
+  }
+
   function createCandidates(locator) {
     const strategy = locator.strategy.trim().toLowerCase();
     if (strategy === "css") return queryPlaywrightCss(locator.value);
-    if (strategy === "text") return byText(locator.value);
+    if (strategy === "text") {
+      const wanted = normalize(locator.value).toLowerCase();
+      return [...document.querySelectorAll("body *")]
+        .filter(el => normalize(el.textContent).toLowerCase().includes(wanted));
+    }
     if (strategy === "label") return byLabel(locator.value);
     if (strategy === "role") {
       const role = locator.value.trim().toLowerCase();
@@ -252,14 +274,21 @@
     const selector = anchor.locator.value;
     switch (String(anchor.relation).toLowerCase()) {
       case "ancestor":
-      case "context": return !!el.closest(selector);
-      case "descendant": return !!el.querySelector(selector);
+      case "context": {
+        for (let current = el; current; current = current.parentElement) {
+          if (matchesPlaywrightCss(current, selector)) return true;
+        }
+        return false;
+      }
+      case "descendant":
+        return queryPlaywrightCss(selector, el).length > 0;
       case "sibling":
         return !!(el.parentElement &&
-          [...el.parentElement.children].some(x => x !== el && x.matches(selector)));
+          [...el.parentElement.children].some(x => x !== el && matchesPlaywrightCss(x, selector)));
       case "nearby":
-        return !!(el.parentElement && el.parentElement.querySelector(selector));
-      default: return false;
+        return !!(el.parentElement && queryPlaywrightCss(selector, el.parentElement).length > 0);
+      default:
+        return false;
     }
   }
 
@@ -280,19 +309,20 @@
     };
   }
 
-  const theme={backgroundColor:"#312E5A",textColor:"#FFFFFF",borderColor:"#8B83C7",borderWidth:1,borderRadius:8,maxWidth:320,padding:"12px 16px",boxShadow:"0 10px 28px rgba(32,29,67,.28)",fontFamily:"Arial, sans-serif",fontSize:14,lineHeight:1.4,targetHighlightColor:"#A99FE8",targetHighlightWidth:2,targetHighlightShadow:"0 0 0 3px rgba(169,159,232,.22)",pointerSize:9}; let active=null;
+  const theme={backgroundColor:"#312E5A",textColor:"#FFFFFF",borderColor:"#8B83C7",borderWidth:1,borderRadius:8,maxWidth:320,padding:"12px 16px",boxShadow:"0 10px 28px rgba(32,29,67,.28)",fontFamily:"Arial, sans-serif",fontSize:14,lineHeight:1.4,targetHighlightColor:"#A99FE8",targetHighlightWidth:2,targetHighlightShadow:"0 0 0 3px rgba(169,159,232,.22)",pointerSize:9};
+  let bubbleState=null;
+  let validationState=null;
   function hideBubble(){
     // A page can survive an extension reload while its old isolated-world
     // JavaScript state is discarded. Remove any DOM presentation by id as
     // well as the presentation owned by this content-script instance.
     const stale=document.getElementById("dap-guide-bubble");
     document.getElementById("dap-guide-bubble-proxy")?.remove();
-    if(active){
-      active.cleanup?.();
-      active=null;
-    } else {
-      stale?.remove();
+    if(bubbleState){
+      bubbleState.cleanup?.();
+      bubbleState=null;
     }
+    stale?.remove();
   }
 
   function showBubbleProxy(step,stepNumber,totalSteps,targetRect){
@@ -359,7 +389,7 @@
     const place=()=>{if(manual){const q=b.getBoundingClientRect(),n=clamp(q.left,q.top);b.style.left=n.x+"px";b.style.top=n.y+"px";b.style.visibility="visible";return}b.style.visibility="hidden";if(!el.isConnected)return;const r=el.getBoundingClientRect(),q=b.getBoundingClientRect(),gap=theme.pointerSize+8;if(!(r.width>0&&r.height>0&&r.bottom>0&&r.right>0&&r.top<innerHeight&&r.left<innerWidth))return;const coords=x=>x==="Top"?[r.left+(r.width-q.width)/2,r.top-q.height-gap]:x==="Left"?[r.left-q.width-gap,r.top+(r.height-q.height)/2]:x==="Right"?[r.right+gap,r.top+(r.height-q.height)/2]:[r.left+(r.width-q.width)/2,r.bottom+gap];const preferred=String(step.bubble?.placement||"Auto");const sides=[preferred==="Auto"?"Bottom":preferred,"Top","Right","Left","Bottom"].filter((x,i,a)=>a.indexOf(x)===i);const candidates=sides.map(side=>{let[x,y]=coords(side);if(side==="Top"||side==="Bottom")x=Math.max(margin,Math.min(x,innerWidth-q.width-margin));else y=Math.max(margin,Math.min(y,innerHeight-q.height-margin));const inside=x>=margin&&y>=margin&&x+q.width<=innerWidth-margin&&y+q.height<=innerHeight-margin;const overlap=!(x+q.width<=r.left||x>=r.right||y+q.height<=r.top||y>=r.bottom);const overflow=Math.max(0,margin-x)+Math.max(0,margin-y)+Math.max(0,x+q.width-(innerWidth-margin))+Math.max(0,y+q.height-(innerHeight-margin));return{side,x,y,inside,overlap,overflow}});let chosen=candidates.find(x=>x.inside&&!x.overlap);if(!chosen){const safe=candidates.filter(x=>!x.overlap).sort((a,z)=>a.overflow-z.overflow);chosen=safe[0]}if(!chosen||!chosen.inside){b.dataset.actualPlacement="Overlay";b.style.pointerEvents="none";pointer.style.display="none";return}b.style.pointerEvents="";b.style.left=chosen.x+"px";b.style.top=chosen.y+"px";pointer.style.display="";pointerFor(chosen.side);b.style.visibility="visible";b.dataset.actualPlacement=chosen.side};
     const down=e=>{if(e.button!==0||!e.target.closest('[data-dap-drag-handle="1"]'))return;const q=b.getBoundingClientRect();drag={id:e.pointerId,x:e.clientX,y:e.clientY,left:q.left,top:q.top};b.setPointerCapture(e.pointerId);handle.style.setProperty("cursor","grabbing","important");e.preventDefault()};const move=e=>{if(!drag||e.pointerId!==drag.id)return;const n=clamp(drag.left+e.clientX-drag.x,drag.top+e.clientY-drag.y);b.style.left=n.x+"px";b.style.top=n.y+"px"};const up=e=>{if(!drag||e.pointerId!==drag.id)return;manual=true;drag=null;handle.style.setProperty("cursor","grab","important");pointer.style.display="none";b.dataset.manualPosition="true";try{b.releasePointerCapture(e.pointerId)}catch{}};
     b.addEventListener("pointerdown",down);b.addEventListener("pointermove",move);b.addEventListener("pointerup",up);b.addEventListener("pointercancel",up);const ro=new ResizeObserver(place);ro.observe(el);ro.observe(b);addEventListener("scroll",place,true);addEventListener("resize",place);place();
-    active={bubble:b,step,element:el,cleanup:()=>{ro.disconnect();removeEventListener("scroll",place,true);removeEventListener("resize",place);b.remove();el.style.outline=previous.outline;el.style.outlineOffset=previous.outlineOffset;el.style.boxShadow=previous.boxShadow}};
+    bubbleState={bubble:b,step,element:el,stepNumber,totalSteps,cleanup:()=>{ro.disconnect();removeEventListener("scroll",place,true);removeEventListener("resize",place);b.remove();el.style.outline=previous.outline;el.style.outlineOffset=previous.outlineOffset;el.style.boxShadow=previous.boxShadow}};
     let topRect=null;
     if(b.dataset.actualPlacement==="Overlay"){
       try{
@@ -375,33 +405,87 @@
     }
     return{status:"resolved",count:1,rect:z.rect,needsTopLevel:b.dataset.actualPlacement==="Overlay",topRect};
   }
-  function reconcile(){if(!active)return;const z=resolveTarget(active.step.target);if(z.status!=="resolved"){hideBubble();return}if(z.element!==active.element){const step=active.step;const g=globalThis.__dapWebRuntime?.guide;showBubble(step,g?g.index+1:null,g?.steps.length);}}
+  function reconcile(){
+    if(!bubbleState)return;
+    const z=resolveTarget(bubbleState.step.target);
+    if(z.status!=="resolved"){hideBubble();return}
+    if(z.element!==bubbleState.element){
+      const step=bubbleState.step;
+      const stepNumber=bubbleState.stepNumber;
+      const totalSteps=bubbleState.totalSteps;
+      showBubble(step,stepNumber,totalSteps);
+    }
+  }
   function inputValue(el){return "value" in el ? String(el.value ?? "") : "";}
   function validationKind(step){return String(step?.validation?.kind??step?.validation?.Kind??"").toLowerCase();}
-  function emitAdapterEvent(type,step,extra={}){
-    chrome.runtime.sendMessage({
+  function emitAdapterEvent(type,step,armId,extra={}){
+    return chrome.runtime.sendMessage({
       type:"dap-adapter-event",
-      payload:{type,stepId:step?.id??null,armId:active?.armId??null,...extra}
-    }).catch(()=>{});
+      payload:{
+        type,
+        stepId:step?.id??null,
+        armId:armId??null,
+        documentHasFocus:document.hasFocus(),
+        targetIsActive:document.activeElement===validationState?.element,
+        ...extra
+      }
+    });
   }
 
-  // Match WebBubblePresenter validation semantics exactly. The extension is
-  // transport only: it reports the same natural browser commit events and DAP
-  // remains the owner of validation/completion state.
   function armValidationTarget(step, element, armId) {
-    if (active?.validationOnly) hideBubble();
     const kind = validationKind(step);
+    element.__dapValidationArmId = armId ?? null;
+    validationState = {step,element,armId:armId??null};
 
     if (kind === "clicked") {
       if (element.__dapValidationClickHandler)
         element.removeEventListener("click", element.__dapValidationClickHandler, true);
 
-      const clickHandler = () => {
-        emitAdapterEvent("validation-commit", step, {kind:"clicked", armId});
+      const clickHandler = event => {
+        hideBubble();
+
+        const currentArmId = element.__dapValidationArmId;
+        const tag = element.tagName?.toLowerCase();
+        const type = (element.getAttribute?.("type") || "").toLowerCase();
+        const form = element.form;
+        const defersDefault =
+          event.cancelable &&
+          ((tag === "a" && !!element.getAttribute("href")) ||
+           (tag === "button" && form && (!type || type === "submit")) ||
+           (tag === "input" && form && (type === "submit" || type === "image")));
+
+        const report = () => emitAdapterEvent(
+          "validation-commit",
+          step,
+          currentArmId,
+          {kind:"clicked",browserEvent:"click"}
+        ).catch(()=>null);
+
+        if (!defersDefault) {
+          void report();
+          return;
+        }
+
+        event.preventDefault();
+        void report().then(() => {
+          if (!element.isConnected) return;
+          if (tag === "a") {
+            const href = element.getAttribute("href");
+            if (href) location.href = href;
+            return;
+          }
+          if (form) form.requestSubmit(element);
+        });
       };
+
       element.__dapValidationClickHandler = clickHandler;
       element.addEventListener("click", clickHandler, {capture:true});
-    } else if (kind && element.__dapValidationStepId !== step.id) {
+      return;
+    }
+
+    if (!kind) return;
+
+    if (element.__dapValidationStepId !== step.id) {
       if (element.__dapValidationCommitHandler)
         element.removeEventListener(element.__dapValidationCommitEvent, element.__dapValidationCommitHandler, true);
       if (element.__dapValidationInputHandler)
@@ -424,10 +508,16 @@
         element.addEventListener("change", markChanged, {capture:true});
       }
 
-      const commit = () => {
+      const commit = event => {
         if (isTextEditor && !state.changed) return;
         state.changed = false;
-        emitAdapterEvent("validation-commit", step, {kind, armId});
+        const currentArmId = element.__dapValidationArmId;
+        void emitAdapterEvent(
+          "validation-commit",
+          step,
+          currentArmId,
+          {kind,browserEvent:event?.type||eventName}
+        ).catch(()=>{});
       };
 
       element.__dapValidationStepId = step.id;
@@ -435,8 +525,6 @@
       element.__dapValidationCommitEvent = eventName;
       element.addEventListener(eventName, commit, {capture:true});
     }
-
-    active = {step, element, armId:armId ?? null, validationOnly:true, cleanup:()=>{}};
   }
 
   const listeners = new Set();
@@ -457,7 +545,7 @@
 
   const existingRuntime = globalThis.__dapWebRuntime;
   globalThis.__dapWebRuntime = {
-    version: "0.2.0",
+    version: "0.3.0",
     resolveTarget,
     showBubble,
     hideBubble,
