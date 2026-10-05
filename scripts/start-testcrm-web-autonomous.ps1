@@ -183,13 +183,32 @@ $dap = Start-Process dotnet -ArgumentList @(
     "--","--learner-web",$GuideKey
 ) -WorkingDirectory $repoRoot -RedirectStandardOutput $dapStdout -RedirectStandardError $dapStderr -PassThru
 
-Start-Sleep -Milliseconds 300
-if ($dap.HasExited) {
+$pipeDeadline = [DateTime]::UtcNow.AddSeconds(5)
+$pipeReady = $false
+while ([DateTime]::UtcNow -lt $pipeDeadline) {
+    if ($dap.HasExited) {
+        $stderr = if (Test-Path $dapStderr) { Get-Content $dapStderr -Raw } else { "" }
+        $stdout = if (Test-Path $dapStdout) { Get-Content $dapStdout -Raw } else { "" }
+        throw "DAP Learner exited during autonomous startup. STDERR:$([Environment]::NewLine)$stderr$([Environment]::NewLine)STDOUT:$([Environment]::NewLine)$stdout"
+    }
+    if (Test-Path $dapStderr) {
+        $stderrNow = Get-Content $dapStderr -Raw
+        if ($stderrNow -match '\[DAP runtime\] Web pipe server waiting: dap-web-runtime-v1') {
+            $pipeReady = $true
+            break
+        }
+        if ($stderrNow -match '\[DAP runtime\] Web pipe accept (?:loop faulted|error):') {
+            throw "DAP Web runtime pipe server failed to start. STDERR:$([Environment]::NewLine)$stderrNow"
+        }
+    }
+    Start-Sleep -Milliseconds 50
+}
+if (-not $pipeReady) {
     $stderr = if (Test-Path $dapStderr) { Get-Content $dapStderr -Raw } else { "" }
-    $stdout = if (Test-Path $dapStdout) { Get-Content $dapStdout -Raw } else { "" }
-    throw "DAP Learner exited during autonomous startup. STDERR:$([Environment]::NewLine)$stderr$([Environment]::NewLine)STDOUT:$([Environment]::NewLine)$stdout"
+    throw "DAP Web runtime pipe server did not become ready within 5 seconds. STDERR:$([Environment]::NewLine)$stderr"
 }
 
+Write-Host "Production Runtime pipe server ready."
 Write-Host "Opening TestCRM in $Browser profile '$($browserInfo.Profile)'..."
 # Do not force --new-window. Reuse the selected profile's existing browser
 # window when one exists; otherwise Chrome/Edge creates the first window.
