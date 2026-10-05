@@ -61,9 +61,14 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             if (_commits.TryGetValue(step.Id, out var queue) && queue.Count > 0)
                 return queue.Peek();
 
-            await Task.WhenAny(
+            // Observe cancellation explicitly. Task.WhenAny by itself returns a
+            // canceled child task without throwing, which previously left this loop
+            // spinning forever after a timed probe cancellation.
+            cancellationToken.ThrowIfCancellationRequested();
+            var completed = await Task.WhenAny(
                 _signal.WaitAsync(cancellationToken),
                 Task.Delay(50, cancellationToken));
+            await completed;
         }
     }
 
