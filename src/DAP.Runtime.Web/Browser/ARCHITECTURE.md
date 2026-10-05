@@ -211,3 +211,21 @@ Bubble presentation is also required to be idempotent and visually stable. Repea
 
 These optimizations do not weaken ambiguity handling or move Guide decisions into the extension.
 
+## Verified stable-presentation baseline
+
+The production Web learner has been manually re-verified PASS 54/54 after the presentation and transport-lifecycle optimizations.
+
+Verified versions:
+- extension manifest: `0.2.4`;
+- content runtime: `0.4.3`.
+
+The accepted runtime behavior is now:
+- an unchanged Step/target keeps the same visible bubble instance;
+- placement recalculation must not toggle visibility merely because reconciliation ran again;
+- transient target/document replacement is tolerated and re-resolved deterministically;
+- a uniquely identified application tab may be retained for the active connection to avoid browser-wide rescans;
+- browser/application click semantics must execute normally before Runtime-owned presentation teardown;
+- zero-match remains NotFound/inactive, multiple matches remain Ambiguous, and no optimization may introduce guessing.
+
+This baseline is verified with the E2E Runner fully absent.
+
