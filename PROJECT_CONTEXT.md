@@ -719,3 +719,29 @@ The Runtime independently handled persisted context, target resolution, learner 
 
 This verification satisfies the Web side of the hard autonomous-Learner rule in ADR-052 for the canonical TestCRM Guide. Future Web Runner/E2E changes must preserve this behavior and must remain regression automation rather than a source of product semantics.
 
+## Autonomous Web learner baseline after responsiveness fixes
+
+The autonomous Web baseline has been re-verified after the latest production responsiveness and bubble-stability changes.
+
+The full persisted 54-Step canonical Guide completed manually with no E2E Runner active using extension manifest `0.2.4` and content runtime `0.4.3`.
+
+This confirms that the following production improvements preserve the established Guide semantics:
+- stable/idempotent bubble presentation during repeated reconciliation;
+- short grace handling for transient target loss during DOM/server replacement;
+- production-tab affinity after unique Guide-driven resolution;
+- document/message-channel replacement recovery;
+- click validation that does not disturb the target application's own click handling.
+
+The canonical Web acceptance baseline remains:
+
+```text
+Persisted Guide
+→ DAP Learner Runtime
+→ production Web adapter
+→ Native Host / Native Messaging
+→ Browser Extension
+→ target application
+```
+
+The E2E Runner remains regression automation only.
+
