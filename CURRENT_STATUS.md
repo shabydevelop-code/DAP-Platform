@@ -1006,3 +1006,7 @@ It deliberately does **not** create an E2E session, does not connect to `dap-web
 
 This is now the primary Web product-capability verification path. The learner performs the canonical Guide manually; any failure is treated as a production Runtime/adapter/persisted-Guide capability gap rather than repaired in the E2E Runner.
 
+### Runner-free Web: application-tab absence semantics
+
+The production extension now treats "no matching application tab yet" as a normal learner state instead of a transport exception. Context checks return inactive and target checks return NotFound until the persisted Guide semantics identify exactly one matching tab. Ambiguous matches still fail explicitly.
+
