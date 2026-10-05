@@ -221,7 +221,7 @@ async function productionCommandMatchesTab(tabId, command, requestId) {
 async function resolveProductionTab(command, requestId) {
   const candidates = await productionCandidateTabs();
   if (candidates.length === 0)
-    throw new Error("DAP could not find any eligible Web application tab.");
+    return null;
 
   // Never bind the product to "the only localhost tab". Derive the application
   // tab from the persisted Step semantics sent by the Runtime.
@@ -251,10 +251,7 @@ async function resolveProductionTab(command, requestId) {
     .join(", ");
 
   if (matches.length === 0)
-    throw new Error(
-      "DAP could not identify the application tab from the persisted Guide Step. " +
-      "No eligible tab matched its context/target. tabs=[" + details + "]"
-    );
+    return null;
 
   const matchedDetails = matches
     .map(tab => tab.id + ":" + (tab.url || "<no-url>"))
@@ -598,6 +595,34 @@ async function handleNativeMessage(message) {
     const originalFramePath = Array.isArray(command.framePath)
       ? command.framePath.map(locator => ({ ...locator }))
       : [];
+
+    // "No matching application tab yet" is a normal learner state, not a
+    // transport failure. The Runtime may start before the target application,
+    // or the application may be navigating between persisted contexts. Return
+    // semantic NotFound/inactive results so the learner reconciliation loop can
+    // keep waiting. Ambiguity remains a hard error and is handled above.
+    if (tabId == null) {
+      if (command.type === "hideBubble") {
+        postAdapterResponse(requestId, { ok: true, result: { status: "hidden" } }, null, null);
+        return;
+      }
+      if (command.type === "isContextActive") {
+        postAdapterResponse(requestId, { ok: true, result: { active: false } }, null, null);
+        return;
+      }
+      if (command.type === "waitForDomQuiet") {
+        postAdapterResponse(requestId, { ok: true, result: { stable: false } }, null, null);
+        return;
+      }
+
+      postAdapterResponse(
+        requestId,
+        { ok: true, result: { status: "notFound", count: 0 } },
+        null,
+        null
+      );
+      return;
+    }
 
     if (command.type === "hideBubble") {
       await hideEveryFrame(tabId, requestId);
