@@ -85,6 +85,26 @@
         sendResponse({ok:true,result:{status:raw == null ? "notFound" : "resolved",count:raw == null ? 0 : 1,value:raw}});
         return;
       }
+      if (command.type === "ensureBubble") {
+        const result = resolveTarget(command.step?.target);
+        if (result.status !== "resolved") {
+          hideBubble();
+          sendResponse({ok:true,result:{status:result.status,count:result.count}});
+          return;
+        }
+        if (active?.bubble && active.step?.id === command.step?.id && active.element === result.element) {
+          sendResponse({ok:true,result:{status:"resolved",count:1}});
+          return;
+        }
+        const shown = showBubble(command.step, command.stepNumber, command.totalSteps);
+        sendResponse({ok:true,result:{status:shown.status,count:shown.count}});
+        return;
+      }
+      if (command.type === "hideBubble") {
+        hideBubble();
+        sendResponse({ok:true,result:{status:"hidden"}});
+        return;
+      }
       if (command.type === "armValidation") {
         const result = resolveTarget(command.step?.target);
         if (result.status !== "resolved") {
