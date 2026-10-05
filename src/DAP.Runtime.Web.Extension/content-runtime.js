@@ -31,6 +31,16 @@
         sendResponse({ok:true,result:{active}});
         return;
       }
+      if (command.type === "armValidation") {
+        const result = resolveTarget(command.step?.target);
+        if (result.status !== "resolved") {
+          sendResponse({ok:true,result:{status:result.status,count:result.count}});
+          return;
+        }
+        armValidationTarget(command.step, result.element);
+        sendResponse({ok:true,result:{status:"resolved",count:1}});
+        return;
+      }
       if (command.type === "readTargetValue") {
         const result = resolveTarget(command.target);
         if (result.status !== "resolved") {
@@ -193,6 +203,11 @@
 
   // The extension reports natural browser commit events only. It deliberately
   // does not evaluate guide validation and never advances guide state.
+  function armValidationTarget(step, element) {
+    if (active?.validationOnly) hideBubble();
+    active = { step, element, validationOnly:true, cleanup:()=>{} };
+  }
+
   const edited=new WeakSet();
   document.addEventListener("click",e=>{
     if(active&&validationKind(active.step)==="clicked"&&(active.element===e.target||active.element.contains(e.target)))
