@@ -11,11 +11,8 @@ namespace DAP.Runtime.Web.Browser;
 
 /// <summary>
 /// Production Web adapter boundary for the browser extension.
-///
-/// This first slice owns only the extension event channel. Browser commands are
-/// intentionally not implemented yet: the migration remains incremental and
-/// Playwright stays the regression baseline until each adapter primitive has
-/// demonstrated parity.
+/// Guide behavior remains owned by DAP Runtime; browser access is routed through
+/// Native Messaging hosts connected to the DAP named-pipe transport.
 /// </summary>
 public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
 {
@@ -23,6 +20,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
     private static readonly TimeSpan CommandTimeout = TimeSpan.FromSeconds(5);
 
     private readonly ConcurrentDictionary<string, TaskCompletionSource<JsonElement>> _pendingResponses = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, string> _pendingErrors = new(StringComparer.Ordinal);
     private readonly Dictionary<string, Queue<WebValidationCommit>> _commits = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> _armedValidationIds = new(StringComparer.Ordinal);
     private readonly SemaphoreSlim _signal = new(0);
@@ -32,7 +30,8 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
     private readonly object _pipeGate = new();
     private readonly object _validationGate = new();
     private readonly IUiTextProvider? _texts;
-    private NamedPipeServerStream? _pipe;
+    private readonly List<NamedPipeServerStream> _pipes = new();
+    private NamedPipeServerStream? _selectedPipe;
     private readonly Task _acceptLoop;
     private TaskCompletionSource<bool>? _centeredDismissal;
     private TaskCompletionSource<bool>? _guideCompletedDismissal;
@@ -199,12 +198,17 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             }
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
-                throw new TimeoutException($"Extension adapter command '{requestId}' timed out after {CommandTimeout.TotalSeconds:0} seconds.");
+                var suffix = _pendingErrors.TryGetValue(requestId, out var lastError)
+                    ? $" Last browser-host response: {lastError}"
+                    : string.Empty;
+                throw new TimeoutException(
+                    $"Extension adapter command '{requestId}' timed out after {CommandTimeout.TotalSeconds:0} seconds.{suffix}");
             }
         }
         finally
         {
             _pendingResponses.TryRemove(requestId, out _);
+            _pendingErrors.TryRemove(requestId, out _);
         }
     }
 
@@ -216,11 +220,26 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             try
             {
                 server = new NamedPipeServerStream(
-                    PipeName, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+                    PipeName,
+                    PipeDirection.InOut,
+                    NamedPipeServerStream.MaxAllowedServerInstances,
+                    PipeTransmissionMode.Byte,
+                    PipeOptions.Asynchronous);
+
                 await server.WaitForConnectionAsync(cancellationToken);
-                lock (_pipeGate) _pipe = server;
+
+                lock (_pipeGate)
+                    _pipes.Add(server);
+
                 _connectedSignal.Release();
-                await ReadPipeLoopAsync(server, cancellationToken);
+
+                // Keep accepting additional Native Messaging hosts. Chrome,
+                // Edge, and multiple browser profiles may all have the DAP
+                // extension loaded at the same time. The first host that can
+                // successfully resolve the active application becomes the
+                // selected browser session for this DAP Runtime instance.
+                _ = Task.Run(() => ReadPipeLoopAsync(server, cancellationToken), CancellationToken.None);
+                server = null;
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -228,45 +247,103 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             }
             catch (IOException)
             {
-                // Native Messaging host may restart after an extension reload.
+                // A Native Messaging host may restart after an extension reload.
             }
             finally
             {
-                lock (_pipeGate)
-                {
-                    if (ReferenceEquals(_pipe, server)) _pipe = null;
-                }
                 server?.Dispose();
             }
         }
     }
 
-    private async Task ReadPipeLoopAsync(Stream stream, CancellationToken cancellationToken)
+    private async Task ReadPipeLoopAsync(NamedPipeServerStream stream, CancellationToken cancellationToken)
     {
-        using var reader = new StreamReader(stream, Encoding.UTF8, false, 4096, leaveOpen: true);
-        while (!cancellationToken.IsCancellationRequested)
+        try
         {
-            var line = await reader.ReadLineAsync(cancellationToken);
-            if (line is null) return;
-            if (string.IsNullOrWhiteSpace(line)) continue;
-
-            using var document = JsonDocument.Parse(line);
-            var root = document.RootElement;
-            if (!root.TryGetProperty("type", out var typeElement)) continue;
-            var type = typeElement.GetString();
-
-            if (type == "adapterResponse")
+            using var reader = new StreamReader(stream, Encoding.UTF8, false, 4096, leaveOpen: true);
+            while (!cancellationToken.IsCancellationRequested)
             {
-                var requestId = root.TryGetProperty("requestId", out var id) ? id.GetString() : null;
-                if (requestId is not null &&
-                    root.TryGetProperty("response", out var response) &&
-                    _pendingResponses.TryGetValue(requestId, out var completion))
-                    completion.TrySetResult(response.Clone());
-                continue;
+                var line = await reader.ReadLineAsync(cancellationToken);
+                if (line is null) return;
+                if (string.IsNullOrWhiteSpace(line)) continue;
+
+                using var document = JsonDocument.Parse(line);
+                var root = document.RootElement;
+                if (!root.TryGetProperty("type", out var typeElement)) continue;
+                var type = typeElement.GetString();
+
+                if (type == "adapterResponse")
+                {
+                    var requestId = root.TryGetProperty("requestId", out var id) ? id.GetString() : null;
+                    if (requestId is null ||
+                        !root.TryGetProperty("response", out var response) ||
+                        !_pendingResponses.TryGetValue(requestId, out var completion))
+                        continue;
+
+                    var responseClone = response.Clone();
+                    var ok = responseClone.TryGetProperty("ok", out var okElement) && okElement.GetBoolean();
+
+                    NamedPipeServerStream? selected;
+                    lock (_pipeGate) selected = _selectedPipe;
+
+                    if (selected is null)
+                    {
+                        if (!ok)
+                        {
+                            if (responseClone.TryGetProperty("error", out var error))
+                                _pendingErrors[requestId] = error.GetString() ?? "Extension adapter command failed.";
+                            continue;
+                        }
+
+                        lock (_pipeGate)
+                        {
+                            if (_selectedPipe is null)
+                                _selectedPipe = stream;
+                            selected = _selectedPipe;
+                        }
+
+                        if (!ReferenceEquals(selected, stream))
+                            continue;
+
+                        Console.Error.WriteLine("[DAP runtime] selected browser extension host.");
+                        completion.TrySetResult(responseClone);
+                        continue;
+                    }
+
+                    if (ReferenceEquals(selected, stream))
+                        completion.TrySetResult(responseClone);
+
+                    continue;
+                }
+
+                if (type == "adapterEvent" && root.TryGetProperty("payload", out var payload))
+                {
+                    NamedPipeServerStream? selected;
+                    lock (_pipeGate) selected = _selectedPipe;
+                    if (selected is null || ReferenceEquals(selected, stream))
+                        ProcessAdapterEvent(payload.Clone());
+                }
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+        catch (IOException)
+        {
+        }
+        finally
+        {
+            lock (_pipeGate)
+            {
+                _pipes.Remove(stream);
+                if (ReferenceEquals(_selectedPipe, stream))
+                {
+                    _selectedPipe = null;
+                    Console.Error.WriteLine("[DAP runtime] selected browser extension host disconnected.");
+                }
             }
 
-            if (type == "adapterEvent" && root.TryGetProperty("payload", out var payload))
-                ProcessAdapterEvent(payload.Clone());
+            stream.Dispose();
         }
     }
 
@@ -274,28 +351,54 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
     {
         while (true)
         {
-            NamedPipeServerStream? pipe;
-            lock (_pipeGate) pipe = _pipe;
-
-            if (pipe is { IsConnected: true })
+            NamedPipeServerStream[] targets;
+            lock (_pipeGate)
             {
-                await _pipeWriteLock.WaitAsync(cancellationToken);
-                try
-                {
-                    lock (_pipeGate) pipe = _pipe;
-                    if (pipe is not { IsConnected: true }) continue;
-                    var bytes = Encoding.UTF8.GetBytes(line + "\n");
-                    await pipe.WriteAsync(bytes, cancellationToken);
-                    await pipe.FlushAsync(cancellationToken);
-                    return;
-                }
-                finally
-                {
-                    _pipeWriteLock.Release();
-                }
+                if (_selectedPipe is { IsConnected: true })
+                    targets = new[] { _selectedPipe };
+                else
+                    targets = _pipes.Where(pipe => pipe.IsConnected).ToArray();
             }
 
-            await _connectedSignal.WaitAsync(cancellationToken);
+            if (targets.Length == 0)
+            {
+                await _connectedSignal.WaitAsync(cancellationToken);
+                continue;
+            }
+
+            var bytes = Encoding.UTF8.GetBytes(line + "\n");
+            var wroteAny = false;
+
+            await _pipeWriteLock.WaitAsync(cancellationToken);
+            try
+            {
+                foreach (var pipe in targets)
+                {
+                    try
+                    {
+                        if (!pipe.IsConnected) continue;
+                        await pipe.WriteAsync(bytes, cancellationToken);
+                        await pipe.FlushAsync(cancellationToken);
+                        wroteAny = true;
+                    }
+                    catch (IOException)
+                    {
+                        lock (_pipeGate)
+                        {
+                            _pipes.Remove(pipe);
+                            if (ReferenceEquals(_selectedPipe, pipe))
+                                _selectedPipe = null;
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                _pipeWriteLock.Release();
+            }
+
+            if (wroteAny)
+                return;
         }
     }
     public async Task<bool> IsContextActiveAsync(GuideStep step, CancellationToken cancellationToken = default)
@@ -470,8 +573,10 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
         _transportCts.Cancel();
         lock (_pipeGate)
         {
-            _pipe?.Dispose();
-            _pipe = null;
+            foreach (var pipe in _pipes.ToArray())
+                pipe.Dispose();
+            _pipes.Clear();
+            _selectedPipe = null;
         }
         foreach (var pending in _pendingResponses.Values) pending.TrySetCanceled();
         _centeredDismissal?.TrySetCanceled();
