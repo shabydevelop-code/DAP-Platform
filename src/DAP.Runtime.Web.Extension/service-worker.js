@@ -35,6 +35,12 @@ function waitForNativeResponse(nativePort, requestId, timeoutMs = 5000) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message?.type === "dap-runtime-ready") {
+    connect();
+    sendResponse({ ok: true });
+    return false;
+  }
+
   if (message?.type === "dap-frame-identified" && message.token) {
     identifiedFrames.set(message.token, {
       tabId: sender.tab?.id ?? null,
