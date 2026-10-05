@@ -605,7 +605,45 @@ internal sealed class BrowserPage
     }
 
     public async Task<BrowserFrame?> FindFrameByNameAsync(string name)
-        => (await GetFramesAsync()).FirstOrDefault(frame => string.Equals(frame.Name, name, StringComparison.Ordinal));
+    {
+        // Chrome's webNavigation frame name reflects the browsing-context name
+        // captured when the frame was created. TestCRM intentionally creates
+        // dap-content-next and then promotes that same iframe element by
+        // renaming it to dap-content. Resolve the live shell iframe element,
+        // exactly like the production extension FrameContext path, instead of
+        // trusting the stale browsing-context name.
+        var selector = name switch
+        {
+            "dap-content" => "#content-frame",
+            "dap-header" => "#header-frame",
+            _ => null
+        };
+
+        if (selector is null)
+            return (await GetFramesAsync())
+                .FirstOrDefault(frame => string.Equals(frame.Name, name, StringComparison.Ordinal));
+
+        try
+        {
+            var response = await SendAsync(new
+            {
+                type = "testResolveFrame",
+                framePath = new[]
+                {
+                    new { strategy = "css", value = selector }
+                }
+            });
+            var result = response.GetProperty("result");
+            var url = result.TryGetProperty("url", out var urlElement)
+                ? urlElement.GetString() ?? string.Empty
+                : string.Empty;
+            return new BrowserFrame(this, name) { Url = url };
+        }
+        catch (BrowserHarnessException)
+        {
+            return null;
+        }
+    }
 
     private async Task<IReadOnlyList<BrowserFrame>> GetFramesAsync()
     {
