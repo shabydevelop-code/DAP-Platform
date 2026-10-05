@@ -96,6 +96,10 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             var armId = payload.TryGetProperty("armId", out var aid) ? aid.GetString() : null;
             if (string.IsNullOrWhiteSpace(armId) || !_armedValidationIds.TryGetValue(stepId, out var expectedArmId) || !string.Equals(armId, expectedArmId, StringComparison.Ordinal)) continue;
             var kind = payload.TryGetProperty("kind", out var k) ? k.GetString() ?? "" : "";
+            var browserEvent = payload.TryGetProperty("browserEvent", out var be) ? be.GetString() : null;
+            var hasFocus = payload.TryGetProperty("documentHasFocus", out var dhf) && dhf.ValueKind == JsonValueKind.True;
+            var targetIsActive = payload.TryGetProperty("targetIsActive", out var tia) && tia.ValueKind == JsonValueKind.True;
+            Console.WriteLine($"[DAP validation event] step={stepId} kind={kind} browserEvent={browserEvent ?? "unknown"} documentHasFocus={hasFocus} targetIsActive={targetIsActive}");
             if (!_commits.TryGetValue(stepId, out var queue))
                 _commits[stepId] = queue = new Queue<WebValidationCommit>();
             queue.Enqueue(new WebValidationCommit(stepId, kind));
