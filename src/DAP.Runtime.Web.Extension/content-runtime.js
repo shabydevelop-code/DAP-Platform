@@ -286,6 +286,11 @@
   },true);
   document.addEventListener("blur",e=>{
     if(!active||active.element!==e.target||!active.step.validation||validationKind(active.step)==="clicked"||!edited.has(e.target))return;
+    // Window/document deactivation also fires blur on the focused control.
+    // That is not a field commit: when the browser regains focus the same
+    // control remains active. Match the learner semantics by committing only
+    // when focus actually moves away inside the document.
+    if(!document.hasFocus()&&document.activeElement===e.target)return;
     edited.delete(e.target);
     emitAdapterEvent("validation-commit",active.step,{kind:validationKind(active.step),value:inputValue(e.target),browserEvent:"blur",documentHasFocus:document.hasFocus(),targetIsActive:document.activeElement===e.target,relatedTargetTag:e.relatedTarget?.tagName??null});
   },true);
