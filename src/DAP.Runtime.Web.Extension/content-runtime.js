@@ -388,7 +388,9 @@
     // JavaScript state is discarded. Remove any DOM presentation by id as
     // well as the presentation owned by this content-script instance.
     const stale=document.getElementById("dap-guide-bubble");
-    document.getElementById("dap-guide-bubble-proxy")?.remove();
+    const proxy=document.getElementById("dap-guide-bubble-proxy");
+    proxy?.__dapCleanup?.();
+    proxy?.remove();
     document.getElementById("dap-guide-centered")?.remove();
     document.getElementById("dap-guide-completed")?.remove();
     if(bubbleState){
@@ -508,12 +510,6 @@
   }
 
   function showBubbleProxy(step,stepNumber,totalSteps,targetRect,presentation={}){
-    document.getElementById("dap-guide-bubble-proxy")?.remove();
-
-    // For a one-level FrameContext, re-read the actual iframe box from the
-    // top-level document at presentation time. This removes coordinate drift
-    // caused by stale frame geometry during resize/reload and keeps the proxy
-    // visually attached to full-frame targets such as the CRM header.
     if (presentation.topFrameLocator && presentation.localTargetRect) {
       try {
         const frames=createCandidates(presentation.topFrameLocator);
@@ -531,47 +527,175 @@
         }
       }catch{}
     }
+
+    const existing=document.getElementById("dap-guide-bubble-proxy");
+    if(existing?.dataset.dapStepId===step.id){
+      existing.__dapTargetRect=targetRect;
+      existing.__dapPlace?.();
+      return {status:"resolved",count:1};
+    }
+    existing?.remove();
+
     const bubble=document.createElement("div");
     bubble.id="dap-guide-bubble-proxy";
     bubble.dataset.dapStepId=step.id;
+    bubble.__dapTargetRect=targetRect;
+
     const handle=document.createElement("div");
     handle.dataset.dapDragHandle="1";
     handle.setAttribute("aria-label",presentation.dragText||"גרור להזזת הבועה");
     handle.textContent="⠿";
     handle.title=presentation.dragText||"גרור להזזת הבועה";
-    Object.assign(handle.style,{display:"block",width:"fit-content",marginLeft:"auto",marginRight:"auto",textAlign:"center",fontSize:"18px",lineHeight:"14px",opacity:".72",marginBottom:"6px",cursor:"grab",touchAction:"none"});
+    Object.assign(handle.style,{
+      display:"block",width:"fit-content",marginLeft:"auto",marginRight:"auto",
+      textAlign:"center",fontSize:"18px",lineHeight:"14px",opacity:".72",
+      marginBottom:"6px",cursor:"grab",touchAction:"none"
+    });
     bubble.appendChild(handle);
+
     const content=document.createElement("div");
     content.textContent=step.bubble?.content||"";
     content.style.cursor="default";
     bubble.appendChild(content);
+
     if(stepNumber&&totalSteps){
       const progress=document.createElement("div");
       progress.textContent=presentation.progressText||("שלב "+stepNumber+" מתוך "+totalSteps);
-      Object.assign(progress.style,{fontSize:"12px",opacity:".78",marginBottom:"5px",fontWeight:"600",cursor:"default"});
+      Object.assign(progress.style,{
+        fontSize:"12px",opacity:".78",marginBottom:"5px",
+        fontWeight:"600",cursor:"default"
+      });
       bubble.insertBefore(progress,content);
     }
-    Object.assign(bubble.style,{position:"fixed",zIndex:"2147483647",maxWidth:theme.maxWidth+"px",padding:theme.padding,background:theme.backgroundColor,color:theme.textColor,border:theme.borderWidth+"px solid "+theme.borderColor,borderRadius:theme.borderRadius+"px",boxShadow:theme.boxShadow,fontFamily:theme.fontFamily,fontSize:theme.fontSize+"px",lineHeight:String(theme.lineHeight),direction:presentation.direction||"rtl",pointerEvents:"auto",visibility:"hidden",cursor:"default",touchAction:"none",userSelect:"none"});
-    document.body.appendChild(bubble);
-    const q=bubble.getBoundingClientRect(),margin=8,gap=8;
-    const centerX=targetRect.x+targetRect.width/2;
-    const bottomY=targetRect.y+targetRect.height;
-    const left=Math.max(margin,Math.min(centerX-q.width/2,innerWidth-q.width-margin));
-    let top=bottomY+gap;
-    if(top+q.height>innerHeight-margin)top=Math.max(margin,targetRect.y-q.height-gap);
-    bubble.style.left=left+"px";
-    bubble.style.top=Math.max(margin,Math.min(top,innerHeight-q.height-margin))+"px";
-    bubble.style.visibility="visible";
 
+    const pointer=document.createElement("div");
+    pointer.dataset.dapPointer="1";
+    Object.assign(pointer.style,{position:"absolute",width:"0",height:"0",cursor:"default"});
+    bubble.appendChild(pointer);
+
+    Object.assign(bubble.style,{
+      position:"fixed",zIndex:"2147483647",maxWidth:theme.maxWidth+"px",
+      padding:theme.padding,background:theme.backgroundColor,color:theme.textColor,
+      border:theme.borderWidth+"px solid "+theme.borderColor,
+      borderRadius:theme.borderRadius+"px",boxShadow:theme.boxShadow,
+      fontFamily:theme.fontFamily,fontSize:theme.fontSize+"px",
+      lineHeight:String(theme.lineHeight),direction:presentation.direction||"rtl",
+      pointerEvents:"auto",visibility:"hidden",cursor:"default",
+      touchAction:"none",userSelect:"none"
+    });
+    document.body.appendChild(bubble);
+
+    const margin=8;
+    const gap=theme.pointerSize+8;
     let drag=null;
-    const clamp=(x,y)=>({x:Math.max(margin,Math.min(x,innerWidth-q.width-margin)),y:Math.max(margin,Math.min(y,innerHeight-q.height-margin))});
-    bubble.addEventListener("pointerdown",e=>{if(e.button!==0||!e.target.closest('[data-dap-drag-handle="1"]'))return;const r=bubble.getBoundingClientRect();drag={id:e.pointerId,x:e.clientX,y:e.clientY,left:r.left,top:r.top};bubble.setPointerCapture(e.pointerId);handle.style.cursor="grabbing";e.preventDefault();e.stopPropagation()});
-    bubble.addEventListener("pointermove",e=>{if(!drag||e.pointerId!==drag.id)return;const n=clamp(drag.left+e.clientX-drag.x,drag.top+e.clientY-drag.y);bubble.style.left=n.x+"px";bubble.style.top=n.y+"px";e.preventDefault();e.stopPropagation()});
-    const finish=e=>{if(!drag||e.pointerId!==drag.id)return;drag=null;handle.style.cursor="grab";try{bubble.releasePointerCapture(e.pointerId)}catch{}e.preventDefault();e.stopPropagation()};
+    let manuallyPositioned=false;
+
+    const clamp=(x,y)=>{
+      const q=bubble.getBoundingClientRect();
+      return {
+        x:Math.max(margin,Math.min(x,Math.max(margin,innerWidth-q.width-margin))),
+        y:Math.max(margin,Math.min(y,Math.max(margin,innerHeight-q.height-margin)))
+      };
+    };
+
+    const pointerFor=side=>{
+      const n=theme.pointerSize;
+      pointer.style.cssText=
+        "position:absolute;width:0;height:0;cursor:default;"+
+        "border-left:"+n+"px solid transparent;"+
+        "border-right:"+n+"px solid transparent;"+
+        "border-top:"+n+"px solid transparent;"+
+        "border-bottom:"+n+"px solid transparent";
+      if(side==="Bottom"){
+        pointer.style.left="50%";
+        pointer.style.top=(-2*n)+"px";
+        pointer.style.transform="translateX(-50%)";
+        pointer.style.borderBottomColor=theme.backgroundColor;
+      }else{
+        pointer.style.left="50%";
+        pointer.style.bottom=(-2*n)+"px";
+        pointer.style.transform="translateX(-50%)";
+        pointer.style.borderTopColor=theme.backgroundColor;
+      }
+    };
+
+    const place=()=>{
+      if(manuallyPositioned){
+        const q=bubble.getBoundingClientRect();
+        const next=clamp(q.left,q.top);
+        bubble.style.left=next.x+"px";
+        bubble.style.top=next.y+"px";
+        bubble.style.visibility="visible";
+        return;
+      }
+
+      const r=bubble.__dapTargetRect;
+      if(!r)return;
+      const q=bubble.getBoundingClientRect();
+      const centerX=Number(r.x||0)+Number(r.width||0)/2;
+      const belowY=Number(r.y||0)+Number(r.height||0)+gap;
+      const aboveY=Number(r.y||0)-q.height-gap;
+      const left=Math.max(margin,Math.min(centerX-q.width/2,innerWidth-q.width-margin));
+      const canPlaceBelow=belowY+q.height<=innerHeight-margin;
+      const top=canPlaceBelow
+        ? belowY
+        : Math.max(margin,aboveY);
+
+      bubble.style.left=left+"px";
+      bubble.style.top=Math.max(margin,Math.min(top,innerHeight-q.height-margin))+"px";
+      pointer.style.display="";
+      pointerFor(canPlaceBelow?"Bottom":"Top");
+      bubble.style.visibility="visible";
+      bubble.dataset.actualPlacement=canPlaceBelow?"Bottom":"Top";
+    };
+
+    bubble.__dapPlace=place;
+
+    bubble.addEventListener("pointerdown",e=>{
+      if(e.button!==0||!e.target.closest('[data-dap-drag-handle="1"]'))return;
+      const r=bubble.getBoundingClientRect();
+      drag={id:e.pointerId,x:e.clientX,y:e.clientY,left:r.left,top:r.top};
+      bubble.setPointerCapture(e.pointerId);
+      handle.style.setProperty("cursor","grabbing","important");
+      e.preventDefault();
+      e.stopPropagation();
+    });
+
+    bubble.addEventListener("pointermove",e=>{
+      if(!drag||e.pointerId!==drag.id)return;
+      const next=clamp(drag.left+e.clientX-drag.x,drag.top+e.clientY-drag.y);
+      bubble.style.left=next.x+"px";
+      bubble.style.top=next.y+"px";
+      e.preventDefault();
+      e.stopPropagation();
+    });
+
+    const finish=e=>{
+      if(!drag||e.pointerId!==drag.id)return;
+      manuallyPositioned=true;
+      drag=null;
+      handle.style.setProperty("cursor","grab","important");
+      pointer.style.display="none";
+      bubble.dataset.manualPosition="true";
+      try{bubble.releasePointerCapture(e.pointerId)}catch{}
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
     bubble.addEventListener("pointerup",finish);
     bubble.addEventListener("pointercancel",finish);
+    addEventListener("resize",place);
+    addEventListener("scroll",place,true);
+
+    bubble.__dapCleanup=()=>{
+      removeEventListener("resize",place);
+      removeEventListener("scroll",place,true);
+    };
+
+    place();
     return {status:"resolved",count:1};
   }
+
   function showBubble(step,stepNumber,totalSteps,presentation={}){
     hideBubble();const z=resolveTarget(step.target);if(z.status!=="resolved")return z;const el=z.element,root=el.ownerDocument;
     if(presentation.armId&&step?.validation)armValidationTarget(step,el,presentation.armId);
