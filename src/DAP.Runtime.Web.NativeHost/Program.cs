@@ -30,6 +30,7 @@ while (true)
                 new { requestId = request.RequestId, ok = true, guideId = request.GuideId,
                     steps = await repository.GetStepsAsync(request.GuideId) },
             "ping" => new { requestId = request?.RequestId, ok = true, type = "pong" },
+            "adapterEvent" => await ForwardAdapterEventAsync(request!, json),
             _ => new { requestId = request?.RequestId, ok = false, error = "Unsupported native request." }
         };
     }
@@ -58,4 +59,30 @@ static async Task<bool> ReadExactAsync(Stream stream, byte[] buffer)
     return true;
 }
 
-sealed record NativeRequest(string? Type, string? RequestId, string? GuideId);
+static async Task<object> ForwardAdapterEventAsync(NativeRequest request, JsonSerializerOptions json)
+{
+    // Native Messaging starts one host process per extension connection. Until
+    // DAP owns this process directly, persist adapter events in a local IPC
+    // journal so the .NET adapter can consume browser facts without moving
+    // guide policy into the extension.
+    var directory = Path.Combine(Path.GetTempPath(), "DAP", "WebAdapter");
+    Directory.CreateDirectory(directory);
+    var path = Path.Combine(directory, "events.jsonl");
+    var line = JsonSerializer.Serialize(new
+    {
+        utc = DateTimeOffset.UtcNow,
+        request.TabId,
+        request.FrameId,
+        payload = request.Payload
+    }, json);
+    await File.AppendAllTextAsync(path, line + Environment.NewLine, Encoding.UTF8);
+    return new { requestId = request.RequestId, ok = true };
+}
+
+sealed record NativeRequest(
+    string? Type,
+    string? RequestId,
+    string? GuideId,
+    int? TabId,
+    int? FrameId,
+    JsonElement? Payload);
