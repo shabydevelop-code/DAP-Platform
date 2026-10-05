@@ -168,16 +168,29 @@ Start-Process $browserInfo.Exe -ArgumentList @(
 Remove-Item Env:DAP_WEB_SESSION_ID -ErrorAction SilentlyContinue
 Remove-Item Env:DAP_E2E_MODE -ErrorAction SilentlyContinue
 
+$diagnosticRoot = Join-Path $env:TEMP ("DAP\AutonomousWeb\" + [DateTime]::Now.ToString("yyyyMMdd-HHmmss"))
+New-Item -ItemType Directory -Path $diagnosticRoot -Force | Out-Null
+$dapStdout = Join-Path $diagnosticRoot "dap.stdout.log"
+$dapStderr = Join-Path $diagnosticRoot "dap.stderr.log"
+
 Write-Host "Starting autonomous DAP Web Learner for Guide '$GuideKey'..."
 $dap = Start-Process dotnet -ArgumentList @(
     "run","--no-build",
     "--project",".\src\DAP.App\DAP.App.csproj",
     "--","--learner-web",$GuideKey
-) -WorkingDirectory $repoRoot -PassThru
+) -WorkingDirectory $repoRoot -RedirectStandardOutput $dapStdout -RedirectStandardError $dapStderr -PassThru
+
+Start-Sleep -Milliseconds 500
+if ($dap.HasExited) {
+    $stderr = if (Test-Path $dapStderr) { Get-Content $dapStderr -Raw } else { "" }
+    $stdout = if (Test-Path $dapStdout) { Get-Content $dapStdout -Raw } else { "" }
+    throw "DAP Learner exited during autonomous startup. STDERR:$([Environment]::NewLine)$stderr$([Environment]::NewLine)STDOUT:$([Environment]::NewLine)$stdout"
+}
 
 Write-Host ""
 Write-Host "Autonomous learner session started."
 Write-Host "TestCRM Web PID: $($web.Id)"
 Write-Host "TestCRM Backend PID: $($backend.Id)"
 Write-Host "DAP Learner PID: $($dap.Id)"
+Write-Host "DAP diagnostics: $diagnosticRoot"
 Write-Host "This launcher now exits. No E2E Runner remains active."
