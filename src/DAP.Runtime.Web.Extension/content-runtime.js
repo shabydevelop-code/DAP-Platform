@@ -602,10 +602,10 @@
           step,
           currentArmId,
           {kind:"clicked",browserEvent:"click"}
-        ).catch(()=>null);
+        );
 
         if (!defersDefault) {
-          void report();
+          void report().catch(()=>{});
           return;
         }
 
@@ -618,7 +618,7 @@
             return;
           }
           if (form) form.requestSubmit(element);
-        });
+        }).catch(()=>{});
       };
 
       element.__dapValidationClickHandler = clickHandler;
