@@ -1,31 +1,43 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.Net.Http.Json;
-using System.Net.WebSockets;
+using System.IO.Pipes;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace DAP.TestCRM.Web.E2E;
 
+/// <summary>
+/// Web E2E browser driver that uses the exact DAP browser-extension boundary.
+/// It does not use Playwright, CDP, Selenium, Puppeteer, or browser debugging APIs.
+/// </summary>
 internal sealed class BrowserHarness : IAsyncDisposable
 {
-    private readonly Process _process;
-    private readonly string _profileDirectory;
-    private readonly CdpConnection _cdp;
+    private const string PipeName = "dap-web-e2e-v1";
+    private static readonly TimeSpan CommandTimeout = TimeSpan.FromSeconds(5);
 
-    private BrowserHarness(Process process, string profileDirectory, CdpConnection cdp, BrowserPage page)
+    private readonly ConcurrentDictionary<string, TaskCompletionSource<JsonElement>> _pending = new(StringComparer.Ordinal);
+    private readonly List<NamedPipeServerStream> _pipes = new();
+    private readonly SemaphoreSlim _pipeWriteLock = new(1, 1);
+    private readonly SemaphoreSlim _connectedSignal = new(0);
+    private readonly CancellationTokenSource _cts = new();
+    private readonly object _pipeGate = new();
+    private NamedPipeServerStream? _selectedPipe;
+    private readonly Task _acceptLoop;
+    private readonly Task _sessionMonitor;
+    private int _disconnectedRaised;
+
+    private BrowserHarness(string sessionId)
     {
-        _process = process;
-        _profileDirectory = profileDirectory;
-        _cdp = cdp;
-        Page = page;
-        _process.EnableRaisingEvents = true;
-        _process.Exited += (_, _) => Disconnected?.Invoke(this, EventArgs.Empty);
+        SessionId = sessionId;
+        Page = new BrowserPage(this);
+        _acceptLoop = Task.Run(() => AcceptPipeLoopAsync(_cts.Token));
+        _sessionMonitor = Task.Run(() => MonitorSessionAsync(_cts.Token));
     }
 
+    public string SessionId { get; }
     public BrowserPage Page { get; }
     public event EventHandler? Disconnected;
-    public bool HasExited => _process.HasExited;
 
     public static async Task<BrowserHarness> LaunchAsync(
         string browserName,
@@ -34,84 +46,305 @@ internal sealed class BrowserHarness : IAsyncDisposable
         string initialUrl = "about:blank",
         CancellationToken cancellationToken = default)
     {
-        var executable = ResolveBrowserExecutable(browserName);
-        var profileDirectory = Path.Combine(
-            Path.GetTempPath(), "DAP", "E2E", "BrowserProfiles", Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(profileDirectory);
+        _ = debuggingPort;
+        _ = extensionDirectory;
 
-        var arguments = string.Join(" ", new[]
-        {
-            "--new-window",
-            "--start-maximized",
-            $"--remote-debugging-port={debuggingPort}",
-            $"--user-data-dir=\"{profileDirectory}\"",
-            $"--disable-extensions-except=\"{extensionDirectory}\"",
-            $"--load-extension=\"{extensionDirectory}\"",
-            "--no-first-run",
-            "--no-default-browser-check",
-            initialUrl
-        });
+        if (string.Equals(initialUrl, "about:blank", StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException("Extension-native Web E2E requires an application URL at browser launch.", nameof(initialUrl));
 
-        var process = Process.Start(new ProcessStartInfo
-        {
-            FileName = executable,
-            Arguments = arguments,
-            UseShellExecute = false,
-            CreateNoWindow = false
-        }) ?? throw new InvalidOperationException($"Could not launch browser '{browserName}'.");
-
+        var harness = new BrowserHarness(Guid.NewGuid().ToString("N"));
         try
         {
-            using var http = new HttpClient();
-            var deadline = DateTime.UtcNow.AddSeconds(10);
-            string? webSocketUrl = null;
+            var executable = ResolveBrowserExecutable(browserName);
+            var sessionUrl = AddSession(initialUrl, harness.SessionId);
 
-            while (DateTime.UtcNow < deadline && webSocketUrl is null)
+            _ = Process.Start(new ProcessStartInfo
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                if (process.HasExited)
-                    throw new InvalidOperationException($"Browser '{browserName}' exited before CDP became ready.");
+                FileName = executable,
+                Arguments = $"--new-window \"{sessionUrl}\"",
+                UseShellExecute = false,
+                CreateNoWindow = false
+            }) ?? throw new InvalidOperationException($"Could not launch browser '{browserName}'.");
 
-                try
-                {
-                    var targets = await http.GetFromJsonAsync<List<CdpTarget>>(
-                        $"http://127.0.0.1:{debuggingPort}/json/list", cancellationToken);
-                    webSocketUrl = targets?
-                        .FirstOrDefault(t => t.Type == "page" && !t.Url.StartsWith("chrome-extension://", StringComparison.OrdinalIgnoreCase))
-                        ?.WebSocketDebuggerUrl;
-                }
-                catch (HttpRequestException) { }
-                catch (JsonException) { }
-
-                if (webSocketUrl is null)
-                    await Task.Delay(100, cancellationToken);
+            using var readyCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            readyCts.CancelAfter(CommandTimeout);
+            try
+            {
+                await harness.SendCommandAsync(new { type = "testPing" }, readyCts.Token);
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                throw new TimeoutException(
+                    "DAP browser extension did not connect to the Web E2E driver within 5 seconds. " +
+                    "Ensure DAP Web Runtime is installed/reloaded in the selected Chrome/Edge profile.");
             }
 
-            if (webSocketUrl is null)
-                throw new TimeoutException("Browser CDP page endpoint did not become ready within 10 seconds.");
-
-            var cdp = await CdpConnection.ConnectAsync(webSocketUrl, cancellationToken);
-            await cdp.SendAsync("Page.enable", null, cancellationToken);
-            await cdp.SendAsync("Runtime.enable", null, cancellationToken);
-            await cdp.SendAsync("Network.enable", null, cancellationToken);
-
-            var page = new BrowserPage(cdp);
-            return new BrowserHarness(process, profileDirectory, cdp, page);
+            return harness;
         }
         catch
         {
-            TryKill(process);
-            TryDeleteDirectory(profileDirectory);
+            await harness.DisposeAsync();
             throw;
+        }
+    }
+
+    internal async Task<JsonElement> SendCommandAsync(object command, CancellationToken cancellationToken = default)
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(CommandTimeout);
+        var token = timeout.Token;
+        var requestId = Guid.NewGuid().ToString("N");
+        var completion = new TaskCompletionSource<JsonElement>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _pending[requestId] = completion;
+
+        try
+        {
+            var line = JsonSerializer.Serialize(new
+            {
+                type = "testDriverCommand",
+                requestId,
+                sessionId = SessionId,
+                command
+            }, BrowserPage.JsonOptions);
+
+            await WritePipeLineAsync(line, token);
+            var response = await completion.Task.WaitAsync(token);
+            if (!response.TryGetProperty("ok", out var ok) || !ok.GetBoolean())
+                throw new BrowserHarnessException(
+                    response.TryGetProperty("error", out var error)
+                        ? error.GetString() ?? "Extension test-driver command failed."
+                        : "Extension test-driver command failed.");
+            return response;
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new TimeoutException(
+                $"Extension test-driver command '{requestId}' timed out after {CommandTimeout.TotalSeconds:0} seconds.");
+        }
+        finally
+        {
+            _pending.TryRemove(requestId, out _);
+        }
+    }
+
+    private async Task AcceptPipeLoopAsync(CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            NamedPipeServerStream? server = null;
+            try
+            {
+                server = new NamedPipeServerStream(
+                    PipeName,
+                    PipeDirection.InOut,
+                    NamedPipeServerStream.MaxAllowedServerInstances,
+                    PipeTransmissionMode.Byte,
+                    PipeOptions.Asynchronous);
+                await server.WaitForConnectionAsync(cancellationToken);
+
+                lock (_pipeGate)
+                    _pipes.Add(server);
+                _connectedSignal.Release();
+
+                _ = Task.Run(() => ReadPipeLoopAsync(server, cancellationToken), CancellationToken.None);
+                server = null;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (IOException)
+            {
+            }
+            finally
+            {
+                server?.Dispose();
+            }
+        }
+    }
+
+    private async Task ReadPipeLoopAsync(NamedPipeServerStream stream, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var reader = new StreamReader(stream, Encoding.UTF8, false, 4096, leaveOpen: true);
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                var line = await reader.ReadLineAsync(cancellationToken);
+                if (line is null) return;
+                if (string.IsNullOrWhiteSpace(line)) continue;
+
+                using var document = JsonDocument.Parse(line);
+                var root = document.RootElement;
+                if (!root.TryGetProperty("type", out var typeElement) ||
+                    typeElement.GetString() != "testDriverResponse")
+                    continue;
+
+                var requestId = root.TryGetProperty("requestId", out var id) ? id.GetString() : null;
+                if (requestId is null ||
+                    !root.TryGetProperty("response", out var response) ||
+                    !_pending.TryGetValue(requestId, out var completion))
+                    continue;
+
+                var clone = response.Clone();
+                var ok = clone.TryGetProperty("ok", out var okElement) && okElement.GetBoolean();
+
+                NamedPipeServerStream? selected;
+                lock (_pipeGate) selected = _selectedPipe;
+
+                if (selected is null)
+                {
+                    if (!ok) continue;
+                    lock (_pipeGate)
+                    {
+                        _selectedPipe ??= stream;
+                        selected = _selectedPipe;
+                    }
+                    if (!ReferenceEquals(selected, stream)) continue;
+                }
+                else if (!ReferenceEquals(selected, stream))
+                {
+                    continue;
+                }
+
+                completion.TrySetResult(clone);
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+        catch (IOException)
+        {
+        }
+        finally
+        {
+            lock (_pipeGate)
+            {
+                _pipes.Remove(stream);
+                if (ReferenceEquals(_selectedPipe, stream))
+                    _selectedPipe = null;
+            }
+            stream.Dispose();
+        }
+    }
+
+    private async Task WritePipeLineAsync(string line, CancellationToken cancellationToken)
+    {
+        while (true)
+        {
+            NamedPipeServerStream[] targets;
+            lock (_pipeGate)
+            {
+                if (_selectedPipe is { IsConnected: true })
+                    targets = new[] { _selectedPipe };
+                else
+                    targets = _pipes.Where(pipe => pipe.IsConnected).ToArray();
+            }
+
+            if (targets.Length == 0)
+            {
+                await _connectedSignal.WaitAsync(cancellationToken);
+                continue;
+            }
+
+            var bytes = Encoding.UTF8.GetBytes(line + "\n");
+            var wrote = false;
+            await _pipeWriteLock.WaitAsync(cancellationToken);
+            try
+            {
+                foreach (var pipe in targets)
+                {
+                    try
+                    {
+                        if (!pipe.IsConnected) continue;
+                        await pipe.WriteAsync(bytes, cancellationToken);
+                        await pipe.FlushAsync(cancellationToken);
+                        wrote = true;
+                    }
+                    catch (IOException)
+                    {
+                        lock (_pipeGate)
+                        {
+                            _pipes.Remove(pipe);
+                            if (ReferenceEquals(_selectedPipe, pipe))
+                                _selectedPipe = null;
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                _pipeWriteLock.Release();
+            }
+
+            if (wrote) return;
+        }
+    }
+
+    private async Task MonitorSessionAsync(CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            try
+            {
+                await Task.Delay(500, cancellationToken);
+                if (_selectedPipe is null) continue;
+                await SendCommandAsync(new { type = "testPing" }, cancellationToken);
+            }
+            catch (BrowserHarnessException)
+            {
+                if (Interlocked.Exchange(ref _disconnectedRaised, 1) == 0)
+                    Disconnected?.Invoke(this, EventArgs.Empty);
+                return;
+            }
+            catch (TimeoutException)
+            {
+                if (Interlocked.Exchange(ref _disconnectedRaised, 1) == 0)
+                    Disconnected?.Invoke(this, EventArgs.Empty);
+                return;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
         }
     }
 
     public async ValueTask DisposeAsync()
     {
-        await _cdp.DisposeAsync();
-        TryKill(_process);
-        _process.Dispose();
-        TryDeleteDirectory(_profileDirectory);
+        if (!_cts.IsCancellationRequested)
+        {
+            try { await SendCommandAsync(new { type = "testCloseTab" }, CancellationToken.None); }
+            catch { }
+        }
+
+        _cts.Cancel();
+        lock (_pipeGate)
+        {
+            foreach (var pipe in _pipes.ToArray())
+                pipe.Dispose();
+            _pipes.Clear();
+            _selectedPipe = null;
+        }
+
+        foreach (var pending in _pending.Values)
+            pending.TrySetCanceled();
+
+        try { await _acceptLoop; } catch { }
+        try { await _sessionMonitor; } catch { }
+
+        _pipeWriteLock.Dispose();
+        _connectedSignal.Dispose();
+        _cts.Dispose();
+    }
+
+    private static string AddSession(string url, string sessionId)
+    {
+        var builder = new UriBuilder(url);
+        var query = builder.Query.TrimStart('?');
+        var addition = "dap-e2e-session=" + Uri.EscapeDataString(sessionId);
+        builder.Query = string.IsNullOrEmpty(query) ? addition : query + "&" + addition;
+        return builder.Uri.ToString();
     }
 
     private static string ResolveBrowserExecutable(string browserName)
@@ -138,9 +371,9 @@ internal sealed class BrowserHarness : IAsyncDisposable
 
         IEnumerable<string> ChromiumCandidates()
         {
+            var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             var pf = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
             var pfx86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
-            var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             yield return Path.Combine(local, "Chromium", "Application", "chrome.exe");
             yield return Path.Combine(pf, "Chromium", "Application", "chrome.exe");
             yield return Path.Combine(pfx86, "Chromium", "Application", "chrome.exe");
@@ -156,198 +389,21 @@ internal sealed class BrowserHarness : IAsyncDisposable
         };
 
         return candidates.FirstOrDefault(File.Exists)
-            ?? throw new FileNotFoundException(
-                $"Could not find an installed executable for DAP_E2E_BROWSER='{browserName}'.");
+            ?? throw new FileNotFoundException($"Could not find installed browser '{browserName}'.");
     }
-
-    private static void TryKill(Process process)
-    {
-        try
-        {
-            if (!process.HasExited)
-            {
-                process.Kill(entireProcessTree: true);
-                process.WaitForExit(5000);
-            }
-        }
-        catch { }
-    }
-
-    private static void TryDeleteDirectory(string path)
-    {
-        try
-        {
-            if (Directory.Exists(path))
-                Directory.Delete(path, recursive: true);
-        }
-        catch { }
-    }
-
-    private sealed record CdpTarget(
-        [property: System.Text.Json.Serialization.JsonPropertyName("type")] string Type,
-        [property: System.Text.Json.Serialization.JsonPropertyName("url")] string Url,
-        [property: System.Text.Json.Serialization.JsonPropertyName("webSocketDebuggerUrl")] string WebSocketDebuggerUrl);
 }
 
 internal sealed class BrowserPage
 {
-    private readonly CdpConnection _cdp;
-    private readonly List<string> _initScripts = new();
-    private readonly Dictionary<string, BrowserFrame> _knownFrames = new(StringComparer.Ordinal);
+    private readonly BrowserHarness _driver;
+    private string? _e2eMode;
     private TimeSpan _defaultTimeout = TimeSpan.FromSeconds(5);
 
-    public BrowserPage(CdpConnection cdp)
+    public BrowserPage(BrowserHarness driver)
     {
-        _cdp = cdp;
-        MainFrame = new BrowserFrame(this, null, "");
-    }
-
-    public BrowserFrame MainFrame { get; }
-    public BrowserKeyboard Keyboard => new(this);
-    public BrowserMouse Mouse => new(this);
-    public BrowserViewport ViewportSize => GetViewportAsync().GetAwaiter().GetResult();
-    public IReadOnlyList<BrowserFrame> Frames
-    {
-        get
-        {
-            RefreshKnownFramesAsync().GetAwaiter().GetResult();
-            return new[] { MainFrame }.Concat(_knownFrames.Values).ToArray();
-        }
-    }
-
-    internal BrowserFrame ActiveFrame { get; set; } = null!;
-
-    public void SetDefaultTimeout(int milliseconds) => _defaultTimeout = TimeSpan.FromMilliseconds(milliseconds);
-    internal TimeSpan DefaultTimeout => _defaultTimeout;
-
-    public BrowserLocator Locator(string selector) => MainFrame.Locator(selector);
-
-    public async Task AddInitScriptAsync(string script)
-    {
-        _initScripts.Add(script);
-        await _cdp.SendAsync("Page.addScriptToEvaluateOnNewDocument", new { source = script });
-    }
-
-    public Task WaitForTimeoutAsync(int milliseconds) => Task.Delay(milliseconds);
-
-    public async Task SetExtraHttpHeadersAsync(Dictionary<string, string> headers)
-        => await _cdp.SendAsync("Network.setExtraHTTPHeaders", new { headers });
-
-    public async Task GotoAsync(string url)
-    {
-        await _cdp.SendAsync("Page.navigate", new { url });
-        await WaitForAsync(
-            "document.readyState === 'interactive' || document.readyState === 'complete'",
-            _defaultTimeout);
-        foreach (var script in _initScripts)
-            await EvaluateAsync<object?>($"() => {{ {script} }}");
-        await RefreshKnownFramesAsync();
-    }
-
-    public Task<T> EvaluateAsync<T>(string script) => MainFrame.EvaluateAsync<T>(script);
-
-    public async Task<BrowserFrame?> FindFrameByNameAsync(string name)
-    {
-        await RefreshKnownFramesAsync();
-        return _knownFrames.TryGetValue(name, out var frame) ? frame : null;
-    }
-
-    internal async Task<string> EvaluateRawAsync(string expression)
-    {
-        var result = await _cdp.SendAsync("Runtime.evaluate", new
-        {
-            expression,
-            awaitPromise = true,
-            returnByValue = true,
-            userGesture = true
-        });
-
-        if (result.TryGetProperty("exceptionDetails", out var exception))
-            throw new BrowserHarnessException(exception.ToString());
-
-        var value = result.GetProperty("result");
-        if (!value.TryGetProperty("value", out var actual))
-            return "null";
-        return actual.GetRawText();
-    }
-
-    internal async Task<T> EvaluateExpressionAsync<T>(string expression)
-    {
-        var raw = await EvaluateRawAsync(expression);
-        if (typeof(T) == typeof(object))
-            return default!;
-        return JsonSerializer.Deserialize<T>(raw, JsonOptions) !;
-    }
-
-    internal async Task WaitForAsync(string conditionExpression, TimeSpan timeout)
-    {
-        var deadline = DateTime.UtcNow + timeout;
-        Exception? last = null;
-        while (DateTime.UtcNow < deadline)
-        {
-            try
-            {
-                if (await EvaluateExpressionAsync<bool>($"Boolean({conditionExpression})"))
-                    return;
-            }
-            catch (Exception ex) { last = ex; }
-            await Task.Delay(100);
-        }
-        throw new TimeoutException($"Browser condition timed out after {timeout.TotalSeconds:0.###} seconds. {last?.Message}");
-    }
-
-    internal async Task DispatchMouseMoveAsync(double x, double y)
-        => await _cdp.SendAsync("Input.dispatchMouseEvent", new { type = "mouseMoved", x, y });
-
-    internal async Task DispatchClickAsync(double x, double y)
-    {
-        await _cdp.SendAsync("Input.dispatchMouseEvent", new
-        {
-            type = "mouseMoved", x, y
-        });
-        await _cdp.SendAsync("Input.dispatchMouseEvent", new
-        {
-            type = "mousePressed", x, y, button = "left", clickCount = 1
-        });
-        await _cdp.SendAsync("Input.dispatchMouseEvent", new
-        {
-            type = "mouseReleased", x, y, button = "left", clickCount = 1
-        });
-    }
-
-    internal async Task DispatchWheelAsync(double x, double y, double deltaX, double deltaY)
-        => await _cdp.SendAsync("Input.dispatchMouseEvent", new
-        {
-            type = "mouseWheel", x, y, deltaX, deltaY
-        });
-
-    internal async Task<BrowserViewport> GetViewportAsync()
-        => await EvaluateAsync<BrowserViewport>("() => ({ Width: innerWidth, Height: innerHeight })");
-
-    private async Task RefreshKnownFramesAsync()
-    {
-        BrowserFrameInfo[] frames;
-        try
-        {
-            frames = await EvaluateAsync<BrowserFrameInfo[]>(
-                @"() => Array.from(document.querySelectorAll('iframe,frame')).map((f,i)=>({
-                    Name:f.getAttribute('name')||f.id||('frame-'+i),
-                    Selector:f.id ? '#'+CSS.escape(f.id) : (f.getAttribute('name') ? 'iframe[name='+JSON.stringify(f.getAttribute('name'))+']' : 'iframe:nth-of-type('+(i+1)+')'),
-                    Url:(()=>{try{return f.contentWindow.location.href}catch{return f.src||''}})()
-                }))");
-        }
-        catch
-        {
-            return;
-        }
-
-        foreach (var info in frames)
-        {
-            if (!_knownFrames.TryGetValue(info.Name, out var frame))
-                _knownFrames[info.Name] = frame = new BrowserFrame(this, info.Selector, info.Name);
-            frame.Url = info.Url ?? string.Empty;
-            frame.IsDetached = false;
-        }
+        _driver = driver;
+        MainFrame = new BrowserFrame(this, "");
+        ActiveFrame = MainFrame;
     }
 
     internal static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
@@ -355,144 +411,227 @@ internal sealed class BrowserPage
         PropertyNameCaseInsensitive = true
     };
 
-    private sealed record BrowserFrameInfo(string Name, string Selector, string? Url);
+    public BrowserFrame MainFrame { get; }
+    public BrowserKeyboard Keyboard => new(this);
+    public BrowserMouse Mouse => new(this);
+    internal BrowserFrame ActiveFrame { get; set; }
+
+    public BrowserViewport ViewportSize
+        => GetViewportAsync().GetAwaiter().GetResult();
+
+    public IReadOnlyList<BrowserFrame> Frames
+        => GetFramesAsync().GetAwaiter().GetResult();
+
+    public void SetDefaultTimeout(int milliseconds)
+        => _defaultTimeout = TimeSpan.FromMilliseconds(milliseconds);
+
+    internal TimeSpan DefaultTimeout => _defaultTimeout;
+
+    public BrowserLocator Locator(string selector) => MainFrame.Locator(selector);
+
+    public Task SetExtraHttpHeadersAsync(Dictionary<string, string> headers)
+    {
+        _ = headers;
+        return Task.CompletedTask;
+    }
+
+    public async Task AddInitScriptAsync(string script)
+    {
+        var match = Regex.Match(script, @"localStorage\.setItem\('dap-e2e-mode',\s*'(?<mode>[^']+)'\)");
+        if (match.Success)
+            _e2eMode = match.Groups["mode"].Value;
+
+        if (_e2eMode is not null)
+        {
+            await SendAsync(new
+            {
+                type = "testSetLocalStorage",
+                frameName = "",
+                key = "dap-e2e-mode",
+                value = _e2eMode,
+                datasetKey = "dapE2eMode"
+            });
+        }
+    }
+
+    public async Task GotoAsync(string url)
+    {
+        await SendAsync(new { type = "testNavigate", url });
+        await WaitForTimeoutAsync(100);
+        if (_e2eMode is not null)
+        {
+            for (var i = 0; i < 50; i++)
+            {
+                try
+                {
+                    await SendAsync(new
+                    {
+                        type = "testSetLocalStorage",
+                        frameName = "",
+                        key = "dap-e2e-mode",
+                        value = _e2eMode,
+                        datasetKey = "dapE2eMode"
+                    });
+                    break;
+                }
+                catch (BrowserHarnessException)
+                {
+                    await WaitForTimeoutAsync(100);
+                }
+            }
+        }
+    }
+
+    public Task WaitForTimeoutAsync(int milliseconds) => Task.Delay(milliseconds);
+
+    public async Task<T> EvaluateAsync<T>(string script)
+    {
+        if (!script.Contains("screenX", StringComparison.Ordinal))
+            throw new NotSupportedException("Only browser-window metrics are exposed through the extension-native E2E API.");
+
+        var response = await SendAsync(new { type = "testWindowMetrics", frameName = "" });
+        return response.GetProperty("result").Deserialize<T>(JsonOptions)!;
+    }
+
+    public async Task<BrowserFrame?> FindFrameByNameAsync(string name)
+        => (await GetFramesAsync()).FirstOrDefault(frame => string.Equals(frame.Name, name, StringComparison.Ordinal));
+
+    private async Task<IReadOnlyList<BrowserFrame>> GetFramesAsync()
+    {
+        var response = await SendAsync(new { type = "testGetFrames" });
+        var frames = response.GetProperty("result").GetProperty("frames")
+            .Deserialize<List<FrameInfo>>(JsonOptions) ?? new();
+        return frames.Select(info => new BrowserFrame(this, info.Name) { Url = info.Url }).ToArray();
+    }
+
+    internal async Task<JsonElement> SendAsync(object command, CancellationToken cancellationToken = default)
+        => await _driver.SendCommandAsync(command, cancellationToken);
+
+    internal async Task<BrowserViewport> GetViewportAsync()
+    {
+        var response = await SendAsync(new { type = "testWindowMetrics", frameName = "" });
+        var r = response.GetProperty("result");
+        return new BrowserViewport(
+            r.GetProperty("innerWidth").GetDouble(),
+            r.GetProperty("innerHeight").GetDouble());
+    }
+
+    private sealed record FrameInfo(string Name, string Url);
 }
 
 internal sealed class BrowserFrame
 {
     private readonly BrowserPage _page;
-    private readonly string? _frameSelector;
 
-    public BrowserFrame(BrowserPage page, string? frameSelector, string name)
+    public BrowserFrame(BrowserPage page, string name)
     {
         _page = page;
-        _frameSelector = frameSelector;
         Name = name;
-        _page.ActiveFrame ??= this;
     }
 
     public string Name { get; }
     public string Url { get; internal set; } = string.Empty;
-    public bool IsDetached { get; internal set; }
+    public bool IsDetached => false;
 
-    internal string DocumentExpression => _frameSelector is null
-        ? "document"
-        : $"document.querySelector({Js(_frameSelector)})?.contentDocument";
+    public BrowserLocator Locator(string selector) => new(this, new[] { new LocatorPart(selector, null) });
 
-    internal string WindowExpression => _frameSelector is null
-        ? "window"
-        : $"document.querySelector({Js(_frameSelector)})?.contentWindow";
-
-    public BrowserLocator Locator(string selector) => new(this, selector);
+    public async Task RefreshUrlAsync()
+    {
+        var frame = await _page.FindFrameByNameAsync(Name);
+        Url = frame?.Url ?? string.Empty;
+    }
 
     public async Task<T> EvaluateAsync<T>(string script)
     {
-        var normalized = script.Trim();
-        var expression = _frameSelector is null
-            ? $"({normalized})()"
-            : $"(()=>{{const __w={WindowExpression}; if(!__w) throw new Error('Frame unavailable'); return __w.eval({Js("(")} + {Js(normalized)} + {Js(")()")});}})()";
-        return await _page.EvaluateExpressionAsync<T>(expression);
+        if (!script.Contains("performance.timeOrigin", StringComparison.Ordinal))
+            throw new NotSupportedException("Unsupported frame evaluation in extension-native E2E.");
+
+        var response = await _page.SendAsync(new { type = "testDocumentTimeOrigin", frameName = Name });
+        return response.GetProperty("result").GetProperty("value").Deserialize<T>(BrowserPage.JsonOptions)!;
     }
 
     public async Task EvaluateAsync(string script)
     {
-        var normalized = script.Trim();
-        var expression = _frameSelector is null
-            ? $"({normalized})()"
-            : $"(()=>{{const __w={WindowExpression}; if(!__w) throw new Error('Frame unavailable'); return __w.eval({Js("(")} + {Js(normalized)} + {Js(")()")});}})()";
-        await _page.EvaluateRawAsync(expression);
-    }
+        if (!script.Contains("location.reload", StringComparison.Ordinal))
+            throw new NotSupportedException("Unsupported frame evaluation in extension-native E2E.");
 
-    public async Task RefreshUrlAsync()
-    {
-        Url = await _page.EvaluateExpressionAsync<string>(
-            $"(()=>{{const w={WindowExpression}; return w ? w.location.href : '';}})()");
+        await _page.SendAsync(new { type = "testReload", frameName = Name });
     }
 
     internal BrowserPage Page => _page;
-    internal static string Js(string value) => JsonSerializer.Serialize(value);
 }
+
+internal sealed record LocatorPart(string Selector, int? Index);
 
 internal sealed class BrowserLocator
 {
     private readonly BrowserFrame _frame;
-    private readonly string _selector;
-    private readonly int? _index;
-    private readonly BrowserLocator? _parent;
+    private readonly IReadOnlyList<LocatorPart> _path;
 
-    public BrowserLocator(BrowserFrame frame, string selector, int? index = null, BrowserLocator? parent = null)
+    public BrowserLocator(BrowserFrame frame, IReadOnlyList<LocatorPart> path)
     {
         _frame = frame;
-        _selector = selector;
-        _index = index;
-        _parent = parent;
+        _path = path;
     }
 
-    public BrowserLocator First => new(_frame, _selector, 0, _parent);
-    public BrowserLocator Nth(int index) => new(_frame, _selector, index, _parent);
-    public BrowserLocator Locator(string selector) => new(_frame, selector, null, this);
+    public BrowserLocator First
+        => WithFinalIndex(0);
 
-    private string ElementsExpression
-    {
-        get
-        {
-            var root = _parent is null
-                ? _frame.DocumentExpression
-                : $"({ _parent.ElementExpression })";
-            var selector = _selector;
-            var text = ExtractHasText(ref selector);
-            var baseExpr = $"Array.from(({root})?.querySelectorAll({BrowserFrame.Js(selector)})||[])";
-            if (text is not null)
-                baseExpr += $".filter(e=>(e.textContent||'').includes({BrowserFrame.Js(text)}))";
-            return baseExpr;
-        }
-    }
+    public BrowserLocator Nth(int index)
+        => WithFinalIndex(index);
 
-    private string ElementExpression => _index is int i
-        ? $"({ElementsExpression})[{i}]"
-        : $"({ElementsExpression})[0]";
+    public BrowserLocator Locator(string selector)
+        => new(_frame, _path.Concat(new[] { new LocatorPart(selector, null) }).ToArray());
 
     public async Task<int> CountAsync()
-        => await _frame.Page.EvaluateExpressionAsync<int>($"({ElementsExpression}).length");
+    {
+        var result = await OpAsync("count");
+        return result.GetProperty("count").GetInt32();
+    }
 
     public async Task<string?> GetAttributeAsync(string name)
-        => await _frame.Page.EvaluateExpressionAsync<string?>(
-            $"(()=>{{const e={ElementExpression}; return e ? e.getAttribute({BrowserFrame.Js(name)}) : null;}})()");
+    {
+        var result = await OpAsync("attribute", new { name });
+        return ReadOptionalString(result);
+    }
 
     public async Task<string?> TextContentAsync()
-        => await _frame.Page.EvaluateExpressionAsync<string?>(
-            $"(()=>{{const e={ElementExpression}; return e ? e.textContent : null;}})()");
+    {
+        var result = await OpAsync("text");
+        return ReadOptionalString(result);
+    }
 
     public async Task<string> InputValueAsync()
-        => await _frame.Page.EvaluateExpressionAsync<string>(
-            $"(()=>{{const e={ElementExpression}; return e && 'value' in e ? String(e.value??'') : '';}})()");
+    {
+        var result = await OpAsync("inputValue");
+        return ReadOptionalString(result) ?? string.Empty;
+    }
 
     public async Task<bool> IsVisibleAsync()
-        => await _frame.Page.EvaluateExpressionAsync<bool>(
-            $"(()=>{{const e={ElementExpression}; if(!e) return false; const r=e.getBoundingClientRect(); const w=e.ownerDocument.defaultView; const s=w.getComputedStyle(e); return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none';}})()");
+    {
+        var result = await OpAsync("visible");
+        return ReadBool(result);
+    }
 
     public async Task<bool> IsDisabledAsync()
-        => await _frame.Page.EvaluateExpressionAsync<bool>(
-            $"(()=>{{const e={ElementExpression}; return !!e && (e.disabled===true || e.getAttribute?.('aria-disabled')==='true');}})()");
+    {
+        var result = await OpAsync("disabled");
+        return ReadBool(result);
+    }
 
     public async Task ScrollIntoViewIfNeededAsync()
-        => await _frame.Page.EvaluateRawAsync(
-            $"(()=>{{const e={ElementExpression}; if(!e) return null; const r=e.getBoundingClientRect(); const w=e.ownerDocument.defaultView; if(!(r.top>=0&&r.left>=0&&r.bottom<=w.innerHeight&&r.right<=w.innerWidth)) e.scrollIntoView({{block:'center',inline:'nearest'}}); return null;}})()");
+    {
+        _frame.Page.ActiveFrame = _frame;
+        await OpAsync("scrollIntoView");
+    }
 
     public async Task<BrowserBox?> BoundingBoxAsync()
     {
-        var local = await _frame.Page.EvaluateExpressionAsync<BrowserBox?>(
-            $"(()=>{{const e={ElementExpression}; if(!e) return null; const r=e.getBoundingClientRect(); return {{X:r.x,Y:r.y,Width:r.width,Height:r.height}};}})()");
-        if (local is null || _frame.Name.Length == 0)
-            return local;
-
-        var frameBox = await _frame.Page.MainFrame.Locator(
-            _frame.Name == "dap-header" ? "iframe[name='dap-header']" :
-            _frame.Name == "dap-content" ? "#content-frame" :
-            $"iframe[name='{EscapeCssAttribute(_frame.Name)}']").BoundingBoxAsync();
-        return frameBox is null
-            ? local
-            : local with { X = local.X + frameBox.X, Y = local.Y + frameBox.Y };
+        _frame.Page.ActiveFrame = _frame;
+        var result = await OpAsync("box");
+        if (!result.TryGetProperty("box", out var box))
+            return null;
+        return box.Deserialize<BrowserBox>(BrowserPage.JsonOptions);
     }
 
     public async Task WaitForAsync(BrowserWaitOptions? options = null)
@@ -500,6 +639,7 @@ internal sealed class BrowserLocator
         options ??= new BrowserWaitOptions();
         var timeout = TimeSpan.FromMilliseconds(options.Timeout ?? _frame.Page.DefaultTimeout.TotalMilliseconds);
         var deadline = DateTime.UtcNow + timeout;
+
         while (DateTime.UtcNow < deadline)
         {
             var count = await CountAsync();
@@ -514,63 +654,82 @@ internal sealed class BrowserLocator
             if (satisfied) return;
             await Task.Delay(100);
         }
-        throw new TimeoutException($"Locator '{_selector}' did not reach state {options.State}.");
+
+        throw new TimeoutException($"Extension locator did not reach state {options.State}.");
     }
 
     public async Task ClickAsync()
     {
         _frame.Page.ActiveFrame = _frame;
-        await ScrollIntoViewIfNeededAsync();
-        var box = await BoundingBoxAsync()
-            ?? throw new BrowserHarnessException("Target has no bounding box.");
-        await _frame.Page.DispatchClickAsync(
-            box.X + box.Width / 2,
-            box.Y + box.Height / 2);
+        await OpAsync("click");
     }
 
     public async Task HoverAsync(BrowserHoverOptions? options = null)
     {
-        var box = await BoundingBoxAsync() ?? throw new BrowserHarnessException("Target has no bounding box.");
-        var x = box.X + (options?.Position?.X ?? box.Width / 2);
-        var y = box.Y + (options?.Position?.Y ?? box.Height / 2);
-        await _frame.Page.DispatchMouseMoveAsync(x, y);
+        _frame.Page.ActiveFrame = _frame;
+        await OpAsync("hover", new
+        {
+            localX = options?.Position?.X,
+            localY = options?.Position?.Y
+        });
     }
 
     public async Task SelectOptionAsync(string value)
     {
         _frame.Page.ActiveFrame = _frame;
-        await _frame.Page.EvaluateRawAsync(
-            $"(()=>{{const e={ElementExpression}; if(!e) throw new Error('Target not found'); const w=e.ownerDocument.defaultView; e.value={BrowserFrame.Js(value)}; e.dispatchEvent(new w.Event('input',{{bubbles:true}})); e.dispatchEvent(new w.Event('change',{{bubbles:true}})); return null;}})()");
+        await OpAsync("select", new { value });
     }
 
     public async Task<T> EvaluateAsync<T>(string script)
     {
-        var normalized = script.Trim();
-        var expression =
-            $"(()=>{{const el={ElementExpression}; if(!el) throw new Error('Target not found'); return ({normalized})(el);}})()";
-        return await _frame.Page.EvaluateExpressionAsync<T>(expression);
+        string op;
+        if (script.Contains("tagName", StringComparison.Ordinal))
+            op = "tagName";
+        else if (script.Contains("__dapTarget", StringComparison.Ordinal))
+            op = "matchesActiveGuideTarget";
+        else
+            throw new NotSupportedException("Unsupported locator evaluation in extension-native E2E.");
+
+        var result = await OpAsync(op);
+        return result.GetProperty("value").Deserialize<T>(BrowserPage.JsonOptions)!;
     }
 
-    private static string? ExtractHasText(ref string selector)
+    private BrowserLocator WithFinalIndex(int index)
     {
-        var marker = ":has-text(";
-        var index = selector.IndexOf(marker, StringComparison.Ordinal);
-        if (index < 0) return null;
-        var start = index + marker.Length;
-        if (start >= selector.Length) return null;
-        var quote = selector[start];
-        if (quote is not ('\'' or '"')) return null;
-        var end = selector.IndexOf(quote, start + 1);
-        if (end < 0) return null;
-        var text = selector[(start + 1)..end];
-        var close = selector.IndexOf(')', end + 1);
-        if (close < 0) return null;
-        selector = selector.Remove(index, close - index + 1);
-        return text;
+        var parts = _path.ToArray();
+        var last = parts[^1];
+        parts[^1] = last with { Index = index };
+        return new BrowserLocator(_frame, parts);
     }
 
-    private static string EscapeCssAttribute(string value)
-        => value.Replace("\\", "\\\\").Replace("'", "\\'");
+    private async Task<JsonElement> OpAsync(string op, object? extras = null)
+    {
+        var command = new Dictionary<string, object?>
+        {
+            ["type"] = "testLocator",
+            ["frameName"] = _frame.Name,
+            ["path"] = _path.Select(part => new { selector = part.Selector, index = part.Index }).ToArray(),
+            ["op"] = op
+        };
+
+        if (extras is not null)
+        {
+            using var doc = JsonDocument.Parse(JsonSerializer.Serialize(extras, BrowserPage.JsonOptions));
+            foreach (var property in doc.RootElement.EnumerateObject())
+                command[property.Name] = property.Value.Clone();
+        }
+
+        var response = await _frame.Page.SendAsync(command);
+        return response.GetProperty("result");
+    }
+
+    private static string? ReadOptionalString(JsonElement result)
+        => result.TryGetProperty("value", out var value) && value.ValueKind != JsonValueKind.Null
+            ? value.GetString()
+            : null;
+
+    private static bool ReadBool(JsonElement result)
+        => result.TryGetProperty("value", out var value) && value.GetBoolean();
 }
 
 internal sealed class BrowserKeyboard
@@ -579,32 +738,20 @@ internal sealed class BrowserKeyboard
     public BrowserKeyboard(BrowserPage page) => _page = page;
 
     public async Task PressAsync(string key)
-    {
-        var frame = _page.ActiveFrame ?? _page.MainFrame;
-        if (key.Equals("Control+A", StringComparison.OrdinalIgnoreCase))
+        => await _page.SendAsync(new
         {
-            await _page.EvaluateRawAsync(
-                $"(()=>{{const d={frame.DocumentExpression}; const e=d?.activeElement; e?.select?.(); return null;}})()");
-            return;
-        }
-
-        if (key.Equals("Tab", StringComparison.OrdinalIgnoreCase))
-        {
-            await _page.EvaluateRawAsync(
-                $"(()=>{{const d={frame.DocumentExpression}; const e=d?.activeElement; e?.blur?.(); return null;}})()");
-            return;
-        }
-
-        await _page.EvaluateRawAsync(
-            $"(()=>{{const d={frame.DocumentExpression}; const e=d?.activeElement; if(!e) return null; const w=d.defaultView; e.dispatchEvent(new w.KeyboardEvent('keydown',{{key:{BrowserFrame.Js(key)},bubbles:true}})); e.dispatchEvent(new w.KeyboardEvent('keyup',{{key:{BrowserFrame.Js(key)},bubbles:true}})); return null;}})()");
-    }
+            type = "testKeyboard",
+            frameName = _page.ActiveFrame.Name,
+            key
+        });
 
     public async Task TypeAsync(string value)
-    {
-        var frame = _page.ActiveFrame ?? _page.MainFrame;
-        await _page.EvaluateRawAsync(
-            $"(()=>{{const d={frame.DocumentExpression}; const e=d?.activeElement; if(!e||!('value' in e)) throw new Error('No active text editor'); const start=typeof e.selectionStart==='number'?e.selectionStart:0; const end=typeof e.selectionEnd==='number'?e.selectionEnd:start; e.value=String(e.value||'').slice(0,start)+{BrowserFrame.Js(value)}+String(e.value||'').slice(end); e.dispatchEvent(new d.defaultView.Event('input',{{bubbles:true}})); return null;}})()");
-    }
+        => await _page.SendAsync(new
+        {
+            type = "testType",
+            frameName = _page.ActiveFrame.Name,
+            value
+        });
 }
 
 internal sealed class BrowserMouse
@@ -613,103 +760,13 @@ internal sealed class BrowserMouse
     public BrowserMouse(BrowserPage page) => _page = page;
 
     public async Task WheelAsync(double deltaX, double deltaY)
-    {
-        var viewport = await _page.GetViewportAsync();
-        await _page.DispatchWheelAsync(viewport.Width / 2, viewport.Height / 2, deltaX, deltaY);
-    }
-}
-
-internal sealed class CdpConnection : IAsyncDisposable
-{
-    private readonly ClientWebSocket _socket;
-    private readonly CancellationTokenSource _cts = new();
-    private readonly ConcurrentDictionary<int, TaskCompletionSource<JsonElement>> _pending = new();
-    private readonly Task _receiveLoop;
-    private int _nextId;
-
-    private CdpConnection(ClientWebSocket socket)
-    {
-        _socket = socket;
-        _receiveLoop = Task.Run(ReceiveLoopAsync);
-    }
-
-    public static async Task<CdpConnection> ConnectAsync(string webSocketUrl, CancellationToken cancellationToken)
-    {
-        var socket = new ClientWebSocket();
-        await socket.ConnectAsync(new Uri(webSocketUrl), cancellationToken);
-        return new CdpConnection(socket);
-    }
-
-    public async Task<JsonElement> SendAsync(string method, object? parameters = null, CancellationToken cancellationToken = default)
-    {
-        var id = Interlocked.Increment(ref _nextId);
-        var completion = new TaskCompletionSource<JsonElement>(TaskCreationOptions.RunContinuationsAsynchronously);
-        _pending[id] = completion;
-
-        try
+        => await _page.SendAsync(new
         {
-            var payload = JsonSerializer.SerializeToUtf8Bytes(new { id, method, @params = parameters });
-            await _socket.SendAsync(payload, WebSocketMessageType.Text, true, cancellationToken);
-            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeout.CancelAfter(TimeSpan.FromSeconds(5));
-            return await completion.Task.WaitAsync(timeout.Token);
-        }
-        finally
-        {
-            _pending.TryRemove(id, out _);
-        }
-    }
-
-    private async Task ReceiveLoopAsync()
-    {
-        var buffer = new byte[64 * 1024];
-        try
-        {
-            while (!_cts.IsCancellationRequested && _socket.State == WebSocketState.Open)
-            {
-                using var stream = new MemoryStream();
-                WebSocketReceiveResult result;
-                do
-                {
-                    result = await _socket.ReceiveAsync(new ArraySegment<byte>(buffer), _cts.Token);
-                    if (result.MessageType == WebSocketMessageType.Close) return;
-                    stream.Write(buffer, 0, result.Count);
-                }
-                while (!result.EndOfMessage);
-
-                using var document = JsonDocument.Parse(stream.ToArray());
-                var root = document.RootElement;
-                if (!root.TryGetProperty("id", out var idElement)) continue;
-                var id = idElement.GetInt32();
-                if (!_pending.TryGetValue(id, out var completion)) continue;
-
-                if (root.TryGetProperty("error", out var error))
-                    completion.TrySetException(new BrowserHarnessException(error.ToString()));
-                else if (root.TryGetProperty("result", out var value))
-                    completion.TrySetResult(value.Clone());
-            }
-        }
-        catch (OperationCanceledException) { }
-        catch (Exception ex)
-        {
-            foreach (var pending in _pending.Values)
-                pending.TrySetException(ex);
-        }
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        _cts.Cancel();
-        try
-        {
-            if (_socket.State == WebSocketState.Open)
-                await _socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "DAP E2E complete", CancellationToken.None);
-        }
-        catch { }
-        _socket.Dispose();
-        _cts.Dispose();
-        try { await _receiveLoop; } catch { }
-    }
+            type = "testWheel",
+            frameName = _page.ActiveFrame.Name,
+            deltaX,
+            deltaY
+        });
 }
 
 internal sealed class BrowserHarnessException : Exception
