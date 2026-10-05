@@ -66,7 +66,14 @@ public sealed class AdapterWebLearnerRuntime
                 // Invalid non-click commit: wait for the learner's next natural
                 // commit event. Do not poll intermediate input values.
                 if (!clicked)
+                {
+                    // The event is a one-shot natural commit (blur/change).
+                    // Remove it before arming the next wait; otherwise the
+                    // already-completed session would immediately satisfy the
+                    // new wait and turn value validation into polling.
+                    await _browser.ConsumeValidationCommitAsync(step, cancellationToken);
                     commitTask = _browser.WaitForValidationCommitAsync(step, cancellationToken);
+                }
             }
 
             if (!await _browser.IsContextActiveAsync(step, cancellationToken))
