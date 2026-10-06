@@ -673,15 +673,16 @@ async Task RunGuidedAsync(
         WaitForStep("testcrm-windows-header-home");
         await driver.GoPortal();
 
-        var completionBubble = WaitForCompletionBubble(dap!);
+        var completedDap = dap ?? throw new InvalidOperationException("DAP process is not available at Guide completion.");
+        var completionBubble = WaitForCompletionBubble(completedDap);
         if (driver.VisualMode)
             Thread.Sleep(800);
         ClickCompletionFinish(completionBubble, driver);
 
-        if (!dap.WaitForExit(5_000))
+        if (!completedDap.WaitForExit(5_000))
             throw new TimeoutException("DAP.exe did not complete after the completion Finish action.");
-        if (dap.ExitCode != 0)
-            throw new Exception($"DAP.exe exited with code {dap.ExitCode}.");
+        if (completedDap.ExitCode != 0)
+            throw new Exception($"DAP.exe exited with code {completedDap.ExitCode}.");
 
         Console.WriteLine($"PASS: DAP Windows Learner Runtime completed all {persistedSteps.Count} persisted Guide Steps with real UIA targets, runtime capture, modal targeting, centered information, and bubbles.");
         }
