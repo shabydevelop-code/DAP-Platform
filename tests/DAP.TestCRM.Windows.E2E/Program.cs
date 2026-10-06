@@ -8,7 +8,6 @@ using System.Windows.Automation;
 using DAP.Core.Guides;
 using DAP.Data.Sqlite;
 using DAP.Data.Sqlite.Guides;
-using DAP.TestCRM.E2E.Common;
 using DAP.TestCRM.Windows.E2E;
 
 const string appTitle = "DAP Test CRM - Windows";
