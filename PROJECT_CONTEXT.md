@@ -73,7 +73,13 @@ Both repository seeds define 55 persisted Steps. Step 55 is the persisted center
 
 ## Runner contract
 
-Supported learner modes:
+Product Learner launch contract:
+
+```text
+DAP.exe --learner --guide <GuideId>
+```
+
+Canonical TestCRM runner modes:
 
 ```text
 --manual
