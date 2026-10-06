@@ -42,12 +42,14 @@ A complete human Manual run has demonstrated persisted-data-driven learner execu
 
 ## Canonical runner contract
 
-Current public modes:
+Current TestCRM execution contract:
 
 ```text
---manual
---hybrid
+--manual --guide <GuideId>
+--hybrid --guide <GuideId>
 ```
+
+The supplied persisted Guide ID is loaded by the runner and passed unchanged to the product Learner. The runner does not select the Guide implicitly.
 
 Maintenance/path options:
 
@@ -60,6 +62,6 @@ Retired modes and mechanisms must not be reintroduced: Guided, Unguided, Fast, V
 
 ## Verification state
 
-Current Manual/Hybrid behavior is persisted-data-driven on both runtimes. Windows Hybrid input focus synchronization is verified for the first input Step. Intentional Windows target closure and Web browser-session closure terminate cleanly rather than being reported as Runtime failures. Web Manual browser-lifetime observation is passive and does not automate learner actions.
+Current Manual/Hybrid behavior is persisted-data-driven on both runtimes. Windows Hybrid input focus synchronization is verified for the first input Step. Intentional Windows target closure and Web browser-session closure terminate cleanly rather than being reported as Runtime failures. Web Hybrid emits the browser-session closure message once through its owning termination path; Web Manual retains its passive clean-closure path. Web Manual browser-lifetime observation is passive and does not automate learner actions.
 
 Do not claim a fresh full-guide regression unless such a run has actually been completed.
