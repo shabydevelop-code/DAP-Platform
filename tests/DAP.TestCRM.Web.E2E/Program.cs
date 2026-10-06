@@ -887,14 +887,19 @@ async Task WaitForGuideStep(int order)
     if(advancedSequence)
         lastScenarioGuideOrder=order;
 
-    if(unguided || (focusedStartStepOrder is not null && order < focusedStartStepOrder.Value))
+    var hiddenPresentation =
+        unguided || (focusedStartStepOrder is not null && order < focusedStartStepOrder.Value);
+
+    if(hiddenPresentation
+        && expected.Target is null
+        && expected.Bubble.Placement == BubblePlacement.Center
+        && expected.AdvanceMode == StepAdvanceMode.Manual)
     {
-        // Hidden guidance uses the exact production bubble lifecycle. The runner
-        // does not synchronize through a separate hidden-ready protocol; it only
-        // preserves canonical Guide ordering while the Runtime owns validation,
-        // completion and target reconciliation.
+        // Production Runtime intentionally auto-advances pure centered
+        // information Steps when presentation is hidden. There is no learner
+        // action and therefore no presentation surface to synchronize with.
         if(advancedSequence)
-            Console.WriteLine($"Web Runtime hidden Guide Step {order}/{dapSteps.Count}: {expected.Id}");
+            Console.WriteLine($"Web Runtime hidden information Step {order}/{dapSteps.Count}: {expected.Id}");
         return;
     }
 
@@ -915,13 +920,24 @@ async Task WaitForGuideStep(int order)
                 foreach(var selector in new[] { "#dap-guide-bubble", "#dap-guide-bubble-proxy", "#dap-guide-centered" })
                 {
                     var bubble=liveFrame.Locator(selector);
-                    if(await bubble.CountAsync()==1 && await bubble.IsVisibleAsync())
+                    if(await bubble.CountAsync()==1)
                     {
+                        var bubbleStepId=await bubble.GetAttributeAsync("data-dap-step-id");
                         var bubbleText=await bubble.TextContentAsync() ?? string.Empty;
                         var expectedProgress=$"שלב {order} מתוך {dapSteps.Count}";
-                        if(bubbleText.Contains(expected.Bubble.Content,StringComparison.Ordinal)
-                            && bubbleText.Contains(expectedProgress,StringComparison.Ordinal))
+                        var matchesExpectedStep = hiddenPresentation
+                            ? string.Equals(bubbleStepId, expected.Id, StringComparison.Ordinal)
+                            : await bubble.IsVisibleAsync()
+                                && bubbleText.Contains(expected.Bubble.Content,StringComparison.Ordinal)
+                                && bubbleText.Contains(expectedProgress,StringComparison.Ordinal);
+                        if(matchesExpectedStep)
                         {
+                            if(hiddenPresentation)
+                            {
+                                if(advancedSequence)
+                                    Console.WriteLine($"Web Runtime hidden Guide Step {order}/{dapSteps.Count}: {expected.Id}");
+                                return;
+                            }
                             if(visualFromStep == order && !switchedToVisual)
                             {
                                 visualMode=true;
