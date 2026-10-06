@@ -157,11 +157,11 @@ internal static class DapTestCrmWindowsGuideSeed
 
         ValueStep(
             "testcrm-windows-case-subject", 8,
-            "CaseSubject", "הקלד את נושא הפנייה"),
+            "CaseSubject", "הקלד את נושא הפנייה", automationValue: "תקלה בחיבור לאינטרנט"),
 
         ValueStep(
             "testcrm-windows-case-description", 9,
-            "CaseDescription", "תאר את הפנייה"),
+            "CaseDescription", "תאר את הפנייה", automationValue: "הלקוח מדווח על חיבור לא יציב."),
 
         ClickStep(
             "testcrm-windows-save-new-case", 10,
