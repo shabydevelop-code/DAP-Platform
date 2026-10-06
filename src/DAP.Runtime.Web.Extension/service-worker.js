@@ -1,5 +1,5 @@
 const HOST = "com.dap.web_runtime";
-const TEST_DRIVER_VERSION = "1.0.0";
+const TEST_DRIVER_VERSION = "1.0.1";
 const identifiedFrames = new Map();
 let port = null;
 let productionTabId = null;
