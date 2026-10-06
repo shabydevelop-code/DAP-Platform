@@ -223,24 +223,75 @@ testcrm-web-canonical-workflow
 testcrm-windows-canonical-workflow
 ```
 
-Current repository seeds contain 54 Steps for both platforms.
+The canonical Web Guide currently contains 55 persisted Steps. Step 55 is the Guide-owned centered completion/summary Step. Windows remains on its separately verified baseline until its next focused update.
 
 ## Current Web verification baseline — 2026-10-06
 
-Verified:
+Verified product behavior:
 
-- runner-free manual Web Guide: 54/54 PASS;
-- Guided Fast automated Web Guide: 54/54 PASS;
-- extension/native-host browser path active;
-- automatic Chrome/Edge profile discovery;
-- production bubble from SQLite Guide data;
-- invalid committed value rejected;
-- text validation waits for blur;
-- automatic Step transition;
-- full canonical workflow completion;
-- no Guide/DB change was required to make Guided automation pass.
+- full runner-free Manual Web Guide: **PASS**;
+- DB-driven Hybrid Web Guide: **PASS**;
+- canonical Web Guide: **55 persisted Steps**, including persisted completion/summary Step 55;
+- extension/native-host browser path active; Playwright is absent from the active Web path;
+- Runtime skips persisted disabled Steps completely;
+- original persisted Step order is preserved and displayed; enabled Steps are not renumbered;
+- validation/completion/progression remain Runtime-owned;
+- text validation commits on blur after a real edit.
 
-This is important evidence that persisted Guide data and production Runtime semantics are sufficient. Automated modes must not introduce parallel target/validation/completion knowledge.
+### Hybrid semi-automatic model
+
+Hybrid exists to remove repetitive data entry without turning the Runner into a second Guide engine.
+
+`GuideStep.IsEnabled` controls whether the Runtime executes a Step. `GuideStep.AutomationValue` is optional persisted input data for Hybrid.
+
+Hybrid automatically fills/selects only supported value controls from `AutomationValue`. The learner still performs meaningful actions such as Search, Save, Delete, confirmation, opening records, and navigation.
+
+Current disabled repetitive Web Steps are 24, 25, 30, 31, 42, 43, 44, and 45. Step 29 remains enabled as a meaningful status transition.
+
+`Validation` and `AutomationValue` are deliberately separate even when their values happen to match: validation defines required Runtime truth; automation value defines permitted Hybrid input.
+
+Hybrid manual Steps have no artificial five-second human-response deadline.
+
+### Hybrid automatic presentation
+
+When Hybrid presentation is active and the persisted Step has `AutomationValue`, the production Runtime includes the localized automatic-Step label in the normal bubble-presentation command.
+
+The extension creates the label as part of the bubble itself. The Runner does not locate an already-rendered bubble, synchronize to its target, or inject DOM after the fact.
+
+Localization key:
+
+```text
+Learner.AutomaticStep
+```
+
+Current Web extension version carrying this behavior:
+
+```text
+0.2.10
+```
+
+### Current Web runner surface
+
+Supported execution modes:
+
+```text
+--manual
+--hybrid
+```
+
+Maintenance:
+
+```text
+--reset-guide
+```
+
+Infrastructure:
+
+```text
+--published-dap <dir>
+```
+
+The historical Guided Fast, Guided Visual, Unguided, Manual-from-Step, Fast-from-Step, Visual-from-Step, `DAP_E2E_MODE`, and `DAP_E2E_BROWSER` paths are no longer part of the maintained Web runner.
 
 ## Current Web performance baseline
 
@@ -273,55 +324,30 @@ Current accepted Web behavior includes:
 - manual placement remains authoritative for the active Step;
 - top-level proxy presentation for constrained child-frame targets;
 - centered information surfaces;
-- explicit Guide completion.
+- persisted Guide-owned completion/summary;
+- localized Hybrid automatic-Step indicator created during normal bubble construction.
 
 Windows follows the same interaction principles where supported by UIA/WPF.
 
-## Canonical Web run modes
+## E2E / Runner fidelity rule
 
-The current public Web modes are:
+The Runner is test infrastructure only.
 
-```text
---manual
---guided --fast
---guided --visual
---manual-from-step N
---fast-from-step N
---visual-from-step N
---unguided
-```
+**Runner replaces only the learner's hands. Runtime remains the only brain of the Guide.**
 
-All seven modes have passed regression on the current Web baseline. Fast and Visual share the same learner action semantics; Visual adds visible cursor movement/pacing only. Focused from-Step modes execute the real preceding workflow as bootstrap rather than fabricating application state.
-
-## E2E fidelity rule
-
-The runner may execute actions and inspect results, but it must not add semantic facts that the persisted Guide/Runtime should already know.
-
-Forbidden E2E fixes include:
-
-- hidden target selectors used to compensate for Guide targeting;
-- hidden validation/completion conditions;
-- special transition rules;
-- application-specific bypasses that are unavailable to a real learner.
-
-If manual execution succeeds and automation fails, investigate the automation boundary first.
+The Runner may execute learner actions and observe which Runtime Step is active so it knows which action to perform next. It must not decide validation, completion, navigation success, or progression, and product protocols must not be added solely to satisfy Runner automation.
 
 ## Timeout rule
 
-The default maximum E2E timeout remains 5 seconds.
+The default maximum technical E2E synchronization timeout remains 5 seconds.
 
-Any increase above 5 seconds requires explicit user approval before implementation, including temporary diagnostics.
+Any increase above 5 seconds requires explicit user approval. This ceiling does not impose a response deadline on a human learner in Hybrid mode.
 
 ## Process isolation
 
-Canonical runners build owned long-lived processes into unique per-run temporary directories under:
+Canonical runners build owned long-lived processes into unique per-run temporary directories. The Web runner preflights required ports and must never kill an arbitrary unknown process.
 
-```text
-%TEMP%\DAP\E2E\Web\<run-id>
-%TEMP%\DAP\E2E\Windows\<run-id>
-```
-
-The Web runner preflights ports 5200 and 5201. It must never kill an arbitrary unknown process merely because the port is occupied.
+All Runner-owned Web child processes must be cleaned on every exit path, including an early browser-extension compatibility/handshake failure.
 
 ## Localization
 
@@ -334,7 +360,7 @@ Localization/
   en.json
 ```
 
-There are no compiled translation fallbacks. Guide instructional content remains Guide data.
+There are no compiled translation fallbacks. Guide instructional content remains Guide data. Product-owned presentation labels such as the Hybrid automatic indicator remain localization data.
 
 ## Documentation rule
 
@@ -342,34 +368,4 @@ Project architecture, decisions, current status, and persistent context are main
 
 ## Immediate next work
 
-The Web regression matrix is closed on the current baseline. Continue with Windows Runtime/application corrections and regression while preserving the shared Guide contracts and production-observable behavior.
-
-## Web learner regression note — 2026-10-06
-
-Fresh runner-free Manual Web regression: **54/54 PASS**.
-
-The verified behavior includes two important generic rules:
-
-1. A Step whose application action completes asynchronously must use a real persisted completion condition. The next Step must not be exposed merely because the initiating click was observed.
-2. Being outside the viewport is not equivalent to being non-interactable. A resolved/rendered target may proceed to presentation so the learner can scroll it into view automatically; a target that is actually obstructed remains gated.
-
-For the canonical TestCRM Guide, the status-sort Step now waits for the observable sorted state before exposing the following "new case" Step.
-
-Seed changes do not update an already-persisted Guide automatically. Use the explicit Guide reset path when intentionally applying changed seed definitions to the persistent database.
-
-Current verified Web extension baseline: **0.2.8**. Guide-owned target autofocus is persisted through SQLite and verified end-to-end for value-entry Steps.
-
-## Current Windows verification baseline — 2026-10-06
-
-Verified after the Windows action-driver cleanup:
-
-- full Guided Windows Guide: **54/54 PASS**;
-- the runner performs learner actions only and does not decide Case-sort completion;
-- the persisted status-sort Step waits for observable `CasesGrid` replacement before progression;
-- no artificial wait or timeout increase is used for the sort transition;
-- persisted `AutoFocusTarget` is applied by the production Windows Learner Runtime for value-entry Steps;
-- target autofocus is one-time presentation behavior and was verified separately in Manual execution;
-- seed changes require explicit `--reset-guide` before an existing SQLite Guide reflects them.
-
-The Windows result reinforces the same ownership boundary already proven on Web: persisted Guide data plus production Runtime own target, validation, completion, and progression semantics; E2E only supplies learner actions and observes the result.
-
+Keep the proven Web Manual/Hybrid architecture stable and continue Windows work separately. Do not revive removed Web automation modes or Runner-owned Guide semantics.
