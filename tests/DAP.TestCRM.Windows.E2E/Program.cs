@@ -521,8 +521,18 @@ async Task RunGuidedAsync(
         await driver.SaveCase();
         DiagnoseBreadcrumbs(window);
 
+        // Focused bootstrap runs before DAP starts, so capture the business value
+        // needed for resume-context directly from the real CRM state. In a normal
+        // learner run, capture only after Runtime has advanced to the next Step.
+        var backToCasesStep = persistedSteps.Single(step => step.Id == "testcrm-windows-back-to-cases");
+        if (focusedStartStepOrder is not null && backToCasesStep.Order < focusedStartStepOrder.Value)
+            driver.CaptureCreatedCaseId();
+
         WaitForStep("testcrm-windows-back-to-cases");
-        driver.CaptureCreatedCaseId();
+
+        if (focusedStartStepOrder is null || backToCasesStep.Order >= focusedStartStepOrder.Value)
+            driver.CaptureCreatedCaseId();
+
         await driver.OpenSiteFromBreadcrumb();
 
         try
