@@ -588,6 +588,12 @@ public sealed class WebBubblePresenter
                     dragBubbleText = _texts.Get("Learner.DragBubble"),
                     x = targetBox.X + targetBox.Width / 2,
                     y = targetBox.Y + targetBox.Height,
+                    targetLeft = targetBox.X,
+                    targetTop = targetBox.Y,
+                    targetRight = targetBox.X + targetBox.Width,
+                    targetBottom = targetBox.Y + targetBox.Height,
+                    targetWidth = targetBox.Width,
+                    targetHeight = targetBox.Height,
                     theme = new
                     {
                         backgroundColor = _theme.BackgroundColor,
@@ -606,8 +612,35 @@ public sealed class WebBubblePresenter
                 };
                 await page.MainFrame.EvaluateAsync(
                     @"b => {
-                        document.getElementById('dap-guide-bubble-proxy')?.remove();
-                        const bubble=document.createElement('div');
+                        let bubble=document.getElementById('dap-guide-bubble-proxy');
+                        const targetInViewport =
+                            b.targetWidth > 0 &&
+                            b.targetHeight > 0 &&
+                            b.targetRight > 0 &&
+                            b.targetBottom > 0 &&
+                            b.targetLeft < innerWidth &&
+                            b.targetTop < innerHeight;
+
+                        if (!targetInViewport) {
+                            if (bubble?.dataset.dapStepId === b.stepId)
+                                bubble.style.visibility='hidden';
+                            return;
+                        }
+
+                        if (bubble?.dataset.dapStepId === b.stepId) {
+                            const q=bubble.getBoundingClientRect(), margin=8, gap=8;
+                            const left=Math.max(margin,Math.min(b.x-q.width/2,innerWidth-q.width-margin));
+                            let top=b.y+gap;
+                            if(top+q.height>innerHeight-margin)
+                                top=Math.max(margin,b.y-q.height-gap);
+                            bubble.style.left=left+'px';
+                            bubble.style.top=Math.max(margin,Math.min(top,innerHeight-q.height-margin))+'px';
+                            bubble.style.visibility='visible';
+                            return;
+                        }
+
+                        bubble?.remove();
+                        bubble=document.createElement('div');
                         bubble.id='dap-guide-bubble-proxy';
                         bubble.dataset.dapStepId=b.stepId;
                         const dragHandle=document.createElement('div');
@@ -697,6 +730,80 @@ public sealed class WebBubblePresenter
 
         return resolution;
     }
+
+    public Task WaitForPresentationInvalidationAsync(
+        ILocator target,
+        GuideStep step)
+    {
+        var contextKind = step.Context?.Kind;
+        var contextValue = step.Context?.Value;
+
+        return target.EvaluateAsync(
+            @"(el, c) => new Promise(resolve => {
+                const doc = el.ownerDocument;
+                const win = doc.defaultView;
+                let finished = false;
+                let fallbackTimer;
+
+                const contextIsActive = () => {
+                    if (!c.kind) return true;
+                    if (c.kind === 'url-equals') return win.location.href === c.value;
+                    if (c.kind === 'url-contains') return win.location.href.includes(c.value);
+                    if (c.kind === 'url-fragment-equals') return win.location.hash === c.value;
+                    if (c.kind === 'css-exists') return !!doc.querySelector(c.value);
+                    return true;
+                };
+
+                const finish = () => {
+                    if (finished) return;
+                    finished = true;
+                    observer.disconnect();
+                    win.removeEventListener('popstate', check);
+                    win.removeEventListener('hashchange', check);
+                    clearInterval(fallbackTimer);
+                    resolve();
+                };
+
+                const check = () => {
+                    const bubble = doc.getElementById('dap-guide-bubble');
+                    if (!el.isConnected ||
+                        !bubble ||
+                        bubble.__dapTarget !== el ||
+                        bubble.dataset.dapStepId !== c.stepId ||
+                        !contextIsActive())
+                        finish();
+                };
+
+                const observer = new MutationObserver(check);
+                observer.observe(doc.documentElement, {
+                    subtree: true,
+                    childList: true
+                });
+                win.addEventListener('popstate', check);
+                win.addEventListener('hashchange', check);
+
+                // History APIs do not necessarily emit popstate immediately.
+                // This is only a low-frequency safety net; normal steady-state
+                // tracking is event-driven by DOM/scroll/resize observers.
+                fallbackTimer = setInterval(check, 1000);
+                check();
+            })",
+            new {
+                stepId = step.Id,
+                kind = contextKind,
+                value = contextValue
+            });
+    }
+
+    public async Task<bool> IsTopLevelProxyActiveAsync(
+        IPage page,
+        string stepId)
+        => await page.MainFrame.EvaluateAsync<bool>(
+            @"id => {
+                const proxy = document.getElementById('dap-guide-bubble-proxy');
+                return !!proxy && proxy.dataset.dapStepId === id;
+            }",
+            stepId);
 
     public Task<TargetResolution<ILocator>> ResolveTargetAsync(
         IPage page,
