@@ -893,6 +893,14 @@ Together with the already verified Windows Guided Fast and Visual 54/54 runs, th
 
 
 
+### Rolled back extension event-driven experiment — 2026-10-06
+
+- The first event-driven steady-state optimization reduced Chrome CPU but caused learner bubble behavior regressions.
+- That optimization is not accepted.
+- The four affected runtime/adapter/content-runtime files were restored to the stable 0.4.6 behavior.
+- The earlier viewport-hide fix, full-drag grabbing cursor fix, and narrowed MutationObserver remain.
+- CPU optimization must now proceed incrementally without changing proven bubble/re-resolution semantics.
+
 ### Extension steady-state CPU polling fix — 2026-10-06
 
 - Chrome Task Manager still showed roughly 13–15% renderer CPU while the learner was visually idle, even after narrowing DOM observation.
