@@ -141,7 +141,10 @@ internal static class DapTestCrmWindowsGuideSeed
         ClickStep(
             "testcrm-windows-sort-cases", 6,
             ById("SortCasesByStatusButton"), "מיין את הפניות לפי סטטוס",
-            completionCondition: new StepCompletionCondition("target-replaced", ById("SortCasesByStatusButton"))),
+            completionCondition: new StepCompletionCondition(
+                "name-equals",
+                ById("SortCasesByStatusButton"),
+                "סטטוס ▲")),
 
         ClickStep(
             "testcrm-windows-new-case", 7,
