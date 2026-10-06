@@ -53,7 +53,8 @@ public static class DapTestCrmGuideSeed
             new StepContextDefinition("css-exists", contextCss),
             CompletionConditions: completionCondition is null
                 ? null
-                : new[] { completionCondition });
+                : new[] { completionCondition },
+            AutoFocusTarget: true);
 
     public static IReadOnlyList<GuideStep> CreateSteps() => new GuideStep[]
     {
