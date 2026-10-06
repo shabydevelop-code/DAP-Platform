@@ -750,3 +750,8 @@ Persisted Guide
 
 The E2E Runner remains regression automation only.
 
+
+
+## Extension content runtime 0.4.4 — target-attached visibility
+
+The active browser Extension now treats viewport visibility as part of target-attached presentation. A regular bubble or top-level iframe proxy is hidden when its target leaves the relevant viewport and is restored when the target becomes visible again. Manual drag position is preserved while hidden; it does not make the bubble independent from target visibility.
