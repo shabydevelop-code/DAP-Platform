@@ -274,7 +274,7 @@ Console.CancelKeyPress += webCancelCleanup;
         // The Chrome/Edge registration points to the Native Host project's
         // normal bin output. Build that exact binary and terminate stale host
         // processes before opening the browser so the extension must reconnect
-        // through the current Zero-Playwright transport.
+        // through the current extension-native transport.
         await BuildNativeHostAsync();
 
         await BuildIsolatedAsync(testCrmBackendProject, backendOutput, "TestCRM Server");
