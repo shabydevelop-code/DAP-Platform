@@ -893,6 +893,16 @@ Together with the already verified Windows Guided Fast and Visual 54/54 runs, th
 
 
 
+### Extension idle CPU observation fix — 2026-10-06
+
+- Chrome Task Manager isolated idle renderer CPU to the TestCRM tab only while the DAP Extension was enabled; disabling the Extension reduced the tab to near-zero CPU.
+- The content runtime no longer observes every document-wide attribute and character-data mutation.
+- Global observation is now structural (`childList` + `subtree`) for target replacement/removal.
+- Attribute observation is scoped to the active target and its ancestor chain, with an identity-oriented attribute filter.
+- Reconciliation requests are microtask-coalesced so a mutation batch cannot trigger duplicate target resolution work.
+- Content runtime endpoint version advanced from 0.4.5 to 0.4.6.
+- Manual idle-CPU verification is pending after Extension reload.
+
 ### Extension drag cursor fix — 2026-10-06
 
 - Regular target-attached Extension bubbles now keep the `grabbing` cursor active for the full pointer-drag lifetime, matching proxy bubble behavior.
