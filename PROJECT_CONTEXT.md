@@ -641,3 +641,13 @@ Both canonical repository seeds now define 55 persisted Steps. The additional St
 The production ownership boundary is now explicit: the persisted Guide defines the summary Step; the Runtime presents and advances it using the normal centered manual-Step mechanism; E2E only performs the configured learner confirmation. Resetting either canonical Guide restores the 55-Step definition.
 
 All 54-Step PASS records elsewhere in this file are historical results from before the persisted summary became Step 55. They remain valid historical evidence but do not constitute a 55/55 regression.
+
+## Current execution contract — 2026-10-06
+
+The current `main` implementation has one cross-platform learner execution contract: Web and Windows expose Manual and Hybrid modes only. Hybrid is data-driven from persisted Guide metadata rather than from a hard-coded scenario sequence.
+
+`IsEnabled` and `AutomationValue` are first-class persisted GuideStep properties in SQLite. Disabled Steps retain their persisted numbering and are skipped by production Runtime. Hybrid may synthesize only an explicitly persisted value-entry action; it does not own target resolution, validation, completion, capture, or progression.
+
+Step 55 is the persisted centered manual summary and terminates the Guide. No separate post-Step-55 completion bubble is part of the current Runtime lifecycle.
+
+This section describes the current baseline. Earlier Guided/Unguided/Fast/Visual/From-Step descriptions elsewhere in this document are historical development records, not current public runner modes.
