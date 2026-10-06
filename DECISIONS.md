@@ -1,10 +1,12 @@
 # Architectural Decisions
 
+This file contains the current accepted architectural rules for DAP Platform. Historical implementation details remain available through Git history; this document is intentionally limited to active decisions.
+
 ## ADR-001 — One desktop application
 
 **Status:** Accepted
 
-DAP is one Windows desktop application containing Learner and Editor modes rather than separate executables.
+DAP is one Windows desktop application containing Learner and Editor modes rather than separate product executables.
 
 ## ADR-002 — Desktop technology
 
@@ -12,23 +14,37 @@ DAP is one Windows desktop application containing Learner and Editor modes rathe
 
 Use .NET 8 and WPF for the production desktop application.
 
-## ADR-003 — Web Runtime
+## ADR-003 — Single Web browser-access architecture
 
-**Status:** Superseded by ADR-026
+**Status:** Accepted
 
-Microsoft Playwright for .NET established the proven Web learner behavior and remains a regression/compatibility adapter behind DAP runtime contracts. It is no longer the production learner browser-access mechanism used by `DAP.exe --learner-web`. Python remains outside the product dependency set.
+Production Web learner execution and Web E2E use the same browser-access boundary:
+
+```text
+.NET Runtime / E2E runner
+    ↕
+Native Host
+    ↕
+Browser Extension
+    ↕
+Browser DOM
+```
+
+There is no alternate browser-control stack for Web execution or Web tests. Direct debugging-protocol control, Selenium, Puppeteer, or any test-only DOM-control path that bypasses the DAP extension boundary is prohibited.
+
+Chrome and Edge are supported browser products, not separate DAP modes.
 
 ## ADR-004 — Windows Runtime
 
 **Status:** Accepted
 
-Use Microsoft UI Automation (UIA) for native Windows target discovery and interaction observation.
+Use Microsoft UI Automation for native Windows target discovery, geometry, and interaction observation.
 
-## ADR-005 — Shared guide model
+## ADR-005 — Shared Guide model
 
 **Status:** Accepted
 
-Web-only, Windows-only, and hybrid guides use the same Guide/Step/Validation/Progress domain model. Each step declares its runtime.
+Web-only, Windows-only, and hybrid guides use the same Guide/Step/Validation/Progress domain model. Each Step declares its runtime.
 
 ## ADR-006 — Database independence
 
@@ -36,794 +52,205 @@ Web-only, Windows-only, and hybrid guides use the same Guide/Step/Validation/Pro
 
 Core/domain logic must not depend on a database engine. SQLite is the first provider; additional providers may be introduced later.
 
-## ADR-007 — Localization
+## ADR-007 — Persistence ownership
 
 **Status:** Accepted
 
-The GUI supports Hebrew and English by user choice, including RTL/LTR. GUI language is independent from guide-content language.
+**Seed initializes. DB owns. Runtime consumes.**
 
-## ADR-008 — .NET deployment prerequisite
+Seed/factory definitions initialize or explicitly reset known Guides. Normal execution loads and runs the persisted Guide and never silently overwrites it from seed code.
 
-**Status:** Accepted
-
-Target machines are assumed to have the .NET 8 Desktop Runtime installed. Builds are framework-dependent. Missing-runtime detection must produce a clear user-facing failure.
-
-## ADR-009 — Markdown as project state
+## ADR-008 — Numeric persistence IDs with stable keys
 
 **Status:** Accepted
 
-Persistent project context, architecture, decisions, requirements, and current progress are maintained as Markdown files in the repository and updated alongside significant implementation changes.
+Persistence uses numeric internal IDs and separate stable textual keys. Database row IDs are internal and must not become user-facing runtime-routing identifiers.
+
+## ADR-009 — Localization
+
+**Status:** Accepted
+
+DAP-owned UI supports Hebrew and English with RTL/LTR through external JSON localization files. Missing configuration or keys are explicit errors; there are no compiled translation fallbacks.
+
+Guide instructional content remains Guide data rather than product-localization data.
 
 ## ADR-010 — Production-first architecture
 
 **Status:** Accepted
 
-DAP-Platform is developed as the production product. POCs may be used as historical evidence or isolated experiments, but production code and architecture must not depend on POC packaging, Python scripts, temporary test harnesses, or legacy GWTP implementation details.
+Production runtime capabilities must not depend on temporary harnesses, development-only infrastructure, or reference projects.
 
-## ADR-011 — Guide bubble navigation is context-aware
-
-**Status:** Accepted
-
-Step order is not treated as application navigation.
-
-Action Steps advance automatically only after their validation succeeds. Informational Steps may expose a manual Next action.
-
-Previous is not a universal navigation control. It may be exposed only when the active runtime can determine that the previous Step is safely renderable in the current application context. DAP must not assume that `StepOrder - 1` can be displayed after page navigation, context replacement, application changes, or Web/Windows runtime transitions.
-
-The shared Step model therefore includes advance behavior and sufficient context/navigation metadata for runtime-aware navigation decisions.
-
-
-## ADR-012 — Server-backed Web refresh preserves logical context
+## ADR-011 — Closed-target / black-box rule
 
 **Status:** Accepted
 
-In server-backed Web applications, including PeopleSoft-style applications, a server round trip may refresh or rebuild the DOM without changing the user's logical business context.
+DAP must support closed third-party targets. Production Runtime and Editor behavior must rely only on production-observable interfaces.
 
-DAP must treat DOM references as transient across server calls. DOM replacement alone does not mean that the application context changed and does not mean that a Step completed.
+TestCRM source may be inspected during development for diagnosis and learning, but source knowledge must never become a runtime target, validation, or navigation oracle.
 
-After a server-triggered refresh, the Web Runtime must re-evaluate the current logical context, re-resolve the active Step target, and continue the same Step when the business context is still valid. Step advancement remains governed by validation success.
-
-This behavior is a general Web Runtime rule for server-backed application mode and must not be implemented as application-specific logic for TestCRM or PeopleSoft.
-
-
-## ADR-013 — Web target context includes iframe hierarchy
+## ADR-012 — Guide navigation is context-aware
 
 **Status:** Accepted
 
-Server-backed Web applications may split application chrome and active business content across separate iframes. The Web Runtime must treat iframe/frame hierarchy as part of target context rather than assuming all targets belong to the top-level document.
+Step order is not application navigation. Automatic Steps advance only after their persisted validation/completion semantics succeed. Informational Steps may expose explicit learner confirmation.
 
-DAP must be able to resolve the appropriate frame and then the target within that frame. If a server action reloads or replaces a frame, both the frame and target references are considered transient and must be re-resolved while preserving the logical business context when applicable.
+Previous is not a universal `StepOrder - 1` operation and may be exposed only when the runtime can determine that the prior Step is safely renderable in the current application context.
 
-This is a general Web Runtime requirement and is validated by DAP.TestCRM using separate header and content frames.
-
-
-## ADR-014 — Web context includes transient working state
+## ADR-013 — Server-backed Web refresh preserves logical context
 
 **Status:** Accepted
 
-For application-triggered server round trips, preserving Web context includes relevant unsaved working values in addition to the logical record, screen, tab, and navigation state.
+A server round trip may replace/rebuild the DOM without changing logical business context. DOM replacement alone is neither a context change nor Step completion.
 
-A server refresh may rebuild the iframe/document and restore values that have not yet been persisted to the database. DAP must treat the restored post-refresh UI as the current state and must not equate persistence with context preservation.
+The Web Runtime re-evaluates current context and re-resolves the target after refresh/replacement.
 
-DAP.TestCRM preserves transient form values across its simulated PeopleSoft-style server refreshes so this behavior can be validated independently from database saves. A user-initiated browser reload is not required to preserve unsaved working state.
-
-
-## ADR-015 — DAP.TestCRM permanently follows a PeopleSoft-style server interaction model
+## ADR-014 — Frame hierarchy is target context
 
 **Status:** Accepted
 
-DAP.TestCRM is a permanent production-runtime test application and must consistently model PeopleSoft-style server-backed behavior.
+Web target context includes iframe hierarchy. Frame and target identities are transient and must be re-resolved after replacement.
 
-Any action that logically requires the server must be implemented as a server round trip with content refresh/reconstruction rather than as a purely client-side SPA mutation. The application must preserve logical business context and relevant transient unsaved working state across that refresh unless the action intentionally navigates to a different context.
+A browser browsing-context name is not guaranteed to be stable identity after iframe replacement/promotion.
 
-This applies to search, grid sorting, saves, updates, validation failures, and future server-backed interactions.
-
-Server-side validation remains authoritative. Validation errors and their message text originate on the server; after the server-style refresh restores the user's working context, the client presents the returned error in the PeopleSoft-style modal.
-
-Future TestCRM changes must preserve this contract unless this ADR is explicitly superseded.
-
-
-## ADR-016 — Server round trips keep the current business screen visible
+## ADR-015 — Target resolution never guesses
 
 **Status:** Accepted
 
-DAP.TestCRM must provide consistent feedback for server-backed operations without replacing the active business screen with a generic loading state.
+A target may use a primary locator plus multiple anchors/context constraints. Resolution returns exactly one target, NotFound, or Ambiguous. Multiple candidates must never be resolved by silently selecting the first.
 
-While a server request is in progress, the existing content remains visible whenever possible and a compact activity indicator displays a spinner with "מעבד...". Interaction may be temporarily blocked to prevent duplicate operations. The Content iframe must not display an intermediate "טוען..." placeholder during reconstruction.
-
-After the server round trip and context restoration complete, the application presents the operation result in the restored context. Successful saves may use a transient success message; validation and server errors continue to use the authoritative server message in the standard modal.
-
-This rule applies system-wide to TestCRM server-backed actions, including search, sorting, FieldChange, save/update, delete, and validation flows.
-
-
-## ADR-017 — Server validation identifies and marks invalid fields
+## ADR-016 — Commit-based value validation
 
 **Status:** Accepted
 
-Server-side validation remains authoritative. Validation responses must identify the fields that failed validation in addition to returning the validation message.
+Text/value validation is based on a committed learner action rather than an intermediate valid value.
 
-After the PeopleSoft-style server round trip restores the working context, DAP.TestCRM marks each server-rejected field with a red error border and `aria-invalid="true"`, while also presenting the server-returned message in the standard error modal. The client must not infer invalid fields independently from the server rules.
+Web text commits on blur after a real edit. Windows text commits after a real edit followed by focus loss. Discrete controls commit on their natural change action.
 
-A subsequent successful validation/refresh clears the error state because the rebuilt screen has no server validation result to restore.
+Invalid non-click commits are consumed and require a new commit attempt.
 
-
-## ADR-018 — Separate fast validation from visual E2E demonstration
-
-**Status:** Accepted
-
-The permanent DAP.TestCRM E2E runner supports two execution modes through `DAP_E2E_MODE`.
-
-`fast` is the default validation mode. It skips artificial human-like interaction delays and bypasses TestCRM's artificial server-thinking delay for E2E requests. It does not bypass real application readiness: server responses, route completion, DOM/frame replacement, validation, and other actual synchronization conditions remain required.
-
-`visual` is the observable presentation mode. It retains visible cursor movement and presentation pacing/feedback around the same learner actions used by Fast. Mode-dependent typing or commit semantics are not permitted. Artificial TestCRM thinking delay may remain fixture presentation behavior, but it must not replace real readiness.
-
-The two modes must share the same test logic. Maintaining separate test implementations is not permitted merely to support visual demonstration.
-
-## ADR-019 — Real readiness over fixed synchronization delays
+## ADR-017 — Navigation-capable click durability
 
 **Status:** Accepted
 
-E2E synchronization must use real application signals wherever possible. Fixed delays such as the TestCRM artificial server-thinking delay or human-like pauses must not be used as a substitute for route, DOM, iframe, server-state, or validation readiness.
+A validating click capable of browser-default navigation/submission must reach the DAP Runtime before the source document can be destroyed by that default action. Application click handlers remain part of the original action.
 
-The DAP.TestCRM PeopleSoft-Web flow therefore re-resolves the active Content iframe and exposes route readiness after each route transition. The E2E frame polling interval remains 100ms and is considered polling infrastructure, not a demonstration delay.
-
-
-## ADR-020 — E2E scenarios must validate target-independent runtime behavior
+## ADR-018 — Bubble presentation may be promoted
 
 **Status:** Accepted
 
-The permanent DAP.TestCRM E2E suite is a representative server-backed CRM target, not the production CRM itself. E2E scenarios must exercise behavior that a separate real CRM could reasonably expose through its user-visible Web application.
+Target ownership and bubble presentation surface are separate. Presentation may be promoted to the top-level page when a child frame cannot physically display the bubble. Target identity and validation remain owned by the original target/frame.
 
-Test-specific workarounds, hidden navigation APIs, route persistence added solely for tests, or application-specific hooks must not be introduced merely to make an E2E scenario pass. When a scenario requires such a workaround, the scenario or the generic DAP Web Runtime contract must be reconsidered.
-
-Validated scenarios currently cover server-driven FieldChange and Content iframe replacement, validation with preserved unsaved working values, Grid rerender/reorder and target re-resolution, Content-document reload with preserved logical context, CRM tab switching, conditional target disappearance/reappearance, cross-frame Header-to-Content navigation, and Layout Shift with target re-resolution. The existing baseline workflow and deletion coverage must remain regression-protected as new scenarios are added.
-
-## ADR-021 — Persisted Guide database owns initialized Guides
+## ADR-019 — Explicit bubble drag handle
 
 **Status:** Accepted
 
-Guide seed/factory definitions initialize or explicitly reset known Guides; they are not authoritative during normal execution after initialization.
+Draggable learner bubbles use a visible explicit handle. Only that handle begins dragging. Manual placement becomes authoritative for the active Step and reconciliation must not overwrite it.
 
-Normal execution loads and runs the persisted Guide from the configured DAP data provider. Instructor/Editor changes written to persistence therefore become authoritative for subsequent Learner and E2E execution.
-
-Product rule: **Seed initializes. DB owns. Runtime consumes.**
-
-SQLite is the current provider only. This ownership rule belongs to the persistence architecture and must remain independent of the concrete database engine.
-
-## ADR-022 — Learner is a runtime, not a mandatory dashboard
+## ADR-020 — Target viewport visibility controls attached bubble visibility
 
 **Status:** Accepted
 
-The current learner product flow is organization-provided launch/shortcut/portal -> specific Guide -> Learner Runtime -> in-application bubbles -> completion.
+If an attached target leaves the visible viewport, its bubble is hidden. If the target returns while the Step remains active, presentation may resume without changing Guide state.
 
-DAP does not require a persistent Learner dashboard or generic between-Step loading/progress surface. Between Steps the Runtime may remain visually quiet while it re-resolves the next target. An optional catalog/launcher may be introduced only as a separate future product requirement.
-
-## ADR-023 — Web bubble presentation may be promoted independently of target ownership
+## ADR-021 — Explicit Guide completion
 
 **Status:** Accepted
 
-A resolved target and its validation remain owned by the original document/frame. If that frame is physically unable to display the learner bubble, presentation may be promoted to the top-level page without changing target identity or validation ownership.
+The learner receives an explicit completion surface/action after the final Step. Finishing the Guide does not imply closing the target business application.
 
-The promoted bubble is an interactive production learner surface, not a passive diagnostic overlay. This rule is generic and must not be implemented as a Step-, site-, or TestCRM-specific workaround.
-
-## ADR-024 — Bubble dragging uses an explicit handle
+## ADR-022 — TestCRM models server-backed enterprise behavior
 
 **Status:** Accepted
 
-Draggable learner bubbles expose a visible `⠿` handle. Only that handle starts a drag; the rest of the bubble must not advertise or initiate dragging.
+DAP.TestCRM is a permanent representative black-box target. Actions that logically require a server round trip should reconstruct/refresh the relevant Web content while preserving logical context and applicable transient working state.
 
-The interaction contract is: normal content uses the default cursor, handle hover uses `grab`, and active dragging uses `grabbing`. The rule applies consistently to regular Web bubbles, promoted top-level bubbles, and the Guide completion bubble.
+TestCRM must not be changed merely to make DAP targeting or testing easier.
 
-## ADR-025 — Guide completion requires explicit learner confirmation
-
-**Status:** Accepted
-
-After the final Step completes, the Web Learner Runtime presents a completion state with an explicit `סיום` action and waits for the learner's real click. DAP must not synthesize that click.
-
-Finishing the Guide/runtime is separate from the lifecycle of the target business browser. The completion action does not imply closing the browser.
-
-
-## ADR-026 — Numeric persistence IDs with stable textual keys
+## ADR-023 — E2E is a synthetic learner, not a second Guide engine
 
 **Status:** Accepted
 
-SQLite persistence uses numeric internal primary/foreign keys for Guides, GuideSteps, and their relationships. Human-readable identifiers are stored separately as stable textual `Key` values.
+The automated runner may execute user actions, orchestrate infrastructure, and assert outcomes. It must not add hidden target selectors, validation rules, completion rules, or Step progression semantics that should already be provided by the persisted Guide and production Runtime.
 
-Runtime and application boundaries may continue to address a Guide by its stable textual key; database row IDs are an internal persistence concern and must not become user-facing or runtime-routing identifiers.
+A Guide that succeeds manually but requires E2E-only semantic help is evidence of an E2E architecture defect.
 
-Legacy databases that used textual primary keys are migrated in place, preserving the previous textual IDs as the new keys and remapping all GuideStep and TargetAnchor relationships to numeric IDs.
-
-
-## ADR-027 — Web E2E owns its TestCRM server topology
+## ADR-024 — E2E uses real application readiness
 
 **Status:** Accepted
 
-The normal TestCRM Web E2E runner must be self-contained. It starts the shared TestCRM backend and Web host, waits for application readiness, executes the browser/DAP scenario, and cleans up only the processes it created.
+Synchronization uses actual application signals: server responses, route state, frame/document identity, DOM state, validation state, and equivalent production-observable readiness.
 
-Manual pre-start of TestCRM Server or Web is not part of the normal E2E contract. This keeps Fast, Visual, Unguided (called CRM-only when this ADR was originally recorded), and focused runtime validation reproducible from a single runner command.
+Fixed delays are not substitutes for readiness.
 
-
-## ADR-028 — E2E timeout increases above 5 seconds require explicit approval
-
-**Status:** Accepted
-
-The default maximum wait timeout for DAP/TestCRM E2E synchronization is 5 seconds.
-
-A timeout failure must be treated first as evidence of a possible readiness, lifecycle, target-resolution, navigation, server-state, or synchronization defect. Increasing a timeout must not be used as the normal first response to a failing test, because it can hide the actual defect while only making failures slower.
-
-Before proposing any timeout above 5 seconds, the failing transition and its real readiness condition must be investigated. An increase above 5 seconds is a last-resort change only when there is concrete evidence that the underlying operation can legitimately require more than 5 seconds.
-
-**Any change that raises an E2E timeout above 5 seconds requires the user's explicit approval before implementation.** This applies even to temporary diagnostic changes. Polling intervals and intentionally human-paced Visual-mode delays are separate concerns and do not override this rule.
-
-
-## ADR-029 — Unguided reuses the canonical persisted Guide sequence (historically CRM-only)
+## ADR-025 — Fast and Visual share one action path
 
 **Status:** Accepted
 
-Web Unguided is the canonical CRM business flow without `DAP.exe` and learner bubbles. It is not a separate TestCRM QA scenario.
+`DAP_E2E_MODE=fast` and `DAP_E2E_MODE=visual` execute the same business/learner logic. Visual may add cursor travel and presentation pacing only; it must not change values, commit semantics, target selection, validation, or progression.
 
-Normal Guided Web execution and Unguided both consume the persisted `testcrm-web-canonical-workflow` Guide from the configured DAP data provider and follow the same canonical persisted sequence. The current seed contains 54 Steps; historical 53-Step results remain historical only. Guided mode additionally synchronizes with production DAP Runtime/bubble state; Unguided omits that presentation/runtime synchronization.
-
-Production Guide data must not be polluted with test-only action/value fields merely to make Unguided executable. When a Guide validation is intentionally generic, such as `value-not-empty`, the synthetic value entered by the E2E remains a test-fixture concern.
-
-TestCRM's artificial Web/Windows parity must not drive a production schema that gives one Step parallel Web and Windows targets. A real hybrid Guide remains an ordered sequence in which each Step declares its own runtime.
-
-## ADR-030 — Windows learner bubbles follow the shared drag/pointer interaction contract
+## ADR-026 — Canonical Web run modes
 
 **Status:** Accepted
 
-Windows learner bubbles use the same interaction principles as Web learner bubbles where the platform permits: an explicit visible drag handle, a directional pointer toward the current resolved target, and initial placement that attempts not to cover the target.
-
-The Windows implementation remains WPF-native and derives target geometry from production-observable UI Automation bounds. Dragging is presentation-only and does not change target identity, validation ownership, or Guide semantics.
-
-## ADR-031 — Small Windows grids use scoped row filtering before specialized large-grid strategies
-
-**Status:** Accepted
-
-When a Windows target is a row in a small, already-realized UIA grid and the persisted descriptor provides a descendant identity, the Windows Runtime may resolve it by enumerating `DataItem` rows within the declared grid scope and filtering those rows by the descendant anchor.
-
-The result must remain explicit and deterministic: exactly one match resolves, zero matches are NotFound, and multiple matches are Ambiguous. The Runtime must not choose the first row silently.
-
-This strategy is based only on UIA information observable from a closed target application. TestCRM source, internal database state, and private APIs must not be used as runtime targeting oracles. Specialized UIA/visual strategies for larger or virtualized grids may coexist behind the same shared target-resolution contract.
-
-## ADR-032 — Manual Windows bubble placement persists for the active Step
-
-**Status:** Accepted
-
-When a learner drags a Windows learner bubble, that manually selected position remains authoritative for the rest of the current Guide Step. Normal Runtime reconciliation must not move the bubble back to an automatically calculated target-relative position while the same Step remains active.
-
-The directional pointer is hidden immediately when manual dragging begins, not only after the drag ends, matching the Web learner-bubble interaction. It remains hidden for the rest of the active Step. When the active Step changes, manual placement is cleared and the next bubble returns to automatic placement with its pointer visible.
-
-This state is presentation-only and must not alter target resolution, validation, runtime capture, or Guide progression.
-
-## ADR-033 — Guide completion rules belong to persisted Guide data
-
-**Status:** Accepted
-
-Any rule that determines whether a real learner is allowed to advance from one Guide Step to the next is part of the Guide's persisted semantics and must be representable in the Guide model and data provider. It must not exist only inside an E2E driver, scenario harness, TestCRM source, or other test-only orchestration.
-
-The persisted Step definition owns the **what** of completion: target, learner action/validation, required destination/context, and any additional completion conditions needed to prove that the business transition is complete. The production Runtime owns only the **how**: resolving those persisted targets and evaluating those persisted conditions through production-observable interfaces.
-
-An E2E driver may automate the learner's action, but it must not contain hidden business rules that are required for progression and unavailable to the real learner Runtime. If an E2E assertion reveals that the next Step is only safe after a destination screen, field, modal, state, or context exists, that requirement must be promoted into the persisted Guide semantics before relying on it as part of the learner flow.
-
-Runtime implementation details such as polling, retries, UIA event handling, modal-window discovery, resolver strategy, and timing mechanics remain code-level concerns and do not belong in the Guide database unless they are explicitly configurable product semantics.
-
-
-## ADR-034 — Canonical Web and Windows Guides preserve business-scenario parity
-
-**Status:** Accepted
-
-The canonical TestCRM Web and Windows Guides each contain 53 persisted Steps and represent the same business workflow. Runtime-specific target technology may differ, but Step order, learner intent, business identity, and progression semantics must remain aligned.
-
-Where the intended business object has a stable identity, the Guide must encode that identity rather than rely on incidental row order such as "first row". The canonical workflow currently identifies `מטה תל אביב`, `אבי כהן`, and the Case created during the active run explicitly. Runtime capture may be used to carry identities created earlier in the Guide into later Steps.
-
-A change to one platform's canonical Guide that alters the business scenario must be reviewed against the other platform's Guide. Platform-specific mechanics may differ without requiring artificial schema symmetry.
-
-The canonical execution-mode names are **Guided** and **Unguided**. References to **CRM-only** in older ADRs are historical terminology for what is now called Unguided; they do not define a separate current execution mode.
-
-## ADR-035 — Windows learner presentation follows application window state
-
-**Status:** Accepted
-
-Windows learner bubble/highlight presentation remains bound to the active target application.
-
-- Moving or resizing the target application causes bubble/highlight geometry to be recomputed from current UIA bounds.
-- A learner-dragged bubble preserves its relative manual offset for the active Step.
-- Minimizing the target application or moving foreground ownership to another application hides learner presentation.
-- Restoring or returning foreground ownership causes presentation to be rebuilt from current UIA geometry.
-- Owned/modal windows of the target application remain part of the same interactive application context.
-
-This behavior is presentation/runtime infrastructure only and does not change persisted target identity, validation, capture, or Guide progression semantics.
-
-## ADR-036 — Value validation completes on natural interaction commit
-
-**Status:** Accepted
-
-A value becoming temporarily valid is not sufficient by itself to complete an automatic learner Step. The Runtime must distinguish the learner's interaction-completion signal from the persisted validation condition.
-
-For editable text controls, completion is evaluated only after a real edit has occurred and the edit is committed by leaving the control. Web implements this through blur after change; Windows implements the equivalent behavior through UIA-observed focus/value state. Discrete controls such as selections commit on their natural change/selection action.
-
-The persisted `ValidationDefinition` continues to define whether the committed value is acceptable. Runtime-specific event/focus mechanics define when that validation is evaluated and do not require target-specific Guide data.
-
-## ADR-037 — Initial learner presentation may perform one-time target viewport adjustment
-
-**Status:** Accepted
-
-When a new Step target is outside the visible viewport, clipped by a scroll container, or positioned too close to a viewport edge for usable guidance, the Runtime may automatically scroll the target into a comfortable visible region before presenting the bubble.
-
-This behavior is limited to initial presentation of the active Step. Reconciliation must not continuously re-center the target or override intentional learner scrolling.
-
-Web may use DOM scrolling and Windows may use production-observable UI Automation scrolling such as `ScrollItemPattern` / `ScrollPattern`. The implementation must remain generic and must not depend on target application source code or private APIs.
-
-## ADR-038 — Product UI localization is external and has no fallback
-
-**Status:** Accepted
-
-All user-facing DAP product UI text is loaded at runtime from external localization files shipped beside the compiled application. The active language is selected by external localization configuration, and changing wording or switching between supported language files does not require recompiling `DAP.exe`.
-
-The localization source is singular by design:
-- no hard-coded user-facing translation strings in Runtime/Application code;
-- no embedded RESX translation fallback;
-- no fallback from a missing key to another language or compiled default;
-- a missing configuration file, language file, required key, or invalid UI direction is an explicit configuration error.
-
-Guide instructional content remains Guide/DB data and is not product UI localization. Developer diagnostics, logs, locator strategies, validation-kind identifiers, and other internal technical text may remain compiled because they are not end-user interface copy.
-
-## ADR-039 — TestCRM manual execution reuses the canonical E2E launch harness
-
-**Status:** Accepted
-
-Web and Windows TestCRM development execution use one platform runner for environment orchestration. Full human learner mode is exposed as `--manual` on the canonical Web/Windows E2E project rather than through separate PowerShell launchers.
-
-The runner owns target-application startup, backend/browser setup where applicable, DAP launch, ports, persistence wiring, diagnostics, and owned-process cleanup. In `--manual` mode it stops synthetic learner actions once production Guide Step 1 is visibly ready; the human learner performs the entire Guide from that point.
-
-`--manual-from-step <N>` remains the focused handoff mechanism because it preserves real preceding business state and runtime captures before automation stops at Step N.
-
-Separate manual-launch scripts that duplicate the same startup/cleanup topology are not maintained. Product Runtime logic remains outside the E2E harness; the harness only owns development/test orchestration and synthetic learner actions.
-
-Executable-output isolation for these unified runners is defined by ADR-040 (Windows) and ADR-041 (Web); both use unique per-run temporary output roots rather than shared repository or shared temporary executable directories.
-
-## ADR-040 — Windows TestCRM E2E uses isolated per-run executable outputs
-
-**Status:** Accepted
-
-Windows Guided/Manual TestCRM execution must not run DAP, TestCRM Server, or TestCRM Windows directly from normal repository build outputs that are reused by later builds.
-
-The Windows E2E runner builds these executables into a unique per-run directory under `%TEMP%\DAP\E2E\Windows\<run-id>` and launches them from there. The E2E project does not keep a build-time ProjectReference to `DAP.App`; DAP is built explicitly into the isolated run output.
-
-This prevents an interrupted or orphaned learner process from locking `src/DAP.App/bin/Debug` and causing subsequent `dotnet run` builds to fail. Runner-owned child processes are cleaned up in normal `finally` handling and also on process-exit / Ctrl+C when those notifications are delivered. A hard OS termination may leave the isolated temporary directory behind, but later runs never reuse it, so it cannot block future builds.
-
-## ADR-041 — Web TestCRM E2E also uses isolated per-run executable outputs
-
-**Status:** Accepted
-
-Web TestCRM execution follows the same isolation principle as Windows. Each run builds TestCRM Server, TestCRM Web, and (for guided/manual modes) DAP into a unique directory under `%TEMP%\DAP\E2E\Web\<run-id>` and launches the owned processes from that directory.
-
-The Web runner must not use normal reusable repository build outputs as the executable location for long-lived child processes. This prevents interrupted or orphaned Web learner runs from locking the normal TestCRM or DAP build outputs and blocking later builds.
-
-Owned-process cleanup for DAP, TestCRM Web, and TestCRM Server is registered before child startup for process-exit and Ctrl+C notifications, in addition to normal `finally` cleanup. A hard OS termination may leave the unique temporary run directory behind; future runs never reuse it.
-
-## ADR-042 — Non-click validation uses consumable commit attempts
-
-**Status:** Accepted
-
-For value/text validation, a natural UI commit event represents one learner attempt rather than permanent Step completion. Text editors commit on blur after a real edit; discrete controls commit on their natural change event.
-
-If primary validation fails, that commit attempt is consumed. The Runtime must wait for a new edit/change followed by a new commit event before it may reevaluate progression. A previously invalid commit must never leave the Step permanently armed such that later live typing can advance the Guide without another blur/change.
-
-Web must preserve the active editor's changed-since-last-commit state across reconciliation rather than reinstalling listeners in a way that resets that state every poll. Windows must reset its text-edit baseline after consuming an invalid blur attempt. Windows text commit observation uses target-scoped UIA property events as the primary signal: `ValuePattern.ValueProperty` plus `AutomationElement.HasKeyboardFocusProperty`. Polling is only a fallback for incomplete UIA providers. Global focus-change notifications are not the commit contract because they can miss/obscure a fast target blur in the canonical flow. Canonical Windows E2E text-commit actions use real TAB focus traversal; programmatically focusing the window is not considered a faithful learner commit.
-
-Click validation remains intentionally sticky because the validating click may immediately navigate, rerender, or destroy the source target while persisted completion conditions are still pending.
-
-## ADR-043 — Manual runner lifetime follows the target application
-
-**Status:** Accepted
-
-A TestCRM `--manual` session ends when either the Guide/DAP completes or the owned target application is closed by the learner.
-
-For Web, only explicit closure of the owned page or browser-disconnect events count as a normal operator target close. Polling `Browser.IsConnected` / `Page.IsClosed` is not the manual-run liveness contract because transport state can produce false positives. Exit of the owned TestCRM Web host is unexpected and must surface as an error. For Windows, exit of the owned TestCRM Windows process ends the manual run. The runner then cleans up the remaining processes it owns and returns control to the launching terminal.
-
-The harness must not remain alive merely because DAP is still waiting after its guided target application has been closed. This rule applies only to runner-owned development/test topology and does not change production Runtime ownership boundaries.
-
-This rule applies to manual, Guided, and Unguided TestCRM runner modes. Automated waits must observe the owned target lifetime so that an operator-closed target produces a clean runner stop rather than a later timeout or UIA/Playwright exception.
-
-## ADR-044 — Web E2E readiness is process-bound and ports are preflighted
-
-**Status:** Accepted
-
-Canonical Web TestCRM E2E/manual execution uses ports 5200 (Web) and 5201 (backend). Before build/launch, the runner verifies that both ports are free. If either is occupied, the run fails clearly and does not kill the existing owner.
-
-HTTP readiness alone is insufficient because a stale TestCRM process can answer the canonical URL after the newly launched host has already failed to bind. The runner therefore accepts readiness only while the exact Web-host process it launched for the current run is still alive.
-
-This keeps startup ownership explicit: an old or unrelated process cannot impersonate the current run, and the harness never takes destructive action against an unknown port owner.
-
-
-
-## ADR-040 — DAP-owned completion dialogs must surface in foreground
-
-**Status:** Accepted
-
-When DAP uses an operating-system completion dialog, successful Guide completion must be surfaced in the foreground instead of being allowed to open behind the target application.
-
-The foreground/topmost request is scoped to the short-lived completion dialog itself. DAP must not leave a persistent Topmost application window or permanently steal foreground ownership after the learner dismisses the dialog.
-
-This is DAP-owned product UI behavior and belongs in `DAP.App`, not in target resolution, Guide data, or TestCRM-specific code. Web's in-browser completion bubble remains the normal Web completion UI; this rule applies where DAP intentionally shows an OS completion dialog.
-
-
-## ADR-043 — Canonical Web and Windows runner modes are a symmetric product contract
-
-**Status:** Accepted
-
-The canonical TestCRM Web and Windows runners must expose the same user-facing execution-mode vocabulary and preserve the same meaning for each shared mode wherever the platform supports that behavior.
-
-`DAP_E2E_MODE` has only two valid mode names in the canonical contract:
-
-- `fast` — validation-oriented execution without human/demo pacing.
-- `visual` — observable learner-action pacing intended for visual inspection.
-
-`demo` is not a supported mode name and must not be accepted or reintroduced as an alias for `visual` on either Web or Windows.
-
-Likewise, focused-run switches such as `--manual-from-step <N>` and `--visual-from-step <N>` are cross-platform concepts: their business meaning must remain aligned even when the concrete Web/Windows automation technology differs.
-
-Any addition, removal, rename, or semantic change to a public runner mode or focused-run switch on one platform must be reviewed and applied to the other platform in the same change, unless an explicit platform-specific exception is documented in this file.
-
-Platform implementation details may differ — Playwright/DOM for Web and UIA/native input for Windows — but those differences must not create accidental user-facing CLI/mode drift.
-
-Implementation note (2026-10-03): Windows now enforces `fast|visual` in the canonical runner and supports `--visual-from-step <N>`. Windows Visual uses the same UIA action path as Fast and adds visible native cursor movement/pacing; it is not a separate scenario. The standard 5-second technical timeout remains unchanged.
-
-Runner precedence rule (2026-10-03): `DAP_E2E_MODE` is consulted only for a full `--guided` run. `--manual`, `--unguided`, `--manual-from-step <N>`, and `--visual-from-step <N>` have absolute semantics and ignore any stale `DAP_E2E_MODE` value left in the launching shell. `--manual-from-step` always uses an Unguided bootstrap through N-1 and hands off to Guided Manual at N; `--visual-from-step` always uses an Unguided bootstrap through N-1 and switches to Guided Visual at N. This rule is identical for Web and Windows.
-
-## ADR-044 — From-Step uses Unguided bootstrap plus resumable Guide context
-
-Focused runs do not need DAP before the requested Step. For both canonical Web and Windows runners, `--manual-from-step <N>` and `--visual-from-step <N>` therefore execute Steps `1..N-1` as an Unguided business-state bootstrap: DAP.exe is not running, no learner bubbles are presented, and production learner validation is not exercised during that prefix.
-
-At Step N the runner starts the production learner with `--start-step N`. Runtime values captured by earlier persisted Guide Steps are carried across the boundary through an explicit resume context file. DAP validates that every supplied resume value belongs to a real earlier Step that declares a capture. WebGuideRuntime and WindowsGuideRuntime initialize their runtime-capture dictionaries from that validated context before materializing Step N or later targets.
-
-The focused-run semantics are therefore:
-- `--manual-from-step N`: Unguided `1..N-1`, then Guided Manual from N.
-- `--visual-from-step N`: Unguided `1..N-1`, then Guided Visual from N.
-
-This supersedes earlier documentation that described the prefix as Guided Fast. Full Guided Fast, full Guided Visual, full Manual, and full Unguided runs are unchanged. No E2E timeout was increased; the 5-second technical timeout policy remains in force.
-
-### ADR-045 — Guide completion is runtime-owned and always presented
-
-After the final Guide Step, both Web and Windows runtimes present the production DAP completion bubble and wait for its explicit Finish action. Completion is not an optional host-level message and is not controlled by a launch flag. Manual runs leave Finish to the learner; automated Guided E2E runs activate the same real completion action as a synthetic learner before asserting DAP process exit. The target business application remains open. The former `--show-completion` switch and Windows completion `MessageBox` are retired.
-
-### ADR-046 — Centered targetless information Steps
-
-DAP supports learner information that does not identify or act on a target as a real persisted Guide Step rather than by inventing a fake target. The canonical representation is `Target = null`, `BubblePlacement.Center`, and `StepAdvanceMode.Manual`. Such a Step cannot carry context, validation, runtime capture, or completion conditions. The Runtime displays the shared centered bubble and advances only after the learner presses the localized confirmation action.
-
-Guide completion reuses the same centered presentation primitive with completion-specific content and Finish text. This keeps targetless information and completion presentation aligned on Web and Windows and prevents separate visual implementations from drifting.
-
-### ADR-047 — Visual mode uses the real OS cursor
-
-Visual mode represents an observable learner simulation and therefore uses the operating-system mouse cursor on both supported learner platforms.
-
-- Windows Visual continues to animate the real Windows cursor to UIA-resolved controls.
-- Web Visual no longer renders or animates a synthetic DOM cursor.
-- Web converts Playwright target viewport coordinates to Windows screen coordinates and animates the real OS cursor with the same 12-frame cubic ease-out / 18 ms frame pacing / 120 ms dwell contract used by Windows.
-- Playwright remains responsible for the Web interaction itself (click/hover/type and DOM synchronization); moving the physical cursor is the visual presentation layer, not a replacement for target resolution or validation.
-- Fast mode does not animate the physical cursor.
-
-This keeps Web/Windows Visual semantics aligned without coupling production DAP Runtime behavior to test-only cursor simulation.
-
-Verification note (2026-10-04): ADR-047 is now locally verified in focused Visual execution on both platforms using `--visual-from-step 47`. Web uses the real Windows cursor after removal of the synthetic DOM cursor; Windows continues using the native cursor. In both runs the cursor visibly moves to the centered information `אישור` action and the completion `סיום` action before activation.
-
-
-## Generality gate for fixes and E2E behavior
-
-Before accepting a DAP product change, ask: **Could this behavior be configured or captured by the future Instructor against a closed customer application whose source code is unavailable?**
-
-- If yes, it may be a product capability and should be represented declaratively rather than as application-specific code.
-- If the behavior is needed only for the E2E harness to operate TestCRM, keep it in the TestCRM E2E driver.
-- Do not modify TestCRM solely to make an E2E scenario pass when its current interaction is representative of real customer software.
-- Source access to TestCRM may be used for development diagnosis only. DAP runtime behavior must not depend on customer source access.
-- Do not infer learner actions globally from control type. A grid row/DataItem, for example, may require click, double-click, Enter, Space, selection only, or application-specific behavior. The future Instructor must capture/configure the intended action and its success condition.
-- FAST and VISUAL are E2E execution modes, not product semantics. They should exercise the same intended learner action; VISUAL may add presentation-oriented cursor motion and delay. When an application genuinely requires a physical mouse action, FAST may perform the physical action without animated cursor travel rather than changing the target application.
-
-
-## ADR-0XX — Fast and Visual share one Windows learner-action path
-
-**Status:** Accepted
-
-Windows E2E Fast and Visual are presentation modes over one canonical synthetic learner workflow; they are not separate test implementations.
-
-Every application-facing action must be semantically identical in both modes. Visual may add visible cursor travel and presentation pacing only. It must not add alternate CRM navigation, alternate validation rules, target-specific synchronization, or scrolling required only to make the Visual test pass.
-
-When the target application itself requires a physical mouse action that cannot be represented by the available UIA action pattern, that physical action remains part of the common action path. Fast may move the real cursor directly to the target; Visual may animate the same cursor movement before executing the same physical action.
-
-Readiness and synchronization remain based on observable application/UIA state rather than arbitrary Visual-only delays. The 5-second timeout policy is unchanged.
-
-This contract was re-verified by complete Windows Guided runs on the 54-Step canonical Guide: both Fast and Visual completed 54/54 with the same production Windows Learner Runtime. The text synchronization correction that restored Step 8 is commit `889ee17d3e34692022085760dea2496b31c0cb69`.
-
-## ADR-048 — Fast and Visual share one cross-platform learner-action path
-
-**Status:** Accepted
-
-Fast and Visual are presentation modes over one canonical synthetic learner workflow on both Web and Windows. Every application-facing learner action must be semantically identical in both modes. Visual may add visible real-cursor travel and presentation pacing, but must not introduce alternate business navigation, validation rules, target-specific synchronization, scrolling, commit semantics, or a different application action merely to make Visual execution pass.
-
-Mode-dependent typing semantics are not permitted. Web therefore uses the same text-entry action in Fast and Visual; Visual pacing belongs outside the semantic typing action. When the target application genuinely requires a physical mouse action, that physical action remains part of the common path: Fast may position the cursor immediately while Visual may animate travel before the same action.
-
-Readiness and synchronization remain based on observable application state. Visual-only delays are presentation pacing and must not substitute for readiness. The existing 5-second technical-timeout policy is unchanged.
-
-Verification: the complete persisted 54-Step Guided workflow has now passed in all four full Guided combinations: Web Fast, Web Visual, Windows Fast, and Windows Visual. Web action-path alignment commit: `401f31a582797fcb9217e521e40c0557196736c1`. Windows focused-value synchronization baseline: `889ee17d3e34692022085760dea2496b31c0cb69`.
-
-This ADR generalizes and supersedes the platform-specific scope of the earlier `ADR-0XX — Fast and Visual share one Windows learner-action path`; that older entry remains as historical implementation context.
-
-
-
-## ADR-049 — Packaged focused runners must create their own transient state root
-
-**Status:** Accepted
-
-A focused diagnostics runner must explicitly create every transient directory it owns before writing resume or bootstrap state. It must not rely on a repository build operation to create that directory as a side effect, because packaged diagnostics skip repository builds.
-
-This rule was applied to Windows packaged From-Step execution after `resume-context.json` could be written beneath a nonexistent GUID run root. The fix is confined to E2E/diagnostics orchestration and does not alter production Runtime, target resolution, Guide semantics, bubbles, or the 5-second timeout policy. Fix commit: `405c1b4e577ff193be96310b8df25d6b0dc30284`.
-
-## ADR-050 — Web first-bubble startup optimization must address Playwright initialization, not timeouts
-
-**Status:** Accepted
-
-Measured Production startup shows that the dominant Web first-bubble latency is `Playwright.CreateAsync()`, not SQLite initialization, Guide loading, CDP attachment, target resolution, or bubble rendering. In the measured packaged run, DAP reached Web composition at 257 ms, completed Playwright creation at 6563 ms, connected CDP at 6670 ms, and started the Web Guide Runtime at 6673 ms; first-bubble active-Step work then took 159 ms.
-
-Playwright .NET 1.55.0 starts its packaged stdio driver process during `Playwright.CreateAsync()` and waits for initialization. The configured 10-second CDP timeout is a maximum failure bound, not the measured fixed delay.
-
-Consequently:
-- Do not increase a timeout to hide first-bubble startup latency.
-- Do not add TestCRM-specific startup shortcuts.
-- Do not claim that GUID-based repository output is the sole cause; the delay is reproduced from the stable Production package.
-- Do not adopt a persistent/shared Playwright driver merely because it appears faster. Such a lifecycle change must first preserve deterministic ownership/cleanup, isolation, failure behavior, and support for arbitrary closed customer Web applications.
-
-The current decision is diagnostic: the bottleneck is identified, but no speculative production optimization is accepted yet.
-
-## ADR-051 — AI is a development aid, not a production dependency
-
-**Decision:** Production DAP must not require an AI system for either Instructor authoring or Learner execution.
-
-During DAP development, AI may be used freely as an engineering aid to inspect TestCRM behavior, compare before/after states, identify gaps in the model, propose general mechanisms, and accelerate implementation. This development assistance must not become a hidden runtime dependency.
-
-The production Instructor must independently observe externally available application state, compare state before and after an author action, detect meaningful structural/state changes, rank or present candidate transition/completion conditions, and persist an explicit deterministic Guide definition. The production Learner must independently resolve targets, observe application changes, evaluate the persisted conditions, diagnose supported page/window/context transitions, and advance the Guide without AI.
-
-The acceptance boundary for a new capability is therefore: AI may help discover or design the capability during development, but after the capability and Guide definition exist, the customer-side DAP installation must be able to author and execute the supported behavior without AI.
-
-This decision does not prohibit a future optional AI feature. Any such feature must remain optional and must not be required for the deterministic production authoring/execution contract.
-
-## ADR-026 — Production Web learner uses a browser extension adapter
-
-**Status:** Accepted
-
-The production Web learner path uses a Manifest V3 browser extension as the browser-access adapter while the shared learner/Guide policy remains in .NET.
-
-The production boundary is:
+Supported public Web modes are:
 
 ```text
-DAP.exe Runtime
-  ↕ Named Pipe
-DAP.Runtime.Web.NativeHost
-  ↕ Native Messaging
-Extension service worker
-  ↕ frame messaging
-content runtime
-  ↕ DOM
+--manual
+--guided
+--manual-from-step N
+--unguided
+--visual-from-step N
 ```
 
-The extension is not allowed to become an independent Guide engine. .NET remains authoritative for Guide sequencing, validation decisions, completion conditions, capture/materialization, and Step advancement. The extension supplies browser facts/events, frame routing, DOM observation, and Web learner presentation.
+Focused from-Step modes execute the real preceding workflow as bootstrap and then hand off/start DAP at the requested Step with validated resume context.
 
-Playwright remains the behavioral oracle during migration and a compatibility/regression adapter until the required extension-backed automated matrix demonstrates parity. Existing Playwright behavior is the specification; extension-specific behavior must not silently change learner semantics.
-
-The former JSONL journal transport is rejected as the production adapter transport. Direct IPC between `DAP.exe` and the Native Host uses a named pipe; Native Messaging remains the browser-supported boundary between the Native Host and the extension.
-
-## ADR-027 — Extension migration must preserve proven Web semantics
+## ADR-027 — Browser profile auto-discovery
 
 **Status:** Accepted
 
-The extension adapter must preserve the established Web Runtime semantics, including explicit frame-path resolution, no guessing on ambiguity, live target re-resolution after DOM/frame replacement, commit-based value validation, click acknowledgement before replay of browser-default navigation/submission, persisted completion-condition handling, and cross-frame presentation promotion without changing validation ownership.
+The extension-native Web runner and autonomous launcher discover the installed Chrome/Edge profile containing the registered DAP extension.
 
-A valid non-click commit remains completed while a server-driven completion condition is pending. Only an invalid non-click commit is consumed and requires a new learner commit attempt.
+Zero matches fail explicitly. Multiple matches fail as ambiguous. DAP does not guess.
 
-Content-script reinjection after missing receivers and safe handling of invalidated contexts after extension reload are browser lifecycle requirements, not TestCRM-specific workarounds.
+The historical browser-selector environment variable is not part of the active execution model.
 
-Bubble dragging remains an explicit-handle interaction. During an active drag, reconciliation must not restore automatic placement, and the cursor remains `grabbing` until pointer release/cancel.
-
-
-## Web Zero-Playwright milestone — 2026-10-05
-
-The single active Web milestone is now **Zero Playwright**.
-
-Definition of done:
-- no active `Microsoft.Playwright` package dependency in Web Runtime or Web E2E projects;
-- no active `Playwright.CreateAsync()`, `IPage`, `IFrame`, `ILocator`, or equivalent Playwright browser-control code in the Web execution path;
-- `DAP.exe --learner-web` continues to use the browser-extension adapter path;
-- the Web E2E/manual harness also uses the extension/browser-native path rather than a separate Playwright browser-control stack;
-- the existing public Web run modes remain available with the same intent: Guided Fast Full, Guided Visual Full, Manual From Step, Unguided Full, Visual From Step, and Manual Full;
-- Chrome and Edge remain supported;
-- the persisted 54-Step canonical Web Guide continues to pass through the unified extension-based architecture;
-- production and development/test environments do not diverge into separate Web browser architectures.
-
-This milestone replaces smaller intermediate migration goals. Playwright may remain only as historical/reference code until removed during completion of this milestone; it is not an acceptable steady-state dependency for Web Runtime or Web test execution.
-
-
-## Web architecture guardrail — Zero Playwright means one browser path
-
-This is a hard architectural rule for all future Web work.
-
-**Zero Playwright does not mean replacing Playwright with another browser-automation stack.**
-The Web product and its Web E2E verification must use the same browser-access architecture:
-
-```text
-DAP Runtime / Web E2E driver
-        ↕
-Extension-facing protocol
-        ↕
-Native Host
-        ↕
-Browser Extension
-        ↕
-Browser DOM
-```
-
-Forbidden as an alternate Web control path:
-- Microsoft.Playwright / Playwright;
-- direct CDP / remote-debugging-port browser control;
-- Selenium;
-- Puppeteer;
-- a private BrowserHarness that evaluates DOM or dispatches input through CDP;
-- any second browser-control architecture used only by tests.
-
-Allowed:
-- launching Chrome/Edge as an OS process when needed;
-- using the DAP browser extension and Native Messaging as the browser-control boundary;
-- adding explicit E2E/test-driver commands to the same extension protocol, provided they do not change production learner semantics;
-- OS-level cursor movement for Visual mode where this is part of the existing test UX.
-
-The test harness may orchestrate servers, browser processes, DAP processes, data setup, timing, assertions, and cleanup, but browser navigation/DOM actions/element inspection must cross the DAP extension boundary rather than a separate automation technology.
-
-Before implementing any Web change, verify it preserves this single-path rule. If a proposed solution introduces a second browser-control mechanism, stop and redesign before committing.
-
-**Current correction:** any CDP-based BrowserHarness introduced during the Zero Playwright migration is temporary invalid work and must be removed/replaced before the milestone can be considered complete.
-
-
-## Zero Playwright implementation correction — extension-native E2E
-
-The invalid CDP-based E2E BrowserHarness has been replaced. The Web E2E runner now uses the same browser boundary as the product:
-
-```text
-Web E2E runner
-  ↕ dap-web-e2e-v1 named pipe
-Native Messaging Host
-  ↕ Chrome/Edge Native Messaging
-DAP Web Runtime extension
-  ↕ extension content runtime
-TestCRM DOM
-```
-
-Key rules/state:
-- Chrome/Edge is launched as a normal installed browser profile; no temporary profile, remote debugging port, CDP, Playwright, Selenium, or Puppeteer is used.
-- The DAP extension must already be installed/reloaded in that browser profile.
-- E2E browser actions and DOM assertions are explicit test-driver commands routed through the DAP extension.
-- Each run gets a unique `dap-e2e-session` token in the TestCRM tab URL.
-- `DAP.exe` receives the same session through `DAP_WEB_SESSION_ID`, so learner-runtime commands and E2E actions target the same browser tab.
-- The Native Host bridges both the production Runtime pipe and the E2E pipe; this is one browser-access architecture, not a second automation stack.
-- Visual mode may still move the real operating-system cursor, while target lookup/action semantics remain extension-routed.
-- The five-second timeout ceiling remains unchanged.
-
-The Zero Playwright milestone is not complete until the extension-native 54-Step canonical run passes in Chrome and Edge and the required public run modes are verified.
-
-## ADR-052 — Learner Runtime must be fully autonomous; Runner is test-only
+## ADR-028 — E2E timeout ceiling
 
 **Status:** Accepted
 
-A published Guide must be executable end-to-end by the production Learner Runtime without any E2E Runner, Instructor process, AI service, target-application source access, test-only state oracle, or hidden automation assistance.
+The default maximum E2E synchronization timeout is 5 seconds.
 
-The production execution contract is:
+Any increase above 5 seconds, including temporary diagnostic changes, requires explicit user approval before implementation.
 
-```text
-Persisted Guide data
-        ↓
-DAP Learner Runtime
-        ↓
-Web / Windows production adapter
-        ↓
-Target application
-```
-
-The persisted Guide and production Runtime together must contain everything required to:
-- determine whether the current application context is appropriate for the active Step;
-- resolve the Step target from its persisted `TargetDescriptor`, frame/window context, and ordered anchors;
-- refuse to guess when resolution is NotFound or Ambiguous;
-- present the learner bubble on the resolved target;
-- observe the learner's real interaction;
-- evaluate persisted validation rules;
-- evaluate persisted completion conditions after server/UI transitions;
-- capture/materialize runtime values when declared;
-- choose and start the next persisted Step/transition;
-- re-resolve after DOM, frame, window, layout, or target replacement.
-
-The E2E Runner is **not part of the product runtime contract**. It may start test applications, launch DAP, perform synthetic learner actions, assert outcomes, collect diagnostics, and clean up processes. It must never supply information or decisions that the real Learner Runtime requires in order to identify a target, validate a Step, detect completion, preserve Guide state, or select the next Step.
-
-A Runner-assisted Guide that cannot run identically when the Runner is absent is considered architecturally invalid, even if the automated test passes.
-
-The same rule applies to Web and Windows. The Web extension and Windows UIA adapter are production observation/action boundaries, not independent Guide engines. Guide sequencing and business progression remain Runtime-owned and driven by persisted Guide semantics.
-
-### Authoring boundary
-
-The future Instructor may use AI during DAP development and may optionally use AI as an authoring aid, but a published Guide must persist a deterministic representation of all required runtime semantics. At minimum this includes, where applicable:
-
-- Step identity/order/transition;
-- application context;
-- target descriptor and anchors;
-- bubble content/presentation metadata;
-- learner action/validation definition;
-- completion conditions;
-- runtime capture/materialization rules.
-
-Once published, the Guide must run without AI.
-
-### Current verification priority
-
-Before treating automated 54-Step Runner execution as the primary acceptance signal, the canonical TestCRM Guide must be verified in a **Runner-free learner session**: only TestCRM, DAP Learner Runtime, the persisted database, and the production Web extension/Windows adapter may participate while a human performs the learner actions.
-
-The Runner returns afterward only as regression automation for behavior already proven to be autonomous.
-
-## ADR-053 — Production Web tab selection is Guide-driven, never Runner/count-driven
+## ADR-029 — Process/output isolation
 
 **Status:** Accepted
 
-The production Web learner must not identify its target application by assuming that exactly one browser tab happens to match a development URL pattern. Browser-tab identity is a production runtime concern and must be derived from production-observable, persisted Guide semantics.
+Canonical E2E runners build owned long-lived processes into unique per-run temporary output directories under `%TEMP%\DAP\E2E`.
 
-For a target-attached Step, the extension evaluates eligible tabs using the Step's persisted frame context, Step context, target descriptor, and anchors. A tab is selectable only when the relevant persisted evidence resolves there. Exactly one matching application tab is required. Zero matches means NotFound; multiple matching application tabs are Ambiguous and DAP must not guess.
+The runner cleans up only processes it owns and must not kill an arbitrary process merely because that process occupies a required port.
 
-An E2E session token may still identify a tab for test-driver commands, but that token is test orchestration only and must never be required by the production Learner Runtime.
-
-This rule is required for Runner-free execution and supersedes the temporary development assumption that the production adapter could bind to "the only localhost tab".
-
-### ADR-053 clarification — application absence is not transport failure
-
-The production learner may start before the target Web application is open, and a live application may temporarily leave a persisted context during navigation or document replacement. Therefore zero matching application tabs is a normal reconciliation state: context checks return inactive and target checks return NotFound. The Runtime keeps reconciling according to normal learner policy. Only multiple matching application tabs are Ambiguous and must fail rather than guess.
-
-### ADR-052 verification record — Web canonical Guide PASS 54/54
-
-The Web side of this ADR has now been verified directly.
-
-The persisted `testcrm-web-canonical-workflow` completed all 54 Steps in a manual learner session with the E2E Runner completely absent. The active product path was:
-
-```text
-SQLite Guide
-→ DAP Learner Runtime
-→ Web production adapter
-→ Native Host / Native Messaging
-→ Browser Extension
-→ TestCRM
-```
-
-A human performed the application actions. The production Runtime and persisted Guide owned target resolution, validation, completion evaluation, capture/materialization where declared, Step progression, and re-resolution across application changes.
-
-This 54/54 completion is the acceptance proof that Web learner execution does not require the Runner. Any future change that makes the same persisted Guide depend on Runner-provided facts or decisions violates ADR-052, even if automated tests pass.
-
-### ADR-052 re-verification — Web 54/54 after responsiveness changes
-
-The autonomous Web acceptance proof was repeated after the responsiveness and presentation-stability work.
-
-The canonical persisted 54-Step Guide again completed end-to-end with no E2E Runner process active. The verified extension versions were manifest `0.2.4` and content runtime `0.4.3`.
-
-This confirms that performance/UX work must preserve the same architectural contract: the production Runtime and persisted Guide remain authoritative for context, target resolution, validation, completion, capture, and progression, while the extension provides browser observation/presentation mechanics only.
-
-The following behaviors are now part of the verified production baseline:
-- repeated reconciliation must not visually recreate an unchanged bubble;
-- transient document/frame replacement must be recovered as lifecycle state rather than treated as fatal execution failure;
-- target-application click handling must remain undisturbed by DAP presentation cleanup;
-- retaining a uniquely resolved production tab is an optimization only and must not weaken ambiguity handling.
-
-Any future optimization that breaks the Runner-free 54/54 canonical Guide violates ADR-052.
-
-
-
-## ADR-053 — Extension-native Web startup does not expose browser-runtime modes
+## ADR-030 — Web stable/recovery reconciliation cadence
 
 **Status:** Accepted
 
-The production Extension path and its Web verification tooling do not model Chrome, Edge, or Chromium as separate DAP Runtime modes. Browser selection variables inherited from the Playwright architecture are removed from the active Extension-native path.
+Current accepted Web learner cadence:
 
-Startup resolves the registered DAP Extension id and discovers the supported installed browser profile that contains that Extension. Chrome and Edge remain supported compatibility targets, but the DAP Runtime architecture remains one path: Runtime → Native Host → Extension → DOM.
+- recovery states: 100 ms;
+- stable resolved Step: 500 ms.
 
-If the Extension is enabled in more than one supported browser/profile, DAP development tooling must report ambiguity and stop rather than guessing. Chromium-specific Playwright profile discovery is not part of the active architecture.
+This preserves the verified bubble semantics while reducing idle browser load. A previous fully event-driven stable-loop experiment caused visible learner regressions and is not accepted.
+
+## ADR-031 — Manual learner is the product acceptance reference
+
+**Status:** Accepted
+
+The production Web learner must complete the persisted Guide without the E2E runner connected.
+
+The verified runner-free 54-Step manual TestCRM run proves that persisted Guide data plus production Runtime logic are sufficient for target resolution, validation, completion, capture, and progression.
+
+## ADR-032 — Documentation is part of project state
+
+**Status:** Accepted
+
+Architecture, decisions, current status, and project context are maintained in repository Markdown and updated with significant implementation changes.
