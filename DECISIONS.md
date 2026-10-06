@@ -42,7 +42,7 @@ A disabled persisted Step is skipped without renumbering. Disabling a Step must 
 
 ## ADR-009 — Canonical learner runners expose Manual and Hybrid only
 
-Current public learner modes are `--manual` and `--hybrid`.
+Current TestCRM learner execution modes are `--manual` and `--hybrid`, and normal execution requires `--guide <GuideId>`. The runner must load and pass the explicitly supplied Guide ID to `DAP.exe --learner --guide <GuideId>` rather than selecting a Guide implicitly.
 
 `--reset-guide` is maintenance. `--published-dap` may be used as a packaging/path option.
 
