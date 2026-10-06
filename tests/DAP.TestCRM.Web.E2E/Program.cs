@@ -207,6 +207,8 @@ void TryKillOwnedProcessTree(Process? process)
 Process? ownedTestCrmProcess = null;
 Process? ownedTestCrmBackendProcess = null;
 Process? dapProcess = null;
+Process? browserProcess = null;
+ExtensionTestDriver? testDriver = null;
 Task<string>? dapStdOutTask = null;
 var testCrmWebStdOut = new System.Collections.Concurrent.ConcurrentQueue<string>();
 var testCrmWebStdErr = new System.Collections.Concurrent.ConcurrentQueue<string>();
@@ -220,7 +222,6 @@ void KillOwnedWebChildren()
 {
     KillOwnedDapProcess();
     TryKillOwnedProcessTree(browserProcess);
-    if (testDriver is not null) await testDriver.DisposeAsync();
     TryKillOwnedProcessTree(ownedTestCrmProcess);
     TryKillOwnedProcessTree(ownedTestCrmBackendProcess);
 }
@@ -421,7 +422,7 @@ var chromeExecutable = chromeCandidates.FirstOrDefault(File.Exists)
 var browserUrl = hybrid
     ? $"{baseUrl}?dap-e2e-session={sessionId}"
     : baseUrl;
-var browserProcess = Process.Start(new ProcessStartInfo
+browserProcess = Process.Start(new ProcessStartInfo
 {
     FileName = chromeExecutable,
     Arguments = $"--new-window \"{browserUrl}\"",
@@ -429,7 +430,6 @@ var browserProcess = Process.Start(new ProcessStartInfo
 }) ?? throw new InvalidOperationException("Could not start Chrome.");
 StartupMark("Chrome launched with installed DAP extension");
 
-ExtensionTestDriver? testDriver = null;
 if (hybrid)
 {
     testDriver = new ExtensionTestDriver(sessionId);
@@ -579,7 +579,8 @@ dapProcess=new Process
     }
 };
 dapProcess.StartInfo.Environment["DAP_DATABASE_PATH"]=dapDbPath!;
-dapProcess.StartInfo.Environment["DAP_WEB_SESSION_ID"]=browser.SessionId;
+if (hybrid)
+    dapProcess.StartInfo.Environment["DAP_WEB_SESSION_ID"]=sessionId;
 var dapStartupTimer=Stopwatch.StartNew();
 if(!dapProcess.Start())
     throw new Exception("DAP.exe process could not be started.");
@@ -628,9 +629,10 @@ if (hybrid)
             continue;
 
         var selector = step.Target.Locator.Value;
-        var frame = await Content();
-        var target = frame.Locator(selector);
-        var tag = await target.EvaluateAsync<string>("e=>e.tagName");
+        if (testDriver is null)
+            throw new InvalidOperationException("Hybrid test driver is not available.");
+        var tagResponse = await testDriver.LocatorAsync("dap-content", selector, "tagName");
+        var tag = tagResponse.GetProperty("result").GetProperty("value").GetString() ?? "";
 
         if (tag == "SELECT")
             await Select(selector, step.AutomationValue);
@@ -705,6 +707,8 @@ finally
     Console.CancelKeyPress -= webCancelCleanup;
 
     KillOwnedDapProcess();
+    TryKillOwnedProcessTree(browserProcess);
+    if (testDriver is not null) await testDriver.DisposeAsync();
 
     if (ownedTestCrmProcess is not null)
     {
