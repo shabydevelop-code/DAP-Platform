@@ -356,19 +356,23 @@
         const rect = el.getBoundingClientRect();
         const style = getComputedStyle(el);
         const disabled = el.disabled === true || el.getAttribute("aria-disabled") === "true";
-        const visible = rect.width > 0 && rect.height > 0 &&
-          rect.bottom > 0 && rect.right > 0 &&
-          rect.top < innerHeight && rect.left < innerWidth &&
+        const rendered = rect.width > 0 && rect.height > 0 &&
           style.visibility !== "hidden" && style.display !== "none" &&
           style.pointerEvents !== "none";
-        let hit = false;
-        if (visible && !disabled) {
+        const inViewport =
+          rect.bottom > 0 && rect.right > 0 &&
+          rect.top < innerHeight && rect.left < innerWidth;
+        let unobstructed = true;
+        if (rendered && inViewport && !disabled) {
           const x = Math.max(0, Math.min(innerWidth - 1, rect.left + rect.width / 2));
           const y = Math.max(0, Math.min(innerHeight - 1, rect.top + rect.height / 2));
           const top = document.elementFromPoint(x, y);
-          hit = !!top && (top === el || el.contains(top));
+          unobstructed = !!top && (top === el || el.contains(top));
         }
-        sendResponse({ok:true,result:{interactable:visible && !disabled && hit,status:"resolved"}});
+        // Off-screen is not the same as non-interactable. The presentation
+        // path owns scrolling the resolved target into view; this gate only
+        // rejects a rendered target when something currently obstructs it.
+        sendResponse({ok:true,result:{interactable:rendered && !disabled && unobstructed,status:"resolved"}});
         return;
       }
       if (command.type === "waitForDomQuiet") {
