@@ -8,7 +8,7 @@ The canonical persisted Web Guide contains **55 Steps**. Step 55 is the persiste
 
 Verified product baseline:
 
-- Full runner-free Manual Web learner execution: **PASS**.
+- Full runner-free Manual Web learner execution: **PASS**, re-verified after the latest Hybrid/presentation/runner cleanup changes.
 - Full DB-driven Hybrid Web learner execution: **PASS** before the latest presentation cleanup; the latest Runtime-owned automatic-label presentation is visually verified.
 - Web uses the installed DAP Extension + Native Host + .NET Runtime. Playwright is not part of the active Web path.
 - Persisted Guide data plus production Runtime own target resolution, validation, completion, capture, disabled-Step skipping, and progression.
@@ -153,4 +153,4 @@ Windows cleanup/refactoring is intentionally separate from the completed Web run
 
 ## Next work
 
-Keep the Web product path stable. Use Manual as the strongest product acceptance reference and Hybrid as the practical semi-automatic regression workflow. Continue Windows work without reintroducing a second Guide engine or Runner-driven product semantics.
+Keep the Web product path stable. Manual has been re-verified successfully after the latest changes and remains the strongest product acceptance reference; Hybrid is the practical semi-automatic regression workflow. Continue Windows work without reintroducing a second Guide engine or Runner-driven product semantics.
