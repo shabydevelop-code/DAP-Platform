@@ -36,6 +36,8 @@ Current cross-runtime UX parity rules:
 - Discrete controls commit on their normal selection/change action.
 - A newly presented target may be auto-scrolled once into a comfortable visible region. Reconciliation must not repeatedly force viewport position after that initial presentation.
 - Manual bubble dragging makes manual placement authoritative for the active Step. The directional pointer disappears immediately when dragging begins and remains hidden until the Step changes.
+- Web stable target-attached presentation is event-driven rather than continuously re-resolved every 100 ms. The 100 ms cadence is reserved for transient recovery/pending-transition states.
+- Web cross-frame top-level proxies are reused and refreshed at 250 ms only while required; they hide when the target leaves the top-level viewport and are removed when normal child-frame placement becomes possible.
 - TestCRM Windows Case sorting is exposed through the `סטטוס` grid header, matching the Web learner interaction instead of using a separate learner-facing sort button.
 - Web completion is the in-browser DAP completion UI; the Web `--manual` runner must not add a duplicate OS completion dialog.
 - DAP-owned OS completion dialogs must request foreground presentation when shown so the learner cannot miss successful completion behind the target application. The request is scoped to the completion dialog lifetime; it must not leave persistent Topmost state. This behavior was manually verified on 2026-10-03.
