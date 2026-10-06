@@ -182,27 +182,32 @@ Synchronization uses actual application signals: server responses, route state, 
 
 Fixed delays are not substitutes for readiness.
 
-## ADR-025 — Fast and Visual share one action path
+## ADR-025 — Hybrid is semi-automatic value entry
 
 **Status:** Accepted
 
-`DAP_E2E_MODE=fast` and `DAP_E2E_MODE=visual` execute the same business/learner logic. Visual may add cursor travel and presentation pacing only; it must not change values, commit semantics, target selection, validation, or progression.
+Hybrid is a practical regression/assistance mode, not full autonomous Guide execution.
+
+- Persisted `AutomationValue` may be used to enter/select data in supported value controls.
+- Meaningful business actions remain learner actions.
+- `Validation` and `AutomationValue` have separate responsibilities.
+- Runtime remains authoritative for validation, completion, and progression.
+- Hybrid manual Steps wait naturally for the learner and are not subject to the five-second technical synchronization ceiling as a human-response deadline.
 
 ## ADR-026 — Canonical Web run modes
 
 **Status:** Accepted
 
-Supported public Web modes are:
+Maintained Web execution modes are:
 
 ```text
 --manual
---guided
---manual-from-step N
---unguided
---visual-from-step N
+--hybrid
 ```
 
-Focused from-Step modes execute the real preceding workflow as bootstrap and then hand off/start DAP at the requested Step with validated resume context.
+`--reset-guide` is an explicit maintenance operation and `--published-dap <dir>` is an infrastructure option.
+
+Historical Guided Fast, Guided Visual, Unguided, Manual-from-Step, Fast-from-Step, and Visual-from-Step modes are removed from the maintained Web runner. The old Web `DAP_E2E_MODE` and `DAP_E2E_BROWSER` environment-variable model is obsolete.
 
 ## ADR-027 — Browser profile auto-discovery
 
@@ -247,7 +252,7 @@ This preserves the verified bubble semantics while reducing idle browser load. A
 
 The production Web learner must complete the persisted Guide without the E2E runner connected.
 
-The verified runner-free 54-Step manual TestCRM run proves that persisted Guide data plus production Runtime logic are sufficient for target resolution, validation, completion, capture, and progression.
+The verified runner-free manual TestCRM run proves that persisted Guide data plus production Runtime logic are sufficient for target resolution, validation, completion, capture, and progression. The canonical Web Guide now contains 55 persisted Steps because completion/summary is itself Step 55.
 
 ## ADR-032 — Documentation is part of project state
 
@@ -267,6 +272,38 @@ The full Windows Guided 54-Step workflow and a separate Manual autofocus check p
 
 
 
+## ADR-033 — Step enablement preserves persisted identity
+
+**Status:** Accepted
+
+`GuideStep.IsEnabled = false` means the production Runtime skips that persisted Step completely: no target resolution, presentation, validation, completion wait, or capture.
+
+Skipping does not renumber the Guide. Runtime/log/presentation identity follows persisted `StepOrder`.
+
+## ADR-034 — Guide completion is a persisted Step
+
+**Status:** Accepted
+
+Guide-specific completion/summary content is normal Guide data. The canonical Web Guide uses persisted Step 55 as a centered Manual information Step. The Runtime finishes after the final persisted Step completes; it does not manufacture a separate hard-coded completion bubble.
+
+## ADR-035 — Hybrid automatic indicator belongs to Runtime presentation
+
+**Status:** Accepted
+
+When Hybrid presentation is active and a persisted Step contains `AutomationValue`, the localized automatic-Step indicator is supplied as part of normal Runtime bubble presentation and created together with the bubble.
+
+The Runner must not synchronize to an existing bubble, match its active target, or inject the indicator afterward.
+
+`AutomationValue` remains Guide data. The label text remains product-localization data.
+
+## ADR-036 — Runner-owned process cleanup covers early failure
+
+**Status:** Accepted
+
+Every process started by a Runner is Runner-owned and must be cleaned on all exit paths, including failures that occur before normal Guide execution begins, such as stale/incompatible browser-extension handshake.
+
+The Runner may clean only processes it owns. It must never kill an arbitrary process solely because a required port is occupied.
+
 ## Regression Runner Boundary
 
 The Web/Windows regression runner is test infrastructure, not a DAP product component.
@@ -276,6 +313,6 @@ The Web/Windows regression runner is test infrastructure, not a DAP product comp
 - The runner must not decide whether validation, completion, navigation, save, target appearance/disappearance, or any other Guide transition condition succeeded.
 - Guide advancement is owned exclusively by the production Runtime using the persisted Guide definitions in the database.
 - No production Runtime behavior, protocol, synchronization path, or completion mechanism may be added solely to satisfy the regression runner.
-- Automatic, unguided, visual, and from-step regression modes must exercise the same production Runtime and persisted Guide semantics as a real learner session; only who performs the learner action and whether guidance is presented may differ.
+- Web Manual and Hybrid use the same production Runtime and persisted Guide semantics as a real learner session.
 
 Architectural test: if a real learner would not need to perform an operation, that operation must not be used by the runner to advance the Guide.
