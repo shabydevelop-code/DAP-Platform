@@ -522,6 +522,7 @@ async Task RunGuidedAsync(
         DiagnoseBreadcrumbs(window);
 
         WaitForStep("testcrm-windows-back-to-cases");
+        driver.CaptureCreatedCaseId();
         await driver.OpenSiteFromBreadcrumb();
 
         try
