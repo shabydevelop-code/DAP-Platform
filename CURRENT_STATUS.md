@@ -192,3 +192,21 @@ Verified fixes in the full regression:
 
 The full Manual regression confirms that the canonical persisted 54-Step Guide remains usable end-to-end with automatic target scrolling and the corrected asynchronous completion semantics.
 
+## Windows verified regression update — 2026-10-06
+
+A fresh full Windows Guided run completed **54/54 PASS** after the Windows E2E action-driver cleanup and the persisted completion/autofocus corrections.
+
+Verified behavior:
+
+- Windows E2E remains a synthetic learner/action layer; it no longer waits for or decides the business outcome of Case sorting.
+- The persisted Case-sort Step owns its asynchronous completion semantics.
+- The Windows Case-sort Step completes only after the observable `CasesGrid` has been replaced following the server-backed sort. The following New Case Step is therefore not exposed while sorting is still in flight.
+- No arbitrary delay and no timeout increase were introduced.
+- Guide-owned `AutoFocusTarget` is consumed by the Windows Learner Runtime.
+- Value-entry Steps receive their persisted target focus once when presented; normal reconciliation does not repeatedly steal focus.
+- Autofocus was verified both in the full Guided run and in a separate Manual Windows learner run.
+- The full Windows canonical 54-Step Customer -> Site -> Case -> Lead workflow passed after these changes.
+- A seed change must be applied to an already-persisted Guide through the explicit `--reset-guide` path before the changed Guide data can be tested.
+
+Current verified Windows baseline: **Guided 54/54 PASS; Manual target autofocus PASS**.
+
