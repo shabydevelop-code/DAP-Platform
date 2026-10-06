@@ -153,6 +153,7 @@ public sealed class WindowsGuideRuntime
         var targetFirstResolvedLogged = false;
         var bubbleFirstShownLogged = false;
         var initialVisibilityChecked = false;
+        var initialAutoFocusApplied = false;
         var completionTargetsBeforeAction = CaptureReplacementBaselines(windowRoot, step);
 
         Console.Error.WriteLine(
@@ -404,6 +405,29 @@ public sealed class WindowsGuideRuntime
                     await _bubbles.HideAsync();
                     await Task.Delay(_pollInterval, cancellationToken);
                     continue;
+                }
+
+                if (step.AutoFocusTarget && !initialAutoFocusApplied)
+                {
+                    try
+                    {
+                        target.SetFocus();
+                        initialAutoFocusApplied = true;
+                        Console.Error.WriteLine(
+                            $"[DAP Windows guide] Step '{step.Id}' focused its persisted target on presentation.");
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        await _bubbles.HideAsync();
+                        await Task.Delay(_pollInterval, cancellationToken);
+                        continue;
+                    }
+                    catch (ElementNotAvailableException)
+                    {
+                        await _bubbles.HideAsync();
+                        await Task.Delay(_pollInterval, cancellationToken);
+                        continue;
+                    }
                 }
 
                 if (clicked && (subscribedTarget is null || !SameElement(subscribedTarget, target)))
