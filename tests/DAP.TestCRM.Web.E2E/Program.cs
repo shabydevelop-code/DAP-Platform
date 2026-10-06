@@ -784,153 +784,75 @@ async Task WaitForGuideStep(int order)
 {
     var expected=dapSteps.Single(step=>step.Order==order);
 
-    // The harness may wait for the same active Guide Step more than once:
-    // first to synchronize a preceding transition, then again immediately
-    // before performing that Step's learner action. Repeating the current Step
-    // is valid; skipping forward or moving backward is not.
     if(order<lastScenarioGuideOrder || order>lastScenarioGuideOrder+1)
         throw new Exception(
             $"Canonical Web scenario requested Guide Step {order} after Step {lastScenarioGuideOrder}; expected Step {lastScenarioGuideOrder} or {lastScenarioGuideOrder+1}.");
+
     var advancedSequence=order==lastScenarioGuideOrder+1;
     if(advancedSequence)
         lastScenarioGuideOrder=order;
 
-    var hiddenPresentation =
-        unguided || (focusedStartStepOrder is not null && order < focusedStartStepOrder.Value);
-
-    if(hiddenPresentation
-        && expected.Target is null
-        && expected.Bubble.Placement == BubblePlacement.Center
-        && expected.AdvanceMode == StepAdvanceMode.Manual)
+    var startMarker=$"[DAP guide] starting Step {order}/{dapSteps.Count} '{expected.Id}'";
+    var deadline=DateTime.UtcNow.AddSeconds(5);
+    while(DateTime.UtcNow<deadline)
     {
-        // Production Runtime intentionally auto-advances pure centered
-        // information Steps when presentation is hidden. There is no learner
-        // action and therefore no presentation surface to synchronize with.
-        if(advancedSequence)
-            Console.WriteLine($"Web Runtime hidden information Step {order}/{dapSteps.Count}: {expected.Id}");
-        return;
-    }
-
-
-    for(var i=0;i<100;i++)
-    {
-        // A Guide may cross frame boundaries. Search live frames instead of
-        // assuming every production bubble belongs to the Content iframe.
-        foreach(var liveFrame in page.Frames.Where(candidate=>!candidate.IsDetached))
+        if(dapStdErrLines.Any(line=>line.Contains(startMarker,StringComparison.Ordinal)))
         {
-            try
+            if(visualFromStep == order && !switchedToVisual)
             {
-                // Normal bubbles live with their target frame. A constrained
-                // child frame can instead use the presentation-only top-level
-                // proxy, so the harness must recognize both production surfaces.
-                foreach(var selector in new[] { "#dap-guide-bubble", "#dap-guide-bubble-proxy", "#dap-guide-centered" })
+                visualMode=true;
+                fastMode=false;
+                switchedToVisual=true;
+                Console.WriteLine($"E2E mode transition: hidden -> VISUAL at Step {order}");
+            }
+
+            if(manualFromStep == order)
+            {
+                Console.WriteLine();
+                Console.WriteLine($"MANUAL HANDOFF: Runtime reached Step {order}.");
+                Console.WriteLine("Automatic learner actions are paused. Continue manually in the browser.");
+                Console.WriteLine("The run will close automatically when DAP completes the Guide or the owned browser/page is closed.");
+
+                var dapExit=dapProcess!.WaitForExitAsync();
+                var webHostExit=ownedTestCrmProcess!.WaitForExitAsync();
+                var completed=await Task.WhenAny(dapExit,ownedWebTargetClosed.Task,webHostExit);
+
+                if(completed==dapExit)
                 {
-                    var bubble=liveFrame.Locator(selector);
-                    if(await bubble.CountAsync()==1)
-                    {
-                        var bubbleStepId=await bubble.GetAttributeAsync("data-dap-step-id");
-                        var matchesExpectedStep =
-                            string.Equals(bubbleStepId, expected.Id, StringComparison.Ordinal)
-                            && (hiddenPresentation || await bubble.IsVisibleAsync());
-                        if(matchesExpectedStep)
-                        {
-                            if(hiddenPresentation)
-                            {
-                                if(advancedSequence)
-                                    Console.WriteLine($"Web Runtime hidden Guide Step {order}/{dapSteps.Count}: {expected.Id}");
-                                return;
-                            }
-                            if(visualFromStep == order && !switchedToVisual)
-                            {
-                                visualMode=true;
-                                fastMode=false;
-                                switchedToVisual=true;
-                                Console.WriteLine($"E2E mode transition: UNGUIDED -> VISUAL at Step {order}");
-                            }
-                            await HumanPause(500);
-                            if(manualFromStep == order)
-                            {
-                                Console.WriteLine();
-                                Console.WriteLine($"MANUAL HANDOFF: Step {order} is ready.");
-                                Console.WriteLine("Automatic learner actions are paused. Continue manually in the browser by following the DAP bubbles.");
-                                Console.WriteLine("The run will close automatically when DAP completes the Guide or the owned browser/page is closed.");
-                                Console.WriteLine("Press Ctrl+C only if you want to stop the run early.");
-
-                                var dapExit=dapProcess!.WaitForExitAsync();
-                                var webHostExit=ownedTestCrmProcess!.WaitForExitAsync();
-                                var completed=await Task.WhenAny(
-                                    dapExit,
-                                    ownedWebTargetClosed.Task,
-                                    webHostExit);
-
-                                if(completed==dapExit)
-                                {
-                                    await dapExit;
-                                    if(dapProcess.ExitCode!=0)
-                                        throw new Exception($"DAP.exe exited with code {dapProcess.ExitCode} during the manual Web From-Step run.");
-
-                                    Console.WriteLine("DAP completed the manual Web From-Step Guide. Cleaning up E2E-owned processes.");
-                                }
-                                else if(completed==webHostExit)
-                                {
-                                    await webHostExit;
-                                    throw new Exception(
-                                        $"TestCRM Web host exited unexpectedly during the manual Web From-Step run. ExitCode={ownedTestCrmProcess.ExitCode}.");
-                                }
-                                else
-                                {
-                                    var reason=await ownedWebTargetClosed.Task;
-                                    Console.WriteLine(
-                                        $"Owned Web target closed ({reason}). Ending the manual Web From-Step run and cleaning up owned processes.");
-                                }
-
-                                throw new ManualWebHandoffCompleteException();
-                            }
-                            return;
-                        }
-                    }
+                    await dapExit;
+                    if(dapProcess.ExitCode!=0)
+                        throw new Exception($"DAP.exe exited with code {dapProcess.ExitCode} during the manual Web From-Step run.");
                 }
+                else if(completed==webHostExit)
+                {
+                    await webHostExit;
+                    throw new Exception(
+                        $"TestCRM Web host exited unexpectedly during the manual Web From-Step run. ExitCode={ownedTestCrmProcess.ExitCode}.");
+                }
+
+                throw new ManualWebHandoffCompleteException();
             }
-            catch(BrowserHarnessException) { }
+
+            return;
         }
-        await page.WaitForTimeoutAsync(100);
-    }
-    var presentationDiagnostics=new List<string>();
-    foreach(var liveFrame in page.Frames.Where(candidate=>!candidate.IsDetached))
-    {
-        foreach(var selector in new[] { "#dap-guide-bubble", "#dap-guide-bubble-proxy", "#dap-guide-centered" })
-        {
-            try
-            {
-                var surface=liveFrame.Locator(selector);
-                var count=await surface.CountAsync();
-                if(count==0) continue;
-                var stepId=await surface.GetAttributeAsync("data-dap-step-id");
-                var visible=await surface.IsVisibleAsync();
-                presentationDiagnostics.Add(
-                    $"{selector}: step={stepId ?? "<none>"}, visible={visible}, frame={liveFrame.Url}");
-            }
-            catch(BrowserHarnessException)
-            {
-                presentationDiagnostics.Add($"{selector}: frame became unavailable while collecting diagnostics.");
-            }
-        }
+
+        if(dapProcess is not null && dapProcess.HasExited)
+            throw new Exception($"DAP.exe exited with code {dapProcess.ExitCode} before Runtime reached Step {order}.");
+
+        await page.WaitForTimeoutAsync(50);
     }
 
     var recentDapDiagnostics=string.Join(
         Environment.NewLine,
-        dapStdErrLines.Where(line =>
+        dapStdErrLines.Where(line=>
             line.StartsWith("[DAP guide]",StringComparison.Ordinal)
             || line.StartsWith("[DAP validation]",StringComparison.Ordinal)
             || line.StartsWith("[DAP bubble]",StringComparison.Ordinal)
             || line.StartsWith("[DAP runtime]",StringComparison.Ordinal)
             || line.StartsWith("[DAP runtime trace]",StringComparison.Ordinal)));
-    var presentationState=presentationDiagnostics.Count==0
-        ? "<no DAP presentation surfaces found>"
-        : string.Join(Environment.NewLine,presentationDiagnostics);
+
     throw new TimeoutException(
-        $"DAP Guide did not present Step {order}: {expected.Id}.{Environment.NewLine}" +
-        $"DAP presentation state:{Environment.NewLine}{presentationState}{Environment.NewLine}" +
+        $"DAP Runtime did not reach Step {order}: {expected.Id} within 5 seconds.{Environment.NewLine}" +
         $"DAP diagnostics:{Environment.NewLine}{recentDapDiagnostics}");
 }
 
