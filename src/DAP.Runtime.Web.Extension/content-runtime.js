@@ -280,6 +280,27 @@
           sendResponse({ok:true,result:{status:"resolved",value:el.tagName}});
           return;
         }
+        if (op === "setHybridAutomaticBadge") {
+          let badge=el.querySelector("[data-dap-hybrid-automatic]");
+          if (!badge) {
+            badge=el.ownerDocument.createElement("div");
+            badge.dataset.dapHybridAutomatic="true";
+            Object.assign(badge.style,{
+              display:"inline-block",
+              fontSize:"12px",
+              fontWeight:"700",
+              padding:"2px 8px",
+              marginBottom:"8px",
+              border:"1px solid currentColor",
+              borderRadius:"999px"
+            });
+            const content=el.children.length>1?el.children[1]:null;
+            el.insertBefore(badge,content);
+          }
+          badge.textContent=String(command.label??"");
+          sendResponse({ok:true,result:{status:"resolved"}});
+          return;
+        }
         if (op === "matchesActiveGuideTarget") {
           const bubble=el.ownerDocument.getElementById("dap-guide-bubble");
           sendResponse({ok:true,result:{status:"resolved",value:!!bubble&&bubble.__dapTarget===el}});
