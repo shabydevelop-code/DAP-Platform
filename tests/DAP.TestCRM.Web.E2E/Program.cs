@@ -273,8 +273,7 @@ Console.CancelKeyPress += webCancelCleanup;
             File.Copy(sourceFile, destinationFile, overwrite: true);
         }
 
-        // Unguided now runs the production DAP Runtime with presentation
-        // suppressed, so every non-diagnostic E2E mode requires DAP.exe.
+        // Manual and Hybrid both run the production DAP Runtime, so the runner requires DAP.exe.
         if (publishedDapDirectory is null)
             await BuildIsolatedAsync(dapAppProject, dapOutput, "DAP");
     }
@@ -538,9 +537,9 @@ await WaitReady();
 StartupMark("TestCRM ready");
 
 // Every Web scenario mode consumes the same persisted production Guide.
-// Every mode runs the production DAP Runtime from Step 1 against the persisted
-// Guide in DAP.db. Unguided/focused bootstrap modes suppress presentation only;
-// target resolution, validation, capture and completion remain Runtime-owned.
+// Both Manual and Hybrid run the production DAP Runtime from Step 1 against the
+// persisted Guide in DAP.db. Target resolution, validation, capture and completion
+// remain Runtime-owned.
 var dapDatabaseOptions=SqliteDatabaseOptions.CreateDefault();
 var dapDbPath=dapDatabaseOptions.DatabasePath;
 var dapFactory=new SqliteConnectionFactory(dapDatabaseOptions);
