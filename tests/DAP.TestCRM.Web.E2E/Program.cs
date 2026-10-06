@@ -501,7 +501,7 @@ await new SqliteDatabaseInitializer(dapFactory).InitializeAsync();
 var dapRepository=new SqliteGuideStepRepository(dapFactory);
 await dapRepository.RenameGuideAsync(
     DapTestCrmGuideSeed.LegacyGuideId,
-    guideId,
+    DapTestCrmGuideSeed.GuideId,
     DapTestCrmGuideSeed.GuideName);
 var dapSteps=await dapRepository.GetStepsAsync(guideId);
 Console.WriteLine($"DAP persistent guide database: {dapDbPath}");
