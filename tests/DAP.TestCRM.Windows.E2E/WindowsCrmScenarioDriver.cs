@@ -275,7 +275,39 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     public Task SetCaseDescription(string v){Set("CaseDescription",v);return Task.CompletedTask;}
     public Task SaveCase()
     {
+        AutomationElement? oldPersistedMarker = null;
+        if (unguidedBootstrapSynchronization)
+            oldPersistedMarker = window.FindFirst(TreeScope.Descendants,
+                new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteCaseButton"));
+
         Click(ById("SaveCaseButton"));
+
+        if (unguidedBootstrapSynchronization)
+        {
+            if (oldPersistedMarker is null)
+            {
+                Wait(()=>window.FindFirst(TreeScope.Descendants,
+                    new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteCaseButton")),
+                    "persisted Case form after Save");
+            }
+            else
+            {
+                var mainHwnd=new IntPtr(window.Current.NativeWindowHandle);
+                Wait(() =>
+                {
+                    var popup=GetWindow(mainHwnd,GW_ENABLEDPOPUP);
+                    if(popup!=IntPtr.Zero && popup!=mainHwnd && IsWindowVisible(popup))
+                        return window;
+
+                    var current=window.FindFirst(TreeScope.Descendants,
+                        new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteCaseButton"));
+                    return current is not null && !Automation.Compare(oldPersistedMarker,current)
+                        ? current
+                        : null;
+                },"Case save validation or completed form");
+            }
+        }
+
         return Task.CompletedTask;
     }
 
