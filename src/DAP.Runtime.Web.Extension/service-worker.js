@@ -773,6 +773,7 @@ async function handleNativeMessage(message) {
           progressText: command.progressText,
           dragText: command.dragText,
           direction: command.direction,
+          visible: command.visible,
           targetRect,
           localTargetRect: localRect || null,
           topFrameLocator: originalFramePath.length === 1 ? originalFramePath[0] : null
