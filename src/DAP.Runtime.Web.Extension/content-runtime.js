@@ -4,7 +4,7 @@
   // Do not return before registering the adapter endpoint. After an extension
   // reload a tab may still contain an older __dapWebRuntime object while the
   // new extension context needs to install its current message listener.
-  if (globalThis.__dapAdapterEndpointVersion === "0.4.6") {
+  if (globalThis.__dapAdapterEndpointVersion === "0.4.7") {
     // Re-injection / an already-live page must still wake the MV3 service
     // worker so it can (re)establish Native Messaging after DAP starts.
     try {
@@ -13,7 +13,7 @@
     } catch {}
     return;
   }
-  globalThis.__dapAdapterEndpointVersion = "0.4.6";
+  globalThis.__dapAdapterEndpointVersion = "0.4.7";
 
   // Register the adapter message endpoint before the legacy POC runtime is
   // initialized. Target resolution is looked up at message time, so an
@@ -24,7 +24,7 @@
     try {
       const command = message.command || {};
       if (command.type === "ping") {
-        sendResponse({ok:true,result:{ready:true,version:"0.4.6"}});
+        sendResponse({ok:true,result:{ready:true,version:"0.4.7"}});
         return;
       }
       if (command.type === "resolveFrameChild") {
@@ -1115,6 +1115,7 @@
 
   const listeners = new Set();
   let reconcileQueued=false;
+  let invalidationQueued=false;
   const queueReconcile=()=>{
     if(reconcileQueued)return;
     reconcileQueued=true;
@@ -1123,20 +1124,25 @@
       reconcile();
     });
   };
+  const queuePresentationInvalidation=()=>{
+    if(invalidationQueued)return;
+    invalidationQueued=true;
+    queueMicrotask(()=>{
+      invalidationQueued=false;
+      try{
+        const pending=chrome.runtime.sendMessage({
+          type:"dap-adapter-event",
+          payload:{type:"presentation-invalidated"}
+        });
+        pending?.catch?.(()=>{});
+      }catch{}
+    });
+  };
 
-  // Structural changes can replace/remove the active target anywhere in the
-  // application DOM, so keep one lightweight document-wide child-list observer.
-  // Do not observe every attribute/text mutation globally: modern applications
-  // may mutate those continuously while visually idle, which previously caused
-  // repeated full target resolution and unnecessary renderer CPU use.
-  const structuralObserver = new MutationObserver(records => {
-    for (const listener of listeners) listener(records);
-    queueReconcile();
-  });
-
-  // Attribute changes matter when they affect the currently resolved target or
-  // its immediate identity/context. Watch only the live target and its ancestor
-  // chain instead of the entire document.
+  // While a Step is stably presented, observe only the live target and its
+  // identity/context chain. This catches target replacement/removal, sibling or
+  // descendant anchor changes, and relevant identity-attribute changes without
+  // subscribing DAP to unrelated application churn elsewhere in the document.
   let identityObserver=null;
   let observedIdentityTarget=null;
   const refreshIdentityObserver=()=>{
@@ -1151,30 +1157,24 @@
     identityObserver=new MutationObserver(records=>{
       for(const listener of listeners) listener(records);
       queueReconcile();
+      queuePresentationInvalidation();
     });
 
+    let first=true;
     for(let current=target;current;current=current.parentElement){
       identityObserver.observe(current,{
         attributes:true,
+        childList:true,
+        subtree:first,
         attributeFilter:["id","class","name","role","aria-label","aria-labelledby","aria-describedby","data-go","href","type","value"]
       });
+      first=false;
     }
   };
 
-  const start = () => {
-    const root = document.documentElement;
-    if (!root) return requestAnimationFrame(start);
-    structuralObserver.observe(root, {
-      subtree: true,
-      childList: true
-    });
-  };
-
-  start();
-
   const existingRuntime = globalThis.__dapWebRuntime;
   globalThis.__dapWebRuntime = {
-    version: "0.4.6",
+    version: "0.4.7",
     resolveTarget,
     showBubble,
     hideBubble,
