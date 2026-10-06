@@ -382,7 +382,7 @@ internal static class DapTestCrmWindowsGuideSeed
             "testcrm-windows-race-status-new", 44,
             "LeadStatus", "החזר את סטטוס הליד לחדש",
             "value-equals", "חדש",
-            completionCondition: new StepCompletionCondition("target-not-exists", ById("LeadSelectedService")), isEnabled: false),
+            completionCondition: new StepCompletionCondition("target-not-exists", ById("LeadSelectedService")), automationValue: "חדש", isEnabled: false),
 
         ValueStep(
             "testcrm-windows-race-status-closed", 45,
