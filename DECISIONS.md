@@ -691,3 +691,16 @@ When documentation or prior conversation conflicts with the current code, inspec
 - Do not treat a diverged branch as current implementation.
 - Historical commits are evidence of history, not the current code baseline.
 - Any intentional recovery from history requires explicit user direction.
+
+## ADR-059 — Canonical learner runners expose Manual and Hybrid only
+
+**Status:** Accepted  
+**Date:** 2026-10-06
+
+The current canonical Web and Windows learner runners expose only `--manual` and `--hybrid` as execution modes. `--reset-guide` remains a maintenance operation and `--published-dap` may remain a packaging/path option.
+
+Guided, Unguided, Fast, Visual, Manual-From-Step, Visual-From-Step, and environment-driven E2E mode selection are retired from the current runner contract. Earlier documentation of those modes is historical only.
+
+Hybrid automation is persisted-data-driven. `GuideStep.IsEnabled` and `GuideStep.AutomationValue` must survive repository persistence. Production Runtime skips disabled Steps without renumbering them. The Hybrid harness may perform an explicitly configured value-entry action but must not duplicate Runtime target resolution, validation, completion, capture, or progression.
+
+The persisted centered summary Step 55 is the terminal Guide Step. Runtime must not synthesize an additional completion bubble after it.
