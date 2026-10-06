@@ -514,8 +514,6 @@ async Task Select(string selector,string value)
     await target.SelectOptionAsync(value);
 }
 
-try
-{
 Console.WriteLine("DAP TestCRM representative PeopleSoft-Web scenario");
 Console.WriteLine("Scenario 1: Case status FieldChange + Content iframe replacement");
 Console.WriteLine("Scenario 2: Case validation failure + preservation of unsaved values");
