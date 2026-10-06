@@ -217,7 +217,9 @@ public static class DapApplicationHost
         try
         {
             StartupMark(startup, "Web adapter guide runtime starting");
-            await guideRuntime.RunAsync(steps, cancellationToken, options.StartStep, resumeContext);
+            await guideRuntime.RunAsync(
+                steps, cancellationToken, options.StartStep, resumeContext,
+                options.ShowGuidanceFromStep, options.HideGuidance);
         }
         finally
         {
