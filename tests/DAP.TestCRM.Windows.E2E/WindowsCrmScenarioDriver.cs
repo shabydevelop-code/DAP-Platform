@@ -137,6 +137,17 @@ internal sealed class WindowsCrmScenarioDriver
         ((ValuePattern)pattern).SetValue(value);
     }
 
+    public AutomationElement ResolveAutomationValueTarget(TargetDescriptor target)
+    {
+        if (target.Runtime != TargetRuntime.Windows)
+            throw new InvalidOperationException("Windows Hybrid automation can resolve only Windows targets.");
+        if (!target.Locator.Strategy.Equals("automation-id", StringComparison.OrdinalIgnoreCase))
+            throw new NotSupportedException(
+                $"Windows Hybrid automation supports persisted automation-id value targets; Step target uses '{target.Locator.Strategy}'.");
+
+        return ById(target.Locator.Value);
+    }
+
     public Task ApplyAutomationValue(TargetDescriptor target, string value)
     {
         if (target.Runtime != TargetRuntime.Windows)
