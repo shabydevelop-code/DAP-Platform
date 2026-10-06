@@ -50,7 +50,8 @@
 
 ## Testing
 
-- Canonical learner runners expose Manual and Hybrid only.
+- TestCRM learner runners expose Manual and Hybrid only, and normal execution requires an explicit persisted Guide ID via `--guide <GuideId>`.
+- The runner must pass that exact Guide ID to the product Learner; it must not choose a Guide implicitly.
 - Hybrid may perform configured learner actions but Runtime owns outcomes and progression.
 - Intentional target-application/browser closure must terminate Manual/Hybrid cleanly while genuine Runtime failures remain failures.
 - Automated technical waits must not exceed five seconds without explicit approval.
