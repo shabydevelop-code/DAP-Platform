@@ -39,11 +39,19 @@ public sealed record DapLaunchOptions(
                 else if (args[i] == "--resume-context-file" && i + 1 < args.Length
                          && !string.IsNullOrWhiteSpace(args[i + 1]))
                     resumeContextPath = args[++i];
+                else if (args[i] == "--show-guidance-from-step" && i + 1 < args.Length
+                         && int.TryParse(args[++i], out var parsedShowStep) && parsedShowStep > 0)
+                    showGuidanceFromStep = parsedShowStep;
+                else if (args[i] == "--hide-guidance")
+                    hideGuidance = true;
                 else
                     return Usage(texts);
             }
 
-            return new(DapLaunchMode.LearnerWeb, args[1], null, startStep, resumeContextPath);
+            if (hideGuidance && showGuidanceFromStep is not null)
+                return Usage(texts);
+
+            return new(DapLaunchMode.LearnerWeb, args[1], null, startStep, resumeContextPath, showGuidanceFromStep, hideGuidance);
         }
 
         if (args.Length >= 2 && args[0] == "--learner-windows" && !string.IsNullOrWhiteSpace(args[1]))
