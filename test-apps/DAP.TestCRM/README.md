@@ -265,3 +265,25 @@ The cross-frame Header Step uses `#portal-header` inside `iframe[name='dap-heade
 Focused Step 54 execution was also used to verify promoted-bubble dragging: manual position remains authoritative during reconciliation and the cursor stays in the active `grabbing` state until release.
 
 This verification covers the production learner path. It does not replace a future automated extension-backed cross-browser/mode matrix.
+
+## Windows DAP regression baseline — 2026-10-06
+
+The canonical persisted Windows Guide contains 54 Steps. The current full Guided Windows regression completed **54/54 PASS**.
+
+The Case status-sort scenario intentionally performs a server-backed screen rebuild. DAP does not use a test-runner delay or server/API knowledge to decide when the sort is complete. The persisted Guide waits for the observable `CasesGrid` replacement, and only then exposes the following New Case Step.
+
+Windows value-entry Steps persist `AutoFocusTarget`. The production Windows Learner Runtime applies that focus once when presenting the target. This behavior passed both automated Guided regression and a separate Manual learner check.
+
+When a Windows Guide seed is intentionally changed, an existing persisted Guide is not overwritten by a normal run. Apply the new seed explicitly before regression:
+
+```powershell
+cd C:\yossi\ChatGpt\DAP-Platform
+dotnet run --project tests\DAP.TestCRM.Windows.E2E\DAP.TestCRM.Windows.E2E.csproj -- --reset-guide
+```
+
+Then run the canonical Guided regression:
+
+```powershell
+dotnet run --project tests\DAP.TestCRM.Windows.E2E\DAP.TestCRM.Windows.E2E.csproj -- --guided
+```
+
