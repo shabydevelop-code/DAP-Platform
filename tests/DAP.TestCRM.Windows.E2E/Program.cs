@@ -1094,69 +1094,6 @@ void ClickCenteredInformationConfirm(WindowsCrmScenarioDriver driver)
     ((InvokePattern)invoke).Invoke();
 }
 
-AutomationElement WaitForCompletionBubble(Process dapProcess, int timeout = 5_000)
-{
-    var sw = Stopwatch.StartNew();
-    while (sw.ElapsedMilliseconds < timeout)
-    {
-        if (dapProcess.HasExited)
-            throw new Exception(
-                $"DAP.exe exited before the Windows completion bubble was observed. ExitCode={dapProcess.ExitCode}.");
-
-        try
-        {
-            var topLevelWindows = AutomationElement.RootElement.FindAll(
-                    TreeScope.Children,
-                    new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Window))
-                .Cast<AutomationElement>();
-
-            var completion = topLevelWindows.FirstOrDefault(candidate =>
-            {
-                try
-                {
-                    return IsVisibleUiaElement(candidate)
-                           && string.Equals(
-                               candidate.Current.AutomationId,
-                               "DapLearnerCompletionBubble",
-                               StringComparison.Ordinal);
-                }
-                catch (ElementNotAvailableException)
-                {
-                    return false;
-                }
-            });
-
-            if (completion is not null)
-                return completion;
-        }
-        catch (ElementNotAvailableException)
-        {
-        }
-
-        Thread.Sleep(100);
-    }
-
-    throw new TimeoutException("Timed out waiting for DAP Windows completion bubble.");
-}
-
-void ClickCompletionFinish(AutomationElement completionBubble, WindowsCrmScenarioDriver driver)
-{
-    var finish = completionBubble.FindFirst(
-        TreeScope.Descendants,
-        new PropertyCondition(
-            AutomationElement.AutomationIdProperty,
-            "DapLearnerCompletionFinish"));
-
-    if (finish is null)
-        throw new Exception("DAP Windows completion Finish action was not found.");
-
-    if (!finish.TryGetCurrentPattern(InvokePattern.Pattern, out var invoke))
-        throw new Exception("DAP Windows completion Finish action does not expose InvokePattern.");
-
-    driver.VisualTarget(finish);
-    ((InvokePattern)invoke).Invoke();
-}
-
 bool IsVisibleUiaElement(AutomationElement candidate)
 {
     try
