@@ -58,8 +58,7 @@ public sealed class AdapterWebGuideRuntime
             Console.Error.WriteLine($"[DAP guide] starting Step {i+1}/{ordered.Length} '{step.Id}'.");
             await _steps.RunActiveStepAsync(
                 step, i+1, ordered.Length, cancellationToken,
-                showPresentation,
-                showPresentation ? null : () => Console.Error.WriteLine($"[DAP guide] ready hidden Step {step.Order}/{ordered.Length} '{step.Id}'."));
+                showPresentation);
             Console.Error.WriteLine($"[DAP guide] completed Step {i+1}/{ordered.Length} '{step.Id}'.");
         }
 
