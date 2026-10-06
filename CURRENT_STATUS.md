@@ -1165,3 +1165,12 @@ The specific production regressions uncovered and corrected during this pass wer
 
 Current Web product baseline: autonomous learner **PASS 54/54** on extension `0.2.4` / content runtime `0.4.3`.
 
+
+
+### Stable polling reduced to 500 ms — 2026-10-06
+
+- Manual measurement with the conservative 250 ms stable interval reduced TestCRM tab idle CPU from roughly 13–15% to about 4.5% while preserving bubble behavior.
+- Stable resolved-step polling is now reduced further to 500 ms.
+- Recovery polling remains 100 ms.
+- No validation, completion, target-resolution, bubble, observer, or timeout semantics changed.
+- Manual verification is pending.
