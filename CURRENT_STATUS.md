@@ -893,6 +893,15 @@ Together with the already verified Windows Guided Fast and Visual 54/54 runs, th
 
 
 
+### Extension bubble viewport visibility fix — 2026-10-06
+
+- The active Extension content runtime now explicitly hides a target-attached bubble when its live target leaves the frame viewport.
+- The bubble returns when the same target re-enters the viewport.
+- Manual bubble position remains Step-scoped and is preserved while hidden; visibility still follows the target.
+- Top-level proxy bubbles apply the same target-visibility rule.
+- Content runtime endpoint version advanced from 0.4.3 to 0.4.4.
+- Local manual verification is pending after Extension reload.
+
 ### Extension-native browser discovery — 2026-10-06
 
 - Web E2E and the autonomous Web launcher no longer accept or read a Chrome/Edge/Chromium runtime selector.
