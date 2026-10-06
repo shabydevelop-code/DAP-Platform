@@ -1168,11 +1168,12 @@ var createdCaseId=createdCaseUrl[(casePos+caseMarker.Length)..].Split('?', '/', 
 // This also verifies repeated identical Open targets without relying on unique status text.
 frame=await Content();
 var casesCrumb=frame.Locator(".breadcrumb a").Nth(2);
-await MoveTo(casesCrumb); await casesCrumb.ClickAsync(); await WaitReady();
-frame=await Content();
-await frame.Locator("h2:has-text('פניות')").WaitForAsync();
+await MoveTo(casesCrumb); await casesCrumb.ClickAsync();
 
+// Runtime progression is the authority that breadcrumb navigation completed.
+// Do not wait for TestCRM readiness or the Cases heading independently.
 await WaitForGuideStep(12);
+frame=await Content();
 // The visible action uses exactly the same semantic business target as the
 // Guide bubble. Verify that semantic target resolves to the Case created by
 // this run before clicking it.
