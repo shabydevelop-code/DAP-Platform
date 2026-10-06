@@ -657,18 +657,20 @@ if (manual)
     Console.WriteLine();
     Console.WriteLine("MANUAL WEB RUN: Step 1 is ready.");
     Console.WriteLine("Automatic learner actions are disabled. Perform the full Guide manually in the browser.");
-    Console.WriteLine("The run will close automatically when DAP completes the Guide or you close the owned browser/page.");
+    Console.WriteLine("The run will close automatically when DAP completes the Guide or the TestCRM Web host exits.");
     Console.WriteLine("Press Ctrl+C only if you want to stop the run early.");
 
     try
     {
         var dapExit = dapProcess.WaitForExitAsync();
         var webHostExit = ownedTestCrmProcess!.WaitForExitAsync();
-        var browserExit = browserProcess.WaitForExitAsync();
 
+        // Do not use the Process returned by chrome.exe as a browser-lifetime
+        // signal. When Chrome is already running, the launcher can hand the new
+        // window to the existing browser instance and exit immediately while the
+        // learner page remains open.
         var completed = await Task.WhenAny(
             dapExit,
-            browserExit,
             webHostExit);
 
         if (completed == dapExit)
@@ -686,10 +688,6 @@ if (manual)
                 $"TestCRM Web host exited unexpectedly during the manual learner run. ExitCode={ownedTestCrmProcess.ExitCode}.{Environment.NewLine}" +
                 $"STDOUT tail:{Environment.NewLine}{string.Join(Environment.NewLine, testCrmWebStdOut)}{Environment.NewLine}" +
                 $"STDERR tail:{Environment.NewLine}{string.Join(Environment.NewLine, testCrmWebStdErr)}");
-        }
-        else
-        {
-            Console.WriteLine("Chrome process exited. Ending the manual learner run and cleaning up owned processes.");
         }
     }
     finally
