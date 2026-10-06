@@ -419,9 +419,10 @@ var chromeCandidates = new[]
 var chromeExecutable = chromeCandidates.FirstOrDefault(File.Exists)
     ?? throw new FileNotFoundException("Google Chrome was not found.");
 
-var browserUrl = hybrid
-    ? $"{baseUrl}?dap-e2e-session={sessionId}"
-    : baseUrl;
+// Both Manual and Hybrid get a runner-owned browser-session identity.
+// Manual never receives automation commands; the session exists only so the
+// runner can distinguish intentional browser closure from a DAP failure.
+var browserUrl = $"{baseUrl}?dap-e2e-session={sessionId}";
 browserProcess = Process.Start(new ProcessStartInfo
 {
     FileName = chromeExecutable,
@@ -430,14 +431,15 @@ browserProcess = Process.Start(new ProcessStartInfo
 }) ?? throw new InvalidOperationException("Could not start Chrome.");
 StartupMark("Chrome launched with installed DAP extension");
 
-if (hybrid)
+testDriver = new ExtensionTestDriver(sessionId);
+using (var connectTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
 {
-    testDriver = new ExtensionTestDriver(sessionId);
-    using var connectTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
     await testDriver.ConnectAsync(connectTimeout.Token);
     await testDriver.SendAsync(new { type = "testPing" }, connectTimeout.Token);
-    StartupMark("Extension-native Hybrid test driver connected");
 }
+StartupMark(hybrid
+    ? "Extension-native Hybrid test driver connected"
+    : "Extension-native Manual browser session connected");
 
 Console.WriteLine($"Web run mode: {(manual ? "manual" : "hybrid")}");
 
@@ -602,8 +604,7 @@ dapProcess=new Process
 dapProcess.StartInfo.Environment["DAP_DATABASE_PATH"]=dapDbPath!;
 if (hybrid)
     dapProcess.StartInfo.Environment["DAP_LEARNER_AUTOMATION"]="1";
-if (hybrid)
-    dapProcess.StartInfo.Environment["DAP_WEB_SESSION_ID"]=sessionId;
+dapProcess.StartInfo.Environment["DAP_WEB_SESSION_ID"]=sessionId;
 var dapStartupTimer=Stopwatch.StartNew();
 if(!dapProcess.Start())
     throw new Exception("DAP.exe process could not be started.");
