@@ -924,3 +924,21 @@ The canonical Web and Windows repository seeds now contain **55 persisted Steps*
 - `--reset-guide` now restores all 55 Steps, so reset no longer drops the persisted summary Step.
 
 The previously verified 54/54 Fast/Visual results remain historical verification of the pre-summary persisted Guide. They are **not** silently relabeled as 55/55. A fresh full 55-Step regression is required before claiming 55/55 PASS.
+
+## Current Manual/Hybrid execution baseline — 2026-10-06
+
+Current `main` now exposes the canonical learner E2E runners as Manual or Hybrid only for both Web and Windows, with `--reset-guide` retained as Guide maintenance and `--published-dap` retained as a packaging/path option.
+
+Windows no longer exposes Guided, Unguided, Fast, Visual, Manual-From-Step, Visual-From-Step, or `DAP_E2E_MODE` in the current runner.
+
+Hybrid metadata is now part of the persisted Guide model and SQLite storage:
+- `IsEnabled` is persisted and loaded.
+- `AutomationValue` is persisted and loaded.
+- Existing databases are upgraded in place with the two GuideStep columns.
+- Production Web and Windows runtimes skip disabled Steps while preserving persisted Step order/identity.
+- Current disabled canonical Steps remain 24, 25, 30, 31, and 42–45.
+- Windows Hybrid performs only persisted value-entry actions. Buttons, navigation, dialogs, and centered information confirmations remain learner actions.
+- Runtime remains the owner of validation, completion, capture, and Step progression.
+- Persisted Step 55 is the Guide summary and is the terminal Guide Step. The former additional Runtime completion bubble after Step 55 has been removed.
+
+A fresh local build and Manual/Hybrid regression is still required before recording a new PASS for this baseline.
