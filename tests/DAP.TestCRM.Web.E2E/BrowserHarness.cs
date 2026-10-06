@@ -471,10 +471,11 @@ internal sealed class BrowserHarness : IAsyncDisposable
             "in exactly one Chrome/Edge profile while running the canonical Web E2E.");
     }
 
-    private static IEnumerable<string> FindProfilesWithExtension(
+    private static IReadOnlyList<string> FindProfilesWithExtension(
         string userDataDirectory,
         string extensionId)
     {
+        var matches = new List<string>();
         var profiles = Directory.EnumerateDirectories(userDataDirectory)
             .Where(path =>
             {
@@ -493,6 +494,7 @@ internal sealed class BrowserHarness : IAsyncDisposable
                 Path.Combine(profilePath, "Secure Preferences")
             };
 
+            var found = false;
             foreach (var preferencesPath in preferenceFiles)
             {
                 if (!File.Exists(preferencesPath))
@@ -511,13 +513,13 @@ internal sealed class BrowserHarness : IAsyncDisposable
                             state.GetInt32() == 0)
                             continue;
 
-                        yield return Path.GetFileName(profilePath);
+                        found = true;
                         break;
                     }
 
                     if (jsonText.Contains(extensionId, StringComparison.OrdinalIgnoreCase))
                     {
-                        yield return Path.GetFileName(profilePath);
+                        found = true;
                         break;
                     }
                 }
@@ -529,7 +531,12 @@ internal sealed class BrowserHarness : IAsyncDisposable
                 {
                 }
             }
+
+            if (found)
+                matches.Add(Path.GetFileName(profilePath));
         }
+
+        return matches;
     }
 
     private sealed record BrowserInstallation(
