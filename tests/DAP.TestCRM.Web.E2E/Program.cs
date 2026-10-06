@@ -601,27 +601,6 @@ string LoadHybridAutomationLabel()
     return labelElement.GetString()!;
 }
 
-async Task MarkHybridAutomaticBubble(string selector, string label)
-{
-    var deadline = DateTime.UtcNow.AddSeconds(5);
-    while (DateTime.UtcNow < deadline)
-    {
-        var frame = await Content();
-        var target = frame.Locator(selector);
-        if (await target.CountAsync() > 0 && await target.MatchesActiveGuideTargetAsync())
-        {
-            var bubble = frame.Locator("#dap-guide-bubble");
-            await bubble.SetHybridAutomaticBadgeAsync(label);
-            return;
-        }
-
-        await Task.Delay(50);
-    }
-
-    throw new TimeoutException(
-        $"Hybrid automatic badge could not synchronize with active Guide target '{selector}' within 5 seconds.");
-}
-
 async Task<bool> WaitForHybridGuideStep(GuideStep expected)
 {
     var startMarker=$"[DAP guide] starting Step {expected.Order}/{dapSteps.Count} '{expected.Id}'";
@@ -673,7 +652,7 @@ dapProcess=new Process
     StartInfo=new ProcessStartInfo
     {
         FileName=dapExecutable,
-        Arguments=$"--learner-web {DapTestCrmGuideSeed.GuideId}",
+        Arguments=$"--learner-web {DapTestCrmGuideSeed.GuideId}{(hybrid ? " --hybrid-presentation" : string.Empty)}",
         WorkingDirectory=effectiveDapDirectory,
         UseShellExecute=false,
         CreateNoWindow=true,
@@ -707,7 +686,6 @@ if (hybrid)
     Console.WriteLine();
     Console.WriteLine("HYBRID WEB RUN: Runtime owns the Guide; persisted automation values fill value controls.");
     Console.WriteLine("Buttons and navigation remain manual learner actions.");
-    var automaticStepLabel = LoadHybridAutomationLabel();
 
     foreach (var step in dapSteps.OrderBy(x => x.Order))
     {
@@ -732,7 +710,6 @@ if (hybrid)
             continue;
 
         var selector = step.Target.Locator.Value;
-        await MarkHybridAutomaticBubble(selector, automaticStepLabel);
         var frame = await Content();
         var target = frame.Locator(selector);
         var tag = await target.EvaluateAsync<string>("e=>e.tagName");
