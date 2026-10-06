@@ -13,16 +13,19 @@ public sealed class AdapterWebLearnerRuntime
     private readonly TimeSpan _reconcileInterval;
     private readonly TimeSpan _stableReconcileInterval;
     private readonly TimeSpan _presentationSettleInterval;
+    private readonly string? _automaticStepLabel;
 
     public AdapterWebLearnerRuntime(
         IWebBrowserAdapter browser,
         TimeSpan? reconcileInterval = null,
-        TimeSpan? presentationSettleInterval = null)
+        TimeSpan? presentationSettleInterval = null,
+        string? automaticStepLabel = null)
     {
         _browser = browser ?? throw new ArgumentNullException(nameof(browser));
         _reconcileInterval = reconcileInterval ?? TimeSpan.FromMilliseconds(100);
         _stableReconcileInterval = TimeSpan.FromMilliseconds(500);
         _presentationSettleInterval = presentationSettleInterval ?? TimeSpan.FromMilliseconds(250);
+        _automaticStepLabel = automaticStepLabel;
     }
 
     public async Task RunActiveStepAsync(
@@ -112,7 +115,9 @@ public sealed class AdapterWebLearnerRuntime
             WebBubblePresentation presentation;
             if (clicked && commitTask is not null)
             {
-                var presentationTask = _browser.EnsureBubbleShownAsync(step, stepNumber, totalSteps, showPresentation, cancellationToken);
+                var presentationTask = _browser.EnsureBubbleShownAsync(
+                    step, stepNumber, totalSteps, showPresentation, cancellationToken,
+                    !string.IsNullOrEmpty(step.AutomationValue) ? _automaticStepLabel : null);
                 var winner = await Task.WhenAny(presentationTask, commitTask);
 
                 if (winner == commitTask && commitTask.IsCompletedSuccessfully)
@@ -140,7 +145,9 @@ public sealed class AdapterWebLearnerRuntime
             }
             else
             {
-                presentation = await _browser.EnsureBubbleShownAsync(step, stepNumber, totalSteps, showPresentation, cancellationToken);
+                presentation = await _browser.EnsureBubbleShownAsync(
+                    step, stepNumber, totalSteps, showPresentation, cancellationToken,
+                    !string.IsNullOrEmpty(step.AutomationValue) ? _automaticStepLabel : null);
             }
 
             if (presentation.Status != WebTargetResolutionStatus.Resolved)
