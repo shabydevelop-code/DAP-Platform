@@ -21,6 +21,25 @@ public sealed class SqliteDatabaseInitializer
         await using var command = connection.CreateCommand();
         command.CommandText = Schema002;
         await command.ExecuteNonQueryAsync(cancellationToken);
+
+        if (!await HasColumnAsync(connection, "GuideSteps", "AutoFocusTarget", cancellationToken))
+        {
+            await using var migrate = connection.CreateCommand();
+            migrate.CommandText = "ALTER TABLE GuideSteps ADD COLUMN AutoFocusTarget INTEGER NOT NULL DEFAULT 0;";
+            await migrate.ExecuteNonQueryAsync(cancellationToken);
+        }
+    }
+
+    private static async Task<bool> HasColumnAsync(
+        SqliteConnection connection, string table, string column, CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"PRAGMA table_info({table});";
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+            if (reader.GetString(1).Equals(column, StringComparison.OrdinalIgnoreCase))
+                return true;
+        return false;
     }
 
     private static async Task<bool> UsesLegacyTextIdsAsync(SqliteConnection connection, CancellationToken cancellationToken)
@@ -159,7 +178,7 @@ CREATE TABLE IF NOT EXISTS GuideSteps (
  LocatorStrategy TEXT NULL, LocatorValue TEXT NULL, FrameContextJson TEXT NULL,
  ContextKind TEXT NULL, ContextValue TEXT NULL, BubbleContent TEXT NOT NULL,
  BubblePlacement TEXT NOT NULL, ValidationKind TEXT NULL, ValidationExpectedValue TEXT NULL,
- ValidationOptionsJson TEXT NULL,
+ ValidationOptionsJson TEXT NULL, AutoFocusTarget INTEGER NOT NULL DEFAULT 0,
  FOREIGN KEY (GuideId) REFERENCES Guides(Id) ON DELETE CASCADE,
  UNIQUE (GuideId, Key), UNIQUE (GuideId, StepOrder));
 CREATE TABLE IF NOT EXISTS TargetAnchors (
