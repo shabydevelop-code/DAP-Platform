@@ -237,6 +237,7 @@ async Task RunPersistedUnguidedAsync()
 
 async Task RunGuidedAsync(
     int? handoffStepOrder = null,
+    int? fastStartStepOrder = null,
     int? visualStartStepOrder = null,
     bool visualFromStart = false,
     bool fullManual = false)
@@ -262,6 +263,15 @@ async Task RunGuidedAsync(
             nameof(handoffStepOrder),
             handoffStepOrder,
             $"Guide '{DapTestCrmWindowsGuideSeed.GuideId}' does not contain Step {handoffStepOrder}.");
+    }
+
+    if (fastStartStepOrder is not null
+        && !persistedSteps.Any(step => step.Order == fastStartStepOrder.Value))
+    {
+        throw new ArgumentOutOfRangeException(
+            nameof(fastStartStepOrder),
+            fastStartStepOrder,
+            $"Guide '{DapTestCrmWindowsGuideSeed.GuideId}' does not contain Step {fastStartStepOrder}.");
     }
 
     if (visualStartStepOrder is not null
@@ -335,7 +345,7 @@ async Task RunGuidedAsync(
         var window = WaitForMainWindow();
         var customerName = WaitForElementById(window, "CustomerNameSearch");
 
-        var focusedStartStepOrder = fullManual ? null : handoffStepOrder ?? visualStartStepOrder;
+        var focusedStartStepOrder = fullManual ? null : handoffStepOrder ?? fastStartStepOrder ?? visualStartStepOrder;
         var bootstrapCaptures = new Dictionary<string, string>(StringComparer.Ordinal);
         var resumeContextPath = Path.Combine(runRoot, "resume-context.json");
 
@@ -389,6 +399,8 @@ async Task RunGuidedAsync(
                 ? "E2E mode: manual"
                 : handoffStepOrder is not null
                     ? $"E2E mode: unguided -> manual from Step {handoffStepOrder}"
+                    : fastStartStepOrder is not null
+                    ? $"E2E mode: unguided -> fast from Step {fastStartStepOrder}"
                     : visualStartStepOrder is not null
                     ? $"E2E mode: unguided -> visual from Step {visualStartStepOrder}"
                     : $"E2E mode: {(visualFromStart ? "visual" : "fast")}");
