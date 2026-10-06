@@ -2,6 +2,7 @@
   "Ui.Direction": "rtl",
   "Learner.StepProgress": "שלב {0} מתוך {1}",
   "Learner.DragBubble": "גרור להזזת הבועה",
+  "Learner.AutomaticStep": "אוטומטי",
   "Learner.GuideCompleted": "המדריך הושלם בהצלחה",
   "Learner.Finish": "סיום",
   "Learner.Confirm": "אישור",
