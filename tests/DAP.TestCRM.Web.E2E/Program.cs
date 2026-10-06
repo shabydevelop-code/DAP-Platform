@@ -1152,18 +1152,21 @@ await Fill("[name='description']","הלקוח מדווח על חיבור לא י
 await WaitForGuideStep(10);
 await Click("button.primary:has-text('שמור')");
 
+// Runtime progression is the authority that the save action completed. Do not
+// wait for TestCRM's save-success UI or inspect the route before DAP advances.
+await WaitForGuideStep(11);
+
 // The Guide deliberately continues into treatment of the Case just created.
 frame=await Content();
 var createdCaseUrl=frame.Url;
 var caseMarker="#/case/";
 var casePos=createdCaseUrl.IndexOf(caseMarker,StringComparison.Ordinal);
-if(casePos<0) throw new Exception("Created Case id missing from route: "+createdCaseUrl);
+if(casePos<0) throw new Exception("Created Case id missing from route after Runtime advanced to Step 11: "+createdCaseUrl);
 var createdCaseId=createdCaseUrl[(casePos+caseMarker.Length)..].Split('?', '/', '#')[0];
 
 // Return to the Cases grid, then open exactly the Case created by this run.
 // This also verifies repeated identical Open targets without relying on unique status text.
 frame=await Content();
-await WaitForGuideStep(11);
 var casesCrumb=frame.Locator(".breadcrumb a").Nth(2);
 await MoveTo(casesCrumb); await casesCrumb.ClickAsync(); await WaitReady();
 frame=await Content();
