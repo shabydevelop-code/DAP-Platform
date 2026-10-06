@@ -587,3 +587,21 @@ The production Instructor must independently observe externally available applic
 The acceptance boundary for a new capability is therefore: AI may help discover or design the capability during development, but after the capability and Guide definition exist, the customer-side DAP installation must be able to author and execute the supported behavior without AI.
 
 This decision does not prohibit a future optional AI feature. Any such feature must remain optional and must not be required for the deterministic production authoring/execution contract.
+
+
+## ADR-052 — Stable Web bubble tracking is event-driven
+
+**Status:** Accepted
+
+Once a Web Guide Step has a uniquely resolved live target, active context, and presented bubble, the production Learner Runtime must not continuously perform full target resolution and bubble reconstruction on a fixed 100 ms cadence.
+
+Normal steady-state presentation is browser-event-driven:
+- scroll/resize and ResizeObserver maintain target-relative bubble geometry;
+- validation completion events wake DAP for progression;
+- DOM/context invalidation wakes DAP for fresh descriptor resolution.
+
+The 100 ms reconciliation interval remains valid only for transient recovery states where DAP is waiting for a missing/inactive target or for short-lived persisted completion conditions after an already-observed learner action.
+
+A child-frame bubble that requires a top-level visual proxy is an explicit exception because its page-relative geometry crosses frame boundaries. That proxy is reused rather than recreated and may use a lower-frequency 250 ms position refresh while active. If its target leaves the top-level viewport, the proxy must hide with the target rather than being clamped on-screen independently. If a normal child-frame placement becomes possible again, the stale proxy is removed.
+
+This behavior is generic production Runtime behavior, does not depend on TestCRM source access, and does not alter the 5-second E2E timeout policy.
