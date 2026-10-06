@@ -89,6 +89,8 @@ if (manual && (unguided || explicitGuided || manualFromStep is not null || visua
     throw new ArgumentException("--manual cannot be combined with --guided, --unguided, --manual-from-step, or --visual-from-step.");
 if (unguided && (manualFromStep is not null || visualFromStep is not null))
     throw new ArgumentException("--unguided cannot be combined with --manual-from-step or --visual-from-step.");
+if (visual && (unguided || manual || manualFromStep is not null || visualFromStep is not null))
+    throw new ArgumentException("--visual is only valid for a full guided run and cannot be combined with --unguided, --manual, --manual-from-step, or --visual-from-step.");
 
 static int ReserveTcpPort()
 {
