@@ -859,3 +859,22 @@ Web full Guided execution is now locally verified PASS in both E2E presentation 
 
 Together with the already verified Windows Guided Fast and Visual 54/54 runs, the complete Guided 54-Step Fast/Visual baseline is now PASS on both Web and Windows. Unguided/full-manual matrix verification remains separate.
 
+
+## Windows Hybrid learner verification — 2026-10-06
+
+Windows Hybrid testing is now complete and locally verified PASS.
+
+- The canonical Windows Guide was reset to the current persisted 54-Step definition before verification.
+- Full manual Windows learner execution had already proved that the persisted Guide data is sufficient to drive the production learner without Playwright and without adding test-only detection behavior to the Runtime.
+- The Windows Hybrid path was then exercised end-to-end and completed successfully: `PASS: hybrid Web Guide completed.`
+- Hybrid execution preserves the original persisted Step numbering. Disabled Steps are skipped without renumbering the Guide.
+- The verified disabled/redundant Steps are 24, 25, 30, 31, and 42–45. Step 29 remains active because it performs a meaningful business action.
+- Skipping repetitive Steps must never remove meaningful saves, validations, deletes, navigation, or other business-state transitions required by later Steps.
+- Persisted automation values may populate controls where explicitly configured by Guide data. Meaningful learner actions remain manual where the Guide requires them.
+- Runtime owns Step completion and progression. The E2E/Hybrid orchestration must not manufacture completion by adding activity/detection logic that should instead be represented by persisted target, validation, capture, or completion-condition data.
+- Manual/Hybrid learner interaction is not constrained by the 5-second E2E technical timeout while waiting for the human learner. The existing 5-second rule remains the technical timeout policy for automated waits; it was not increased to make Hybrid pass.
+- Windows Hybrid synchronization was corrected so disabled Steps and Web/Windows handoff do not corrupt progression or business context.
+- Relevant Hybrid stabilization commits include `ac6eaaa`, `fa08a52`, and `9bb497e`.
+- The successful result confirms the intended architecture: persisted Guide data remains the source of truth, production Runtime performs deterministic resolution/validation/progression, and test automation does not become a second hidden learner engine.
+
+This closes the Windows Hybrid verification milestone for the current canonical workflow.
