@@ -55,193 +55,29 @@ if (args.Contains("--reset-guide", StringComparer.OrdinalIgnoreCase))
     return;
 }
 
-int? manualFromStep = null;
-int? fastFromStep = null;
-int? visualFromStep = null;
 string? publishedDapDirectory = null;
 for (var i = 0; i < args.Length; i++)
 {
-    if (args[i].Equals("--published-dap", StringComparison.OrdinalIgnoreCase))
-    {
-        if (i + 1 >= args.Length || string.IsNullOrWhiteSpace(args[i + 1]))
-            throw new ArgumentException("--published-dap requires a directory containing DAP.exe.");
-
-        publishedDapDirectory = Path.GetFullPath(args[++i]);
+    if (!args[i].Equals("--published-dap", StringComparison.OrdinalIgnoreCase))
         continue;
-    }
 
-    if (args[i].Equals("--manual-from-step", StringComparison.OrdinalIgnoreCase))
-    {
-        if (i + 1 >= args.Length
-            || !int.TryParse(args[++i], out var parsedManualStep)
-            || parsedManualStep < 1)
-            throw new ArgumentException("--manual-from-step requires a positive Guide Step order.");
+    if (i + 1 >= args.Length || string.IsNullOrWhiteSpace(args[i + 1]))
+        throw new ArgumentException("--published-dap requires a directory containing DAP.exe.");
 
-        manualFromStep = parsedManualStep;
-        continue;
-    }
-
-    if (args[i].Equals("--fast-from-step", StringComparison.OrdinalIgnoreCase))
-    {
-        if (i + 1 >= args.Length
-            || !int.TryParse(args[++i], out var parsedFastStep)
-            || parsedFastStep < 1)
-            throw new ArgumentException("--fast-from-step requires a positive Guide Step order.");
-
-        fastFromStep = parsedFastStep;
-        continue;
-    }
-
-    if (args[i].Equals("--visual-from-step", StringComparison.OrdinalIgnoreCase))
-    {
-        if (i + 1 >= args.Length
-            || !int.TryParse(args[++i], out var parsedVisualStep)
-            || parsedVisualStep < 1)
-            throw new ArgumentException("--visual-from-step requires a positive Guide Step order.");
-
-        visualFromStep = parsedVisualStep;
-    }
+    publishedDapDirectory = Path.GetFullPath(args[++i]);
 }
 
-var focusedModeCount = new[] { manualFromStep, fastFromStep, visualFromStep }.Count(step => step is not null);
-if (focusedModeCount > 1)
-    throw new ArgumentException("--manual-from-step, --fast-from-step, and --visual-from-step cannot be combined.");
-
-var unguided = args.Contains("--unguided", StringComparer.OrdinalIgnoreCase);
-var guided = args.Contains("--guided", StringComparer.OrdinalIgnoreCase);
 var manual = args.Contains("--manual", StringComparer.OrdinalIgnoreCase);
-var explicitFast = args.Contains("--fast", StringComparer.OrdinalIgnoreCase);
-var explicitVisual = args.Contains("--visual", StringComparer.OrdinalIgnoreCase);
+var hybrid = args.Contains("--hybrid", StringComparer.OrdinalIgnoreCase);
+if (manual == hybrid)
+    throw new ArgumentException("Choose exactly one Windows run mode: --manual or --hybrid.");
 
-if (explicitFast && explicitVisual)
-    throw new ArgumentException("--fast and --visual cannot be combined.");
-if ((explicitFast || explicitVisual) && !guided)
-    throw new ArgumentException("--fast and --visual require --guided.");
-if (unguided && guided)
-    throw new ArgumentException("--guided and --unguided cannot be combined.");
-if (manual && (unguided || guided || manualFromStep is not null || fastFromStep is not null || visualFromStep is not null))
-    throw new ArgumentException("--manual cannot be combined with --guided, --unguided, or a from-step mode.");
-if (unguided && (manualFromStep is not null || fastFromStep is not null || visualFromStep is not null))
-    throw new ArgumentException("--unguided cannot be combined with a from-step mode.");
-
-if (unguided)
-{
-    await RunPersistedUnguidedAsync();
-    return;
-}
-
-if (manual)
-{
-    await RunGuidedAsync(handoffStepOrder: 1, fullManual: true);
-    return;
-}
-
-if (guided || manualFromStep is not null || fastFromStep is not null || visualFromStep is not null)
-{
-    await RunGuidedAsync(
-        handoffStepOrder: manualFromStep,
-        fastStartStepOrder: fastFromStep,
-        visualStartStepOrder: visualFromStep,
-        visualFromStart: guided && explicitVisual);
-    return;
-}
-
-using var app = Process.Start(new ProcessStartInfo(
-    "dotnet",
-    $"run --project \"{appProject}\" --no-launch-profile")
-{
-    WorkingDirectory = root,
-    UseShellExecute = false
-}) ?? throw new Exception("Could not start Windows TestCRM.");
-
-try
-{
-    var window = WaitForMainWindow();
-    await CanonicalCrmScenario.Run53Async(new WindowsCrmScenarioDriver(app, window));
-    Console.WriteLine("PASS: Windows canonical 53-step Customer -> Site -> Case -> Lead scenario completed.");
-}
-catch (TargetApplicationClosedException)
-{
-    Console.WriteLine("Windows target application closed. Ending the run and cleaning up owned processes.");
-}
-catch (Exception) when (app.HasExited)
-{
-    Console.WriteLine("Windows target application closed. Ending the run and cleaning up owned processes.");
-}
-finally
-{
-    StopOwnedProcessTree(app);
-}
-
-async Task RunPersistedUnguidedAsync()
-{
-    var databaseOptions = SqliteDatabaseOptions.CreateDefault();
-    var factory = new SqliteConnectionFactory(databaseOptions);
-    await new SqliteDatabaseInitializer(factory).InitializeAsync();
-    var repository = new SqliteGuideStepRepository(factory);
-    var persistedSteps = await repository.GetStepsAsync(DapTestCrmWindowsGuideSeed.GuideId);
-
-    Process? backend = null;
-    Process? windowsApp = null;
-
-    try
-    {
-        EnsurePortFree(5201);
-
-        backend = packagedDiagnostics
-            ? StartProcess(
-                "dotnet",
-                $"\"{Path.Combine(packagedServerDirectory!, "DAP.TestCRM.Server.dll")}\"",
-                new Dictionary<string, string?> { ["ASPNETCORE_URLS"] = "http://localhost:5201" },
-                workingDirectory: packagedServerDirectory)
-            : StartProcess(
-                "dotnet",
-                $"run --project \"{backendProject}\" --no-launch-profile",
-                new Dictionary<string, string?> { ["ASPNETCORE_URLS"] = "http://localhost:5201" });
-
-        await WaitForHttpAsync("http://localhost:5201/api/customers", backend, "TestCRM backend");
-
-        windowsApp = packagedDiagnostics
-            ? StartProcess(
-                Path.Combine(packagedWindowsDirectory!, "DAP.TestCRM.Windows.exe"),
-                string.Empty,
-                workingDirectory: packagedWindowsDirectory)
-            : StartProcess(
-                "dotnet",
-                $"run --project \"{appProject}\" --no-launch-profile");
-
-        var window = WaitForMainWindow();
-        var unguidedDriver = new WindowsCrmScenarioDriver(windowsApp, window);
-        unguidedDriver.SetUnguidedBootstrapSynchronization(true);
-        var executor = new PersistedWindowsCrmGuideExecutor(unguidedDriver);
-
-        Console.WriteLine("E2E mode: unguided");
-        await executor.RunAsync(persistedSteps);
-
-        Console.WriteLine(
-            $"PASS: Windows unguided executed {persistedSteps.Count} persisted Guide Steps from DAP.db without DAP.exe or bubbles.");
-    }
-    catch (TargetApplicationClosedException)
-    {
-        Console.WriteLine("Windows target application closed. Ending the run and cleaning up owned processes.");
-    }
-    catch (Exception) when (windowsApp is not null && windowsApp.HasExited)
-    {
-        Console.WriteLine("Windows target application closed. Ending the run and cleaning up owned processes.");
-    }
-    finally
-    {
-        if (windowsApp is not null) StopOwnedProcessTree(windowsApp);
-        if (backend is not null) StopOwnedProcessTree(backend);
-    }
-}
+await RunGuidedAsync(fullManual: manual, hybrid: hybrid);
+return;
 
 async Task RunGuidedAsync(
-    int? handoffStepOrder = null,
-    int? fastStartStepOrder = null,
-    int? visualStartStepOrder = null,
-    bool visualFromStart = false,
-    bool fullManual = false)
+    bool fullManual = false,
+    bool hybrid = false)
 {
     var databaseOptions = SqliteDatabaseOptions.CreateDefault();
     var factory = new SqliteConnectionFactory(databaseOptions);
@@ -255,33 +91,6 @@ async Task RunGuidedAsync(
             $"Guide '{DapTestCrmWindowsGuideSeed.GuideId}' contains {persistedSteps.Count} persisted Steps, " +
             $"but the current seed defines {expectedStepCount}. " +
             "Run this project once with --reset-guide first.");
-    }
-
-    if (handoffStepOrder is not null
-        && !persistedSteps.Any(step => step.Order == handoffStepOrder.Value))
-    {
-        throw new ArgumentOutOfRangeException(
-            nameof(handoffStepOrder),
-            handoffStepOrder,
-            $"Guide '{DapTestCrmWindowsGuideSeed.GuideId}' does not contain Step {handoffStepOrder}.");
-    }
-
-    if (fastStartStepOrder is not null
-        && !persistedSteps.Any(step => step.Order == fastStartStepOrder.Value))
-    {
-        throw new ArgumentOutOfRangeException(
-            nameof(fastStartStepOrder),
-            fastStartStepOrder,
-            $"Guide '{DapTestCrmWindowsGuideSeed.GuideId}' does not contain Step {fastStartStepOrder}.");
-    }
-
-    if (visualStartStepOrder is not null
-        && !persistedSteps.Any(step => step.Order == visualStartStepOrder.Value))
-    {
-        throw new ArgumentOutOfRangeException(
-            nameof(visualStartStepOrder),
-            visualStartStepOrder,
-            $"Guide '{DapTestCrmWindowsGuideSeed.GuideId}' does not contain Step {visualStartStepOrder}.");
     }
 
     Process? backend = null;
