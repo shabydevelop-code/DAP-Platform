@@ -775,3 +775,8 @@ The first event-driven stable-presentation experiment reduced Chrome renderer CP
 ## Stable Web learner polling: 250 ms
 
 After the failed event-driven experiment was rolled back, CPU optimization resumed with a minimal cadence-only change. The extension-backed learner still uses the proven reconciliation path, but a successfully resolved stable Step now waits 250 ms between checks rather than 100 ms. Recovery states continue at 100 ms. No timeout ceiling or learner semantics were changed.
+
+
+## Stable Web learner polling: 500 ms
+
+After manual verification showed about 4.5% idle Chrome CPU with the 250 ms stable interval and no observed bubble regression, stable resolved-step polling was reduced to 500 ms. Recovery remains at 100 ms. This remains a cadence-only optimization.
