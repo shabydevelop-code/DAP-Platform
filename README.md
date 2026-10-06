@@ -4,19 +4,22 @@ Digital Adoption Platform for guided learning across Web and Windows application
 
 ## Product scope
 
-- One Windows desktop application with Learner and Editor modes.
-- Web guides powered by a dedicated Web Runtime.
-- Windows guides powered by a dedicated Windows Runtime.
-- Hybrid guides may move between Web and Windows steps.
-- Guides may also contain centered informational Steps with no target, shown with an explicit learner confirmation action.
-- Full Hebrew and English GUI support, including RTL/LTR.
-- Database-independent architecture. SQLite is the initial provider.
-- Target machines are assumed to have the .NET 8 Desktop Runtime installed.
+- One .NET 8 Windows product with Learner and future Instructor/Editor capabilities.
+- Web learner runtime through the DAP browser Extension and Native Messaging.
+- Windows learner runtime through Microsoft UI Automation.
+- Web-only, Windows-only, and Hybrid Guides.
+- Persisted Guide data as the learner execution source of truth.
+- Hebrew/English UI with RTL/LTR support.
+- Provider-independent data architecture with SQLite as the current provider.
 
 ## Documentation
 
-- `PROJECT_CONTEXT.md` — product scope and persistent project rules.
-- `CURRENT_STATUS.md` — current implementation status and next work.
-- `ARCHITECTURE.md` — current architecture.
-- `DECISIONS.md` — architectural decisions.
-- `docs/REQUIREMENTS.md` — product and technical requirements.
+All project-level documentation is kept at the repository root:
+
+- `PROJECT_CONTEXT.md` — persistent project scope and rules.
+- `REQUIREMENTS.md` — current product and technical requirements.
+- `ARCHITECTURE.md` — current production architecture.
+- `CURRENT_STATUS.md` — current implementation/verification state.
+- `DECISIONS.md` — active architectural decisions.
+
+Component-specific documentation may remain beside the component it documents, for example the browser Extension README.
