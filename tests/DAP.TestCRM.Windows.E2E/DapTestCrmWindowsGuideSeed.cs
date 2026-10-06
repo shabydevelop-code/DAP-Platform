@@ -110,7 +110,8 @@ internal static class DapTestCrmWindowsGuideSeed
             StepAdvanceMode.AutomaticOnValidation,
             CompletionConditions: completionCondition is null
                 ? null
-                : new[] { completionCondition });
+                : new[] { completionCondition },
+            AutoFocusTarget: true);
 
     public static IReadOnlyList<GuideStep> CreateSteps() => new GuideStep[]
     {
@@ -139,7 +140,8 @@ internal static class DapTestCrmWindowsGuideSeed
 
         ClickStep(
             "testcrm-windows-sort-cases", 6,
-            ById("SortCasesByStatusButton"), "מיין את הפניות לפי סטטוס"),
+            ById("SortCasesByStatusButton"), "מיין את הפניות לפי סטטוס",
+            completionCondition: new StepCompletionCondition("target-replaced", ById("SortCasesByStatusButton"))),
 
         ClickStep(
             "testcrm-windows-new-case", 7,
