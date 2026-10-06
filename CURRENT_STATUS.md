@@ -131,7 +131,7 @@ At this 2026-10-02 milestone, Web and Windows canonical 53-Step execution was st
 - Scenario coverage now includes Case FieldChange + iframe replacement, server validation with unsaved-value preservation, Grid rerender/reorder + target re-resolution, Content-document reload with preserved Case context, CRM tab switching with preserved business context, conditional target disappearance/reappearance with re-resolution, cross-frame Header-to-Content navigation, Layout Shift + target re-resolution, consecutive server updates with final-state re-resolution, and business-context switching with target isolation.
 - The E2E scenarios use real UI/application behavior; no TestCRM-specific route-persistence workaround is used for the validated baseline.
 - The permanent TestCRM server still exposes the `מעבד...` activity indicator and artificial server delay in normal/visual behavior; the E2E fast mode bypasses those artificial delays only for test execution.
-- Frame polling remains 100ms.
+- Historical implementation note: frame polling originally remained at 100 ms. Current stable Web presentation is event-driven; the 100 ms reconciliation cadence is retained only for transient recovery states and short-lived pending completion conditions, with cross-frame proxy geometry refreshed at 250 ms while required.
 - The E2E runner uses a 5-second default Playwright timeout; this was intentionally restored after rollback validation.
 
 
@@ -180,7 +180,7 @@ The current representative E2E is the validated baseline for further test expans
 
 ## Current implementation scope
 
-Architecture/Core scope and active runtime implementation both cover Web + Windows. Web has the full persisted 53-Step canonical Guide baseline. Windows now has production UIA target resolution, WPF bubble presentation, validation, runtime capture, modal targeting, ordered Guide execution, persisted completion conditions, and a locally verified full 53-Step Learner path.
+Architecture/Core scope and active runtime implementation both cover Web + Windows. The current canonical repository Guides contain 54 Steps, and full Guided Fast/Visual is verified 54/54 on both platforms. The earlier 53-Step Guided/Unguided results remain historical baselines. Windows has production UIA target resolution, WPF bubble presentation, validation, runtime capture, modal targeting, ordered Guide execution, persisted completion conditions, and a locally verified full 54-Step Guided Learner path.
 
 ## Persistence foundation
 SQLite default database location on Windows is `%ProgramData%\DAP\Data\DAP.db` (normally `C:\ProgramData\DAP\Data\DAP.db`). The application/provider may override this with `DAP_DATABASE_PATH`; Core must not depend on either the path or SQLite.
