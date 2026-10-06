@@ -603,28 +603,7 @@ async Task MarkHybridAutomaticBubble(string label)
 {
     var frame = await Content();
     var bubble = frame.Locator("#dap-guide-bubble");
-    var labelJson = JsonSerializer.Serialize(label);
-    await bubble.EvaluateAsync<bool>(
-        $@"bubble => {{
-            let badge = bubble.querySelector('[data-dap-hybrid-automatic]');
-            if (!badge) {{
-                badge = bubble.ownerDocument.createElement('div');
-                badge.dataset.dapHybridAutomatic = 'true';
-                Object.assign(badge.style, {{
-                    display: 'inline-block',
-                    fontSize: '12px',
-                    fontWeight: '700',
-                    padding: '2px 8px',
-                    marginBottom: '8px',
-                    border: '1px solid currentColor',
-                    borderRadius: '999px'
-                }});
-                const content = bubble.children.length > 1 ? bubble.children[1] : null;
-                bubble.insertBefore(badge, content);
-            }}
-            badge.textContent = {labelJson};
-            return true;
-        }}");
+    await bubble.SetHybridAutomaticBadgeAsync(label);
 }
 
 async Task<bool> WaitForHybridGuideStep(GuideStep expected)
