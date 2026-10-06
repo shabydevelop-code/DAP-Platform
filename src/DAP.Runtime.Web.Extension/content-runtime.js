@@ -346,6 +346,31 @@
         sendResponse({ok:true,result:{status:"ok"}});
         return;
       }
+      if (command.type === "isTargetInteractable") {
+        const result = resolveTarget(command.target);
+        if (result.status !== "resolved") {
+          sendResponse({ok:true,result:{interactable:false,status:result.status}});
+          return;
+        }
+        const el = result.element;
+        const rect = el.getBoundingClientRect();
+        const style = getComputedStyle(el);
+        const disabled = el.disabled === true || el.getAttribute("aria-disabled") === "true";
+        const visible = rect.width > 0 && rect.height > 0 &&
+          rect.bottom > 0 && rect.right > 0 &&
+          rect.top < innerHeight && rect.left < innerWidth &&
+          style.visibility !== "hidden" && style.display !== "none" &&
+          style.pointerEvents !== "none";
+        let hit = false;
+        if (visible && !disabled) {
+          const x = Math.max(0, Math.min(innerWidth - 1, rect.left + rect.width / 2));
+          const y = Math.max(0, Math.min(innerHeight - 1, rect.top + rect.height / 2));
+          const top = document.elementFromPoint(x, y);
+          hit = !!top && (top === el || el.contains(top));
+        }
+        sendResponse({ok:true,result:{interactable:visible && !disabled && hit,status:"resolved"}});
+        return;
+      }
       if (command.type === "waitForDomQuiet") {
         const quietMs = Math.max(0, Number(command.quietMilliseconds || 0));
         let timer;
