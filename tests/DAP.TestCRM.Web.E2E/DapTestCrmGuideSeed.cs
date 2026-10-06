@@ -84,7 +84,8 @@ public static class DapTestCrmGuideSeed
         ClickStep(
             "testcrm-sort-cases", 6,
             "th button[data-sort='status']",
-            "מיין את הפניות לפי סטטוס", "h2:has-text('פניות')"),
+            "מיין את הפניות לפי סטטוס", "h2:has-text('פניות')",
+            completionCss: "th[aria-sort='ascending'] button[data-sort='status']"),
 
         ClickStep(
             "testcrm-new-case", 7,
@@ -161,7 +162,7 @@ public static class DapTestCrmGuideSeed
             "[name='closeReason']", "בחר בסיבת הסגירה \"טופל\"", "[name='closeReason']",
             "value-equals", "טופל"),
 
-        ClickStep("testcrm-save-closed-case", 21, "button.primary:has-text('שמור')", "שמור את הפנייה הסגורה", "[name='closeReason']", completionCss: "#delete-case"),
+        ClickStep("testcrm-save-closed-case", 21, "button.primary:has-text('שמור')", "שמור את הפנייה הסגורה", "[name='closeReason']", completionCss: "#save-success"),
         ClickStep("testcrm-return-site", 22, ".breadcrumb a[data-go^='#/site/']", "חזור לאתר", "h1:has-text('פניה')", completionCss: "nav.tabs"),
         ClickStep("testcrm-open-leads-tab", 23, "nav.tabs button:has-text('לידים')", "עבור ללשונית לידים", "nav.tabs", completionCss: "h2:has-text('לידים')"),
         ClickStep("testcrm-return-cases-tab", 24, "nav.tabs button:has-text('פניות')", "חזור ללשונית פניות", "nav.tabs", completionCss: "h2:has-text('פניות')"),
