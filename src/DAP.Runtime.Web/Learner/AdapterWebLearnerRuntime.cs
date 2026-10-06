@@ -173,9 +173,6 @@ public sealed class AdapterWebLearnerRuntime
         }
     }
 
-    public Task WaitForGuideCompletedDismissalAsync(CancellationToken cancellationToken = default)
-        => _browser.WaitForGuideCompletedDismissalAsync(cancellationToken);
-
     public Task StopAsync(CancellationToken cancellationToken = default)
         => _browser.HideBubbleAsync(cancellationToken);
 }
