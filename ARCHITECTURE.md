@@ -88,13 +88,13 @@ Production Web execution does not use Playwright or CDP.
 
 The Extension supports dynamic DOM changes, frames, target re-resolution, learner event observation, validation signals, and bubble presentation. The Native Host bridges browser Native Messaging to the .NET process.
 
-The Web E2E project has a separate test-driver channel for synthetic Hybrid actions. That channel is test-only and must never become a completion/progression oracle.
+The Web E2E project has a separate Extension test-driver channel. Hybrid uses it for synthetic persisted-value actions. Manual and Hybrid both use a runner-owned Extension session identity for browser-lifetime observation and clean intentional browser closure; Manual sends no synthetic learner actions. The channel must never become a completion/progression oracle.
 
 ## Windows Runtime
 
 Production Windows execution uses Microsoft UI Automation. It resolves targets from persisted descriptors, observes native interaction, evaluates Runtime-owned validation, and presents native learner bubbles.
 
-Text editing uses natural edit/commit semantics rather than treating every intermediate value as completion. Runtime may re-resolve targets as UI changes.
+Text editing uses natural edit/commit semantics rather than treating every intermediate value as completion. Runtime may re-resolve targets as UI changes. For input Steps, Runtime applies the one-time initial focus before Hybrid performs the configured learner action, preventing automation from racing Runtime focus setup.
 
 ## Manual and Hybrid runners
 
@@ -109,7 +109,7 @@ Fast, Visual, Guided, Unguided, Manual-From-Step, Visual-From-Step, and `DAP_E2E
 
 Manual performs no synthetic learner actions. Hybrid may apply only explicitly persisted automation values; buttons, navigation, dialogs, and other learner actions remain manual unless explicitly represented by the current persisted-data contract.
 
-Human waiting is not subject to the five-second automated technical timeout.
+Human waiting is not subject to the five-second automated technical timeout. Intentional target closure is a clean runner termination: Windows observes target-process closure; Web observes the runner-owned Extension browser session rather than the Chrome launcher PID.
 
 ## TestCRM boundary
 
