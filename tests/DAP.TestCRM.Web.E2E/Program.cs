@@ -599,11 +599,25 @@ string LoadHybridAutomationLabel()
     return labelElement.GetString()!;
 }
 
-async Task MarkHybridAutomaticBubble(string label)
+async Task MarkHybridAutomaticBubble(string selector, string label)
 {
-    var frame = await Content();
-    var bubble = frame.Locator("#dap-guide-bubble");
-    await bubble.SetHybridAutomaticBadgeAsync(label);
+    var deadline = DateTime.UtcNow.AddSeconds(5);
+    while (DateTime.UtcNow < deadline)
+    {
+        var frame = await Content();
+        var target = frame.Locator(selector);
+        if (await target.CountAsync() > 0 && await target.MatchesActiveGuideTargetAsync())
+        {
+            var bubble = frame.Locator("#dap-guide-bubble");
+            await bubble.SetHybridAutomaticBadgeAsync(label);
+            return;
+        }
+
+        await Task.Delay(50);
+    }
+
+    throw new TimeoutException(
+        $"Hybrid automatic badge could not synchronize with active Guide target '{selector}' within 5 seconds.");
 }
 
 async Task<bool> WaitForHybridGuideStep(GuideStep expected)
@@ -715,9 +729,8 @@ if (hybrid)
         if (string.IsNullOrEmpty(step.AutomationValue) || step.Target is null)
             continue;
 
-        await MarkHybridAutomaticBubble(automaticStepLabel);
-
         var selector = step.Target.Locator.Value;
+        await MarkHybridAutomaticBubble(selector, automaticStepLabel);
         var frame = await Content();
         var target = frame.Locator(selector);
         var tag = await target.EvaluateAsync<string>("e=>e.tagName");
