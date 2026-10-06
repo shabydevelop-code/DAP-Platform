@@ -105,31 +105,21 @@ Verified baseline includes:
 
 Windows and Web share the same runtime-neutral Guide/Target/Validation contracts while using platform-specific adapters.
 
-## Canonical run modes
+## Canonical Web run modes
 
-The canonical Web runner supports:
+The verified public Web modes are:
 
 ```text
 --manual
---guided
+--guided --fast
+--guided --visual
 --manual-from-step N
---unguided
+--fast-from-step N
 --visual-from-step N
+--unguided
 ```
 
-For automated Guided execution:
-
-```powershell
-$env:DAP_E2E_MODE="fast"
-```
-
-or:
-
-```powershell
-$env:DAP_E2E_MODE="visual"
-```
-
-Chrome and Edge are supported browsers, not separate DAP run modes.
+All seven modes have been regression-tested successfully on the current Web baseline.
 
 ## Persistent Guide rule
 
@@ -171,11 +161,7 @@ The Web runner preflights ports 5200 and 5201 and fails if an unknown process al
 
 ## Current next work
 
-1. Verify the remaining Web run modes on the extension-native architecture, starting with `manual-from-step`.
-2. Verify `visual-from-step` using the same action path with visible cursor movement/pacing only.
-3. Verify `unguided` without introducing parallel target/completion knowledge in the runner.
-4. Keep the runner-free manual 54-Step Guide as the product acceptance reference.
-5. Continue profiling only if additional idle CPU reduction is needed; do not trade learner/bubble correctness for lower polling frequency.
+Web regression is closed on the current baseline. The next active work is Windows Runtime/application correction and regression, while preserving the shared persisted Guide semantics and the 5-second timeout rule.
 
 ## Local repository size
 
@@ -202,7 +188,7 @@ Verified fixes in the full regression:
 - A valid off-screen target is allowed to reach the presentation path, which scrolls it into view before showing its bubble.
 - A target that is currently obstructed by application UI remains gated until it is actually reachable.
 - No arbitrary delay and no timeout increase were introduced.
-- Extension version **0.2.7** is the manually verified baseline for this regression.
+- Extension version **0.2.8** is the current verified baseline. Guide-owned target autofocus is persisted through SQLite and verified end-to-end for value-entry Steps.
 
 The full Manual regression confirms that the canonical persisted 54-Step Guide remains usable end-to-end with automatic target scrolling and the corrected asynchronous completion semantics.
 
