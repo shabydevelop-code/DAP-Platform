@@ -55,6 +55,12 @@ public sealed class WindowsGuideRuntime
         for (var index = startIndex; index < ordered.Length; index++)
         {
             var persistedStep = ordered[index];
+            if (!persistedStep.IsEnabled)
+            {
+                Console.Error.WriteLine($"[DAP Windows guide] skipping disabled Step {persistedStep.Order}/{ordered.Length} '{persistedStep.Id}'.");
+                continue;
+            }
+
             var step = MaterializeRuntimeValues(persistedStep, capturedValues);
             var isCenteredStep = step.Target is null
                 && step.Bubble.Placement == BubblePlacement.Center;
@@ -64,9 +70,10 @@ public sealed class WindowsGuideRuntime
                     $"Guide Step '{step.Id}' is not a Windows Step and cannot run in WindowsGuideRuntime.");
 
             AutomationElement? nextTargetBeforeCurrentAction = null;
-            if (index + 1 < ordered.Length)
+            var nextEnabledIndex = Array.FindIndex(ordered, index + 1, candidate => candidate.IsEnabled);
+            if (nextEnabledIndex >= 0)
             {
-                var nextPersistedStep = ordered[index + 1];
+                var nextPersistedStep = ordered[nextEnabledIndex];
                 var nextStep = TryMaterializeRuntimeValues(nextPersistedStep, capturedValues);
                 if (nextStep?.Target?.Runtime == TargetRuntime.Windows)
                 {
@@ -82,16 +89,16 @@ public sealed class WindowsGuideRuntime
                 }
             }
 
-            Console.Error.WriteLine($"[DAP Windows guide] starting Step {index + 1}/{ordered.Length} '{step.Id}'.");
+            Console.Error.WriteLine($"[DAP Windows guide] starting Step {step.Order}/{ordered.Length} '{step.Id}'.");
             await RunStepAsync(
                 windowRoot,
                 step,
-                index + 1,
+                step.Order,
                 ordered.Length,
                 cancellationToken,
                 preExistingTargetForCurrentStep,
                 capturedValues);
-            Console.Error.WriteLine($"[DAP Windows guide] completed Step {index + 1}/{ordered.Length} '{step.Id}'.");
+            Console.Error.WriteLine($"[DAP Windows guide] completed Step {step.Order}/{ordered.Length} '{step.Id}'.");
 
             preExistingTargetForCurrentStep = nextTargetBeforeCurrentAction;
         }
