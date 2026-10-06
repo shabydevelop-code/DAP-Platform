@@ -53,7 +53,8 @@ public sealed class AdapterWebGuideRuntime
                 captured[step.Id]=value;
             }
 
-            var showPresentation = !hideGuidance
+            var showPresentation = step.ShowBubble
+                && !hideGuidance
                 && (showGuidanceFromStepOrder is null || step.Order >= showGuidanceFromStepOrder.Value);
             await _steps.RunActiveStepAsync(
                 step, i+1, ordered.Length, cancellationToken,
