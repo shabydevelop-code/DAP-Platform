@@ -43,7 +43,6 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
 
     void Click(AutomationElement e,bool twice=false)
     {
-        DismissUnexpectedInfoDialogs();
         VisualTarget(e);
         if(!twice && e.TryGetCurrentPattern(InvokePattern.Pattern,out var invoke))
         {
@@ -71,7 +70,6 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     }
     void Set(string id,string value)
     {
-        DismissUnexpectedInfoDialogs();
         var e=Wait(()=> {
             var candidate=window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,id));
             return candidate is not null && candidate.Current.IsEnabled ? candidate : null;
@@ -162,7 +160,6 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     }
     void Select(string id,string value)
     {
-        DismissUnexpectedInfoDialogs();
         var combo=ById(id);
         VisualTarget(combo);
         if(!combo.TryGetCurrentPattern(ValuePattern.Pattern,out var pattern))
@@ -194,31 +191,6 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
             ((SelectionItemPattern)selection).Select();
 
         Click(row,true);
-    }
-
-    void DismissUnexpectedInfoDialogs()
-    {
-        var mainHwnd=new IntPtr(window.Current.NativeWindowHandle);
-        for(var i=0;i<4;i++)
-        {
-            var popup=GetWindow(mainHwnd,GW_ENABLEDPOPUP);
-            if(popup==IntPtr.Zero || popup==mainHwnd || !IsWindowVisible(popup))return;
-
-            var popupElement=AutomationElement.FromHandle(popup);
-            var buttons=popupElement.FindAll(TreeScope.Descendants,
-                new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.Button))
-                .Cast<AutomationElement>().ToList();
-
-            var ok=buttons.FirstOrDefault(x=>x.Current.Name is "OK" or "אישור");
-            var yes=buttons.FirstOrDefault(x=>x.Current.Name is "Yes" or "כן");
-            if(ok is null || yes is not null)return;
-            if(!ok.TryGetCurrentPattern(InvokePattern.Pattern,out var invoke))return;
-
-            LogModal(popupElement, buttons, "UNEXPECTED/AUTO-DISMISSED");
-
-            ((InvokePattern)invoke).Invoke();
-            WaitHandle(()=>!IsWindowVisible(popup) ? mainHwnd : IntPtr.Zero,"unexpected information dialog dismissed");
-        }
     }
 
     void DialogButton(bool confirm)
@@ -296,7 +268,6 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
 
     public Task SetCustomerSearchWithoutCommit(string value)
     {
-        DismissUnexpectedInfoDialogs();
         var element=Wait(()=> {
             var candidate=window.FindFirst(
                 TreeScope.Descendants,
@@ -356,7 +327,6 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     public Task OpenFirstSite() => OpenSiteByName("מטה תל אביב");
     public Task OpenCases()
     {
-        DismissUnexpectedInfoDialogs();
         Click(ById("CasesTab"));
         Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"NewCaseButton")),"Cases screen");
         return Task.CompletedTask;
@@ -458,7 +428,6 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     public Task SetCloseReason(string v){Select("CaseCloseReason",v);return Task.CompletedTask;}
     public Task OpenSiteFromBreadcrumb()
     {
-        DismissUnexpectedInfoDialogs();
 
         var siteCrumb=window.FindAll(TreeScope.Descendants,
             new AndCondition(
@@ -482,14 +451,12 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     }
     public Task OpenLeads()
     {
-        DismissUnexpectedInfoDialogs();
         Click(ById("LeadsTab"));
         Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"NewLeadButton")),"Leads screen");
         return Task.CompletedTask;
     }
     public Task OpenCustomerFromBreadcrumb()
     {
-        DismissUnexpectedInfoDialogs();
         var customer=window.FindAll(TreeScope.Descendants,
             new AndCondition(
                 new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.Button),
@@ -544,7 +511,6 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     }
     public Task CreateLead()
     {
-        DismissUnexpectedInfoDialogs();
         var button=ById("NewLeadButton");
         VisualTarget(button);
         if(!button.Current.IsEnabled || !button.TryGetCurrentPattern(InvokePattern.Pattern,out var invoke))
