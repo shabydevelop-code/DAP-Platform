@@ -595,25 +595,10 @@ async Task MoveTo(BrowserLocator target)
 }
 async Task Click(string selector)
 {
-    var f=await Content(); var target=f.Locator(selector);
-    var replacesFrame=await target.GetAttributeAsync("data-frame-nav")=="replace";
+    var f=await Content();
+    var target=f.Locator(selector);
     await MoveTo(target);
     await target.ClickAsync();
-
-    if(replacesFrame)
-    {
-        // The transient #content-frame-next can be created and promoted before
-        // the browser harness observes its Attached state (especially in visual mode).
-        // Wait for the stable outcome instead: the active Content frame has
-        // finished the replacement lifecycle and reports itself ready.
-        await page.Locator("#content-frame").WaitForAsync(new() {
-            State = BrowserWaitState.Attached, Timeout = 10000
-        });
-        await page.Locator("#content-frame-next").WaitForAsync(new() {
-            State = BrowserWaitState.Detached, Timeout = 10000
-        });
-        await Content();
-    }
     await HumanPause(420);
 }
 async Task Fill(string selector,string value)
@@ -630,59 +615,14 @@ async Task Fill(string selector,string value)
     await page.Keyboard.PressAsync("Tab");
     await HumanPause(120);
 }
-async Task WaitForContentDocumentReplacement(double previousTimeOrigin)
-{
-    const int attempts=50;
-    for(var i=0;i<attempts;i++)
-    {
-        try
-        {
-            var frame=await page.FindFrameByNameAsync("dap-content");
-            if(frame is not null)
-            {
-                var currentTimeOrigin=await frame.EvaluateAsync<double>("() => performance.timeOrigin");
-                if(Math.Abs(currentTimeOrigin-previousTimeOrigin)>0.01)
-                {
-                    await WaitReady();
-                    return;
-                }
-            }
-        }
-        catch(BrowserHarnessException)
-        {
-            // A reload can temporarily invalidate the current document.
-        }
-
-        await page.WaitForTimeoutAsync(100);
-    }
-
-    throw new TimeoutException("Content document was not replaced after the server-backed field change.");
-}
-
 async Task Select(string selector,string value)
 {
-    var f=await Content(); var target=f.Locator(selector);
+    var f=await Content();
+    var target=f.Locator(selector);
     await MoveTo(target);
     if (visualMode) await HumanPause(300);
-
-    // Status FieldChange performs a real server-backed document reload. Capture
-    // the browser document identity before the learner action so the harness
-    // cannot mistake the retiring ready document for the completed replacement.
-    var waitsForDocumentReplacement=
-        string.Equals(await target.GetAttributeAsync("name"),"status",StringComparison.Ordinal);
-    var previousTimeOrigin=waitsForDocumentReplacement
-        ? await f.EvaluateAsync<double>("() => performance.timeOrigin")
-        : 0d;
-
-    // Keep the system test deterministic: select the real option directly.
-    // SelectOption fires the real change event and therefore the real CRM FieldChange flow.
     await target.SelectOptionAsync(value);
     await HumanPause(800);
-
-    if(waitsForDocumentReplacement)
-        await WaitForContentDocumentReplacement(previousTimeOrigin);
-    else
-        await WaitReady();
 }
 async Task HumanScrollTo(BrowserLocator target)
 {
