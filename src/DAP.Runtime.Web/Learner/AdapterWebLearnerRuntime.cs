@@ -129,9 +129,13 @@ public sealed class AdapterWebLearnerRuntime
                         return;
                     }
 
-                    var invalidatedAfterClick = _browser.WaitForPresentationInvalidationAsync(cancellationToken);
-                    var clickSafety = Task.Delay(_stableSafetyInterval, cancellationToken);
-                    await Task.WhenAny(invalidatedAfterClick, clickSafety);
+                    using (var stableWaitCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
+                    {
+                        var invalidatedAfterClick = _browser.WaitForPresentationInvalidationAsync(stableWaitCts.Token);
+                        var clickSafety = Task.Delay(_stableSafetyInterval, stableWaitCts.Token);
+                        await Task.WhenAny(invalidatedAfterClick, clickSafety);
+                        stableWaitCts.Cancel();
+                    }
                     continue;
                 }
 
@@ -166,13 +170,18 @@ public sealed class AdapterWebLearnerRuntime
             // the active target wake the Runtime immediately. A low-frequency
             // safety wake keeps context/completion semantics robust without the
             // former 100 ms browser polling loop.
-            var invalidationTask = _browser.WaitForPresentationInvalidationAsync(cancellationToken);
-            var safetyTask = Task.Delay(_stableSafetyInterval, cancellationToken);
+            using (var stableWaitCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
+            {
+                var invalidationTask = _browser.WaitForPresentationInvalidationAsync(stableWaitCts.Token);
+                var safetyTask = Task.Delay(_stableSafetyInterval, stableWaitCts.Token);
 
-            if (commitTask is not null && !validCommitLatched)
-                await Task.WhenAny(commitTask, invalidationTask, safetyTask);
-            else
-                await Task.WhenAny(invalidationTask, safetyTask);
+                if (commitTask is not null && !validCommitLatched)
+                    await Task.WhenAny(commitTask, invalidationTask, safetyTask);
+                else
+                    await Task.WhenAny(invalidationTask, safetyTask);
+
+                stableWaitCts.Cancel();
+            }
         }
     }
 
