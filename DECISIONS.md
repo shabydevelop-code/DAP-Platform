@@ -666,3 +666,28 @@ The canonical Guide summary is persisted as Step 55 on both Web and Windows. It 
 Guide completion content must be defined by persisted Guide data and presented through the normal Runtime Step lifecycle. Canonical E2E/Hybrid orchestration may confirm that Step as a synthetic learner action, but must not wait for or operate a separate test-side completion-bubble state.
 
 The repository seeds and `--reset-guide` must preserve this Step. The canonical seed length is therefore 55. Existing 54/54 verification records are historical and must not be rewritten as 55/55 without a fresh full regression.
+
+
+## ADR-058 — Current GitHub main code is the only code source of truth
+
+**Status:** Accepted  
+**Date:** 2026-10-06
+
+### Decision
+
+For all DAP-Platform development, diagnosis, review, and implementation work, the current `HEAD` of the `main` branch in GitHub is the authoritative source of truth for code.
+
+Historical commits, diverged histories, old branches, prior snapshots, conversation excerpts, and previously observed implementations must not be used to determine the current implementation state when the current GitHub `main` code can be inspected directly.
+
+Git history may be consulted only when the user explicitly requests historical investigation or explicitly asks to recover a known historical change. It must not be used by default to reconstruct, infer, or override the current code.
+
+When documentation or prior conversation conflicts with the current code, inspect the current `main` code first and report the discrepancy rather than silently replacing current code with historical content.
+
+### Consequences
+
+- Always inspect current GitHub `main` before changing or diagnosing code.
+- Do not infer current behavior from commit messages.
+- Do not restore code from an old commit merely because it appears to match a previous discussion.
+- Do not treat a diverged branch as current implementation.
+- Historical commits are evidence of history, not the current code baseline.
+- Any intentional recovery from history requires explicit user direction.
