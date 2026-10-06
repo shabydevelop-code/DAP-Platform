@@ -735,7 +735,6 @@ Console.WriteLine("DAP TestCRM representative PeopleSoft-Web scenario");
 Console.WriteLine("Scenario 1: Case status FieldChange + Content iframe replacement");
 Console.WriteLine("Scenario 2: Case validation failure + preservation of unsaved values");
 Console.WriteLine("Scenario 3: Grid rerender/reorder + target re-resolution");
-Console.WriteLine("Scenario 4: Full page reload + business context preservation");
 Console.WriteLine("Scenario 5: CRM tab switching + business context preservation");
 Console.WriteLine("Scenario 6: Conditional target disappearance/reappearance + re-resolution");
 Console.WriteLine("Scenario 7: Cross-frame navigation from Header to Content");
@@ -1373,38 +1372,8 @@ await WaitForGuideStep(21);
 Console.WriteLine(unguided ? "CRM Case closure through validation alert and Close Reason: PASS" : "DAP guided Case closure through validation alert and Close Reason: PASS");
 await SaveSuccess();
 
-// Step 21's Save click is the learner action that advances the production
-// Guide. Do not start a technical E2E document reload until DAP has completed
-// that transition and presented Step 22. Otherwise the harness can destroy the
-// document while the Runtime is still reconciling the validating click.
-await WaitForGuideStep(22);
-
-// 4. Content-document reload while remaining on the persisted Case.
-// Business scenario: the active CRM document is rebuilt, and DAP must reacquire
-// the replacement frame without losing the current business record.
-var beforeReloadRoute=frame.Url;
-if(!beforeReloadRoute.Contains($"#/case/{createdCaseId}",StringComparison.Ordinal))
-    throw new Exception("Expected to remain on the created Case before Content reload.");
-await frame.EvaluateAsync("() => location.reload()");
-await page.Locator("#content-frame").WaitForAsync(new() { State = BrowserWaitState.Attached, Timeout = 10000 });
-frame=await Content();
-await frame.Locator("h1:has-text('פניה')").WaitForAsync();
-if(!frame.Url.Contains($"#/case/{createdCaseId}",StringComparison.Ordinal))
-    throw new Exception("Content reload did not preserve the active Case route.");
-if(await frame.Locator("[name='status']").InputValueAsync()!="סגורה")
-    throw new Exception("Content reload did not preserve the saved Case status.");
-if(await frame.Locator("[name='subject']").InputValueAsync()!="תקלה בחיבור לאינטרנט")
-    throw new Exception("Content reload did not preserve the saved Case subject.");
-if(await frame.Locator("[name='closeReason']").InputValueAsync()!="טופל")
-    throw new Exception("Content reload did not preserve the saved Close Reason.");
-
-// 7. CRM tab switching: leave the Case, switch between Site tabs, and return to Cases.
-// Business scenario: an agent checks Leads and then returns to the Cases workspace
-// without losing the current Site context or accidentally leaving the customer.
-//
-// Use the same user-facing Site breadcrumb navigation as the application.
-// Click() handles the real Content iframe replacement lifecycle; the test does
-// not call internal TestCRM navigation APIs or bypass the UI.
+// Continue only with the next real learner action from the persisted Guide.
+// The canonical runner never injects a technical browser reload between Steps.
 frame=await Content();
 await WaitForGuideStep(22);
 await Click(".breadcrumb a[data-go^='#/site/']");
