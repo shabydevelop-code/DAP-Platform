@@ -43,6 +43,11 @@ public sealed class WebGuideRuntime
         {
             var persistedStep = orderedSteps[stepIndex];
             cancellationToken.ThrowIfCancellationRequested();
+            if (!persistedStep.IsEnabled)
+            {
+                Console.Error.WriteLine($"[DAP guide] skipping disabled Step {persistedStep.Order}/{orderedSteps.Length} '{persistedStep.Id}'.");
+                continue;
+            }
 
             var isCenteredStep = persistedStep.Target is null
                 && persistedStep.Bubble.Placement == BubblePlacement.Center;
