@@ -16,6 +16,8 @@ const string baseUrl = "http://localhost:5200";
 int? manualFromStep = null;
 int? visualFromStep = null;
 string? publishedDapDirectory = null;
+var visual = false;
+var browserName = "chromium";
 for (var i = 0; i < args.Length; i++)
 {
     if (args[i].Equals("--published-dap", StringComparison.OrdinalIgnoreCase))
@@ -23,6 +25,22 @@ for (var i = 0; i < args.Length; i++)
         if (i + 1 >= args.Length || string.IsNullOrWhiteSpace(args[i + 1]))
             throw new ArgumentException("--published-dap requires a directory containing DAP.exe.");
         publishedDapDirectory = Path.GetFullPath(args[++i]);
+        continue;
+    }
+
+    if (args[i].Equals("--visual", StringComparison.OrdinalIgnoreCase))
+    {
+        visual = true;
+        continue;
+    }
+
+    if (args[i].Equals("--browser", StringComparison.OrdinalIgnoreCase))
+    {
+        if (i + 1 >= args.Length)
+            throw new ArgumentException("--browser requires chromium, chrome, or edge.");
+        browserName = args[++i].Trim().ToLowerInvariant();
+        if (browserName is not ("chromium" or "chrome" or "edge"))
+            throw new ArgumentException("--browser requires chromium, chrome, or edge.");
         continue;
     }
 
@@ -381,14 +399,13 @@ StartupMark("CDP port reserved");
 using var playwright = await Playwright.CreateAsync();
 StartupMark("Playwright created");
 
-var e2eBrowser = Environment.GetEnvironmentVariable("DAP_E2E_BROWSER")?.Trim().ToLowerInvariant() ?? "chromium";
-var browserChannel = e2eBrowser switch
+var browserChannel = browserName switch
 {
     "chrome" => "chrome",
     "edge" => "msedge",
     "chromium" => null,
     _ => throw new ArgumentException(
-        $"Unsupported DAP_E2E_BROWSER '{e2eBrowser}'. Supported values: chromium, chrome, edge.")
+        $"Unsupported browser '{browserName}'. Supported values: chromium, chrome, edge.")
 };
 
 await using var browser = await playwright.Chromium.LaunchAsync(new()
@@ -397,18 +414,8 @@ await using var browser = await playwright.Chromium.LaunchAsync(new()
     Headless = false,
     Args = new[] { "--start-maximized", $"--remote-debugging-port={dapCdpPort}" }
 });
-StartupMark($"{e2eBrowser} launched");
-// DAP_E2E_MODE belongs only to a full --guided run. All other public
-// switches have absolute semantics and must not inherit a stale PowerShell
-// environment value from an earlier run.
-var e2eMode = "fast";
-if (explicitGuided && !manual && !unguided && manualFromStep is null && visualFromStep is null)
-{
-    e2eMode = Environment.GetEnvironmentVariable("DAP_E2E_MODE")?.Trim().ToLowerInvariant() ?? "fast";
-    if (e2eMode is not ("fast" or "visual"))
-        throw new ArgumentException(
-            $"Unsupported DAP_E2E_MODE '{e2eMode}'. Supported values: fast, visual.");
-}
+StartupMark($"{browserName} launched");
+var e2eMode = visual ? "visual" : "fast";
 
 var context = await browser.NewContextAsync(new() { ViewportSize = ViewportSize.NoViewport, ExtraHTTPHeaders = new Dictionary<string,string> { ["X-DAP-E2E-Mode"] = e2eMode } });
 var page = await context.NewPageAsync();
