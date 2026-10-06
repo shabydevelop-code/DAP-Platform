@@ -2,9 +2,7 @@
 
 This project is the production browser adapter used by the Web Learner path.
 
-The extension is **not** a Guide engine. Guide sequencing, validation decisions,
-completion-condition policy, runtime capture/materialization, and Step advancement
-remain in the .NET Runtime.
+The extension is not a Guide engine. Guide sequencing, validation decisions, completion-condition policy, runtime capture/materialization, and Step advancement remain in the .NET Runtime.
 
 ## Production path
 
@@ -22,14 +20,11 @@ content-runtime.js in the resolved frame
 target DOM
 ```
 
-The former JSONL command/response/event journals were migration scaffolding and
-are no longer the active transport.
+The former JSONL command/response/event journals were migration scaffolding and are no longer the active transport.
 
 ## Behavioral contract
 
-The existing Playwright Web Runtime is the behavioral specification during this
-migration. The extension must preserve its learner semantics rather than invent a
-second Web runtime model.
+The extension path is the single Web browser-access architecture for production learner execution and Web E2E. It must preserve the persisted Guide semantics owned by the .NET Runtime and must not invent a second Web runtime model.
 
 Current implemented behavior includes:
 
@@ -40,18 +35,16 @@ Current implemented behavior includes:
 - content readiness probing and idempotent reinjection when a frame has no receiver;
 - safe handling of invalidated extension contexts after extension reload;
 - DOM/target re-resolution through reconciliation;
-- natural validation commits:
-  - text edit followed by blur;
-  - discrete-control change;
-  - click event;
-- click acknowledgement/replay for browser-default navigation/submission capable targets;
+- natural validation commits: text edit followed by blur, discrete-control change, and click event;
+- click acknowledgement/replay for browser-default navigation/submission-capable targets;
 - live validation rebinding when the current DOM target is replaced;
 - valid non-click commits remain latched while persisted completion conditions are pending;
 - top-level visual proxy bubbles when a child frame cannot physically contain the bubble;
-- explicit-handle dragging for regular/promoted/centered/completion surfaces;
+- explicit-handle dragging for regular, promoted, centered, and completion surfaces;
 - manual proxy position remains authoritative after dragging;
 - `grabbing` remains active for the full pointer-drag lifetime;
-- centered informational Steps and explicit Guide completion.
+- centered informational Steps and explicit Guide completion;
+- bubble visibility follows target viewport visibility.
 
 ## Extension/runtime ownership boundary
 
@@ -72,26 +65,19 @@ The content runtime must not:
 - persist Guide progress;
 - become dependent on target-application source code or private APIs.
 
-## Reference implementation use
+## E2E boundary
 
-`Generic-Web-Training-Platform` was inspected as a reference for proven
-extension messaging/lifecycle patterns such as readiness probing, reinjection,
-frame communication, and page lifecycle handling.
+The Web E2E runner uses explicit test-driver commands routed through this same extension boundary. Those commands are synthetic learner/test actions only. They must never become a source of target identity, validation rules, completion rules, or progression decisions required by the production learner.
 
-DAP deliberately does **not** copy GWTP's extension-owned training-engine model.
-DAP keeps learner policy in .NET.
+A persisted Guide that works manually must not require extra E2E-only selectors or hidden business rules to pass automatically.
 
-## Current verification status — 2026-10-05
+## Current verification status — 2026-10-06
 
-A manual production-path run of the persisted
-`testcrm-web-canonical-workflow` completed **54/54 Steps** through the extension
-adapter, including server-backed FieldChange, reload/document replacement,
-conditional targets, validation rejection/recovery, runtime capture, context
-return, deletion, the cross-frame Header Step, and final Guide completion.
+The persisted `testcrm-web-canonical-workflow` has completed 54/54 Steps through the production extension path in both of these verified forms:
 
-Focused Step 54 verification also confirmed promoted-bubble dragging and stable
-`grabbing` cursor behavior.
+- runner-free manual execution;
+- Guided Fast automated execution.
 
-This is not yet a claim that Playwright has been removed from the repository or
-that every automated Web browser/mode regression has been re-run through the
-extension path.
+The automated run uses the installed DAP extension profile and Native Host transport. Browser profile discovery is automatic. The legacy browser-mode environment selector is not part of the active extension-native path.
+
+Stable idle CPU for the TestCRM Chrome tab is approximately 2% with the accepted 500 ms stable reconciliation cadence; recovery reconciliation remains 100 ms.
