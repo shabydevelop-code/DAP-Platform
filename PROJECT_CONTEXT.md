@@ -2,6 +2,18 @@
 
 DAP Platform is a Digital Adoption Platform for guided learning across Web and Windows applications.
 
+## Documentation current-state rule
+
+Project Markdown files describe the current valid state only. They are not historical journals.
+
+When architecture, requirements, decisions, runner modes, implementation status, or other project rules change, obsolete documentation must be replaced or removed rather than retained beside the new state.
+
+Retired implementations, superseded decisions, old verification baselines, old Step counts, obsolete commands, and migration narratives must not remain in current project Markdown merely for historical reference.
+
+Git history is the historical record. Current Markdown is the current project contract.
+
+This rule applies to all project-level Markdown, including `PROJECT_CONTEXT.md`, `REQUIREMENTS.md`, `ARCHITECTURE.md`, `CURRENT_STATUS.md`, and `DECISIONS.md`.
+
 ## Source of truth
 
 The current `main` branch in GitHub is the authoritative code source. Historical commits, old branches, prior snapshots, and conversation excerpts do not define current implementation state unless historical investigation is explicitly requested.
