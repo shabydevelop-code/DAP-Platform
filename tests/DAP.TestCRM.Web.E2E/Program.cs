@@ -909,7 +909,17 @@ async Task WaitForGuideStep(int order)
             }
             await page.WaitForTimeoutAsync(50);
         }
-        throw new TimeoutException($"DAP Runtime did not activate hidden Step {order}: {expected.Id} within 5 seconds.");
+        var hiddenRuntimeDiagnostics=string.Join(
+            Environment.NewLine,
+            dapStdErrLines.Where(line =>
+                line.StartsWith("[DAP guide]",StringComparison.Ordinal)
+                || line.StartsWith("[DAP validation]",StringComparison.Ordinal)
+                || line.StartsWith("[DAP bubble]",StringComparison.Ordinal)
+                || line.StartsWith("[DAP runtime]",StringComparison.Ordinal)
+                || line.StartsWith("[DAP runtime trace]",StringComparison.Ordinal)));
+        throw new TimeoutException(
+            $"DAP Runtime did not activate hidden Step {order}: {expected.Id} within 5 seconds.{Environment.NewLine}" +
+            $"DAP diagnostics:{Environment.NewLine}{hiddenRuntimeDiagnostics}");
     }
 
     if(focusedStartStepOrder == order)
