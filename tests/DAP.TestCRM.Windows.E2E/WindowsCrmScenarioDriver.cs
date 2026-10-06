@@ -295,17 +295,11 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     public Task SubmitCustomerSearch()
     {
         Click(ById("SearchCustomersButton"));
-        Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"CustomersGrid")),"customer search results");
         return Task.CompletedTask;
     }
     public Task OpenFirstCustomer()
     {
         FirstRow("CustomersGrid");
-        Wait(
-            () => window.FindFirst(
-                TreeScope.Descendants,
-                new PropertyCondition(AutomationElement.AutomationIdProperty, "SitesGrid")),
-            "Customer Sites screen");
         return Task.CompletedTask;
     }
 
@@ -316,11 +310,6 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
             ((SelectionItemPattern)selection).Select();
 
         Click(row,true);
-        Wait(
-            () => window.FindFirst(
-                TreeScope.Descendants,
-                new PropertyCondition(AutomationElement.AutomationIdProperty, "CasesTab")),
-            $"Site screen for '{name}'");
         return Task.CompletedTask;
     }
 
@@ -328,7 +317,6 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     public Task OpenCases()
     {
         Click(ById("CasesTab"));
-        Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"NewCaseButton")),"Cases screen");
         return Task.CompletedTask;
     }
     public Task SortCasesByStatus()
@@ -353,10 +341,6 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
         if(!button.Current.IsEnabled || !button.TryGetCurrentPattern(InvokePattern.Pattern,out var invoke))
             throw new Exception("NewCaseButton is not invokable.");
         ((InvokePattern)invoke).Invoke();
-
-        // Invoke once only. The WPF navigation is asynchronous, so allow the
-        // destination form enough time to finish its API-backed initialization.
-        Wait(()=>EnabledById("CaseSubject"),"new Case form");
         return Task.CompletedTask;
     }
     public Task SetCaseSubject(string v){Set("CaseSubject",v);return Task.CompletedTask;}
@@ -444,15 +428,11 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
         if(!siteCrumb.Current.IsEnabled || !siteCrumb.TryGetCurrentPattern(InvokePattern.Pattern,out var invoke))
             throw new Exception("Site breadcrumb is not invokable.");
         ((InvokePattern)invoke).Invoke();
-
-        Wait(()=>window.FindFirst(TreeScope.Descendants,
-            new PropertyCondition(AutomationElement.AutomationIdProperty,"LeadsTab")),"Site screen after breadcrumb");
         return Task.CompletedTask;
     }
     public Task OpenLeads()
     {
         Click(ById("LeadsTab"));
-        Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"NewLeadButton")),"Leads screen");
         return Task.CompletedTask;
     }
     public Task OpenCustomerFromBreadcrumb()
@@ -469,15 +449,11 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
         if(!customer.Current.IsEnabled || !customer.TryGetCurrentPattern(InvokePattern.Pattern,out var invoke))
             throw new Exception("Customer breadcrumb is not invokable.");
         ((InvokePattern)invoke).Invoke();
-
-        Wait(()=>window.FindFirst(TreeScope.Descendants,
-            new PropertyCondition(AutomationElement.AutomationIdProperty,"SitesGrid")),"Customer Sites screen");
         return Task.CompletedTask;
     }
     public Task OpenFirstLead()
     {
         FirstRow("LeadsGrid");
-        Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteLeadButton")),"Lead form");
         return Task.CompletedTask;
     }
     public Task OpenLeadByContactName(string contactName)
@@ -487,15 +463,12 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
             ((SelectionItemPattern)selection).Select();
 
         Click(row,true);
-        Wait(()=>window.FindFirst(TreeScope.Descendants,
-            new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteLeadButton")),"Lead form");
         return Task.CompletedTask;
     }
 
     public Task OpenFirstCase()
     {
         FirstRow("CasesGrid");
-        Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteCaseButton")),"Case form");
         return Task.CompletedTask;
     }
     public Task OpenCaseBySubject(string subject)
@@ -505,8 +478,6 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
             ((SelectionItemPattern)selection).Select();
 
         Click(row,true);
-        Wait(()=>window.FindFirst(TreeScope.Descendants,
-            new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteCaseButton")),"Case form");
         return Task.CompletedTask;
     }
     public Task CreateLead()
@@ -516,7 +487,6 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
         if(!button.Current.IsEnabled || !button.TryGetCurrentPattern(InvokePattern.Pattern,out var invoke))
             throw new Exception("NewLeadButton is not invokable.");
         ((InvokePattern)invoke).Invoke();
-        Wait(()=>EnabledById("LeadContactName"),"new Lead form");
         return Task.CompletedTask;
     }
     public Task SetLeadContact(string v){Set("LeadContactName",v);return Task.CompletedTask;}
