@@ -881,20 +881,40 @@ async Task WaitForGuideStep(int order)
         $"DAP diagnostics:{Environment.NewLine}{recentDapDiagnostics}");
 }
 
-async Task WaitForHybridGuideStep(GuideStep expected)
+async Task<bool> WaitForHybridGuideStep(GuideStep expected)
 {
     var startMarker=$"[DAP guide] starting Step {expected.Order}/{dapSteps.Count} '{expected.Id}'";
 
     // Hybrid mode may stop on a manual learner action for an arbitrary amount
     // of human time. The 5-second regression synchronization timeout must not
-    // become a learner-response timeout.
+    // become a learner-response timeout. A later Runtime Step also proves that
+    // this Step was already passed between runner polling intervals.
     while (true)
     {
         if (dapStdErrLines.Any(line=>line.Contains(startMarker,StringComparison.Ordinal)))
-            return;
+            return true;
+
+        var laterStepObserved = dapStdErrLines.Any(line =>
+        {
+            const string prefix = "[DAP guide] starting Step ";
+            if (!line.StartsWith(prefix, StringComparison.Ordinal))
+                return false;
+
+            var slash = line.IndexOf('/', prefix.Length);
+            return slash > prefix.Length
+                && int.TryParse(line[prefix.Length..slash], out var order)
+                && order > expected.Order;
+        });
+        if (laterStepObserved)
+            return false;
 
         if (dapProcess is not null && dapProcess.HasExited)
+        {
+            if (dapProcess.ExitCode == 0)
+                return false;
+
             throw new Exception($"DAP.exe exited with code {dapProcess.ExitCode} before Runtime activated Step {expected.Order}.");
+        }
 
         if (ownedTestCrmProcess is not null && ownedTestCrmProcess.HasExited)
             throw new Exception($"TestCRM Web host exited before Runtime activated Step {expected.Order}.");
@@ -969,7 +989,16 @@ if (hybrid)
             continue;
         }
 
-        await WaitForHybridGuideStep(step);
+        var observed = await WaitForHybridGuideStep(step);
+        if (!observed)
+        {
+            if (dapProcess is not null && dapProcess.HasExited && dapProcess.ExitCode == 0)
+                break;
+
+            Console.WriteLine($"HYBRID: Runtime already advanced past persisted Step {step.Order} '{step.Id}'.");
+            continue;
+        }
+
         var order = step.Order;
         if (string.IsNullOrEmpty(step.AutomationValue) || step.Target is null)
             continue;
