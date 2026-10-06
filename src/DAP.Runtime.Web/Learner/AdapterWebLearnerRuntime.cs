@@ -49,7 +49,11 @@ public sealed class AdapterWebLearnerRuntime
 
         var automatic = step.AdvanceMode == StepAdvanceMode.AutomaticOnValidation && step.Validation is not null;
         var clicked = automatic && string.Equals(step.Validation!.Kind, "clicked", StringComparison.Ordinal);
-        // Every target-attached Step must wait for a quiet DOM window before\n        // exposing its target. The previous Step may have completed as soon as\n        // its persisted completion condition became true while the application\n        // is still finishing the same asynchronous render.\n        var presentationGatePassed = false;
+        // Every target-attached Step must wait for a quiet DOM window before
+        // exposing its target. The previous Step may have completed as soon as
+        // its persisted completion condition became true while the application
+        // is still finishing the same asynchronous render.
+        var presentationGatePassed = false;
         Task<WebValidationCommit?>? commitTask = automatic
             ? _browser.WaitForValidationCommitAsync(step, cancellationToken)
             : null;
