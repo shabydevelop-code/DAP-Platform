@@ -17,6 +17,17 @@ Current mode contract:
 - The diagnostics launcher accepts exactly: `Fast`, `Visual`, `Manual`, `Unguided`, `ManualFromStep`, and `VisualFromStep`. Names such as `GuidedFast` are not valid.
 - The 5-second E2E timeout policy remains unchanged.
 
+### Web steady-state bubble tracking optimization — 2026-10-06
+
+- A stably presented Web Step no longer performs full target resolution and bubble presentation every 100 ms.
+- While the target/bubble/context remain valid, browser-side DOM/context observation wakes the Runtime only when presentation becomes invalid or validation completes.
+- The existing 100 ms reconciliation interval remains only for transient recovery states such as missing/inactive targets and pending post-click completion conditions.
+- Scroll, resize, and target-size changes continue to reposition/hide the normal attached bubble inside the browser without Runtime polling.
+- Cross-frame top-level proxy bubbles are reused instead of removed/recreated on every refresh. Their position is refreshed at a lower 250 ms rate only while the proxy is required.
+- A cross-frame proxy is hidden when its target leaves the top-level viewport and restored beside the target when it returns; it is no longer clamped on-screen independently of an off-screen target.
+- A stale proxy is removed when the child-frame bubble can again be rendered normally.
+- No E2E timeout was increased. Full 54-Step regression after this optimization is still pending local execution.
+
 ### Web first-bubble startup timing — Production measurement
 
 A packaged Production Web Fast run measured **7217 ms from DAP.exe start to first observed bubble**. Internal DAP instrumentation isolated the dominant cost:
@@ -192,7 +203,7 @@ The TestCRM E2E harness is now wired to the production `DAP.Data.Sqlite` and `DA
 
 The TestCRM E2E now starts the production `WebLearnerRuntime` for the SQLite-loaded first Step, verifies its initial bubble, explicitly reloads the active Content document, and then requires the runtime to restore the same Step bubble on the newly resolved `[name='name']` target without any test-side call to `WebBubblePresenter`. This is the first direct E2E assertion of the production lifecycle across document replacement. This lifecycle behavior is covered by the current passing regression baseline.
 
-`DAP.Runtime.Web.Learner.WebLearnerRuntime` now provides the first production active-Step lifecycle. It reconciles the active Step every 100ms, always re-resolving from its `TargetDescriptor`; a replaced iframe/document or rerendered target is therefore reacquired instead of retaining stale Playwright identity. `WebBubblePresenter.EnsureShownAsync` is idempotent for the same Step and live DOM target, so reconciliation does not recreate/flicker the bubble on every pass. If the target is missing or ambiguous, the runtime hides stale guidance and continues waiting rather than guessing. Playwright navigation/frame races are retried by the next reconciliation cycle. `WebValidationEvaluator` now evaluates runtime-specific Web validation. The first supported rule is `value-not-empty`. For `AutomaticOnValidation` Steps, `WebLearnerRuntime` evaluates the same uniquely resolved target returned by bubble presentation; on success it hides the bubble and completes `RunActiveStepAsync`. Unsupported validation kinds fail explicitly. Manual Steps are not auto-completed.
+`DAP.Runtime.Web.Learner.WebLearnerRuntime` owns the production active-Step lifecycle. Target resolution remains descriptor-driven and recovery still re-resolves after iframe/document replacement, rerender, ambiguity, or context loss. Stable presentation is now event-driven: once a unique target and bubble are valid, browser-side observation and validation events wake the Runtime instead of full 100 ms re-resolution. The 100 ms interval remains a recovery cadence for transient missing/inactive states and short-lived pending completion conditions. Cross-frame top-level proxies use a lower 250 ms refresh only while such a proxy is required. `WebValidationEvaluator` continues to evaluate runtime-specific Web validation, and Manual Steps are not auto-completed.
 
 A runtime-neutral `StepContextDefinition` is now part of `GuideStep` and is persisted by SQLite. The Web adapter implements `WebStepContextGuard`; initial supported Web context predicates are `url-equals`, `url-contains`, `url-fragment-equals`, and `css-exists`, evaluated against the live frame identified by the Step's `FrameContext`. `WebLearnerRuntime` checks this guard before target resolution. This allows iframe/document replacement within the same logical route while suppressing the active Step after the user leaves that business context. The TestCRM customer-search fixture uses the stable screen marker `#customer-search` rather than coupling the Step to a route fragment, and E2E now asserts that the bubble disappears after navigation leaves customer search. These behaviors are covered by the current passing regression baseline.
 
