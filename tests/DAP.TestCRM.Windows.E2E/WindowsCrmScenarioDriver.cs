@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Windows.Automation;
 using DAP.TestCRM.E2E.Common;
+using DAP.Core.Targets;
 
 namespace DAP.TestCRM.Windows.E2E;
 
@@ -92,6 +93,23 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
         if(!combo.TryGetCurrentPattern(ValuePattern.Pattern,out var pattern))
             throw new Exception($"{id} has no ValuePattern.");
         ((ValuePattern)pattern).SetValue(value);
+    }
+
+    public Task ApplyAutomationValue(TargetDescriptor target, string value)
+    {
+        if (target.Runtime != TargetRuntime.Windows)
+            throw new InvalidOperationException("Windows Hybrid automation can act only on Windows targets.");
+        if (!target.Locator.Strategy.Equals("automation-id", StringComparison.OrdinalIgnoreCase))
+            throw new NotSupportedException(
+                $"Windows Hybrid automation supports persisted automation-id value targets; Step target uses '{target.Locator.Strategy}'.");
+
+        var element = ById(target.Locator.Value);
+        if (element.Current.ControlType == ControlType.ComboBox)
+            Select(target.Locator.Value, value);
+        else
+            Set(target.Locator.Value, value);
+
+        return Task.CompletedTask;
     }
 
     AutomationElement? EnabledById(string id)
