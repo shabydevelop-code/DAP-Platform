@@ -446,7 +446,16 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
         var response = await SendCommandAsync(
             new { type = "waitForDomQuiet", quietMilliseconds = Math.Max(0, (int)quietWindow.TotalMilliseconds), framePath = step.Target.FrameContext?.Path },
             cancellationToken);
-        return response.GetProperty("result").GetProperty("stable").GetBoolean();
+        if (!response.GetProperty("result").GetProperty("stable").GetBoolean())
+            return false;
+
+        // DOM quiet alone is insufficient: an application may still have a
+        // loading/busy layer above an otherwise stable target. Do not expose
+        // the next learner Step until a real pointer hit can reach its target.
+        var interactableResponse = await SendCommandAsync(
+            new { type = "isTargetInteractable", target = step.Target, framePath = step.Target.FrameContext?.Path },
+            cancellationToken);
+        return interactableResponse.GetProperty("result").GetProperty("interactable").GetBoolean();
     }
     public async Task<bool> IsPrimaryValidationSatisfiedAsync(GuideStep step, CancellationToken cancellationToken = default)
     {
