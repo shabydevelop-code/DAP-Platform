@@ -161,6 +161,9 @@ async Task RunLearnerAsync(bool manualMode, bool hybridMode)
         dap = StartProcess(
             dapExe,
             $"--learner-windows {DapTestCrmWindowsGuideSeed.GuideId} --window-automation-id {mainWindowAutomationId}",
+            hybridMode
+                ? new Dictionary<string, string?> { ["DAP_LEARNER_AUTOMATION"] = "1" }
+                : null,
             redirectOutput: true,
             workingDirectory: effectiveDapDirectory);
         dap.OutputDataReceived += (_, e) =>
