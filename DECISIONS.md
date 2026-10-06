@@ -79,3 +79,12 @@ Intentional closure of the target application/session ends Manual and Hybrid cle
 ## ADR-016 — Runtime initial input focus precedes Hybrid input
 
 Production Runtime owns the one-time initial focus of input Steps. Hybrid must wait until that focus setup is complete before applying a configured learner input, so synthetic commit actions such as TAB cannot race a later Runtime focus operation.
+
+
+## ADR-017 — Learner launch is Guide-driven
+
+The product launch contract is `DAP.exe --learner --guide <GuideId>`. The persisted Guide determines whether the current execution uses Web or Windows Runtime; callers do not select a runtime mode. The current launcher requires all enabled targeted Steps in a Guide to use one runtime type. Cross-runtime execution can be added without changing the external Guide-selection contract.
+
+## ADR-018 — Browser Extension has no product GUI
+
+The browser Extension is an infrastructure adapter between the Web Runtime and browser. It does not own Guide selection, Guide management, settings, or other product UI, and therefore exposes no popup GUI.
