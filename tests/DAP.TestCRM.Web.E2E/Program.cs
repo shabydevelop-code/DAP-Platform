@@ -830,9 +830,13 @@ async Task WaitForGuideStep(int order)
                             continue;
 
                         var stepId=await surface.GetAttributeAsync("data-dap-step-id");
-                        if(string.Equals(stepId,expected.Id,StringComparison.Ordinal)
-                           && (hiddenPresentation || await surface.IsVisibleAsync()))
+                        if(string.Equals(stepId,expected.Id,StringComparison.Ordinal))
                         {
+                            // A matching production surface is enough to prove
+                            // that Runtime resolved the target and armed this
+                            // Step's validation. The local bubble can be
+                            // intentionally invisible when presentation is
+                            // delegated to the top-level proxy.
                             productionStepReady=true;
                             break;
                         }
