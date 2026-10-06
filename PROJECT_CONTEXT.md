@@ -359,3 +359,17 @@ Seed changes do not update an already-persisted Guide automatically. Use the exp
 
 Current verified Web extension baseline: **0.2.8**. Guide-owned target autofocus is persisted through SQLite and verified end-to-end for value-entry Steps.
 
+## Current Windows verification baseline — 2026-10-06
+
+Verified after the Windows action-driver cleanup:
+
+- full Guided Windows Guide: **54/54 PASS**;
+- the runner performs learner actions only and does not decide Case-sort completion;
+- the persisted status-sort Step waits for observable `CasesGrid` replacement before progression;
+- no artificial wait or timeout increase is used for the sort transition;
+- persisted `AutoFocusTarget` is applied by the production Windows Learner Runtime for value-entry Steps;
+- target autofocus is one-time presentation behavior and was verified separately in Manual execution;
+- seed changes require explicit `--reset-guide` before an existing SQLite Guide reflects them.
+
+The Windows result reinforces the same ownership boundary already proven on Web: persisted Guide data plus production Runtime own target, validation, completion, and progression semantics; E2E only supplies learner actions and observes the result.
+
