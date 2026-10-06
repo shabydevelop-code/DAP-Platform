@@ -603,3 +603,32 @@ Relevant stabilization commits: `ac6eaaa`, `fa08a52`, `9bb497e`.
 For the current Windows learner architecture, the following capabilities have been demonstrated across the development sequence: real UIA target resolution, persisted multi-anchor targeting, validation, runtime capture, modal targeting, centered informational/completion bubbles, real-cursor Visual mode, isolated E2E builds, full canonical Guided execution, Unguided execution, full human Manual execution, From-Step handoff, and now Hybrid execution.
 
 The next product work must preserve this boundary: automation validates the production behavior; it does not supply missing production behavior.
+
+## Windows Hybrid migration — 14-step implementation record — 2026-10-06
+
+The Windows E2E/Hybrid transition was performed as an explicit 14-step cleanup/alignment sequence. This record is retained so the final Hybrid PASS does not hide which legacy automation responsibilities were removed.
+
+1. `e3a0adc` — **Remove guide outcome detection from Windows select driver.** Select actions stopped deciding whether the Guide outcome had completed; that responsibility belongs to persisted Guide validation/completion and Runtime progression.
+2. `c25ebc1` — **Remove save outcome detection from Windows E2E driver.** Save actions became learner actions only; the action driver no longer independently determines the resulting Guide/business outcome.
+3. `d685124` — **Capture Windows created case after Runtime advances.** Created-case capture was moved behind the production Runtime transition so capture does not race or replace Runtime progression.
+4. `c4fe463` — **Align Windows created case capture with Web runner.** Windows and Web now follow the same ownership model for capturing the created Case used by later scenario actions.
+5. `782f842` — **Preserve Windows focused-bootstrap case capture.** Focused/bootstrap execution retains the Case identity needed after handoff without restoring the removed legacy outcome detector.
+6. `edb732a` — **Remove delete outcome detection from Windows E2E driver.** Delete actions no longer contain a parallel test-side detector for successful deletion; production-observable Guide/Runtime conditions own completion.
+7. `454bb55` — **Remove automatic dialog dismissal from Windows E2E driver.** The driver no longer silently closes application dialogs as a legacy convenience; dialog interaction must be an intentional learner/scenario action.
+8. `91d4469` — **Align Windows navigation actions with Web runner.** Windows navigation actions were reduced/aligned to perform the intended learner action rather than embedding extra outcome synchronization.
+9. `5290d2d` — **Remove created-case outcome assertion from Windows action driver.** The action layer stopped asserting the business result that should be observed after Runtime progression.
+10. `23ccc6b` — **Align Windows text entry with Web learner actions.** Windows text entry now represents the learner edit/commit action without carrying legacy platform-specific progression behavior.
+11. `53eee3b` — **Remove Windows select-value polling from action driver.** Selection actions no longer poll the selected value as a second completion mechanism; configured Guide/Runtime observation remains authoritative.
+12. `8130e60` — **Separate Web select actions from outcome synchronization.** The corresponding Web action path was split so Hybrid uses the same cross-platform rule: perform the learner action separately from observing its outcome.
+13. `39519e8` — **Use explicit Web E2E mode and browser arguments.** Hybrid Web execution receives its mode/browser configuration explicitly instead of inheriting stale environment-driven behavior.
+14. `e6a133b` — **Validate explicit Web E2E Visual mode arguments.** Explicit Hybrid/Web argument handling was validated so Visual configuration is intentional and cannot silently drift through inherited state.
+
+### Result of the 14-step migration
+
+The sequence removes the old pattern in which Windows E2E action helpers both performed an action and independently tried to prove/force its outcome. The resulting boundary is: **action driver performs the learner action; persisted Guide + production Runtime observe validation/completion and advance the Guide; orchestration only synchronizes with the resulting production state.**
+
+Case identity capture remains only where later synthetic scenario actions genuinely need an identifier; it occurs after Runtime progression and is not a substitute for Guide completion detection.
+
+The same separation was applied to the Web side where required for Hybrid handoff, particularly select-action outcome synchronization and explicit mode/browser configuration.
+
+After these changes, Windows Hybrid testing completed successfully. This 14-step sequence is therefore part of the verified Windows Hybrid baseline and must not be reintroduced through legacy action-driver polling, automatic outcome assertions, automatic dialog dismissal, or duplicate completion detection.
