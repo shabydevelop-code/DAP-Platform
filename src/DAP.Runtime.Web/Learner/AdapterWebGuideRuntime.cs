@@ -24,9 +24,7 @@ public sealed class AdapterWebGuideRuntime
         IReadOnlyList<GuideStep> guideSteps,
         CancellationToken cancellationToken,
         int? startStepOrder = null,
-        IReadOnlyDictionary<string,string>? initialCapturedValues = null,
-        int? showGuidanceFromStepOrder = null,
-        bool hideGuidance = false)
+        IReadOnlyDictionary<string,string>? initialCapturedValues = null)
     {
         var captured = initialCapturedValues is null
             ? new Dictionary<string,string>(StringComparer.Ordinal)
@@ -45,7 +43,7 @@ public sealed class AdapterWebGuideRuntime
             var persistedStep = ordered[i];
             if (!persistedStep.IsEnabled)
             {
-                Console.Error.WriteLine($"[DAP guide] skipped disabled Step {i+1}/{ordered.Length} '{persistedStep.Id}'.");
+                Console.Error.WriteLine($"[DAP guide] skipped disabled Step {persistedStep.Order}/{ordered.Length} '{persistedStep.Id}'.");
                 continue;
             }
 
@@ -60,13 +58,11 @@ public sealed class AdapterWebGuideRuntime
                 captured[step.Id]=value;
             }
 
-            var showPresentation = !hideGuidance
-                && (showGuidanceFromStepOrder is null || step.Order >= showGuidanceFromStepOrder.Value);
             await _steps.RunActiveStepAsync(
-                step, i+1, ordered.Length, cancellationToken,
-                showPresentation,
-                () => Console.Error.WriteLine($"[DAP guide] starting Step {i+1}/{ordered.Length} '{step.Id}'."));
-            Console.Error.WriteLine($"[DAP guide] completed Step {i+1}/{ordered.Length} '{step.Id}'.");
+                step, step.Order, ordered.Length, cancellationToken,
+                true,
+                () => Console.Error.WriteLine($"[DAP guide] starting Step {step.Order}/{ordered.Length} '{step.Id}'."));
+            Console.Error.WriteLine($"[DAP guide] completed Step {step.Order}/{ordered.Length} '{step.Id}'.");
         }
 
         Console.Error.WriteLine("[DAP guide] Guide finished.");
