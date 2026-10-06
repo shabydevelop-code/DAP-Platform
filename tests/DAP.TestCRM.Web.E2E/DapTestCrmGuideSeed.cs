@@ -60,7 +60,6 @@ public static class DapTestCrmGuideSeed
             CompletionConditions: completionCondition is null
                 ? null
                 : new[] { completionCondition },
-            AutoFocusTarget: true,
             IsEnabled: isEnabled,
             AutomationValue: automationValue);
 
