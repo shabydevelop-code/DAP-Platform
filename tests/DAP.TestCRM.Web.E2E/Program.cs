@@ -889,13 +889,9 @@ async Task WaitForGuideStep(int order)
                     if(await bubble.CountAsync()==1)
                     {
                         var bubbleStepId=await bubble.GetAttributeAsync("data-dap-step-id");
-                        var bubbleText=await bubble.TextContentAsync() ?? string.Empty;
-                        var expectedProgress=$"שלב {order} מתוך {dapSteps.Count}";
-                        var matchesExpectedStep = hiddenPresentation
-                            ? string.Equals(bubbleStepId, expected.Id, StringComparison.Ordinal)
-                            : await bubble.IsVisibleAsync()
-                                && bubbleText.Contains(expected.Bubble.Content,StringComparison.Ordinal)
-                                && bubbleText.Contains(expectedProgress,StringComparison.Ordinal);
+                        var matchesExpectedStep =
+                            string.Equals(bubbleStepId, expected.Id, StringComparison.Ordinal)
+                            && (hiddenPresentation || await bubble.IsVisibleAsync());
                         if(matchesExpectedStep)
                         {
                             if(hiddenPresentation)
