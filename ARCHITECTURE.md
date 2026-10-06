@@ -98,11 +98,16 @@ Text editing uses natural edit/commit semantics rather than treating every inter
 
 ## Manual and Hybrid runners
 
-The canonical Web and Windows TestCRM runners expose only:
+The Web and Windows TestCRM runners expose normal execution as:
 
-- `--manual`
-- `--hybrid`
-- `--reset-guide` for persisted Guide maintenance
+- `--manual --guide <GuideId>`
+- `--hybrid --guide <GuideId>`
+
+The runner loads the explicitly selected persisted Guide and passes the same Guide ID to `DAP.exe --learner --guide <GuideId>`; it does not select the Guide implicitly.
+
+Maintenance/path options are:
+
+- `--reset-guide` for canonical TestCRM Guide maintenance
 - `--published-dap` where a packaged DAP path is required
 
 Fast, Visual, Guided, Unguided, Manual-From-Step, Visual-From-Step, and `DAP_E2E_MODE` are retired.
