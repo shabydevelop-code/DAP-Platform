@@ -19,7 +19,7 @@ public sealed record GuideStep(
     StepCaptureDefinition? Capture = null,
     IReadOnlyList<StepCompletionCondition>? CompletionConditions = null,
     bool AutoFocusTarget = false,
-    bool ShowBubble = true,
+    bool IsEnabled = true,
     string? AutomationValue = null);
 
 public sealed record StepCaptureDefinition(
