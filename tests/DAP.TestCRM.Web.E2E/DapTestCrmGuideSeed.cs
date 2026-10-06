@@ -49,7 +49,8 @@ public static class DapTestCrmGuideSeed
         string validationKind, string? expectedValue,
         BubblePlacement placement = BubblePlacement.Bottom,
         StepCompletionCondition? completionCondition = null,
-        string? automationValue = null) =>
+        string? automationValue = null,
+        bool isEnabled = true) =>
         new(
             id, order, WebTarget(css),
             new BubbleDefinition(instruction, placement),
