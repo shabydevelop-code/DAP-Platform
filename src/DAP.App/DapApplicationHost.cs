@@ -151,7 +151,10 @@ public static class DapApplicationHost
 
         var resolver = new WindowsTargetResolver();
         var bubbles = new WindowsBubblePresenter(texts);
-        var runtime = new WindowsGuideRuntime(resolver, bubbles);
+        var runtime = new WindowsGuideRuntime(
+            resolver,
+            bubbles,
+            hybridPresentation: options.HybridPresentation);
 
         try
         {
