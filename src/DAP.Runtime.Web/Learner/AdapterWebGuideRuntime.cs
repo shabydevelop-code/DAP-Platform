@@ -24,7 +24,9 @@ public sealed class AdapterWebGuideRuntime
         IReadOnlyList<GuideStep> guideSteps,
         CancellationToken cancellationToken,
         int? startStepOrder = null,
-        IReadOnlyDictionary<string,string>? initialCapturedValues = null)
+        IReadOnlyDictionary<string,string>? initialCapturedValues = null,
+        int? showGuidanceFromStepOrder = null,
+        bool hideGuidance = false)
     {
         var captured = initialCapturedValues is null
             ? new Dictionary<string,string>(StringComparer.Ordinal)
@@ -51,14 +53,24 @@ public sealed class AdapterWebGuideRuntime
                 captured[step.Id]=value;
             }
 
+            var showPresentation = !hideGuidance
+                && (showGuidanceFromStepOrder is null || step.Order >= showGuidanceFromStepOrder.Value);
             Console.Error.WriteLine($"[DAP guide] starting Step {i+1}/{ordered.Length} '{step.Id}'.");
-            await _steps.RunActiveStepAsync(step, i+1, ordered.Length, cancellationToken);
+            await _steps.RunActiveStepAsync(
+                step, i+1, ordered.Length, cancellationToken,
+                showPresentation,
+                showPresentation ? null : () => Console.Error.WriteLine($"[DAP guide] ready hidden Step {step.Order}/{ordered.Length} '{step.Id}'."));
             Console.Error.WriteLine($"[DAP guide] completed Step {i+1}/{ordered.Length} '{step.Id}'.");
         }
 
-        Console.Error.WriteLine("[DAP guide] presenting completion bubble.");
-        await _steps.WaitForGuideCompletedDismissalAsync(cancellationToken);
-        Console.Error.WriteLine("[DAP guide] completion bubble dismissed; Guide finished.");
+        if (!hideGuidance)
+        {
+            Console.Error.WriteLine("[DAP guide] presenting completion bubble.");
+            await _steps.WaitForGuideCompletedDismissalAsync(cancellationToken);
+            Console.Error.WriteLine("[DAP guide] completion bubble dismissed; Guide finished.");
+        }
+        else
+            Console.Error.WriteLine("[DAP guide] Guide finished with guidance hidden.");
     }
 
     private static GuideStep MaterializeRuntimeValues(GuideStep step, IReadOnlyDictionary<string,string> values)
