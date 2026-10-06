@@ -4,7 +4,8 @@
 
 - DAP is a production-target .NET 8 Windows application.
 - One product supports Learner and future Instructor/Editor experiences.
-- Guides may target Web, Windows, or contain both runtime types.
+- Learner launch accepts an explicit persisted Guide identifier and derives the runtime type from the Guide rather than requiring a Web/Windows launch mode.
+- The current launcher supports Guides whose enabled targets belong to one runtime type; cross-runtime Guide execution is a future capability.
 - Hebrew and English UI are supported with RTL/LTR direction.
 - Guide content language is independent of product UI language.
 
