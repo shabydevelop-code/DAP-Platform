@@ -367,7 +367,22 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     public Task SetResolutionNotes(string v){Set("CaseResolutionNotes",v);return Task.CompletedTask;}
     public Task ShowMoreActivity(){Click(ById("ActivityMoreButton"));return Task.CompletedTask;}
     public Task DismissValidation(){DialogButton(false);return Task.CompletedTask;}
-    public Task SetCloseReason(string v){Select("CaseCloseReason",v);return Task.CompletedTask;}
+    public Task SetCloseReason(string v)
+    {
+        Select("CaseCloseReason",v);
+        if (unguidedBootstrapSynchronization)
+            Wait(() =>
+            {
+                var combo = window.FindFirst(TreeScope.Descendants,
+                    new PropertyCondition(AutomationElement.AutomationIdProperty,"CaseCloseReason"));
+                if (combo is null || !combo.TryGetCurrentPattern(ValuePattern.Pattern,out var pattern))
+                    return null;
+                return string.Equals(((ValuePattern)pattern).Current.Value?.Trim(),v,StringComparison.Ordinal)
+                    ? combo
+                    : null;
+            },"CaseCloseReason selected value");
+        return Task.CompletedTask;
+    }
     public Task OpenSiteFromBreadcrumb()
     {
 
