@@ -24,6 +24,7 @@ public sealed class WindowsBubblePresenter
     private Polygon? _pointer;
     private TextBlock? _content;
     private TextBlock? _progress;
+    private TextBlock? _automaticBadge;
     private Rect _targetRect;
     private bool _dragging;
     private bool _manuallyPositioned;
@@ -40,7 +41,8 @@ public sealed class WindowsBubblePresenter
         GuideStep step,
         int stepNumber,
         int totalSteps,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? automaticStepLabel = null)
     {
         var physicalRect = target.Current.BoundingRectangle;
         if (physicalRect.IsEmpty || physicalRect.Width <= 0 || physicalRect.Height <= 0)
@@ -74,6 +76,10 @@ public sealed class WindowsBubblePresenter
             _targetRect = rect;
             UpdateTargetHighlight(rect);
             _content!.Text = step.Bubble.Content;
+            _automaticBadge!.Text = automaticStepLabel ?? string.Empty;
+            _automaticBadge.Visibility = string.IsNullOrWhiteSpace(automaticStepLabel)
+                ? Visibility.Collapsed
+                : Visibility.Visible;
             _progress!.Text = _texts.Format("Learner.StepProgress", stepNumber, totalSteps);
             AutomationProperties.SetName(_window!, step.Bubble.Content);
 
@@ -583,6 +589,18 @@ public sealed class WindowsBubblePresenter
             FlowDirection = FlowDirection.RightToLeft
         };
 
+        _automaticBadge = new TextBlock
+        {
+            Margin = new Thickness(0, 0, 0, 8),
+            Padding = new Thickness(8, 2, 8, 2),
+            FontSize = 12,
+            FontWeight = FontWeights.Bold,
+            Foreground = Brushes.White,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            FlowDirection = FlowDirection.RightToLeft,
+            Visibility = Visibility.Collapsed
+        };
+
         _progress = new TextBlock
         {
             Margin = new Thickness(0, 8, 0, 0),
@@ -604,6 +622,7 @@ public sealed class WindowsBubblePresenter
 
         var stack = new StackPanel();
         stack.Children.Add(dragHandle);
+        stack.Children.Add(_automaticBadge);
         stack.Children.Add(_content);
         stack.Children.Add(_progress);
 
