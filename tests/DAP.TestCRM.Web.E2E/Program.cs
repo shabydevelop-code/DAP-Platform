@@ -312,7 +312,9 @@ Console.CancelKeyPress += webCancelCleanup;
             File.Copy(sourceFile, destinationFile, overwrite: true);
         }
 
-        if (!unguided && publishedDapDirectory is null)
+        // Unguided now runs the production DAP Runtime with presentation
+        // suppressed, so every non-diagnostic E2E mode requires DAP.exe.
+        if (publishedDapDirectory is null)
             await BuildIsolatedAsync(dapAppProject, dapOutput, "DAP");
     }
 
