@@ -780,6 +780,9 @@ Process StartFocusedDap(int? showGuidanceFromStepOrder, bool hideGuidance = fals
 
 var lastScenarioGuideOrder=0;
 
+bool GuidanceVisibleAt(int order) =>
+    !unguided && (focusedStartStepOrder is null || order >= focusedStartStepOrder.Value);
+
 async Task WaitForGuideStep(int order)
 {
     var expected=dapSteps.Single(step=>step.Order==order);
@@ -1128,7 +1131,7 @@ await WaitForGuideStep(50);
 await Click($"button.grid-open[data-go='#/case/{createdCaseId}']");
 
 await WaitForGuideStep(51);
-if(!unguided && dapProcess is not null)
+if(GuidanceVisibleAt(51) && dapProcess is not null)
 {
     var informationConfirm=page.Locator("#dap-guide-centered [data-dap-guide-confirm='1']");
     await MoveTo(informationConfirm);
@@ -1149,7 +1152,7 @@ await MoveTo(header);
 await header.ClickAsync();
 
 await WaitForGuideStep(55);
-if(!unguided && dapProcess is not null)
+if(GuidanceVisibleAt(55) && dapProcess is not null)
 {
     var summaryConfirm=page.Locator("#dap-guide-centered [data-dap-guide-confirm='1']");
     await MoveTo(summaryConfirm);
