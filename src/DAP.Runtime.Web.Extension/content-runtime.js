@@ -130,6 +130,11 @@
           armValidationTarget(command.step, result.element, command.armId);
 
         if (bubbleState?.bubble && bubbleState.step?.id === command.step?.id && bubbleState.element === result.element) {
+          bubbleState.hiddenPresentation = command.visible === false;
+          if (bubbleState.hiddenPresentation)
+            bubbleState.bubble.style.setProperty("display", "none", "important");
+          else
+            bubbleState.bubble.style.removeProperty("display");
           sendResponse({ok:true,result:{
             status:"resolved",
             count:1,
