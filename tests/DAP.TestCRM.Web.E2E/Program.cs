@@ -1326,9 +1326,13 @@ dynamicDeleteLead=frame.Locator("#delete-lead");
 await WaitForGuideStep(36);
 await MoveTo(dynamicDeleteLead);
 await dynamicDeleteLead.ClickAsync();
-var confirmDeleteLead=frame.Locator("#ps-confirm [data-answer='yes']");
-await confirmDeleteLead.WaitForAsync();
+
+// Runtime progression is the authority that the confirmation UI and its
+// persisted target are ready. The action driver must not synchronize on
+// TestCRM's confirmation control independently.
 await WaitForGuideStep(37);
+frame=await Content();
+var confirmDeleteLead=frame.Locator("#ps-confirm [data-answer='yes']");
 await MoveTo(confirmDeleteLead);
 await confirmDeleteLead.ClickAsync();
 await WaitReady();
