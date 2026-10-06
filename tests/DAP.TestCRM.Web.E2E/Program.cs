@@ -428,7 +428,7 @@ void StartupMark(string stage)
     harnessLastMark=now;
 }
 
-var e2eBrowser = Environment.GetEnvironmentVariable("DAP_E2E_BROWSER")?.Trim().ToLowerInvariant() ?? "chromium";
+var e2eBrowser = Environment.GetEnvironmentVariable("DAP_E2E_BROWSER")?.Trim().ToLowerInvariant() ?? "chrome";
 if (e2eBrowser is not ("chromium" or "chrome" or "edge"))
     throw new ArgumentException(
         $"Unsupported DAP_E2E_BROWSER '{e2eBrowser}'. Supported values: chromium, chrome, edge.");
