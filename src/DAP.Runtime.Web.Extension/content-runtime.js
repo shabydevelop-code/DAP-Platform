@@ -751,6 +751,10 @@
     const existing=document.getElementById("dap-guide-bubble-proxy");
     if(existing?.dataset.dapStepId===step.id){
       existing.__dapTargetRect=targetRect;
+      if(presentation.visible===false)
+        existing.style.setProperty("display","none","important");
+      else
+        existing.style.removeProperty("display");
       existing.__dapPlace?.();
       return {status:"resolved",count:1};
     }
@@ -804,6 +808,8 @@
       touchAction:"none",userSelect:"none"
     });
     document.body.appendChild(bubble);
+    if(presentation.visible===false)
+      bubble.style.setProperty("display","none","important");
 
     const margin=8;
     const gap=theme.pointerSize+8;
