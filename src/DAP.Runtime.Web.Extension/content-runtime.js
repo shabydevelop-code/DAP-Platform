@@ -4,7 +4,7 @@
   // Do not return before registering the adapter endpoint. After an extension
   // reload a tab may still contain an older __dapWebRuntime object while the
   // new extension context needs to install its current message listener.
-  if (globalThis.__dapAdapterEndpointVersion === "0.4.4") {
+  if (globalThis.__dapAdapterEndpointVersion === "0.4.5") {
     // Re-injection / an already-live page must still wake the MV3 service
     // worker so it can (re)establish Native Messaging after DAP starts.
     try {
@@ -13,7 +13,7 @@
     } catch {}
     return;
   }
-  globalThis.__dapAdapterEndpointVersion = "0.4.4";
+  globalThis.__dapAdapterEndpointVersion = "0.4.5";
 
   // Register the adapter message endpoint before the legacy POC runtime is
   // initialized. Target resolution is looked up at message time, so an
@@ -24,7 +24,7 @@
     try {
       const command = message.command || {};
       if (command.type === "ping") {
-        sendResponse({ok:true,result:{ready:true,version:"0.4.4"}});
+        sendResponse({ok:true,result:{ready:true,version:"0.4.5"}});
         return;
       }
       if (command.type === "resolveFrameChild") {
@@ -943,9 +943,9 @@
     const clamp=(x,y)=>{const q=b.getBoundingClientRect();return{x:Math.max(margin,Math.min(x,innerWidth-q.width-margin)),y:Math.max(margin,Math.min(y,innerHeight-q.height-margin))}};
     const pointerFor=side=>{const n=theme.pointerSize;pointer.style.cssText="position:absolute;width:0;height:0;cursor:default;border-left:"+n+"px solid transparent;border-right:"+n+"px solid transparent;border-top:"+n+"px solid transparent;border-bottom:"+n+"px solid transparent";if(side==="Top"){pointer.style.left="50%";pointer.style.bottom=(-2*n)+"px";pointer.style.transform="translateX(-50%)";pointer.style.borderTopColor=theme.backgroundColor}else if(side==="Bottom"){pointer.style.left="50%";pointer.style.top=(-2*n)+"px";pointer.style.transform="translateX(-50%)";pointer.style.borderBottomColor=theme.backgroundColor}else if(side==="Left"){pointer.style.top="50%";pointer.style.right=(-2*n)+"px";pointer.style.transform="translateY(-50%)";pointer.style.borderLeftColor=theme.backgroundColor}else{pointer.style.top="50%";pointer.style.left=(-2*n)+"px";pointer.style.transform="translateY(-50%)";pointer.style.borderRightColor=theme.backgroundColor}};
     const place=()=>{if(!el.isConnected){b.style.visibility="hidden";return}const r=el.getBoundingClientRect();const targetVisible=r.width>0&&r.height>0&&r.bottom>0&&r.right>0&&r.top<innerHeight&&r.left<innerWidth;if(!targetVisible){b.style.visibility="hidden";return}if(manual){const q=b.getBoundingClientRect(),n=clamp(q.left,q.top);b.style.left=n.x+"px";b.style.top=n.y+"px";b.style.visibility="visible";return}const q=b.getBoundingClientRect(),gap=theme.pointerSize+8;const coords=x=>x==="Top"?[r.left+(r.width-q.width)/2,r.top-q.height-gap]:x==="Left"?[r.left-q.width-gap,r.top+(r.height-q.height)/2]:x==="Right"?[r.right+gap,r.top+(r.height-q.height)/2]:[r.left+(r.width-q.width)/2,r.bottom+gap];const preferred=String(step.bubble?.placement||"Auto");const sides=[preferred==="Auto"?"Bottom":preferred,"Top","Right","Left","Bottom"].filter((x,i,a)=>a.indexOf(x)===i);const candidates=sides.map(side=>{let[x,y]=coords(side);if(side==="Top"||side==="Bottom")x=Math.max(margin,Math.min(x,innerWidth-q.width-margin));else y=Math.max(margin,Math.min(y,innerHeight-q.height-margin));const inside=x>=margin&&y>=margin&&x+q.width<=innerWidth-margin&&y+q.height<=innerHeight-margin;const overlap=!(x+q.width<=r.left||x>=r.right||y+q.height<=r.top||y>=r.bottom);const overflow=Math.max(0,margin-x)+Math.max(0,margin-y)+Math.max(0,x+q.width-(innerWidth-margin))+Math.max(0,y+q.height-(innerHeight-margin));return{side,x,y,inside,overlap,overflow}});let chosen=candidates.find(x=>x.inside&&!x.overlap);if(!chosen){const safe=candidates.filter(x=>!x.overlap).sort((a,z)=>a.overflow-z.overflow);chosen=safe[0]}if(!chosen||!chosen.inside){b.dataset.actualPlacement="Overlay";b.style.pointerEvents="none";pointer.style.display="none";b.style.visibility="hidden";return}b.style.pointerEvents="";b.style.left=chosen.x+"px";b.style.top=chosen.y+"px";pointer.style.display="";pointerFor(chosen.side);b.style.visibility="visible";b.dataset.actualPlacement=chosen.side};
-    const down=e=>{if(e.button!==0||!e.target.closest('[data-dap-drag-handle="1"]'))return;const q=b.getBoundingClientRect();drag={id:e.pointerId,x:e.clientX,y:e.clientY,left:q.left,top:q.top};b.setPointerCapture(e.pointerId);handle.style.setProperty("cursor","grabbing","important");e.preventDefault()};const move=e=>{if(!drag||e.pointerId!==drag.id)return;const n=clamp(drag.left+e.clientX-drag.x,drag.top+e.clientY-drag.y);b.style.left=n.x+"px";b.style.top=n.y+"px"};const up=e=>{if(!drag||e.pointerId!==drag.id)return;manual=true;drag=null;handle.style.setProperty("cursor","grab","important");pointer.style.display="none";b.dataset.manualPosition="true";try{b.releasePointerCapture(e.pointerId)}catch{}};
+    const down=e=>{if(e.button!==0||!e.target.closest('[data-dap-drag-handle="1"]'))return;const q=b.getBoundingClientRect();drag={id:e.pointerId,x:e.clientX,y:e.clientY,left:q.left,top:q.top};b.setPointerCapture(e.pointerId);b.style.setProperty("cursor","grabbing","important");handle.style.setProperty("cursor","grabbing","important");document.documentElement.style.setProperty("cursor","grabbing","important");document.body?.style.setProperty("cursor","grabbing","important");e.preventDefault();e.stopPropagation()};const move=e=>{if(!drag||e.pointerId!==drag.id)return;const n=clamp(drag.left+e.clientX-drag.x,drag.top+e.clientY-drag.y);b.style.left=n.x+"px";b.style.top=n.y+"px"};const up=e=>{if(!drag||e.pointerId!==drag.id)return;manual=true;drag=null;b.style.setProperty("cursor","default","important");handle.style.setProperty("cursor","grab","important");document.documentElement.style.removeProperty("cursor");document.body?.style.removeProperty("cursor");pointer.style.display="none";b.dataset.manualPosition="true";try{b.releasePointerCapture(e.pointerId)}catch{}e.preventDefault();e.stopPropagation()};
     b.addEventListener("pointerdown",down);b.addEventListener("pointermove",move);b.addEventListener("pointerup",up);b.addEventListener("pointercancel",up);const ro=new ResizeObserver(place);ro.observe(el);ro.observe(b);addEventListener("scroll",place,true);addEventListener("resize",place);place();
-    bubbleState={bubble:b,step,element:el,stepNumber,totalSteps,armId:presentation.armId??null,progressText:presentation.progressText,dragText:presentation.dragText,direction:presentation.direction,cleanup:()=>{ro.disconnect();removeEventListener("scroll",place,true);removeEventListener("resize",place);b.remove();el.style.outline=previous.outline;el.style.outlineOffset=previous.outlineOffset;el.style.boxShadow=previous.boxShadow}};
+    bubbleState={bubble:b,step,element:el,stepNumber,totalSteps,armId:presentation.armId??null,progressText:presentation.progressText,dragText:presentation.dragText,direction:presentation.direction,cleanup:()=>{ro.disconnect();removeEventListener("scroll",place,true);removeEventListener("resize",place);document.documentElement.style.removeProperty("cursor");document.body?.style.removeProperty("cursor");b.remove();el.style.outline=previous.outline;el.style.outlineOffset=previous.outlineOffset;el.style.boxShadow=previous.boxShadow}};
     let topRect=null;
     if(b.dataset.actualPlacement==="Overlay"){
       try{
@@ -1129,7 +1129,7 @@
 
   const existingRuntime = globalThis.__dapWebRuntime;
   globalThis.__dapWebRuntime = {
-    version: "0.4.4",
+    version: "0.4.5",
     resolveTarget,
     showBubble,
     hideBubble,
