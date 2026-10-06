@@ -496,7 +496,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
         }
         return true;
     }
-    public async Task<WebBubblePresentation> EnsureBubbleShownAsync(GuideStep step, int stepNumber, int totalSteps, bool visible = true, CancellationToken cancellationToken = default)
+    public async Task<WebBubblePresentation> EnsureBubbleShownAsync(GuideStep step, int stepNumber, int totalSteps, bool visible = true, CancellationToken cancellationToken = default, string? automaticStepLabel = null)
     {
         if (step.Target is null) return new(WebTargetResolutionStatus.NotFound, 0);
         string? armId;
@@ -513,6 +513,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             visible,
             progressText = _texts?.Format("Learner.StepProgress", stepNumber, totalSteps) ?? $"שלב {stepNumber} מתוך {totalSteps}",
             dragText = _texts?.Get("Learner.DragBubble") ?? "גרור להזזת הבועה",
+            automaticStepLabel,
             direction = _texts?.IsRightToLeft == false ? "ltr" : "rtl",
             framePath = step.Target.FrameContext?.Path
         }, cancellationToken);
