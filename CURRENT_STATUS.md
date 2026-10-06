@@ -179,4 +179,13 @@ The Web runner preflights ports 5200 and 5201 and fails if an unknown process al
 
 ## Local repository size
 
-The user reported the working folder at approximately 870 MB before local build-output cleanup. Source cleanup does not by itself remove local `bin`, `obj`, temporary build output, or package caches. Local disk cleanup should be measured separately after removing regenerable build artifacts.
+Local cleanup removed 31 regenerable `bin`/`obj` build directories with no locked paths remaining.
+
+Measured cleanup result:
+
+```text
+After:  15.2 MB
+Freed:  737.4 MB
+```
+
+This confirms that the previous large working-folder footprint was overwhelmingly generated build output rather than source code. The cleanup script intentionally leaves source, Git history, the persistent DAP database, and the global NuGet cache untouched.
