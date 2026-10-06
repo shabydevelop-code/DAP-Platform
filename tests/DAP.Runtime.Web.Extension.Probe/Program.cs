@@ -24,7 +24,7 @@ if (missing.Status != WebTargetResolutionStatus.NotFound || missing.MatchCount !
 if (ambiguous.Status != WebTargetResolutionStatus.Ambiguous || ambiguous.MatchCount < 2)
     throw new Exception("Expected iframe probe target to return Ambiguous.");
 
-Console.WriteLine("PASS: Extension ResolveTargetAsync returned Resolved / NotFound / Ambiguous without Playwright.");
+Console.WriteLine("PASS: Extension ResolveTargetAsync returned Resolved / NotFound / Ambiguous.");
 
 
 var contextTarget = TargetDescriptor.Create(
@@ -55,7 +55,7 @@ if (!urlActive) throw new Exception("Expected localhost URL context to be active
 if (!cssActive) throw new Exception("Expected #content-frame CSS context to be active.");
 if (cssInactive) throw new Exception("Expected missing CSS context to be inactive.");
 
-Console.WriteLine("PASS: Extension IsContextActiveAsync returned active / inactive browser context facts without Playwright.");
+Console.WriteLine("PASS: Extension IsContextActiveAsync returned active / inactive browser context facts.");
 
 
 var stableStep = new GuideStep(
@@ -64,7 +64,7 @@ var stable = await adapter.IsStableForPresentationAsync(
     stableStep, TimeSpan.FromMilliseconds(250));
 Console.WriteLine($"DOM quiet window:     {stable}");
 if (!stable) throw new Exception("Expected TestCRM DOM to become quiet for 250 ms.");
-Console.WriteLine("PASS: Extension IsStableForPresentationAsync observed a 250 ms DOM quiet window without Playwright.");
+Console.WriteLine("PASS: Extension IsStableForPresentationAsync observed a 250 ms DOM quiet window.");
 
 
 var validationTarget = TargetDescriptor.Create(
@@ -112,7 +112,7 @@ Console.WriteLine($"Validation satisfied:  {validationSatisfied}");
 if (!validationSatisfied) throw new Exception("Expected non-empty customer-name value to satisfy validation after blur.");
 
 await adapter.ConsumeValidationCommitAsync(validationStep);
-Console.WriteLine("PASS: Extension reported the natural blur commit and DAP evaluated value-not-empty without Playwright.");
+Console.WriteLine("PASS: Extension reported the natural blur commit and DAP evaluated value-not-empty.");
 
 
 var equalsStep = validationStep with {
@@ -165,7 +165,7 @@ var completionStep = new GuideStep(
     });
 if (!await adapter.AreCompletionConditionsSatisfiedAsync(completionStep))
     throw new Exception("Expected extension completion conditions to be satisfied.");
-Console.WriteLine("PASS: Extension completion conditions passed without Playwright.");
+Console.WriteLine("PASS: Extension completion conditions passed.");
 
 var captureStep = new GuideStep(
     "probe-capture", 7, validationTarget, new BubbleDefinition("probe"),
@@ -174,7 +174,7 @@ var captureStep = new GuideStep(
 var captured = await adapter.CaptureAsync(captureStep);
 Console.WriteLine($"Captured value:        {captured}");
 if (captured != "DAP") throw new Exception("Expected capture value DAP.");
-Console.WriteLine("PASS: Extension capture returned and regex-processed the browser value without Playwright.");
+Console.WriteLine("PASS: Extension capture returned and regex-processed the browser value.");
 
 
 var contentFrame = new FrameContext(new[] { new Locator("css", "#content-frame") });
