@@ -583,6 +583,58 @@ if(dapSteps.Any(step =>
 var effectiveDapDirectory = publishedDapDirectory ?? packagedDapDirectory ?? dapOutput;
 var dapStdErrLines=new System.Collections.Concurrent.ConcurrentQueue<string>();
 
+string LoadHybridAutomationLabel()
+{
+    var localizationDirectory = Path.Combine(effectiveDapDirectory, "Localization");
+    var settingsPath = Path.Combine(localizationDirectory, "language.json");
+    if (!File.Exists(settingsPath))
+        throw new InvalidOperationException($"Missing localization configuration file '{settingsPath}'.");
+
+    using var settingsDocument = JsonDocument.Parse(File.ReadAllText(settingsPath));
+    if (!settingsDocument.RootElement.TryGetProperty("language", out var languageElement)
+        || string.IsNullOrWhiteSpace(languageElement.GetString()))
+        throw new InvalidOperationException($"Localization configuration '{settingsPath}' must contain a non-empty 'language' value.");
+
+    var language = languageElement.GetString()!.Trim();
+    var languagePath = Path.Combine(localizationDirectory, $"{language}.json");
+    if (!File.Exists(languagePath))
+        throw new InvalidOperationException($"Missing localization file '{languagePath}' for language '{language}'.");
+
+    using var languageDocument = JsonDocument.Parse(File.ReadAllText(languagePath));
+    if (!languageDocument.RootElement.TryGetProperty("Learner.AutomaticStep", out var labelElement)
+        || string.IsNullOrWhiteSpace(labelElement.GetString()))
+        throw new InvalidOperationException($"Missing localization key 'Learner.AutomaticStep' in '{languagePath}'.");
+
+    return labelElement.GetString()!;
+}
+
+async Task MarkHybridAutomaticBubble(string label)
+{
+    var frame = await Content();
+    var bubble = frame.Locator("#dap-guide-bubble");
+    await bubble.EvaluateAsync(
+        @"(bubble, label) => {
+            let badge = bubble.querySelector('[data-dap-hybrid-automatic]');
+            if (!badge) {
+                badge = bubble.ownerDocument.createElement('div');
+                badge.dataset.dapHybridAutomatic = 'true';
+                Object.assign(badge.style, {
+                    display: 'inline-block',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    padding: '2px 8px',
+                    marginBottom: '8px',
+                    border: '1px solid currentColor',
+                    borderRadius: '999px'
+                });
+                const content = bubble.children.length > 1 ? bubble.children[1] : null;
+                bubble.insertBefore(badge, content);
+            }
+            badge.textContent = label;
+        }",
+        label);
+}
+
 async Task<bool> WaitForHybridGuideStep(GuideStep expected)
 {
     var startMarker=$"[DAP guide] starting Step {expected.Order}/{dapSteps.Count} '{expected.Id}'";
@@ -668,6 +720,7 @@ if (hybrid)
     Console.WriteLine();
     Console.WriteLine("HYBRID WEB RUN: Runtime owns the Guide; persisted automation values fill value controls.");
     Console.WriteLine("Buttons and navigation remain manual learner actions.");
+    var automaticStepLabel = LoadHybridAutomationLabel();
 
     foreach (var step in dapSteps.OrderBy(x => x.Order))
     {
@@ -690,6 +743,8 @@ if (hybrid)
         var order = step.Order;
         if (string.IsNullOrEmpty(step.AutomationValue) || step.Target is null)
             continue;
+
+        await MarkHybridAutomaticBubble(automaticStepLabel);
 
         var selector = step.Target.Locator.Value;
         var frame = await Content();
