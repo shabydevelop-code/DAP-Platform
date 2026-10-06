@@ -313,7 +313,7 @@ Runtime implementation details such as polling, retries, UIA event handling, mod
 
 **Status:** Accepted
 
-The canonical TestCRM Web and Windows Guides each contain 53 persisted Steps and represent the same business workflow. Runtime-specific target technology may differ, but Step order, learner intent, business identity, and progression semantics must remain aligned.
+The canonical TestCRM Web and Windows Guides represent the same business workflow. This ADR was originally accepted when each Guide contained 53 persisted Steps; the current repository seeds contain 54 Steps. Runtime-specific target technology may differ, but Step order, learner intent, business identity, and progression semantics must remain aligned.
 
 Where the intended business object has a stable identity, the Guide must encode that identity rather than rely on incidental row order such as "first row". The canonical workflow currently identifies `מטה תל אביב`, `אבי כהן`, and the Case created during the active run explicitly. Runtime capture may be used to carry identities created earlier in the Guide into later Steps.
 
