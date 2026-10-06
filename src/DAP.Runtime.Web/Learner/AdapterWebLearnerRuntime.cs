@@ -13,7 +13,6 @@ public sealed class AdapterWebLearnerRuntime
     private readonly TimeSpan _reconcileInterval;
     private readonly TimeSpan _stableReconcileInterval;
     private readonly TimeSpan _presentationSettleInterval;
-    private bool _firstBubbleReported;
 
     public AdapterWebLearnerRuntime(
         IWebBrowserAdapter browser,
@@ -40,7 +39,6 @@ public sealed class AdapterWebLearnerRuntime
                 throw new InvalidOperationException($"Centered Guide Step '{step.Id}' must be a pure Manual information Step with no target, context, validation, capture, or completion conditions.");
 
             await _browser.WaitForCenteredStepDismissalAsync(step, stepNumber, totalSteps, cancellationToken);
-            _firstBubbleReported = true;
             return;
         }
 
@@ -140,9 +138,7 @@ public sealed class AdapterWebLearnerRuntime
                 presentation = await _browser.EnsureBubbleShownAsync(step, stepNumber, totalSteps, cancellationToken);
             }
 
-            if (presentation.Status == WebTargetResolutionStatus.Resolved)
-                _firstBubbleReported = true;
-            else
+            if (presentation.Status != WebTargetResolutionStatus.Resolved)
             {
                 await _browser.HideBubbleAsync(cancellationToken);
                 presentationGatePassed = false;
