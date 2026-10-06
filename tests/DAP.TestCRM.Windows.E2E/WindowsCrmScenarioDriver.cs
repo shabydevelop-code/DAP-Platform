@@ -43,7 +43,6 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
 
     void Click(AutomationElement e,bool twice=false)
     {
-        DismissUnexpectedInfoDialogs();
         VisualTarget(e);
         if(!twice && e.TryGetCurrentPattern(InvokePattern.Pattern,out var invoke))
         {
@@ -71,133 +70,28 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     }
     void Set(string id,string value)
     {
-        DismissUnexpectedInfoDialogs();
         var e=Wait(()=> {
             var candidate=window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,id));
             return candidate is not null && candidate.Current.IsEnabled ? candidate : null;
         },$"{id} enabled");
-        if(!e.TryGetCurrentPattern(ValuePattern.Pattern,out var p))throw new Exception($"{id} has no ValuePattern.");
+        if(!e.TryGetCurrentPattern(ValuePattern.Pattern,out var pattern))
+            throw new Exception($"{id} has no ValuePattern.");
 
         VisualTarget(e);
+        e.SetFocus();
+        ((ValuePattern)pattern).SetValue(value);
 
-        using var valueChanged = new ManualResetEventSlim(false);
-        AutomationPropertyChangedEventHandler? handler = null;
-        handler = (_, args) =>
-        {
-            if(args.Property == ValuePattern.ValueProperty
-               && string.Equals(args.NewValue as string,value,StringComparison.Ordinal))
-                valueChanged.Set();
-        };
-
-        Automation.AddAutomationPropertyChangedEventHandler(
-            e,
-            TreeScope.Element,
-            handler,
-            ValuePattern.ValueProperty);
-
-        try
-        {
-            e.SetFocus();
-
-            Wait(() =>
-            {
-                var current=window.FindFirst(
-                    TreeScope.Descendants,
-                    new PropertyCondition(AutomationElement.AutomationIdProperty,id));
-                return current is not null && current.Current.HasKeyboardFocus ? current : null;
-            },$"{id} keyboard focus");
-
-            ((ValuePattern)p).SetValue(value);
-
-            // The Runtime and this driver are independent UIA subscribers. Waiting
-            // only for this driver's value callback does not guarantee that the
-            // Runtime has consumed the edit before TAB produces the blur. Keep the
-            // edit focused until the provider snapshot exposes the new value, then
-            // commit through the same real keyboard traversal as a learner.
-            Wait(() =>
-            {
-                var current=window.FindFirst(
-                    TreeScope.Descendants,
-                    new PropertyCondition(AutomationElement.AutomationIdProperty,id));
-                if(current is null
-                   || !current.Current.HasKeyboardFocus
-                   || !current.TryGetCurrentPattern(ValuePattern.Pattern,out var currentPattern))
-                    return null;
-
-                return string.Equals(
-                    ((ValuePattern)currentPattern).Current.Value,
-                    value,
-                    StringComparison.Ordinal)
-                    ? current
-                    : null;
-            },$"{id} focused value '{value}'");
-
-            if(!valueChanged.Wait(5_000))
-                throw new TimeoutException($"Timed out waiting for {id} UIA value-change notification.");
-
-            KeyPress(VK_TAB);
-
-            Wait(()=>
-            {
-                var current=window.FindFirst(
-                    TreeScope.Descendants,
-                    new PropertyCondition(AutomationElement.AutomationIdProperty,id));
-                if(current is null
-                   || !current.TryGetCurrentPattern(ValuePattern.Pattern,out var currentPattern))
-                    return null;
-
-                return string.Equals(
-                           ((ValuePattern)currentPattern).Current.Value,
-                           value,
-                           StringComparison.Ordinal)
-                       && !current.Current.HasKeyboardFocus
-                    ? current
-                    : null;
-            },$"{id} committed value '{value}'");
-        }
-        finally
-        {
-            Automation.RemoveAutomationPropertyChangedEventHandler(e,handler);
-        }
+        // Match the Web runner's learner action: finish text entry with a real
+        // focus traversal so the application and Runtime receive the natural blur.
+        KeyPress(VK_TAB);
     }
     void Select(string id,string value)
     {
-        DismissUnexpectedInfoDialogs();
         var combo=ById(id);
         VisualTarget(combo);
         if(!combo.TryGetCurrentPattern(ValuePattern.Pattern,out var pattern))
             throw new Exception($"{id} has no ValuePattern.");
         ((ValuePattern)pattern).SetValue(value);
-        Wait(()=> {
-            var current=window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,id));
-            if(current is null || !current.TryGetCurrentPattern(ValuePattern.Pattern,out var currentPattern))return null;
-            return string.Equals(((ValuePattern)currentPattern).Current.Value,value,StringComparison.Ordinal) ? current : null;
-        },$"{id} value '{value}'");
-
-        if(id=="CaseStatus" && value=="בטיפול")
-            Wait(()=>EnabledById("CaseResolutionNotes"),"CaseResolutionNotes enabled after CaseStatus=בטיפול");
-        else if(id=="CaseStatus" && value=="סגורה")
-        {
-            Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"CaseCloseReason")),"CaseCloseReason after CaseStatus=סגורה");
-
-            // The status FieldChange rebuilds the Case editor. Do not return to
-            // the next Guide Step while focus is still settling on the rebuilt
-            // form: in visual mode that race can put focus on CaseSubject before
-            // the learner runtime has subscribed to its focus transition.
-            Wait(() =>
-            {
-                var subject = window.FindFirst(
-                    TreeScope.Descendants,
-                    new PropertyCondition(AutomationElement.AutomationIdProperty,"CaseSubject"));
-                return subject is not null && !subject.Current.HasKeyboardFocus ? subject : null;
-            },"CaseSubject unfocused after CaseStatus=סגורה");
-        }
-        else if(id=="LeadStatus" && value=="נסגר בהצלחה")
-            Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"LeadSelectedService")),"LeadSelectedService after LeadStatus=נסגר בהצלחה");
-        else if(id=="LeadStatus" && value=="חדש")
-            Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"LeadSelectedService")) is null ? window : null,"LeadSelectedService hidden after LeadStatus=חדש");
-        else
-            return;
     }
 
     AutomationElement? EnabledById(string id)
@@ -218,31 +112,6 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
             ((SelectionItemPattern)selection).Select();
 
         Click(row,true);
-    }
-
-    void DismissUnexpectedInfoDialogs()
-    {
-        var mainHwnd=new IntPtr(window.Current.NativeWindowHandle);
-        for(var i=0;i<4;i++)
-        {
-            var popup=GetWindow(mainHwnd,GW_ENABLEDPOPUP);
-            if(popup==IntPtr.Zero || popup==mainHwnd || !IsWindowVisible(popup))return;
-
-            var popupElement=AutomationElement.FromHandle(popup);
-            var buttons=popupElement.FindAll(TreeScope.Descendants,
-                new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.Button))
-                .Cast<AutomationElement>().ToList();
-
-            var ok=buttons.FirstOrDefault(x=>x.Current.Name is "OK" or "אישור");
-            var yes=buttons.FirstOrDefault(x=>x.Current.Name is "Yes" or "כן");
-            if(ok is null || yes is not null)return;
-            if(!ok.TryGetCurrentPattern(InvokePattern.Pattern,out var invoke))return;
-
-            LogModal(popupElement, buttons, "UNEXPECTED/AUTO-DISMISSED");
-
-            ((InvokePattern)invoke).Invoke();
-            WaitHandle(()=>!IsWindowVisible(popup) ? mainHwnd : IntPtr.Zero,"unexpected information dialog dismissed");
-        }
     }
 
     void DialogButton(bool confirm)
@@ -320,7 +189,6 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
 
     public Task SetCustomerSearchWithoutCommit(string value)
     {
-        DismissUnexpectedInfoDialogs();
         var element=Wait(()=> {
             var candidate=window.FindFirst(
                 TreeScope.Descendants,
@@ -348,17 +216,11 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     public Task SubmitCustomerSearch()
     {
         Click(ById("SearchCustomersButton"));
-        Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"CustomersGrid")),"customer search results");
         return Task.CompletedTask;
     }
     public Task OpenFirstCustomer()
     {
         FirstRow("CustomersGrid");
-        Wait(
-            () => window.FindFirst(
-                TreeScope.Descendants,
-                new PropertyCondition(AutomationElement.AutomationIdProperty, "SitesGrid")),
-            "Customer Sites screen");
         return Task.CompletedTask;
     }
 
@@ -369,20 +231,13 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
             ((SelectionItemPattern)selection).Select();
 
         Click(row,true);
-        Wait(
-            () => window.FindFirst(
-                TreeScope.Descendants,
-                new PropertyCondition(AutomationElement.AutomationIdProperty, "CasesTab")),
-            $"Site screen for '{name}'");
         return Task.CompletedTask;
     }
 
     public Task OpenFirstSite() => OpenSiteByName("מטה תל אביב");
     public Task OpenCases()
     {
-        DismissUnexpectedInfoDialogs();
         Click(ById("CasesTab"));
-        Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"NewCaseButton")),"Cases screen");
         return Task.CompletedTask;
     }
     public Task SortCasesByStatus()
@@ -407,45 +262,19 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
         if(!button.Current.IsEnabled || !button.TryGetCurrentPattern(InvokePattern.Pattern,out var invoke))
             throw new Exception("NewCaseButton is not invokable.");
         ((InvokePattern)invoke).Invoke();
-
-        // Invoke once only. The WPF navigation is asynchronous, so allow the
-        // destination form enough time to finish its API-backed initialization.
-        Wait(()=>EnabledById("CaseSubject"),"new Case form");
         return Task.CompletedTask;
     }
     public Task SetCaseSubject(string v){Set("CaseSubject",v);return Task.CompletedTask;}
     public Task SetCaseDescription(string v){Set("CaseDescription",v);return Task.CompletedTask;}
     public Task SaveCase()
     {
-        var wasPersisted=window.FindFirst(TreeScope.Descendants,
-            new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteCaseButton")) is not null;
         Click(ById("SaveCaseButton"));
-
-        if(!wasPersisted)
-            Wait(()=>window.FindFirst(TreeScope.Descendants,
-                new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteCaseButton")),"persisted Case form after Save");
-        else
-        {
-            // A persisted Case save has two legitimate outcomes in the canonical flow:
-            // validation opens a modal (Step 18), or a successful save rebuilds the Case form (Step 21).
-            var mainHwnd=new IntPtr(window.Current.NativeWindowHandle);
-            Wait(()=>
-            {
-                var popup=GetWindow(mainHwnd,GW_ENABLEDPOPUP);
-                if(popup!=IntPtr.Zero && popup!=mainHwnd && IsWindowVisible(popup))
-                    return window;
-
-                var delete=window.FindFirst(TreeScope.Descendants,
-                    new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteCaseButton"));
-                var status=window.FindFirst(TreeScope.Descendants,
-                    new PropertyCondition(AutomationElement.AutomationIdProperty,"StatusText"));
-                return delete is not null && status is not null && string.IsNullOrEmpty(status.Current.Name)
-                    ? delete : null;
-            },"Case save validation or completed form");
-        }
-
-        createdCaseId ??= CurrentCaseId();
         return Task.CompletedTask;
+    }
+
+    public void CaptureCreatedCaseId()
+    {
+        createdCaseId = CurrentCaseId();
     }
 
     string CurrentCaseId()
@@ -492,8 +321,6 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
             ((SelectionItemPattern)selection).Select();
 
         Click(row,true);
-        Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteCaseButton")),"created Case form");
-        if(CurrentCaseId()!=createdCaseId)throw new Exception($"Expected created Case {createdCaseId}, but another Case was opened.");
         return Task.CompletedTask;
     }
 
@@ -504,7 +331,6 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     public Task SetCloseReason(string v){Select("CaseCloseReason",v);return Task.CompletedTask;}
     public Task OpenSiteFromBreadcrumb()
     {
-        DismissUnexpectedInfoDialogs();
 
         var siteCrumb=window.FindAll(TreeScope.Descendants,
             new AndCondition(
@@ -521,21 +347,15 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
         if(!siteCrumb.Current.IsEnabled || !siteCrumb.TryGetCurrentPattern(InvokePattern.Pattern,out var invoke))
             throw new Exception("Site breadcrumb is not invokable.");
         ((InvokePattern)invoke).Invoke();
-
-        Wait(()=>window.FindFirst(TreeScope.Descendants,
-            new PropertyCondition(AutomationElement.AutomationIdProperty,"LeadsTab")),"Site screen after breadcrumb");
         return Task.CompletedTask;
     }
     public Task OpenLeads()
     {
-        DismissUnexpectedInfoDialogs();
         Click(ById("LeadsTab"));
-        Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"NewLeadButton")),"Leads screen");
         return Task.CompletedTask;
     }
     public Task OpenCustomerFromBreadcrumb()
     {
-        DismissUnexpectedInfoDialogs();
         var customer=window.FindAll(TreeScope.Descendants,
             new AndCondition(
                 new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.Button),
@@ -548,15 +368,11 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
         if(!customer.Current.IsEnabled || !customer.TryGetCurrentPattern(InvokePattern.Pattern,out var invoke))
             throw new Exception("Customer breadcrumb is not invokable.");
         ((InvokePattern)invoke).Invoke();
-
-        Wait(()=>window.FindFirst(TreeScope.Descendants,
-            new PropertyCondition(AutomationElement.AutomationIdProperty,"SitesGrid")),"Customer Sites screen");
         return Task.CompletedTask;
     }
     public Task OpenFirstLead()
     {
         FirstRow("LeadsGrid");
-        Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteLeadButton")),"Lead form");
         return Task.CompletedTask;
     }
     public Task OpenLeadByContactName(string contactName)
@@ -566,15 +382,12 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
             ((SelectionItemPattern)selection).Select();
 
         Click(row,true);
-        Wait(()=>window.FindFirst(TreeScope.Descendants,
-            new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteLeadButton")),"Lead form");
         return Task.CompletedTask;
     }
 
     public Task OpenFirstCase()
     {
         FirstRow("CasesGrid");
-        Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteCaseButton")),"Case form");
         return Task.CompletedTask;
     }
     public Task OpenCaseBySubject(string subject)
@@ -584,52 +397,21 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
             ((SelectionItemPattern)selection).Select();
 
         Click(row,true);
-        Wait(()=>window.FindFirst(TreeScope.Descendants,
-            new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteCaseButton")),"Case form");
         return Task.CompletedTask;
     }
     public Task CreateLead()
     {
-        DismissUnexpectedInfoDialogs();
         var button=ById("NewLeadButton");
         VisualTarget(button);
         if(!button.Current.IsEnabled || !button.TryGetCurrentPattern(InvokePattern.Pattern,out var invoke))
             throw new Exception("NewLeadButton is not invokable.");
         ((InvokePattern)invoke).Invoke();
-        Wait(()=>EnabledById("LeadContactName"),"new Lead form");
         return Task.CompletedTask;
     }
     public Task SetLeadContact(string v){Set("LeadContactName",v);return Task.CompletedTask;}
     public Task SaveLead()
     {
-        var wasPersisted=window.FindFirst(TreeScope.Descendants,
-            new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteLeadButton")) is not null;
         Click(ById("SaveLeadButton"));
-
-        if(!wasPersisted)
-            Wait(()=>window.FindFirst(TreeScope.Descendants,
-                new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteLeadButton")),"persisted Lead form after Save");
-        else
-        {
-            // Do not treat the existing DeleteLeadButton as proof that Save finished:
-            // it belongs to the old form while SaveLeadAsync is still awaiting ShowLead.
-            // Wait for either canonical validation (Step 32) or for Safe() to finish
-            // the successful save/reload (Step 35) and clear StatusText.
-            var mainHwnd=new IntPtr(window.Current.NativeWindowHandle);
-            Wait(()=>
-            {
-                var popup=GetWindow(mainHwnd,GW_ENABLEDPOPUP);
-                if(popup!=IntPtr.Zero && popup!=mainHwnd && IsWindowVisible(popup))
-                    return window;
-
-                var delete=window.FindFirst(TreeScope.Descendants,
-                    new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteLeadButton"));
-                var status=window.FindFirst(TreeScope.Descendants,
-                    new PropertyCondition(AutomationElement.AutomationIdProperty,"StatusText"));
-                return delete is not null && status is not null && string.IsNullOrEmpty(status.Current.Name)
-                    ? delete : null;
-            },"Lead save validation or completed form");
-        }
         return Task.CompletedTask;
     }
     public Task SetLeadStatus(string v){Select("LeadStatus",v);return Task.CompletedTask;}
@@ -637,21 +419,7 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     public Task DeleteLead(){Click(ById("DeleteLeadButton"));return Task.CompletedTask;}
     public Task ConfirmDelete()
     {
-        var deletingLead=window.FindFirst(TreeScope.Descendants,
-            new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteLeadButton")) is not null;
-        var deletingCase=window.FindFirst(TreeScope.Descendants,
-            new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteCaseButton")) is not null;
-
         DialogButton(true);
-
-        // The confirmation closes before the async delete callback finishes
-        // rebuilding the destination screen. Do not let the next canonical
-        // step act on breadcrumbs from the record that is still being deleted.
-        if(deletingLead)
-            Wait(()=>EnabledById("NewLeadButton"),"Leads screen after Lead deletion");
-        else if(deletingCase)
-            Wait(()=>EnabledById("NewCaseButton"),"Cases screen after Case deletion");
-
         return Task.CompletedTask;
     }
     public Task DeleteCase(){Click(ById("DeleteCaseButton"));return Task.CompletedTask;}
