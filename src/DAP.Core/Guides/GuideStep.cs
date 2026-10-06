@@ -17,7 +17,8 @@ public sealed record GuideStep(
     StepAdvanceMode AdvanceMode = StepAdvanceMode.AutomaticOnValidation,
     StepContextDefinition? Context = null,
     StepCaptureDefinition? Capture = null,
-    IReadOnlyList<StepCompletionCondition>? CompletionConditions = null);
+    IReadOnlyList<StepCompletionCondition>? CompletionConditions = null,
+    bool AutoFocusTarget = false);
 
 public sealed record StepCaptureDefinition(
     TargetRuntime Runtime,
