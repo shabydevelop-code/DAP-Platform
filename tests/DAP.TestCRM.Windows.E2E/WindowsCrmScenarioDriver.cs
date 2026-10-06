@@ -13,6 +13,7 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     string? activeStepId;
     int? activeStepOrder;
     bool visualMode;
+    bool unguidedBootstrapSynchronization;
 
     public WindowsCrmScenarioDriver(Process app, AutomationElement window, bool visualMode = false)
     {
@@ -25,6 +26,7 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     public string? CreatedCaseId => createdCaseId;
 
     public void SetVisualMode(bool enabled) => visualMode = enabled;
+    public void SetUnguidedBootstrapSynchronization(bool enabled) => unguidedBootstrapSynchronization = enabled;
 
     public void VisualPause(int milliseconds)
     {
@@ -216,6 +218,8 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     public Task SubmitCustomerSearch()
     {
         Click(ById("SearchCustomersButton"));
+        if (unguidedBootstrapSynchronization)
+            Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"CustomersGrid")),"customer search results");
         return Task.CompletedTask;
     }
     public Task OpenFirstCustomer()
@@ -231,6 +235,8 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
             ((SelectionItemPattern)selection).Select();
 
         Click(row,true);
+        if (unguidedBootstrapSynchronization)
+            Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"CasesTab")),$"Site screen for '{name}'");
         return Task.CompletedTask;
     }
 
@@ -238,11 +244,20 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     public Task OpenCases()
     {
         Click(ById("CasesTab"));
+        if (unguidedBootstrapSynchronization)
+            Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"NewCaseButton")),"Cases screen");
         return Task.CompletedTask;
     }
     public Task SortCasesByStatus()
     {
+        var oldGrid = unguidedBootstrapSynchronization ? ById("CasesGrid") : null;
         Click(ById("SortCasesByStatusButton"));
+        if (unguidedBootstrapSynchronization)
+            Wait(() =>
+            {
+                var current = window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"CasesGrid"));
+                return current is not null && oldGrid is not null && !Automation.Compare(oldGrid,current) ? current : null;
+            },"Cases grid replacement after status sort");
         return Task.CompletedTask;
     }
     public Task CreateCase()
@@ -252,6 +267,8 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
         if(!button.Current.IsEnabled || !button.TryGetCurrentPattern(InvokePattern.Pattern,out var invoke))
             throw new Exception("NewCaseButton is not invokable.");
         ((InvokePattern)invoke).Invoke();
+        if (unguidedBootstrapSynchronization)
+            Wait(()=>EnabledById("CaseSubject"),"new Case form");
         return Task.CompletedTask;
     }
     public Task SetCaseSubject(string v){Set("CaseSubject",v);return Task.CompletedTask;}
