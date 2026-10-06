@@ -428,11 +428,6 @@ void StartupMark(string stage)
     harnessLastMark=now;
 }
 
-var e2eBrowser = Environment.GetEnvironmentVariable("DAP_E2E_BROWSER")?.Trim().ToLowerInvariant() ?? "chrome";
-if (e2eBrowser is not ("chromium" or "chrome" or "edge"))
-    throw new ArgumentException(
-        $"Unsupported DAP_E2E_BROWSER '{e2eBrowser}'. Supported values: chromium, chrome, edge.");
-
 // DAP_E2E_MODE belongs only to a full --guided run. All other public
 // switches have absolute semantics and must not inherit a stale PowerShell
 // environment value from an earlier run.
@@ -445,10 +440,8 @@ if (explicitGuided && !manual && !unguided && manualFromStep is null && visualFr
             $"Unsupported DAP_E2E_MODE '{e2eMode}'. Supported values: fast, visual.");
 }
 
-await using var browser = await BrowserHarness.LaunchAsync(
-    e2eBrowser,
-    baseUrl);
-StartupMark($"{e2eBrowser} launched through the installed DAP extension profile");
+await using var browser = await BrowserHarness.LaunchAsync(baseUrl);
+StartupMark("browser launched through the installed DAP extension profile");
 
 var page = browser.Page;
 page.SetDefaultTimeout(5000);
