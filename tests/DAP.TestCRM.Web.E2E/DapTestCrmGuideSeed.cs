@@ -214,7 +214,16 @@ public static class DapTestCrmGuideSeed
             CompletionConditions: new[]
             {
                 new StepCompletionCondition("target-exists", WebTarget("#customer-search"))
-            })
+            }),
+
+        new GuideStep(
+            "testcrm-guide-summary", 55,
+            Target: null,
+            new BubbleDefinition(
+                "המדריך הושלם בהצלחה",
+                BubblePlacement.Center),
+            Validation: null,
+            AdvanceMode: StepAdvanceMode.Manual)
     };
 
 
