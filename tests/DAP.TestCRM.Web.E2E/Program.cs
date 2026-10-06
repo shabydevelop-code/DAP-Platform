@@ -672,24 +672,11 @@ async Task Select(string selector,string value)
     await MoveTo(target);
     if (visualMode) await HumanPause(300);
 
-    // Status FieldChange performs a real server-backed document reload. Capture
-    // the browser document identity before the learner action so the harness
-    // cannot mistake the retiring ready document for the completed replacement.
-    var waitsForDocumentReplacement=
-        string.Equals(await target.GetAttributeAsync("name"),"status",StringComparison.Ordinal);
-    var previousTimeOrigin=waitsForDocumentReplacement
-        ? await f.EvaluateAsync<double>("() => performance.timeOrigin")
-        : 0d;
-
-    // Keep the system test deterministic: select the real option directly.
-    // SelectOption fires the real change event and therefore the real CRM FieldChange flow.
+    // Keep the learner action independent from application outcome detection.
+    // SelectOption fires the real change event; Runtime must observe the resulting
+    // CRM state without the action helper waiting for a specific replacement.
     await target.SelectOptionAsync(value);
     await HumanPause(800);
-
-    if(waitsForDocumentReplacement)
-        await WaitForContentDocumentReplacement(previousTimeOrigin);
-    else
-        await WaitReady();
 }
 async Task HumanScrollTo(ILocator target)
 {
@@ -1288,6 +1275,7 @@ var notes=frame.Locator("[name='resolutionNotes']");
 if(!await notes.IsDisabledAsync()) throw new Exception("Treatment Notes should start disabled for an open case.");
 await WaitForGuideStep(13);
 await Select("[name='status']","בטיפול");
+await WaitReady();
 frame=await Content(); notes=frame.Locator("[name='resolutionNotes']");
 if(await notes.IsDisabledAsync()) throw new Exception("Treatment Notes did not become enabled.");
 
@@ -1422,6 +1410,7 @@ await dynamicDeleteLead.WaitForAsync();
 // exists in the DOM. DAP must not keep a stale reference to the old target.
 await WaitForGuideStep(29);
 await Select("[name='status']","נסגר בהצלחה");
+await WaitReady();
 frame=await Content();
 await frame.Locator("[name='selectedService']").WaitForAsync();
 if(await frame.Locator("[name='selectedService']").CountAsync()!=1)
@@ -1429,6 +1418,7 @@ if(await frame.Locator("[name='selectedService']").CountAsync()!=1)
 
 await WaitForGuideStep(30);
 await Select("[name='status']","חדש");
+await WaitReady();
 frame=await Content();
 if(await frame.Locator("[name='selectedService']").CountAsync()!=0)
     throw new Exception("Selected Service target did not disappear after returning Lead to New status.");
@@ -1499,6 +1489,7 @@ await frame.Locator("#delete-lead").WaitForAsync();
 // First remove the dependent field so the target is measured in the compact layout.
 await WaitForGuideStep(42);
 await Select("[name='status']","חדש");
+await WaitReady();
 frame=await Content();
 if(await frame.Locator("[name='selectedService']").CountAsync()!=0)
     throw new Exception("Dependent field did not disappear before layout-shift measurement.");
@@ -1508,6 +1499,7 @@ if(beforeBox is null) throw new Exception("Could not resolve Delete Lead target 
 // Now trigger the existing server-driven status change that inserts the dependent field.
 await WaitForGuideStep(43);
 await Select("[name='status']","נסגר בהצלחה");
+await WaitReady();
 frame=await Content();
 await frame.Locator("[name='selectedService']").WaitForAsync();
 deleteTarget=frame.Locator("#delete-lead");
