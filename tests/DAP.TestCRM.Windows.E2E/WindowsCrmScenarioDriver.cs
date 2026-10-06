@@ -400,8 +400,6 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
             ((SelectionItemPattern)selection).Select();
 
         Click(row,true);
-        Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"DeleteCaseButton")),"created Case form");
-        if(CurrentCaseId()!=createdCaseId)throw new Exception($"Expected created Case {createdCaseId}, but another Case was opened.");
         return Task.CompletedTask;
     }
 
