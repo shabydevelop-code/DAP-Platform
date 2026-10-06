@@ -378,13 +378,13 @@ The old combined root `DAP.TestCRM.csproj` and root launch profile were removed 
 The canonical Web test Guide is `testcrm-web-canonical-workflow`; the repository seed now defines 54 Steps, while an existing configured DAP database may still contain the previous 53-Step persisted version until reset. Both execution modes consume that same persisted Guide and the same canonical CRM business flow:
 
 - Normal/guided mode launches `DAP.exe` and verifies production Web Runtime behavior, bubbles, validation, and Guide progression.
-- Unguided omits `DAP.exe` and bubble synchronization but remains sequenced by the same 53 persisted Guide Steps. It is not an independent TestCRM QA script.
+- Unguided omits `DAP.exe` and bubble synchronization but remains sequenced by the same persisted canonical Guide. The current repository seed contains 54 Steps; an older configured database may still expose the historical 53-Step version until reset. It is not an independent TestCRM QA script.
 
 Both modes are locally verified PASS on 2026-10-02 after the Unguided Guide sequencing work. The Guide remains the source of learner sequence/targets/validation/context; synthetic E2E input values that are intentionally not encoded by generic Guide validation remain test-fixture concerns.
 
 ## Windows Learner Runtime status
 
-Production Windows runtime code exists in `src/DAP.Runtime.Windows`. It uses UI Automation for target resolution and validation and WPF for non-activating learner bubbles. `DAP.exe` supports `--learner-windows <guide-key> --window-automation-id <id>` and consumes persisted Guide Steps from the same provider-independent persistence boundary. All 53 persisted Windows TestCRM Steps are locally verified end-to-end in Guided mode through the production runtime and in Unguided mode through the persisted-Guide action executor.
+Production Windows runtime code exists in `src/DAP.Runtime.Windows`. It uses UI Automation for target resolution and validation and WPF for non-activating learner bubbles. `DAP.exe` supports `--learner-windows <guide-key> --window-automation-id <id>` and consumes persisted Guide Steps from the same provider-independent persistence boundary. The current Windows canonical Guide contains 54 Steps; full Guided Fast and Visual are verified 54/54 through the production Runtime. The earlier complete 53-Step Guided/Unguided executions remain the historical baseline for those mode combinations until a fresh full 54-Step Unguided matrix is run.
 
 ## Historical milestone — Windows persisted Guide Steps 1–12 — verified 2026-10-03
 
