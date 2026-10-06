@@ -74,89 +74,16 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
             var candidate=window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,id));
             return candidate is not null && candidate.Current.IsEnabled ? candidate : null;
         },$"{id} enabled");
-        if(!e.TryGetCurrentPattern(ValuePattern.Pattern,out var p))throw new Exception($"{id} has no ValuePattern.");
+        if(!e.TryGetCurrentPattern(ValuePattern.Pattern,out var pattern))
+            throw new Exception($"{id} has no ValuePattern.");
 
         VisualTarget(e);
+        e.SetFocus();
+        ((ValuePattern)pattern).SetValue(value);
 
-        using var valueChanged = new ManualResetEventSlim(false);
-        AutomationPropertyChangedEventHandler? handler = null;
-        handler = (_, args) =>
-        {
-            if(args.Property == ValuePattern.ValueProperty
-               && string.Equals(args.NewValue as string,value,StringComparison.Ordinal))
-                valueChanged.Set();
-        };
-
-        Automation.AddAutomationPropertyChangedEventHandler(
-            e,
-            TreeScope.Element,
-            handler,
-            ValuePattern.ValueProperty);
-
-        try
-        {
-            e.SetFocus();
-
-            Wait(() =>
-            {
-                var current=window.FindFirst(
-                    TreeScope.Descendants,
-                    new PropertyCondition(AutomationElement.AutomationIdProperty,id));
-                return current is not null && current.Current.HasKeyboardFocus ? current : null;
-            },$"{id} keyboard focus");
-
-            ((ValuePattern)p).SetValue(value);
-
-            // The Runtime and this driver are independent UIA subscribers. Waiting
-            // only for this driver's value callback does not guarantee that the
-            // Runtime has consumed the edit before TAB produces the blur. Keep the
-            // edit focused until the provider snapshot exposes the new value, then
-            // commit through the same real keyboard traversal as a learner.
-            Wait(() =>
-            {
-                var current=window.FindFirst(
-                    TreeScope.Descendants,
-                    new PropertyCondition(AutomationElement.AutomationIdProperty,id));
-                if(current is null
-                   || !current.Current.HasKeyboardFocus
-                   || !current.TryGetCurrentPattern(ValuePattern.Pattern,out var currentPattern))
-                    return null;
-
-                return string.Equals(
-                    ((ValuePattern)currentPattern).Current.Value,
-                    value,
-                    StringComparison.Ordinal)
-                    ? current
-                    : null;
-            },$"{id} focused value '{value}'");
-
-            if(!valueChanged.Wait(5_000))
-                throw new TimeoutException($"Timed out waiting for {id} UIA value-change notification.");
-
-            KeyPress(VK_TAB);
-
-            Wait(()=>
-            {
-                var current=window.FindFirst(
-                    TreeScope.Descendants,
-                    new PropertyCondition(AutomationElement.AutomationIdProperty,id));
-                if(current is null
-                   || !current.TryGetCurrentPattern(ValuePattern.Pattern,out var currentPattern))
-                    return null;
-
-                return string.Equals(
-                           ((ValuePattern)currentPattern).Current.Value,
-                           value,
-                           StringComparison.Ordinal)
-                       && !current.Current.HasKeyboardFocus
-                    ? current
-                    : null;
-            },$"{id} committed value '{value}'");
-        }
-        finally
-        {
-            Automation.RemoveAutomationPropertyChangedEventHandler(e,handler);
-        }
+        // Match the Web runner's learner action: finish text entry with a real
+        // focus traversal so the application and Runtime receive the natural blur.
+        KeyPress(VK_TAB);
     }
     void Select(string id,string value)
     {
