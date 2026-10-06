@@ -599,7 +599,16 @@ async Task Click(string selector)
     var target=f.Locator(selector);
     await MoveTo(target);
     await target.ClickAsync();
-    await HumanPause(420);
+
+    // Even FAST must not collapse two learner actions into the same browser turn.
+    // Yield one browser turn after a click so synchronous click handlers can
+    // finish presenting their resulting UI before the Runtime prepares the
+    // next persisted Guide Step. This is interaction pacing only: the Runner
+    // does not inspect or wait for any CRM outcome.
+    if (fastMode)
+        await page.WaitForTimeoutAsync(1);
+    else
+        await HumanPause(420);
 }
 async Task Fill(string selector,string value)
 {
