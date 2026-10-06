@@ -881,8 +881,6 @@ internal sealed class BrowserLocator
         string op;
         if (script.Contains("tagName", StringComparison.Ordinal))
             op = "tagName";
-        else if (script.Contains("__dapTarget", StringComparison.Ordinal))
-            op = "matchesActiveGuideTarget";
         else
             throw new NotSupportedException("Unsupported locator evaluation in extension-native E2E.");
 
