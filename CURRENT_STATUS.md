@@ -893,6 +893,14 @@ Together with the already verified Windows Guided Fast and Visual 54/54 runs, th
 
 
 
+### Conservative stable-poll reduction — 2026-10-06
+
+- After restoring the proven 0.4.6 bubble behavior, the next CPU optimization changes only Runtime polling cadence.
+- Transient recovery remains at 100 ms.
+- Once a target/bubble is resolved and stable, the learner loop waits 250 ms between reconciliation checks instead of 100 ms.
+- No bubble, target-resolution, validation, observer, timeout, or completion semantics were changed.
+- Manual CPU and bubble-behavior verification is pending.
+
 ### Rolled back extension event-driven experiment — 2026-10-06
 
 - The first event-driven steady-state optimization reduced Chrome CPU but caused learner bubble behavior regressions.
