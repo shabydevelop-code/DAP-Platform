@@ -1,7 +1,5 @@
 param(
-    [string]$GuideKey = "testcrm-web-canonical-workflow",
-    [ValidateSet("chrome","edge")]
-    [string]$Browser = "chrome"
+    [string]$GuideKey = "testcrm-web-canonical-workflow"
 )
 
 $ErrorActionPreference = "Stop"
@@ -57,64 +55,93 @@ function Resolve-ExtensionRegistration {
     }
 }
 
-function Resolve-BrowserInfo([string]$BrowserName, [string]$ExtensionId) {
-    if ($BrowserName -eq "edge") {
-        $userData = Join-Path $env:LOCALAPPDATA "Microsoft\Edge\User Data"
-        $candidates = @(
-            "$env:ProgramFiles(x86)\Microsoft\Edge\Application\msedge.exe",
-            "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe"
-        )
-    }
-    else {
-        $userData = Join-Path $env:LOCALAPPDATA "Google\Chrome\User Data"
-        $candidates = @(
-            "$env:ProgramFiles\Google\Chrome\Application\chrome.exe",
-            "$env:ProgramFiles(x86)\Google\Chrome\Application\chrome.exe",
-            "$env:LOCALAPPDATA\Google\Chrome\Application\chrome.exe"
-        )
+function Find-ProfilesWithExtension([string]$UserData, [string]$ExtensionId) {
+    if (-not (Test-Path $UserData)) {
+        return @()
     }
 
-    $exe = $candidates | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
-    if (-not $exe) {
-        throw "Could not find the selected browser executable."
-    }
-    if (-not (Test-Path $userData)) {
-        throw "Browser user-data directory was not found: $userData"
-    }
+    $matches = @()
+    foreach ($profileDir in Get-ChildItem $UserData -Directory |
+        Where-Object { $_.Name -eq "Default" -or $_.Name -like "Profile *" }) {
 
-    $profile = Get-ChildItem $userData -Directory |
-        Where-Object { $_.Name -eq "Default" -or $_.Name -like "Profile *" } |
-        ForEach-Object {
-            $profileDir = $_
-            foreach ($fileName in @("Preferences", "Secure Preferences")) {
-                $path = Join-Path $profileDir.FullName $fileName
-                if (Test-Path $path) {
-                    try {
-                        if ((Get-Content $path -Raw).IndexOf($ExtensionId, [StringComparison]::OrdinalIgnoreCase) -ge 0) {
-                            return $profileDir.Name
-                        }
-                    }
-                    catch {}
+        $found = $false
+        foreach ($fileName in @("Preferences", "Secure Preferences")) {
+            $path = Join-Path $profileDir.FullName $fileName
+            if (-not (Test-Path $path)) { continue }
+
+            try {
+                $jsonText = Get-Content $path -Raw
+                if ($jsonText.IndexOf($ExtensionId, [StringComparison]::OrdinalIgnoreCase) -ge 0) {
+                    $found = $true
+                    break
                 }
             }
-        } |
-        Select-Object -First 1
+            catch {}
+        }
 
-    if (-not $profile) {
-        throw "Could not find a browser profile containing DAP extension '$ExtensionId'."
+        if ($found) {
+            $matches += $profileDir.Name
+        }
     }
 
-    [pscustomobject]@{
-        Exe = $exe
-        Profile = $profile
+    return $matches
+}
+
+function Resolve-BrowserInfo([string]$ExtensionId) {
+    $installations = @(
+        [pscustomobject]@{
+            Name = "Google Chrome"
+            UserData = Join-Path $env:LOCALAPPDATA "Google\Chrome\User Data"
+            Candidates = @(
+                "$env:ProgramFiles\Google\Chrome\Application\chrome.exe",
+                "$env:ProgramFiles(x86)\Google\Chrome\Application\chrome.exe",
+                "$env:LOCALAPPDATA\Google\Chrome\Application\chrome.exe"
+            )
+        },
+        [pscustomobject]@{
+            Name = "Microsoft Edge"
+            UserData = Join-Path $env:LOCALAPPDATA "Microsoft\Edge\User Data"
+            Candidates = @(
+                "$env:ProgramFiles(x86)\Microsoft\Edge\Application\msedge.exe",
+                "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe"
+            )
+        }
+    )
+
+    $matches = @()
+    foreach ($installation in $installations) {
+        $exe = $installation.Candidates |
+            Where-Object { $_ -and (Test-Path $_) } |
+            Select-Object -First 1
+
+        if (-not $exe) { continue }
+
+        foreach ($profile in Find-ProfilesWithExtension $installation.UserData $ExtensionId) {
+            $matches += [pscustomobject]@{
+                Name = $installation.Name
+                Exe = $exe
+                Profile = $profile
+            }
+        }
     }
+
+    if ($matches.Count -eq 0) {
+        throw "Could not find an installed Chrome/Edge profile containing DAP extension '$ExtensionId'. Load or reload the unpacked DAP Web Runtime extension and try again."
+    }
+
+    if ($matches.Count -gt 1) {
+        $descriptions = ($matches | ForEach-Object { "$($_.Name)/$($_.Profile)" }) -join ", "
+        throw "DAP extension '$ExtensionId' is enabled in multiple browser profiles: $descriptions. The autonomous launcher will not guess which browser session to use. Keep the DAP extension enabled in exactly one Chrome/Edge profile for this verification."
+    }
+
+    return $matches[0]
 }
 
 Assert-PortFree 5200
 Assert-PortFree 5201
 
 $registration = Resolve-ExtensionRegistration
-$browserInfo = Resolve-BrowserInfo $Browser $registration.ExtensionId
+$browserInfo = Resolve-BrowserInfo $registration.ExtensionId
 
 # Autonomous product verification must not tear down the production browser
 # transport as a side effect of test/development startup. If a Native Host is
@@ -219,7 +246,7 @@ if (-not $pipeReady) {
 }
 
 Write-Host "Production Runtime pipe server ready."
-Write-Host "Opening TestCRM in $Browser profile '$($browserInfo.Profile)'..."
+Write-Host "Opening TestCRM in $($browserInfo.Name) profile '$($browserInfo.Profile)'..."
 # Do not force --new-window. Reuse the selected profile's existing browser
 # window when one exists; otherwise Chrome/Edge creates the first window.
 $profileArgument = '--profile-directory="' + $browserInfo.Profile + '"'
