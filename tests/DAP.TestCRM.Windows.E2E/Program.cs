@@ -673,13 +673,13 @@ async Task RunGuidedAsync(
         WaitForStep("testcrm-windows-header-home");
         await driver.GoPortal();
 
-        var completionBubble = WaitForCompletionBubble(dap!);
+        WaitForStep("testcrm-windows-guide-summary");
         if (driver.VisualMode)
             Thread.Sleep(800);
-        ClickCompletionFinish(completionBubble, driver);
+        ClickCenteredInformationConfirm(driver);
 
-        if (!dap.WaitForExit(5_000))
-            throw new TimeoutException("DAP.exe did not complete after the completion Finish action.");
+        if (!dap!.WaitForExit(5_000))
+            throw new TimeoutException("DAP.exe did not complete after persisted Guide Step 55 was confirmed.");
         if (dap.ExitCode != 0)
             throw new Exception($"DAP.exe exited with code {dap.ExitCode}.");
 
