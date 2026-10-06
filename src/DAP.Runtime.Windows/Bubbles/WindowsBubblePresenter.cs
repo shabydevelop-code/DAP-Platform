@@ -24,7 +24,8 @@ public sealed class WindowsBubblePresenter
     private Polygon? _pointer;
     private TextBlock? _content;
     private TextBlock? _progress;
-    private TextBlock? _automaticBadge;
+    private Border? _automaticBadge;
+    private TextBlock? _automaticBadgeText;
     private Rect _targetRect;
     private bool _dragging;
     private bool _manuallyPositioned;
@@ -76,8 +77,8 @@ public sealed class WindowsBubblePresenter
             _targetRect = rect;
             UpdateTargetHighlight(rect);
             _content!.Text = step.Bubble.Content;
-            _automaticBadge!.Text = automaticStepLabel ?? string.Empty;
-            _automaticBadge.Visibility = string.IsNullOrWhiteSpace(automaticStepLabel)
+            _automaticBadgeText!.Text = automaticStepLabel ?? string.Empty;
+            _automaticBadge!.Visibility = string.IsNullOrWhiteSpace(automaticStepLabel)
                 ? Visibility.Collapsed
                 : Visibility.Visible;
             _progress!.Text = _texts.Format("Learner.StepProgress", stepNumber, totalSteps);
@@ -589,15 +590,23 @@ public sealed class WindowsBubblePresenter
             FlowDirection = FlowDirection.RightToLeft
         };
 
-        _automaticBadge = new TextBlock
+        _automaticBadgeText = new TextBlock
         {
-            Margin = new Thickness(0, 0, 0, 8),
-            Padding = new Thickness(8, 2, 8, 2),
             FontSize = 12,
             FontWeight = FontWeights.Bold,
             Foreground = Brushes.White,
+            FlowDirection = FlowDirection.RightToLeft
+        };
+
+        _automaticBadge = new Border
+        {
+            Margin = new Thickness(0, 0, 0, 8),
+            Padding = new Thickness(8, 2, 8, 2),
+            BorderBrush = Brushes.White,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(999),
             HorizontalAlignment = HorizontalAlignment.Right,
-            FlowDirection = FlowDirection.RightToLeft,
+            Child = _automaticBadgeText,
             Visibility = Visibility.Collapsed
         };
 
