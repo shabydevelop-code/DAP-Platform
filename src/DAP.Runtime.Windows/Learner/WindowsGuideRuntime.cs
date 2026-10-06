@@ -92,7 +92,7 @@ public sealed class WindowsGuideRuntime
                 }
             }
 
-            Console.Error.WriteLine($"[DAP Windows guide] starting Step {index + 1}/{ordered.Length} '{step.Id}'.");
+            Console.Error.WriteLine($"[DAP Windows guide] starting Step {step.Order}/{ordered.Length} '{step.Id}'.");
             await RunStepAsync(
                 windowRoot,
                 step,
@@ -101,7 +101,7 @@ public sealed class WindowsGuideRuntime
                 cancellationToken,
                 preExistingTargetForCurrentStep,
                 capturedValues);
-            Console.Error.WriteLine($"[DAP Windows guide] completed Step {index + 1}/{ordered.Length} '{step.Id}'.");
+            Console.Error.WriteLine($"[DAP Windows guide] completed Step {step.Order}/{ordered.Length} '{step.Id}'.");
 
             preExistingTargetForCurrentStep = nextTargetBeforeCurrentAction;
         }
