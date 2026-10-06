@@ -7,10 +7,7 @@ param(
     [ValidateSet("Fast","Visual","Manual","Unguided","ManualFromStep","VisualFromStep")]
     [string]$Mode,
 
-    [int]$Step = 1,
-
-    [ValidateSet("chromium","chrome","edge")]
-    [string]$Browser = "chromium"
+    [int]$Step = 1
 )
 
 $ErrorActionPreference = "Stop"
@@ -20,7 +17,6 @@ $env:DAP_DIAGNOSTICS_ROOT = $diagnosticsRoot
 
 if ($Platform -eq "Web") {
     $runner = Join-Path $diagnosticsRoot "Runners\Web\DAP.TestCRM.Web.E2E.exe"
-    $env:DAP_E2E_BROWSER = $Browser
 } else {
     $runner = Join-Path $diagnosticsRoot "Runners\Windows\DAP.TestCRM.Windows.E2E.exe"
 }
