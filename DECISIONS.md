@@ -655,3 +655,14 @@ Persisted Guide definitions and the production Runtime own target resolution, va
 Cross-platform Hybrid code follows the same rule. Web-side action/outcome synchronization and explicit mode/browser argument handling were aligned as part of the same migration.
 
 The completed Windows Hybrid PASS verifies this ownership model. Legacy outcome-detection and select-value-polling behavior removed by the 14-step migration must not be reintroduced into action helpers.
+
+
+## ADR-057 — Guide summary is a persisted Step, not a special completion path
+
+**Status:** Accepted — 2026-10-06
+
+The canonical Guide summary is persisted as Step 55 on both Web and Windows. It is a targetless centered manual Step with the text `המדריך הושלם בהצלחה`.
+
+Guide completion content must be defined by persisted Guide data and presented through the normal Runtime Step lifecycle. Canonical E2E/Hybrid orchestration may confirm that Step as a synthetic learner action, but must not wait for or operate a separate test-side completion-bubble state.
+
+The repository seeds and `--reset-guide` must preserve this Step. The canonical seed length is therefore 55. Existing 54/54 verification records are historical and must not be rewritten as 55/55 without a fresh full regression.
