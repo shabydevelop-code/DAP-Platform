@@ -6,7 +6,7 @@ The canonical execution modes are **Guided** and **Unguided**. The old `CRM-only
 
 Locally verified baseline:
 - **Last fully verified canonical baseline:** Web Guided/Unguided and Windows Guided/Unguided all passed the previous 53-Step Guides.
-- **Current repository seeds:** both canonical Guides now define 54 Steps after adding a centered information pause at Step 51.
+- **Current repository seeds:** both canonical Guides now define 55 persisted Steps. Step 51 is the centered pre-delete information pause and Step 55 is the persisted centered Guide summary.
 - **54-Step status:** both Web and Windows Guides have now been explicitly reset to 54 Steps. Focused `--visual-from-step 47` is locally verified PASS on both platforms, including the centered information Step and completion. Do not claim a full four-path 54/54 PASS until fresh full Guided/Unguided regressions are run.
 - Windows Guided was re-verified again on 2026-10-03 after the text-commit regression work: all 53 persisted Steps completed through the production Windows Learner Runtime with real UIA targets, runtime capture, modal targeting, and bubbles. The former Step-8 `CaseSubject` stall is closed.
 
@@ -632,3 +632,12 @@ Case identity capture remains only where later synthetic scenario actions genuin
 The same separation was applied to the Web side where required for Hybrid handoff, particularly select-action outcome synchronization and explicit mode/browser configuration.
 
 After these changes, Windows Hybrid testing completed successfully. This 14-step sequence is therefore part of the verified Windows Hybrid baseline and must not be reintroduced through legacy action-driver polling, automatic outcome assertions, automatic dialog dismissal, or duplicate completion detection.
+
+
+## Current canonical Guide length — 55 persisted Steps — 2026-10-06
+
+Both canonical repository seeds now define 55 persisted Steps. The additional Step is the targetless centered manual Guide summary (`המדריך הושלם בהצלחה`), so completion content is Guide data rather than a special E2E-owned completion state.
+
+The production ownership boundary is now explicit: the persisted Guide defines the summary Step; the Runtime presents and advances it using the normal centered manual-Step mechanism; E2E only performs the configured learner confirmation. Resetting either canonical Guide restores the 55-Step definition.
+
+All 54-Step PASS records elsewhere in this file are historical results from before the persisted summary became Step 55. They remain valid historical evidence but do not constitute a 55/55 regression.
