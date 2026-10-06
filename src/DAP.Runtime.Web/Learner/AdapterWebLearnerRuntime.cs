@@ -67,7 +67,7 @@ public sealed class AdapterWebLearnerRuntime
                         return;
                     }
 
-                    // Match the proven Playwright runtime exactly:
+                    // Preserve the proven runtime behavior exactly:
                     // once a non-click natural commit satisfies the primary
                     // validation, keep that completion latched while a
                     // server-driven completion condition is still pending.
