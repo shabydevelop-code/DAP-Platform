@@ -521,6 +521,32 @@ void DiagnoseBreadcrumbs(AutomationElement window)
     }
 }
 
+AutomationElement WaitForBubbleWithoutHumanTimeout(string expectedInstruction, Process dapProcess)
+{
+    while (true)
+    {
+        if (dapProcess.HasExited)
+        {
+            if (dapProcess.ExitCode == 0)
+                throw new InvalidOperationException(
+                    $"DAP.exe completed before expected Windows Step bubble '{expectedInstruction}' was observed.");
+
+            throw new Exception(
+                $"DAP.exe exited with code {dapProcess.ExitCode} before Windows Step bubble '{expectedInstruction}' was observed.");
+        }
+
+        try
+        {
+            return WaitForBubble(expectedInstruction, dapProcess, timeout: 1_000);
+        }
+        catch (TimeoutException)
+        {
+            // Hybrid manual actions have no human-response deadline. The
+            // one-second probe is only a technical observation interval.
+        }
+    }
+}
+
 AutomationElement WaitForBubble(string expectedInstruction, Process dapProcess, int timeout = 5_000)
 {
     var sw = Stopwatch.StartNew();
