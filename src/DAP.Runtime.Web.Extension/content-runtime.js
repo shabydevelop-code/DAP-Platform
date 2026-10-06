@@ -961,6 +961,10 @@
     existing?.__dapCleanup?.();
     existing?.remove();
     const ir=el.getBoundingClientRect();if(!(ir.width>0&&ir.height>0&&ir.bottom>0&&ir.right>0&&ir.top<innerHeight&&ir.left<innerWidth))el.scrollIntoView({behavior:"auto",block:"center",inline:"nearest"});
+    // Autofocus is persisted Guide behavior and runs only when a new
+    // Step/target bubble is created. Reconciliation of an unchanged Step never
+    // steals focus back from the learner.
+    if(step.autoFocusTarget===true && typeof el.focus==="function")el.focus({preventScroll:true});
     const previous={outline:el.style.outline,outlineOffset:el.style.outlineOffset,boxShadow:el.style.boxShadow};
     el.style.outline=theme.targetHighlightWidth+"px solid "+theme.targetHighlightColor;el.style.outlineOffset="0px";el.style.boxShadow=theme.targetHighlightShadow;
     const b=root.createElement("div");b.id="dap-guide-bubble";b.dataset.dapStepId=step.id;b.dataset.placement=String(step.bubble?.placement||"Auto");b.__dapTarget=el;b.setAttribute("role","status");
