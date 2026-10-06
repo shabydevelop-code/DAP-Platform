@@ -79,12 +79,14 @@ Product Learner launch contract:
 DAP.exe --learner --guide <GuideId>
 ```
 
-Canonical TestCRM runner modes:
+TestCRM runner execution contract:
 
 ```text
---manual
---hybrid
+--manual --guide <GuideId>
+--hybrid --guide <GuideId>
 ```
+
+The runner does not select the Guide. It passes the explicitly supplied persisted Guide ID to `DAP.exe --learner --guide <GuideId>`.
 
 Maintenance/path options:
 
