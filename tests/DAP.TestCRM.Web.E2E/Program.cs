@@ -73,6 +73,7 @@ if (args.Contains("--reset-guide", StringComparer.OrdinalIgnoreCase))
 var unguided = args.Contains("--unguided", StringComparer.OrdinalIgnoreCase);
 var explicitGuided = args.Contains("--guided", StringComparer.OrdinalIgnoreCase);
 var manual = args.Contains("--manual", StringComparer.OrdinalIgnoreCase);
+var hybrid = args.Contains("--hybrid", StringComparer.OrdinalIgnoreCase);
 var explicitFast = args.Contains("--fast", StringComparer.OrdinalIgnoreCase);
 var explicitVisual = args.Contains("--visual", StringComparer.OrdinalIgnoreCase);
 if (explicitFast && explicitVisual)
@@ -81,8 +82,10 @@ if ((explicitFast || explicitVisual) && !explicitGuided)
     throw new ArgumentException("--fast and --visual require --guided.");
 if (unguided && explicitGuided)
     throw new ArgumentException("--guided and --unguided cannot be combined.");
-if (manual && (unguided || explicitGuided || manualFromStep is not null || fastFromStep is not null || visualFromStep is not null))
-    throw new ArgumentException("--manual cannot be combined with --guided, --unguided, or a from-step mode.");
+if (manual && (hybrid || unguided || explicitGuided || manualFromStep is not null || fastFromStep is not null || visualFromStep is not null))
+    throw new ArgumentException("--manual cannot be combined with --hybrid, --guided, --unguided, or a from-step mode.");
+if (hybrid && (unguided || explicitGuided || manualFromStep is not null || fastFromStep is not null || visualFromStep is not null))
+    throw new ArgumentException("--hybrid cannot be combined with --guided, --unguided, or a from-step mode.");
 if (unguided && (manualFromStep is not null || fastFromStep is not null || visualFromStep is not null))
     throw new ArgumentException("--unguided cannot be combined with a from-step mode.");
 
@@ -468,7 +471,7 @@ var switchedToVisual = visualMode;
 // Full Guided runs require every synthetic learner action to match the active
 // production DAP target. Focused From-Step runs intentionally begin without
 // DAP, so that invariant is enabled only when DAP starts at the requested Step.
-Console.WriteLine($"E2E mode: {(manual ? "manual" : unguided ? "unguided" : manualFromStep is not null ? $"unguided -> manual from Step {manualFromStep}" : fastFromStep is not null ? $"unguided -> fast from Step {fastFromStep}" : visualFromStep is not null ? $"unguided -> visual from Step {visualFromStep}" : visualMode ? "visual" : "fast")}");
+Console.WriteLine($"E2E mode: {(manual ? "manual" : hybrid ? "hybrid" : unguided ? "unguided" : manualFromStep is not null ? $"unguided -> manual from Step {manualFromStep}" : fastFromStep is not null ? $"unguided -> fast from Step {fastFromStep}" : visualFromStep is not null ? $"unguided -> visual from Step {visualFromStep}" : visualMode ? "visual" : "fast")}");
 await page.AddInitScriptAsync("localStorage.setItem('dap-e2e-mode', '" + e2eMode + "'); document.documentElement.dataset.dapE2eMode = '" + e2eMode + "';");
 
 async Task<BrowserFrame> Content()
@@ -929,6 +932,42 @@ await WaitForGuideStep(1);
 dapStartupTimer.Stop();
 Console.WriteLine($"DAP.exe startup to active Step 1: {dapStartupTimer.Elapsed.TotalMilliseconds:F0} ms");
 StartupMark("DAP Runtime reached Step 1");
+
+if (hybrid)
+{
+    Console.WriteLine();
+    Console.WriteLine("HYBRID WEB RUN: Runtime owns the Guide; persisted automation values fill value controls.");
+    Console.WriteLine("Buttons and navigation remain manual learner actions.");
+
+    for (var order = 1; order <= dapSteps.Count; order++)
+    {
+        await WaitForGuideStep(order);
+        var step = dapSteps.Single(x => x.Order == order);
+        if (string.IsNullOrEmpty(step.AutomationValue) || step.Target is null)
+            continue;
+
+        var selector = step.Target.Locator.Value;
+        var frame = await Content();
+        var target = frame.Locator(selector);
+        var tag = await target.EvaluateAsync<string>("e=>e.tagName");
+
+        if (tag == "SELECT")
+            await Select(selector, step.AutomationValue);
+        else if (tag is "INPUT" or "TEXTAREA")
+            await Fill(selector, step.AutomationValue);
+        else
+            throw new InvalidOperationException(
+                $"Hybrid automation value on Step {order} '{step.Id}' targets unsupported element '{tag}'.");
+    }
+
+    if (dapProcess is null)
+        throw new Exception("DAP.exe process is missing during the hybrid Web run.");
+    await dapProcess.WaitForExitAsync();
+    if (dapProcess.ExitCode != 0)
+        throw new Exception($"DAP.exe exited with code {dapProcess.ExitCode} during the hybrid Web run.");
+    Console.WriteLine("PASS: hybrid Web Guide completed.");
+    return;
+}
 
 if (manual)
 {
