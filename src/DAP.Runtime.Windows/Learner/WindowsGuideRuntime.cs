@@ -158,6 +158,7 @@ public sealed class WindowsGuideRuntime
         var targetFirstResolvedLogged = false;
         var bubbleFirstShownLogged = false;
         var initialVisibilityChecked = false;
+        var initialInputFocusApplied = false;
         var completionTargetsBeforeAction = CaptureReplacementBaselines(windowRoot, step);
 
         Console.Error.WriteLine(
@@ -456,6 +457,17 @@ public sealed class WindowsGuideRuntime
                         $"+{stepStopwatch.ElapsedMilliseconds} ms " +
                         $"(ShowAsync duration={stepStopwatch.ElapsedMilliseconds - bubbleStartedAt} ms).");
                     bubbleFirstShownLogged = true;
+                }
+
+                // Initial input focus belongs to the production learner Runtime,
+                // so Manual and Hybrid start each input Step identically. Apply it
+                // only once; reconciliation must never steal focus back.
+                if (!initialInputFocusApplied && IsInputFocusTarget(target))
+                {
+                    initialInputFocusApplied = true;
+                    try { target.SetFocus(); }
+                    catch (ElementNotAvailableException) { }
+                    catch (InvalidOperationException) { }
                 }
 
                 if (step.Id == "testcrm-windows-back-to-cases")
@@ -1208,6 +1220,23 @@ public sealed class WindowsGuideRuntime
                    && !rect.IsEmpty
                    && rect.Width > 0
                    && rect.Height > 0;
+        }
+        catch (ElementNotAvailableException)
+        {
+            return false;
+        }
+    }
+
+    private static bool IsInputFocusTarget(AutomationElement target)
+    {
+        try
+        {
+            var controlType = target.Current.ControlType;
+            return target.Current.IsKeyboardFocusable
+                   && target.Current.IsEnabled
+                   && (controlType == ControlType.Edit
+                       || controlType == ControlType.ComboBox
+                       || controlType == ControlType.List);
         }
         catch (ElementNotAvailableException)
         {
