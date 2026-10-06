@@ -881,6 +881,28 @@ async Task WaitForGuideStep(int order)
         $"DAP diagnostics:{Environment.NewLine}{recentDapDiagnostics}");
 }
 
+async Task WaitForHybridGuideStep(GuideStep expected)
+{
+    var startMarker=$"[DAP guide] starting Step {expected.Order}/{dapSteps.Count} '{expected.Id}'";
+
+    // Hybrid mode may stop on a manual learner action for an arbitrary amount
+    // of human time. The 5-second regression synchronization timeout must not
+    // become a learner-response timeout.
+    while (true)
+    {
+        if (dapStdErrLines.Any(line=>line.Contains(startMarker,StringComparison.Ordinal)))
+            return;
+
+        if (dapProcess is not null && dapProcess.HasExited)
+            throw new Exception($"DAP.exe exited with code {dapProcess.ExitCode} before Runtime activated Step {expected.Order}.");
+
+        if (ownedTestCrmProcess is not null && ownedTestCrmProcess.HasExited)
+            throw new Exception($"TestCRM Web host exited before Runtime activated Step {expected.Order}.");
+
+        await page.WaitForTimeoutAsync(100);
+    }
+}
+
 if(unguided)
 {
     dapProcess=StartFocusedDap(null, hideGuidance: true);
@@ -939,10 +961,16 @@ if (hybrid)
     Console.WriteLine("HYBRID WEB RUN: Runtime owns the Guide; persisted automation values fill value controls.");
     Console.WriteLine("Buttons and navigation remain manual learner actions.");
 
-    for (var order = 1; order <= dapSteps.Count; order++)
+    foreach (var step in dapSteps.OrderBy(x => x.Order))
     {
-        await WaitForGuideStep(order);
-        var step = dapSteps.Single(x => x.Order == order);
+        if (!step.IsEnabled)
+        {
+            Console.WriteLine($"HYBRID: skipping disabled persisted Step {step.Order} '{step.Id}'.");
+            continue;
+        }
+
+        await WaitForHybridGuideStep(step);
+        var order = step.Order;
         if (string.IsNullOrEmpty(step.AutomationValue) || step.Target is null)
             continue;
 
