@@ -47,10 +47,7 @@ public sealed record DapLaunchOptions(
                     return Usage(texts);
             }
 
-            if (!string.IsNullOrWhiteSpace(cdp))
-                return new(DapLaunchMode.LearnerWeb, args[1], cdp, pageUrlContains, null, startStep, resumeContextPath);
-
-            return Usage(texts);
+            return new(DapLaunchMode.LearnerWeb, args[1], cdp, pageUrlContains, null, startStep, resumeContextPath);
         }
 
         if (args.Length >= 2 && args[0] == "--learner-windows" && !string.IsNullOrWhiteSpace(args[1]))
