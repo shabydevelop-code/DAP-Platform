@@ -290,7 +290,7 @@ internal static class DapTestCrmWindowsGuideSeed
             "testcrm-windows-lead-close-success-2", 31,
             "LeadStatus", "שנה שוב את סטטוס הליד לנסגר בהצלחה",
             "value-equals", "נסגר בהצלחה",
-            completionCondition: new StepCompletionCondition("target-exists", ById("LeadSelectedService", isEnabled: false))),
+            completionCondition: new StepCompletionCondition("target-exists", ById("LeadSelectedService")), automationValue: "נסגר בהצלחה", isEnabled: false),
 
         ClickStep(
             "testcrm-windows-lead-invalid-save", 32,
@@ -372,25 +372,25 @@ internal static class DapTestCrmWindowsGuideSeed
             "testcrm-windows-layout-status-new", 42,
             "LeadStatus", "שנה את סטטוס הליד לחדש",
             "value-equals", "חדש",
-            completionCondition: new StepCompletionCondition("target-not-exists", ById("LeadSelectedService", isEnabled: false))),
+            completionCondition: new StepCompletionCondition("target-not-exists", ById("LeadSelectedService")), automationValue: "חדש", isEnabled: false),
 
         ValueStep(
             "testcrm-windows-layout-status-closed", 43,
             "LeadStatus", "שנה את סטטוס הליד לנסגר בהצלחה",
             "value-equals", "נסגר בהצלחה",
-            completionCondition: new StepCompletionCondition("target-exists", ById("LeadSelectedService", isEnabled: false))),
+            completionCondition: new StepCompletionCondition("target-exists", ById("LeadSelectedService")), automationValue: "נסגר בהצלחה", isEnabled: false),
 
         ValueStep(
             "testcrm-windows-race-status-new", 44,
             "LeadStatus", "החזר את סטטוס הליד לחדש",
             "value-equals", "חדש",
-            completionCondition: new StepCompletionCondition("target-not-exists", ById("LeadSelectedService", isEnabled: false))),
+            completionCondition: new StepCompletionCondition("target-not-exists", ById("LeadSelectedService")), automationValue: "חדש", isEnabled: false),
 
         ValueStep(
             "testcrm-windows-race-status-closed", 45,
             "LeadStatus", "שנה שוב את סטטוס הליד לנסגר בהצלחה",
             "value-equals", "נסגר בהצלחה",
-            completionCondition: new StepCompletionCondition("target-exists", ById("LeadSelectedService", isEnabled: false))),
+            completionCondition: new StepCompletionCondition("target-exists", ById("LeadSelectedService")), automationValue: "נסגר בהצלחה", isEnabled: false),
 
         ClickStep(
             "testcrm-windows-lead-to-site", 46,
