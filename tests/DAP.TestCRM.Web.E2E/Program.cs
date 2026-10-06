@@ -584,7 +584,8 @@ async Task<bool> WaitForHybridGuideStep(GuideStep expected)
                     or InvalidOperationException
                     or OperationCanceledException)
                 {
-                    Console.WriteLine("Web browser session closed. Ending the run and cleaning up owned processes.");
+                    // The Hybrid owner prints the single user-facing closure message
+                    // after it leaves Step synchronization.
                     return false;
                 }
             }
