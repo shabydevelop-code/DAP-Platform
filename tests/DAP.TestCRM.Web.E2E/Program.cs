@@ -712,29 +712,70 @@ if (manual)
         var dapExit = dapProcess.WaitForExitAsync();
         var webHostExit = ownedTestCrmProcess!.WaitForExitAsync();
 
-        // Do not use the Process returned by chrome.exe as a browser-lifetime
-        // signal. When Chrome is already running, the launcher can hand the new
-        // window to the existing browser instance and exit immediately while the
-        // learner page remains open.
-        var completed = await Task.WhenAny(
-            dapExit,
-            webHostExit);
-
-        if (completed == dapExit)
+        // The Chrome launcher PID is not a browser-lifetime signal. Manual uses
+        // the same extension session identity as Hybrid, but only to observe
+        // whether the runner-owned browser session still exists.
+        while (true)
         {
-            await dapExit;
-            if (dapProcess.ExitCode != 0)
+            var completed = await Task.WhenAny(
+                dapExit,
+                webHostExit,
+                Task.Delay(250));
+
+            if (completed == dapExit)
+            {
+                await dapExit;
+                if (dapProcess.ExitCode == 0)
+                {
+                    Console.WriteLine("DAP completed the manual Web Guide. Closing E2E-owned processes.");
+                    break;
+                }
+
+                var browserSessionStillOpen = true;
+                try
+                {
+                    using var probeTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(1));
+                    await testDriver!.SendAsync(new { type = "testPing" }, probeTimeout.Token);
+                }
+                catch (Exception ex) when (
+                    ex is IOException
+                    or InvalidOperationException
+                    or OperationCanceledException)
+                {
+                    browserSessionStillOpen = false;
+                }
+
+                if (!browserSessionStillOpen)
+                {
+                    Console.WriteLine("Web browser session closed. Ending the manual run and cleaning up owned processes.");
+                    break;
+                }
+
                 throw new Exception($"DAP.exe exited with code {dapProcess.ExitCode} during the manual Web learner run.");
+            }
 
-            Console.WriteLine("DAP completed the manual Web Guide. Closing E2E-owned processes.");
-        }
-        else if (completed == webHostExit)
-        {
-            await webHostExit;
-            throw new Exception(
-                $"TestCRM Web host exited unexpectedly during the manual learner run. ExitCode={ownedTestCrmProcess.ExitCode}.{Environment.NewLine}" +
-                $"STDOUT tail:{Environment.NewLine}{string.Join(Environment.NewLine, testCrmWebStdOut)}{Environment.NewLine}" +
-                $"STDERR tail:{Environment.NewLine}{string.Join(Environment.NewLine, testCrmWebStdErr)}");
+            if (completed == webHostExit)
+            {
+                await webHostExit;
+                throw new Exception(
+                    $"TestCRM Web host exited unexpectedly during the manual learner run. ExitCode={ownedTestCrmProcess.ExitCode}.{Environment.NewLine}" +
+                    $"STDOUT tail:{Environment.NewLine}{string.Join(Environment.NewLine, testCrmWebStdOut)}{Environment.NewLine}" +
+                    $"STDERR tail:{Environment.NewLine}{string.Join(Environment.NewLine, testCrmWebStdErr)}");
+            }
+
+            try
+            {
+                using var probeTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(1));
+                await testDriver!.SendAsync(new { type = "testPing" }, probeTimeout.Token);
+            }
+            catch (Exception ex) when (
+                ex is IOException
+                or InvalidOperationException
+                or OperationCanceledException)
+            {
+                Console.WriteLine("Web browser session closed. Ending the manual run and cleaning up owned processes.");
+                break;
+            }
         }
     }
     finally
