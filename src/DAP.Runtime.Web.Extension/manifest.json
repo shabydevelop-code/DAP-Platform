@@ -3,6 +3,11 @@
   "name": "DAP Web Runtime",
   "version": "0.2.4",
   "description": "DAP browser-native Web learner runtime and extension-native E2E driver.",
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
   "permissions": [
     "storage",
     "nativeMessaging",
@@ -33,6 +38,11 @@
     "service_worker": "service-worker.js"
   },
   "action": {
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon16.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    }
   }
 }
