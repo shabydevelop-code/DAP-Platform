@@ -280,32 +280,6 @@
           sendResponse({ok:true,result:{status:"resolved",value:el.tagName}});
           return;
         }
-        if (op === "setHybridAutomaticBadge") {
-          let badge=el.querySelector("[data-dap-hybrid-automatic]");
-          if (!badge) {
-            badge=el.ownerDocument.createElement("div");
-            badge.dataset.dapHybridAutomatic="true";
-            Object.assign(badge.style,{
-              display:"inline-block",
-              fontSize:"12px",
-              fontWeight:"700",
-              padding:"2px 8px",
-              marginBottom:"8px",
-              border:"1px solid currentColor",
-              borderRadius:"999px"
-            });
-            const content=el.children.length>1?el.children[1]:null;
-            el.insertBefore(badge,content);
-          }
-          badge.textContent=String(command.label??"");
-          sendResponse({ok:true,result:{status:"resolved"}});
-          return;
-        }
-        if (op === "matchesActiveGuideTarget") {
-          const bubble=el.ownerDocument.getElementById("dap-guide-bubble");
-          sendResponse({ok:true,result:{status:"resolved",value:!!bubble&&bubble.__dapTarget===el}});
-          return;
-        }
         if (op === "focus") {
           el.focus?.();
           sendResponse({ok:true,result:{status:"resolved"}});
@@ -990,7 +964,11 @@
     el.style.outline=theme.targetHighlightWidth+"px solid "+theme.targetHighlightColor;el.style.outlineOffset="0px";el.style.boxShadow=theme.targetHighlightShadow;
     const b=root.createElement("div");b.id="dap-guide-bubble";b.dataset.dapStepId=step.id;b.dataset.placement=String(step.bubble?.placement||"Auto");b.__dapTarget=el;b.setAttribute("role","status");
     const handle=root.createElement("div");handle.dataset.dapDragHandle="1";handle.setAttribute("aria-label",presentation.dragText||"גרור להזזת הבועה");handle.textContent="⠿";handle.title=presentation.dragText||"גרור להזזת הבועה";Object.assign(handle.style,{display:"block",width:"fit-content",marginLeft:"auto",marginRight:"auto",textAlign:"center",fontSize:"18px",lineHeight:"14px",opacity:".72",marginBottom:"6px",cursor:"grab",touchAction:"none"});
-    const content=root.createElement("div");content.textContent=step.bubble?.content||"";content.style.cursor="default";b.append(handle,content);
+    const content=root.createElement("div");content.textContent=step.bubble?.content||"";content.style.cursor="default";b.append(handle);
+    if(presentation.automaticStepLabel){
+      const badge=root.createElement("div");badge.dataset.dapAutomaticStep="true";badge.textContent=String(presentation.automaticStepLabel);Object.assign(badge.style,{display:"inline-block",fontSize:"12px",fontWeight:"700",padding:"2px 8px",marginBottom:"8px",border:"1px solid currentColor",borderRadius:"999px"});b.appendChild(badge);
+    }
+    b.appendChild(content);
     if(stepNumber&&totalSteps){const p=root.createElement("div");p.textContent=presentation.progressText||("שלב "+stepNumber+" מתוך "+totalSteps);Object.assign(p.style,{fontSize:"12px",opacity:".78",marginTop:"8px",fontWeight:"600",cursor:"default"});b.appendChild(p);}
     const pointer=root.createElement("div");pointer.dataset.dapPointer="1";Object.assign(pointer.style,{position:"absolute",width:"0",height:"0",cursor:"default"});b.appendChild(pointer);
     Object.assign(b.style,{position:"fixed",zIndex:"2147483646",maxWidth:theme.maxWidth+"px",padding:theme.padding,background:theme.backgroundColor,color:theme.textColor,border:theme.borderWidth+"px solid "+theme.borderColor,borderRadius:theme.borderRadius+"px",boxShadow:theme.boxShadow,fontFamily:theme.fontFamily,fontSize:theme.fontSize+"px",lineHeight:String(theme.lineHeight),direction:presentation.direction||"rtl",visibility:"hidden",touchAction:"none",userSelect:"none"});b.style.setProperty("cursor","default","important");if(presentation.visible===false)b.style.setProperty("display","none","important");root.body.appendChild(b);
