@@ -625,6 +625,19 @@ public sealed class WindowsGuideRuntime
                 continue;
             }
 
+            if (kind == "name-equals")
+            {
+                if (resolution.Status != TargetResolutionStatus.Resolved
+                    || resolution.Target is null
+                    || condition.ExpectedValue is null
+                    || !string.Equals(
+                        resolution.Target.Current.Name,
+                        condition.ExpectedValue,
+                        StringComparison.Ordinal))
+                    return false;
+                continue;
+            }
+
             if (kind == "target-replaced")
             {
                 if (!replacementBaselines.TryGetValue(condition, out var before)
