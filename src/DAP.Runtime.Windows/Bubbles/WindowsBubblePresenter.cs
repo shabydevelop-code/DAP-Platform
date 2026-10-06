@@ -22,6 +22,7 @@ public sealed class WindowsBubblePresenter
     private Border? _highlightBorder;
     private Border? _bubble;
     private Polygon? _pointer;
+    private TextBlock? _automaticStep;
     private TextBlock? _content;
     private TextBlock? _progress;
     private Rect _targetRect;
@@ -40,7 +41,8 @@ public sealed class WindowsBubblePresenter
         GuideStep step,
         int stepNumber,
         int totalSteps,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool showAutomaticStep = false)
     {
         var physicalRect = target.Current.BoundingRectangle;
         if (physicalRect.IsEmpty || physicalRect.Width <= 0 || physicalRect.Height <= 0)
@@ -73,6 +75,8 @@ public sealed class WindowsBubblePresenter
             var previousTargetRect = _targetRect;
             _targetRect = rect;
             UpdateTargetHighlight(rect);
+            _automaticStep!.Text = showAutomaticStep ? _texts.Get("Learner.AutomaticStep") : string.Empty;
+            _automaticStep.Visibility = showAutomaticStep ? Visibility.Visible : Visibility.Collapsed;
             _content!.Text = step.Bubble.Content;
             _progress!.Text = _texts.Format("Learner.StepProgress", stepNumber, totalSteps);
             AutomationProperties.SetName(_window!, step.Bubble.Content);
@@ -574,6 +578,18 @@ public sealed class WindowsBubblePresenter
         if (_window is not null)
             return;
 
+        _automaticStep = new TextBlock
+        {
+            FontSize = 11,
+            FontWeight = FontWeights.Bold,
+            Foreground = Brushes.White,
+            Margin = new Thickness(0, 0, 0, 8),
+            Padding = new Thickness(8, 2, 8, 2),
+            HorizontalAlignment = HorizontalAlignment.Left,
+            FlowDirection = _texts.IsRightToLeft ? FlowDirection.RightToLeft : FlowDirection.LeftToRight,
+            Visibility = Visibility.Collapsed
+        };
+
         _content = new TextBlock
         {
             TextWrapping = TextWrapping.Wrap,
@@ -604,6 +620,7 @@ public sealed class WindowsBubblePresenter
 
         var stack = new StackPanel();
         stack.Children.Add(dragHandle);
+        stack.Children.Add(_automaticStep);
         stack.Children.Add(_content);
         stack.Children.Add(_progress);
 
