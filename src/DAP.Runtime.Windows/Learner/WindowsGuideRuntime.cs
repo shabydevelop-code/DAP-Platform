@@ -17,17 +17,20 @@ public sealed class WindowsGuideRuntime
     private readonly WindowsBubblePresenter _bubbles;
     private readonly WindowsValidationEvaluator _validation;
     private readonly TimeSpan _pollInterval;
+    private readonly bool _hybridPresentation;
 
     public WindowsGuideRuntime(
         WindowsTargetResolver resolver,
         WindowsBubblePresenter bubbles,
         WindowsValidationEvaluator? validation = null,
-        TimeSpan? pollInterval = null)
+        TimeSpan? pollInterval = null,
+        bool hybridPresentation = false)
     {
         _resolver = resolver ?? throw new ArgumentNullException(nameof(resolver));
         _bubbles = bubbles ?? throw new ArgumentNullException(nameof(bubbles));
         _validation = validation ?? new WindowsValidationEvaluator();
         _pollInterval = pollInterval ?? TimeSpan.FromMilliseconds(100);
+        _hybridPresentation = hybridPresentation;
     }
 
     public async Task RunAsync(
@@ -460,7 +463,9 @@ public sealed class WindowsGuideRuntime
                 var bubbleStartedAt = stepStopwatch.ElapsedMilliseconds;
                 try
                 {
-                    await _bubbles.ShowAsync(target, step, stepNumber, totalSteps, cancellationToken);
+                    await _bubbles.ShowAsync(
+                    target, step, stepNumber, totalSteps, cancellationToken,
+                    _hybridPresentation && !string.IsNullOrEmpty(step.AutomationValue));
                 }
                 catch (InvalidOperationException) when (!HasVisibleBounds(target))
                 {
