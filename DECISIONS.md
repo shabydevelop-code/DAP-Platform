@@ -816,3 +816,14 @@ The following behaviors are now part of the verified production baseline:
 
 Any future optimization that breaks the Runner-free 54/54 canonical Guide violates ADR-052.
 
+
+
+## ADR-053 — Extension-native Web startup does not expose browser-runtime modes
+
+**Status:** Accepted
+
+The production Extension path and its Web verification tooling do not model Chrome, Edge, or Chromium as separate DAP Runtime modes. Browser selection variables inherited from the Playwright architecture are removed from the active Extension-native path.
+
+Startup resolves the registered DAP Extension id and discovers the supported installed browser profile that contains that Extension. Chrome and Edge remain supported compatibility targets, but the DAP Runtime architecture remains one path: Runtime → Native Host → Extension → DOM.
+
+If the Extension is enabled in more than one supported browser/profile, DAP development tooling must report ambiguity and stop rather than guessing. Chromium-specific Playwright profile discovery is not part of the active architecture.
