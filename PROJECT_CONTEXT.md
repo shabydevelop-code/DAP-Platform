@@ -277,28 +277,21 @@ Current accepted Web behavior includes:
 
 Windows follows the same interaction principles where supported by UIA/WPF.
 
-## Canonical run modes
+## Canonical Web run modes
 
-Web runner public modes:
+The current public Web modes are:
 
 ```text
 --manual
---guided
+--guided --fast
+--guided --visual
 --manual-from-step N
---unguided
+--fast-from-step N
 --visual-from-step N
+--unguided
 ```
 
-Automated Guided presentation mode is selected through:
-
-```text
-DAP_E2E_MODE=fast
-DAP_E2E_MODE=visual
-```
-
-Fast and Visual share the same business/learner action path. Visual may add cursor movement and pacing only.
-
-Focused from-Step modes execute the actual preceding workflow as bootstrap rather than fabricating application state.
+All seven modes have passed regression on the current Web baseline. Fast and Visual share the same learner action semantics; Visual adds visible cursor movement/pacing only. Focused from-Step modes execute the real preceding workflow as bootstrap rather than fabricating application state.
 
 ## E2E fidelity rule
 
@@ -349,11 +342,7 @@ Project architecture, decisions, current status, and persistent context are main
 
 ## Immediate next work
 
-1. Verify `manual-from-step` on the unified extension-native Web path.
-2. Verify `visual-from-step` using the same action semantics.
-3. Verify `unguided` without introducing duplicate Guide knowledge.
-4. Preserve the runner-free manual 54-Step path as the product acceptance reference.
-5. Keep browser/runtime performance work subordinate to learner correctness.
+The Web regression matrix is closed on the current baseline. Continue with Windows Runtime/application corrections and regression while preserving the shared Guide contracts and production-observable behavior.
 
 ## Web learner regression note — 2026-10-06
 
@@ -368,5 +357,5 @@ For the canonical TestCRM Guide, the status-sort Step now waits for the observab
 
 Seed changes do not update an already-persisted Guide automatically. Use the explicit Guide reset path when intentionally applying changed seed definitions to the persistent database.
 
-Current manually verified Web extension baseline: **0.2.7**.
+Current verified Web extension baseline: **0.2.8**. Guide-owned target autofocus is persisted through SQLite and verified end-to-end for value-entry Steps.
 
