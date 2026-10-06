@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "DAP Web Runtime",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "DAP browser-native Web learner runtime and extension-native E2E driver.",
   "icons": {
     "16": "icon16.png",
@@ -35,7 +35,7 @@
     }
   ],
   "background": {
-    "service_worker": "service-worker.js"
+    "service_worker": "service-worker-entry.js"
   },
   "action": {
     "default_popup": "popup.html",
