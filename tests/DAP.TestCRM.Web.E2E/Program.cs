@@ -819,6 +819,7 @@ if(visualFromStep is not null && !dapSteps.Any(step => step.Order == visualFromS
 
 var effectiveDapDirectory = publishedDapDirectory ?? packagedDapDirectory ?? dapOutput;
 var dapStdErrLines=new System.Collections.Concurrent.ConcurrentQueue<string>();
+var dapHiddenReadyLines=new System.Collections.Concurrent.ConcurrentQueue<string>();
 var focusedStartStepOrder = manualFromStep ?? fastFromStep ?? visualFromStep;
 var bootstrapCaptures = new Dictionary<string, string>(StringComparer.Ordinal);
 var resumeContextPath = Path.Combine(webRunRoot, "resume-context.json");
@@ -858,7 +859,11 @@ Process StartFocusedDap(int? showGuidanceFromStepOrder, bool hideGuidance = fals
     process.ErrorDataReceived+=(_,eventArgs)=>
     {
         if(eventArgs.Data is not null)
+        {
             dapStdErrLines.Enqueue(eventArgs.Data);
+            if(eventArgs.Data.StartsWith("[DAP guide] ready hidden Step ", StringComparison.Ordinal))
+                dapHiddenReadyLines.Enqueue(eventArgs.Data);
+        }
     };
     process.BeginErrorReadLine();
 
@@ -893,8 +898,11 @@ async Task WaitForGuideStep(int order)
         {
             if(dapProcess is { HasExited: true })
                 throw new Exception($"DAP.exe exited with code {dapProcess.ExitCode} before hidden Step {order} became ready.");
-            if(dapStdErrLines.Any(line => line.Contains(readyMarker, StringComparison.Ordinal)))
+            while(dapHiddenReadyLines.TryDequeue(out var readyLine))
             {
+                if(!readyLine.Contains(readyMarker, StringComparison.Ordinal))
+                    continue;
+
                 if(advancedSequence)
                     Console.WriteLine($"Web Runtime hidden Guide Step {order}/{dapSteps.Count}: {expected.Id}");
                 return;
