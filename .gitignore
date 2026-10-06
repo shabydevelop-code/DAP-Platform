@@ -1,0 +1,14 @@
+# .NET build outputs
+**/bin/
+**/obj/
+
+# Local TestCRM data
+test-apps/DAP.TestCRM/data/*.db
+test-apps/DAP.TestCRM/data/*.db-shm
+test-apps/DAP.TestCRM/data/*.db-wal
+
+# Local diagnostics and IDE state
+.vs/
+.idea/
+*.user
+*.suo
