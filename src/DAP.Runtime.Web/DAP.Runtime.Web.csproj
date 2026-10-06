@@ -6,6 +6,5 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../DAP.Core/DAP.Core.csproj" />
-    <PackageReference Include="Microsoft.Playwright" Version="1.55.0" />
   </ItemGroup>
 </Project>
