@@ -641,3 +641,17 @@ The project-wide 5-second timeout rule is a technical timeout policy for automat
 A Manual/Hybrid run may therefore remain on an active Step while waiting for the learner without failing after five seconds. This does not increase or weaken any automated technical timeout.
 
 The distinction is required so that production learner semantics remain human-paced while automated diagnostics still fail quickly on genuine technical faults.
+
+## ADR-056 — E2E action drivers perform learner actions; Runtime owns outcomes
+
+**Status:** Accepted — 2026-10-06
+
+The 14-step Windows Hybrid migration (`e3a0adc`, `c25ebc1`, `d685124`, `c4fe463`, `782f842`, `edb732a`, `454bb55`, `91d4469`, `5290d2d`, `23ccc6b`, `53eee3b`, `8130e60`, `39519e8`, `e6a133b`) establishes a permanent ownership boundary.
+
+An E2E/Hybrid action driver performs the configured learner action. It must not also become an independent Guide engine by polling for the same validation result, asserting the same business outcome, automatically dismissing unrelated dialogs, or deciding that a Step is complete.
+
+Persisted Guide definitions and the production Runtime own target resolution, validation/completion observation, capture semantics used by the Guide, and Step progression. Test orchestration may wait for the production transition and may retain scenario state needed to perform later synthetic learner actions, but that state must not be used as a parallel completion oracle.
+
+Cross-platform Hybrid code follows the same rule. Web-side action/outcome synchronization and explicit mode/browser argument handling were aligned as part of the same migration.
+
+The completed Windows Hybrid PASS verifies this ownership model. Legacy outcome-detection and select-value-polling behavior removed by the 14-step migration must not be reintroduced into action helpers.
