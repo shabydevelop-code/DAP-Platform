@@ -17,17 +17,20 @@ public sealed class WindowsGuideRuntime
     private readonly WindowsBubblePresenter _bubbles;
     private readonly WindowsValidationEvaluator _validation;
     private readonly TimeSpan _pollInterval;
+    private readonly string? _automaticStepLabel;
 
     public WindowsGuideRuntime(
         WindowsTargetResolver resolver,
         WindowsBubblePresenter bubbles,
         WindowsValidationEvaluator? validation = null,
-        TimeSpan? pollInterval = null)
+        TimeSpan? pollInterval = null,
+        string? automaticStepLabel = null)
     {
         _resolver = resolver ?? throw new ArgumentNullException(nameof(resolver));
         _bubbles = bubbles ?? throw new ArgumentNullException(nameof(bubbles));
         _validation = validation ?? new WindowsValidationEvaluator();
         _pollInterval = pollInterval ?? TimeSpan.FromMilliseconds(100);
+        _automaticStepLabel = automaticStepLabel;
     }
 
     public async Task RunAsync(
@@ -437,7 +440,9 @@ public sealed class WindowsGuideRuntime
                 var bubbleStartedAt = stepStopwatch.ElapsedMilliseconds;
                 try
                 {
-                    await _bubbles.ShowAsync(target, step, stepNumber, totalSteps, cancellationToken);
+                    await _bubbles.ShowAsync(
+                        target, step, stepNumber, totalSteps, cancellationToken,
+                        !string.IsNullOrEmpty(step.AutomationValue) ? _automaticStepLabel : null);
                 }
                 catch (InvalidOperationException) when (!HasVisibleBounds(target))
                 {
