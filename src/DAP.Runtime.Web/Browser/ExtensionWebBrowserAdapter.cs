@@ -503,6 +503,31 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
         }
         return true;
     }
+    public async Task<WebTargetResolution> EnsureStepActiveAsync(GuideStep step, CancellationToken cancellationToken = default)
+    {
+        if (step.Target is null) return new(WebTargetResolutionStatus.NotFound, 0);
+        string? armId;
+        lock (_validationGate)
+            _armedValidationIds.TryGetValue(step.Id, out armId);
+
+        var response = await SendCommandAsync(new
+        {
+            type = "armValidation",
+            step,
+            armId,
+            framePath = step.Target.FrameContext?.Path
+        }, cancellationToken);
+        var result = response.GetProperty("result");
+        var status = result.GetProperty("status").GetString();
+        var count = result.TryGetProperty("count", out var n) ? n.GetInt32() : 0;
+        return new(status switch
+        {
+            "resolved" => WebTargetResolutionStatus.Resolved,
+            "ambiguous" => WebTargetResolutionStatus.Ambiguous,
+            _ => WebTargetResolutionStatus.NotFound
+        }, count);
+    }
+
     public async Task<WebBubblePresentation> EnsureBubbleShownAsync(GuideStep step, int stepNumber, int totalSteps, CancellationToken cancellationToken = default)
     {
         if (step.Target is null) return new(WebTargetResolutionStatus.NotFound, 0);
