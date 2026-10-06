@@ -4,7 +4,7 @@ This document describes the current production architecture only. Historical imp
 
 ## Product boundary
 
-DAP is a .NET 8 Windows desktop product with Learner and future Instructor/Editor capabilities. Guides may target Web, Windows, or move between both runtimes.
+DAP is a .NET 8 Windows desktop product with Learner and future Instructor/Editor capabilities. Learner is launched with an explicit persisted Guide identifier; DAP derives the current runtime type from that Guide rather than from a Web/Windows launch mode. The current launcher supports Guides whose enabled targets belong to one runtime type.
 
 Production DAP must work against closed third-party applications. Runtime behavior must not depend on customer source code, internal databases, private APIs, TestCRM implementation details, Playwright, or AI.
 
