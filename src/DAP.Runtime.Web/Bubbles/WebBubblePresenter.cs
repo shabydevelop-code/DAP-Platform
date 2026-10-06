@@ -720,6 +720,26 @@ public sealed class WebBubblePresenter
                     }",
                     topLevelArgs);
             }
+            else
+            {
+                await page.MainFrame.EvaluateAsync(
+                    @"id => {
+                        const proxy=document.getElementById('dap-guide-bubble-proxy');
+                        if(proxy?.dataset.dapStepId===id)
+                            proxy.style.visibility='hidden';
+                    }",
+                    step.Id);
+            }
+        }
+        else
+        {
+            await page.MainFrame.EvaluateAsync(
+                @"id => {
+                    const proxy=document.getElementById('dap-guide-bubble-proxy');
+                    if(proxy?.dataset.dapStepId===id)
+                        proxy.remove();
+                }",
+                step.Id);
         }
 
         var presentedAt = timing.Elapsed.TotalMilliseconds;
