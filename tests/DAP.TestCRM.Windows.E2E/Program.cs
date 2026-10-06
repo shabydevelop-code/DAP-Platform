@@ -244,6 +244,12 @@ async Task RunLearnerAsync(bool manualMode, bool hybridMode)
             while (!dap.HasExited && !windowsApp.HasExited)
                 await Task.Delay(100);
 
+            // Closing the target application is an intentional end of a Manual run.
+            // Prefer that signal even if DAP exits at nearly the same time because
+            // losing the UIA target can make the production Runtime terminate first.
+            if (windowsApp.HasExited)
+                throw new TargetApplicationClosedException();
+
             if (dap.HasExited && dap.ExitCode != 0)
                 throw new Exception($"DAP.exe exited with code {dap.ExitCode} during the manual Windows run.");
             return;
