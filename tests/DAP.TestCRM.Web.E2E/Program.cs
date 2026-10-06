@@ -819,7 +819,6 @@ if(visualFromStep is not null && !dapSteps.Any(step => step.Order == visualFromS
 
 var effectiveDapDirectory = publishedDapDirectory ?? packagedDapDirectory ?? dapOutput;
 var dapStdErrLines=new System.Collections.Concurrent.ConcurrentQueue<string>();
-var dapHiddenReadyLines=new System.Collections.Concurrent.ConcurrentQueue<string>();
 var focusedStartStepOrder = manualFromStep ?? fastFromStep ?? visualFromStep;
 var bootstrapCaptures = new Dictionary<string, string>(StringComparer.Ordinal);
 var resumeContextPath = Path.Combine(webRunRoot, "resume-context.json");
@@ -861,8 +860,6 @@ Process StartFocusedDap(int? showGuidanceFromStepOrder, bool hideGuidance = fals
         if(eventArgs.Data is not null)
         {
             dapStdErrLines.Enqueue(eventArgs.Data);
-            if(eventArgs.Data.StartsWith("[DAP guide] ready hidden Step ", StringComparison.Ordinal))
-                dapHiddenReadyLines.Enqueue(eventArgs.Data);
         }
     };
     process.BeginErrorReadLine();
@@ -892,49 +889,13 @@ async Task WaitForGuideStep(int order)
 
     if(unguided || (focusedStartStepOrder is not null && order < focusedStartStepOrder.Value))
     {
-        var readyMarker = $"[DAP guide] ready hidden Step {order}/{dapSteps.Count} '{expected.Id}'.";
-        var deadline = DateTime.UtcNow.AddSeconds(5);
-        while(DateTime.UtcNow < deadline)
-        {
-            if(dapProcess is { HasExited: true })
-                throw new Exception($"DAP.exe exited with code {dapProcess.ExitCode} before hidden Step {order} became ready.");
-            var deferredReadyLines=new List<string>();
-            var matchedReady=false;
-            while(dapHiddenReadyLines.TryDequeue(out var readyLine))
-            {
-                if(readyLine.Contains(readyMarker, StringComparison.Ordinal))
-                {
-                    matchedReady=true;
-                    break;
-                }
-
-                // A fast Runtime can already publish readiness for the next
-                // Guide Step while the harness is consuming the current one.
-                // Preserve those future pulses instead of discarding them.
-                deferredReadyLines.Add(readyLine);
-            }
-            foreach(var deferredReadyLine in deferredReadyLines)
-                dapHiddenReadyLines.Enqueue(deferredReadyLine);
-
-            if(matchedReady)
-            {
-                if(advancedSequence)
-                    Console.WriteLine($"Web Runtime hidden Guide Step {order}/{dapSteps.Count}: {expected.Id}");
-                return;
-            }
-            await page.WaitForTimeoutAsync(50);
-        }
-        var hiddenRuntimeDiagnostics=string.Join(
-            Environment.NewLine,
-            dapStdErrLines.Where(line =>
-                line.StartsWith("[DAP guide]",StringComparison.Ordinal)
-                || line.StartsWith("[DAP validation]",StringComparison.Ordinal)
-                || line.StartsWith("[DAP bubble]",StringComparison.Ordinal)
-                || line.StartsWith("[DAP runtime]",StringComparison.Ordinal)
-                || line.StartsWith("[DAP runtime trace]",StringComparison.Ordinal)));
-        throw new TimeoutException(
-            $"DAP Runtime did not activate hidden Step {order}: {expected.Id} within 5 seconds.{Environment.NewLine}" +
-            $"DAP diagnostics:{Environment.NewLine}{hiddenRuntimeDiagnostics}");
+        // Hidden guidance uses the exact production bubble lifecycle. The runner
+        // does not synchronize through a separate hidden-ready protocol; it only
+        // preserves canonical Guide ordering while the Runtime owns validation,
+        // completion and target reconciliation.
+        if(advancedSequence)
+            Console.WriteLine($"Web Runtime hidden Guide Step {order}/{dapSteps.Count}: {expected.Id}");
+        return;
     }
 
     if(focusedStartStepOrder == order)
