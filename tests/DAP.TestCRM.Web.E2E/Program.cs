@@ -819,7 +819,7 @@ if (manual)
 
     return;
 }
-
+}
 catch (Exception) when (ownedWebTargetClosed.Task.IsCompleted)
 {
     var closeReason = await ownedWebTargetClosed.Task;
