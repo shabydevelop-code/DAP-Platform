@@ -12,6 +12,8 @@ This document contains only the current implementation state. Historical milesto
 - Step 55 is the persisted centered Guide summary.
 - Disabled persisted Steps are supported without renumbering.
 - Persisted `AutomationValue` is supported for Hybrid value-entry actions.
+- Product Learner launch uses `DAP.exe --learner --guide <GuideId>`; the runtime is selected from the persisted Guide. The current launcher accepts one enabled target runtime type per Guide.
+- The browser Extension is infrastructure-only and has no popup GUI.
 
 ## Web
 
