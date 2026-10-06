@@ -17,12 +17,13 @@ public sealed record DapLaunchOptions(
     int? StartStep,
     string? ResumeContextPath,
     int? ShowGuidanceFromStep,
-    bool HideGuidance)
+    bool HideGuidance,
+    bool HybridPresentation)
 {
     public static DapLaunchOptions? Parse(string[] args, IUiTextProvider texts)
     {
         if (args.Length == 1 && args[0] == "--check")
-            return new(DapLaunchMode.InfrastructureCheck, null, null, null, null, null, false);
+            return new(DapLaunchMode.InfrastructureCheck, null, null, null, null, null, false, false);
 
         if (args.Length >= 2 && args[0] == "--learner-web" && !string.IsNullOrWhiteSpace(args[1]))
         {
@@ -30,6 +31,7 @@ public sealed record DapLaunchOptions(
             string? resumeContextPath = null;
             int? showGuidanceFromStep = null;
             var hideGuidance = false;
+            var hybridPresentation = false;
 
             for (var i = 2; i < args.Length; i++)
             {
@@ -44,6 +46,8 @@ public sealed record DapLaunchOptions(
                     showGuidanceFromStep = parsedShowStep;
                 else if (args[i] == "--hide-guidance")
                     hideGuidance = true;
+                else if (args[i] == "--hybrid-presentation")
+                    hybridPresentation = true;
                 else
                     return Usage(texts);
             }
@@ -51,7 +55,7 @@ public sealed record DapLaunchOptions(
             if (hideGuidance && showGuidanceFromStep is not null)
                 return Usage(texts);
 
-            return new(DapLaunchMode.LearnerWeb, args[1], null, startStep, resumeContextPath, showGuidanceFromStep, hideGuidance);
+            return new(DapLaunchMode.LearnerWeb, args[1], null, startStep, resumeContextPath, showGuidanceFromStep, hideGuidance, hybridPresentation);
         }
 
         if (args.Length >= 2 && args[0] == "--learner-windows" && !string.IsNullOrWhiteSpace(args[1]))
@@ -75,7 +79,7 @@ public sealed record DapLaunchOptions(
             }
 
             if (!string.IsNullOrWhiteSpace(windowAutomationId))
-                return new(DapLaunchMode.LearnerWindows, args[1], windowAutomationId, startStep, resumeContextPath, null, false);
+                return new(DapLaunchMode.LearnerWindows, args[1], windowAutomationId, startStep, resumeContextPath, null, false, false);
 
             return Usage(texts);
         }
