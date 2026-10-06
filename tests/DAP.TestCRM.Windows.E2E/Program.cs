@@ -202,15 +202,20 @@ async Task RunLearnerAsync(bool manualMode, bool hybridMode)
                 if (laterStepObserved)
                     return false;
 
+                // Target closure is a normal user-requested end of a Manual/Hybrid run.
+                // Check it before DAP because DAP may terminate immediately after losing
+                // the target window, and that exit must not mask the intentional closure.
+                if (windowsApp.HasExited)
+                    throw new TargetApplicationClosedException();
+
                 if (dap.HasExited)
                 {
+                    if (windowsApp.HasExited)
+                        throw new TargetApplicationClosedException();
                     if (dap.ExitCode == 0)
                         return false;
                     throw new Exception($"DAP.exe exited with code {dap.ExitCode} before Runtime activated Step {expected.Order}.");
                 }
-
-                if (windowsApp.HasExited)
-                    throw new TargetApplicationClosedException();
 
                 await Task.Delay(100);
             }
@@ -260,9 +265,20 @@ async Task RunLearnerAsync(bool manualMode, bool hybridMode)
             await driver.ApplyAutomationValue(step.Target, step.AutomationValue);
         }
 
-        await dap.WaitForExitAsync();
+        var dapExit = dap.WaitForExitAsync();
+        var targetExit = windowsApp.WaitForExitAsync();
+        var completed = await Task.WhenAny(dapExit, targetExit);
+
+        if (completed == targetExit || windowsApp.HasExited)
+            throw new TargetApplicationClosedException();
+
+        await dapExit;
         if (dap.ExitCode != 0)
+        {
+            if (windowsApp.HasExited)
+                throw new TargetApplicationClosedException();
             throw new Exception($"DAP.exe exited with code {dap.ExitCode} during the hybrid Windows run.");
+        }
 
         Console.WriteLine("PASS: hybrid Windows Guide completed.");
     }
