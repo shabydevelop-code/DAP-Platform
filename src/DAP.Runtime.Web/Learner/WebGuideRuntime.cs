@@ -74,9 +74,7 @@ public sealed class WebGuideRuntime
             Console.Error.WriteLine($"[DAP guide] completed Step {stepIndex + 1}/{orderedSteps.Length} '{step.Id}'.");
         }
 
-        Console.Error.WriteLine("[DAP guide] presenting completion bubble.");
-        await _steps.WaitForGuideCompletedDismissalAsync(page, cancellationToken);
-        Console.Error.WriteLine("[DAP guide] completion bubble dismissed; Guide finished.");
+        Console.Error.WriteLine("[DAP guide] persisted Guide finished.");
     }
 
     private static GuideStep MaterializeRuntimeValues(
