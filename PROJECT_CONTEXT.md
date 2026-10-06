@@ -578,3 +578,28 @@ AI is explicitly a development aid in this phase. It may help analyze before/aft
 The production Instructor is expected to provide its own deterministic observation workflow: capture externally observable state before an author action, observe the action and resulting state, compare the states, identify/rank candidate changes, allow the author to confirm the intended completion/transition condition, and persist an explicit Guide definition. The production Learner must then evaluate that definition and diagnose supported page/window/context changes without AI.
 
 Schema/Core/Runtime changes should be driven by concrete scenarios that the current model cannot represent reliably. Do not enlarge the database schema merely to anticipate hypothetical cases. A capability discovered with AI assistance is complete only when the customer-side system can author/run the supported behavior without AI and without target-application source access.
+
+## Windows Hybrid milestone — verified 2026-10-06
+
+The Windows learner work has reached a verified Hybrid milestone in addition to the existing full Windows Guided/Unguided/Manual coverage.
+
+The current Windows contract is:
+
+- The persisted Guide is the source of truth for targets, anchors, validation, runtime capture, completion conditions, disabled state, automation values, and Step ordering.
+- Windows production execution uses UI Automation and the shared DAP Runtime model; Playwright is not part of the Windows learner path.
+- A complete human/manual Windows run proved that the Guide can be executed from persisted data without synthetic test-only detection mechanisms.
+- Hybrid execution is now also verified end-to-end with `PASS: hybrid Web Guide completed.`
+- Disabled repetitive Steps are skipped while their persisted numbering remains unchanged. Current disabled Steps: 24, 25, 30, 31, 42, 43, 44, 45. Step 29 remains enabled because it is business-significant.
+- A Step may be disabled only when removing it does not break the real business flow. Saves, validations, deletes, navigation, context creation, and any state required by later Steps must remain.
+- Where persisted Guide data explicitly defines automation values, Hybrid may use those values to populate controls. This does not authorize the runner to invent target detection, validation, or completion behavior.
+- Runtime remains the sole owner of learner Step completion/progression. Hybrid/E2E code may orchestrate the target applications and perform configured synthetic learner actions, but it must not duplicate product detection logic.
+- Human/manual waiting is not treated as an E2E failure merely because five seconds pass. The five-second timeout policy continues to apply to automated technical waits and was not relaxed.
+- Hybrid synchronization fixes were completed without weakening the black-box rule or introducing target-source dependencies.
+
+Relevant stabilization commits: `ac6eaaa`, `fa08a52`, `9bb497e`.
+
+### Windows execution status
+
+For the current Windows learner architecture, the following capabilities have been demonstrated across the development sequence: real UIA target resolution, persisted multi-anchor targeting, validation, runtime capture, modal targeting, centered informational/completion bubbles, real-cursor Visual mode, isolated E2E builds, full canonical Guided execution, Unguided execution, full human Manual execution, From-Step handoff, and now Hybrid execution.
+
+The next product work must preserve this boundary: automation validates the production behavior; it does not supply missing production behavior.
