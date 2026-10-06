@@ -765,3 +765,8 @@ After Chrome Task Manager showed that enabling the DAP Extension raised the Test
 ## Extension content runtime 0.4.7 — event-driven stable learner
 
 The extension-backed learner no longer performs 100 ms browser reconciliation while a target and bubble are stable. Relevant target/ancestor mutations emit a presentation-invalidation event to the .NET Runtime, which wakes immediately when re-resolution is needed. The original 100 ms interval remains only for transient recovery. Validation waits are event-driven, and a valid commit waiting on persisted completion conditions is latched instead of repeatedly re-entering a completed task. A one-second safety wake preserves context/completion robustness without the former steady-state polling load.
+
+
+## 0.4.7 experiment rolled back
+
+The first event-driven stable-presentation experiment reduced Chrome renderer CPU but caused observable bubble regressions. It has been rolled back. The accepted baseline is again content runtime 0.4.6 plus the viewport-visibility, drag-cursor, and narrowed-observer fixes. Future CPU work must preserve the proven learner semantics before being accepted.
