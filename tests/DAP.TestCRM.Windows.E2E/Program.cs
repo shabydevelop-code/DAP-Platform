@@ -364,7 +364,7 @@ Process StartProcess(
         ?? throw new InvalidOperationException($"Could not start process: {fileName} {arguments}");
 }
 
-AutomationElement WaitForMainWindow(int timeout = 30_000)
+AutomationElement WaitForMainWindow(int timeout = 5_000)
 {
     var sw = Stopwatch.StartNew();
     while (sw.ElapsedMilliseconds < timeout)
@@ -384,59 +384,10 @@ AutomationElement WaitForMainWindow(int timeout = 30_000)
     throw new TimeoutException("Timed out waiting for Windows TestCRM main window.");
 }
 
-bool IsVisibleUiaElement(AutomationElement candidate)
-{
-    try
-    {
-        return !candidate.Current.IsOffscreen
-               && !candidate.Current.BoundingRectangle.IsEmpty;
-    }
-    catch (ElementNotAvailableException)
-    {
-        return false;
-    }
-}
-
-void DiagnoseDapTopLevelWindows(Process dapProcess)
-{
-    try
-    {
-        var windows = AutomationElement.RootElement.FindAll(
-            TreeScope.Children,
-            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Window))
-            .Cast<AutomationElement>()
-            .ToArray();
-
-        Console.WriteLine($"[Windows UIA diagnostic] top-level windows={windows.Length}; launcher pid={dapProcess.Id}");
-
-        foreach (var window in windows)
-        {
-            try
-            {
-                Console.WriteLine(
-                    $"[Windows UIA diagnostic] top-level window: " +
-                    $"ProcessId={window.Current.ProcessId}; " +
-                    $"Name='{window.Current.Name}'; " +
-                    $"AutomationId='{window.Current.AutomationId}'; " +
-                    $"ClassName='{window.Current.ClassName}'; " +
-                    $"IsOffscreen={window.Current.IsOffscreen}; " +
-                    $"Bounds='{window.Current.BoundingRectangle}'");
-            }
-            catch (ElementNotAvailableException)
-            {
-            }
-        }
-    }
-    catch (ElementNotAvailableException)
-    {
-        Console.WriteLine("[Windows UIA diagnostic] DAP top-level windows became unavailable.");
-    }
-}
-
 async Task WaitForHttpAsync(string url, Process process, string processName)
 {
     using var http = new HttpClient();
-    var deadline = DateTime.UtcNow.AddSeconds(30);
+    var deadline = DateTime.UtcNow.AddSeconds(5);
 
     while (DateTime.UtcNow < deadline)
     {
@@ -456,7 +407,7 @@ async Task WaitForHttpAsync(string url, Process process, string processName)
         await Task.Delay(200);
     }
 
-    throw new TimeoutException($"{processName} did not become ready at {url} within 30 seconds.");
+    throw new TimeoutException($"{processName} did not become ready at {url} within 5 seconds.");
 }
 
 void TryKillOwnedProcessTree(Process? process)
@@ -515,6 +466,3 @@ void StopOwnedProcessTree(Process process)
     }
 }
 
-sealed class ManualHandoffCompleteException : Exception
-{
-}
