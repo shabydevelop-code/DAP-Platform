@@ -1626,7 +1626,19 @@ if(unguided)
     if(dapProcess is null)
         throw new Exception("DAP.exe process is missing while completing the unguided Web run.");
     if(!dapProcess.WaitForExit(5000))
-        throw new TimeoutException("DAP Runtime did not complete the unguided Guide within 5 seconds after the final learner action.");
+    {
+        var finalRuntimeDiagnostics=string.Join(
+            Environment.NewLine,
+            dapStdErrLines.Where(line =>
+                line.StartsWith("[DAP guide]",StringComparison.Ordinal)
+                || line.StartsWith("[DAP validation]",StringComparison.Ordinal)
+                || line.StartsWith("[DAP bubble]",StringComparison.Ordinal)
+                || line.StartsWith("[DAP runtime]",StringComparison.Ordinal)
+                || line.StartsWith("[DAP runtime trace]",StringComparison.Ordinal)));
+        throw new TimeoutException(
+            $"DAP Runtime did not complete the unguided Guide within 5 seconds after the final learner action.{Environment.NewLine}" +
+            $"DAP diagnostics:{Environment.NewLine}{finalRuntimeDiagnostics}");
+    }
     if(dapProcess.ExitCode!=0)
         throw new Exception($"DAP.exe exited with code {dapProcess.ExitCode} during the unguided Web run.");
 }
