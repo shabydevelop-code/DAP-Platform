@@ -15,6 +15,7 @@ public sealed class WebLearnerRuntime
     private readonly WebValidationSession _validationSession;
     private readonly TimeSpan _reconcileInterval;
     private readonly TimeSpan _presentationSettleInterval;
+    private readonly TimeSpan _proxyRefreshInterval;
     private bool _firstBubbleReported;
 
     public WebLearnerRuntime(
@@ -23,7 +24,8 @@ public sealed class WebLearnerRuntime
         WebValidationEvaluator? validation = null,
         WebValidationSession? validationSession = null,
         TimeSpan? reconcileInterval = null,
-        TimeSpan? presentationSettleInterval = null)
+        TimeSpan? presentationSettleInterval = null,
+        TimeSpan? proxyRefreshInterval = null)
     {
         _bubbles = bubbles;
         _contextGuard = contextGuard ?? new WebStepContextGuard();
@@ -31,6 +33,7 @@ public sealed class WebLearnerRuntime
         _validationSession = validationSession ?? new WebValidationSession();
         _reconcileInterval = reconcileInterval ?? TimeSpan.FromMilliseconds(100);
         _presentationSettleInterval = presentationSettleInterval ?? TimeSpan.FromMilliseconds(250);
+        _proxyRefreshInterval = proxyRefreshInterval ?? TimeSpan.FromMilliseconds(250);
     }
 
     private async Task<bool> IsStableForPresentationAsync(
@@ -273,6 +276,63 @@ public sealed class WebLearnerRuntime
                 {
                     await _bubbles.HideAsync(page);
                 }
+                else
+                {
+                    // Once a Step is stably presented, stop resolving/presenting
+                    // it every 100 ms. Scroll/resize/ResizeObserver keep the
+                    // attached bubble aligned in the browser. DAP wakes only
+                    // when validation completes, the target/context becomes
+                    // invalid, cancellation is requested, or a cross-frame
+                    // top-level proxy needs its lower-frequency position refresh.
+                    var invalidatedTask = _bubbles.WaitForPresentationInvalidationAsync(
+                        resolution.Target,
+                        step);
+                    var cancellationTask = Task.Delay(
+                        Timeout.InfiniteTimeSpan,
+                        cancellationToken);
+
+                    Task wakeTask;
+                    if (hasAutomaticValidation)
+                    {
+                        var completionTask = _validationSession.WaitForCompletionAsync(step.Id);
+                        if (await _bubbles.IsTopLevelProxyActiveAsync(page, step.Id))
+                        {
+                            var proxyRefreshTask = Task.Delay(_proxyRefreshInterval, cancellationToken);
+                            wakeTask = await Task.WhenAny(
+                                invalidatedTask,
+                                completionTask,
+                                proxyRefreshTask,
+                                cancellationTask);
+                        }
+                        else
+                        {
+                            wakeTask = await Task.WhenAny(
+                                invalidatedTask,
+                                completionTask,
+                                cancellationTask);
+                        }
+                    }
+                    else if (await _bubbles.IsTopLevelProxyActiveAsync(page, step.Id))
+                    {
+                        var proxyRefreshTask = Task.Delay(_proxyRefreshInterval, cancellationToken);
+                        wakeTask = await Task.WhenAny(
+                            invalidatedTask,
+                            proxyRefreshTask,
+                            cancellationTask);
+                    }
+                    else
+                    {
+                        wakeTask = await Task.WhenAny(
+                            invalidatedTask,
+                            cancellationTask);
+                    }
+
+                    if (wakeTask == cancellationTask)
+                        cancellationToken.ThrowIfCancellationRequested();
+
+                    continue;
+                }
+
                 // Non-click value validation is intentionally not polled for
                 // completion here. Its condition is evaluated only after the
                 // control reports its natural commit event (blur/change).
