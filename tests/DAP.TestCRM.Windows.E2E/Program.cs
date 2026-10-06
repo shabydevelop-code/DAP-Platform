@@ -3,7 +3,6 @@ using System.IO;
 using System.Net.Http;
 using System.Net;
 using System.Net.Sockets;
-using System.Text.Json;
 using System.Windows.Automation;
 using DAP.Core.Guides;
 using DAP.Data.Sqlite;
