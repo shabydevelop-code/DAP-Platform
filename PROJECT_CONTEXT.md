@@ -760,3 +760,8 @@ The active browser Extension now treats viewport visibility as part of target-at
 ## Extension content runtime 0.4.6 — idle CPU reduction
 
 After Chrome Task Manager showed that enabling the DAP Extension raised the TestCRM renderer from near-zero idle CPU to roughly 15%, the broad document-wide MutationObserver was narrowed. Structural DOM replacement remains observed globally, while attribute observation follows only the active target and its ancestor chain. Character-data mutation observation is no longer global, and reconciliation requests are coalesced per microtask. This preserves re-resolution behavior without continuously re-scanning the application DOM for unrelated idle mutations.
+
+
+## Extension content runtime 0.4.7 — event-driven stable learner
+
+The extension-backed learner no longer performs 100 ms browser reconciliation while a target and bubble are stable. Relevant target/ancestor mutations emit a presentation-invalidation event to the .NET Runtime, which wakes immediately when re-resolution is needed. The original 100 ms interval remains only for transient recovery. Validation waits are event-driven, and a valid commit waiting on persisted completion conditions is latched instead of repeatedly re-entering a completed task. A one-second safety wake preserves context/completion robustness without the former steady-state polling load.
