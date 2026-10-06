@@ -41,7 +41,6 @@ internal sealed class BrowserHarness : IAsyncDisposable
     public event EventHandler? Disconnected;
 
     public static async Task<BrowserHarness> LaunchAsync(
-        string browserName,
         string initialUrl,
         CancellationToken cancellationToken = default)
     {
@@ -52,21 +51,22 @@ internal sealed class BrowserHarness : IAsyncDisposable
         var harness = new BrowserHarness(Guid.NewGuid().ToString("N"));
         try
         {
-            var executable = ResolveBrowserExecutable(browserName);
             var extensionId = ResolveRegisteredExtensionId();
-            var profileDirectory = ResolveProfileWithExtension(browserName, extensionId);
+            var browser = ResolveInstalledExtensionBrowser(extensionId);
             var sessionUrl = AddSession(initialUrl, harness.SessionId);
 
             _ = Process.Start(new ProcessStartInfo
             {
-                FileName = executable,
-                Arguments = $"--profile-directory=\"{profileDirectory}\" --new-window \"{sessionUrl}\"",
+                FileName = browser.ExecutablePath,
+                Arguments = $"--profile-directory=\"{browser.ProfileDirectory}\" --new-window \"{sessionUrl}\"",
                 UseShellExecute = false,
                 CreateNoWindow = false
-            }) ?? throw new InvalidOperationException($"Could not launch browser '{browserName}'.");
+            }) ?? throw new InvalidOperationException(
+                $"Could not launch the browser profile containing DAP extension '{extensionId}'.");
 
             Console.WriteLine(
-                $"Web E2E browser profile: {profileDirectory} (DAP extension {extensionId})");
+                $"Web E2E extension host: {browser.DisplayName}, profile {browser.ProfileDirectory} " +
+                $"(DAP extension {extensionId})");
 
             using var readyCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             readyCts.CancelAfter(CommandTimeout);
@@ -404,21 +404,78 @@ internal sealed class BrowserHarness : IAsyncDisposable
             "DAP Native Messaging manifest does not contain a Chrome extension origin.");
     }
 
-    private static string ResolveProfileWithExtension(string browserName, string extensionId)
+    private static BrowserLaunchTarget ResolveInstalledExtensionBrowser(string extensionId)
     {
         var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        var userData = browserName.Trim().ToLowerInvariant() switch
+        var pf = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+        var pfx86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+
+        var installations = new[]
         {
-            "edge" => Path.Combine(local, "Microsoft", "Edge", "User Data"),
-            "chromium" => Path.Combine(local, "Chromium", "User Data"),
-            _ => Path.Combine(local, "Google", "Chrome", "User Data")
+            new BrowserInstallation(
+                "Google Chrome",
+                Path.Combine(local, "Google", "Chrome", "User Data"),
+                new[]
+                {
+                    Path.Combine(pf, "Google", "Chrome", "Application", "chrome.exe"),
+                    Path.Combine(pfx86, "Google", "Chrome", "Application", "chrome.exe"),
+                    Path.Combine(local, "Google", "Chrome", "Application", "chrome.exe")
+                }),
+            new BrowserInstallation(
+                "Microsoft Edge",
+                Path.Combine(local, "Microsoft", "Edge", "User Data"),
+                new[]
+                {
+                    Path.Combine(pfx86, "Microsoft", "Edge", "Application", "msedge.exe"),
+                    Path.Combine(pf, "Microsoft", "Edge", "Application", "msedge.exe")
+                })
         };
 
-        if (!Directory.Exists(userData))
-            throw new DirectoryNotFoundException(
-                $"Browser user-data directory was not found: {userData}");
+        var matches = new List<BrowserLaunchTarget>();
+        foreach (var installation in installations)
+        {
+            if (!Directory.Exists(installation.UserDataDirectory))
+                continue;
 
-        var profiles = Directory.EnumerateDirectories(userData)
+            var executable = installation.ExecutableCandidates.FirstOrDefault(File.Exists);
+            if (executable is null)
+                continue;
+
+            foreach (var profileDirectory in FindProfilesWithExtension(
+                installation.UserDataDirectory,
+                extensionId))
+            {
+                matches.Add(new BrowserLaunchTarget(
+                    installation.DisplayName,
+                    executable,
+                    profileDirectory));
+            }
+        }
+
+        if (matches.Count == 1)
+            return matches[0];
+
+        if (matches.Count == 0)
+        {
+            throw new InvalidOperationException(
+                $"Could not find an installed Chrome/Edge profile containing DAP extension '{extensionId}'. " +
+                "Load or reload the unpacked DAP Web Runtime extension, then run Web E2E again.");
+        }
+
+        var descriptions = string.Join(
+            ", ",
+            matches.Select(match => $"{match.DisplayName}/{match.ProfileDirectory}"));
+        throw new InvalidOperationException(
+            $"DAP extension '{extensionId}' is enabled in multiple browser profiles: {descriptions}. " +
+            "Web E2E will not guess which browser session owns the test. Keep the DAP test extension enabled " +
+            "in exactly one Chrome/Edge profile while running the canonical Web E2E.");
+    }
+
+    private static IEnumerable<string> FindProfilesWithExtension(
+        string userDataDirectory,
+        string extensionId)
+    {
+        var profiles = Directory.EnumerateDirectories(userDataDirectory)
             .Where(path =>
             {
                 var name = Path.GetFileName(path);
@@ -438,17 +495,12 @@ internal sealed class BrowserHarness : IAsyncDisposable
 
             foreach (var preferencesPath in preferenceFiles)
             {
-                if (!File.Exists(preferencesPath)) continue;
+                if (!File.Exists(preferencesPath))
+                    continue;
 
                 try
                 {
                     var jsonText = File.ReadAllText(preferencesPath);
-
-                    // Unpacked extensions are commonly recorded under
-                    // extensions.settings in Secure Preferences rather than
-                    // Preferences. First try the structured location, then use
-                    // the extension id as a conservative fallback signal for
-                    // Chrome profile ownership.
                     using var document = JsonDocument.Parse(jsonText);
                     if (document.RootElement.TryGetProperty("extensions", out var extensions) &&
                         extensions.TryGetProperty("settings", out var settings) &&
@@ -459,71 +511,37 @@ internal sealed class BrowserHarness : IAsyncDisposable
                             state.GetInt32() == 0)
                             continue;
 
-                        return Path.GetFileName(profilePath);
+                        yield return Path.GetFileName(profilePath);
+                        break;
                     }
 
                     if (jsonText.Contains(extensionId, StringComparison.OrdinalIgnoreCase))
-                        return Path.GetFileName(profilePath);
+                    {
+                        yield return Path.GetFileName(profilePath);
+                        break;
+                    }
                 }
                 catch (JsonException)
                 {
-                    // Chrome may be updating a preference file while the runner probes it.
+                    // Browser may be updating a preference file while the runner probes it.
                 }
                 catch (IOException)
                 {
                 }
             }
         }
-
-        throw new InvalidOperationException(
-            $"Could not find browser profile containing DAP extension '{extensionId}'. " +
-            "Load/reload the unpacked DAP Web Runtime extension in this browser first.");
     }
 
-    private static string ResolveBrowserExecutable(string browserName)
-    {
-        browserName = browserName.Trim().ToLowerInvariant();
+    private sealed record BrowserInstallation(
+        string DisplayName,
+        string UserDataDirectory,
+        IReadOnlyList<string> ExecutableCandidates);
 
-        IEnumerable<string> ChromeCandidates()
-        {
-            var pf = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-            var pfx86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
-            var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            yield return Path.Combine(pf, "Google", "Chrome", "Application", "chrome.exe");
-            yield return Path.Combine(pfx86, "Google", "Chrome", "Application", "chrome.exe");
-            yield return Path.Combine(local, "Google", "Chrome", "Application", "chrome.exe");
-        }
+    private sealed record BrowserLaunchTarget(
+        string DisplayName,
+        string ExecutablePath,
+        string ProfileDirectory);
 
-        IEnumerable<string> EdgeCandidates()
-        {
-            var pf = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-            var pfx86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
-            yield return Path.Combine(pfx86, "Microsoft", "Edge", "Application", "msedge.exe");
-            yield return Path.Combine(pf, "Microsoft", "Edge", "Application", "msedge.exe");
-        }
-
-        IEnumerable<string> ChromiumCandidates()
-        {
-            var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            var pf = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-            var pfx86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
-            yield return Path.Combine(local, "Chromium", "Application", "chrome.exe");
-            yield return Path.Combine(pf, "Chromium", "Application", "chrome.exe");
-            yield return Path.Combine(pfx86, "Chromium", "Application", "chrome.exe");
-        }
-
-        var candidates = browserName switch
-        {
-            "chrome" => ChromeCandidates(),
-            "edge" => EdgeCandidates(),
-            "chromium" => ChromiumCandidates().Concat(ChromeCandidates()),
-            _ => throw new ArgumentException(
-                $"Unsupported DAP_E2E_BROWSER '{browserName}'. Supported values: chromium, chrome, edge.")
-        };
-
-        return candidates.FirstOrDefault(File.Exists)
-            ?? throw new FileNotFoundException($"Could not find installed browser '{browserName}'.");
-    }
 }
 
 internal sealed class BrowserPage
