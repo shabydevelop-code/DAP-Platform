@@ -228,21 +228,19 @@ The successful runner-free manual 54-Step Web Guide is the acceptance proof that
 
 ## Canonical Web run modes
 
-Public Web modes remain:
+Public Web modes are:
 
 ```text
 --manual
---guided
+--guided --fast
+--guided --visual
 --manual-from-step N
---unguided
+--fast-from-step N
 --visual-from-step N
+--unguided
 ```
 
-`DAP_E2E_MODE` selects `fast` or `visual` behavior for automated guided execution.
-
-The legacy browser selector environment variable is not part of the active extension-native execution path.
-
-`manual-from-step` and `visual-from-step` use the real preceding workflow as bootstrap rather than fabricating application state.
+All seven modes have passed regression on the current Web baseline. Focused from-Step modes use the real preceding workflow as bootstrap rather than fabricating application state.
 
 ## E2E timing
 
@@ -303,4 +301,6 @@ When a target is already inside the viewport, hit-testing may defer presentation
 
 This also avoids a circular dependency where an off-screen target would need to be visible before the presentation path responsible for scrolling it could execute.
 
-Current manually verified extension baseline: **0.2.7**. The full runner-free 54-Step Manual Web regression passed on 2026-10-06.
+Current verified extension baseline: **0.2.8**. The full runner-free 54-Step Manual Web regression and the complete seven-mode Web regression matrix passed on 2026-10-06.
+
+Guide Steps may persist `AutoFocusTarget`. For value-entry Steps that enable it, the platform adapter applies focus when the target presentation is created; ordinary reconciliation must not repeatedly steal focus. SQLite persists this shared Guide property, while platform-specific runtimes implement the focus mechanic.
