@@ -39,14 +39,14 @@
 
 ## Web
 
-1. Use Microsoft Playwright for .NET as the production Web Runtime.
-2. Integrate Playwright directly into the .NET product; Python must not be required on target machines.
+1. Use the DAP browser Extension and Native Messaging bridge as the production Web browser adapter; production Web execution must not depend on Playwright.
+2. Keep Guide sequencing, validation, completion, capture/materialization, and Step advancement in the .NET Runtime rather than in the Extension.
 3. Observe learner actions; do not execute guide actions on behalf of the learner during normal guide execution.
 4. Support dynamic DOM updates and target re-resolution.
 5. Support frames and navigation.
 6. Support asynchronous application/server behavior.
 7. Support Editor recording/target capture.
-8. Explicitly package or validate required browser/Playwright deployment dependencies.
+8. Keep test-only synthetic browser actions separate from production Runtime ownership and never use them as completion/progression oracles.
 
 ## Windows
 
@@ -70,7 +70,7 @@
 4. Application distribution is framework-dependent.
 5. Detect a missing required runtime and present a clear installation/startup error.
 6. Do not require Python.
-7. Handle or validate all additional production runtime dependencies explicitly.
+7. Handle or validate all additional production runtime dependencies explicitly, including browser Extension and Native Messaging host installation for Web execution.
 
 ## Documentation
 
