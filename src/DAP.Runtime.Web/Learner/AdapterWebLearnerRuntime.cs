@@ -118,8 +118,11 @@ public sealed class AdapterWebLearnerRuntime
                     continue;
                 }
 
+                // Hidden automation needs a live readiness pulse, not a one-shot
+                // notification. A resolved target can be replaced while the same
+                // Guide Step remains active; the next reconciliation must confirm
+                // that the replacement target has been resolved and armed too.
                 onReady?.Invoke();
-                onReady = null;
 
                 if (commitTask is not null)
                 {
