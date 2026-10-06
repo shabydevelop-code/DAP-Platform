@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
-using System.Runtime.InteropServices;
 using System.Text.Json;
 using DAP.TestCRM.Web.E2E;
 using DAP.Core.Targets;
@@ -12,8 +11,6 @@ using DAP.Data.Sqlite.Guides;
 const string baseUrl = "http://localhost:5200";
 
 int? manualFromStep = null;
-int? fastFromStep = null;
-int? visualFromStep = null;
 string? publishedDapDirectory = null;
 for (var i = 0; i < args.Length; i++)
 {
@@ -33,25 +30,8 @@ for (var i = 0; i < args.Length; i++)
         continue;
     }
 
-    if (args[i].Equals("--fast-from-step", StringComparison.OrdinalIgnoreCase))
-    {
-        if (i + 1 >= args.Length || !int.TryParse(args[++i], out var parsedFastStep) || parsedFastStep < 1)
-            throw new ArgumentException("--fast-from-step requires a positive Guide Step order.");
-        fastFromStep = parsedFastStep;
-        continue;
-    }
-
-    if (args[i].Equals("--visual-from-step", StringComparison.OrdinalIgnoreCase))
-    {
-        if (i + 1 >= args.Length || !int.TryParse(args[++i], out var parsedVisualStep) || parsedVisualStep < 1)
-            throw new ArgumentException("--visual-from-step requires a positive Guide Step order.");
-        visualFromStep = parsedVisualStep;
-    }
 }
 
-var focusedModeCount = new[] { manualFromStep, fastFromStep, visualFromStep }.Count(step => step is not null);
-if (focusedModeCount > 1)
-    throw new ArgumentException("--manual-from-step, --fast-from-step, and --visual-from-step cannot be combined.");
 
 if (args.Contains("--reset-guide", StringComparer.OrdinalIgnoreCase))
 {
@@ -70,24 +50,14 @@ if (args.Contains("--reset-guide", StringComparer.OrdinalIgnoreCase))
     return;
 }
 
-var unguided = args.Contains("--unguided", StringComparer.OrdinalIgnoreCase);
-var explicitGuided = args.Contains("--guided", StringComparer.OrdinalIgnoreCase);
 var manual = args.Contains("--manual", StringComparer.OrdinalIgnoreCase);
 var hybrid = args.Contains("--hybrid", StringComparer.OrdinalIgnoreCase);
-var explicitFast = args.Contains("--fast", StringComparer.OrdinalIgnoreCase);
-var explicitVisual = args.Contains("--visual", StringComparer.OrdinalIgnoreCase);
-if (explicitFast && explicitVisual)
-    throw new ArgumentException("--fast and --visual cannot be combined.");
-if ((explicitFast || explicitVisual) && !explicitGuided)
-    throw new ArgumentException("--fast and --visual require --guided.");
-if (unguided && explicitGuided)
-    throw new ArgumentException("--guided and --unguided cannot be combined.");
-if (manual && (hybrid || unguided || explicitGuided || manualFromStep is not null || fastFromStep is not null || visualFromStep is not null))
-    throw new ArgumentException("--manual cannot be combined with --hybrid, --guided, --unguided, or a from-step mode.");
-if (hybrid && (unguided || explicitGuided || manualFromStep is not null || fastFromStep is not null || visualFromStep is not null))
-    throw new ArgumentException("--hybrid cannot be combined with --guided, --unguided, or a from-step mode.");
-if (unguided && (manualFromStep is not null || fastFromStep is not null || visualFromStep is not null))
-    throw new ArgumentException("--unguided cannot be combined with a from-step mode.");
+if (manual && (hybrid || manualFromStep is not null))
+    throw new ArgumentException("--manual cannot be combined with --hybrid or --manual-from-step.");
+if (hybrid && manualFromStep is not null)
+    throw new ArgumentException("--hybrid cannot be combined with --manual-from-step.");
+if (!manual && !hybrid && manualFromStep is null)
+    throw new ArgumentException("Choose one Web run mode: --manual, --hybrid, or --manual-from-step N.");
 
 static void EnsurePortFree(int port)
 {
@@ -449,10 +419,6 @@ void StartupMark(string stage)
     harnessLastMark=now;
 }
 
-// Public run mode is determined only by command-line switches.
-// A full guided run defaults to fast unless --visual is explicit.
-var e2eMode = explicitVisual ? "visual" : "fast";
-
 await using var browser = await BrowserHarness.LaunchAsync(baseUrl);
 StartupMark("browser launched through the installed DAP extension profile");
 
@@ -463,16 +429,7 @@ void OnOwnedBrowserDisconnected(object? _, EventArgs __) => ownedWebTargetClosed
 browser.Disconnected += OnOwnedBrowserDisconnected;
 
 StartupMark("browser page connected");
-
-var visualMode = e2eMode == "visual";
-var fastMode = !visualMode;
-var switchedToVisual = visualMode;
-
-// Full Guided runs require every synthetic learner action to match the active
-// production DAP target. Focused From-Step runs intentionally begin without
-// DAP, so that invariant is enabled only when DAP starts at the requested Step.
-Console.WriteLine($"E2E mode: {(manual ? "manual" : hybrid ? "hybrid" : unguided ? "unguided" : manualFromStep is not null ? $"unguided -> manual from Step {manualFromStep}" : fastFromStep is not null ? $"unguided -> fast from Step {fastFromStep}" : visualFromStep is not null ? $"unguided -> visual from Step {visualFromStep}" : visualMode ? "visual" : "fast")}");
-await page.AddInitScriptAsync("localStorage.setItem('dap-e2e-mode', '" + e2eMode + "'); document.documentElement.dataset.dapE2eMode = '" + e2eMode + "';");
+Console.WriteLine($"E2E mode: {(manual ? "manual" : hybrid ? "hybrid" : $"manual from Step {manualFromStep}")}");
 
 async Task<BrowserFrame> Content()
 {
@@ -540,61 +497,10 @@ async Task WaitReady()
         Timeout = 5000
     });
 }
-async Task HumanPause(int ms=320)
-{
-    if (visualMode) await page.WaitForTimeoutAsync(ms);
-}
 async Task MoveTo(BrowserLocator target)
 {
     await target.ScrollIntoViewIfNeededAsync();
-    var box=await target.BoundingBoxAsync() ?? throw new Exception("Target has no bounding box.");
-    var tag=await target.EvaluateAsync<string>("e=>e.tagName");
-    var isSelect=tag=="SELECT";
-    var localX=isSelect ? Math.Min(16,box.Width/2) : box.Width/2;
-    var localY=box.Height/2;
-
-    if (fastMode)
-    {
-        await target.HoverAsync(new() { Position = new() { X = localX, Y = localY } });
-        return;
-    }
-
-    // The browser harness reports the target in browser viewport coordinates. Convert
-    // that position to Windows screen coordinates so Visual mode moves the
-    // real operating-system cursor instead of drawing a synthetic DOM cursor.
-    var metrics=await page.EvaluateAsync<BrowserWindowMetrics>(
-        @"() => ({
-            ScreenX: window.screenX,
-            ScreenY: window.screenY,
-            OuterWidth: window.outerWidth,
-            OuterHeight: window.outerHeight,
-            InnerWidth: window.innerWidth,
-            InnerHeight: window.innerHeight
-        })");
-
-    var sideInset=Math.Max(0,(metrics.OuterWidth-metrics.InnerWidth)/2d);
-    var topInset=Math.Max(0,metrics.OuterHeight-metrics.InnerHeight-sideInset);
-    var targetScreenX=(int)Math.Round(metrics.ScreenX+sideInset+box.X+localX);
-    var targetScreenY=(int)Math.Round(metrics.ScreenY+topInset+box.Y+localY);
-
-    if(!NativeCursor.GetCursorPos(out var currentCursor))
-        currentCursor=new NativePoint { X=targetScreenX, Y=targetScreenY };
-
-    const int frames=12;
-    for(var frame=1;frame<=frames;frame++)
-    {
-        var progress=(double)frame/frames;
-        var eased=1-Math.Pow(1-progress,3);
-        var x=(int)Math.Round(currentCursor.X+(targetScreenX-currentCursor.X)*eased);
-        var y=(int)Math.Round(currentCursor.Y+(targetScreenY-currentCursor.Y)*eased);
-        if(!NativeCursor.SetCursorPos(x,y))
-            throw new InvalidOperationException("Could not move the Windows cursor during Web Visual mode.");
-        await page.WaitForTimeoutAsync(18);
-    }
-
-    // Keep browser hover state synchronized with the physical cursor position.
-    await target.HoverAsync(new() { Position = new() { X = localX, Y = localY } });
-    await HumanPause(120);
+    await target.HoverAsync();
 }
 async Task Click(string selector)
 {
@@ -603,15 +509,7 @@ async Task Click(string selector)
     await MoveTo(target);
     await target.ClickAsync();
 
-    // Even FAST must not collapse two learner actions into the same browser turn.
-    // Yield one browser turn after a click so synchronous click handlers can
-    // finish presenting their resulting UI before the Runtime prepares the
-    // next persisted Guide Step. This is interaction pacing only: the Runner
-    // does not inspect or wait for any CRM outcome.
-    if (fastMode)
-        await page.WaitForTimeoutAsync(1);
-    else
-        await HumanPause(420);
+    await page.WaitForTimeoutAsync(1);
 }
 async Task Fill(string selector,string value)
 {
@@ -619,44 +517,18 @@ async Task Fill(string selector,string value)
     await MoveTo(target); await target.ClickAsync();
     await page.Keyboard.PressAsync("Control+A");
     await page.Keyboard.TypeAsync(value);
-    await HumanPause();
 
     // Finishing text entry is a distinct learner action. Move focus away so
     // the production Runtime receives the natural blur completion event; the
     // value validation is evaluated only after this point.
     await page.Keyboard.PressAsync("Tab");
-    await HumanPause(120);
 }
 async Task Select(string selector,string value)
 {
     var f=await Content();
     var target=f.Locator(selector);
     await MoveTo(target);
-    if (visualMode) await HumanPause(300);
     await target.SelectOptionAsync(value);
-    await HumanPause(800);
-}
-async Task HumanScrollTo(BrowserLocator target)
-{
-    // Scroll in small visible wheel steps. Do not jump directly to the target
-    // unless the browser still needs a final minimal alignment.
-    for(var i=0;i<18;i++)
-    {
-        var box=await target.BoundingBoxAsync();
-        var viewport=page.ViewportSize;
-        if(box is not null && viewport is not null && box.Y>=70 && box.Y+box.Height<=viewport.Height-35) break;
-        await page.Mouse.WheelAsync(0,110);
-
-        // Pause only when another wheel step is actually needed. Previously the
-        // final wheel step always paid 180 ms before MoveTo could even begin.
-        var after=await target.BoundingBoxAsync();
-        var afterViewport=page.ViewportSize;
-        var reached=after is not null && afterViewport is not null &&
-                    after.Y>=70 && after.Y+after.Height<=afterViewport.Height-35;
-        if(reached) break;
-        await HumanPause(180);
-    }
-    if(!await target.IsVisibleAsync()) await target.ScrollIntoViewIfNeededAsync();
 }
 
 try
@@ -692,9 +564,7 @@ await dapRepository.RenameGuideAsync(
     DapTestCrmGuideSeed.GuideName);
 var dapSteps=await dapRepository.GetStepsAsync(DapTestCrmGuideSeed.GuideId);
 Console.WriteLine($"DAP persistent guide database: {dapDbPath}");
-StartupMark(unguided
-    ? "persistent DAP guide loaded for unguided"
-    : "persistent DAP guide loaded");
+StartupMark("persistent DAP guide loaded");
 
 if(dapSteps.Count==0)
     throw new Exception(
@@ -726,34 +596,20 @@ if(manualFromStep is not null && !dapSteps.Any(step => step.Order == manualFromS
         nameof(manualFromStep),
         manualFromStep,
         $"Guide '{DapTestCrmGuideSeed.GuideId}' does not contain Step {manualFromStep}.");
-if(fastFromStep is not null && !dapSteps.Any(step => step.Order == fastFromStep.Value))
-    throw new ArgumentOutOfRangeException(
-        nameof(fastFromStep),
-        fastFromStep,
-        $"Guide '{DapTestCrmGuideSeed.GuideId}' does not contain Step {fastFromStep}.");
-if(visualFromStep is not null && !dapSteps.Any(step => step.Order == visualFromStep.Value))
-    throw new ArgumentOutOfRangeException(
-        nameof(visualFromStep),
-        visualFromStep,
-        $"Guide '{DapTestCrmGuideSeed.GuideId}' does not contain Step {visualFromStep}.");
 
 var effectiveDapDirectory = publishedDapDirectory ?? packagedDapDirectory ?? dapOutput;
 var dapStdErrLines=new System.Collections.Concurrent.ConcurrentQueue<string>();
-var focusedStartStepOrder = manualFromStep ?? fastFromStep ?? visualFromStep;
+var focusedStartStepOrder = manualFromStep;
 var bootstrapCaptures = new Dictionary<string, string>(StringComparer.Ordinal);
 var resumeContextPath = Path.Combine(webRunRoot, "resume-context.json");
 
-Process StartFocusedDap(int? showGuidanceFromStepOrder, bool hideGuidance = false)
+Process StartFocusedDap(int showGuidanceFromStepOrder)
 {
     var dapExecutable=Path.Combine(effectiveDapDirectory,"DAP.exe");
     if(!File.Exists(dapExecutable))
         throw new Exception($"DAP executable not found at {dapExecutable}");
 
-    var guidanceArgument = hideGuidance
-        ? " --hide-guidance"
-        : showGuidanceFromStepOrder is not null
-            ? $" --show-guidance-from-step {showGuidanceFromStepOrder.Value}"
-            : string.Empty;
+    var guidanceArgument = $" --show-guidance-from-step {showGuidanceFromStepOrder}";
 
     var process=new Process
     {
@@ -784,16 +640,14 @@ Process StartFocusedDap(int? showGuidanceFromStepOrder, bool hideGuidance = fals
     };
     process.BeginErrorReadLine();
 
-    Console.WriteLine(hideGuidance
-        ? "Web DAP Runtime started with guidance hidden."
-        : $"Web DAP Runtime started at Step 1 with guidance hidden through Step {showGuidanceFromStepOrder!.Value - 1}.");
+    Console.WriteLine($"Web DAP Runtime started at Step 1 with guidance hidden through Step {showGuidanceFromStepOrder - 1}.");
     return process;
 }
 
 var lastScenarioGuideOrder=0;
 
 bool GuidanceVisibleAt(int order) =>
-    !unguided && (focusedStartStepOrder is null || order >= focusedStartStepOrder.Value);
+    focusedStartStepOrder is null || order >= focusedStartStepOrder.Value;
 
 async Task WaitForGuideStep(int order)
 {
@@ -822,14 +676,6 @@ async Task WaitForGuideStep(int order)
         // the previous Step completed and why this Step became active.
         if(runtimeStarted)
         {
-            if(visualFromStep == order && !switchedToVisual)
-            {
-                visualMode=true;
-                fastMode=false;
-                switchedToVisual=true;
-                Console.WriteLine($"E2E mode transition: hidden -> VISUAL at Step {order}");
-            }
-
             if(manualFromStep == order)
             {
                 Console.WriteLine();
@@ -923,16 +769,12 @@ async Task<bool> WaitForHybridGuideStep(GuideStep expected)
     }
 }
 
-if(unguided)
-{
-    dapProcess=StartFocusedDap(null, hideGuidance: true);
-}
-else if(focusedStartStepOrder is not null)
+if(focusedStartStepOrder is not null)
 {
     dapProcess=StartFocusedDap(focusedStartStepOrder.Value);
 }
 
-if(!unguided && focusedStartStepOrder is null)
+if(focusedStartStepOrder is null)
 {
 var dapStep=dapSteps[0];
 var dapSecondStep=dapSteps[1];
@@ -1134,11 +976,7 @@ await WaitForGuideStep(14);
 await Fill("[name='resolutionNotes']","בוצעה בדיקת שירות מול הלקוח והתקלה טופלה.");
 
 await WaitForGuideStep(15);
-var activityFrame=await Content();
-var activityMore=activityFrame.Locator("#activity-more");
-await HumanScrollTo(activityMore);
-await MoveTo(activityMore);
-await activityMore.ClickAsync();
+await Click("#activity-more");
 
 await WaitForGuideStep(16);
 await Select("[name='status']","סגורה");
@@ -1298,10 +1136,7 @@ if(!dapProcess.WaitForExit(5000))
 if(dapProcess.ExitCode!=0)
     throw new Exception($"DAP.exe exited with code {dapProcess.ExitCode} during the Web regression run.");
 
-Console.WriteLine(unguided
-    ? $"PASS: Web unguided executed the canonical {dapSteps.Count}-step scenario through DAP Runtime and the persisted Guide in DAP.db, with guidance hidden."
-    : "PASS: representative Customer -> Site -> Case -> Lead workflow, including dynamic Lead deletion and Case deletion, completed.");
-await page.WaitForTimeoutAsync(visualMode ? 1500 : 0);
+Console.WriteLine("PASS: manual-from-step bootstrap completed.");
 }
 catch (ManualWebHandoffCompleteException)
 {
@@ -1376,26 +1211,3 @@ sealed class ManualWebHandoffCompleteException : Exception
 {
 }
 
-readonly record struct BrowserWindowMetrics(
-    double ScreenX,
-    double ScreenY,
-    double OuterWidth,
-    double OuterHeight,
-    double InnerWidth,
-    double InnerHeight);
-
-[StructLayout(LayoutKind.Sequential)]
-struct NativePoint
-{
-    public int X;
-    public int Y;
-}
-
-static class NativeCursor
-{
-    [DllImport("user32.dll")]
-    public static extern bool SetCursorPos(int x, int y);
-
-    [DllImport("user32.dll")]
-    public static extern bool GetCursorPos(out NativePoint point);
-}
