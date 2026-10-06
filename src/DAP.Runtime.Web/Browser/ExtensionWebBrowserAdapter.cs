@@ -35,7 +35,6 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
     private NamedPipeServerStream? _selectedPipe;
     private readonly Task _acceptLoop;
     private TaskCompletionSource<bool>? _centeredDismissal;
-    private TaskCompletionSource<bool>? _guideCompletedDismissal;
     private bool _disposed;
 
     public ExtensionWebBrowserAdapter(
@@ -125,12 +124,6 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
         if (eventType == "centered-dismissed")
         {
             _centeredDismissal?.TrySetResult(true);
-            return;
-        }
-
-        if (eventType == "guide-completed-dismissed")
-        {
-            _guideCompletedDismissal?.TrySetResult(true);
             return;
         }
 
@@ -564,27 +557,6 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             _centeredDismissal = null;
         }
     }
-
-    public async Task WaitForGuideCompletedDismissalAsync(CancellationToken cancellationToken = default)
-    {
-        _guideCompletedDismissal = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        try
-        {
-            await SendCommandAsync(new
-            {
-                type = "showGuideCompleted",
-                content = _texts?.Get("Learner.GuideCompleted") ?? "המדריך הושלם בהצלחה",
-                actionText = _texts?.Get("Learner.Finish") ?? "סיום",
-                dragText = _texts?.Get("Learner.DragBubble") ?? "גרור להזזת הבועה"
-            }, cancellationToken);
-
-            await _guideCompletedDismissal.Task.WaitAsync(cancellationToken);
-        }
-        finally
-        {
-            _guideCompletedDismissal = null;
-        }
-    }
     public async Task<string?> CaptureAsync(GuideStep step, CancellationToken cancellationToken = default)
     {
         if (step.Capture is null) return null;
@@ -615,7 +587,6 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
         }
         foreach (var pending in _pendingResponses.Values) pending.TrySetCanceled();
         _centeredDismissal?.TrySetCanceled();
-        _guideCompletedDismissal?.TrySetCanceled();
         _signal.Dispose();
         _pipeWriteLock.Dispose();
         _connectedSignal.Dispose();
