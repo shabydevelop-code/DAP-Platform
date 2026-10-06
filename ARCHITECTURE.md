@@ -307,6 +307,12 @@ The Windows canonical runner implements this contract through the existing UIA s
 
 The E2E runner uses a 5-second default Playwright timeout. Frame discovery polls every 100ms. Fixed delays must not be used as substitutes for actual application readiness; synchronization should use route, DOM, frame, server-state, or validation signals.
 
+### Web learner presentation lifecycle
+
+Production Web bubble tracking distinguishes stable presentation from recovery. Once a target is uniquely resolved and the bubble is attached, scroll/resize/target-size changes are handled inside the browser, and DOM/context invalidation or validation completion wakes the Runtime. Full descriptor resolution is not repeated every 100 ms while the same presentation remains valid.
+
+The 100 ms Runtime reconciliation cadence is retained for transient recovery only. Cross-frame top-level visual proxies use a 250 ms refresh while required because their geometry must be translated across frame boundaries; the existing proxy DOM node is reused. Proxy visibility follows target visibility: when the target leaves the top-level viewport the proxy is hidden, and when normal child-frame placement becomes possible the proxy is removed.
+
 The representative PeopleSoft-Web workflow currently validates Customer -> Site -> Case -> Lead, dynamic Lead deletion, and Case deletion. The permanent E2E baseline now contains ten validated scenarios covering frame replacement, validation/state preservation, rerender/re-resolution, reload/context preservation, tab switching, target disappearance/reappearance, cross-frame navigation, layout shift, consecutive server updates, and business-context isolation. During server-backed navigation, the active Content iframe and route readiness are re-resolved after replacement/rebuild.
 
 
