@@ -151,7 +151,7 @@ public static class DapApplicationHost
 
         var resolver = new WindowsTargetResolver();
         var bubbles = new WindowsBubblePresenter(texts);
-        var runtime = new WindowsGuideRuntime(resolver, bubbles);
+        var runtime = new WindowsGuideRuntime(resolver, bubbles, automaticStepLabel: GetAutomaticStepLabel());
 
         try
         {
@@ -208,7 +208,7 @@ public static class DapApplicationHost
         CancellationToken cancellationToken)
     {
         using var browserAdapter = new ExtensionWebBrowserAdapter(texts);
-        var stepRuntime = new AdapterWebLearnerRuntime(browserAdapter);
+        var stepRuntime = new AdapterWebLearnerRuntime(browserAdapter, automaticStepLabel: GetAutomaticStepLabel());
         var guideRuntime = new AdapterWebGuideRuntime(stepRuntime, browserAdapter);
         StartupMark(startup, "Web extension adapter composition root created");
 
@@ -224,5 +224,10 @@ public static class DapApplicationHost
 
         return 0;
     }
+
+    private static string? GetAutomaticStepLabel()
+        => string.Equals(Environment.GetEnvironmentVariable("DAP_LEARNER_AUTOMATION"), "1", StringComparison.Ordinal)
+            ? "אוטומט"
+            : null;
 
 }
