@@ -12,6 +12,7 @@ public sealed class AdapterWebLearnerRuntime
     private readonly IWebBrowserAdapter _browser;
     private readonly TimeSpan _reconcileInterval;
     private readonly TimeSpan _presentationSettleInterval;
+    private readonly TimeSpan _stableSafetyInterval;
     private bool _firstBubbleReported;
 
     public AdapterWebLearnerRuntime(
@@ -22,6 +23,7 @@ public sealed class AdapterWebLearnerRuntime
         _browser = browser ?? throw new ArgumentNullException(nameof(browser));
         _reconcileInterval = reconcileInterval ?? TimeSpan.FromMilliseconds(100);
         _presentationSettleInterval = presentationSettleInterval ?? TimeSpan.FromMilliseconds(250);
+        _stableSafetyInterval = TimeSpan.FromSeconds(1);
     }
 
     public async Task RunActiveStepAsync(
@@ -51,35 +53,38 @@ public sealed class AdapterWebLearnerRuntime
         Task<WebValidationCommit?>? commitTask = automatic
             ? _browser.WaitForValidationCommitAsync(step, cancellationToken)
             : null;
+        var validCommitLatched = false;
 
         while (!cancellationToken.IsCancellationRequested)
         {
-            if (commitTask?.IsCompletedSuccessfully == true)
+            if (!validCommitLatched && commitTask?.IsCompletedSuccessfully == true)
             {
                 var primary = clicked || await _browser.IsPrimaryValidationSatisfiedAsync(step, cancellationToken);
                 if (primary)
                 {
+                    validCommitLatched = true;
                     if (await _browser.AreCompletionConditionsSatisfiedAsync(step, cancellationToken))
                     {
                         await _browser.HideBubbleAsync(cancellationToken);
                         return;
                     }
 
-                    // Match the proven Playwright runtime exactly:
-                    // once a non-click natural commit satisfies the primary
-                    // validation, keep that completion latched while a
-                    // server-driven completion condition is still pending.
-                    // The learner must not be forced to change the control a
-                    // second time merely because the DOM/document refresh
-                    // completed after the original change event.
+                    // A valid commit stays latched while persisted completion
+                    // conditions are pending. Do not re-enter a completed Task
+                    // on every loop iteration; wait for browser invalidation.
                 }
                 else if (!clicked)
                 {
-                    // Only an invalid non-click commit is consumed. A valid
-                    // commit remains completed until its persisted completion
-                    // conditions become true.
                     await _browser.ConsumeValidationCommitAsync(step, cancellationToken);
                     commitTask = _browser.WaitForValidationCommitAsync(step, cancellationToken);
+                }
+            }
+            else if (validCommitLatched)
+            {
+                if (await _browser.AreCompletionConditionsSatisfiedAsync(step, cancellationToken))
+                {
+                    await _browser.HideBubbleAsync(cancellationToken);
+                    return;
                 }
             }
 
@@ -117,13 +122,16 @@ public sealed class AdapterWebLearnerRuntime
                         TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
                         TaskScheduler.Default);
 
+                    validCommitLatched = true;
                     if (await _browser.AreCompletionConditionsSatisfiedAsync(step, cancellationToken))
                     {
                         await _browser.HideBubbleAsync(cancellationToken);
                         return;
                     }
 
-                    await Task.Delay(_reconcileInterval, cancellationToken);
+                    var invalidatedAfterClick = _browser.WaitForPresentationInvalidationAsync(cancellationToken);
+                    var clickSafety = Task.Delay(_stableSafetyInterval, cancellationToken);
+                    await Task.WhenAny(invalidatedAfterClick, clickSafety);
                     continue;
                 }
 
@@ -144,8 +152,9 @@ public sealed class AdapterWebLearnerRuntime
 
             // Re-check click completion after reconciliation. The browser event
             // can arrive just after the presentation race was decided.
-            if (clicked && commitTask?.IsCompletedSuccessfully == true)
+            if (!validCommitLatched && clicked && commitTask?.IsCompletedSuccessfully == true)
             {
+                validCommitLatched = true;
                 if (await _browser.AreCompletionConditionsSatisfiedAsync(step, cancellationToken))
                 {
                     await _browser.HideBubbleAsync(cancellationToken);
@@ -153,13 +162,17 @@ public sealed class AdapterWebLearnerRuntime
                 }
             }
 
-            if (commitTask is not null)
-            {
-                var delay = Task.Delay(_reconcileInterval, cancellationToken);
-                await Task.WhenAny(commitTask, delay);
-            }
+            // Stable presentation is event-driven. Mutation events relevant to
+            // the active target wake the Runtime immediately. A low-frequency
+            // safety wake keeps context/completion semantics robust without the
+            // former 100 ms browser polling loop.
+            var invalidationTask = _browser.WaitForPresentationInvalidationAsync(cancellationToken);
+            var safetyTask = Task.Delay(_stableSafetyInterval, cancellationToken);
+
+            if (commitTask is not null && !validCommitLatched)
+                await Task.WhenAny(commitTask, invalidationTask, safetyTask);
             else
-                await Task.Delay(_reconcileInterval, cancellationToken);
+                await Task.WhenAny(invalidationTask, safetyTask);
         }
     }
 
