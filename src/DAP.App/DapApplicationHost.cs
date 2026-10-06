@@ -78,10 +78,25 @@ public static class DapApplicationHost
         if (resumeContext.Count > 0)
             StartupMark(startup, $"resume context loaded ({resumeContext.Count} captures)");
 
-        if (options.Mode == DapLaunchMode.LearnerWindows)
-            return await RunWindowsAsync(options, steps, resumeContext, texts, startup, cancellationToken);
+        var enabledTargetRuntimes = steps
+            .Where(step => step.IsEnabled && step.Target is not null)
+            .Select(step => step.Target!.Runtime)
+            .Distinct()
+            .ToArray();
 
-        return await RunWebAsync(options, steps, resumeContext, texts, startup, cancellationToken);
+        if (enabledTargetRuntimes.Length != 1)
+            throw new InvalidOperationException(
+                $"Guide '{options.GuideId}' must currently contain enabled targets for exactly one Runtime; found {enabledTargetRuntimes.Length}.");
+
+        return enabledTargetRuntimes[0] switch
+        {
+            DAP.Core.Targets.TargetRuntime.Windows => await RunWindowsAsync(
+                options, steps, resumeContext, texts, startup, cancellationToken),
+            DAP.Core.Targets.TargetRuntime.Web => await RunWebAsync(
+                options, steps, resumeContext, texts, startup, cancellationToken),
+            _ => throw new NotSupportedException(
+                $"Guide '{options.GuideId}' uses unsupported Runtime '{enabledTargetRuntimes[0]}'.")
+        };
     }
 
     private static void ValidateResumeContext(
