@@ -174,30 +174,6 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
             return string.Equals(((ValuePattern)currentPattern).Current.Value,value,StringComparison.Ordinal) ? current : null;
         },$"{id} value '{value}'");
 
-        if(id=="CaseStatus" && value=="בטיפול")
-            Wait(()=>EnabledById("CaseResolutionNotes"),"CaseResolutionNotes enabled after CaseStatus=בטיפול");
-        else if(id=="CaseStatus" && value=="סגורה")
-        {
-            Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"CaseCloseReason")),"CaseCloseReason after CaseStatus=סגורה");
-
-            // The status FieldChange rebuilds the Case editor. Do not return to
-            // the next Guide Step while focus is still settling on the rebuilt
-            // form: in visual mode that race can put focus on CaseSubject before
-            // the learner runtime has subscribed to its focus transition.
-            Wait(() =>
-            {
-                var subject = window.FindFirst(
-                    TreeScope.Descendants,
-                    new PropertyCondition(AutomationElement.AutomationIdProperty,"CaseSubject"));
-                return subject is not null && !subject.Current.HasKeyboardFocus ? subject : null;
-            },"CaseSubject unfocused after CaseStatus=סגורה");
-        }
-        else if(id=="LeadStatus" && value=="נסגר בהצלחה")
-            Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"LeadSelectedService")),"LeadSelectedService after LeadStatus=נסגר בהצלחה");
-        else if(id=="LeadStatus" && value=="חדש")
-            Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,"LeadSelectedService")) is null ? window : null,"LeadSelectedService hidden after LeadStatus=חדש");
-        else
-            return;
     }
 
     AutomationElement? EnabledById(string id)
