@@ -1174,3 +1174,12 @@ Current Web product baseline: autonomous learner **PASS 54/54** on extension `0.
 - Recovery polling remains 100 ms.
 - No validation, completion, target-resolution, bubble, observer, or timeout semantics changed.
 - Manual verification is pending.
+
+
+### Verified idle CPU at 500 ms stable polling — 2026-10-06
+
+- Manual Chrome Task Manager measurement after the 500 ms stable polling change shows roughly 2% CPU for the TestCRM tab while idle.
+- This is a reduction from roughly 13–15% at the original 100 ms steady-state loop and from roughly 4.5% at 250 ms.
+- Bubble behavior remained acceptable in the manual check after the 500 ms change.
+- Current accepted cadence: recovery polling 100 ms; stable resolved-step polling 500 ms.
+- Do not increase the stable interval further without first validating dynamic scenarios such as target replacement, status changes, full reload, tab switching, and conditional target appearance/disappearance.
