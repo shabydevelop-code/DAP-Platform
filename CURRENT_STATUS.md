@@ -189,3 +189,20 @@ Freed:  737.4 MB
 ```
 
 This confirms that the previous large working-folder footprint was overwhelmingly generated build output rather than source code. The cleanup script intentionally leaves source, Git history, the persistent DAP database, and the global NuGet cache untouched.
+
+## Current Status — 2026-10-06 manual regression update
+
+A fresh full runner-free Manual Web regression completed **54/54 PASS** after the latest learner fixes.
+
+Verified fixes in the full regression:
+
+- Step 6 sorting now has a persisted post-action completion condition. Step 7 is not exposed until the status sort has actually completed.
+- The persistent Guide database must be explicitly reset after seed changes; normal execution does not overwrite persisted Guide data.
+- Web target presentation distinguishes an off-screen target from a blocked/non-interactable target.
+- A valid off-screen target is allowed to reach the presentation path, which scrolls it into view before showing its bubble.
+- A target that is currently obstructed by application UI remains gated until it is actually reachable.
+- No arbitrary delay and no timeout increase were introduced.
+- Extension version **0.2.7** is the manually verified baseline for this regression.
+
+The full Manual regression confirms that the canonical persisted 54-Step Guide remains usable end-to-end with automatic target scrolling and the corrected asynchronous completion semantics.
+
