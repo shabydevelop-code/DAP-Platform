@@ -42,7 +42,14 @@ public sealed class AdapterWebGuideRuntime
         for (var i=start;i<ordered.Length;i++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var step = MaterializeRuntimeValues(ordered[i], captured);
+            var persistedStep = ordered[i];
+            if (!persistedStep.IsEnabled)
+            {
+                Console.Error.WriteLine($"[DAP guide] skipped disabled Step {i+1}/{ordered.Length} '{persistedStep.Id}'.");
+                continue;
+            }
+
+            var step = MaterializeRuntimeValues(persistedStep, captured);
             if (step.Target is not null && step.Target.Runtime != TargetRuntime.Web)
                 throw new InvalidOperationException($"Guide Step '{step.Id}' is not a Web Step.");
 
@@ -53,8 +60,7 @@ public sealed class AdapterWebGuideRuntime
                 captured[step.Id]=value;
             }
 
-            var showPresentation = step.ShowBubble
-                && !hideGuidance
+            var showPresentation = !hideGuidance
                 && (showGuidanceFromStepOrder is null || step.Order >= showGuidanceFromStepOrder.Value);
             await _steps.RunActiveStepAsync(
                 step, i+1, ordered.Length, cancellationToken,
