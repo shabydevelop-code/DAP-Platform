@@ -23,7 +23,7 @@ public sealed class SqliteGuideStepRepository : IGuideStepRepository
         {
             command.CommandText = """
 SELECT s.Id, s.Key, s.StepOrder, s.AdvanceMode, s.Runtime, s.LocatorStrategy, s.LocatorValue, s.FrameContextJson,
-       s.ContextKind, s.ContextValue, s.BubbleContent, s.BubblePlacement, s.ValidationKind, s.ValidationExpectedValue, s.ValidationOptionsJson
+       s.ContextKind, s.ContextValue, s.BubbleContent, s.BubblePlacement, s.ValidationKind, s.ValidationExpectedValue, s.ValidationOptionsJson, s.IsEnabled, s.AutomationValue
 FROM GuideSteps s
 JOIN Guides g ON g.Id = s.GuideId
 WHERE g.Key = $guideKey
@@ -69,15 +69,15 @@ SELECT Id FROM Guides WHERE Key = $key;
             command.CommandText = """
 INSERT INTO GuideSteps(
  GuideId,Key,StepOrder,AdvanceMode,Runtime,LocatorStrategy,LocatorValue,FrameContextJson,ContextKind,ContextValue,
- BubbleContent,BubblePlacement,ValidationKind,ValidationExpectedValue,ValidationOptionsJson)
-VALUES($guideId,$key,$order,$advance,$runtime,$strategy,$value,$frame,$contextKind,$contextValue,$content,$placement,$validation,$expected,$options)
+ BubbleContent,BubblePlacement,ValidationKind,ValidationExpectedValue,ValidationOptionsJson,IsEnabled,AutomationValue)
+VALUES($guideId,$key,$order,$advance,$runtime,$strategy,$value,$frame,$contextKind,$contextValue,$content,$placement,$validation,$expected,$options,$enabled,$automationValue)
 ON CONFLICT(GuideId,Key) DO UPDATE SET
  StepOrder=excluded.StepOrder, AdvanceMode=excluded.AdvanceMode,
  Runtime=excluded.Runtime, LocatorStrategy=excluded.LocatorStrategy, LocatorValue=excluded.LocatorValue,
  FrameContextJson=excluded.FrameContextJson, ContextKind=excluded.ContextKind, ContextValue=excluded.ContextValue,
  BubbleContent=excluded.BubbleContent, BubblePlacement=excluded.BubblePlacement,
  ValidationKind=excluded.ValidationKind, ValidationExpectedValue=excluded.ValidationExpectedValue,
- ValidationOptionsJson=excluded.ValidationOptionsJson;
+ ValidationOptionsJson=excluded.ValidationOptionsJson, IsEnabled=excluded.IsEnabled, AutomationValue=excluded.AutomationValue;
 SELECT Id FROM GuideSteps WHERE GuideId=$guideId AND Key=$key;
 """;
             Add(command,"$guideId",numericGuideId); Add(command,"$key",step.Id); Add(command,"$order",step.Order);
@@ -88,6 +88,7 @@ SELECT Id FROM GuideSteps WHERE GuideId=$guideId AND Key=$key;
             Add(command,"$content",step.Bubble.Content); Add(command,"$placement",step.Bubble.Placement.ToString());
             Add(command,"$validation",step.Validation?.Kind); Add(command,"$expected",step.Validation?.ExpectedValue);
             Add(command,"$options",step.Validation?.Options is null ? null : JsonSerializer.Serialize(step.Validation.Options));
+            Add(command,"$enabled",step.IsEnabled ? 1 : 0); Add(command,"$automationValue",step.AutomationValue);
             numericStepId = Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken));
         }
 
@@ -212,8 +213,8 @@ SELECT Id FROM Guides WHERE Key = $key;
                 command.CommandText = """
 INSERT INTO GuideSteps(
  GuideId,Key,StepOrder,AdvanceMode,Runtime,LocatorStrategy,LocatorValue,FrameContextJson,ContextKind,ContextValue,
- BubbleContent,BubblePlacement,ValidationKind,ValidationExpectedValue,ValidationOptionsJson)
-VALUES($guideId,$key,$order,$advance,$runtime,$strategy,$value,$frame,$contextKind,$contextValue,$content,$placement,$validation,$expected,$options);
+ BubbleContent,BubblePlacement,ValidationKind,ValidationExpectedValue,ValidationOptionsJson,IsEnabled,AutomationValue)
+VALUES($guideId,$key,$order,$advance,$runtime,$strategy,$value,$frame,$contextKind,$contextValue,$content,$placement,$validation,$expected,$options,$enabled,$automationValue);
 SELECT last_insert_rowid();
 """;
                 Add(command,"$guideId",numericGuideId); Add(command,"$key",step.Id); Add(command,"$order",step.Order);
@@ -224,6 +225,7 @@ SELECT last_insert_rowid();
                 Add(command,"$content",step.Bubble.Content); Add(command,"$placement",step.Bubble.Placement.ToString());
                 Add(command,"$validation",step.Validation?.Kind); Add(command,"$expected",step.Validation?.ExpectedValue);
                 Add(command,"$options",step.Validation?.Options is null ? null : JsonSerializer.Serialize(step.Validation.Options));
+            Add(command,"$enabled",step.IsEnabled ? 1 : 0); Add(command,"$automationValue",step.AutomationValue);
                 numericStepId = Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken));
             }
 
@@ -309,7 +311,7 @@ WHERE Key = $newKey;
 
     private static StepRow ReadStep(SqliteDataReader r)=>new(
         r.GetInt64(0),r.GetString(1),r.GetInt32(2),r.GetString(3),N(r,4),N(r,5),N(r,6),N(r,7),N(r,8),N(r,9),
-        r.GetString(10),r.GetString(11),N(r,12),N(r,13),N(r,14));
+        r.GetString(10),r.GetString(11),N(r,12),N(r,13),N(r,14),r.GetInt32(15) != 0,N(r,16));
 
     private static string? N(SqliteDataReader r,int i)=>r.IsDBNull(i)?null:r.GetString(i);
 
@@ -365,10 +367,13 @@ WHERE Key = $newKey;
             row.Key,row.Order,target,
             new BubbleDefinition(row.BubbleContent,Enum.Parse<BubblePlacement>(row.Placement)),
             validation,Enum.Parse<StepAdvanceMode>(row.AdvanceMode),context,capture,
-            completionConditions.Count == 0 ? null : completionConditions);
+            completionConditions.Count == 0 ? null : completionConditions,
+            row.IsEnabled,
+            row.AutomationValue);
     }
 
     private sealed record StepRow(
         long NumericId,string Key,int Order,string AdvanceMode,string? Runtime,string? Strategy,string? Value,string? FrameJson,
-        string? ContextKind,string? ContextValue,string BubbleContent,string Placement,string? ValidationKind,string? Expected,string? OptionsJson);
+        string? ContextKind,string? ContextValue,string BubbleContent,string Placement,string? ValidationKind,string? Expected,string? OptionsJson,
+        bool IsEnabled,string? AutomationValue);
 }
