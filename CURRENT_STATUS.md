@@ -893,6 +893,19 @@ Together with the already verified Windows Guided Fast and Visual 54/54 runs, th
 
 
 
+### Extension steady-state CPU polling fix — 2026-10-06
+
+- Chrome Task Manager still showed roughly 13–15% renderer CPU while the learner was visually idle, even after narrowing DOM observation.
+- Root cause found in `AdapterWebLearnerRuntime`: the extension path still re-entered browser reconciliation every 100 ms during stable presentation.
+- Validation waiting also woke every 50 ms even without an event.
+- Stable target presentation is now event-driven through a new presentation-invalidation signal from the content runtime to the .NET adapter.
+- The 100 ms reconcile interval remains only for transient recovery states such as inactive context, unresolved target, or presentation-settle retry.
+- A one-second safety wake remains for context/completion robustness while stable; this is not a continuous browser polling loop.
+- Valid commits awaiting completion conditions are latched and no longer spin on an already-completed Task.
+- Losing invalidation waits are explicitly cancelled so waiters do not accumulate.
+- Content runtime endpoint version advanced to 0.4.7.
+- Manual CPU and full 54-Step regression verification are pending.
+
 ### Extension idle CPU observation fix — 2026-10-06
 
 - Chrome Task Manager isolated idle renderer CPU to the TestCRM tab only while the DAP Extension was enabled; disabling the Extension reduced the tab to near-zero CPU.
