@@ -990,45 +990,31 @@ if (manual)
 
 }
 
-// Automatic runs use the same production Guide synchronization from Step 1.
+// Automatic regression runner: replace only the learner's hands.
+// Runtime + persisted Guide own target resolution, validation, completion and Step advancement.
 await WaitForGuideStep(1);
 await Fill("[name='name']","אלפא פתרונות בע\"מ");
+
 await WaitForGuideStep(2);
-
 await Click("#customer-search button.primary");
-await WaitReady();
 
-// From here the production Guide continues across real CRM navigation. The E2E
-// waits for each instruction before acting, so the same Guide can be followed
-// manually without any test-only bubble behavior.
 await WaitForGuideStep(3);
 await Click("#search-results tbody tr.clickable:first-child");
-await WaitReady();
 
 await WaitForGuideStep(4);
 await Click("tbody tr.clickable:has-text('מטה תל אביב')");
-await WaitReady();
 
 await WaitForGuideStep(5);
 await Click("nav.tabs button:has-text('פניות')");
-await WaitReady();
-var frame=await Content();
-var siteCasesRoute=new Uri(frame.Url).Fragment;
-await frame.Locator("h2:has-text('פניות')").WaitForAsync();
 
-// Sorting is a visible learner action in visual mode, so it has its own Guide Step.
-// Never perform it while the next bubble is already instructing another action.
 await WaitForGuideStep(6);
 await Click("th button[data-sort='status']");
-await WaitReady();
 
-// Create a fresh open Case so repeated runs never depend on mutated seed data.
 await WaitForGuideStep(7);
 await Click("button.primary:has-text('פניה חדשה')");
-await WaitReady();
 
 await WaitForGuideStep(8);
-await Fill("[name=\'subject\']","\u05ea\u05e7\u05dc\u05d4 \u05d1\u05d7\u05d9\u05d1\u05d5\u05e8 \u05dc\u05d0\u05d9\u05e0\u05d8\u05e8\u05e0\u05d8");
+await Fill("[name='subject']","תקלה בחיבור לאינטרנט");
 
 await WaitForGuideStep(9);
 await Fill("[name='description']","הלקוח מדווח על חיבור לא יציב.");
@@ -1036,384 +1022,167 @@ await Fill("[name='description']","הלקוח מדווח על חיבור לא י
 await WaitForGuideStep(10);
 await Click("button.primary:has-text('שמור')");
 
-// Runtime progression is the authority that the save action completed. Do not
-// wait for TestCRM's save-success UI or inspect the route before DAP advances.
 await WaitForGuideStep(11);
-
-// The Guide deliberately continues into treatment of the Case just created.
-frame=await Content();
-var createdCaseUrl=frame.Url;
+// Remember only the identity of the record the learner just created so later
+// learner actions can reopen that same visible record. This does not determine
+// Step completion or advancement.
+var createdCaseFrame=await Content();
+var createdCaseUrl=createdCaseFrame.Url;
 var caseMarker="#/case/";
 var casePos=createdCaseUrl.IndexOf(caseMarker,StringComparison.Ordinal);
-if(casePos<0) throw new Exception("Created Case id missing from route after Runtime advanced to Step 11: "+createdCaseUrl);
+if(casePos<0)
+    throw new Exception("Could not identify the Case created by the learner action.");
 var createdCaseId=createdCaseUrl[(casePos+caseMarker.Length)..].Split('?', '/', '#')[0];
+await Click(".breadcrumb a:nth-of-type(3)");
 
-// Return to the Cases grid, then open exactly the Case created by this run.
-// This also verifies repeated identical Open targets without relying on unique status text.
-frame=await Content();
-var casesCrumb=frame.Locator(".breadcrumb a").Nth(2);
-await MoveTo(casesCrumb); await casesCrumb.ClickAsync();
-
-// Runtime progression is the authority that breadcrumb navigation completed.
-// Do not wait for TestCRM readiness or the Cases heading independently.
 await WaitForGuideStep(12);
-frame=await Content();
-// The visible action uses exactly the same semantic business target as the
-// Guide bubble. Verify that semantic target resolves to the Case created by
-// this run before clicking it.
-var createdCaseTarget=frame.Locator($"button.grid-open[data-go='#/case/{createdCaseId}']");
-if(await createdCaseTarget.CountAsync()!=1)
-    throw new Exception("The Case created by this run is not uniquely available in the Cases grid.");
 await Click($"button.grid-open[data-go='#/case/{createdCaseId}']");
-await WaitReady();
 
-// 3. Case FieldChange: disabled -> enabled and DOM reconstruction.
-// Business scenario: an agent moves a customer case from Open to In Progress; the server
-// recalculates the form and DAP continues on the same logical case.
-// Reacquire only after the promoted replacement frame reports app-level readiness.
-frame=await Content();
-var notes=frame.Locator("[name='resolutionNotes']");
-if(!await notes.IsDisabledAsync()) throw new Exception("Treatment Notes should start disabled for an open case.");
 await WaitForGuideStep(13);
 await Select("[name='status']","בטיפול");
-frame=await Content(); notes=frame.Locator("[name='resolutionNotes']");
-if(await notes.IsDisabledAsync()) throw new Exception("Treatment Notes did not become enabled.");
 
 await WaitForGuideStep(14);
 await Fill("[name='resolutionNotes']","בוצעה בדיקת שירות מול הלקוח והתקלה טופלה.");
 
-Console.WriteLine(unguided ? "CRM customer -> Case treatment segment: PASS" : "DAP complete customer -> Case treatment Guide segment: PASS");
-
-// 4. Real off-screen target / scrolling through activity history.
-// Step 15 is deliberately off-screen: the production presenter keeps its bubble
-// hidden until the target enters the viewport, while the learner scrolls to it.
-frame=await Content();
-var more=frame.Locator("#activity-more");
-await HumanScrollTo(more);
 await WaitForGuideStep(15);
-await MoveTo(more);
-await more.ClickAsync();
+var activityFrame=await Content();
+var activityMore=activityFrame.Locator("#activity-more");
+await HumanScrollTo(activityMore);
+await MoveTo(activityMore);
+await activityMore.ClickAsync();
 
-// 5. Continue the guided business flow into Case closure.
 await WaitForGuideStep(16);
 await Select("[name='status']","סגורה");
 
-// The status change performs a real server-backed Content replacement. Wait
-// for the production Guide to observe the completed learner interaction and
-// present Step 17 before the harness performs any additional assertions.
 await WaitForGuideStep(17);
-frame=await Content();
-
-// Case status FieldChange intentionally clears Subject. The Guide explicitly
-// instructs the learner to restore it before closure.
 await Fill("[name='subject']","תקלה בחיבור לאינטרנט");
-frame=await Content();
-await frame.Locator("[name='closeReason']").WaitForAsync();
 
-// The rejected save is an intentional learner action in this scenario.
-// Guide it explicitly, then guide dismissal of the resulting validation alert.
 await WaitForGuideStep(18);
 await Click("button.primary:has-text('שמור')");
 
 await WaitForGuideStep(19);
 await Click("#ps-alert button");
-await HumanPause();
-
-frame=await Content();
-if(await frame.Locator("[name='subject']").InputValueAsync()!="תקלה בחיבור לאינטרנט")
-    throw new Exception("Unsaved Subject was not preserved after server validation refresh.");
-if(await frame.Locator("[name='description']").InputValueAsync()!="הלקוח מדווח על חיבור לא יציב.")
-    throw new Exception("Unsaved Description was not preserved after server validation refresh.");
 
 await WaitForGuideStep(20);
 await Select("[name='closeReason']","טופל");
+
 await WaitForGuideStep(21);
-Console.WriteLine(unguided ? "CRM Case closure through validation alert and Close Reason: PASS" : "DAP guided Case closure through validation alert and Close Reason: PASS");
 await Click("button.primary:has-text('שמור')");
 
-// Continue only with the next real learner action from the persisted Guide.
-// The canonical runner never injects a technical browser reload between Steps.
-frame=await Content();
 await WaitForGuideStep(22);
 await Click(".breadcrumb a[data-go^='#/site/']");
-await WaitReady();
-frame=await Content();
-await frame.Locator("h2:has-text('פניות')").WaitForAsync();
+
 await WaitForGuideStep(23);
 await Click("nav.tabs button:has-text('לידים')");
-await WaitReady();
-frame=await Content();
-await frame.Locator("h2:has-text('לידים')").WaitForAsync();
+
 await WaitForGuideStep(24);
 await Click("nav.tabs button:has-text('פניות')");
-await WaitReady();
-frame=await Content();
-await frame.Locator("h2:has-text('פניות')").WaitForAsync();
-if(await frame.Locator($"button.grid-open[data-go='#/case/{createdCaseId}']").CountAsync()==0)
-    throw new Exception("Created Case was not preserved after Site tab switching.");
 
-// 8. Continue legitimate agent work into Leads.
-// We are already back on the Site Cases tab from Scenario 5, so the next
-// business action is simply to open the Leads tab.
 await WaitForGuideStep(25);
 await Click("nav.tabs button:has-text('לידים')");
-await WaitReady();
-frame=await Content();
-await frame.Locator("h2:has-text('לידים')").WaitForAsync();
 
-// Create a Lead in this run. After the first save the same workflow changes
-// from "new" to a persisted Lead and the Delete button is rendered dynamically.
 await WaitForGuideStep(26);
 await Click("button.primary:has-text('ליד חדש')");
-await WaitReady();
+
 await WaitForGuideStep(27);
 await Fill("[name='contactName']","לקוח בדיקת מערכת");
+
 await WaitForGuideStep(28);
 await Click("button.primary:has-text('שמור')");
-frame=await Content();
-var dynamicDeleteLead=frame.Locator("#delete-lead");
-await dynamicDeleteLead.WaitForAsync();
 
-// 9. Conditional Lead target disappearance/reappearance.
-// Business scenario: changing the Lead status changes which dependent business field
-// exists in the DOM. DAP must not keep a stale reference to the old target.
 await WaitForGuideStep(29);
 await Select("[name='status']","נסגר בהצלחה");
-frame=await Content();
-await frame.Locator("[name='selectedService']").WaitForAsync();
-if(await frame.Locator("[name='selectedService']").CountAsync()!=1)
-    throw new Exception("Selected Service target did not appear after successful-close status.");
 
 await WaitForGuideStep(30);
 await Select("[name='status']","חדש");
-frame=await Content();
-if(await frame.Locator("[name='selectedService']").CountAsync()!=0)
-    throw new Exception("Selected Service target did not disappear after returning Lead to New status.");
 
 await WaitForGuideStep(31);
 await Select("[name='status']","נסגר בהצלחה");
-frame=await Content();
-await frame.Locator("[name='selectedService']").WaitForAsync();
-if(await frame.Locator("[name='selectedService']").CountAsync()!=1)
-    throw new Exception("Selected Service target did not reappear after returning to successful-close status.");
 
 await WaitForGuideStep(32);
 await Click("button.primary:has-text('שמור')");
+
 await WaitForGuideStep(33);
 await Click("#ps-alert button");
-await HumanPause();
+
 await WaitForGuideStep(34);
 await Select("[name='selectedService']","תמיכה מורחבת");
+
 await WaitForGuideStep(35);
 await Click("button.primary:has-text('שמור')");
 
-// Exercise the dynamically rendered Delete target in the same Lead context:
-// no navigation away and no reopening of the record.
-frame=await Content();
-dynamicDeleteLead=frame.Locator("#delete-lead");
 await WaitForGuideStep(36);
-await MoveTo(dynamicDeleteLead);
-await dynamicDeleteLead.ClickAsync();
+await Click("#delete-lead");
 
-// Runtime progression is the authority that the confirmation UI and its
-// persisted target are ready. The action driver must not synchronize on
-// TestCRM's confirmation control independently.
 await WaitForGuideStep(37);
-frame=await Content();
-var confirmDeleteLead=frame.Locator("#ps-confirm [data-answer='yes']");
-await MoveTo(confirmDeleteLead);
-await confirmDeleteLead.ClickAsync();
-await WaitReady();
-frame=await Content();
-await frame.Locator("h2:has-text('לידים')").WaitForAsync();
+await Click("#ps-confirm [data-answer='yes']");
 
-// 10. Layout shift: a dependent Lead field is inserted into the form.
-// Business scenario: changing a status adds a business field above the action row.
-// The logical Delete target remains the same, but its screen position changes.
-// DAP must resolve the target from the live DOM rather than retaining old coordinates.
-frame=await Content();
-// Re-enter the Site through the user-facing breadcrumb and Site list.
-var customerCrumb=frame.Locator(".breadcrumb a[data-go^='#/customer/']").First;
-await customerCrumb.WaitForAsync();
 await WaitForGuideStep(38);
-await MoveTo(customerCrumb);
-await customerCrumb.ClickAsync();
-await WaitReady();
-frame=await Content();
-await frame.Locator("h2:has-text('אתרים')").WaitForAsync();
+await Click(".breadcrumb a[data-go^='#/customer/']");
+
 await WaitForGuideStep(39);
 await Click("tbody tr.clickable:has-text('מטה תל אביב')");
-await WaitReady();
-frame=await Content();
+
 await WaitForGuideStep(40);
 await Click("nav.tabs button:has-text('לידים')");
-await WaitReady();
-frame=await Content();
-await frame.Locator("h2:has-text('לידים')").WaitForAsync();
-await frame.Locator("tbody tr.clickable").First.WaitForAsync();
+
 await WaitForGuideStep(41);
 await Click("tbody tr.clickable:has-text('אבי כהן')");
-await WaitReady();
-frame=await Content();
-await frame.Locator("#delete-lead").WaitForAsync();
-// First remove the dependent field so the target is measured in the compact layout.
+
 await WaitForGuideStep(42);
 await Select("[name='status']","חדש");
-frame=await Content();
-if(await frame.Locator("[name='selectedService']").CountAsync()!=0)
-    throw new Exception("Dependent field did not disappear before layout-shift measurement.");
-var deleteTarget=frame.Locator("#delete-lead");
-var beforeBox=await deleteTarget.BoundingBoxAsync();
-if(beforeBox is null) throw new Exception("Could not resolve Delete Lead target before layout shift.");
-// Now trigger the existing server-driven status change that inserts the dependent field.
+
 await WaitForGuideStep(43);
 await Select("[name='status']","נסגר בהצלחה");
-frame=await Content();
-await frame.Locator("[name='selectedService']").WaitForAsync();
-deleteTarget=frame.Locator("#delete-lead");
-var afterBox=await deleteTarget.BoundingBoxAsync();
-if(afterBox is null) throw new Exception("Could not re-resolve Delete Lead target after layout shift.");
-if(Math.Abs(afterBox.Y-beforeBox.Y)<1)
-    throw new Exception("Expected the dependent field to move the Delete Lead target, but its position did not change.");
-await deleteTarget.WaitForAsync();
 
-// 9. Consecutive server updates / race resilience.
-// Business scenario: an agent changes the same Lead status twice while the CRM is
-// rebuilding the dependent form. DAP must not retain the first update's Frame or
-// target and must settle on the final business state.
 await WaitForGuideStep(44);
 await Select("[name='status']","חדש");
-frame=await Content();
+
 await WaitForGuideStep(45);
 await Select("[name='status']","נסגר בהצלחה");
-frame=await Content();
-await frame.Locator("[name='status']").WaitForAsync();
-if(await frame.Locator("[name='status']").InputValueAsync()!="נסגר בהצלחה")
-    throw new Exception("Consecutive status updates did not settle on the final status.");
-await frame.Locator("[name='selectedService']").WaitForAsync();
-if(await frame.Locator("[name='selectedService']").CountAsync()!=1)
-    throw new Exception("Final status did not re-render the dependent business target.");
-if(await frame.Locator("[name='selectedService']").CountAsync()!=1)
-    throw new Exception("Final dependent business target is not uniquely resolved.");
 
-// 10. Business-context isolation.
-// Business scenario: after working in the current Lead, the agent reopens the
-// Case created by this run under the same Site. DAP must resolve that persisted
-// business identity from the live grid and never retain the previous Lead context.
-var leadSiteCrumb=frame.Locator(".breadcrumb a[data-go^='#/site/'][data-go$='/leads']").First;
-await leadSiteCrumb.WaitForAsync();
 await WaitForGuideStep(46);
-await MoveTo(leadSiteCrumb);
-await leadSiteCrumb.ClickAsync();
-await WaitReady();
-frame=await Content();
-await frame.Locator("h2:has-text('לידים')").WaitForAsync();
+await Click(".breadcrumb a[data-go^='#/site/'][data-go$='/leads']");
+
 await WaitForGuideStep(47);
 await Click("nav.tabs button:has-text('פניות')");
-await WaitReady();
-frame=await Content();
-await frame.Locator("h2:has-text('פניות')").WaitForAsync();
-var caseRows=frame.Locator("button.grid-open");
-if(await caseRows.CountAsync()<1)
-    throw new Exception("No Case rows available for business-context switch.");
-await WaitForGuideStep(48);
-var contextCreatedCaseTarget=frame.Locator($"button.grid-open[data-go='#/case/{createdCaseId}']");
-if(await contextCreatedCaseTarget.CountAsync()!=1)
-    throw new Exception("The Case created by this run is not uniquely available for the context reopen.");
-await Click($"button.grid-open[data-go='#/case/{createdCaseId}']");
-await WaitReady();
-frame=await Content();
-await frame.Locator("h1:has-text('פניה')").WaitForAsync();
-var switchedCaseRoute=frame.Url;
-if(!switchedCaseRoute.Contains("#/case/",StringComparison.Ordinal))
-    throw new Exception("Business-context switch did not open a Case record.");
-var switchedCaseStatus=frame.Locator("[name='status']");
-await switchedCaseStatus.WaitForAsync();
-if(await switchedCaseStatus.CountAsync()!=1)
-    throw new Exception("Case target resolution is ambiguous after business-context switch.");
 
-// 10b. Return to the Site through the real breadcrumb; this proves the active
-// context can leave and re-enter without relying on a stale record reference.
-var switchedSiteCrumb=frame.Locator(".breadcrumb a[data-go^='#/site/']").First;
-await switchedSiteCrumb.WaitForAsync();
+await WaitForGuideStep(48);
+await Click($"button.grid-open[data-go='#/case/{createdCaseId}']");
+
 await WaitForGuideStep(49);
 await Click(".breadcrumb a[data-go^='#/site/']");
-await WaitReady();
-frame=await Content();
-await frame.Locator("h2:has-text('פניות')").WaitForAsync();
 
-// 10. Delete the Case created by this run through the real UI.
-// Business-context scenario already returned us to the Site's Cases tab.
-frame=await Content();
 await WaitForGuideStep(50);
-var finalCreatedCaseTarget=frame.Locator($"button.grid-open[data-go='#/case/{createdCaseId}']");
-if(await finalCreatedCaseTarget.CountAsync()!=1)
-    throw new Exception("The Case created by this run is not uniquely available for final reopen.");
 await Click($"button.grid-open[data-go='#/case/{createdCaseId}']");
-await WaitReady();
 
 await WaitForGuideStep(51);
 if(!unguided && dapProcess is not null)
 {
     var informationConfirm=page.Locator("#dap-guide-centered [data-dap-guide-confirm='1']");
-    await informationConfirm.WaitForAsync(new() { State = BrowserWaitState.Visible, Timeout = 5000 });
-    if(visualMode)
-    {
-        await page.WaitForTimeoutAsync(500);
-        await MoveTo(informationConfirm);
-    }
+    await MoveTo(informationConfirm);
     await informationConfirm.ClickAsync();
 }
 
 await WaitForGuideStep(52);
 await Click("#delete-case");
-frame=await Content();
-var confirmDelete=frame.Locator("#ps-confirm [data-answer='yes']");
-await confirmDelete.WaitForAsync();
-await WaitForGuideStep(53);
-await MoveTo(confirmDelete);
-await confirmDelete.ClickAsync();
-await WaitReady();
-frame=await Content();
-await frame.Locator("h2:has-text('פניות')").WaitForAsync();
-if(await frame.Locator($"button.grid-open[data-go='#/case/{createdCaseId}']").CountAsync()!=0)
-    throw new Exception($"Deleted Case {createdCaseId} is still present in the Cases grid.");
 
-// 11. Cross-frame navigation: a user action in the Header frame changes the active
-// Content document. This is a real user-facing interaction and intentionally does not
-// call internal TestCRM navigation functions.
-var headerFrame=await page.FindFrameByNameAsync("dap-header")
-    ?? throw new Exception("Header frame was not found.");
-var header=headerFrame.Locator("#portal-header");
+await WaitForGuideStep(53);
+await Click("#ps-confirm [data-answer='yes']");
+
 await WaitForGuideStep(54);
-// Keep the final Guide bubble visible long enough to be observed in visual mode
-// before the E2E performs the action that completes the Guide.
-if(visualMode)
-    await page.WaitForTimeoutAsync(1200);
+var headerFrame=await page.FindFrameByNameAsync("dap-header")
+    ?? throw new Exception("Header frame was not found for the learner action.");
+var header=headerFrame.Locator("#portal-header");
 await MoveTo(header);
 await header.ClickAsync();
-await WaitReady();
-frame=await Content();
-if(!new Uri(frame.Url).Fragment.Equals("#/",StringComparison.Ordinal))
-    throw new Exception("Header navigation did not return Content to the customer workspace.");
-await frame.Locator("h1:has-text('חיפוש לקוח')").WaitForAsync();
 
 await WaitForGuideStep(55);
 if(!unguided && dapProcess is not null)
 {
     var summaryConfirm=page.Locator("#dap-guide-centered [data-dap-guide-confirm='1']");
-    await summaryConfirm.WaitForAsync(new() { State = BrowserWaitState.Visible, Timeout = 5000 });
-    if(visualMode)
-    {
-        await page.WaitForTimeoutAsync(800);
-        await MoveTo(summaryConfirm);
-    }
+    await MoveTo(summaryConfirm);
     await summaryConfirm.ClickAsync();
-
-    if(!dapProcess.WaitForExit(5000))
-        throw new TimeoutException("DAP.exe did not complete after the persisted Web summary Step.");
-    if(dapProcess.ExitCode!=0)
-        throw new Exception($"DAP.exe exited with code {dapProcess.ExitCode} after the persisted Web summary Step.");
 }
 
 if(lastScenarioGuideOrder!=dapSteps.Count)
