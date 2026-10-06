@@ -24,6 +24,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
     private readonly Dictionary<string, Queue<WebValidationCommit>> _commits = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> _armedValidationIds = new(StringComparer.Ordinal);
     private readonly SemaphoreSlim _signal = new(0);
+    private readonly SemaphoreSlim _presentationInvalidationSignal = new(0);
     private readonly SemaphoreSlim _pipeWriteLock = new(1, 1);
     private readonly SemaphoreSlim _connectedSignal = new(0);
     private readonly CancellationTokenSource _transportCts = new();
@@ -100,10 +101,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             // canceled child task without throwing, which previously left this loop
             // spinning forever after a timed probe cancellation.
             cancellationToken.ThrowIfCancellationRequested();
-            var completed = await Task.WhenAny(
-                _signal.WaitAsync(cancellationToken),
-                Task.Delay(50, cancellationToken));
-            await completed;
+            await _signal.WaitAsync(cancellationToken);
         }
     }
 
@@ -131,6 +129,13 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
         if (eventType == "guide-completed-dismissed")
         {
             _guideCompletedDismissal?.TrySetResult(true);
+            return;
+        }
+
+        if (eventType == "presentation-invalidated")
+        {
+            if (_presentationInvalidationSignal.CurrentCount == 0)
+                _presentationInvalidationSignal.Release();
             return;
         }
 
@@ -523,6 +528,12 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             _ => WebTargetResolutionStatus.NotFound
         }, count);
     }
+
+    public async Task WaitForPresentationInvalidationAsync(CancellationToken cancellationToken = default)
+    {
+        await _presentationInvalidationSignal.WaitAsync(cancellationToken);
+    }
+
     public async Task HideBubbleAsync(CancellationToken cancellationToken = default)
     {
         await SendCommandAsync(new { type = "hideBubble" }, cancellationToken);
@@ -607,6 +618,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
         _centeredDismissal?.TrySetCanceled();
         _guideCompletedDismissal?.TrySetCanceled();
         _signal.Dispose();
+        _presentationInvalidationSignal.Dispose();
         _pipeWriteLock.Dispose();
         _connectedSignal.Dispose();
         _transportCts.Dispose();
