@@ -893,6 +893,13 @@ Together with the already verified Windows Guided Fast and Visual 54/54 runs, th
 
 
 
+### Extension drag cursor fix — 2026-10-06
+
+- Regular target-attached Extension bubbles now keep the `grabbing` cursor active for the full pointer-drag lifetime, matching proxy bubble behavior.
+- The cursor is applied to the bubble, drag handle, document root, and body while dragging, and is cleared on pointer release/cancel or bubble cleanup.
+- Content runtime endpoint version advanced from 0.4.4 to 0.4.5.
+- Manual verification is pending after Extension reload.
+
 ### Extension bubble viewport visibility fix — 2026-10-06
 
 - The active Extension content runtime now explicitly hides a target-attached bubble when its live target leaves the frame viewport.
