@@ -1639,25 +1639,22 @@ if(!new Uri(frame.Url).Fragment.Equals("#/",StringComparison.Ordinal))
     throw new Exception("Header navigation did not return Content to the customer workspace.");
 await frame.Locator("h1:has-text('חיפוש לקוח')").WaitForAsync();
 
-if(!unguided)
+await WaitForGuideStep(55);
+if(!unguided && dapProcess is not null)
 {
-    var completionBubble=page.Locator("#dap-guide-completed");
-    await completionBubble.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = 5000 });
-    var finishButton=completionBubble.Locator("[data-dap-guide-finish='1']");
-    await finishButton.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = 5000 });
+    var summaryConfirm=page.Locator("#dap-guide-centered [data-dap-guide-confirm='1']");
+    await summaryConfirm.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = 5000 });
     if(visualMode)
     {
         await page.WaitForTimeoutAsync(800);
-        await MoveTo(finishButton, enforceActiveGuideTarget: false);
+        await MoveTo(summaryConfirm, enforceActiveGuideTarget: false);
     }
-    await finishButton.ClickAsync();
+    await summaryConfirm.ClickAsync();
 
-    if(dapProcess is null)
-        throw new Exception("DAP.exe process is missing while completing the Guided Web run.");
     if(!dapProcess.WaitForExit(5000))
-        throw new TimeoutException("DAP.exe did not complete after the Web completion Finish action.");
+        throw new TimeoutException("DAP.exe did not complete after persisted Guide Step 55 was confirmed.");
     if(dapProcess.ExitCode!=0)
-        throw new Exception($"DAP.exe exited with code {dapProcess.ExitCode} after Web completion.");
+        throw new Exception($"DAP.exe exited with code {dapProcess.ExitCode} after persisted Guide Step 55.");
 }
 
 if(lastScenarioGuideOrder!=dapSteps.Count)
