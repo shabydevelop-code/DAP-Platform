@@ -55,10 +55,10 @@ public sealed class AdapterWebGuideRuntime
 
             var showPresentation = !hideGuidance
                 && (showGuidanceFromStepOrder is null || step.Order >= showGuidanceFromStepOrder.Value);
-            Console.Error.WriteLine($"[DAP guide] starting Step {i+1}/{ordered.Length} '{step.Id}'.");
             await _steps.RunActiveStepAsync(
                 step, i+1, ordered.Length, cancellationToken,
-                showPresentation);
+                showPresentation,
+                () => Console.Error.WriteLine($"[DAP guide] starting Step {i+1}/{ordered.Length} '{step.Id}'."));
             Console.Error.WriteLine($"[DAP guide] completed Step {i+1}/{ordered.Length} '{step.Id}'.");
         }
 
