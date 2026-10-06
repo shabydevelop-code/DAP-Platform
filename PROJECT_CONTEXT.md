@@ -229,7 +229,7 @@ The canonical Web Guide currently contains 55 persisted Steps. Step 55 is the Gu
 
 Verified product behavior:
 
-- full runner-free Manual Web Guide: **PASS**;
+- full runner-free Manual Web Guide: **PASS**, re-verified after the latest Hybrid/presentation/runner cleanup changes;
 - DB-driven Hybrid Web Guide: **PASS**;
 - canonical Web Guide: **55 persisted Steps**, including persisted completion/summary Step 55;
 - extension/native-host browser path active; Playwright is absent from the active Web path;
@@ -368,4 +368,4 @@ Project architecture, decisions, current status, and persistent context are main
 
 ## Immediate next work
 
-Keep the proven Web Manual/Hybrid architecture stable and continue Windows work separately. Do not revive removed Web automation modes or Runner-owned Guide semantics.
+Keep the proven Web Manual/Hybrid architecture stable. Manual has been re-verified successfully after the latest Web changes. Continue Windows work separately. Do not revive removed Web automation modes or Runner-owned Guide semantics.
