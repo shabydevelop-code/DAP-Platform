@@ -763,6 +763,7 @@ if (manual)
 
     return;
 }
+}
 
 catch (Exception) when (ownedWebTargetClosed.Task.IsCompleted)
 {
