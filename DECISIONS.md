@@ -605,3 +605,39 @@ The 100 ms reconciliation interval remains valid only for transient recovery sta
 A child-frame bubble that requires a top-level visual proxy is an explicit exception because its page-relative geometry crosses frame boundaries. That proxy is reused rather than recreated and may use a lower-frequency 250 ms position refresh while active. If its target leaves the top-level viewport, the proxy must hide with the target rather than being clamped on-screen independently. If a normal child-frame placement becomes possible again, the stale proxy is removed.
 
 This behavior is generic production Runtime behavior, does not depend on TestCRM source access, and does not alter the 5-second E2E timeout policy.
+
+## ADR-053 — Hybrid automation must not become a second learner engine
+
+**Status:** Accepted — 2026-10-06
+
+Hybrid/E2E orchestration exists to exercise the persisted Guide and production Runtime. It must not add target-detection, state-detection, validation, completion, or progression behavior merely to make an automated run pass when that behavior is expected to be defined by persisted Guide data and evaluated by production DAP.
+
+The persisted Guide remains the source of truth. Runtime owns Step completion and progression.
+
+Synthetic learner actions are permitted only as representations of learner input against the same production-observable target and business flow. Persisted automation values may be used where the Guide explicitly defines them. The harness must not infer a hidden alternate completion rule from TestCRM source code, control type, or test knowledge.
+
+This rule is supported by the successful full manual Windows execution and the subsequent successful Windows Hybrid execution on 2026-10-06. The Windows path therefore does not require Playwright or a parallel test-only learner mechanism.
+
+## ADR-054 — Disabled Hybrid Steps preserve numbering and business semantics
+
+**Status:** Accepted — 2026-10-06
+
+A persisted Guide Step may be disabled when it is genuinely repetitive and skipping it does not damage the real business flow. Disabled Steps are skipped in place; Step numbers are not compacted or reassigned.
+
+For the current canonical Hybrid workflow, Steps 24, 25, 30, 31, and 42–45 are disabled. Step 29 remains enabled because it performs a meaningful business action.
+
+Disabling a Step is not an optimization license to bypass required behavior. Meaningful saves, validations, deletes, navigation, context creation, and state transitions required by later Steps must remain represented and executed.
+
+Hybrid synchronization must tolerate disabled Steps while preserving Runtime ownership of progression and the original persisted Step identity.
+
+Verification: the corrected Hybrid synchronization completed successfully with `PASS: hybrid Web Guide completed.` Relevant stabilization commits include `ac6eaaa`, `fa08a52`, and `9bb497e`.
+
+## ADR-055 — Manual Hybrid learner waits are not bounded by the automated 5-second timeout
+
+**Status:** Accepted — 2026-10-06
+
+The project-wide 5-second timeout rule is a technical timeout policy for automated readiness, resolution, synchronization, and failure detection. It must not be interpreted as a deadline imposed on a human learner in Manual or Hybrid interaction.
+
+A Manual/Hybrid run may therefore remain on an active Step while waiting for the learner without failing after five seconds. This does not increase or weaken any automated technical timeout.
+
+The distinction is required so that production learner semantics remain human-paced while automated diagnostics still fail quickly on genuine technical faults.
