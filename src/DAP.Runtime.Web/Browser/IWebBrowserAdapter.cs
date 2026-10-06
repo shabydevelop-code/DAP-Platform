@@ -21,6 +21,7 @@ public interface IWebBrowserAdapter
     Task<bool> IsPrimaryValidationSatisfiedAsync(GuideStep step, CancellationToken cancellationToken = default);
     Task<bool> AreCompletionConditionsSatisfiedAsync(GuideStep step, CancellationToken cancellationToken = default);
     Task<WebBubblePresentation> EnsureBubbleShownAsync(GuideStep step, int stepNumber, int totalSteps, CancellationToken cancellationToken = default);
+    Task WaitForPresentationInvalidationAsync(CancellationToken cancellationToken = default);
     Task HideBubbleAsync(CancellationToken cancellationToken = default);
     Task WaitForCenteredStepDismissalAsync(GuideStep step, int stepNumber, int totalSteps, CancellationToken cancellationToken = default);
     Task WaitForGuideCompletedDismissalAsync(CancellationToken cancellationToken = default);
