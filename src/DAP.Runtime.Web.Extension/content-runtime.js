@@ -1051,8 +1051,14 @@
 
   function armValidationTarget(step, element, armId) {
     const kind = validationKind(step);
-    element.__dapValidationArmId = armId ?? null;
-    validationState = {step,element,armId:armId??null};
+    const normalizedArmId = armId ?? null;
+    if (validationState?.step?.id === step?.id &&
+        validationState?.element === element &&
+        validationState?.armId === normalizedArmId)
+      return;
+
+    element.__dapValidationArmId = normalizedArmId;
+    validationState = {step,element,armId:normalizedArmId};
 
     if (kind === "clicked") {
       if (element.__dapValidationClickHandler)
