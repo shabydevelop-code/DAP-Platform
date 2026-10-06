@@ -63,6 +63,7 @@ public sealed record DapLaunchOptions(
             string? windowAutomationId = null;
             int? startStep = null;
             string? resumeContextPath = null;
+            var hybridPresentation = false;
 
             for (var i = 2; i < args.Length; i++)
             {
@@ -74,12 +75,14 @@ public sealed record DapLaunchOptions(
                 else if (args[i] == "--resume-context-file" && i + 1 < args.Length
                          && !string.IsNullOrWhiteSpace(args[i + 1]))
                     resumeContextPath = args[++i];
+                else if (args[i] == "--hybrid-presentation")
+                    hybridPresentation = true;
                 else
                     return Usage(texts);
             }
 
             if (!string.IsNullOrWhiteSpace(windowAutomationId))
-                return new(DapLaunchMode.LearnerWindows, args[1], windowAutomationId, startStep, resumeContextPath, null, false, false);
+                return new(DapLaunchMode.LearnerWindows, args[1], windowAutomationId, startStep, resumeContextPath, null, false, hybridPresentation);
 
             return Usage(texts);
         }
