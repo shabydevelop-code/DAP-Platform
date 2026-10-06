@@ -11,6 +11,7 @@ public sealed class AdapterWebLearnerRuntime
 {
     private readonly IWebBrowserAdapter _browser;
     private readonly TimeSpan _reconcileInterval;
+    private readonly TimeSpan _stableReconcileInterval;
     private readonly TimeSpan _presentationSettleInterval;
     private bool _firstBubbleReported;
 
@@ -21,6 +22,7 @@ public sealed class AdapterWebLearnerRuntime
     {
         _browser = browser ?? throw new ArgumentNullException(nameof(browser));
         _reconcileInterval = reconcileInterval ?? TimeSpan.FromMilliseconds(100);
+        _stableReconcileInterval = TimeSpan.FromMilliseconds(250);
         _presentationSettleInterval = presentationSettleInterval ?? TimeSpan.FromMilliseconds(250);
     }
 
@@ -153,13 +155,17 @@ public sealed class AdapterWebLearnerRuntime
                 }
             }
 
+            // Once the target and bubble are already resolved, keep the exact
+            // same reconciliation semantics but avoid hammering the browser
+            // every 100 ms while the learner is idle. Transient recovery paths
+            // above still use the original 100 ms interval.
             if (commitTask is not null)
             {
-                var delay = Task.Delay(_reconcileInterval, cancellationToken);
+                var delay = Task.Delay(_stableReconcileInterval, cancellationToken);
                 await Task.WhenAny(commitTask, delay);
             }
             else
-                await Task.Delay(_reconcileInterval, cancellationToken);
+                await Task.Delay(_stableReconcileInterval, cancellationToken);
         }
     }
 
