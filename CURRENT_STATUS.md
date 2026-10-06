@@ -30,13 +30,13 @@ DAP.exe
 
 The Native Host and unpacked Extension are implemented. Chrome Native Messaging registration has been verified during development.
 
-The Web E2E runner uses the Extension test-driver channel for Hybrid synthetic actions. Runtime remains the sole owner of completion and Step progression.
+The Web E2E runner uses the Extension test-driver channel for Hybrid synthetic actions. Manual and Hybrid each use a dedicated Extension browser-session identity so intentional browser closure is detected independently of the Chrome launcher process and ends the run cleanly. Manual sends no synthetic learner actions. Runtime remains the sole owner of completion and Step progression.
 
 ## Windows
 
 Production Windows Runtime uses Microsoft UI Automation.
 
-A complete human Manual run has demonstrated persisted-data-driven learner execution without a parallel test completion engine. Hybrid uses persisted automation values only for configured value controls and synchronizes with Runtime progression.
+A complete human Manual run has demonstrated persisted-data-driven learner execution without a parallel test completion engine. Hybrid uses persisted automation values only for configured value controls and synchronizes with Runtime progression. Runtime applies one-time initial input focus before Hybrid value actions, and intentional target-window closure ends the runner cleanly.
 
 ## Canonical runner contract
 
@@ -56,24 +56,8 @@ Maintenance/path options:
 
 Retired modes and mechanisms must not be reintroduced: Guided, Unguided, Fast, Visual, Manual-From-Step, Visual-From-Step, `DAP_E2E_MODE`, Playwright production execution, CDP production attachment, or the retired shared canonical E2E scenario.
 
-## Recent cleanup
-
-- Production Playwright Web implementation removed.
-- Web production composition moved to Extension + Native Messaging.
-- Web E2E BrowserHarness removed in favor of the Extension test-driver channel.
-- Retired `DAP.TestCRM.E2E.Common`, `CanonicalCrmScenario`, and `PersistedWindowsCrmGuideExecutor` removed.
-- Repository ignores local build outputs and TestCRM database files.
-- Documentation consolidated at repository root and rewritten around the current architecture.
-
 ## Verification state
 
-The Web E2E project and DAP application were built successfully after the Extension/Hybrid refactor. A fresh build of Web E2E, Windows E2E, and DAP.App should be run after the latest cleanup before runtime verification.
+Current Manual/Hybrid behavior is persisted-data-driven on both runtimes. Windows Hybrid input focus synchronization is verified for the first input Step. Intentional Windows target closure and Web browser-session closure terminate cleanly rather than being reported as Runtime failures. Web Manual browser-lifetime observation is passive and does not automate learner actions.
 
-The next runtime verification sequence is:
-
-1. Web Manual.
-2. Web Hybrid.
-3. Windows Manual.
-4. Windows Hybrid.
-
-Do not claim a fresh 55/55 automated regression until such a run has actually been completed.
+Do not claim a fresh full-guide regression unless such a run has actually been completed.
