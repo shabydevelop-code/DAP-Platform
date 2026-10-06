@@ -262,6 +262,24 @@ async Task RunLearnerAsync(bool manualMode, bool hybridMode)
             if (string.IsNullOrEmpty(step.AutomationValue) || step.Target is null)
                 continue;
 
+            // Step-start means the Runtime owns the Step, but for text inputs the
+            // Runtime also applies its one-time initial focus. Wait for that focus
+            // setup to finish before Hybrid performs the learner action; otherwise
+            // Step 1 can race and the Runtime can restore focus after Hybrid's TAB.
+            var inputReadyMarker = $"[DAP Windows guide] input ready Step {step.Order} '{step.Id}'";
+            var inputElement = driver.ResolveAutomationValueTarget(step.Target);
+            if (inputElement.Current.ControlType == System.Windows.Automation.ControlType.Edit)
+            {
+                while (!dapStdErrLines.Any(line => line.Contains(inputReadyMarker, StringComparison.Ordinal)))
+                {
+                    if (windowsApp.HasExited)
+                        throw new TargetApplicationClosedException();
+                    if (dap.HasExited)
+                        throw new Exception($"DAP.exe exited with code {dap.ExitCode} before input Step {step.Order} became ready.");
+                    await Task.Delay(25);
+                }
+            }
+
             await driver.ApplyAutomationValue(step.Target, step.AutomationValue);
         }
 
