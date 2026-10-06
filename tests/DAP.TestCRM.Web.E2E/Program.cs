@@ -955,6 +955,28 @@ async Task WaitForGuideStep(int order)
         }
         await page.WaitForTimeoutAsync(100);
     }
+    var presentationDiagnostics=new List<string>();
+    foreach(var liveFrame in page.Frames.Where(candidate=>!candidate.IsDetached))
+    {
+        foreach(var selector in new[] { "#dap-guide-bubble", "#dap-guide-bubble-proxy", "#dap-guide-centered" })
+        {
+            try
+            {
+                var surface=liveFrame.Locator(selector);
+                var count=await surface.CountAsync();
+                if(count==0) continue;
+                var stepId=await surface.GetAttributeAsync("data-dap-step-id");
+                var visible=await surface.IsVisibleAsync();
+                presentationDiagnostics.Add(
+                    $"{selector}: step={stepId ?? "<none>"}, visible={visible}, frame={liveFrame.Url}");
+            }
+            catch(BrowserHarnessException)
+            {
+                presentationDiagnostics.Add($"{selector}: frame became unavailable while collecting diagnostics.");
+            }
+        }
+    }
+
     var recentDapDiagnostics=string.Join(
         Environment.NewLine,
         dapStdErrLines.Where(line =>
@@ -963,8 +985,12 @@ async Task WaitForGuideStep(int order)
             || line.StartsWith("[DAP bubble]",StringComparison.Ordinal)
             || line.StartsWith("[DAP runtime]",StringComparison.Ordinal)
             || line.StartsWith("[DAP runtime trace]",StringComparison.Ordinal)));
+    var presentationState=presentationDiagnostics.Count==0
+        ? "<no DAP presentation surfaces found>"
+        : string.Join(Environment.NewLine,presentationDiagnostics);
     throw new TimeoutException(
         $"DAP Guide did not present Step {order}: {expected.Id}.{Environment.NewLine}" +
+        $"DAP presentation state:{Environment.NewLine}{presentationState}{Environment.NewLine}" +
         $"DAP diagnostics:{Environment.NewLine}{recentDapDiagnostics}");
 }
 
