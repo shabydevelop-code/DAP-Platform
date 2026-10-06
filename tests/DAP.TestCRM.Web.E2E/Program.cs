@@ -407,13 +407,17 @@ void StartupMark(string stage)
     harnessLastMark=now;
 }
 
-await using var browser = await BrowserHarness.LaunchAsync(baseUrl);
+BrowserHarness? browser = null;
+var ownedWebTargetClosed = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+void OnOwnedBrowserDisconnected(object? _, EventArgs __) => ownedWebTargetClosed.TrySetResult("browser-disconnected");
+
+try
+{
+browser = await BrowserHarness.LaunchAsync(baseUrl);
 StartupMark("browser launched through the installed DAP extension profile");
 
 var page = browser.Page;
 page.SetDefaultTimeout(5000);
-var ownedWebTargetClosed = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-void OnOwnedBrowserDisconnected(object? _, EventArgs __) => ownedWebTargetClosed.TrySetResult("browser-disconnected");
 browser.Disconnected += OnOwnedBrowserDisconnected;
 
 StartupMark("browser page connected");
@@ -811,7 +815,11 @@ catch (Exception) when (ownedWebTargetClosed.Task.IsCompleted)
 }
 finally
 {
-    browser.Disconnected -= OnOwnedBrowserDisconnected;
+    if (browser is not null)
+    {
+        browser.Disconnected -= OnOwnedBrowserDisconnected;
+        await browser.DisposeAsync();
+    }
 
     AppDomain.CurrentDomain.ProcessExit -= webProcessExitCleanup;
     Console.CancelKeyPress -= webCancelCleanup;
