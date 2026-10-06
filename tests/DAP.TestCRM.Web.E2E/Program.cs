@@ -576,31 +576,6 @@ if(dapSteps.Any(step =>
 var effectiveDapDirectory = publishedDapDirectory ?? packagedDapDirectory ?? dapOutput;
 var dapStdErrLines=new System.Collections.Concurrent.ConcurrentQueue<string>();
 
-string LoadHybridAutomationLabel()
-{
-    var localizationDirectory = Path.Combine(effectiveDapDirectory, "Localization");
-    var settingsPath = Path.Combine(localizationDirectory, "language.json");
-    if (!File.Exists(settingsPath))
-        throw new InvalidOperationException($"Missing localization configuration file '{settingsPath}'.");
-
-    using var settingsDocument = JsonDocument.Parse(File.ReadAllText(settingsPath));
-    if (!settingsDocument.RootElement.TryGetProperty("language", out var languageElement)
-        || string.IsNullOrWhiteSpace(languageElement.GetString()))
-        throw new InvalidOperationException($"Localization configuration '{settingsPath}' must contain a non-empty 'language' value.");
-
-    var language = languageElement.GetString()!.Trim();
-    var languagePath = Path.Combine(localizationDirectory, $"{language}.json");
-    if (!File.Exists(languagePath))
-        throw new InvalidOperationException($"Missing localization file '{languagePath}' for language '{language}'.");
-
-    using var languageDocument = JsonDocument.Parse(File.ReadAllText(languagePath));
-    if (!languageDocument.RootElement.TryGetProperty("Learner.AutomaticStep", out var labelElement)
-        || string.IsNullOrWhiteSpace(labelElement.GetString()))
-        throw new InvalidOperationException($"Missing localization key 'Learner.AutomaticStep' in '{languagePath}'.");
-
-    return labelElement.GetString()!;
-}
-
 async Task<bool> WaitForHybridGuideStep(GuideStep expected)
 {
     var startMarker=$"[DAP guide] starting Step {expected.Order}/{dapSteps.Count} '{expected.Id}'";
