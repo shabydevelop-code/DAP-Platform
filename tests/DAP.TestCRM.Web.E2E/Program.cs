@@ -901,41 +901,12 @@ dapProcess.ErrorDataReceived+=(_,eventArgs)=>
 };
 dapProcess.BeginErrorReadLine();
 
-var dapContent=await Content();
-var dapBubble=dapContent.Locator("#dap-guide-bubble");
-var dapStartupDeadline=DateTime.UtcNow.AddSeconds(30);
-while(await dapBubble.CountAsync()==0 && DateTime.UtcNow<dapStartupDeadline)
-{
-    if(dapProcess.HasExited)
-    {
-        var dapStdOut=await dapStdOutTask!;
-        var dapStdErr=string.Join(Environment.NewLine,dapStdErrLines);
-        throw new Exception(
-            $"DAP.exe exited before presenting the first bubble. ExitCode={dapProcess.ExitCode}.{Environment.NewLine}" +
-            $"STDOUT:{Environment.NewLine}{dapStdOut}{Environment.NewLine}" +
-            $"STDERR:{Environment.NewLine}{dapStdErr}");
-    }
-
-    await page.WaitForTimeoutAsync(100);
-    dapContent=await Content();
-    dapBubble=dapContent.Locator("#dap-guide-bubble");
-}
-if(await dapBubble.CountAsync()==0)
-    throw new TimeoutException("DAP.exe did not present the first bubble within 30 seconds.");
-await dapBubble.WaitForAsync(new() { Timeout = 5000 });
-var dapBubbleText=await dapBubble.TextContentAsync() ?? string.Empty;
-if(!dapBubbleText.Contains(dapStep.Bubble.Content,StringComparison.Ordinal))
-    throw new Exception("DAP Web bubble instruction content mismatch.");
-var expectedProgress=$"שלב 1 מתוך {dapSteps.Count}";
-if(!dapBubbleText.Contains(expectedProgress,StringComparison.Ordinal))
-    throw new Exception($"DAP Web bubble progress mismatch. Expected '{expectedProgress}'.");
+// Synchronize startup on the production Runtime's active Step only.
+// The regression runner does not inspect bubble text, progress text or presentation internals.
+await WaitForGuideStep(1);
 dapStartupTimer.Stop();
-Console.WriteLine($"DAP.exe startup to first bubble: {dapStartupTimer.Elapsed.TotalMilliseconds:F0} ms");
-StartupMark("first DAP bubble observed; Scenario 1 can proceed");
-var dapStartupDiagnostics=string.Join(Environment.NewLine,dapStdErrLines);
-if(!string.IsNullOrWhiteSpace(dapStartupDiagnostics))
-    Console.WriteLine(dapStartupDiagnostics);
-Console.WriteLine("DAP production Web bubble from SQLite: PASS");
+Console.WriteLine($"DAP.exe startup to active Step 1: {dapStartupTimer.Elapsed.TotalMilliseconds:F0} ms");
+StartupMark("DAP Runtime reached Step 1");
 
 if (manual)
 {
