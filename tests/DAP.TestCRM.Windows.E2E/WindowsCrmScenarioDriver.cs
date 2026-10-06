@@ -397,6 +397,11 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
         return Task.CompletedTask;
     }
 
+    public void CaptureCreatedCaseId()
+    {
+        createdCaseId = CurrentCaseId();
+    }
+
     string CurrentCaseId()
     {
         var titles=window.FindAll(TreeScope.Descendants,new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.Text))
