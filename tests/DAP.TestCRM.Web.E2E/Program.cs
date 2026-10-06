@@ -219,6 +219,8 @@ void KillOwnedDapProcess()
 void KillOwnedWebChildren()
 {
     KillOwnedDapProcess();
+    TryKillOwnedProcessTree(browserProcess);
+    if (testDriver is not null) await testDriver.DisposeAsync();
     TryKillOwnedProcessTree(ownedTestCrmProcess);
     TryKillOwnedProcessTree(ownedTestCrmBackendProcess);
 }
@@ -402,120 +404,58 @@ var harnessLastMark=TimeSpan.Zero;
 void StartupMark(string stage)
 {
     var now=harnessStartupTimer.Elapsed;
-    Console.WriteLine($"[E2E startup] {now.TotalMilliseconds:F0} ms total (+{(now-harnessLastMark).TotalMilliseconds:F0} ms) - {stage}");
+    Console.WriteLine($"[Web runner startup] {now.TotalMilliseconds:F0} ms total (+{(now-harnessLastMark).TotalMilliseconds:F0} ms) - {stage}");
     harnessLastMark=now;
 }
 
-await using var browser = await BrowserHarness.LaunchAsync(baseUrl);
-StartupMark("browser launched through the installed DAP extension profile");
-
-var page = browser.Page;
-page.SetDefaultTimeout(5000);
-var ownedWebTargetClosed = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-void OnOwnedBrowserDisconnected(object? _, EventArgs __) => ownedWebTargetClosed.TrySetResult("browser-disconnected");
-browser.Disconnected += OnOwnedBrowserDisconnected;
-
-StartupMark("browser page connected");
-Console.WriteLine($"E2E mode: {(manual ? "manual" : "hybrid")}");
-
-async Task<BrowserFrame> Content()
+var sessionId = Guid.NewGuid().ToString("N");
+var chromeCandidates = new[]
 {
-    const int attempts=50;
-    for(var i=0;i<attempts;i++)
-    {
-        try
-        {
-            var frame=await page.FindFrameByNameAsync("dap-content");
-            if(frame is not null)
-            {
-                await frame.RefreshUrlAsync();
-                if(await frame.Locator("html[data-dap-ready='1']").CountAsync()>0)
-                    return frame;
-            }
-        }
-        catch(BrowserHarnessException) { }
-        await page.WaitForTimeoutAsync(100);
-    }
+    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Google", "Chrome", "Application", "chrome.exe"),
+    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Google", "Chrome", "Application", "chrome.exe"),
+    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Google", "Chrome", "Application", "chrome.exe")
+};
+var chromeExecutable = chromeCandidates.FirstOrDefault(File.Exists)
+    ?? throw new FileNotFoundException("Google Chrome was not found.");
 
-    var diagnosticParts = new List<string>();
-    try
-    {
-        var iframe = page.Locator("#content-frame");
-        diagnosticParts.Add($"#content-frame count={await iframe.CountAsync()}");
-        diagnosticParts.Add($"src={await iframe.GetAttributeAsync("src") ?? "<null>"}");
-
-        var frame = await page.FindFrameByNameAsync("dap-content");
-        diagnosticParts.Add($"contentFrame={(frame is null ? "null" : "present")}");
-        if(frame is not null)
-        {
-            await frame.RefreshUrlAsync();
-            diagnosticParts.Add($"frameUrl={frame.Url}");
-            var html=frame.Locator("html");
-            diagnosticParts.Add($"data-dap-ready={await html.GetAttributeAsync("data-dap-ready") ?? "<null>"}");
-            diagnosticParts.Add($"route-state={await html.GetAttributeAsync("data-dap-route-state") ?? "<null>"}");
-            diagnosticParts.Add($"route-error={await html.GetAttributeAsync("data-dap-route-error") ?? "<null>"}");
-            diagnosticParts.Add($"api={await html.GetAttributeAsync("data-dap-api") ?? "<null>"}");
-            diagnosticParts.Add($"api-state={await html.GetAttributeAsync("data-dap-api-state") ?? "<null>"}");
-        }
-
-        diagnosticParts.Add("pageFrames=[" + string.Join(", ", page.Frames.Select(x => $"{x.Name}:{x.Url}")) + "]");
-    }
-    catch (Exception ex)
-    {
-        diagnosticParts.Add($"diagnostic-error={ex.GetType().Name}: {ex.Message}");
-    }
-
-    throw new Exception("Stable content iframe not found. " + string.Join("; ", diagnosticParts));
-}
-async Task WaitReady()
+var browserUrl = hybrid
+    ? $"{baseUrl}?dap-e2e-session={sessionId}"
+    : baseUrl;
+var browserProcess = Process.Start(new ProcessStartInfo
 {
-    // Content() already proves that the current live Content frame reached the
-    // TestCRM application-ready marker. Waiting for DOMContentLoaded after that
-    // introduces a browser-dependent lifecycle race: Chrome can complete (or
-    // replace) the document before this waiter is registered.
-    //
-    // Reacquire the live frame and use the application's own readiness contract
-    // instead. This is also the state DAP actually cares about after a
-    // PeopleSoft-style server update.
-    var f = await Content();
-    await f.Locator("#server-busy").WaitForAsync(new()
-    {
-        State = BrowserWaitState.Hidden,
-        Timeout = 5000
-    });
-}
-async Task MoveTo(BrowserLocator target)
-{
-    await target.ScrollIntoViewIfNeededAsync();
-    await target.HoverAsync();
-}
-async Task Click(string selector)
-{
-    var f=await Content();
-    var target=f.Locator(selector);
-    await MoveTo(target);
-    await target.ClickAsync();
+    FileName = chromeExecutable,
+    Arguments = $"--new-window \"{browserUrl}\"",
+    UseShellExecute = false
+}) ?? throw new InvalidOperationException("Could not start Chrome.");
+StartupMark("Chrome launched with installed DAP extension");
 
-    await page.WaitForTimeoutAsync(1);
+ExtensionTestDriver? testDriver = null;
+if (hybrid)
+{
+    testDriver = new ExtensionTestDriver(sessionId);
+    using var connectTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+    await testDriver.ConnectAsync(connectTimeout.Token);
+    await testDriver.SendAsync(new { type = "testPing" }, connectTimeout.Token);
+    StartupMark("Extension-native Hybrid test driver connected");
 }
+
+Console.WriteLine($"Web run mode: {(manual ? "manual" : "hybrid")}");
+
 async Task Fill(string selector,string value)
 {
-    var f=await Content(); var target=f.Locator(selector);
-    await MoveTo(target); await target.ClickAsync();
-    await page.Keyboard.PressAsync("Control+A");
-    await page.Keyboard.TypeAsync(value);
-
-    // Finishing text entry is a distinct learner action. Move focus away so
-    // the production Runtime receives the natural blur completion event; the
-    // value validation is evaluated only after this point.
-    await page.Keyboard.PressAsync("Tab");
+    if (testDriver is null) throw new InvalidOperationException("Hybrid test driver is not available.");
+    await testDriver.LocatorAsync("dap-content", selector, "scrollIntoView");
+    await testDriver.LocatorAsync("dap-content", selector, "focus");
+    await testDriver.KeyboardAsync("dap-content", "Control+A");
+    await testDriver.TypeAsync("dap-content", value);
+    await testDriver.KeyboardAsync("dap-content", "Tab");
 }
+
 async Task Select(string selector,string value)
 {
-    var f=await Content();
-    var target=f.Locator(selector);
-    await MoveTo(target);
-    await target.SelectOptionAsync(value);
+    if (testDriver is null) throw new InvalidOperationException("Hybrid test driver is not available.");
+    await testDriver.LocatorAsync("dap-content", selector, "scrollIntoView");
+    await testDriver.LocatorAsync("dap-content", selector, "select", value);
 }
 
 try
@@ -531,10 +471,7 @@ Console.WriteLine("Scenario 8: Layout shift + target re-resolution");
 Console.WriteLine("Scenario 9: Consecutive server updates + final-state re-resolution");
 Console.WriteLine("Scenario 10: Business context switch + target isolation");
 StartupMark("scenario harness initialized");
-await page.GotoAsync(baseUrl);
-StartupMark("TestCRM navigation completed");
-await WaitReady();
-StartupMark("TestCRM ready");
+StartupMark("TestCRM browser navigation requested");
 
 // Every Web scenario mode consumes the same persisted production Guide.
 // Both Manual and Hybrid run the production DAP Runtime from Step 1 against the
@@ -620,7 +557,7 @@ async Task<bool> WaitForHybridGuideStep(GuideStep expected)
         if (ownedTestCrmProcess is not null && ownedTestCrmProcess.HasExited)
             throw new Exception($"TestCRM Web host exited before Runtime activated Step {expected.Order}.");
 
-        await page.WaitForTimeoutAsync(100);
+        await Task.Delay(100);
     }
 }
 
@@ -721,18 +658,15 @@ if (manual)
     Console.WriteLine("The run will close automatically when DAP completes the Guide or you close the owned browser/page.");
     Console.WriteLine("Press Ctrl+C only if you want to stop the run early.");
 
-    var browserDisconnected = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-    void OnManualBrowserDisconnected(object? _, EventArgs __) => browserDisconnected.TrySetResult("browser-disconnected");
-    browser.Disconnected += OnManualBrowserDisconnected;
-
     try
     {
         var dapExit = dapProcess.WaitForExitAsync();
         var webHostExit = ownedTestCrmProcess!.WaitForExitAsync();
+        var browserExit = browserProcess.WaitForExitAsync();
 
         var completed = await Task.WhenAny(
             dapExit,
-            browserDisconnected.Task,
+            browserExit,
             webHostExit);
 
         if (completed == dapExit)
@@ -753,26 +687,19 @@ if (manual)
         }
         else
         {
-            Console.WriteLine("Owned Web browser closed. Ending the manual learner run and cleaning up owned processes.");
+            Console.WriteLine("Chrome process exited. Ending the manual learner run and cleaning up owned processes.");
         }
     }
     finally
     {
-        browser.Disconnected -= OnManualBrowserDisconnected;
     }
 
     return;
 }
 }
 
-catch (Exception) when (ownedWebTargetClosed.Task.IsCompleted)
-{
-    var closeReason = await ownedWebTargetClosed.Task;
-    Console.WriteLine($"Owned Web target closed ({closeReason}). Ending the run and cleaning up owned processes.");
-}
 finally
 {
-    browser.Disconnected -= OnOwnedBrowserDisconnected;
 
     AppDomain.CurrentDomain.ProcessExit -= webProcessExitCleanup;
     Console.CancelKeyPress -= webCancelCleanup;
