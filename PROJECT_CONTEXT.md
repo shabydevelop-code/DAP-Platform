@@ -354,3 +354,19 @@ Project architecture, decisions, current status, and persistent context are main
 3. Verify `unguided` without introducing duplicate Guide knowledge.
 4. Preserve the runner-free manual 54-Step path as the product acceptance reference.
 5. Keep browser/runtime performance work subordinate to learner correctness.
+
+## Web learner regression note — 2026-10-06
+
+Fresh runner-free Manual Web regression: **54/54 PASS**.
+
+The verified behavior includes two important generic rules:
+
+1. A Step whose application action completes asynchronously must use a real persisted completion condition. The next Step must not be exposed merely because the initiating click was observed.
+2. Being outside the viewport is not equivalent to being non-interactable. A resolved/rendered target may proceed to presentation so the learner can scroll it into view automatically; a target that is actually obstructed remains gated.
+
+For the canonical TestCRM Guide, the status-sort Step now waits for the observable sorted state before exposing the following "new case" Step.
+
+Seed changes do not update an already-persisted Guide automatically. Use the explicit Guide reset path when intentionally applying changed seed definitions to the persistent database.
+
+Current manually verified Web extension baseline: **0.2.7**.
+
