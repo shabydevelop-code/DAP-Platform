@@ -172,20 +172,6 @@
         sendResponse({ok:true,result:{status:"shown"}});
         return;
       }
-      if (command.type === "showGuideCompleted") {
-        showCenteredMessage({
-          elementId:"dap-guide-completed",
-          content:command.content||"",
-          actionText:command.actionText||"סיום",
-          actionDataKey:"dapGuideFinish",
-          progressText:null,
-          dragText:command.dragText||"גרור להזזת הבועה",
-          eventType:"guide-completed-dismissed",
-          stepId:null
-        });
-        sendResponse({ok:true,result:{status:"shown"}});
-        return;
-      }
       if (command.type === "hideBubble") {
         hideBubble();
         sendResponse({ok:true,result:{status:"hidden"}});
@@ -626,7 +612,6 @@
     proxy?.__dapCleanup?.();
     proxy?.remove();
     document.getElementById("dap-guide-centered")?.remove();
-    document.getElementById("dap-guide-completed")?.remove();
     if(bubbleState){
       bubbleState.cleanup?.();
       bubbleState=null;
