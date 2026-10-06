@@ -561,7 +561,7 @@ Web `clicked` validation no longer stores completion in the guided application's
 ## Cross-browser Web Runtime validation — 2026-10-01
 
 - The representative 53-Step DAP.TestCRM Learner Web Runtime E2E now passes end-to-end on Playwright Chromium, installed Google Chrome, and installed Microsoft Edge using the same production Runtime and persistent Guide.
-- The E2E runner supports `DAP_E2E_BROWSER=chromium|chrome|edge`; Chromium remains the default when the variable is unset.
+- Historical Playwright-era behavior exposed `DAP_E2E_BROWSER=chromium|chrome|edge`. The extension-native runner no longer exposes or reads this selector.
 - The final cross-browser regression sequence produced the same terminal PASS on Chrome, Edge, and Chromium: the complete Customer -> Site -> Case -> Lead workflow, including dynamic Lead deletion and Case deletion, completed successfully.
 - The E2E default Playwright timeout remains 5 seconds. Cross-browser stability was achieved without increasing that timeout.
 - Browser-dependent readiness was stabilized by relying on the TestCRM application-ready marker/current live Content frame rather than registering a redundant `DOMContentLoaded` wait after readiness had already been established.
@@ -893,6 +893,13 @@ Together with the already verified Windows Guided Fast and Visual 54/54 runs, th
 
 
 
+### Extension-native browser discovery — 2026-10-06
+
+- Web E2E and the autonomous Web launcher no longer accept or read a Chrome/Edge/Chromium runtime selector.
+- The runner reads the registered DAP Extension id, inspects supported installed browser profiles, and selects the single profile in which that Extension is enabled.
+- Chromium-specific user-data discovery has been removed from the active extension-native path.
+- Chrome and Edge remain supported browsers, but they are compatibility targets rather than separate DAP Runtime modes.
+- If the same DAP Extension is enabled in more than one supported browser/profile, startup fails explicitly instead of guessing.
 ## Web Zero-Playwright milestone — 2026-10-05
 
 The single active Web milestone is now **Zero Playwright**.
