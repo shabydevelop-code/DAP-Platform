@@ -62,14 +62,7 @@ public sealed class AdapterWebGuideRuntime
             Console.Error.WriteLine($"[DAP guide] completed Step {i+1}/{ordered.Length} '{step.Id}'.");
         }
 
-        if (!hideGuidance)
-        {
-            Console.Error.WriteLine("[DAP guide] presenting completion bubble.");
-            await _steps.WaitForGuideCompletedDismissalAsync(cancellationToken);
-            Console.Error.WriteLine("[DAP guide] completion bubble dismissed; Guide finished.");
-        }
-        else
-            Console.Error.WriteLine("[DAP guide] Guide finished with guidance hidden.");
+        Console.Error.WriteLine("[DAP guide] Guide finished.");
     }
 
     private static GuideStep MaterializeRuntimeValues(GuideStep step, IReadOnlyDictionary<string,string> values)
