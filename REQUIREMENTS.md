@@ -26,11 +26,12 @@
 - The Extension is an adapter; Guide sequencing/progression stays in .NET Runtime.
 - Support dynamic DOM changes, frames, navigation, asynchronous server behavior, and target re-resolution.
 - Synthetic E2E actions must remain test-only and must not become a second learner engine.
+- Web Manual and Hybrid runners must identify their browser session through the Extension so intentional browser closure ends cleanly without treating the Chrome launcher PID as browser lifetime.
 
 ## Windows
 
 - Production Windows execution uses Microsoft UI Automation.
-- Support target discovery/re-discovery, native learner bubbles, interaction observation, and validation.
+- Support target discovery/re-discovery, native learner bubbles, interaction observation, validation, and one-time Runtime-owned initial focus for input Steps.
 - Production behavior must work against closed third-party Windows applications.
 
 ## Data
@@ -50,6 +51,7 @@
 
 - Canonical learner runners expose Manual and Hybrid only.
 - Hybrid may perform configured learner actions but Runtime owns outcomes and progression.
+- Intentional target-application/browser closure must terminate Manual/Hybrid cleanly while genuine Runtime failures remain failures.
 - Automated technical waits must not exceed five seconds without explicit approval.
 - Human Manual/Hybrid response time is not an automated timeout.
 - TestCRM source may aid diagnosis only; it must not become a production oracle.
