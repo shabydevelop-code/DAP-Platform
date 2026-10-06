@@ -770,3 +770,8 @@ The extension-backed learner no longer performs 100 ms browser reconciliation wh
 ## 0.4.7 experiment rolled back
 
 The first event-driven stable-presentation experiment reduced Chrome renderer CPU but caused observable bubble regressions. It has been rolled back. The accepted baseline is again content runtime 0.4.6 plus the viewport-visibility, drag-cursor, and narrowed-observer fixes. Future CPU work must preserve the proven learner semantics before being accepted.
+
+
+## Stable Web learner polling: 250 ms
+
+After the failed event-driven experiment was rolled back, CPU optimization resumed with a minimal cadence-only change. The extension-backed learner still uses the proven reconciliation path, but a successfully resolved stable Step now waits 250 ms between checks rather than 100 ms. Recovery states continue at 100 ms. No timeout ceiling or learner semantics were changed.
