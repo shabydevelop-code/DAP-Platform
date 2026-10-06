@@ -755,3 +755,8 @@ The E2E Runner remains regression automation only.
 ## Extension content runtime 0.4.4 — target-attached visibility
 
 The active browser Extension now treats viewport visibility as part of target-attached presentation. A regular bubble or top-level iframe proxy is hidden when its target leaves the relevant viewport and is restored when the target becomes visible again. Manual drag position is preserved while hidden; it does not make the bubble independent from target visibility.
+
+
+## Extension content runtime 0.4.6 — idle CPU reduction
+
+After Chrome Task Manager showed that enabling the DAP Extension raised the TestCRM renderer from near-zero idle CPU to roughly 15%, the broad document-wide MutationObserver was narrowed. Structural DOM replacement remains observed globally, while attribute observation follows only the active target and its ancestor chain. Character-data mutation observation is no longer global, and reconciliation requests are coalesced per microtask. This preserves re-resolution behavior without continuously re-scanning the application DOM for unrelated idle mutations.
