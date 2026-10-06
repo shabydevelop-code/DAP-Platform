@@ -14,7 +14,7 @@ namespace DAP.TestCRM.Web.E2E;
 internal sealed class BrowserHarness : IAsyncDisposable
 {
     private const string PipeName = "dap-web-e2e-v1";
-    private const string RequiredTestDriverVersion = "1.0.0";
+    private const string RequiredTestDriverVersion = "1.0.1";
     private static readonly TimeSpan CommandTimeout = TimeSpan.FromSeconds(5);
 
     private readonly ConcurrentDictionary<string, TaskCompletionSource<JsonElement>> _pending = new(StringComparer.Ordinal);
