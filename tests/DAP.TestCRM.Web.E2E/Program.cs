@@ -10,7 +10,6 @@ using DAP.Data.Sqlite.Guides;
 
 const string baseUrl = "http://localhost:5200";
 
-int? manualFromStep = null;
 string? publishedDapDirectory = null;
 for (var i = 0; i < args.Length; i++)
 {
@@ -22,13 +21,6 @@ for (var i = 0; i < args.Length; i++)
         continue;
     }
 
-    if (args[i].Equals("--manual-from-step", StringComparison.OrdinalIgnoreCase))
-    {
-        if (i + 1 >= args.Length || !int.TryParse(args[++i], out var parsedManualStep) || parsedManualStep < 1)
-            throw new ArgumentException("--manual-from-step requires a positive Guide Step order.");
-        manualFromStep = parsedManualStep;
-        continue;
-    }
 
 }
 
@@ -52,12 +44,8 @@ if (args.Contains("--reset-guide", StringComparer.OrdinalIgnoreCase))
 
 var manual = args.Contains("--manual", StringComparer.OrdinalIgnoreCase);
 var hybrid = args.Contains("--hybrid", StringComparer.OrdinalIgnoreCase);
-if (manual && (hybrid || manualFromStep is not null))
-    throw new ArgumentException("--manual cannot be combined with --hybrid or --manual-from-step.");
-if (hybrid && manualFromStep is not null)
-    throw new ArgumentException("--hybrid cannot be combined with --manual-from-step.");
-if (!manual && !hybrid && manualFromStep is null)
-    throw new ArgumentException("Choose one Web run mode: --manual, --hybrid, or --manual-from-step N.");
+if (manual == hybrid)
+    throw new ArgumentException("Choose exactly one Web run mode: --manual or --hybrid.");
 
 static void EnsurePortFree(int port)
 {
@@ -429,7 +417,7 @@ void OnOwnedBrowserDisconnected(object? _, EventArgs __) => ownedWebTargetClosed
 browser.Disconnected += OnOwnedBrowserDisconnected;
 
 StartupMark("browser page connected");
-Console.WriteLine($"E2E mode: {(manual ? "manual" : hybrid ? "hybrid" : $"manual from Step {manualFromStep}")}");
+Console.WriteLine($"E2E mode: {(manual ? "manual" : "hybrid")}");
 
 async Task<BrowserFrame> Content()
 {
@@ -591,141 +579,9 @@ if(dapSteps.Any(step =>
     throw new Exception(
         $"DAP Guide '{DapTestCrmGuideSeed.GuideId}' contains a Step that is neither a Web target Step nor a valid centered information Step.");
 
-if(manualFromStep is not null && !dapSteps.Any(step => step.Order == manualFromStep.Value))
-    throw new ArgumentOutOfRangeException(
-        nameof(manualFromStep),
-        manualFromStep,
-        $"Guide '{DapTestCrmGuideSeed.GuideId}' does not contain Step {manualFromStep}.");
 
 var effectiveDapDirectory = publishedDapDirectory ?? packagedDapDirectory ?? dapOutput;
 var dapStdErrLines=new System.Collections.Concurrent.ConcurrentQueue<string>();
-var focusedStartStepOrder = manualFromStep;
-var bootstrapCaptures = new Dictionary<string, string>(StringComparer.Ordinal);
-var resumeContextPath = Path.Combine(webRunRoot, "resume-context.json");
-
-Process StartFocusedDap(int showGuidanceFromStepOrder)
-{
-    var dapExecutable=Path.Combine(effectiveDapDirectory,"DAP.exe");
-    if(!File.Exists(dapExecutable))
-        throw new Exception($"DAP executable not found at {dapExecutable}");
-
-    var guidanceArgument = $" --show-guidance-from-step {showGuidanceFromStepOrder}";
-
-    var process=new Process
-    {
-        StartInfo=new ProcessStartInfo
-        {
-            FileName=dapExecutable,
-            Arguments=$"--learner-web {DapTestCrmGuideSeed.GuideId}" + guidanceArgument,
-            WorkingDirectory=effectiveDapDirectory,
-            UseShellExecute=false,
-            CreateNoWindow=true,
-            RedirectStandardOutput=true,
-            RedirectStandardError=true
-        }
-    };
-    process.StartInfo.Environment["DAP_DATABASE_PATH"]=dapDbPath!;
-    process.StartInfo.Environment["DAP_WEB_SESSION_ID"]=browser.SessionId;
-
-    if(!process.Start())
-        throw new Exception("DAP.exe process could not be started for focused Web run.");
-
-    dapStdOutTask=process.StandardOutput.ReadToEndAsync();
-    process.ErrorDataReceived+=(_,eventArgs)=>
-    {
-        if(eventArgs.Data is not null)
-        {
-            dapStdErrLines.Enqueue(eventArgs.Data);
-        }
-    };
-    process.BeginErrorReadLine();
-
-    Console.WriteLine($"Web DAP Runtime started at Step 1 with guidance hidden through Step {showGuidanceFromStepOrder - 1}.");
-    return process;
-}
-
-var lastScenarioGuideOrder=0;
-
-bool GuidanceVisibleAt(int order) =>
-    focusedStartStepOrder is null || order >= focusedStartStepOrder.Value;
-
-async Task WaitForGuideStep(int order)
-{
-    var expected=dapSteps.Single(step=>step.Order==order);
-
-    if(order<lastScenarioGuideOrder || order>lastScenarioGuideOrder+1)
-        throw new Exception(
-            $"Canonical Web scenario requested Guide Step {order} after Step {lastScenarioGuideOrder}; expected Step {lastScenarioGuideOrder} or {lastScenarioGuideOrder+1}.");
-
-    var advancedSequence=order==lastScenarioGuideOrder+1;
-    if(advancedSequence)
-        lastScenarioGuideOrder=order;
-
-    var startMarker=$"[DAP guide] starting Step {order}/{dapSteps.Count} '{expected.Id}'";
-    var deadline=DateTime.UtcNow.AddSeconds(5);
-    var runtimeStarted=false;
-
-    while(DateTime.UtcNow<deadline)
-    {
-        runtimeStarted |= dapStdErrLines.Any(line=>line.Contains(startMarker,StringComparison.Ordinal));
-
-        // The regression runner observes only which Guide Step production
-        // Runtime has made active. It does not inspect bubbles, targets,
-        // validation state, completion conditions, or application outcomes.
-        // Runtime and the persisted Guide remain the sole authority for why
-        // the previous Step completed and why this Step became active.
-        if(runtimeStarted)
-        {
-            if(manualFromStep == order)
-            {
-                Console.WriteLine();
-                Console.WriteLine($"MANUAL HANDOFF: Runtime reached active Step {order}.");
-                Console.WriteLine("Automatic learner actions are paused. Continue manually in the browser.");
-                Console.WriteLine("The run will close automatically when DAP completes the Guide or the owned browser/page is closed.");
-
-                var dapExit=dapProcess!.WaitForExitAsync();
-                var webHostExit=ownedTestCrmProcess!.WaitForExitAsync();
-                var completed=await Task.WhenAny(dapExit,ownedWebTargetClosed.Task,webHostExit);
-
-                if(completed==dapExit)
-                {
-                    await dapExit;
-                    if(dapProcess.ExitCode!=0)
-                        throw new Exception($"DAP.exe exited with code {dapProcess.ExitCode} during the manual Web From-Step run.");
-                }
-                else if(completed==webHostExit)
-                {
-                    await webHostExit;
-                    throw new Exception(
-                        $"TestCRM Web host exited unexpectedly during the manual Web From-Step run. ExitCode={ownedTestCrmProcess.ExitCode}.");
-                }
-
-                throw new ManualWebHandoffCompleteException();
-            }
-
-            return;
-        }
-
-        if(dapProcess is not null && dapProcess.HasExited)
-            throw new Exception($"DAP.exe exited with code {dapProcess.ExitCode} before Runtime activated Step {order}.");
-
-        await page.WaitForTimeoutAsync(50);
-    }
-
-    var recentDapDiagnostics=string.Join(
-        Environment.NewLine,
-        dapStdErrLines.Where(line=>
-            line.StartsWith("[DAP guide]",StringComparison.Ordinal)
-            || line.StartsWith("[DAP validation",StringComparison.Ordinal)
-            || line.StartsWith("[DAP bubble]",StringComparison.Ordinal)
-            || line.StartsWith("[DAP runtime]",StringComparison.Ordinal)
-            || line.StartsWith("[DAP runtime trace]",StringComparison.Ordinal)));
-
-    throw new TimeoutException(
-        $"DAP Runtime did not activate Step {order}: {expected.Id} within 5 seconds.{Environment.NewLine}" +
-        $"Runtime start observed: {runtimeStarted}.{Environment.NewLine}" +
-        $"DAP diagnostics:{Environment.NewLine}{recentDapDiagnostics}");
-}
 
 async Task<bool> WaitForHybridGuideStep(GuideStep expected)
 {
@@ -769,15 +625,6 @@ async Task<bool> WaitForHybridGuideStep(GuideStep expected)
     }
 }
 
-if(focusedStartStepOrder is not null)
-{
-    dapProcess=StartFocusedDap(focusedStartStepOrder.Value);
-}
-
-if(focusedStartStepOrder is null)
-{
-var dapStep=dapSteps[0];
-var dapSecondStep=dapSteps[1];
 var dapExecutable=Path.Combine(effectiveDapDirectory,"DAP.exe");
 if(!File.Exists(dapExecutable))
     throw new Exception($"DAP executable not found at {dapExecutable}");
@@ -810,9 +657,8 @@ dapProcess.ErrorDataReceived+=(_,eventArgs)=>
 };
 dapProcess.BeginErrorReadLine();
 
-// Synchronize startup on the production Runtime's active Step only.
-// The regression runner does not inspect bubble text, progress text or presentation internals.
-await WaitForGuideStep(1);
+// Synchronize startup on the production Runtime's first active Step.
+await WaitForHybridGuideStep(dapSteps.OrderBy(step => step.Order).First(step => step.IsEnabled));
 dapStartupTimer.Stop();
 Console.WriteLine($"DAP.exe startup to active Step 1: {dapStartupTimer.Elapsed.TotalMilliseconds:F0} ms");
 StartupMark("DAP Runtime reached Step 1");
@@ -919,229 +765,6 @@ if (manual)
     return;
 }
 
-}
-
-// Automatic regression runner: replace only the learner's hands.
-// Runtime + persisted Guide own target resolution, validation, completion and Step advancement.
-await WaitForGuideStep(1);
-await Fill("[name='name']","אלפא פתרונות בע\"מ");
-
-await WaitForGuideStep(2);
-await Click("#customer-search button.primary");
-
-await WaitForGuideStep(3);
-await Click("#search-results tbody tr.clickable:first-child");
-
-await WaitForGuideStep(4);
-await Click("tbody tr.clickable:has-text('מטה תל אביב')");
-
-await WaitForGuideStep(5);
-await Click("nav.tabs button:has-text('פניות')");
-
-await WaitForGuideStep(6);
-await Click("th button[data-sort='status']");
-
-await WaitForGuideStep(7);
-await Click("button.primary:has-text('פניה חדשה')");
-
-await WaitForGuideStep(8);
-await Fill("[name='subject']","תקלה בחיבור לאינטרנט");
-
-await WaitForGuideStep(9);
-await Fill("[name='description']","הלקוח מדווח על חיבור לא יציב.");
-
-await WaitForGuideStep(10);
-await Click("button.primary:has-text('שמור')");
-
-await WaitForGuideStep(11);
-// Remember only the identity of the record the learner just created so later
-// learner actions can reopen that same visible record. This does not determine
-// Step completion or advancement.
-var createdCaseFrame=await Content();
-var createdCaseUrl=createdCaseFrame.Url;
-var caseMarker="#/case/";
-var casePos=createdCaseUrl.IndexOf(caseMarker,StringComparison.Ordinal);
-if(casePos<0)
-    throw new Exception("Could not identify the Case created by the learner action.");
-var createdCaseId=createdCaseUrl[(casePos+caseMarker.Length)..].Split('?', '/', '#')[0];
-await Click(".breadcrumb a:nth-of-type(3)");
-
-await WaitForGuideStep(12);
-await Click($"button.grid-open[data-go='#/case/{createdCaseId}']");
-
-await WaitForGuideStep(13);
-await Select("[name='status']","בטיפול");
-
-await WaitForGuideStep(14);
-await Fill("[name='resolutionNotes']","בוצעה בדיקת שירות מול הלקוח והתקלה טופלה.");
-
-await WaitForGuideStep(15);
-await Click("#activity-more");
-
-await WaitForGuideStep(16);
-await Select("[name='status']","סגורה");
-
-await WaitForGuideStep(17);
-await Fill("[name='subject']","תקלה בחיבור לאינטרנט");
-
-await WaitForGuideStep(18);
-await Click("button.primary:has-text('שמור')");
-
-await WaitForGuideStep(19);
-await Click("#ps-alert button");
-
-await WaitForGuideStep(20);
-await Select("[name='closeReason']","טופל");
-
-await WaitForGuideStep(21);
-await Click("button.primary:has-text('שמור')");
-
-await WaitForGuideStep(22);
-await Click(".breadcrumb a[data-go^='#/site/']");
-
-await WaitForGuideStep(23);
-await Click("nav.tabs button:has-text('לידים')");
-
-await WaitForGuideStep(24);
-await Click("nav.tabs button:has-text('פניות')");
-
-await WaitForGuideStep(25);
-await Click("nav.tabs button:has-text('לידים')");
-
-await WaitForGuideStep(26);
-await Click("button.primary:has-text('ליד חדש')");
-
-await WaitForGuideStep(27);
-await Fill("[name='contactName']","לקוח בדיקת מערכת");
-
-await WaitForGuideStep(28);
-await Click("button.primary:has-text('שמור')");
-
-await WaitForGuideStep(29);
-await Select("[name='status']","נסגר בהצלחה");
-
-await WaitForGuideStep(30);
-await Select("[name='status']","חדש");
-
-await WaitForGuideStep(31);
-await Select("[name='status']","נסגר בהצלחה");
-
-await WaitForGuideStep(32);
-await Click("button.primary:has-text('שמור')");
-
-await WaitForGuideStep(33);
-await Click("#ps-alert button");
-
-await WaitForGuideStep(34);
-await Select("[name='selectedService']","תמיכה מורחבת");
-
-await WaitForGuideStep(35);
-await Click("button.primary:has-text('שמור')");
-
-await WaitForGuideStep(36);
-await Click("#delete-lead");
-
-await WaitForGuideStep(37);
-await Click("#ps-confirm [data-answer='yes']");
-
-await WaitForGuideStep(38);
-await Click(".breadcrumb a[data-go^='#/customer/']");
-
-await WaitForGuideStep(39);
-await Click("tbody tr.clickable:has-text('מטה תל אביב')");
-
-await WaitForGuideStep(40);
-await Click("nav.tabs button:has-text('לידים')");
-
-await WaitForGuideStep(41);
-await Click("tbody tr.clickable:has-text('אבי כהן')");
-
-await WaitForGuideStep(42);
-await Select("[name='status']","חדש");
-
-await WaitForGuideStep(43);
-await Select("[name='status']","נסגר בהצלחה");
-
-await WaitForGuideStep(44);
-await Select("[name='status']","חדש");
-
-await WaitForGuideStep(45);
-await Select("[name='status']","נסגר בהצלחה");
-
-await WaitForGuideStep(46);
-await Click(".breadcrumb a[data-go^='#/site/'][data-go$='/leads']");
-
-await WaitForGuideStep(47);
-await Click("nav.tabs button:has-text('פניות')");
-
-await WaitForGuideStep(48);
-await Click($"button.grid-open[data-go='#/case/{createdCaseId}']");
-
-await WaitForGuideStep(49);
-await Click(".breadcrumb a[data-go^='#/site/']");
-
-await WaitForGuideStep(50);
-await Click($"button.grid-open[data-go='#/case/{createdCaseId}']");
-
-await WaitForGuideStep(51);
-if(GuidanceVisibleAt(51) && dapProcess is not null)
-{
-    var informationConfirm=page.Locator("#dap-guide-centered [data-dap-guide-confirm='1']");
-    await MoveTo(informationConfirm);
-    await informationConfirm.ClickAsync();
-}
-
-await WaitForGuideStep(52);
-await Click("#delete-case");
-
-await WaitForGuideStep(53);
-await Click("#ps-confirm [data-answer='yes']");
-
-await WaitForGuideStep(54);
-var headerFrame=await page.FindFrameByNameAsync("dap-header")
-    ?? throw new Exception("Header frame was not found for the learner action.");
-var header=headerFrame.Locator("#portal-header");
-await MoveTo(header);
-await header.ClickAsync();
-
-await WaitForGuideStep(55);
-if(GuidanceVisibleAt(55) && dapProcess is not null)
-{
-    var summaryConfirm=page.Locator("#dap-guide-centered [data-dap-guide-confirm='1']");
-    await MoveTo(summaryConfirm);
-    await summaryConfirm.ClickAsync();
-}
-
-if(lastScenarioGuideOrder!=dapSteps.Count)
-    throw new Exception(
-        $"Canonical Web scenario completed after Guide Step {lastScenarioGuideOrder}; expected {dapSteps.Count}.");
-
-if(dapProcess is null)
-    throw new Exception("DAP.exe process is missing while completing the Web regression run.");
-
-if(!dapProcess.WaitForExit(5000))
-{
-    var finalRuntimeDiagnostics=string.Join(
-        Environment.NewLine,
-        dapStdErrLines.Where(line=>
-            line.StartsWith("[DAP guide]",StringComparison.Ordinal)
-            || line.StartsWith("[DAP validation]",StringComparison.Ordinal)
-            || line.StartsWith("[DAP bubble]",StringComparison.Ordinal)
-            || line.StartsWith("[DAP runtime]",StringComparison.Ordinal)
-            || line.StartsWith("[DAP runtime trace]",StringComparison.Ordinal)));
-    throw new TimeoutException(
-        $"DAP Runtime did not complete the Guide within 5 seconds after the final learner action.{Environment.NewLine}" +
-        $"DAP diagnostics:{Environment.NewLine}{finalRuntimeDiagnostics}");
-}
-if(dapProcess.ExitCode!=0)
-    throw new Exception($"DAP.exe exited with code {dapProcess.ExitCode} during the Web regression run.");
-
-Console.WriteLine("PASS: manual-from-step bootstrap completed.");
-}
-catch (ManualWebHandoffCompleteException)
-{
-    Console.WriteLine("Manual Web From-Step run finished.");
-}
 catch (Exception) when (ownedWebTargetClosed.Task.IsCompleted)
 {
     var closeReason = await ownedWebTargetClosed.Task;
@@ -1205,9 +828,5 @@ finally
     catch (UnauthorizedAccessException)
     {
     }
-}
-
-sealed class ManualWebHandoffCompleteException : Exception
-{
 }
 
