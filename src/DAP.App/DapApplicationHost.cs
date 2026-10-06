@@ -208,8 +208,7 @@ public static class DapApplicationHost
         CancellationToken cancellationToken)
     {
         // Production Web path: the learner owns guide behavior while the
-        // browser extension is only the browser adapter. No Playwright/CDP is
-        // created or connected here.
+        // browser extension is only the browser adapter.
         using var browserAdapter = new ExtensionWebBrowserAdapter(texts);
         var stepRuntime = new AdapterWebLearnerRuntime(browserAdapter);
         var guideRuntime = new AdapterWebGuideRuntime(stepRuntime, browserAdapter);
