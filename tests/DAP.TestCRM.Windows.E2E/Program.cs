@@ -56,6 +56,7 @@ if (args.Contains("--reset-guide", StringComparer.OrdinalIgnoreCase))
 }
 
 int? manualFromStep = null;
+int? fastFromStep = null;
 int? visualFromStep = null;
 string? publishedDapDirectory = null;
 for (var i = 0; i < args.Length; i++)
@@ -80,6 +81,17 @@ for (var i = 0; i < args.Length; i++)
         continue;
     }
 
+    if (args[i].Equals("--fast-from-step", StringComparison.OrdinalIgnoreCase))
+    {
+        if (i + 1 >= args.Length
+            || !int.TryParse(args[++i], out var parsedFastStep)
+            || parsedFastStep < 1)
+            throw new ArgumentException("--fast-from-step requires a positive Guide Step order.");
+
+        fastFromStep = parsedFastStep;
+        continue;
+    }
+
     if (args[i].Equals("--visual-from-step", StringComparison.OrdinalIgnoreCase))
     {
         if (i + 1 >= args.Length
@@ -91,30 +103,26 @@ for (var i = 0; i < args.Length; i++)
     }
 }
 
-if (manualFromStep is not null && visualFromStep is not null)
-    throw new ArgumentException("--manual-from-step and --visual-from-step cannot be combined.");
+var focusedModeCount = new[] { manualFromStep, fastFromStep, visualFromStep }.Count(step => step is not null);
+if (focusedModeCount > 1)
+    throw new ArgumentException("--manual-from-step, --fast-from-step, and --visual-from-step cannot be combined.");
 
 var unguided = args.Contains("--unguided", StringComparer.OrdinalIgnoreCase);
 var guided = args.Contains("--guided", StringComparer.OrdinalIgnoreCase);
 var manual = args.Contains("--manual", StringComparer.OrdinalIgnoreCase);
+var explicitFast = args.Contains("--fast", StringComparer.OrdinalIgnoreCase);
+var explicitVisual = args.Contains("--visual", StringComparer.OrdinalIgnoreCase);
 
-// DAP_E2E_MODE belongs only to a full --guided run. Focused/manual/unguided
-// switches define their own behavior and must ignore a stale environment value.
-var e2eMode = "fast";
-if (guided && !manual && !unguided && manualFromStep is null && visualFromStep is null)
-{
-    e2eMode = Environment.GetEnvironmentVariable("DAP_E2E_MODE")?.Trim().ToLowerInvariant() ?? "fast";
-    if (e2eMode is not ("fast" or "visual"))
-        throw new ArgumentException(
-            $"Unsupported DAP_E2E_MODE '{e2eMode}'. Supported values: fast, visual.");
-}
-
+if (explicitFast && explicitVisual)
+    throw new ArgumentException("--fast and --visual cannot be combined.");
+if ((explicitFast || explicitVisual) && !guided)
+    throw new ArgumentException("--fast and --visual require --guided.");
 if (unguided && guided)
     throw new ArgumentException("--guided and --unguided cannot be combined.");
-if (manual && (unguided || guided || manualFromStep is not null || visualFromStep is not null))
-    throw new ArgumentException("--manual cannot be combined with --guided, --unguided, --manual-from-step, or --visual-from-step.");
-if (unguided && (manualFromStep is not null || visualFromStep is not null))
-    throw new ArgumentException("--unguided cannot be combined with --manual-from-step or --visual-from-step.");
+if (manual && (unguided || guided || manualFromStep is not null || fastFromStep is not null || visualFromStep is not null))
+    throw new ArgumentException("--manual cannot be combined with --guided, --unguided, or a from-step mode.");
+if (unguided && (manualFromStep is not null || fastFromStep is not null || visualFromStep is not null))
+    throw new ArgumentException("--unguided cannot be combined with a from-step mode.");
 
 if (unguided)
 {
@@ -128,12 +136,13 @@ if (manual)
     return;
 }
 
-if (guided || manualFromStep is not null || visualFromStep is not null)
+if (guided || manualFromStep is not null || fastFromStep is not null || visualFromStep is not null)
 {
     await RunGuidedAsync(
         handoffStepOrder: manualFromStep,
+        fastStartStepOrder: fastFromStep,
         visualStartStepOrder: visualFromStep,
-        visualFromStart: guided && e2eMode == "visual");
+        visualFromStart: guided && explicitVisual);
     return;
 }
 
