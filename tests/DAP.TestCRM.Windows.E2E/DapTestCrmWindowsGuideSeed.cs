@@ -61,7 +61,8 @@ internal static class DapTestCrmWindowsGuideSeed
         TargetDescriptor target,
         string instruction,
         BubblePlacement placement = BubblePlacement.Bottom,
-        StepCompletionCondition? completionCondition = null) =>
+        StepCompletionCondition? completionCondition = null,
+        bool isEnabled = true) =>
         new(
             id,
             order,
@@ -71,7 +72,8 @@ internal static class DapTestCrmWindowsGuideSeed
             StepAdvanceMode.AutomaticOnValidation,
             CompletionConditions: completionCondition is null
                 ? null
-                : new[] { completionCondition });
+                : new[] { completionCondition },
+            IsEnabled: isEnabled);
 
     private static GuideStep NavigationRowStep(
         string id,
@@ -81,7 +83,8 @@ internal static class DapTestCrmWindowsGuideSeed
         string? descendantName = null,
         bool descendantNameIsRegex = false,
         string? columnHeaderName = null,
-        StepCompletionCondition? completionCondition = null) =>
+        StepCompletionCondition? completionCondition = null,
+        bool isEnabled = true) =>
         new(
             id,
             order,
@@ -91,7 +94,8 @@ internal static class DapTestCrmWindowsGuideSeed
             StepAdvanceMode.AutomaticOnValidation,
             CompletionConditions: completionCondition is null
                 ? null
-                : new[] { completionCondition });
+                : new[] { completionCondition },
+            IsEnabled: isEnabled);
 
     private static GuideStep ValueStep(
         string id,
@@ -100,7 +104,9 @@ internal static class DapTestCrmWindowsGuideSeed
         string instruction,
         string validationKind = "value-not-empty",
         string? expectedValue = null,
-        StepCompletionCondition? completionCondition = null) =>
+        StepCompletionCondition? completionCondition = null,
+        string? automationValue = null,
+        bool isEnabled = true) =>
         new(
             id,
             order,
@@ -110,14 +116,16 @@ internal static class DapTestCrmWindowsGuideSeed
             StepAdvanceMode.AutomaticOnValidation,
             CompletionConditions: completionCondition is null
                 ? null
-                : new[] { completionCondition });
+                : new[] { completionCondition },
+            IsEnabled: isEnabled,
+            AutomationValue: automationValue);
 
     public static IReadOnlyList<GuideStep> CreateSteps() => new GuideStep[]
     {
         ValueStep(
             "testcrm-windows-customer-name", 1,
             "CustomerNameSearch", "חפש את הלקוח: אלפא פתרונות בע\"מ",
-            "value-equals", "אלפא פתרונות בע\"מ"),
+            "value-equals", "אלפא פתרונות בע\"מ", automationValue: "אלפא פתרונות בע\"מ"),
 
         ClickStep(
             "testcrm-windows-customer-search-button", 2,
@@ -147,11 +155,11 @@ internal static class DapTestCrmWindowsGuideSeed
 
         ValueStep(
             "testcrm-windows-case-subject", 8,
-            "CaseSubject", "הקלד את נושא הפנייה"),
+            "CaseSubject", "הקלד את נושא הפנייה", automationValue: "תקלה בחיבור לאינטרנט"),
 
         ValueStep(
             "testcrm-windows-case-description", 9,
-            "CaseDescription", "תאר את הפנייה"),
+            "CaseDescription", "תאר את הפנייה", automationValue: "הלקוח מדווח על חיבור לא יציב."),
 
         ClickStep(
             "testcrm-windows-save-new-case", 10,
@@ -185,11 +193,11 @@ internal static class DapTestCrmWindowsGuideSeed
             "testcrm-windows-case-in-progress", 13,
             "CaseStatus", "שנה את סטטוס הפנייה לבטיפול",
             "value-equals", "בטיפול",
-            completionCondition: new StepCompletionCondition("target-enabled", ById("CaseResolutionNotes"))),
+            completionCondition: new StepCompletionCondition("target-enabled", ById("CaseResolutionNotes")), automationValue: "בטיפול"),
 
         ValueStep(
             "testcrm-windows-resolution-notes", 14,
-            "CaseResolutionNotes", "הוסף הערות טיפול"),
+            "CaseResolutionNotes", "הוסף הערות טיפול", automationValue: "בוצעה בדיקת שירות מול הלקוח והתקלה טופלה."),
 
         ClickStep(
             "testcrm-windows-activity-more", 15,
@@ -199,11 +207,11 @@ internal static class DapTestCrmWindowsGuideSeed
             "testcrm-windows-case-closed", 16,
             "CaseStatus", "שנה את סטטוס הפנייה לסגורה",
             "value-equals", "סגורה",
-            completionCondition: new StepCompletionCondition("target-exists", ById("CaseCloseReason"))),
+            completionCondition: new StepCompletionCondition("target-exists", ById("CaseCloseReason")), automationValue: "סגורה"),
 
         ValueStep(
             "testcrm-windows-case-subject-after-close", 17,
-            "CaseSubject", "הזן מחדש את נושא הפנייה"),
+            "CaseSubject", "הזן מחדש את נושא הפנייה", automationValue: "תקלה בחיבור לאינטרנט"),
 
         ClickStep(
             "testcrm-windows-attempt-close-save", 18,
@@ -230,7 +238,7 @@ internal static class DapTestCrmWindowsGuideSeed
         ValueStep(
             "testcrm-windows-close-reason", 20,
             "CaseCloseReason", "בחר בסיבת הסגירה \"טופל\"",
-            "value-equals", "טופל"),
+            "value-equals", "טופל", automationValue: "טופל"),
 
         ClickStep(
             "testcrm-windows-save-closed-case", 21,
@@ -246,11 +254,11 @@ internal static class DapTestCrmWindowsGuideSeed
 
         ClickStep(
             "testcrm-windows-return-cases-tab", 24,
-            ById("CasesTab"), "חזור ללשונית פניות", completionCondition: new StepCompletionCondition("target-exists", ById("NewCaseButton"))),
+            ById("CasesTab"), "חזור ללשונית פניות", completionCondition: new StepCompletionCondition("target-exists", ById("NewCaseButton")), isEnabled: false),
 
         ClickStep(
             "testcrm-windows-open-leads-again", 25,
-            ById("LeadsTab"), "עבור שוב ללשונית לידים", completionCondition: new StepCompletionCondition("target-exists", ById("NewLeadButton"))),
+            ById("LeadsTab"), "עבור שוב ללשונית לידים", completionCondition: new StepCompletionCondition("target-exists", ById("NewLeadButton")), isEnabled: false),
 
         ClickStep(
             "testcrm-windows-new-lead", 26,
@@ -258,7 +266,7 @@ internal static class DapTestCrmWindowsGuideSeed
 
         ValueStep(
             "testcrm-windows-lead-contact", 27,
-            "LeadContactName", "הזן את שם איש הקשר"),
+            "LeadContactName", "הזן את שם איש הקשר", automationValue: "לקוח בדיקת מערכת"),
 
         ClickStep(
             "testcrm-windows-save-new-lead", 28,
@@ -268,19 +276,19 @@ internal static class DapTestCrmWindowsGuideSeed
             "testcrm-windows-lead-close-success-1", 29,
             "LeadStatus", "שנה את סטטוס הליד לנסגר בהצלחה",
             "value-equals", "נסגר בהצלחה",
-            completionCondition: new StepCompletionCondition("target-exists", ById("LeadSelectedService"))),
+            completionCondition: new StepCompletionCondition("target-exists", ById("LeadSelectedService")), automationValue: "נסגר בהצלחה"),
 
         ValueStep(
             "testcrm-windows-lead-new", 30,
             "LeadStatus", "החזר את סטטוס הליד לחדש",
             "value-equals", "חדש",
-            completionCondition: new StepCompletionCondition("target-not-exists", ById("LeadSelectedService"))),
+            completionCondition: new StepCompletionCondition("target-not-exists", ById("LeadSelectedService")), automationValue: "חדש", isEnabled: false),
 
         ValueStep(
             "testcrm-windows-lead-close-success-2", 31,
             "LeadStatus", "שנה שוב את סטטוס הליד לנסגר בהצלחה",
             "value-equals", "נסגר בהצלחה",
-            completionCondition: new StepCompletionCondition("target-exists", ById("LeadSelectedService"))),
+            completionCondition: new StepCompletionCondition("target-exists", ById("LeadSelectedService")), automationValue: "נסגר בהצלחה", isEnabled: false),
 
         ClickStep(
             "testcrm-windows-lead-invalid-save", 32,
@@ -307,7 +315,7 @@ internal static class DapTestCrmWindowsGuideSeed
         ValueStep(
             "testcrm-windows-lead-service", 34,
             "LeadSelectedService", "בחר בשירות \"תמיכה מורחבת\"",
-            "value-equals", "תמיכה מורחבת"),
+            "value-equals", "תמיכה מורחבת", automationValue: "תמיכה מורחבת"),
 
         ClickStep(
             "testcrm-windows-save-lead", 35,
@@ -362,25 +370,25 @@ internal static class DapTestCrmWindowsGuideSeed
             "testcrm-windows-layout-status-new", 42,
             "LeadStatus", "שנה את סטטוס הליד לחדש",
             "value-equals", "חדש",
-            completionCondition: new StepCompletionCondition("target-not-exists", ById("LeadSelectedService"))),
+            completionCondition: new StepCompletionCondition("target-not-exists", ById("LeadSelectedService")), isEnabled: false),
 
         ValueStep(
             "testcrm-windows-layout-status-closed", 43,
             "LeadStatus", "שנה את סטטוס הליד לנסגר בהצלחה",
             "value-equals", "נסגר בהצלחה",
-            completionCondition: new StepCompletionCondition("target-exists", ById("LeadSelectedService"))),
+            completionCondition: new StepCompletionCondition("target-exists", ById("LeadSelectedService"), isEnabled: false), automationValue: "נסגר בהצלחה"),
 
         ValueStep(
             "testcrm-windows-race-status-new", 44,
             "LeadStatus", "החזר את סטטוס הליד לחדש",
             "value-equals", "חדש",
-            completionCondition: new StepCompletionCondition("target-not-exists", ById("LeadSelectedService"))),
+            completionCondition: new StepCompletionCondition("target-not-exists", ById("LeadSelectedService")), isEnabled: false),
 
         ValueStep(
             "testcrm-windows-race-status-closed", 45,
             "LeadStatus", "שנה שוב את סטטוס הליד לנסגר בהצלחה",
             "value-equals", "נסגר בהצלחה",
-            completionCondition: new StepCompletionCondition("target-exists", ById("LeadSelectedService"))),
+            completionCondition: new StepCompletionCondition("target-exists", ById("LeadSelectedService"), isEnabled: false), automationValue: "נסגר בהצלחה"),
 
         ClickStep(
             "testcrm-windows-lead-to-site", 46,
