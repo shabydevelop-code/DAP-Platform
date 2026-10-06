@@ -235,7 +235,7 @@ A target is represented by a runtime-neutral TargetDescriptor rather than a sing
 
 ## Validated Web browser baseline — 2026-10-01
 
-The Learner Web Runtime representative 53-Step DAP.TestCRM E2E is validated on Playwright Chromium, installed Google Chrome, and installed Microsoft Edge. The E2E runner selects the browser with `DAP_E2E_BROWSER=chromium|chrome|edge`, with Chromium as the default. The same production Runtime and persisted Guide are used across all three browser runs, and the 5-second E2E default timeout remains unchanged.
+The historical 53-Step Playwright baseline was validated on Chromium, Chrome, and Edge. In the current Extension-native architecture there is no `DAP_E2E_BROWSER` selector and no Chromium runtime mode. Development tooling discovers the single supported Chrome/Edge profile containing the registered DAP Extension; ambiguity is reported rather than guessed. The 5-second timeout ceiling remains unchanged.
 
 Cross-browser navigation durability is a Runtime responsibility. Application readiness must be based on the current live application/frame readiness contract rather than a browser lifecycle event that may already have completed before a waiter is registered. Likewise, click completion is DAP-owned state: when completion is reported while the validating action is replacing/navigating its document or frame, Learner reconciliation must be able to observe that completion and advance without depending on another operation against the retiring document. Browser-specific or target-application-specific timing workarounds are not acceptable substitutes for this behavior.
 
@@ -678,6 +678,11 @@ Key rules/state:
 
 The Zero Playwright milestone is not complete until the extension-native 54-Step canonical run passes in Chrome and Edge and the required public run modes are verified.
 
+## Extension-native browser/profile discovery — 2026-10-06
+
+The active Web path no longer treats Chromium, Chrome, and Edge as selectable Runtime profiles. `DAP_E2E_BROWSER` has been removed from the extension-native E2E runner, and the autonomous launcher no longer accepts a browser parameter.
+
+Both launch paths now derive the registered DAP Extension id and discover the single supported installed Chrome/Edge profile containing that Extension. If zero matches exist, startup explains that the Extension must be loaded/reloaded. If multiple matches exist, startup fails on ambiguity rather than choosing one.
 ## Hard product rule — autonomous Learner Runtime
 
 The core product is not an automation demo and the E2E Runner is not part of learner execution.
