@@ -78,12 +78,34 @@ internal sealed class WindowsCrmScenarioDriver
             throw new Exception($"{id} has no ValuePattern.");
 
         VisualTarget(e);
+
+        // UIA SetFocus and ValuePattern.SetValue can complete so quickly that a
+        // synthetic TAB is sent before WPF has established the editor as the
+        // real keyboard-focus owner. Synchronize only the learner action here;
+        // Guide completion remains entirely Runtime-owned.
+        var mainHwnd = new IntPtr(window.Current.NativeWindowHandle);
+        SetForegroundWindow(mainHwnd);
         e.SetFocus();
+        Wait(() =>
+        {
+            try { return e.Current.HasKeyboardFocus ? e : null; }
+            catch (ElementNotAvailableException) { return null; }
+        }, $"{id} keyboard focus");
+
         ((ValuePattern)pattern).SetValue(value);
 
-        // Match the Web runner's learner action: finish text entry with a real
-        // focus traversal so the application and Runtime receive the natural blur.
+        // Give WPF/UIA one dispatch turn to publish the value change while the
+        // editor is still focused, then perform the learner's real TAB commit.
+        Thread.Sleep(100);
         KeyPress(VK_TAB);
+
+        // This verifies only that the TAB action actually moved focus. It does
+        // not decide Step completion or evaluate validation.
+        Wait(() =>
+        {
+            try { return !e.Current.HasKeyboardFocus ? e : null; }
+            catch (ElementNotAvailableException) { return e; }
+        }, $"{id} TAB focus traversal");
     }
     void Select(string id,string value)
     {
