@@ -29,10 +29,10 @@ public sealed class SqliteDatabaseInitializer
             await migrate.ExecuteNonQueryAsync(cancellationToken);
         }
 
-        if (!await HasColumnAsync(connection, "GuideSteps", "ShowBubble", cancellationToken))
+        if (!await HasColumnAsync(connection, "GuideSteps", "IsEnabled", cancellationToken))
         {
             await using var migrate = connection.CreateCommand();
-            migrate.CommandText = "ALTER TABLE GuideSteps ADD COLUMN ShowBubble INTEGER NOT NULL DEFAULT 1;";
+            migrate.CommandText = "ALTER TABLE GuideSteps ADD COLUMN IsEnabled INTEGER NOT NULL DEFAULT 1;";
             await migrate.ExecuteNonQueryAsync(cancellationToken);
         }
 
@@ -193,7 +193,7 @@ CREATE TABLE IF NOT EXISTS GuideSteps (
  ContextKind TEXT NULL, ContextValue TEXT NULL, BubbleContent TEXT NOT NULL,
  BubblePlacement TEXT NOT NULL, ValidationKind TEXT NULL, ValidationExpectedValue TEXT NULL,
  ValidationOptionsJson TEXT NULL, AutoFocusTarget INTEGER NOT NULL DEFAULT 0,
- ShowBubble INTEGER NOT NULL DEFAULT 1, AutomationValue TEXT NULL,
+ IsEnabled INTEGER NOT NULL DEFAULT 1, AutomationValue TEXT NULL,
  FOREIGN KEY (GuideId) REFERENCES Guides(Id) ON DELETE CASCADE,
  UNIQUE (GuideId, Key), UNIQUE (GuideId, StepOrder));
 CREATE TABLE IF NOT EXISTS TargetAnchors (
