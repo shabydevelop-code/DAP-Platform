@@ -386,6 +386,10 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
         if(!siteCrumb.Current.IsEnabled || !siteCrumb.TryGetCurrentPattern(InvokePattern.Pattern,out var invoke))
             throw new Exception("Site breadcrumb is not invokable.");
         ((InvokePattern)invoke).Invoke();
+        if (unguidedBootstrapSynchronization)
+            Wait(()=>window.FindFirst(TreeScope.Descendants,
+                new PropertyCondition(AutomationElement.AutomationIdProperty,"LeadsTab")),
+                "Site screen after breadcrumb navigation");
         return Task.CompletedTask;
     }
     public Task OpenLeads()
