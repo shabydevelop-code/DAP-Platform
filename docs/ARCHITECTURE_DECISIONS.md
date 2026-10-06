@@ -26,8 +26,8 @@ The original implementation order through the Learner runtimes is now complete:
 2. Persistence interfaces — implemented.
 3. SQLite persistence adapter — implemented.
 4. Learner Runtime and bubble lifecycle — implemented.
-5. Web Runtime integration — implemented and exercised by the canonical 53-Step Guide.
-6. Windows Runtime integration — implemented and exercised by the canonical 53-Step Guide.
+5. Web Runtime integration — implemented through the browser Extension + Native Messaging adapter and exercised by the persisted 55-Step Guide.
+6. Windows Runtime integration — implemented through UI Automation and exercised by the persisted 55-Step Guide.
 7. Instructor/Editor Runtime and target-capture workflow — next major product phase.
 
 Future work must build the Instructor/Editor path against the same stable Core, persistence, and runtime-neutral target contracts rather than introducing a parallel guide model.
@@ -38,4 +38,4 @@ A Guide Step may intentionally contain no target when its purpose is to present 
 
 This is a runtime-neutral Guide capability. Web and Windows use their native presentation adapters but preserve the same semantics: centered placement, no target pointer/highlight, localized confirmation action, and explicit learner dismissal before advancing.
 
-Guide completion uses the same centered presentation family with completion-specific content and Finish action. This avoids a separate completion visual system and keeps Web/Windows learner presentation aligned.
+Guide completion is persisted as the final centered informational Step. The current canonical Web and Windows Guides contain 55 Steps, with Step 55 carrying the completion summary as Guide data. This avoids a separate synthesized completion state and keeps Web/Windows learner presentation aligned.
