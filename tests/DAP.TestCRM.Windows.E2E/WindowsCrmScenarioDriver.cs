@@ -94,13 +94,34 @@ internal sealed class WindowsCrmScenarioDriver
 
         ((ValuePattern)pattern).SetValue(value);
 
-        // Give WPF/UIA one dispatch turn to publish the value change while the
-        // editor is still focused, then perform the learner's real TAB commit.
-        Thread.Sleep(100);
+        // Wait until UIA exposes the new value while the editor still owns
+        // keyboard focus. The production Runtime observes that same value-change
+        // signal and must see it before the learner's commit action.
+        Wait(() =>
+        {
+            try
+            {
+                if (!e.Current.HasKeyboardFocus)
+                    return null;
+                if (!e.TryGetCurrentPattern(ValuePattern.Pattern, out var currentPattern))
+                    return null;
+                return string.Equals(((ValuePattern)currentPattern).Current.Value, value, StringComparison.Ordinal)
+                    ? e
+                    : null;
+            }
+            catch (ElementNotAvailableException)
+            {
+                return null;
+            }
+        }, $"{id} automated value while focused");
+
+        // Let the Runtime consume the UIA value-change notification before TAB.
+        // This is action synchronization only; Runtime still owns validation and
+        // Step advancement.
+        Thread.Sleep(250);
         KeyPress(VK_TAB);
 
-        // This verifies only that the TAB action actually moved focus. It does
-        // not decide Step completion or evaluate validation.
+        // Verify that TAB really traversed to another control.
         Wait(() =>
         {
             try { return !e.Current.HasKeyboardFocus ? e : null; }
