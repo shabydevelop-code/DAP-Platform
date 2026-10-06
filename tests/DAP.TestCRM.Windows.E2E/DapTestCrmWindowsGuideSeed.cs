@@ -447,6 +447,15 @@ internal static class DapTestCrmWindowsGuideSeed
         ClickStep(
             "testcrm-windows-header-home", 54,
             ById("PortalHeader"), "חזור למסך חיפוש הלקוח",
-            completionCondition: new StepCompletionCondition("target-exists", ById("CustomerNameSearch")))
+            completionCondition: new StepCompletionCondition("target-exists", ById("CustomerNameSearch"))),
+
+        new GuideStep(
+            "testcrm-windows-guide-summary", 55,
+            Target: null,
+            new BubbleDefinition(
+                "המדריך הושלם בהצלחה",
+                BubblePlacement.Center),
+            Validation: null,
+            AdvanceMode: StepAdvanceMode.Manual)
     };
 }
