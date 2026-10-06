@@ -254,3 +254,14 @@ The verified runner-free 54-Step manual TestCRM run proves that persisted Guide 
 **Status:** Accepted
 
 Architecture, decisions, current status, and project context are maintained in repository Markdown and updated with significant implementation changes.
+
+## Windows E2E fidelity and asynchronous completion — 2026-10-06
+
+Windows E2E follows the same semantic ownership rule as Web E2E: automation may perform learner actions and wait for the Runtime's externally visible Step, but it must not determine application business outcomes that belong to persisted Guide completion semantics.
+
+For asynchronous Windows actions, completion must be expressed through a production-observable condition in the Guide. The canonical Case status-sort Step therefore waits for replacement of the observable `CasesGrid` after the server-backed sort rather than using a runner delay, HTTP knowledge, or E2E-side outcome polling.
+
+The Windows Learner Runtime consumes persisted `AutoFocusTarget` as a one-time presentation behavior for value-entry Steps. Reconciliation must not repeatedly steal learner focus.
+
+The full Windows Guided 54-Step workflow and a separate Manual autofocus check passed with these rules on 2026-10-06.
+
