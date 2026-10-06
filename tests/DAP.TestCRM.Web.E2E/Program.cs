@@ -898,11 +898,26 @@ async Task WaitForGuideStep(int order)
         {
             if(dapProcess is { HasExited: true })
                 throw new Exception($"DAP.exe exited with code {dapProcess.ExitCode} before hidden Step {order} became ready.");
+            var deferredReadyLines=new List<string>();
+            var matchedReady=false;
             while(dapHiddenReadyLines.TryDequeue(out var readyLine))
             {
-                if(!readyLine.Contains(readyMarker, StringComparison.Ordinal))
-                    continue;
+                if(readyLine.Contains(readyMarker, StringComparison.Ordinal))
+                {
+                    matchedReady=true;
+                    break;
+                }
 
+                // A fast Runtime can already publish readiness for the next
+                // Guide Step while the harness is consuming the current one.
+                // Preserve those future pulses instead of discarding them.
+                deferredReadyLines.Add(readyLine);
+            }
+            foreach(var deferredReadyLine in deferredReadyLines)
+                dapHiddenReadyLines.Enqueue(deferredReadyLine);
+
+            if(matchedReady)
+            {
                 if(advancedSequence)
                     Console.WriteLine($"Web Runtime hidden Guide Step {order}/{dapSteps.Count}: {expected.Id}");
                 return;
