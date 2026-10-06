@@ -9,7 +9,7 @@ namespace DAP.TestCRM.Web.E2E;
 
 /// <summary>
 /// Web E2E browser driver that uses the exact DAP browser-extension boundary.
-/// It does not use Playwright, CDP, Selenium, Puppeteer, or browser debugging APIs.
+/// It does not use an alternate browser-control or debugging stack.
 /// </summary>
 internal sealed class BrowserHarness : IAsyncDisposable
 {
