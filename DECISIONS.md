@@ -265,3 +265,17 @@ The Windows Learner Runtime consumes persisted `AutoFocusTarget` as a one-time p
 
 The full Windows Guided 54-Step workflow and a separate Manual autofocus check passed with these rules on 2026-10-06.
 
+
+
+## Regression Runner Boundary
+
+The Web/Windows regression runner is test infrastructure, not a DAP product component.
+
+- The runner replaces only learner input: click, type, select, scroll, and equivalent user actions.
+- The runner may observe the active Runtime Guide Step only to know which learner action to perform next.
+- The runner must not decide whether validation, completion, navigation, save, target appearance/disappearance, or any other Guide transition condition succeeded.
+- Guide advancement is owned exclusively by the production Runtime using the persisted Guide definitions in the database.
+- No production Runtime behavior, protocol, synchronization path, or completion mechanism may be added solely to satisfy the regression runner.
+- Automatic, unguided, visual, and from-step regression modes must exercise the same production Runtime and persisted Guide semantics as a real learner session; only who performs the learner action and whether guidance is presented may differ.
+
+Architectural test: if a real learner would not need to perform an operation, that operation must not be used by the runner to advance the Guide.
