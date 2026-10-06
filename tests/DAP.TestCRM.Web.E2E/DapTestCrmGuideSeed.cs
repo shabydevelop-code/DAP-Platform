@@ -40,8 +40,9 @@ public static class DapTestCrmGuideSeed
         string id, int order, string css, string instruction, string contextCss,
         BubblePlacement placement = BubblePlacement.Bottom,
         StepCompletionCondition? completionCondition = null,
-        string? automationValue = null) =>
-        ValueStep(id, order, css, instruction, contextCss, "value-not-empty", null, placement, completionCondition, automationValue);
+        string? automationValue = null,
+        bool isEnabled = true) =>
+        ValueStep(id, order, css, instruction, contextCss, "value-not-empty", null, placement, completionCondition, automationValue, isEnabled);
 
     private static GuideStep ValueStep(
         string id, int order, string css, string instruction, string contextCss,
@@ -59,6 +60,7 @@ public static class DapTestCrmGuideSeed
                 ? null
                 : new[] { completionCondition },
             AutoFocusTarget: true,
+            IsEnabled: isEnabled,
             AutomationValue: automationValue);
 
     public static IReadOnlyList<GuideStep> CreateSteps() => new GuideStep[]
@@ -177,8 +179,8 @@ public static class DapTestCrmGuideSeed
         ValueStep("testcrm-lead-contact", 27, "[name='contactName']", "הזן את שם איש הקשר", "[name='contactName']", automationValue: "לקוח בדיקת מערכת"),
         ClickStep("testcrm-save-new-lead", 28, "button.primary:has-text('שמור')", "שמור את הליד החדש", "[name='contactName']", completionCss: "#delete-lead"),
         ValueStep("testcrm-lead-close-success-1", 29, "[name='status']", "שנה את סטטוס הליד לנסגר בהצלחה", "[name='status']", "value-equals", "נסגר בהצלחה", completionCondition: new StepCompletionCondition("target-exists", WebTarget("[name='selectedService']")), automationValue: "נסגר בהצלחה"),
-        ValueStep("testcrm-lead-new", 30, "[name='status']", "החזר את סטטוס הליד לחדש", "[name='status']", "value-equals", "חדש", completionCondition: new StepCompletionCondition("target-not-exists", WebTarget("[name='selectedService']")), automationValue: "חדש"),
-        ValueStep("testcrm-lead-close-success-2", 31, "[name='status']", "שנה שוב את סטטוס הליד לנסגר בהצלחה", "[name='status']", "value-equals", "נסגר בהצלחה", completionCondition: new StepCompletionCondition("target-exists", WebTarget("[name='selectedService']")), automationValue: "נסגר בהצלחה"),
+        ValueStep("testcrm-lead-new", 30, "[name='status']", "החזר את סטטוס הליד לחדש", "[name='status']", "value-equals", "חדש", completionCondition: new StepCompletionCondition("target-not-exists", WebTarget("[name='selectedService']")), automationValue: "חדש", isEnabled: false),
+        ValueStep("testcrm-lead-close-success-2", 31, "[name='status']", "שנה שוב את סטטוס הליד לנסגר בהצלחה", "[name='status']", "value-equals", "נסגר בהצלחה", completionCondition: new StepCompletionCondition("target-exists", WebTarget("[name='selectedService']")), automationValue: "נסגר בהצלחה", isEnabled: false),
         ClickStep("testcrm-lead-invalid-save", 32, "button.primary:has-text('שמור')", "נסה לשמור את הליד", "[name='selectedService']", completionCss: "#ps-alert"),
         ClickStep("testcrm-lead-validation-ok", 33, "#ps-alert button", "אשר את הודעת השגיאה", "#ps-alert", completionCss: "[name='selectedService']"),
         ValueStep("testcrm-lead-service", 34, "[name='selectedService']", "בחר בשירות \"תמיכה מורחבת\"", "[name='selectedService']", "value-equals", "תמיכה מורחבת", automationValue: "תמיכה מורחבת"),
@@ -189,10 +191,10 @@ public static class DapTestCrmGuideSeed
         ClickStep("testcrm-customer-site", 39, "tbody tr.clickable:has-text('מטה תל אביב')", "פתח את האתר מטה תל אביב", "h2:has-text('אתרים')", completionCss: "nav.tabs"),
         ClickStep("testcrm-site-leads", 40, "nav.tabs button:has-text('לידים')", "עבור ללשונית לידים", "nav.tabs", completionCss: "h2:has-text('לידים')"),
         ClickStep("testcrm-open-lead", 41, "tbody tr.clickable:has-text('אבי כהן')", "פתח את הליד של אבי כהן", "h2:has-text('לידים')", completionCss: "#delete-lead"),
-        ValueStep("testcrm-layout-status-new", 42, "[name='status']", "שנה את סטטוס הליד לחדש", "[name='status']", "value-equals", "חדש", completionCondition: new StepCompletionCondition("target-not-exists", WebTarget("[name='selectedService']")), automationValue: "חדש"),
-        ValueStep("testcrm-layout-status-closed", 43, "[name='status']", "שנה את סטטוס הליד לנסגר בהצלחה", "[name='status']", "value-equals", "נסגר בהצלחה", completionCondition: new StepCompletionCondition("target-exists", WebTarget("[name='selectedService']")), automationValue: "נסגר בהצלחה"),
-        ValueStep("testcrm-race-status-new", 44, "[name='status']", "החזר את סטטוס הליד לחדש", "[name='status']", "value-equals", "חדש", completionCondition: new StepCompletionCondition("target-not-exists", WebTarget("[name='selectedService']")), automationValue: "חדש"),
-        ValueStep("testcrm-race-status-closed", 45, "[name='status']", "שנה שוב את סטטוס הליד לנסגר בהצלחה", "[name='status']", "value-equals", "נסגר בהצלחה", completionCondition: new StepCompletionCondition("target-exists", WebTarget("[name='selectedService']")), automationValue: "נסגר בהצלחה"),
+        ValueStep("testcrm-layout-status-new", 42, "[name='status']", "שנה את סטטוס הליד לחדש", "[name='status']", "value-equals", "חדש", completionCondition: new StepCompletionCondition("target-not-exists", WebTarget("[name='selectedService']")), automationValue: "חדש", isEnabled: false),
+        ValueStep("testcrm-layout-status-closed", 43, "[name='status']", "שנה את סטטוס הליד לנסגר בהצלחה", "[name='status']", "value-equals", "נסגר בהצלחה", completionCondition: new StepCompletionCondition("target-exists", WebTarget("[name='selectedService']")), automationValue: "נסגר בהצלחה", isEnabled: false),
+        ValueStep("testcrm-race-status-new", 44, "[name='status']", "החזר את סטטוס הליד לחדש", "[name='status']", "value-equals", "חדש", completionCondition: new StepCompletionCondition("target-not-exists", WebTarget("[name='selectedService']")), automationValue: "חדש", isEnabled: false),
+        ValueStep("testcrm-race-status-closed", 45, "[name='status']", "שנה שוב את סטטוס הליד לנסגר בהצלחה", "[name='status']", "value-equals", "נסגר בהצלחה", completionCondition: new StepCompletionCondition("target-exists", WebTarget("[name='selectedService']")), automationValue: "נסגר בהצלחה", isEnabled: false),
         ClickStep("testcrm-lead-to-site", 46, ".breadcrumb a[data-go^='#/site/'][data-go$='/leads']", "חזור לאתר", "h1:has-text('ליד')", completionCss: "nav.tabs"),
         ClickStep("testcrm-site-cases-final", 47, "nav.tabs button:has-text('פניות')", "עבור ללשונית פניות", "nav.tabs", completionCss: "h2:has-text('פניות')"),
         ClickStep("testcrm-open-context-case", 48, "button.grid-open[data-go='{{step:testcrm-back-to-cases:capture}}']", "פתח שוב את הפנייה שיצרת", "h2:has-text('פניות')", completionCss: "#delete-case"),
