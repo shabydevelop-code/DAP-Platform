@@ -1665,6 +1665,16 @@ if(lastScenarioGuideOrder!=dapSteps.Count)
     throw new Exception(
         $"Canonical Web scenario completed after Guide Step {lastScenarioGuideOrder}; expected {dapSteps.Count}.");
 
+if(unguided)
+{
+    if(dapProcess is null)
+        throw new Exception("DAP.exe process is missing while completing the unguided Web run.");
+    if(!dapProcess.WaitForExit(5000))
+        throw new TimeoutException("DAP Runtime did not complete the unguided Guide within 5 seconds after the final learner action.");
+    if(dapProcess.ExitCode!=0)
+        throw new Exception($"DAP.exe exited with code {dapProcess.ExitCode} during the unguided Web run.");
+}
+
 Console.WriteLine(unguided
     ? $"PASS: Web unguided executed the canonical {dapSteps.Count}-step scenario through DAP Runtime and the persisted Guide in DAP.db, with guidance hidden."
     : "PASS: representative Customer -> Site -> Case -> Lead workflow, including dynamic Lead deletion and Case deletion, completed.");
