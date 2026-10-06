@@ -821,26 +821,24 @@ var focusedStartStepOrder = manualFromStep ?? fastFromStep ?? visualFromStep;
 var bootstrapCaptures = new Dictionary<string, string>(StringComparer.Ordinal);
 var resumeContextPath = Path.Combine(webRunRoot, "resume-context.json");
 
-Process StartFocusedDap(int startStepOrder)
+Process StartFocusedDap(int? showGuidanceFromStepOrder, bool hideGuidance = false)
 {
     var dapExecutable=Path.Combine(effectiveDapDirectory,"DAP.exe");
     if(!File.Exists(dapExecutable))
         throw new Exception($"DAP executable not found at {dapExecutable}");
 
-    var resumeContextArgument=string.Empty;
-    if(bootstrapCaptures.Count>0)
-    {
-        File.WriteAllText(resumeContextPath, JsonSerializer.Serialize(bootstrapCaptures));
-        resumeContextArgument=$" --resume-context-file \"{resumeContextPath}\"";
-    }
+    var guidanceArgument = hideGuidance
+        ? " --hide-guidance"
+        : showGuidanceFromStepOrder is not null
+            ? $" --show-guidance-from-step {showGuidanceFromStepOrder.Value}"
+            : string.Empty;
 
     var process=new Process
     {
         StartInfo=new ProcessStartInfo
         {
             FileName=dapExecutable,
-            Arguments=$"--learner-web {DapTestCrmGuideSeed.GuideId} --start-step {startStepOrder}" +
-                      resumeContextArgument,
+            Arguments=$"--learner-web {DapTestCrmGuideSeed.GuideId}" + guidanceArgument,
             WorkingDirectory=effectiveDapDirectory,
             UseShellExecute=false,
             CreateNoWindow=true,
@@ -862,12 +860,9 @@ Process StartFocusedDap(int startStepOrder)
     };
     process.BeginErrorReadLine();
 
-    // From this point onward the run is Guided again. Re-enable the strict
-    // bubble/action identity invariant before Step N performs any learner action.
-    requireActiveGuideTarget=true;
-
-    Console.WriteLine(
-        $"Web unguided bootstrap complete through Step {startStepOrder-1}; DAP started at Step {startStepOrder} with {bootstrapCaptures.Count} resume capture(s).");
+    Console.WriteLine(hideGuidance
+        ? "Web DAP Runtime started with guidance hidden."
+        : $"Web DAP Runtime started at Step 1 with guidance hidden through Step {showGuidanceFromStepOrder!.Value - 1}.");
     return process;
 }
 
@@ -928,40 +923,27 @@ async Task WaitForGuideStep(int order)
     if(advancedSequence)
         lastScenarioGuideOrder=order;
 
-    if(unguided)
+    if(unguided || (focusedStartStepOrder is not null && order < focusedStartStepOrder.Value))
     {
-        if(advancedSequence)
-            Console.WriteLine($"Web unguided Guide Step {order}/{dapSteps.Count}: {expected.Id}");
-        return;
-    }
-
-    if(focusedStartStepOrder is not null && order<focusedStartStepOrder.Value)
-    {
-        if(expected.Capture is not null)
+        var readyMarker = $"[DAP guide] ready hidden Step {order}/{dapSteps.Count} '{expected.Id}'.";
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        while(DateTime.UtcNow < deadline)
         {
-            var captured=await CaptureBootstrapStepValueAsync(expected);
-            if(string.IsNullOrWhiteSpace(captured))
-                throw new InvalidOperationException(
-                    $"Web bootstrap could not capture runtime value for Step {order} '{expected.Id}'.");
-
-            bootstrapCaptures[expected.Id]=captured;
-            Console.WriteLine($"Web unguided bootstrap captured Step {order}: {expected.Id}");
+            if(dapProcess is { HasExited: true })
+                throw new Exception($"DAP.exe exited with code {dapProcess.ExitCode} before hidden Step {order} became ready.");
+            if(dapStdErrLines.Any(line => line.Contains(readyMarker, StringComparison.Ordinal)))
+            {
+                if(advancedSequence)
+                    Console.WriteLine($"Web Runtime hidden Guide Step {order}/{dapSteps.Count}: {expected.Id}");
+                return;
+            }
+            await page.WaitForTimeoutAsync(50);
         }
-        else if(advancedSequence)
-        {
-            Console.WriteLine($"Web unguided bootstrap Step {order}/{dapSteps.Count}: {expected.Id}");
-        }
-        return;
+        throw new TimeoutException($"DAP Runtime did not activate hidden Step {order}: {expected.Id} within 5 seconds.");
     }
 
-    if(dapProcess is null)
-    {
-        if(focusedStartStepOrder!=order)
-            throw new InvalidOperationException(
-                $"Web DAP launch expected at Step {focusedStartStepOrder}, but scenario reached Step {order}.");
-
-        dapProcess=StartFocusedDap(order);
-    }
+    if(focusedStartStepOrder == order)
+        requireActiveGuideTarget=true;
 
     for(var i=0;i<100;i++)
     {
@@ -1050,6 +1032,15 @@ async Task WaitForGuideStep(int order)
     throw new TimeoutException(
         $"DAP Guide did not present Step {order}: {expected.Id}.{Environment.NewLine}" +
         $"DAP diagnostics:{Environment.NewLine}{recentDapDiagnostics}");
+}
+
+if(unguided)
+{
+    dapProcess=StartFocusedDap(null, hideGuidance: true);
+}
+else if(focusedStartStepOrder is not null)
+{
+    dapProcess=StartFocusedDap(focusedStartStepOrder.Value);
 }
 
 if(!unguided && focusedStartStepOrder is null)
@@ -1675,7 +1666,7 @@ if(lastScenarioGuideOrder!=dapSteps.Count)
         $"Canonical Web scenario completed after Guide Step {lastScenarioGuideOrder}; expected {dapSteps.Count}.");
 
 Console.WriteLine(unguided
-    ? $"PASS: Web unguided executed the canonical {dapSteps.Count}-step scenario sequenced by the persisted Guide in DAP.db, without DAP.exe or bubbles."
+    ? $"PASS: Web unguided executed the canonical {dapSteps.Count}-step scenario through DAP Runtime and the persisted Guide in DAP.db, with guidance hidden."
     : "PASS: representative Customer -> Site -> Case -> Lead workflow, including dynamic Lead deletion and Case deletion, completed.");
 await page.WaitForTimeoutAsync(visualMode ? 1500 : 0);
 }
