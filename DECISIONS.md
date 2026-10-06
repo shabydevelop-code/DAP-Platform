@@ -71,3 +71,11 @@ AI may assist development and may become an optional Instructor aid. Production 
 ## ADR-014 — Instructor shares the Learner Guide model
 
 Instructor/Editor must author the same persisted Guide model consumed by Learner. A parallel Instructor-only Guide model is not permitted.
+
+## ADR-015 — Runner lifetime follows the target session
+
+Intentional closure of the target application/session ends Manual and Hybrid cleanly; genuine Runtime failures remain failures. Windows uses target-process lifetime. Web uses a runner-owned Extension session identity because the Chrome launcher PID is not a reliable browser-lifetime signal. Manual Web uses that session only for passive lifetime observation and performs no synthetic learner actions.
+
+## ADR-016 — Runtime initial input focus precedes Hybrid input
+
+Production Runtime owns the one-time initial focus of input Steps. Hybrid must wait until that focus setup is complete before applying a configured learner input, so synthetic commit actions such as TAB cannot race a later Runtime focus operation.
