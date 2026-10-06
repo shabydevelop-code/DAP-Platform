@@ -868,48 +868,6 @@ Process StartFocusedDap(int? showGuidanceFromStepOrder, bool hideGuidance = fals
     return process;
 }
 
-async Task<string?> CaptureBootstrapStepValueAsync(GuideStep step)
-{
-    if(step.Capture is null) return null;
-
-    BrowserFrame frame;
-    if(step.Target?.FrameContext?.Path is { Count: > 0 })
-    {
-        // Canonical Web TestCRM uses named single-level frames. Resolve the
-        // actual live frame through the public browser surface rather than the
-        // former browser-runtime helper.
-        var locator=step.Target.FrameContext.Path[0];
-        var name=locator.Value.Contains("dap-header",StringComparison.Ordinal)
-            ? "dap-header"
-            : "dap-content";
-        frame=await page.FindFrameByNameAsync(name)
-            ?? throw new InvalidOperationException($"Bootstrap frame '{name}' was not available.");
-    }
-    else
-    {
-        frame=page.MainFrame;
-    }
-
-    await frame.RefreshUrlAsync();
-    string? raw=step.Capture.Property switch
-    {
-        "frame-url" => frame.Url,
-        "frame-url-fragment" => new Uri(frame.Url).Fragment,
-        "text" => await frame.Locator(step.Capture.Locator.Value).TextContentAsync(),
-        "value" => await frame.Locator(step.Capture.Locator.Value).InputValueAsync(),
-        _ => throw new NotSupportedException($"Unsupported Web bootstrap capture property '{step.Capture.Property}'.")
-    };
-
-    if(raw is null || string.IsNullOrEmpty(step.Capture.Pattern)) return raw;
-    var match=System.Text.RegularExpressions.Regex.Match(
-        raw,
-        step.Capture.Pattern,
-        System.Text.RegularExpressions.RegexOptions.CultureInvariant);
-    if(!match.Success) return null;
-    return match.Groups.Count>1 ? match.Groups[1].Value : match.Value;
-}
-
-var lastScenarioGuideOrder=0;
 async Task WaitForGuideStep(int order)
 {
     var expected=dapSteps.Single(step=>step.Order==order);
