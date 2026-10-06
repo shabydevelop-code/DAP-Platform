@@ -26,7 +26,8 @@ public sealed class AdapterWebLearnerRuntime
     }
 
     public async Task RunActiveStepAsync(
-        GuideStep step, int stepNumber, int totalSteps, CancellationToken cancellationToken)
+        GuideStep step, int stepNumber, int totalSteps, CancellationToken cancellationToken,
+        bool showPresentation = true, Action? onReady = null)
     {
         if (step.Bubble.Placement == BubblePlacement.Center)
         {
@@ -38,7 +39,10 @@ public sealed class AdapterWebLearnerRuntime
                 || step.CompletionConditions is { Count: > 0 })
                 throw new InvalidOperationException($"Centered Guide Step '{step.Id}' must be a pure Manual information Step with no target, context, validation, capture, or completion conditions.");
 
-            await _browser.WaitForCenteredStepDismissalAsync(step, stepNumber, totalSteps, cancellationToken);
+            if (showPresentation)
+                await _browser.WaitForCenteredStepDismissalAsync(step, stepNumber, totalSteps, cancellationToken);
+            else
+                onReady?.Invoke();
             return;
         }
 
@@ -102,6 +106,29 @@ public sealed class AdapterWebLearnerRuntime
                     continue;
                 }
                 presentationGatePassed = true;
+            }
+
+            if (!showPresentation)
+            {
+                var activation = await _browser.EnsureStepActiveAsync(step, cancellationToken);
+                if (activation.Status != WebTargetResolutionStatus.Resolved)
+                {
+                    presentationGatePassed = false;
+                    await Task.Delay(_reconcileInterval, cancellationToken);
+                    continue;
+                }
+
+                onReady?.Invoke();
+                onReady = null;
+
+                if (commitTask is not null)
+                {
+                    var delay = Task.Delay(_stableReconcileInterval, cancellationToken);
+                    await Task.WhenAny(commitTask, delay);
+                }
+                else
+                    await Task.Delay(_stableReconcileInterval, cancellationToken);
+                continue;
             }
 
             WebBubblePresentation presentation;
