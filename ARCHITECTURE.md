@@ -292,3 +292,15 @@ Python is not a product dependency.
 - Browser control and DOM access use the extension/native-host architecture.
 - Guide target identity, validation, completion, and progression remain owned by persisted Guide data plus the production Runtime.
 - Stable idle Chrome tab CPU: approximately 2% at the accepted 500 ms stable reconciliation cadence.
+
+## Web presentation readiness and scrolling
+
+Presentation readiness distinguishes target existence, obstruction, and viewport position.
+
+A resolved target that is rendered and enabled but lies outside the current viewport may continue to the presentation path. The learner then scrolls it into view before placing the bubble.
+
+When a target is already inside the viewport, hit-testing may defer presentation while another application surface covers it. This avoids exposing the next actionable Step while the application is still covering that control.
+
+This also avoids a circular dependency where an off-screen target would need to be visible before the presentation path responsible for scrolling it could execute.
+
+Current manually verified extension baseline: **0.2.7**. The full runner-free 54-Step Manual Web regression passed on 2026-10-06.
