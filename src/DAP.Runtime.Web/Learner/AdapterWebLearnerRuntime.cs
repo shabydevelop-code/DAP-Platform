@@ -56,6 +56,7 @@ public sealed class AdapterWebLearnerRuntime
         // its persisted completion condition became true while the application
         // is still finishing the same asynchronous render.
         var presentationGatePassed = false;
+        var readySignaled = false;
         Task<WebValidationCommit?>? commitTask = automatic
             ? _browser.WaitForValidationCommitAsync(step, cancellationToken)
             : null;
@@ -146,6 +147,15 @@ public sealed class AdapterWebLearnerRuntime
             {
                 await _browser.HideBubbleAsync(cancellationToken);
                 presentationGatePassed = false;
+            }
+            else if (!readySignaled)
+            {
+                // EnsureBubbleShownAsync returns only after the production
+                // adapter has resolved the target and bound the current
+                // validation arm. This is the Runtime's natural readiness
+                // boundary for learner input, independent of presentation.
+                readySignaled = true;
+                onReady?.Invoke();
             }
 
             // Re-check click completion after reconciliation. The browser event
