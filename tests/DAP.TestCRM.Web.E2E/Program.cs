@@ -795,13 +795,6 @@ async Task WaitForGuideStep(int order)
     if(advancedSequence)
         lastScenarioGuideOrder=order;
 
-    var hiddenPresentation=!GuidanceVisibleAt(order);
-    var pureCenteredInformationStep=
-        expected.Target is null
-        && expected.Bubble.Placement==BubblePlacement.Center
-        && expected.AdvanceMode==StepAdvanceMode.Manual
-        && expected.Validation is null;
-
     var startMarker=$"[DAP guide] starting Step {order}/{dapSteps.Count} '{expected.Id}'";
     var deadline=DateTime.UtcNow.AddSeconds(5);
     var runtimeStarted=false;
@@ -810,70 +803,12 @@ async Task WaitForGuideStep(int order)
     {
         runtimeStarted |= dapStdErrLines.Any(line=>line.Contains(startMarker,StringComparison.Ordinal));
 
-        // "starting Step" is intentionally not enough. The Runtime writes that
-        // diagnostic before the production bubble lifecycle has finished
-        // resolving the target and arming validation. For actionable Steps,
-        // synchronize only when that same production presentation surface owns
-        // the expected Step id. Hidden guidance uses the same surface lifecycle;
-        // it is merely not visible.
-        var productionStepReady=false;
-        if(runtimeStarted && !pureCenteredInformationStep)
-        {
-            foreach(var liveFrame in page.Frames.Where(candidate=>!candidate.IsDetached))
-            {
-                try
-                {
-                    foreach(var selector in new[] { "#dap-guide-bubble", "#dap-guide-bubble-proxy" })
-                    {
-                        var surface=liveFrame.Locator(selector);
-                        if(await surface.CountAsync()!=1)
-                            continue;
-
-                        var stepId=await surface.GetAttributeAsync("data-dap-step-id");
-                        if(string.Equals(stepId,expected.Id,StringComparison.Ordinal))
-                        {
-                            // A matching production surface is enough to prove
-                            // that Runtime resolved the target and armed this
-                            // Step's validation. The local bubble can be
-                            // intentionally invisible when presentation is
-                            // delegated to the top-level proxy.
-                            productionStepReady=true;
-                            break;
-                        }
-                    }
-                }
-                catch(BrowserHarnessException)
-                {
-                    // A real application navigation can replace a frame while
-                    // the production Runtime is resolving the current target.
-                }
-
-                if(productionStepReady)
-                    break;
-            }
-        }
-        else if(runtimeStarted && pureCenteredInformationStep)
-        {
-            if(hiddenPresentation)
-            {
-                // With presentation suppressed there is no learner action for a
-                // centered information Step; production Runtime auto-advances it.
-                productionStepReady=true;
-            }
-            else
-            {
-                var centered=page.Locator("#dap-guide-centered");
-                if(await centered.CountAsync()==1
-                   && string.Equals(
-                       await centered.GetAttributeAsync("data-dap-step-id"),
-                       expected.Id,
-                       StringComparison.Ordinal)
-                   && await centered.IsVisibleAsync())
-                    productionStepReady=true;
-            }
-        }
-
-        if(productionStepReady)
+        // The regression runner observes only which Guide Step production
+        // Runtime has made active. It does not inspect bubbles, targets,
+        // validation state, completion conditions, or application outcomes.
+        // Runtime and the persisted Guide remain the sole authority for why
+        // the previous Step completed and why this Step became active.
+        if(runtimeStarted)
         {
             if(visualFromStep == order && !switchedToVisual)
             {
@@ -886,7 +821,7 @@ async Task WaitForGuideStep(int order)
             if(manualFromStep == order)
             {
                 Console.WriteLine();
-                Console.WriteLine($"MANUAL HANDOFF: Runtime reached ready Step {order}.");
+                Console.WriteLine($"MANUAL HANDOFF: Runtime reached active Step {order}.");
                 Console.WriteLine("Automatic learner actions are paused. Continue manually in the browser.");
                 Console.WriteLine("The run will close automatically when DAP completes the Guide or the owned browser/page is closed.");
 
@@ -914,7 +849,7 @@ async Task WaitForGuideStep(int order)
         }
 
         if(dapProcess is not null && dapProcess.HasExited)
-            throw new Exception($"DAP.exe exited with code {dapProcess.ExitCode} before Runtime prepared Step {order}.");
+            throw new Exception($"DAP.exe exited with code {dapProcess.ExitCode} before Runtime activated Step {order}.");
 
         await page.WaitForTimeoutAsync(50);
     }
@@ -929,7 +864,7 @@ async Task WaitForGuideStep(int order)
             || line.StartsWith("[DAP runtime trace]",StringComparison.Ordinal)));
 
     throw new TimeoutException(
-        $"DAP Runtime did not prepare Step {order}: {expected.Id} within 5 seconds.{Environment.NewLine}" +
+        $"DAP Runtime did not activate Step {order}: {expected.Id} within 5 seconds.{Environment.NewLine}" +
         $"Runtime start observed: {runtimeStarted}.{Environment.NewLine}" +
         $"DAP diagnostics:{Environment.NewLine}{recentDapDiagnostics}");
 }
