@@ -12,6 +12,11 @@ function connect() {
 
   connected.onMessage.addListener(handleNativeMessage);
   connected.onDisconnect.addListener(() => {
+    // Reading lastError acknowledges Chrome's expected native-messaging
+    // disconnect when DAP/the runner exits, preventing an unchecked
+    // runtime error warning. Connection cleanup remains identical.
+    void chrome.runtime.lastError;
+
     if (port === connected) {
       port = null;
       productionTabId = null;
