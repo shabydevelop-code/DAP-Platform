@@ -604,7 +604,7 @@ async Task MarkHybridAutomaticBubble(string label)
     var frame = await Content();
     var bubble = frame.Locator("#dap-guide-bubble");
     var labelJson = JsonSerializer.Serialize(label);
-    await bubble.EvaluateAsync(
+    await bubble.EvaluateAsync<bool>(
         $@"bubble => {{
             let badge = bubble.querySelector('[data-dap-hybrid-automatic]');
             if (!badge) {{
@@ -623,6 +623,7 @@ async Task MarkHybridAutomaticBubble(string label)
                 bubble.insertBefore(badge, content);
             }}
             badge.textContent = {labelJson};
+            return true;
         }}");
 }
 
