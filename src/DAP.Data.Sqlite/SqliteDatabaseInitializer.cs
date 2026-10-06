@@ -21,6 +21,33 @@ public sealed class SqliteDatabaseInitializer
         await using var command = connection.CreateCommand();
         command.CommandText = Schema002;
         await command.ExecuteNonQueryAsync(cancellationToken);
+        await EnsureGuideStepHybridColumnsAsync(connection, cancellationToken);
+    }
+
+    private static async Task EnsureGuideStepHybridColumnsAsync(SqliteConnection connection, CancellationToken cancellationToken)
+    {
+        var columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        await using (var info = connection.CreateCommand())
+        {
+            info.CommandText = "PRAGMA table_info(GuideSteps);";
+            await using var reader = await info.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+                columns.Add(reader.GetString(1));
+        }
+
+        if (!columns.Contains("IsEnabled"))
+        {
+            await using var add = connection.CreateCommand();
+            add.CommandText = "ALTER TABLE GuideSteps ADD COLUMN IsEnabled INTEGER NOT NULL DEFAULT 1;";
+            await add.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        if (!columns.Contains("AutomationValue"))
+        {
+            await using var add = connection.CreateCommand();
+            add.CommandText = "ALTER TABLE GuideSteps ADD COLUMN AutomationValue TEXT NULL;";
+            await add.ExecuteNonQueryAsync(cancellationToken);
+        }
     }
 
     private static async Task<bool> UsesLegacyTextIdsAsync(SqliteConnection connection, CancellationToken cancellationToken)
@@ -159,7 +186,7 @@ CREATE TABLE IF NOT EXISTS GuideSteps (
  LocatorStrategy TEXT NULL, LocatorValue TEXT NULL, FrameContextJson TEXT NULL,
  ContextKind TEXT NULL, ContextValue TEXT NULL, BubbleContent TEXT NOT NULL,
  BubblePlacement TEXT NOT NULL, ValidationKind TEXT NULL, ValidationExpectedValue TEXT NULL,
- ValidationOptionsJson TEXT NULL,
+ ValidationOptionsJson TEXT NULL, IsEnabled INTEGER NOT NULL DEFAULT 1, AutomationValue TEXT NULL,
  FOREIGN KEY (GuideId) REFERENCES Guides(Id) ON DELETE CASCADE,
  UNIQUE (GuideId, Key), UNIQUE (GuideId, StepOrder));
 CREATE TABLE IF NOT EXISTS TargetAnchors (
