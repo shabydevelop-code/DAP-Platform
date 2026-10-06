@@ -551,6 +551,27 @@ async Task<bool> WaitForHybridGuideStep(GuideStep expected)
             if (dapProcess.ExitCode == 0)
                 return false;
 
+            // Closing the E2E-owned browser tab/window intentionally tears down
+            // the production Web transport, which can make DAP exit non-zero.
+            // In Hybrid mode the extension test session gives us an independent
+            // way to distinguish that normal user closure from a real DAP failure.
+            if (hybrid && testDriver is not null)
+            {
+                try
+                {
+                    using var probeTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(1));
+                    await testDriver.SendAsync(new { type = "testPing" }, probeTimeout.Token);
+                }
+                catch (Exception ex) when (
+                    ex is IOException
+                    or InvalidOperationException
+                    or OperationCanceledException)
+                {
+                    Console.WriteLine("Web browser session closed. Ending the run and cleaning up owned processes.");
+                    return false;
+                }
+            }
+
             throw new Exception($"DAP.exe exited with code {dapProcess.ExitCode} before Runtime activated Step {expected.Order}.");
         }
 
@@ -619,7 +640,7 @@ if (hybrid)
         var observed = await WaitForHybridGuideStep(step);
         if (!observed)
         {
-            if (dapProcess is not null && dapProcess.HasExited && dapProcess.ExitCode == 0)
+            if (dapProcess is not null && dapProcess.HasExited)
                 break;
 
             Console.WriteLine($"HYBRID: Runtime already advanced past persisted Step {step.Order} '{step.Id}'.");
@@ -649,7 +670,30 @@ if (hybrid)
         throw new Exception("DAP.exe process is missing during the hybrid Web run.");
     await dapProcess.WaitForExitAsync();
     if (dapProcess.ExitCode != 0)
-        throw new Exception($"DAP.exe exited with code {dapProcess.ExitCode} during the hybrid Web run.");
+    {
+        var browserSessionStillOpen = true;
+        if (testDriver is not null)
+        {
+            try
+            {
+                using var probeTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(1));
+                await testDriver.SendAsync(new { type = "testPing" }, probeTimeout.Token);
+            }
+            catch (Exception ex) when (
+                ex is IOException
+                or InvalidOperationException
+                or OperationCanceledException)
+            {
+                browserSessionStillOpen = false;
+            }
+        }
+
+        if (browserSessionStillOpen)
+            throw new Exception($"DAP.exe exited with code {dapProcess.ExitCode} during the hybrid Web run.");
+
+        Console.WriteLine("Web browser session closed. Ending the run and cleaning up owned processes.");
+        return;
+    }
     Console.WriteLine("PASS: hybrid Web Guide completed.");
     return;
 }
