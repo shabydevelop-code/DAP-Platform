@@ -580,6 +580,8 @@ dapProcess=new Process
 };
 dapProcess.StartInfo.Environment["DAP_DATABASE_PATH"]=dapDbPath!;
 if (hybrid)
+    dapProcess.StartInfo.Environment["DAP_LEARNER_AUTOMATION"]="1";
+if (hybrid)
     dapProcess.StartInfo.Environment["DAP_WEB_SESSION_ID"]=sessionId;
 var dapStartupTimer=Stopwatch.StartNew();
 if(!dapProcess.Start())
