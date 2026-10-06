@@ -950,3 +950,7 @@ By explicit user authorization, the production Web extension components were rec
 Current production Web composition now routes through `ExtensionWebBrowserAdapter` and `AdapterWebGuideRuntime`. The production `DAP.Runtime.Web` project no longer references Playwright. The extension remains a browser adapter only; persisted Guide data and .NET Runtime retain Guide sequencing, validation/completion policy, capture, and progression ownership.
 
 A fresh local build and extension/native-host verification is required before recording PASS for this restored baseline.
+
+### Playwright removal from production Web runtime — 2026-10-06
+
+The retired Playwright-based Web learner implementation has been removed from `DAP.Runtime.Web`. The production Web project no longer references the Microsoft Playwright package. Browser access for the production Web learner is exclusively through the restored browser extension, Native Messaging host, named-pipe adapter, and .NET Guide Runtime. Playwright must not be reintroduced as a production Web runtime dependency.
