@@ -108,36 +108,10 @@ public sealed class AdapterWebLearnerRuntime
                 presentationGatePassed = true;
             }
 
-            if (!showPresentation)
-            {
-                var activation = await _browser.EnsureStepActiveAsync(step, cancellationToken);
-                if (activation.Status != WebTargetResolutionStatus.Resolved)
-                {
-                    presentationGatePassed = false;
-                    await Task.Delay(_reconcileInterval, cancellationToken);
-                    continue;
-                }
-
-                // Hidden automation needs a live readiness pulse, not a one-shot
-                // notification. A resolved target can be replaced while the same
-                // Guide Step remains active; the next reconciliation must confirm
-                // that the replacement target has been resolved and armed too.
-                onReady?.Invoke();
-
-                if (commitTask is not null)
-                {
-                    var delay = Task.Delay(_stableReconcileInterval, cancellationToken);
-                    await Task.WhenAny(commitTask, delay);
-                }
-                else
-                    await Task.Delay(_stableReconcileInterval, cancellationToken);
-                continue;
-            }
-
             WebBubblePresentation presentation;
             if (clicked && commitTask is not null)
             {
-                var presentationTask = _browser.EnsureBubbleShownAsync(step, stepNumber, totalSteps, cancellationToken);
+                var presentationTask = _browser.EnsureBubbleShownAsync(step, stepNumber, totalSteps, showPresentation, cancellationToken);
                 var winner = await Task.WhenAny(presentationTask, commitTask);
 
                 if (winner == commitTask && commitTask.IsCompletedSuccessfully)
@@ -165,7 +139,7 @@ public sealed class AdapterWebLearnerRuntime
             }
             else
             {
-                presentation = await _browser.EnsureBubbleShownAsync(step, stepNumber, totalSteps, cancellationToken);
+                presentation = await _browser.EnsureBubbleShownAsync(step, stepNumber, totalSteps, showPresentation, cancellationToken);
             }
 
             if (presentation.Status != WebTargetResolutionStatus.Resolved)
