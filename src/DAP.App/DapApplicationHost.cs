@@ -210,7 +210,9 @@ public static class DapApplicationHost
         // Production Web path: the learner owns guide behavior while the
         // browser extension is only the browser adapter.
         using var browserAdapter = new ExtensionWebBrowserAdapter(texts);
-        var stepRuntime = new AdapterWebLearnerRuntime(browserAdapter);
+        var stepRuntime = new AdapterWebLearnerRuntime(
+            browserAdapter,
+            automaticStepLabel: options.HybridPresentation ? texts.Get("Learner.AutomaticStep") : null);
         var guideRuntime = new AdapterWebGuideRuntime(stepRuntime, browserAdapter);
         StartupMark(startup, "Web extension adapter composition root created");
 
