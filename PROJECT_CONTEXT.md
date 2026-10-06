@@ -780,3 +780,8 @@ After the failed event-driven experiment was rolled back, CPU optimization resum
 ## Stable Web learner polling: 500 ms
 
 After manual verification showed about 4.5% idle Chrome CPU with the 250 ms stable interval and no observed bubble regression, stable resolved-step polling was reduced to 500 ms. Recovery remains at 100 ms. This remains a cadence-only optimization.
+
+
+## Verified idle CPU: ~2% at 500 ms
+
+Manual Chrome Task Manager verification after changing only the stable learner polling cadence to 500 ms showed the TestCRM tab at roughly 2% CPU while idle. Earlier measurements were roughly 13–15% with the original 100 ms steady-state loop and roughly 4.5% at 250 ms. Bubble behavior remained acceptable in the manual check. The accepted baseline is therefore 100 ms for recovery states and 500 ms for stable resolved-step reconciliation. Further reductions should only be considered after dynamic Web scenarios are revalidated.
