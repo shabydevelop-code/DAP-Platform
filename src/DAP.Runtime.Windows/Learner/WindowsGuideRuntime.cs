@@ -55,6 +55,13 @@ public sealed class WindowsGuideRuntime
         for (var index = startIndex; index < ordered.Length; index++)
         {
             var persistedStep = ordered[index];
+            if (!persistedStep.IsEnabled)
+            {
+                Console.Error.WriteLine($"[DAP Windows guide] skipped disabled Step {persistedStep.Order}/{ordered.Length} '{persistedStep.Id}'.");
+                preExistingTargetForCurrentStep = null;
+                continue;
+            }
+
             var step = MaterializeRuntimeValues(persistedStep, capturedValues);
             var isCenteredStep = step.Target is null
                 && step.Bubble.Placement == BubblePlacement.Center;
@@ -66,8 +73,8 @@ public sealed class WindowsGuideRuntime
             AutomationElement? nextTargetBeforeCurrentAction = null;
             if (index + 1 < ordered.Length)
             {
-                var nextPersistedStep = ordered[index + 1];
-                var nextStep = TryMaterializeRuntimeValues(nextPersistedStep, capturedValues);
+                var nextPersistedStep = ordered.Skip(index + 1).FirstOrDefault(candidate => candidate.IsEnabled);
+                var nextStep = nextPersistedStep is null ? null : TryMaterializeRuntimeValues(nextPersistedStep, capturedValues);
                 if (nextStep?.Target?.Runtime == TargetRuntime.Windows)
                 {
                     try
@@ -86,7 +93,7 @@ public sealed class WindowsGuideRuntime
             await RunStepAsync(
                 windowRoot,
                 step,
-                index + 1,
+                step.Order,
                 ordered.Length,
                 cancellationToken,
                 preExistingTargetForCurrentStep,
@@ -96,9 +103,7 @@ public sealed class WindowsGuideRuntime
             preExistingTargetForCurrentStep = nextTargetBeforeCurrentAction;
         }
 
-        Console.Error.WriteLine("[DAP Windows guide] presenting completion bubble.");
-        await _bubbles.WaitForGuideCompletedDismissalAsync(cancellationToken);
-        Console.Error.WriteLine("[DAP Windows guide] completion bubble dismissed; Guide finished.");
+        Console.Error.WriteLine("[DAP Windows guide] Guide finished.");
     }
 
     private async Task RunStepAsync(
