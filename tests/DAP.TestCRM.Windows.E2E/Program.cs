@@ -211,8 +211,9 @@ async Task RunPersistedUnguidedAsync()
                 $"run --project \"{appProject}\" --no-launch-profile");
 
         var window = WaitForMainWindow();
-        var executor = new PersistedWindowsCrmGuideExecutor(
-            new WindowsCrmScenarioDriver(windowsApp, window));
+        var unguidedDriver = new WindowsCrmScenarioDriver(windowsApp, window);
+        unguidedDriver.SetUnguidedBootstrapSynchronization(true);
+        var executor = new PersistedWindowsCrmGuideExecutor(unguidedDriver);
 
         Console.WriteLine("E2E mode: unguided");
         await executor.RunAsync(persistedSteps);
@@ -393,6 +394,7 @@ async Task RunGuidedAsync(
             dap = StartDap(null);
 
         var driver = new WindowsCrmScenarioDriver(windowsApp, window, visualFromStart);
+        driver.SetUnguidedBootstrapSynchronization(focusedStartStepOrder is not null);
 
         Console.WriteLine(
             fullManual
@@ -436,6 +438,7 @@ async Task RunGuidedAsync(
                     throw new InvalidOperationException(
                         $"Windows DAP launch expected at Step {focusedStartStepOrder}, but scenario reached Step {step.Order}.");
 
+                driver.SetUnguidedBootstrapSynchronization(false);
                 dap = StartDap(step.Order);
                 Console.WriteLine(
                     $"Windows unguided bootstrap complete through Step {step.Order - 1}; DAP started at Step {step.Order} with {bootstrapCaptures.Count} resume capture(s).");
