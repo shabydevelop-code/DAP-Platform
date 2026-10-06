@@ -593,7 +593,7 @@ dapProcess=new Process
     StartInfo=new ProcessStartInfo
     {
         FileName=dapExecutable,
-        Arguments=$"--learner-web {DapTestCrmGuideSeed.GuideId}",
+        Arguments=$"--learner --guide {DapTestCrmGuideSeed.GuideId}",
         WorkingDirectory=effectiveDapDirectory,
         UseShellExecute=false,
         CreateNoWindow=true,
