@@ -39,14 +39,18 @@
 
 ## Web
 
-1. Use Microsoft Playwright for .NET as the production Web Runtime.
-2. Integrate Playwright directly into the .NET product; Python must not be required on target machines.
-3. Observe learner actions; do not execute guide actions on behalf of the learner during normal guide execution.
-4. Support dynamic DOM updates and target re-resolution.
-5. Support frames and navigation.
-6. Support asynchronous application/server behavior.
-7. Support Editor recording/target capture.
-8. Explicitly package or validate required browser/Playwright deployment dependencies.
+1. Use the DAP browser extension + Native Messaging + .NET Web Runtime as the single production and E2E browser-access architecture.
+2. Do not introduce a second browser-control stack for tests or production.
+3. Browser DOM actions and inspection used by Web E2E must cross the DAP extension boundary.
+4. Observe learner actions; do not execute guide actions on behalf of the learner during normal guide execution.
+5. Support dynamic DOM updates and target re-resolution.
+6. Support frames, iframe replacement, and navigation.
+7. Support asynchronous application/server behavior.
+8. Support Editor recording/target capture through production-capable browser interfaces.
+9. Discover the installed Chrome/Edge profile containing the DAP extension without requiring a browser-mode selector.
+10. Fail explicitly when no matching extension profile exists or when multiple profiles are ambiguous.
+11. Explicitly package or validate the DAP browser extension, Native Messaging host, and supported browser requirements.
+12. Keep target identity, validation, completion, capture, and progression owned by persisted Guide data plus the production Runtime; E2E must remain only the synthetic learner/action layer.
 
 ## Windows
 
@@ -61,6 +65,16 @@
 1. Keep Core independent of the concrete database.
 2. Provide SQLite as the first database provider.
 3. Allow additional database providers without rewriting Core/runtime business logic.
+4. Treat persisted Guide data as authoritative after initialization: Seed initializes, DB owns, Runtime consumes.
+
+## E2E
+
+1. Keep the default synchronization timeout ceiling at 5 seconds.
+2. Require explicit user approval before increasing any E2E timeout above 5 seconds.
+3. Prefer real application readiness signals over fixed delays.
+4. Keep Fast and Visual on the same business/learner action path; Visual may add cursor movement/pacing only.
+5. Do not add hidden E2E selectors or completion rules to compensate for persisted Guide/runtime behavior.
+6. Keep automated Web execution valid only if the same persisted Guide can complete through the production learner without the E2E runner connected.
 
 ## Deployment
 
