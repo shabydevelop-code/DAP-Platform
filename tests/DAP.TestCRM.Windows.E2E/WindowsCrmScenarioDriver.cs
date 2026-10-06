@@ -1,12 +1,11 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Windows.Automation;
-using DAP.TestCRM.E2E.Common;
 using DAP.Core.Targets;
 
 namespace DAP.TestCRM.Windows.E2E;
 
-internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
+internal sealed class WindowsCrmScenarioDriver
 {
     readonly AutomationElement window;
     readonly Process app;
