@@ -490,15 +490,6 @@ async Task MoveTo(BrowserLocator target)
     await target.ScrollIntoViewIfNeededAsync();
     await target.HoverAsync();
 }
-async Task Click(string selector)
-{
-    var f=await Content();
-    var target=f.Locator(selector);
-    await MoveTo(target);
-    await target.ClickAsync();
-
-    await page.WaitForTimeoutAsync(1);
-}
 async Task Fill(string selector,string value)
 {
     var f=await Content(); var target=f.Locator(selector);
@@ -612,13 +603,14 @@ async Task MarkHybridAutomaticBubble(string label)
 {
     var frame = await Content();
     var bubble = frame.Locator("#dap-guide-bubble");
+    var labelJson = JsonSerializer.Serialize(label);
     await bubble.EvaluateAsync(
-        @"(bubble, label) => {
+        $@"bubble => {{
             let badge = bubble.querySelector('[data-dap-hybrid-automatic]');
-            if (!badge) {
+            if (!badge) {{
                 badge = bubble.ownerDocument.createElement('div');
                 badge.dataset.dapHybridAutomatic = 'true';
-                Object.assign(badge.style, {
+                Object.assign(badge.style, {{
                     display: 'inline-block',
                     fontSize: '12px',
                     fontWeight: '700',
@@ -626,13 +618,12 @@ async Task MarkHybridAutomaticBubble(string label)
                     marginBottom: '8px',
                     border: '1px solid currentColor',
                     borderRadius: '999px'
-                });
+                }});
                 const content = bubble.children.length > 1 ? bubble.children[1] : null;
                 bubble.insertBefore(badge, content);
-            }
-            badge.textContent = label;
-        }",
-        label);
+            }}
+            badge.textContent = {labelJson};
+        }}");
 }
 
 async Task<bool> WaitForHybridGuideStep(GuideStep expected)
