@@ -876,19 +876,6 @@ internal sealed class BrowserLocator
         await OpAsync("select", new { value });
     }
 
-    public async Task<bool> MatchesActiveGuideTargetAsync()
-    {
-        _frame.Page.ActiveFrame = _frame;
-        var result = await OpAsync("matchesActiveGuideTarget");
-        return ReadBool(result);
-    }
-
-    public async Task SetHybridAutomaticBadgeAsync(string label)
-    {
-        _frame.Page.ActiveFrame = _frame;
-        await OpAsync("setHybridAutomaticBadge", new { label });
-    }
-
     public async Task<T> EvaluateAsync<T>(string script)
     {
         string op;
