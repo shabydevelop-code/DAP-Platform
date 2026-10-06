@@ -15,17 +15,21 @@ public sealed record DapLaunchOptions(
     string? GuideId,
     string? WindowAutomationId,
     int? StartStep,
-    string? ResumeContextPath)
+    string? ResumeContextPath,
+    int? ShowGuidanceFromStep,
+    bool HideGuidance)
 {
     public static DapLaunchOptions? Parse(string[] args, IUiTextProvider texts)
     {
         if (args.Length == 1 && args[0] == "--check")
-            return new(DapLaunchMode.InfrastructureCheck, null, null, null, null);
+            return new(DapLaunchMode.InfrastructureCheck, null, null, null, null, null, false);
 
         if (args.Length >= 2 && args[0] == "--learner-web" && !string.IsNullOrWhiteSpace(args[1]))
         {
             int? startStep = null;
             string? resumeContextPath = null;
+            int? showGuidanceFromStep = null;
+            var hideGuidance = false;
 
             for (var i = 2; i < args.Length; i++)
             {
@@ -63,7 +67,7 @@ public sealed record DapLaunchOptions(
             }
 
             if (!string.IsNullOrWhiteSpace(windowAutomationId))
-                return new(DapLaunchMode.LearnerWindows, args[1], windowAutomationId, startStep, resumeContextPath);
+                return new(DapLaunchMode.LearnerWindows, args[1], windowAutomationId, startStep, resumeContextPath, null, false);
 
             return Usage(texts);
         }
