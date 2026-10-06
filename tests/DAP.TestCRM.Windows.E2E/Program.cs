@@ -55,182 +55,44 @@ if (args.Contains("--reset-guide", StringComparer.OrdinalIgnoreCase))
     return;
 }
 
-int? manualFromStep = null;
-int? visualFromStep = null;
 string? publishedDapDirectory = null;
+for (var i = 0; i < args.Length; i++)
+{
+    if (!args[i].Equals("--published-dap", StringComparison.OrdinalIgnoreCase))
+        continue;
+
+    if (i + 1 >= args.Length || string.IsNullOrWhiteSpace(args[i + 1]))
+        throw new ArgumentException("--published-dap requires a directory containing DAP.exe.");
+
+    publishedDapDirectory = Path.GetFullPath(args[++i]);
+}
+
+var manual = args.Contains("--manual", StringComparer.OrdinalIgnoreCase);
+var hybrid = args.Contains("--hybrid", StringComparer.OrdinalIgnoreCase);
+if (manual == hybrid)
+    throw new ArgumentException("Choose exactly one Windows run mode: --manual or --hybrid.");
+
+var knownArguments = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+{
+    "--manual",
+    "--hybrid",
+    "--published-dap"
+};
 for (var i = 0; i < args.Length; i++)
 {
     if (args[i].Equals("--published-dap", StringComparison.OrdinalIgnoreCase))
     {
-        if (i + 1 >= args.Length || string.IsNullOrWhiteSpace(args[i + 1]))
-            throw new ArgumentException("--published-dap requires a directory containing DAP.exe.");
-
-        publishedDapDirectory = Path.GetFullPath(args[++i]);
+        i++;
         continue;
     }
 
-    if (args[i].Equals("--manual-from-step", StringComparison.OrdinalIgnoreCase))
-    {
-        if (i + 1 >= args.Length
-            || !int.TryParse(args[++i], out var parsedManualStep)
-            || parsedManualStep < 1)
-            throw new ArgumentException("--manual-from-step requires a positive Guide Step order.");
-
-        manualFromStep = parsedManualStep;
-        continue;
-    }
-
-    if (args[i].Equals("--visual-from-step", StringComparison.OrdinalIgnoreCase))
-    {
-        if (i + 1 >= args.Length
-            || !int.TryParse(args[++i], out var parsedVisualStep)
-            || parsedVisualStep < 1)
-            throw new ArgumentException("--visual-from-step requires a positive Guide Step order.");
-
-        visualFromStep = parsedVisualStep;
-    }
+    if (!knownArguments.Contains(args[i]))
+        throw new ArgumentException($"Unsupported Windows E2E argument '{args[i]}'.");
 }
 
-if (manualFromStep is not null && visualFromStep is not null)
-    throw new ArgumentException("--manual-from-step and --visual-from-step cannot be combined.");
+await RunLearnerAsync(manual, hybrid);
 
-var unguided = args.Contains("--unguided", StringComparer.OrdinalIgnoreCase);
-var guided = args.Contains("--guided", StringComparer.OrdinalIgnoreCase);
-var manual = args.Contains("--manual", StringComparer.OrdinalIgnoreCase);
-
-// DAP_E2E_MODE belongs only to a full --guided run. Focused/manual/unguided
-// switches define their own behavior and must ignore a stale environment value.
-var e2eMode = "fast";
-if (guided && !manual && !unguided && manualFromStep is null && visualFromStep is null)
-{
-    e2eMode = Environment.GetEnvironmentVariable("DAP_E2E_MODE")?.Trim().ToLowerInvariant() ?? "fast";
-    if (e2eMode is not ("fast" or "visual"))
-        throw new ArgumentException(
-            $"Unsupported DAP_E2E_MODE '{e2eMode}'. Supported values: fast, visual.");
-}
-
-if (unguided && guided)
-    throw new ArgumentException("--guided and --unguided cannot be combined.");
-if (manual && (unguided || guided || manualFromStep is not null || visualFromStep is not null))
-    throw new ArgumentException("--manual cannot be combined with --guided, --unguided, --manual-from-step, or --visual-from-step.");
-if (unguided && (manualFromStep is not null || visualFromStep is not null))
-    throw new ArgumentException("--unguided cannot be combined with --manual-from-step or --visual-from-step.");
-
-if (unguided)
-{
-    await RunPersistedUnguidedAsync();
-    return;
-}
-
-if (manual)
-{
-    await RunGuidedAsync(handoffStepOrder: 1, fullManual: true);
-    return;
-}
-
-if (guided || manualFromStep is not null || visualFromStep is not null)
-{
-    await RunGuidedAsync(
-        handoffStepOrder: manualFromStep,
-        visualStartStepOrder: visualFromStep,
-        visualFromStart: guided && e2eMode == "visual");
-    return;
-}
-
-using var app = Process.Start(new ProcessStartInfo(
-    "dotnet",
-    $"run --project \"{appProject}\" --no-launch-profile")
-{
-    WorkingDirectory = root,
-    UseShellExecute = false
-}) ?? throw new Exception("Could not start Windows TestCRM.");
-
-try
-{
-    var window = WaitForMainWindow();
-    await CanonicalCrmScenario.Run53Async(new WindowsCrmScenarioDriver(app, window));
-    Console.WriteLine("PASS: Windows canonical 53-step Customer -> Site -> Case -> Lead scenario completed.");
-}
-catch (TargetApplicationClosedException)
-{
-    Console.WriteLine("Windows target application closed. Ending the run and cleaning up owned processes.");
-}
-catch (Exception) when (app.HasExited)
-{
-    Console.WriteLine("Windows target application closed. Ending the run and cleaning up owned processes.");
-}
-finally
-{
-    StopOwnedProcessTree(app);
-}
-
-async Task RunPersistedUnguidedAsync()
-{
-    var databaseOptions = SqliteDatabaseOptions.CreateDefault();
-    var factory = new SqliteConnectionFactory(databaseOptions);
-    await new SqliteDatabaseInitializer(factory).InitializeAsync();
-    var repository = new SqliteGuideStepRepository(factory);
-    var persistedSteps = await repository.GetStepsAsync(DapTestCrmWindowsGuideSeed.GuideId);
-
-    Process? backend = null;
-    Process? windowsApp = null;
-
-    try
-    {
-        EnsurePortFree(5201);
-
-        backend = packagedDiagnostics
-            ? StartProcess(
-                "dotnet",
-                $"\"{Path.Combine(packagedServerDirectory!, "DAP.TestCRM.Server.dll")}\"",
-                new Dictionary<string, string?> { ["ASPNETCORE_URLS"] = "http://localhost:5201" },
-                workingDirectory: packagedServerDirectory)
-            : StartProcess(
-                "dotnet",
-                $"run --project \"{backendProject}\" --no-launch-profile",
-                new Dictionary<string, string?> { ["ASPNETCORE_URLS"] = "http://localhost:5201" });
-
-        await WaitForHttpAsync("http://localhost:5201/api/customers", backend, "TestCRM backend");
-
-        windowsApp = packagedDiagnostics
-            ? StartProcess(
-                Path.Combine(packagedWindowsDirectory!, "DAP.TestCRM.Windows.exe"),
-                string.Empty,
-                workingDirectory: packagedWindowsDirectory)
-            : StartProcess(
-                "dotnet",
-                $"run --project \"{appProject}\" --no-launch-profile");
-
-        var window = WaitForMainWindow();
-        var executor = new PersistedWindowsCrmGuideExecutor(
-            new WindowsCrmScenarioDriver(windowsApp, window));
-
-        Console.WriteLine("E2E mode: unguided");
-        await executor.RunAsync(persistedSteps);
-
-        Console.WriteLine(
-            $"PASS: Windows unguided executed {persistedSteps.Count} persisted Guide Steps from DAP.db without DAP.exe or bubbles.");
-    }
-    catch (TargetApplicationClosedException)
-    {
-        Console.WriteLine("Windows target application closed. Ending the run and cleaning up owned processes.");
-    }
-    catch (Exception) when (windowsApp is not null && windowsApp.HasExited)
-    {
-        Console.WriteLine("Windows target application closed. Ending the run and cleaning up owned processes.");
-    }
-    finally
-    {
-        if (windowsApp is not null) StopOwnedProcessTree(windowsApp);
-        if (backend is not null) StopOwnedProcessTree(backend);
-    }
-}
-
-async Task RunGuidedAsync(
-    int? handoffStepOrder = null,
-    int? visualStartStepOrder = null,
-    bool visualFromStart = false,
-    bool fullManual = false)
+async Task RunLearnerAsync(bool manualMode, bool hybridMode)
 {
     var databaseOptions = SqliteDatabaseOptions.CreateDefault();
     var factory = new SqliteConnectionFactory(databaseOptions);
@@ -238,41 +100,17 @@ async Task RunGuidedAsync(
     var repository = new SqliteGuideStepRepository(factory);
     var persistedSteps = await repository.GetStepsAsync(DapTestCrmWindowsGuideSeed.GuideId);
     var expectedStepCount = DapTestCrmWindowsGuideSeed.CreateSteps().Count;
+
     if (persistedSteps.Count != expectedStepCount)
-    {
         throw new InvalidOperationException(
             $"Guide '{DapTestCrmWindowsGuideSeed.GuideId}' contains {persistedSteps.Count} persisted Steps, " +
-            $"but the current seed defines {expectedStepCount}. " +
-            "Run this project once with --reset-guide first.");
-    }
-
-    if (handoffStepOrder is not null
-        && !persistedSteps.Any(step => step.Order == handoffStepOrder.Value))
-    {
-        throw new ArgumentOutOfRangeException(
-            nameof(handoffStepOrder),
-            handoffStepOrder,
-            $"Guide '{DapTestCrmWindowsGuideSeed.GuideId}' does not contain Step {handoffStepOrder}.");
-    }
-
-    if (visualStartStepOrder is not null
-        && !persistedSteps.Any(step => step.Order == visualStartStepOrder.Value))
-    {
-        throw new ArgumentOutOfRangeException(
-            nameof(visualStartStepOrder),
-            visualStartStepOrder,
-            $"Guide '{DapTestCrmWindowsGuideSeed.GuideId}' does not contain Step {visualStartStepOrder}.");
-    }
+            $"but the current seed defines {expectedStepCount}. Run this project once with --reset-guide first.");
 
     Process? backend = null;
     Process? windowsApp = null;
     Process? dap = null;
-    var runRoot = Path.Combine(
-        Path.GetTempPath(),
-        "DAP",
-        "E2E",
-        "Windows",
-        Guid.NewGuid().ToString("N"));
+    var dapStdErrLines = new System.Collections.Concurrent.ConcurrentQueue<string>();
+    var runRoot = Path.Combine(Path.GetTempPath(), "DAP", "E2E", "Windows", Guid.NewGuid().ToString("N"));
     var backendOutput = Path.Combine(runRoot, "Server");
     var windowsOutput = Path.Combine(runRoot, "Windows");
     var dapOutput = Path.Combine(runRoot, "DAP");
@@ -303,9 +141,9 @@ async Task RunGuidedAsync(
 
         var effectiveBackendDirectory = packagedDiagnostics ? packagedServerDirectory! : backendOutput;
         var effectiveWindowsDirectory = packagedDiagnostics ? packagedWindowsDirectory! : windowsOutput;
+        var effectiveDapDirectory = publishedDapDirectory ?? packagedDapDirectory ?? dapOutput;
         var backendDll = Path.Combine(effectiveBackendDirectory, "DAP.TestCRM.Server.dll");
         var windowsExe = Path.Combine(effectiveWindowsDirectory, "DAP.TestCRM.Windows.exe");
-        var effectiveDapDirectory = publishedDapDirectory ?? packagedDapDirectory ?? dapOutput;
         var dapExe = Path.Combine(effectiveDapDirectory, "DAP.exe");
         if (!File.Exists(dapExe))
             throw new FileNotFoundException("Published DAP.exe was not found.", dapExe);
@@ -315,394 +153,129 @@ async Task RunGuidedAsync(
             $"\"{backendDll}\"",
             new Dictionary<string, string?> { ["ASPNETCORE_URLS"] = "http://localhost:5201" },
             workingDirectory: effectiveBackendDirectory);
-
         await WaitForHttpAsync("http://localhost:5201/api/customers", backend, "TestCRM backend");
 
-        windowsApp = StartProcess(
-            windowsExe,
-            string.Empty,
-            workingDirectory: effectiveWindowsDirectory);
-
+        windowsApp = StartProcess(windowsExe, string.Empty, workingDirectory: effectiveWindowsDirectory);
         var window = WaitForMainWindow();
-        var customerName = WaitForElementById(window, "CustomerNameSearch");
+        var driver = new WindowsCrmScenarioDriver(windowsApp, window);
 
-        var focusedStartStepOrder = fullManual ? null : handoffStepOrder ?? visualStartStepOrder;
-        var bootstrapCaptures = new Dictionary<string, string>(StringComparer.Ordinal);
-        var resumeContextPath = Path.Combine(runRoot, "resume-context.json");
-
-        Process StartDap(int? startStepOrder)
+        dap = StartProcess(
+            dapExe,
+            $"--learner-windows {DapTestCrmWindowsGuideSeed.GuideId} --window-automation-id {mainWindowAutomationId}",
+            redirectOutput: true,
+            workingDirectory: effectiveDapDirectory);
+        dap.OutputDataReceived += (_, e) =>
         {
-            var startStepArgument = startStepOrder is not null
-                ? $" --start-step {startStepOrder.Value}"
-                : string.Empty;
-            var resumeContextArgument = string.Empty;
+            if (!string.IsNullOrWhiteSpace(e.Data))
+                Console.WriteLine($"[DAP] {e.Data}");
+        };
+        dap.ErrorDataReceived += (_, e) =>
+        {
+            if (string.IsNullOrWhiteSpace(e.Data))
+                return;
+            dapStdErrLines.Enqueue(e.Data);
+            Console.Error.WriteLine($"[DAP STDERR] {e.Data}");
+        };
+        dap.BeginOutputReadLine();
+        dap.BeginErrorReadLine();
 
-            if (bootstrapCaptures.Count > 0)
+        async Task<bool> WaitForRuntimeStepAsync(GuideStep expected)
+        {
+            var marker = $"[DAP Windows guide] starting Step {expected.Order}/{persistedSteps.Count} '{expected.Id}'";
+            while (true)
             {
-                Directory.CreateDirectory(runRoot);
-                File.WriteAllText(
-                    resumeContextPath,
-                    JsonSerializer.Serialize(bootstrapCaptures));
-                resumeContextArgument = $" --resume-context-file \"{resumeContextPath}\"";
+                if (dapStdErrLines.Any(line => line.Contains(marker, StringComparison.Ordinal)))
+                    return true;
+
+                var laterStepObserved = dapStdErrLines.Any(line =>
+                {
+                    const string prefix = "[DAP Windows guide] starting Step ";
+                    if (!line.StartsWith(prefix, StringComparison.Ordinal))
+                        return false;
+                    var slash = line.IndexOf('/', prefix.Length);
+                    return slash > prefix.Length
+                        && int.TryParse(line[prefix.Length..slash], out var order)
+                        && order > expected.Order;
+                });
+                if (laterStepObserved)
+                    return false;
+
+                if (dap.HasExited)
+                {
+                    if (dap.ExitCode == 0)
+                        return false;
+                    throw new Exception($"DAP.exe exited with code {dap.ExitCode} before Runtime activated Step {expected.Order}.");
+                }
+
+                if (windowsApp.HasExited)
+                    throw new TargetApplicationClosedException();
+
+                await Task.Delay(100);
             }
-
-            var process = StartProcess(
-                dapExe,
-                $"--learner-windows {DapTestCrmWindowsGuideSeed.GuideId} " +
-                $"--window-automation-id {mainWindowAutomationId}" +
-                startStepArgument +
-                resumeContextArgument,
-                redirectOutput: true,
-                workingDirectory: effectiveDapDirectory);
-
-            process.OutputDataReceived += (_, e) =>
-            {
-                if (!string.IsNullOrWhiteSpace(e.Data))
-                    Console.WriteLine($"[DAP] {e.Data}");
-            };
-            process.ErrorDataReceived += (_, e) =>
-            {
-                if (!string.IsNullOrWhiteSpace(e.Data))
-                    Console.Error.WriteLine($"[DAP STDERR] {e.Data}");
-            };
-            process.BeginOutputReadLine();
-            process.BeginErrorReadLine();
-            return process;
         }
 
-        if (focusedStartStepOrder is null)
-            dap = StartDap(null);
+        var firstEnabled = persistedSteps.OrderBy(step => step.Order).First(step => step.IsEnabled);
+        await WaitForRuntimeStepAsync(firstEnabled);
 
-        var driver = new WindowsCrmScenarioDriver(windowsApp, window, visualFromStart);
-
-        Console.WriteLine(
-            fullManual
-                ? "E2E mode: manual"
-                : handoffStepOrder is not null
-                    ? $"E2E mode: unguided -> manual from Step {handoffStepOrder}"
-                    : visualStartStepOrder is not null
-                    ? $"E2E mode: unguided -> visual from Step {visualStartStepOrder}"
-                    : $"E2E mode: {(visualFromStart ? "visual" : "fast")}");
-
-        void WaitForStep(string stepId)
+        if (manualMode)
         {
-            var step = persistedSteps.Single(candidate => candidate.Id == stepId);
+            Console.WriteLine("MANUAL WINDOWS RUN: Runtime owns the persisted Guide; all learner actions remain manual.");
+            while (!dap.HasExited && !windowsApp.HasExited)
+                await Task.Delay(100);
 
-            if (focusedStartStepOrder is not null && step.Order < focusedStartStepOrder.Value)
+            if (dap.HasExited && dap.ExitCode != 0)
+                throw new Exception($"DAP.exe exited with code {dap.ExitCode} during the manual Windows run.");
+            return;
+        }
+
+        if (!hybridMode)
+            throw new InvalidOperationException("Windows learner mode was not selected.");
+
+        Console.WriteLine("HYBRID WINDOWS RUN: Runtime owns the Guide; persisted automation values fill value controls.");
+        Console.WriteLine("Buttons, navigation, dialogs, and information confirmations remain manual learner actions.");
+
+        foreach (var step in persistedSteps.OrderBy(step => step.Order))
+        {
+            if (!step.IsEnabled)
             {
-                if (step.Capture is not null)
-                {
-                    var captured = step.Id == "testcrm-windows-back-to-cases"
-                        ? driver.CreatedCaseId
-                        : null;
-                    if (string.IsNullOrWhiteSpace(captured))
-                        throw new InvalidOperationException(
-                            $"Windows bootstrap could not capture runtime value for Step {step.Order} '{step.Id}'.");
-
-                    bootstrapCaptures[step.Id] = captured;
-                    Console.WriteLine($"Windows unguided bootstrap captured Step {step.Order}: {step.Id}");
-                }
-                else
-                {
-                    Console.WriteLine($"Windows unguided bootstrap Step {step.Order}/{persistedSteps.Count}: {step.Id}");
-                }
-                return;
+                Console.WriteLine($"HYBRID: skipping disabled persisted Step {step.Order} '{step.Id}'.");
+                continue;
             }
 
-            if (dap is null)
+            var observed = await WaitForRuntimeStepAsync(step);
+            if (!observed)
             {
-                if (focusedStartStepOrder != step.Order)
-                    throw new InvalidOperationException(
-                        $"Windows DAP launch expected at Step {focusedStartStepOrder}, but scenario reached Step {step.Order}.");
-
-                dap = StartDap(step.Order);
-                Console.WriteLine(
-                    $"Windows unguided bootstrap complete through Step {step.Order - 1}; DAP started at Step {step.Order} with {bootstrapCaptures.Count} resume capture(s).");
-            }
-
-            WaitForBubble(step.Bubble.Content, dap!);
-
-            if (visualStartStepOrder == step.Order && !driver.VisualMode)
-            {
-                driver.SetVisualMode(true);
-                Console.WriteLine($"E2E mode transition: UNGUIDED -> VISUAL at Step {step.Order}");
-            }
-
-            driver.VisualPause(500);
-
-            if (handoffStepOrder != step.Order)
-                return;
-
-            Console.WriteLine();
-            Console.WriteLine(
-                handoffStepOrder == 1
-                    ? $"MANUAL WINDOWS RUN: Step {step.Order}/{persistedSteps.Count} is ready."
-                    : $"MANUAL HANDOFF: Windows Step {step.Order}/{persistedSteps.Count} is ready.");
-            Console.WriteLine("Automatic learner actions are paused. Continue manually in TestCRM by following the DAP bubbles.");
-            Console.WriteLine("The run will close automatically when DAP completes the Guide or the Windows target application is closed.");
-            Console.WriteLine("Press ENTER only if you want to stop the manual run before Guide completion.");
-
-            while (!dap!.HasExited && !windowsApp.HasExited)
-            {
-                if (Console.KeyAvailable && Console.ReadKey(intercept: true).Key == ConsoleKey.Enter)
+                if (dap.HasExited && dap.ExitCode == 0)
                     break;
 
-                Thread.Sleep(100);
+                Console.WriteLine($"HYBRID: Runtime already advanced past persisted Step {step.Order} '{step.Id}'.");
+                continue;
             }
 
-            if (dap!.HasExited)
-            {
-                if (dap.ExitCode != 0)
-                    throw new Exception($"DAP.exe exited with code {dap.ExitCode} during the manual learner run.");
+            if (string.IsNullOrEmpty(step.AutomationValue) || step.Target is null)
+                continue;
 
-                Console.WriteLine("DAP completed the manual Guide. Closing the E2E-owned processes.");
-            }
-            else if (windowsApp.HasExited)
-            {
-                Console.WriteLine("Windows target application closed. Ending the manual learner run and cleaning up owned processes.");
-            }
-
-            throw new ManualHandoffCompleteException();
+            await driver.ApplyAutomationValue(step.Target, step.AutomationValue);
         }
 
-        try
-        {
-
-        WaitForStep("testcrm-windows-customer-name");
-
-        if (focusedStartStepOrder is not null)
-        {
-            // Focused runs use Steps before N only to establish real business
-            // state; do not run the Step-1 regression sequence during bootstrap.
-            await driver.SetCustomerSearch("אלפא פתרונות בע\"מ");
-        }
-        else
-        {
-            // Regression guard: an invalid committed value must not make the Step
-            // permanently "armed". After the invalid blur, completing the exact
-            // value while focus remains in the editor must still keep Step 1 active.
-            await driver.SetCustomerSearch("אלפא");
-            WaitForStep("testcrm-windows-customer-name");
-
-            await driver.SetCustomerSearchWithoutCommit("אלפא פתרונות בע\"מ");
-            Thread.Sleep(350);
-            WaitForStep("testcrm-windows-customer-name");
-            Console.WriteLine("DAP Windows text validation waits for a new blur after an invalid commit: PASS");
-
-            await driver.CommitCustomerSearchEdit();
-        }
-
-        WaitForStep("testcrm-windows-customer-search-button");
-        await driver.SubmitCustomerSearch();
-
-        WaitForStep("testcrm-windows-customer-result");
-        await driver.OpenFirstCustomer();
-        DiagnoseNavigationGrids(window);
-
-        WaitForStep("testcrm-windows-site-row");
-        await driver.OpenFirstSite();
-
-        WaitForStep("testcrm-windows-cases-tab");
-        await driver.OpenCases();
-
-        WaitForStep("testcrm-windows-sort-cases");
-        await driver.SortCasesByStatus();
-
-        WaitForStep("testcrm-windows-new-case");
-        await driver.CreateCase();
-
-        WaitForStep("testcrm-windows-case-subject");
-        await driver.SetCaseSubject("תקלה בחיבור לאינטרנט");
-
-        WaitForStep("testcrm-windows-case-description");
-        await driver.SetCaseDescription("הלקוח מדווח על חיבור לא יציב.");
-
-        WaitForStep("testcrm-windows-save-new-case");
-        await driver.SaveCase();
-        DiagnoseBreadcrumbs(window);
-
-        // Focused bootstrap runs before DAP starts, so capture the business value
-        // needed for resume-context directly from the real CRM state. In a normal
-        // learner run, capture only after Runtime has advanced to the next Step.
-        var backToCasesStep = persistedSteps.Single(step => step.Id == "testcrm-windows-back-to-cases");
-        if (focusedStartStepOrder is not null && backToCasesStep.Order < focusedStartStepOrder.Value)
-            driver.CaptureCreatedCaseId();
-
-        WaitForStep("testcrm-windows-back-to-cases");
-
-        if (focusedStartStepOrder is null || backToCasesStep.Order >= focusedStartStepOrder.Value)
-            driver.CaptureCreatedCaseId();
-
-        await driver.OpenSiteFromBreadcrumb();
-
-        try
-        {
-            WaitForStep("testcrm-windows-open-created-case");
-        }
-        catch (TimeoutException)
-        {
-            DiagnoseCasesGrid(window);
-            throw;
-        }
-        await driver.OpenCreatedCase();
-
-        WaitForStep("testcrm-windows-case-in-progress");
-        await driver.SetCaseStatus("בטיפול");
-
-        WaitForStep("testcrm-windows-resolution-notes");
-        await driver.SetResolutionNotes("נבדקה תשתית הלקוח");
-
-        WaitForStep("testcrm-windows-activity-more");
-        await driver.ShowMoreActivity();
-
-        WaitForStep("testcrm-windows-case-closed");
-        await driver.SetCaseStatus("סגורה");
-
-        WaitForStep("testcrm-windows-case-subject-after-close");
-        await driver.SetCaseSubject("תקלה בחיבור לאינטרנט");
-
-        WaitForStep("testcrm-windows-attempt-close-save");
-        await driver.SaveCase();
-
-        WaitForStep("testcrm-windows-confirm-close-validation");
-        await driver.DismissValidation();
-
-        WaitForStep("testcrm-windows-close-reason");
-        await driver.SetCloseReason("טופל");
-
-        WaitForStep("testcrm-windows-save-closed-case");
-        await driver.SaveCase();
-
-        WaitForStep("testcrm-windows-return-site");
-        await driver.OpenSiteFromBreadcrumb();
-
-        WaitForStep("testcrm-windows-open-leads-tab");
-        await driver.OpenLeads();
-
-        WaitForStep("testcrm-windows-return-cases-tab");
-        await driver.OpenCases();
-
-        WaitForStep("testcrm-windows-open-leads-again");
-        await driver.OpenLeads();
-
-        WaitForStep("testcrm-windows-new-lead");
-        await driver.CreateLead();
-
-        WaitForStep("testcrm-windows-lead-contact");
-        await driver.SetLeadContact("דנה כהן");
-
-        WaitForStep("testcrm-windows-save-new-lead");
-        await driver.SaveLead();
-
-        WaitForStep("testcrm-windows-lead-close-success-1");
-        await driver.SetLeadStatus("נסגר בהצלחה");
-
-        WaitForStep("testcrm-windows-lead-new");
-        await driver.SetLeadStatus("חדש");
-
-        WaitForStep("testcrm-windows-lead-close-success-2");
-        await driver.SetLeadStatus("נסגר בהצלחה");
-
-        WaitForStep("testcrm-windows-lead-invalid-save");
-        await driver.SaveLead();
-
-        WaitForStep("testcrm-windows-lead-validation-ok");
-        await driver.DismissValidation();
-
-        WaitForStep("testcrm-windows-lead-service");
-        await driver.SetLeadService("תמיכה מורחבת");
-
-        WaitForStep("testcrm-windows-save-lead");
-        await driver.SaveLead();
-
-        WaitForStep("testcrm-windows-delete-lead");
-        await driver.DeleteLead();
-
-        WaitForStep("testcrm-windows-confirm-delete-lead");
-        await driver.ConfirmDelete();
-
-        WaitForStep("testcrm-windows-leads-to-customer");
-        await driver.OpenCustomerFromBreadcrumb();
-
-        WaitForStep("testcrm-windows-customer-site");
-        await driver.OpenFirstSite();
-
-        WaitForStep("testcrm-windows-site-leads");
-        await driver.OpenLeads();
-
-        WaitForStep("testcrm-windows-open-lead");
-        await driver.OpenLeadByContactName("אבי כהן");
-
-        WaitForStep("testcrm-windows-layout-status-new");
-        await driver.SetLeadStatus("חדש");
-
-        WaitForStep("testcrm-windows-layout-status-closed");
-        await driver.SetLeadStatus("נסגר בהצלחה");
-
-        WaitForStep("testcrm-windows-race-status-new");
-        await driver.SetLeadStatus("חדש");
-
-        WaitForStep("testcrm-windows-race-status-closed");
-        await driver.SetLeadStatus("נסגר בהצלחה");
-
-        WaitForStep("testcrm-windows-lead-to-site");
-        await driver.OpenSiteFromBreadcrumb();
-
-        WaitForStep("testcrm-windows-site-cases-final");
-        await driver.OpenCases();
-
-        WaitForStep("testcrm-windows-open-context-case");
-        await driver.OpenCreatedCase();
-
-        WaitForStep("testcrm-windows-context-back-site");
-        await driver.OpenSiteFromBreadcrumb();
-
-        WaitForStep("testcrm-windows-open-created-case-final");
-        await driver.OpenCreatedCase();
-
-        WaitForStep("testcrm-windows-before-delete-case-info");
-        if (dap is not null)
-            ClickCenteredInformationConfirm(driver);
-
-        WaitForStep("testcrm-windows-delete-case");
-        await driver.DeleteCase();
-
-        WaitForStep("testcrm-windows-confirm-delete-case");
-        await driver.ConfirmDelete();
-
-        WaitForStep("testcrm-windows-header-home");
-        await driver.GoPortal();
-
-        WaitForStep("testcrm-windows-guide-summary");
-        if (driver.VisualMode)
-            Thread.Sleep(800);
-        ClickCenteredInformationConfirm(driver);
-
-        if (!dap!.WaitForExit(5_000))
-            throw new TimeoutException("DAP.exe did not complete after persisted Guide Step 55 was confirmed.");
+        await dap.WaitForExitAsync();
         if (dap.ExitCode != 0)
-            throw new Exception($"DAP.exe exited with code {dap.ExitCode}.");
+            throw new Exception($"DAP.exe exited with code {dap.ExitCode} during the hybrid Windows run.");
 
-        Console.WriteLine($"PASS: DAP Windows Learner Runtime completed all {persistedSteps.Count} persisted Guide Steps with real UIA targets, runtime capture, modal targeting, centered information, and bubbles.");
-        }
-        catch (ManualHandoffCompleteException)
-        {
-            Console.WriteLine("Windows manual learner run finished by operator request.");
-        }
-        catch (TargetApplicationClosedException)
-        {
-            Console.WriteLine("Windows target application closed. Ending the run and cleaning up owned processes.");
-        }
-        catch (Exception) when (windowsApp is not null && windowsApp.HasExited)
-        {
-            Console.WriteLine("Windows target application closed. Ending the run and cleaning up owned processes.");
-        }
+        Console.WriteLine("PASS: hybrid Windows Guide completed.");
+    }
+    catch (TargetApplicationClosedException)
+    {
+        Console.WriteLine("Windows target application closed. Ending the run and cleaning up owned processes.");
+    }
+    catch (Exception) when (windowsApp is not null && windowsApp.HasExited)
+    {
+        Console.WriteLine("Windows target application closed. Ending the run and cleaning up owned processes.");
     }
     finally
     {
         AppDomain.CurrentDomain.ProcessExit -= processExitCleanup;
         Console.CancelKeyPress -= cancelCleanup;
-
         if (dap is not null) StopOwnedProcessTree(dap);
         if (windowsApp is not null) StopOwnedProcessTree(windowsApp);
         if (backend is not null) StopOwnedProcessTree(backend);
@@ -714,8 +287,6 @@ async Task RunGuidedAsync(
         }
         catch (IOException)
         {
-            // A hard process termination can leave the isolated run directory
-            // temporarily locked. It is safe to leave because no later run reuses it.
         }
         catch (UnauthorizedAccessException)
         {
