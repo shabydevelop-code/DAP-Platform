@@ -868,6 +868,8 @@ Process StartFocusedDap(int? showGuidanceFromStepOrder, bool hideGuidance = fals
     return process;
 }
 
+var lastScenarioGuideOrder=0;
+
 async Task WaitForGuideStep(int order)
 {
     var expected=dapSteps.Single(step=>step.Order==order);
