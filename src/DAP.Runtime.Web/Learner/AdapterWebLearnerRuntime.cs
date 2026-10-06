@@ -22,7 +22,7 @@ public sealed class AdapterWebLearnerRuntime
     {
         _browser = browser ?? throw new ArgumentNullException(nameof(browser));
         _reconcileInterval = reconcileInterval ?? TimeSpan.FromMilliseconds(100);
-        _stableReconcileInterval = TimeSpan.FromMilliseconds(250);
+        _stableReconcileInterval = TimeSpan.FromMilliseconds(500);
         _presentationSettleInterval = presentationSettleInterval ?? TimeSpan.FromMilliseconds(250);
     }
 
