@@ -858,7 +858,7 @@ async Task WaitForGuideStep(int order)
         Environment.NewLine,
         dapStdErrLines.Where(line=>
             line.StartsWith("[DAP guide]",StringComparison.Ordinal)
-            || line.StartsWith("[DAP validation]",StringComparison.Ordinal)
+            || line.StartsWith("[DAP validation",StringComparison.Ordinal)
             || line.StartsWith("[DAP bubble]",StringComparison.Ordinal)
             || line.StartsWith("[DAP runtime]",StringComparison.Ordinal)
             || line.StartsWith("[DAP runtime trace]",StringComparison.Ordinal)));
