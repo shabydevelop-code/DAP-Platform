@@ -469,10 +469,18 @@ public sealed class WindowsGuideRuntime
                 // only once; reconciliation must never steal focus back.
                 if (!initialInputFocusApplied && IsInputFocusTarget(target))
                 {
+                    // Mark the one-time focus action before invoking UIA. Hybrid can
+                    // begin its learner action as soon as the Step-start marker is
+                    // observed; setting this flag first prevents a later reconciliation
+                    // pass from re-focusing the first editor after Hybrid has already
+                    // committed it with TAB.
                     initialInputFocusApplied = true;
                     try { target.SetFocus(); }
                     catch (ElementNotAvailableException) { }
                     catch (InvalidOperationException) { }
+
+                    Console.Error.WriteLine(
+                        $"[DAP Windows guide] input ready Step {step.Order} '{step.Id}'.");
                 }
 
                 if (step.Id == "testcrm-windows-back-to-cases")
