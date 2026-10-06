@@ -2,7 +2,7 @@
 
 ## Current verified baseline — 2026-10-05
 
-The canonical persisted Guides contain **54 Steps** on both Web and Windows.
+The canonical persisted Guides contain **55 Steps** on both Web and Windows. Step 55 is the persisted centered Guide summary; existing 54/54 results below are historical verification from before that Step was added.
 
 Current verified execution baseline:
 - **Full Guided Fast/Visual is green cross-platform:** Web Fast, Web Visual, Windows Fast, and Windows Visual have each completed the full persisted 54-Step Guide.
@@ -907,3 +907,20 @@ Case identity capture remains only where later synthetic scenario actions genuin
 The same separation was applied to the Web side where required for Hybrid handoff, particularly select-action outcome synchronization and explicit mode/browser configuration.
 
 After these changes, Windows Hybrid testing completed successfully. This 14-step sequence is therefore part of the verified Windows Hybrid baseline and must not be reintroduced through legacy action-driver polling, automatic outcome assertions, automatic dialog dismissal, or duplicate completion detection.
+
+
+## Persisted Guide summary Step 55 — 2026-10-06
+
+The canonical Web and Windows repository seeds now contain **55 persisted Steps**. Step 55 is the centered manual Guide summary, persisted in Guide data rather than synthesized by a separate completion-bubble path.
+
+- Web Step 55: `testcrm-guide-summary`.
+- Windows Step 55: `testcrm-windows-guide-summary`.
+- Text: `המדריך הושלם בהצלחה`.
+- Target: none.
+- Placement: Center.
+- Advance mode: Manual.
+- Canonical E2E now waits for persisted Step 55 and activates the normal centered-bubble confirmation action.
+- The former E2E-specific wait/click path for a special completion bubble is retired from the canonical runners.
+- `--reset-guide` now restores all 55 Steps, so reset no longer drops the persisted summary Step.
+
+The previously verified 54/54 Fast/Visual results remain historical verification of the pre-summary persisted Guide. They are **not** silently relabeled as 55/55. A fresh full 55-Step regression is required before claiming 55/55 PASS.
