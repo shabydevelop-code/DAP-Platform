@@ -12,6 +12,7 @@ using DAP.Data.Sqlite.Guides;
 const string baseUrl = "http://localhost:5200";
 
 int? manualFromStep = null;
+int? fastFromStep = null;
 int? visualFromStep = null;
 string? publishedDapDirectory = null;
 for (var i = 0; i < args.Length; i++)
@@ -32,6 +33,14 @@ for (var i = 0; i < args.Length; i++)
         continue;
     }
 
+    if (args[i].Equals("--fast-from-step", StringComparison.OrdinalIgnoreCase))
+    {
+        if (i + 1 >= args.Length || !int.TryParse(args[++i], out var parsedFastStep) || parsedFastStep < 1)
+            throw new ArgumentException("--fast-from-step requires a positive Guide Step order.");
+        fastFromStep = parsedFastStep;
+        continue;
+    }
+
     if (args[i].Equals("--visual-from-step", StringComparison.OrdinalIgnoreCase))
     {
         if (i + 1 >= args.Length || !int.TryParse(args[++i], out var parsedVisualStep) || parsedVisualStep < 1)
@@ -40,8 +49,9 @@ for (var i = 0; i < args.Length; i++)
     }
 }
 
-if (manualFromStep is not null && visualFromStep is not null)
-    throw new ArgumentException("--manual-from-step and --visual-from-step cannot be combined.");
+var focusedModeCount = new[] { manualFromStep, fastFromStep, visualFromStep }.Count(step => step is not null);
+if (focusedModeCount > 1)
+    throw new ArgumentException("--manual-from-step, --fast-from-step, and --visual-from-step cannot be combined.");
 
 if (args.Contains("--reset-guide", StringComparer.OrdinalIgnoreCase))
 {
@@ -63,12 +73,18 @@ if (args.Contains("--reset-guide", StringComparer.OrdinalIgnoreCase))
 var unguided = args.Contains("--unguided", StringComparer.OrdinalIgnoreCase);
 var explicitGuided = args.Contains("--guided", StringComparer.OrdinalIgnoreCase);
 var manual = args.Contains("--manual", StringComparer.OrdinalIgnoreCase);
+var explicitFast = args.Contains("--fast", StringComparer.OrdinalIgnoreCase);
+var explicitVisual = args.Contains("--visual", StringComparer.OrdinalIgnoreCase);
+if (explicitFast && explicitVisual)
+    throw new ArgumentException("--fast and --visual cannot be combined.");
+if ((explicitFast || explicitVisual) && !explicitGuided)
+    throw new ArgumentException("--fast and --visual require --guided.");
 if (unguided && explicitGuided)
     throw new ArgumentException("--guided and --unguided cannot be combined.");
-if (manual && (unguided || explicitGuided || manualFromStep is not null || visualFromStep is not null))
-    throw new ArgumentException("--manual cannot be combined with --guided, --unguided, --manual-from-step, or --visual-from-step.");
-if (unguided && (manualFromStep is not null || visualFromStep is not null))
-    throw new ArgumentException("--unguided cannot be combined with --manual-from-step or --visual-from-step.");
+if (manual && (unguided || explicitGuided || manualFromStep is not null || fastFromStep is not null || visualFromStep is not null))
+    throw new ArgumentException("--manual cannot be combined with --guided, --unguided, or a from-step mode.");
+if (unguided && (manualFromStep is not null || fastFromStep is not null || visualFromStep is not null))
+    throw new ArgumentException("--unguided cannot be combined with a from-step mode.");
 
 static void EnsurePortFree(int port)
 {
@@ -428,17 +444,9 @@ void StartupMark(string stage)
     harnessLastMark=now;
 }
 
-// DAP_E2E_MODE belongs only to a full --guided run. All other public
-// switches have absolute semantics and must not inherit a stale PowerShell
-// environment value from an earlier run.
-var e2eMode = "fast";
-if (explicitGuided && !manual && !unguided && manualFromStep is null && visualFromStep is null)
-{
-    e2eMode = Environment.GetEnvironmentVariable("DAP_E2E_MODE")?.Trim().ToLowerInvariant() ?? "fast";
-    if (e2eMode is not ("fast" or "visual"))
-        throw new ArgumentException(
-            $"Unsupported DAP_E2E_MODE '{e2eMode}'. Supported values: fast, visual.");
-}
+// Public run mode is determined only by command-line switches.
+// A full guided run defaults to fast unless --visual is explicit.
+var e2eMode = explicitVisual ? "visual" : "fast";
 
 await using var browser = await BrowserHarness.LaunchAsync(baseUrl);
 StartupMark("browser launched through the installed DAP extension profile");
@@ -459,9 +467,9 @@ var switchedToVisual = visualMode;
 // production DAP target. Focused From-Step runs intentionally begin without
 // DAP, so that invariant is enabled only when DAP starts at the requested Step.
 var requireActiveGuideTarget =
-    !unguided && manualFromStep is null && visualFromStep is null;
+    !unguided && manualFromStep is null && fastFromStep is null && visualFromStep is null;
 
-Console.WriteLine($"E2E mode: {(manual ? "manual" : unguided ? "unguided" : manualFromStep is not null ? $"unguided -> manual from Step {manualFromStep}" : visualFromStep is not null ? $"unguided -> visual from Step {visualFromStep}" : visualMode ? "visual" : "fast")}");
+Console.WriteLine($"E2E mode: {(manual ? "manual" : unguided ? "unguided" : manualFromStep is not null ? $"unguided -> manual from Step {manualFromStep}" : fastFromStep is not null ? $"unguided -> fast from Step {fastFromStep}" : visualFromStep is not null ? $"unguided -> visual from Step {visualFromStep}" : visualMode ? "visual" : "fast")}");
 await page.AddInitScriptAsync("localStorage.setItem('dap-e2e-mode', '" + e2eMode + "'); document.documentElement.dataset.dapE2eMode = '" + e2eMode + "';");
 
 async Task<BrowserFrame> Content()
@@ -796,6 +804,11 @@ if(manualFromStep is not null && !dapSteps.Any(step => step.Order == manualFromS
         nameof(manualFromStep),
         manualFromStep,
         $"Guide '{DapTestCrmGuideSeed.GuideId}' does not contain Step {manualFromStep}.");
+if(fastFromStep is not null && !dapSteps.Any(step => step.Order == fastFromStep.Value))
+    throw new ArgumentOutOfRangeException(
+        nameof(fastFromStep),
+        fastFromStep,
+        $"Guide '{DapTestCrmGuideSeed.GuideId}' does not contain Step {fastFromStep}.");
 if(visualFromStep is not null && !dapSteps.Any(step => step.Order == visualFromStep.Value))
     throw new ArgumentOutOfRangeException(
         nameof(visualFromStep),
@@ -804,7 +817,7 @@ if(visualFromStep is not null && !dapSteps.Any(step => step.Order == visualFromS
 
 var effectiveDapDirectory = publishedDapDirectory ?? packagedDapDirectory ?? dapOutput;
 var dapStdErrLines=new System.Collections.Concurrent.ConcurrentQueue<string>();
-var focusedStartStepOrder = manualFromStep ?? visualFromStep;
+var focusedStartStepOrder = manualFromStep ?? fastFromStep ?? visualFromStep;
 var bootstrapCaptures = new Dictionary<string, string>(StringComparer.Ordinal);
 var resumeContextPath = Path.Combine(webRunRoot, "resume-context.json");
 
