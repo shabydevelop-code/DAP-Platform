@@ -942,3 +942,11 @@ Hybrid metadata is now part of the persisted Guide model and SQLite storage:
 - Persisted Step 55 is the Guide summary and is the terminal Guide Step. The former additional Runtime completion bubble after Step 55 has been removed.
 
 A fresh local build and Manual/Hybrid regression is still required before recording a new PASS for this baseline.
+
+## Web extension restored to current main — 2026-10-06
+
+By explicit user authorization, the production Web extension components were recovered from the `web-extension-runtime` branch into current `main`. The recovery was limited to the browser-extension architecture and its required adapter/native-host components; unrelated runner/history code was not restored.
+
+Current production Web composition now routes through `ExtensionWebBrowserAdapter` and `AdapterWebGuideRuntime`. The production `DAP.Runtime.Web` project no longer references Playwright. The extension remains a browser adapter only; persisted Guide data and .NET Runtime retain Guide sequencing, validation/completion policy, capture, and progression ownership.
+
+A fresh local build and extension/native-host verification is required before recording PASS for this restored baseline.
