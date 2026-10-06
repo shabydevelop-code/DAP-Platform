@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Windows.Automation;
+using DAP.Core.Guides;
 using DAP.TestCRM.E2E.Common;
 
 namespace DAP.TestCRM.Windows.E2E;
@@ -38,6 +39,28 @@ internal sealed class WindowsCrmScenarioDriver : ICrmScenarioDriver
     {
         activeStepOrder = order;
         activeStepId = id;
+    }
+
+    public Task ApplyAutomationValue(GuideStep step)
+    {
+        if (string.IsNullOrEmpty(step.AutomationValue) || step.Target is null)
+            return Task.CompletedTask;
+
+        if (!step.Target.Locator.Strategy.Equals("automation-id", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException(
+                $"Windows Hybrid automation requires an automation-id primary locator on Step {step.Order} '{step.Id}'.");
+
+        var id = step.Target.Locator.Value;
+        var target = ById(id);
+        if (target.Current.ControlType == ControlType.ComboBox)
+            Select(id, step.AutomationValue);
+        else if (target.Current.ControlType == ControlType.Edit)
+            Set(id, step.AutomationValue);
+        else
+            throw new InvalidOperationException(
+                $"Windows Hybrid AutomationValue on Step {step.Order} '{step.Id}' targets unsupported control type '{target.Current.ControlType?.ProgrammaticName}'.");
+
+        return Task.CompletedTask;
     }
 
     AutomationElement ById(string id)=>Wait(()=>window.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,id)),id);
