@@ -23,7 +23,8 @@ public static class DapTestCrmGuideSeed
     private static GuideStep ClickStep(
         string id, int order, string css, string instruction, string contextCss,
         BubblePlacement placement = BubblePlacement.Bottom,
-        string? completionCss = null) =>
+        string? completionCss = null,
+        bool isEnabled = true) =>
         new(
             id, order, WebTarget(css),
             new BubbleDefinition(instruction, placement),
@@ -32,7 +33,8 @@ public static class DapTestCrmGuideSeed
             new StepContextDefinition("css-exists", contextCss),
             CompletionConditions: completionCss is null
                 ? null
-                : new[] { new StepCompletionCondition("target-exists", WebTarget(completionCss)) });
+                : new[] { new StepCompletionCondition("target-exists", WebTarget(completionCss)) },
+            IsEnabled: isEnabled);
 
     private static GuideStep ValueStep(
         string id, int order, string css, string instruction, string contextCss,
@@ -169,8 +171,8 @@ public static class DapTestCrmGuideSeed
         ClickStep("testcrm-save-closed-case", 21, "button.primary:has-text('שמור')", "שמור את הפנייה הסגורה", "[name='closeReason']", completionCss: "#save-success"),
         ClickStep("testcrm-return-site", 22, ".breadcrumb a[data-go^='#/site/']", "חזור לאתר", "h1:has-text('פניה')", completionCss: "nav.tabs"),
         ClickStep("testcrm-open-leads-tab", 23, "nav.tabs button:has-text('לידים')", "עבור ללשונית לידים", "nav.tabs", completionCss: "h2:has-text('לידים')"),
-        ClickStep("testcrm-return-cases-tab", 24, "nav.tabs button:has-text('פניות')", "חזור ללשונית פניות", "nav.tabs", completionCss: "h2:has-text('פניות')"),
-        ClickStep("testcrm-open-leads-again", 25, "nav.tabs button:has-text('לידים')", "עבור שוב ללשונית לידים", "nav.tabs", completionCss: "h2:has-text('לידים')"),
+        ClickStep("testcrm-return-cases-tab", 24, "nav.tabs button:has-text('פניות')", "חזור ללשונית פניות", "nav.tabs", completionCss: "h2:has-text('פניות')", isEnabled: false),
+        ClickStep("testcrm-open-leads-again", 25, "nav.tabs button:has-text('לידים')", "עבור שוב ללשונית לידים", "nav.tabs", completionCss: "h2:has-text('לידים')", isEnabled: false),
         ClickStep("testcrm-new-lead", 26, "button.primary:has-text('ליד חדש')", "צור ליד חדש", "h2:has-text('לידים')", completionCss: "[name='contactName']"),
         ValueStep("testcrm-lead-contact", 27, "[name='contactName']", "הזן את שם איש הקשר", "[name='contactName']", automationValue: "לקוח בדיקת מערכת"),
         ClickStep("testcrm-save-new-lead", 28, "button.primary:has-text('שמור')", "שמור את הליד החדש", "[name='contactName']", completionCss: "#delete-lead"),
