@@ -11,6 +11,7 @@ namespace DAP.Runtime.Web.Browser;
 /// </summary>
 public interface IWebBrowserAdapter
 {
+    void ConfigureApplicationContexts(IReadOnlyList<GuideApplicationContext> contexts);
     Task<WebTargetResolution> ResolveTargetAsync(TargetDescriptor descriptor, CancellationToken cancellationToken = default);
     Task<bool> IsContextActiveAsync(GuideStep step, CancellationToken cancellationToken = default);
     Task<bool> IsStableForPresentationAsync(GuideStep step, TimeSpan quietWindow, CancellationToken cancellationToken = default);
