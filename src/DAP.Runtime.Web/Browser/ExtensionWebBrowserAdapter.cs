@@ -503,7 +503,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
         {
             if (condition.Target.Runtime != TargetRuntime.Web)
                 throw new InvalidOperationException($"Web Guide Step '{step.Id}' contains a non-Web completion target.");
-            var response = await SendCommandAsync(new { type = "inspectTarget", target = condition.Target, framePath = condition.Target.FrameContext?.Path }, cancellationToken);
+            var response = await SendCommandAsync(ContextualCommand(step, new { type = "inspectTarget", target = condition.Target, framePath = condition.Target.FrameContext?.Path }), cancellationToken);
             var result = response.GetProperty("result");
             var resolved = result.GetProperty("status").GetString() == "resolved";
             switch (condition.Kind.Trim().ToLowerInvariant())
