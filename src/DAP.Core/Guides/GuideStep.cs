@@ -19,7 +19,8 @@ public sealed record GuideStep(
     StepCaptureDefinition? Capture = null,
     IReadOnlyList<StepCompletionCondition>? CompletionConditions = null,
     bool IsEnabled = true,
-    string? AutomationValue = null);
+    string? AutomationValue = null,
+    string? ApplicationContextKey = null);
 
 public sealed record StepCaptureDefinition(
     TargetRuntime Runtime,
