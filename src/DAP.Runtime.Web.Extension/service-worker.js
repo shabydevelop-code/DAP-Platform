@@ -2,7 +2,7 @@ const HOST = "com.dap.web_runtime";
 const TEST_DRIVER_VERSION = "1.0.1";
 const identifiedFrames = new Map();
 let port = null;
-let productionTabId = null;
+const productionContextTabs = new Map();
 
 function connect() {
   if (port) return port;
@@ -19,7 +19,7 @@ function connect() {
 
     if (port === connected) {
       port = null;
-      productionTabId = null;
+      productionContextTabs.clear();
     }
   });
 
@@ -195,114 +195,63 @@ async function sendToFrame(tabId, frameId, requestId, command) {
 }
 
 async function productionCandidateTabs() {
-  const tabs = await chrome.tabs.query({
-    url: ["http://localhost/*", "https://localhost/*"]
-  });
-  return tabs.filter(tab => tab.id != null);
+  const tabs = await chrome.tabs.query({});
+  return tabs.filter(tab =>
+    tab.id != null &&
+    (String(tab.url || "").startsWith("http://") || String(tab.url || "").startsWith("https://"))
+  );
 }
 
-async function productionCommandMatchesTab(tabId, command, requestId) {
-  try {
-    const framePath = Array.isArray(command.framePath) ? command.framePath : [];
-    const frameResolution = await resolveFramePath(
-      tabId,
-      framePath,
-      requestId + "-tab-probe"
-    );
-    if (!frameResolution.ok) return false;
-
-    const frameId = frameResolution.frameId;
-
-    if (command.type === "isContextActive") {
-      const probe = await sendToFrame(
-        tabId,
-        frameId,
-        requestId + "-context-probe",
-        { type: "isContextActive", context: command.context }
-      );
-      return probe?.ok === true && probe.result?.active === true;
-    }
-
-    const target = command.target || command.step?.target || null;
-    if (target) {
-      const probe = await sendToFrame(
-        tabId,
-        frameId,
-        requestId + "-target-probe",
-        { type: "resolveTarget", target }
-      );
-      return probe?.ok === true && probe.result?.status === "resolved";
-    }
-
-    // A frame path is itself persisted application context. If it resolves
-    // uniquely in this tab, it is valid evidence for commands that do not carry
-    // a target (for example DOM-settle checks).
-    return framePath.length > 0;
-  } catch {
-    return false;
+function applicationContextMatcherMatches(tab, matcher) {
+  const kind = String(matcher?.kind || "").trim().toLowerCase();
+  const value = String(matcher?.value || "");
+  const title = String(tab.title || "");
+  const url = String(tab.url || "");
+  switch (kind) {
+    case "titleequals": return title === value;
+    case "titlecontains": return title.includes(value);
+    case "urlequals": return url === value;
+    case "urlcontains": return url.includes(value);
+    case "urlhost":
+      try { return new URL(url).host === value; }
+      catch { return false; }
+    default: throw new Error("Unsupported Web Application Context matcher '" + matcher?.kind + "'.");
   }
 }
 
-async function resolveProductionTab(command, requestId) {
-  // Once one tab has been identified uniquely from persisted Guide semantics,
-  // keep that browser-tab identity for the current production connection.
-  // Navigation/frame/DOM changes happen inside the same application tab and
-  // should not force a full browser-wide tab scan on every 100 ms reconcile.
-  if (productionTabId != null) {
+async function resolveProductionContextTab(contextKey, context) {
+  if (!contextKey || !context)
+    throw new Error("DAP Web command is missing its persisted Application Context.");
+
+  const retainedTabId = productionContextTabs.get(contextKey);
+  if (retainedTabId != null) {
     try {
-      const tab = await chrome.tabs.get(productionTabId);
-      if (tab?.id != null)
-        return productionTabId;
+      const tab = await chrome.tabs.get(retainedTabId);
+      if (tab?.id != null) return retainedTabId;
     } catch {}
-    productionTabId = null;
+    productionContextTabs.delete(contextKey);
   }
+
+  const matchers = Array.isArray(context.matchers) ? context.matchers : [];
+  if (matchers.length === 0)
+    throw new Error("DAP Application Context '" + contextKey + "' has no matchers.");
 
   const candidates = await productionCandidateTabs();
-  if (candidates.length === 0)
-    return null;
-
-  // Never bind the product to "the only localhost tab". Derive the application
-  // tab from the persisted Step semantics sent by the Runtime.
-  const matches = [];
-  for (const tab of candidates) {
-    if (await productionCommandMatchesTab(tab.id, command, requestId))
-      matches.push(tab);
-  }
-
-  if (matches.length === 1) {
-    productionTabId = matches[0].id;
-    return productionTabId;
-  }
-
-  // Commands without Step evidence are allowed only when there is exactly one
-  // eligible candidate. Normal targeted Steps establish the application tab
-  // through persisted context/target data before such commands are needed.
-  const hasEvidence =
-    command.type === "isContextActive" ||
-    !!command.target ||
-    !!command.step?.target ||
-    (Array.isArray(command.framePath) && command.framePath.length > 0);
-
-  if (!hasEvidence && candidates.length === 1) {
-    productionTabId = candidates[0].id;
-    return productionTabId;
-  }
-
-  const details = candidates
-    .map(tab => tab.id + ":" + (tab.url || "<no-url>"))
-    .join(", ");
-
-  if (matches.length === 0)
-    return null;
-
-  const matchedDetails = matches
-    .map(tab => tab.id + ":" + (tab.url || "<no-url>"))
-    .join(", ");
-  throw new Error(
-    "DAP application-tab resolution is ambiguous: " + matches.length +
-    " tabs match the persisted Guide Step. DAP will not guess. matches=[" +
-    matchedDetails + "]"
+  const matches = candidates.filter(tab =>
+    matchers.every(matcher => applicationContextMatcherMatches(tab, matcher))
   );
+
+  if (matches.length === 0) return null;
+  if (matches.length > 1) {
+    const details = matches.map(tab => tab.id + ":" + (tab.url || "<no-url>")).join(", ");
+    throw new Error(
+      "DAP Application Context '" + contextKey + "' is ambiguous: " + matches.length +
+      " browser tabs match its persisted matchers. DAP will not guess. matches=[" + details + "]"
+    );
+  }
+
+  productionContextTabs.set(contextKey, matches[0].id);
+  return matches[0].id;
 }
 
 async function resolveFramePath(tabId, framePath, requestId) {
@@ -628,11 +577,15 @@ async function handleNativeMessage(message) {
   const requestId = message.requestId;
 
   try {
-    const command = { ...(message.command || {}) };
+    const envelope = { ...(message.command || {}) };
+    const contextual = envelope.type === "contextualCommand";
+    const command = contextual ? { ...(envelope.command || {}) } : envelope;
     const tabId = message.tabId ?? (
       message.sessionId
         ? await resolveTestTab(String(message.sessionId))
-        : await resolveProductionTab(command, requestId)
+        : contextual
+          ? await resolveProductionContextTab(envelope.applicationContextKey, envelope.applicationContext)
+          : null
     );
     const originalFramePath = Array.isArray(command.framePath)
       ? command.framePath.map(locator => ({ ...locator }))
