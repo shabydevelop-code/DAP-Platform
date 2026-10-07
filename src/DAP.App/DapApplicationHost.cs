@@ -62,7 +62,8 @@ public static class DapApplicationHost
         }
 
         var steps = await repository.GetStepsAsync(options.GuideId!, cancellationToken);
-        StartupMark(startup, $"guide loaded ({steps.Count} steps)");
+        var applicationContexts = await repository.GetApplicationContextsAsync(options.GuideId!, cancellationToken);
+        StartupMark(startup, $"guide loaded ({steps.Count} steps, {applicationContexts.Count} application contexts)");
         if (steps.Count == 0)
         {
             MessageBox.Show(
@@ -91,7 +92,7 @@ public static class DapApplicationHost
         return enabledTargetRuntimes[0] switch
         {
             DAP.Core.Targets.TargetRuntime.Windows => await RunWindowsAsync(
-                options, steps, resumeContext, texts, startup, cancellationToken),
+                options, steps, applicationContexts, resumeContext, texts, startup, cancellationToken),
             DAP.Core.Targets.TargetRuntime.Web => await RunWebAsync(
                 options, steps, resumeContext, texts, startup, cancellationToken),
             _ => throw new NotSupportedException(
@@ -217,12 +218,14 @@ public static class DapApplicationHost
     private static async Task<int> RunWebAsync(
         DapLaunchOptions options,
         IReadOnlyList<DAP.Core.Guides.GuideStep> steps,
+        IReadOnlyList<DAP.Core.Guides.GuideApplicationContext> applicationContexts,
         IReadOnlyDictionary<string, string> resumeContext,
         IUiTextProvider texts,
         Stopwatch startup,
         CancellationToken cancellationToken)
     {
         using var browserAdapter = new ExtensionWebBrowserAdapter(texts);
+        browserAdapter.ConfigureApplicationContexts(applicationContexts);
         var stepRuntime = new AdapterWebLearnerRuntime(browserAdapter, automaticStepLabel: GetAutomaticStepLabel());
         var guideRuntime = new AdapterWebGuideRuntime(stepRuntime, browserAdapter);
         StartupMark(startup, "Web extension adapter composition root created");
