@@ -114,6 +114,10 @@ function postAdapterResponse(requestId, response, tabId, frameId) {
     requestId,
     tabId,
     frameId,
+    // A semantic response such as "inactive" or "notFound" is still ok=true,
+    // but it must not cause .NET to bind this DAP run to a browser profile
+    // that does not contain the persisted Application Context.
+    contextMatched: tabId != null,
     response
   });
 }
