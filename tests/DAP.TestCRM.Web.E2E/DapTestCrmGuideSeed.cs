@@ -247,7 +247,8 @@ public static class DapTestCrmGuideSeed
                 "המדריך הושלם בהצלחה",
                 BubblePlacement.Center),
             Validation: null,
-            AdvanceMode: StepAdvanceMode.Manual)
+            AdvanceMode: StepAdvanceMode.Manual,
+            ApplicationContextKey: ApplicationContextKey)
     };
 
 
