@@ -23,7 +23,7 @@ public sealed class SqliteGuideStepRepository : IGuideStepRepository
         {
             command.CommandText = """
 SELECT s.Id, s.Key, s.StepOrder, s.AdvanceMode, s.Runtime, s.LocatorStrategy, s.LocatorValue, s.FrameContextJson,
-       s.ContextKind, s.ContextValue, s.BubbleContent, s.BubblePlacement, s.ValidationKind, s.ValidationExpectedValue, s.ValidationOptionsJson, s.IsEnabled, s.AutomationValue
+       s.ContextKind, s.ContextValue, s.BubbleContent, s.BubblePlacement, s.ValidationKind, s.ValidationExpectedValue, s.ValidationOptionsJson, s.IsEnabled, s.AutomationValue, s.ApplicationContextKey
 FROM GuideSteps s
 JOIN Guides g ON g.Id = s.GuideId
 WHERE g.Key = $guideKey
@@ -39,6 +39,82 @@ ORDER BY s.StepOrder;
         foreach (var row in rows)
             result.Add(await MaterializeAsync(connection, row, cancellationToken));
         return result;
+    }
+
+    public async Task<IReadOnlyList<GuideApplicationContext>> GetApplicationContextsAsync(string guideId, CancellationToken cancellationToken = default)
+    {
+        await using var connection = await _connections.OpenAsync(cancellationToken);
+        var contexts = new List<GuideApplicationContext>();
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+SELECT c.Id, c.Key, c.Runtime
+FROM GuideApplicationContexts c
+JOIN Guides g ON g.Id = c.GuideId
+WHERE g.Key = $guideKey
+ORDER BY c.Id;
+""";
+        command.Parameters.AddWithValue("$guideKey", guideId);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var rows = new List<(long Id, string Key, TargetRuntime Runtime)>();
+        while (await reader.ReadAsync(cancellationToken))
+            rows.Add((reader.GetInt64(0), reader.GetString(1), Enum.Parse<TargetRuntime>(reader.GetString(2))));
+        await reader.DisposeAsync();
+
+        foreach (var row in rows)
+        {
+            var matchers = new List<ApplicationContextMatcher>();
+            await using var matcherCommand = connection.CreateCommand();
+            matcherCommand.CommandText = "SELECT MatcherOrder,Kind,Value FROM ApplicationContextMatchers WHERE ApplicationContextId=$id ORDER BY MatcherOrder;";
+            matcherCommand.Parameters.AddWithValue("$id", row.Id);
+            await using var matcherReader = await matcherCommand.ExecuteReaderAsync(cancellationToken);
+            while (await matcherReader.ReadAsync(cancellationToken))
+                matchers.Add(new ApplicationContextMatcher(matcherReader.GetInt32(0), matcherReader.GetString(1), matcherReader.GetString(2)));
+            contexts.Add(new GuideApplicationContext(row.Key, row.Runtime, matchers));
+        }
+        return contexts;
+    }
+
+    public async Task ReplaceApplicationContextsAsync(string guideId, IReadOnlyList<GuideApplicationContext> contexts, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(guideId);
+        ArgumentNullException.ThrowIfNull(contexts);
+        if (contexts.Select(context => context.Key).Distinct(StringComparer.Ordinal).Count() != contexts.Count)
+            throw new ArgumentException("Application Context keys must be unique within a Guide.", nameof(contexts));
+
+        await using var connection = await _connections.OpenAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        long numericGuideId;
+        await using (var guide = connection.CreateCommand())
+        {
+            guide.Transaction = (SqliteTransaction)transaction;
+            guide.CommandText = "INSERT INTO Guides(Key,Name) VALUES($key,$key) ON CONFLICT(Key) DO NOTHING; SELECT Id FROM Guides WHERE Key=$key;";
+            guide.Parameters.AddWithValue("$key", guideId);
+            numericGuideId = Convert.ToInt64(await guide.ExecuteScalarAsync(cancellationToken));
+        }
+        await using (var delete = connection.CreateCommand())
+        {
+            delete.Transaction = (SqliteTransaction)transaction;
+            delete.CommandText = "DELETE FROM GuideApplicationContexts WHERE GuideId=$guideId;";
+            Add(delete, "$guideId", numericGuideId);
+            await delete.ExecuteNonQueryAsync(cancellationToken);
+        }
+        foreach (var context in contexts)
+        {
+            await using var insert = connection.CreateCommand();
+            insert.Transaction = (SqliteTransaction)transaction;
+            insert.CommandText = "INSERT INTO GuideApplicationContexts(GuideId,Key,Runtime) VALUES($guideId,$key,$runtime); SELECT last_insert_rowid();";
+            Add(insert, "$guideId", numericGuideId); Add(insert, "$key", context.Key); Add(insert, "$runtime", context.Runtime.ToString());
+            var contextId = Convert.ToInt64(await insert.ExecuteScalarAsync(cancellationToken));
+            foreach (var matcher in context.Matchers.OrderBy(matcher => matcher.Order))
+            {
+                await using var matcherInsert = connection.CreateCommand();
+                matcherInsert.Transaction = (SqliteTransaction)transaction;
+                matcherInsert.CommandText = "INSERT INTO ApplicationContextMatchers(ApplicationContextId,MatcherOrder,Kind,Value) VALUES($id,$order,$kind,$value);";
+                Add(matcherInsert, "$id", contextId); Add(matcherInsert, "$order", matcher.Order); Add(matcherInsert, "$kind", matcher.Kind); Add(matcherInsert, "$value", matcher.Value);
+                await matcherInsert.ExecuteNonQueryAsync(cancellationToken);
+            }
+        }
+        await transaction.CommitAsync(cancellationToken);
     }
 
     public async Task SaveStepAsync(string guideId, GuideStep step, CancellationToken cancellationToken = default)
@@ -69,15 +145,16 @@ SELECT Id FROM Guides WHERE Key = $key;
             command.CommandText = """
 INSERT INTO GuideSteps(
  GuideId,Key,StepOrder,AdvanceMode,Runtime,LocatorStrategy,LocatorValue,FrameContextJson,ContextKind,ContextValue,
- BubbleContent,BubblePlacement,ValidationKind,ValidationExpectedValue,ValidationOptionsJson,IsEnabled,AutomationValue)
-VALUES($guideId,$key,$order,$advance,$runtime,$strategy,$value,$frame,$contextKind,$contextValue,$content,$placement,$validation,$expected,$options,$enabled,$automationValue)
+ BubbleContent,BubblePlacement,ValidationKind,ValidationExpectedValue,ValidationOptionsJson,IsEnabled,AutomationValue,ApplicationContextKey)
+VALUES($guideId,$key,$order,$advance,$runtime,$strategy,$value,$frame,$contextKind,$contextValue,$content,$placement,$validation,$expected,$options,$enabled,$automationValue,$applicationContextKey)
 ON CONFLICT(GuideId,Key) DO UPDATE SET
  StepOrder=excluded.StepOrder, AdvanceMode=excluded.AdvanceMode,
  Runtime=excluded.Runtime, LocatorStrategy=excluded.LocatorStrategy, LocatorValue=excluded.LocatorValue,
  FrameContextJson=excluded.FrameContextJson, ContextKind=excluded.ContextKind, ContextValue=excluded.ContextValue,
  BubbleContent=excluded.BubbleContent, BubblePlacement=excluded.BubblePlacement,
  ValidationKind=excluded.ValidationKind, ValidationExpectedValue=excluded.ValidationExpectedValue,
- ValidationOptionsJson=excluded.ValidationOptionsJson, IsEnabled=excluded.IsEnabled, AutomationValue=excluded.AutomationValue;
+ ValidationOptionsJson=excluded.ValidationOptionsJson, IsEnabled=excluded.IsEnabled, AutomationValue=excluded.AutomationValue,
+ ApplicationContextKey=excluded.ApplicationContextKey;
 SELECT Id FROM GuideSteps WHERE GuideId=$guideId AND Key=$key;
 """;
             Add(command,"$guideId",numericGuideId); Add(command,"$key",step.Id); Add(command,"$order",step.Order);
@@ -88,7 +165,7 @@ SELECT Id FROM GuideSteps WHERE GuideId=$guideId AND Key=$key;
             Add(command,"$content",step.Bubble.Content); Add(command,"$placement",step.Bubble.Placement.ToString());
             Add(command,"$validation",step.Validation?.Kind); Add(command,"$expected",step.Validation?.ExpectedValue);
             Add(command,"$options",step.Validation?.Options is null ? null : JsonSerializer.Serialize(step.Validation.Options));
-            Add(command,"$enabled",step.IsEnabled ? 1 : 0); Add(command,"$automationValue",step.AutomationValue);
+            Add(command,"$enabled",step.IsEnabled ? 1 : 0); Add(command,"$automationValue",step.AutomationValue); Add(command,"$applicationContextKey",step.ApplicationContextKey);
             numericStepId = Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken));
         }
 
@@ -225,7 +302,7 @@ SELECT last_insert_rowid();
                 Add(command,"$content",step.Bubble.Content); Add(command,"$placement",step.Bubble.Placement.ToString());
                 Add(command,"$validation",step.Validation?.Kind); Add(command,"$expected",step.Validation?.ExpectedValue);
                 Add(command,"$options",step.Validation?.Options is null ? null : JsonSerializer.Serialize(step.Validation.Options));
-            Add(command,"$enabled",step.IsEnabled ? 1 : 0); Add(command,"$automationValue",step.AutomationValue);
+            Add(command,"$enabled",step.IsEnabled ? 1 : 0); Add(command,"$automationValue",step.AutomationValue); Add(command,"$applicationContextKey",step.ApplicationContextKey);
                 numericStepId = Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken));
             }
 
@@ -311,7 +388,7 @@ WHERE Key = $newKey;
 
     private static StepRow ReadStep(SqliteDataReader r)=>new(
         r.GetInt64(0),r.GetString(1),r.GetInt32(2),r.GetString(3),N(r,4),N(r,5),N(r,6),N(r,7),N(r,8),N(r,9),
-        r.GetString(10),r.GetString(11),N(r,12),N(r,13),N(r,14),r.GetInt32(15) != 0,N(r,16));
+        r.GetString(10),r.GetString(11),N(r,12),N(r,13),N(r,14),r.GetInt32(15) != 0,N(r,16),N(r,17));
 
     private static string? N(SqliteDataReader r,int i)=>r.IsDBNull(i)?null:r.GetString(i);
 
@@ -369,11 +446,12 @@ WHERE Key = $newKey;
             validation,Enum.Parse<StepAdvanceMode>(row.AdvanceMode),context,capture,
             completionConditions.Count == 0 ? null : completionConditions,
             row.IsEnabled,
-            row.AutomationValue);
+            row.AutomationValue,
+            row.ApplicationContextKey);
     }
 
     private sealed record StepRow(
         long NumericId,string Key,int Order,string AdvanceMode,string? Runtime,string? Strategy,string? Value,string? FrameJson,
         string? ContextKind,string? ContextValue,string BubbleContent,string Placement,string? ValidationKind,string? Expected,string? OptionsJson,
-        bool IsEnabled,string? AutomationValue);
+        bool IsEnabled,string? AutomationValue,string? ApplicationContextKey);
 }
