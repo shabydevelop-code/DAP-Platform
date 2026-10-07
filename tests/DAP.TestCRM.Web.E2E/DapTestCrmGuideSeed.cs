@@ -10,6 +10,16 @@ public static class DapTestCrmGuideSeed
     public const string LegacyGuideId = "testcrm-create-case";
     public const string GuideId = "testcrm-web-canonical-workflow";
     public const string GuideName = "TestCRM Web Canonical Workflow";
+    public const string ApplicationContextKey = "crm";
+
+    public static IReadOnlyList<GuideApplicationContext> CreateApplicationContexts() =>
+        new[]
+        {
+            new GuideApplicationContext(
+                ApplicationContextKey,
+                TargetRuntime.Web,
+                new[] { new ApplicationContextMatcher(0, "UrlHost", "localhost:5200") })
+        };
 
     private static readonly FrameContext ContentFrame =
         new(new[] { new Locator("css", "#content-frame") });
@@ -34,7 +44,8 @@ public static class DapTestCrmGuideSeed
             CompletionConditions: completionCss is null
                 ? null
                 : new[] { new StepCompletionCondition("target-exists", WebTarget(completionCss)) },
-            IsEnabled: isEnabled);
+            IsEnabled: isEnabled,
+            ApplicationContextKey: ApplicationContextKey);
 
     private static GuideStep ValueStep(
         string id, int order, string css, string instruction, string contextCss,
@@ -61,7 +72,8 @@ public static class DapTestCrmGuideSeed
                 ? null
                 : new[] { completionCondition },
             IsEnabled: isEnabled,
-            AutomationValue: automationValue);
+            AutomationValue: automationValue,
+            ApplicationContextKey: ApplicationContextKey);
 
     public static IReadOnlyList<GuideStep> CreateSteps() => new GuideStep[]
     {
@@ -124,7 +136,8 @@ public static class DapTestCrmGuideSeed
                 TargetRuntime.Web,
                 new Locator("css", "html"),
                 "frame-url-fragment"),
-            new[] { new StepCompletionCondition("target-exists", WebTarget("h2:has-text('פניות')")) }),
+            new[] { new StepCompletionCondition("target-exists", WebTarget("h2:has-text('פניות')")) },
+            ApplicationContextKey: ApplicationContextKey),
 
         ClickStep(
             "testcrm-open-created-case", 12,
@@ -208,7 +221,8 @@ public static class DapTestCrmGuideSeed
                 "שים לב: בשלב הבא נמחק את הפנייה שיצרת במהלך הלומדה.",
                 BubblePlacement.Center),
             Validation: null,
-            AdvanceMode: StepAdvanceMode.Manual),
+            AdvanceMode: StepAdvanceMode.Manual,
+            ApplicationContextKey: ApplicationContextKey),
 
         ClickStep("testcrm-delete-case", 52, "#delete-case", "מחק את הפנייה", "#delete-case", completionCss: "#ps-confirm"),
         ClickStep("testcrm-confirm-delete-case", 53, "#ps-confirm [data-answer='yes']", "אשר את מחיקת הפנייה", "#ps-confirm", completionCss: "h2:has-text('פניות')"),
@@ -223,7 +237,8 @@ public static class DapTestCrmGuideSeed
             CompletionConditions: new[]
             {
                 new StepCompletionCondition("target-exists", WebTarget("#customer-search"))
-            }),
+            },
+            ApplicationContextKey: ApplicationContextKey),
 
         new GuideStep(
             "testcrm-guide-summary", 55,
