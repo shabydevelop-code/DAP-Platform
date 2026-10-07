@@ -49,11 +49,42 @@ if (args.Contains("--reset-guide", StringComparer.OrdinalIgnoreCase))
         DapTestCrmGuideSeed.GuideName);
     var resetSteps = DapTestCrmGuideSeed.CreateSteps();
     await resetRepository.ReplaceStepsAsync(DapTestCrmGuideSeed.GuideId, resetSteps);
+    var expectedContexts = DapTestCrmGuideSeed.CreateApplicationContexts();
     await resetRepository.ReplaceApplicationContextsAsync(
         DapTestCrmGuideSeed.GuideId,
-        DapTestCrmGuideSeed.CreateApplicationContexts());
+        expectedContexts);
+
+    var persistedSteps = await resetRepository.GetStepsAsync(DapTestCrmGuideSeed.GuideId);
+    var persistedContexts = await resetRepository.GetApplicationContextsAsync(DapTestCrmGuideSeed.GuideId);
+
+    if (persistedSteps.Count != resetSteps.Count ||
+        persistedSteps.Any(step => !string.Equals(
+            step.ApplicationContextKey,
+            DapTestCrmGuideSeed.ApplicationContextKey,
+            StringComparison.Ordinal)))
+        throw new InvalidOperationException(
+            $"Reset verification failed: all {resetSteps.Count} canonical Web Steps must reference Application Context '{DapTestCrmGuideSeed.ApplicationContextKey}'.");
+
+    if (persistedContexts.Count != 1)
+        throw new InvalidOperationException(
+            $"Reset verification failed: expected exactly one Application Context; found {persistedContexts.Count}.");
+
+    var persistedContext = persistedContexts[0];
+    var expectedContext = expectedContexts.Single();
+    if (!string.Equals(persistedContext.Key, expectedContext.Key, StringComparison.Ordinal) ||
+        persistedContext.Runtime != TargetRuntime.Web ||
+        persistedContext.Matchers.Count != 1 ||
+        persistedContext.Matchers[0].Order != 0 ||
+        !string.Equals(persistedContext.Matchers[0].Kind, "UrlHost", StringComparison.Ordinal) ||
+        !string.Equals(persistedContext.Matchers[0].Value, "localhost:5200", StringComparison.Ordinal))
+        throw new InvalidOperationException(
+            "Reset verification failed: persisted CRM Application Context does not match the canonical Web definition.");
 
     Console.WriteLine($"Reset Guide '{DapTestCrmGuideSeed.GuideId}' ({resetSteps.Count} steps) in {resetOptions.DatabasePath}");
+    Console.WriteLine(
+        $"Verified Application Context '{persistedContext.Key}': Runtime={persistedContext.Runtime}, " +
+        $"Matcher={persistedContext.Matchers[0].Kind}:{persistedContext.Matchers[0].Value}, " +
+        $"Steps={persistedSteps.Count}.");
     return;
 }
 
