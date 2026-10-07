@@ -61,6 +61,33 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
             TaskScheduler.Default);
     }
+    private IReadOnlyDictionary<string, GuideApplicationContext> _applicationContexts =
+        new Dictionary<string, GuideApplicationContext>(StringComparer.Ordinal);
+
+    public void ConfigureApplicationContexts(IReadOnlyList<GuideApplicationContext> contexts)
+    {
+        ArgumentNullException.ThrowIfNull(contexts);
+        _applicationContexts = contexts.ToDictionary(context => context.Key, StringComparer.Ordinal);
+    }
+
+    private GuideApplicationContext? ApplicationContextFor(GuideStep step)
+    {
+        if (string.IsNullOrWhiteSpace(step.ApplicationContextKey)) return null;
+        if (!_applicationContexts.TryGetValue(step.ApplicationContextKey, out var context))
+            throw new InvalidOperationException($"Guide Step '{step.Id}' references unknown Application Context '{step.ApplicationContextKey}'.");
+        if (context.Runtime != TargetRuntime.Web)
+            throw new InvalidOperationException($"Guide Step '{step.Id}' references non-Web Application Context '{context.Key}'.");
+        return context;
+    }
+
+    private object ContextualCommand(GuideStep step, object command) => new
+    {
+        type = "contextualCommand",
+        applicationContextKey = step.ApplicationContextKey,
+        applicationContext = ApplicationContextFor(step),
+        command
+    };
+
     public Task ArmValidationAsync(GuideStep step, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -427,7 +454,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             return false;
 
         var response = await SendCommandAsync(
-            new { type = "isContextActive", context = step.Context, framePath = step.Target.FrameContext?.Path },
+            ContextualCommand(step, new { type = "isContextActive", context = step.Context, framePath = step.Target.FrameContext?.Path }),
             cancellationToken);
         return response.GetProperty("result").GetProperty("active").GetBoolean();
     }
@@ -437,7 +464,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             return false;
 
         var response = await SendCommandAsync(
-            new { type = "waitForDomQuiet", quietMilliseconds = Math.Max(0, (int)quietWindow.TotalMilliseconds), framePath = step.Target.FrameContext?.Path },
+            ContextualCommand(step, new { type = "waitForDomQuiet", quietMilliseconds = Math.Max(0, (int)quietWindow.TotalMilliseconds), framePath = step.Target.FrameContext?.Path }),
             cancellationToken);
         if (!response.GetProperty("result").GetProperty("stable").GetBoolean())
             return false;
@@ -446,7 +473,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
         // loading/busy layer above an otherwise stable target. Do not expose
         // the next learner Step until a real pointer hit can reach its target.
         var interactableResponse = await SendCommandAsync(
-            new { type = "isTargetInteractable", target = step.Target, framePath = step.Target.FrameContext?.Path },
+            ContextualCommand(step, new { type = "isTargetInteractable", target = step.Target, framePath = step.Target.FrameContext?.Path }),
             cancellationToken);
         return interactableResponse.GetProperty("result").GetProperty("interactable").GetBoolean();
     }
@@ -458,7 +485,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
                 lock (_validationGate)
                 return _commits.TryGetValue(step.Id, out var q) && q.Count > 0;
         }
-        var response = await SendCommandAsync(new { type = "readTargetValue", target = step.Target, framePath = step.Target.FrameContext?.Path }, cancellationToken);
+        var response = await SendCommandAsync(ContextualCommand(step, new { type = "readTargetValue", target = step.Target, framePath = step.Target.FrameContext?.Path }), cancellationToken);
         var result = response.GetProperty("result");
         if (result.GetProperty("status").GetString() != "resolved") return false;
         var value = result.TryGetProperty("value", out var v) && v.ValueKind != JsonValueKind.Null ? v.GetString() ?? "" : "";
@@ -503,7 +530,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
         lock (_validationGate)
             _armedValidationIds.TryGetValue(step.Id, out armId);
 
-        var response = await SendCommandAsync(new
+        var response = await SendCommandAsync(ContextualCommand(step, new
         {
             type = "ensureBubble",
             step,
@@ -516,7 +543,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             automaticStepLabel,
             direction = _texts?.IsRightToLeft == false ? "ltr" : "rtl",
             framePath = step.Target.FrameContext?.Path
-        }, cancellationToken);
+        }), cancellationToken);
         var result = response.GetProperty("result");
         var status = result.GetProperty("status").GetString();
         var count = result.TryGetProperty("count", out var n) ? n.GetInt32() : 0;
@@ -563,7 +590,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
         if (step.Capture is null) return null;
         if (step.Capture.Runtime != TargetRuntime.Web)
             throw new InvalidOperationException("Web adapter can capture only Web runtime values.");
-        var response = await SendCommandAsync(new { type = "capture", capture = step.Capture, framePath = step.Target?.FrameContext?.Path }, cancellationToken);
+        var response = await SendCommandAsync(ContextualCommand(step, new { type = "capture", capture = step.Capture, framePath = step.Target?.FrameContext?.Path }), cancellationToken);
         var result = response.GetProperty("result");
         if (result.GetProperty("status").GetString() != "resolved" ||
             !result.TryGetProperty("value", out var value) || value.ValueKind == JsonValueKind.Null) return null;
