@@ -32,6 +32,8 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
     private readonly IUiTextProvider? _texts;
     private readonly string? _sessionId;
     private bool _useApplicationContexts;
+    private string? _activeApplicationContextKey;
+    private GuideApplicationContext? _activeApplicationContext;
     private readonly List<NamedPipeServerStream> _pipes = new();
     private NamedPipeServerStream? _selectedPipe;
     private readonly Task _acceptLoop;
@@ -82,13 +84,34 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
         return context;
     }
 
-    private object ContextualCommand(GuideStep step, object command) => new
+    private object ContextualCommand(GuideStep step, object command)
     {
-        type = "contextualCommand",
-        applicationContextKey = step.ApplicationContextKey,
-        applicationContext = ApplicationContextFor(step),
-        command
-    };
+        var context = ApplicationContextFor(step);
+        _activeApplicationContextKey = step.ApplicationContextKey;
+        _activeApplicationContext = context;
+        return new
+        {
+            type = "contextualCommand",
+            applicationContextKey = step.ApplicationContextKey,
+            applicationContext = context,
+            command
+        };
+    }
+
+    private object ActiveContextualCommand(object command)
+    {
+        if (!_useApplicationContexts)
+            return command;
+        if (string.IsNullOrWhiteSpace(_activeApplicationContextKey) || _activeApplicationContext is null)
+            throw new InvalidOperationException("DAP Web Runtime has no active Application Context for this browser command.");
+        return new
+        {
+            type = "contextualCommand",
+            applicationContextKey = _activeApplicationContextKey,
+            applicationContext = _activeApplicationContext,
+            command
+        };
+    }
 
     public Task ArmValidationAsync(GuideStep step, CancellationToken cancellationToken = default)
     {
@@ -574,7 +597,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
     }
     public async Task HideBubbleAsync(CancellationToken cancellationToken = default)
     {
-        await SendCommandAsync(new { type = "hideBubble" }, cancellationToken);
+        await SendCommandAsync(ActiveContextualCommand(new { type = "hideBubble" }), cancellationToken);
     }
     public async Task WaitForCenteredStepDismissalAsync(
         GuideStep step,
@@ -585,7 +608,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
         _centeredDismissal = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         try
         {
-            await SendCommandAsync(new
+            await SendCommandAsync(ContextualCommand(step, new
             {
                 type = "showCenteredStep",
                 step,
@@ -594,7 +617,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
                 progressText = _texts?.Format("Learner.StepProgress", stepNumber, totalSteps) ?? $"שלב {stepNumber} מתוך {totalSteps}",
                 actionText = _texts?.Get("Learner.Confirm") ?? "אישור",
                 dragText = _texts?.Get("Learner.DragBubble") ?? "גרור להזזת הבועה"
-            }, cancellationToken);
+            }), cancellationToken);
 
             await _centeredDismissal.Task.WaitAsync(cancellationToken);
         }
