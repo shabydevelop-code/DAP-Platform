@@ -49,6 +49,9 @@ if (args.Contains("--reset-guide", StringComparer.OrdinalIgnoreCase))
         DapTestCrmGuideSeed.GuideName);
     var resetSteps = DapTestCrmGuideSeed.CreateSteps();
     await resetRepository.ReplaceStepsAsync(DapTestCrmGuideSeed.GuideId, resetSteps);
+    await resetRepository.ReplaceApplicationContextsAsync(
+        DapTestCrmGuideSeed.GuideId,
+        DapTestCrmGuideSeed.CreateApplicationContexts());
 
     Console.WriteLine($"Reset Guide '{DapTestCrmGuideSeed.GuideId}' ({resetSteps.Count} steps) in {resetOptions.DatabasePath}");
     return;
