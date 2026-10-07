@@ -92,9 +92,9 @@ public static class DapApplicationHost
         return enabledTargetRuntimes[0] switch
         {
             DAP.Core.Targets.TargetRuntime.Windows => await RunWindowsAsync(
-                options, steps, applicationContexts, resumeContext, texts, startup, cancellationToken),
-            DAP.Core.Targets.TargetRuntime.Web => await RunWebAsync(
                 options, steps, resumeContext, texts, startup, cancellationToken),
+            DAP.Core.Targets.TargetRuntime.Web => await RunWebAsync(
+                options, steps, applicationContexts, resumeContext, texts, startup, cancellationToken),
             _ => throw new NotSupportedException(
                 $"Guide '{options.GuideId}' uses unsupported Runtime '{enabledTargetRuntimes[0]}'.")
         };
