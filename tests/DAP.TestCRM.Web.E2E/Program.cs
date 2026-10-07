@@ -624,7 +624,12 @@ async Task<bool> WaitForHybridGuideStep(GuideStep expected)
                 }
             }
 
-            throw new Exception($"DAP.exe exited with code {dapProcess.ExitCode} before Runtime activated Step {expected.Order}.");
+            var startupErrors = dapStdErrLines.ToArray();
+            throw new Exception(
+                $"DAP.exe exited with code {dapProcess.ExitCode} before Runtime activated Step {expected.Order}." +
+                (startupErrors.Length == 0
+                    ? " No DAP stderr was captured."
+                    : $"{Environment.NewLine}DAP STDERR:{Environment.NewLine}{string.Join(Environment.NewLine, startupErrors)}"));
         }
 
         if (ownedTestCrmProcess is not null && ownedTestCrmProcess.HasExited)
