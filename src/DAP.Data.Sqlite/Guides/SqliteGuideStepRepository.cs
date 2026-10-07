@@ -290,8 +290,8 @@ SELECT Id FROM Guides WHERE Key = $key;
                 command.CommandText = """
 INSERT INTO GuideSteps(
  GuideId,Key,StepOrder,AdvanceMode,Runtime,LocatorStrategy,LocatorValue,FrameContextJson,ContextKind,ContextValue,
- BubbleContent,BubblePlacement,ValidationKind,ValidationExpectedValue,ValidationOptionsJson,IsEnabled,AutomationValue)
-VALUES($guideId,$key,$order,$advance,$runtime,$strategy,$value,$frame,$contextKind,$contextValue,$content,$placement,$validation,$expected,$options,$enabled,$automationValue);
+ BubbleContent,BubblePlacement,ValidationKind,ValidationExpectedValue,ValidationOptionsJson,IsEnabled,AutomationValue,ApplicationContextKey)
+VALUES($guideId,$key,$order,$advance,$runtime,$strategy,$value,$frame,$contextKind,$contextValue,$content,$placement,$validation,$expected,$options,$enabled,$automationValue,$applicationContextKey);
 SELECT last_insert_rowid();
 """;
                 Add(command,"$guideId",numericGuideId); Add(command,"$key",step.Id); Add(command,"$order",step.Order);
