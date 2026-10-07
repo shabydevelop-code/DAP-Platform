@@ -103,7 +103,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
         if (!_useApplicationContexts)
             return command;
         if (string.IsNullOrWhiteSpace(_activeApplicationContextKey) || _activeApplicationContext is null)
-            throw new InvalidOperationException("DAP Web Runtime has no active Application Context for this browser command.");
+            return command;
         return new
         {
             type = "contextualCommand",
