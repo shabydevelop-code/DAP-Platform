@@ -31,6 +31,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
     private readonly object _validationGate = new();
     private readonly IUiTextProvider? _texts;
     private readonly string? _sessionId;
+    private bool _useApplicationContexts;
     private readonly List<NamedPipeServerStream> _pipes = new();
     private NamedPipeServerStream? _selectedPipe;
     private readonly Task _acceptLoop;
@@ -68,6 +69,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
     {
         ArgumentNullException.ThrowIfNull(contexts);
         _applicationContexts = contexts.ToDictionary(context => context.Key, StringComparer.Ordinal);
+        _useApplicationContexts = _applicationContexts.Count > 0;
     }
 
     private GuideApplicationContext? ApplicationContextFor(GuideStep step)
@@ -210,7 +212,13 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             var json = new JsonSerializerOptions(JsonSerializerDefaults.Web);
             json.Converters.Add(new JsonStringEnumConverter());
             var line = JsonSerializer.Serialize(
-                new { type = "adapterCommand", requestId, sessionId = _sessionId, command },
+                new
+                {
+                    type = "adapterCommand",
+                    requestId,
+                    sessionId = _useApplicationContexts ? null : _sessionId,
+                    command
+                },
                 json);
             try
             {
