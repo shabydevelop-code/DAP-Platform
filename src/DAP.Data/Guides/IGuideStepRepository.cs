@@ -8,6 +8,15 @@ public interface IGuideStepRepository
         string guideId,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<GuideApplicationContext>> GetApplicationContextsAsync(
+        string guideId,
+        CancellationToken cancellationToken = default);
+
+    Task ReplaceApplicationContextsAsync(
+        string guideId,
+        IReadOnlyList<GuideApplicationContext> contexts,
+        CancellationToken cancellationToken = default);
+
     Task SaveStepAsync(
         string guideId,
         GuideStep step,
