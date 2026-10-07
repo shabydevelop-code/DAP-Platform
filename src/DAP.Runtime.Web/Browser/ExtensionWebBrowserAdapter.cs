@@ -348,6 +348,16 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
                             continue;
                         }
 
+                        // Multiple browser profiles may have the DAP extension
+                        // connected at the same time. A host that merely returns
+                        // a semantic inactive/notFound result must not capture the
+                        // Runtime. Bind only to the host that actually resolved the
+                        // persisted Application Context for this command.
+                        var contextMatched = !root.TryGetProperty("contextMatched", out var matchedElement)
+                            || matchedElement.ValueKind != JsonValueKind.False;
+                        if (!contextMatched)
+                            continue;
+
                         lock (_pipeGate)
                         {
                             if (_selectedPipe is null)
