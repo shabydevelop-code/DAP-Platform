@@ -13,13 +13,46 @@ if (!File.Exists(backendProject))
 if (!File.Exists(webProject))
     throw new FileNotFoundException("TestCRM Web project was not found.", webProject);
 
-Process StartProject(string project, string url, IReadOnlyDictionary<string,string>? environment = null)
+async Task BuildProjectAsync(string project)
 {
+    using var build = Process.Start(new ProcessStartInfo
+    {
+        FileName = "dotnet",
+        Arguments = $"build \"{project}\" --nologo --verbosity minimal",
+        WorkingDirectory = repoRoot,
+        UseShellExecute = false,
+        RedirectStandardOutput = true,
+        RedirectStandardError = true
+    }) ?? throw new InvalidOperationException($"Could not build {Path.GetFileNameWithoutExtension(project)}.");
+
+    var stdout = build.StandardOutput.ReadToEndAsync();
+    var stderr = build.StandardError.ReadToEndAsync();
+    await build.WaitForExitAsync();
+    if (build.ExitCode != 0)
+        throw new InvalidOperationException(
+            $"Build failed for {Path.GetFileNameWithoutExtension(project)}.{Environment.NewLine}" +
+            $"STDOUT:{Environment.NewLine}{await stdout}{Environment.NewLine}" +
+            $"STDERR:{Environment.NewLine}{await stderr}");
+}
+
+Process StartBuiltProject(string project, string url, IReadOnlyDictionary<string,string>? environment = null)
+{
+    var projectDirectory = Path.GetDirectoryName(project)!;
+    var dll = Path.Combine(
+        projectDirectory,
+        "bin",
+        "Debug",
+        "net8.0",
+        Path.GetFileNameWithoutExtension(project) + ".dll");
+
+    if (!File.Exists(dll))
+        throw new FileNotFoundException("Built TestCRM assembly was not found.", dll);
+
     var psi = new ProcessStartInfo
     {
         FileName = "dotnet",
-        Arguments = $"run --no-launch-profile --project \"{project}\" --urls {url}",
-        WorkingDirectory = repoRoot,
+        Arguments = $"\"{dll}\" --urls {url}",
+        WorkingDirectory = projectDirectory,
         UseShellExecute = false
     };
     if (environment is not null)
@@ -30,8 +63,11 @@ Process StartProject(string project, string url, IReadOnlyDictionary<string,stri
         ?? throw new InvalidOperationException($"Could not start {Path.GetFileNameWithoutExtension(project)}.");
 }
 
-var backend = StartProject(backendProject, backendUrl);
-var web = StartProject(
+await BuildProjectAsync(backendProject);
+await BuildProjectAsync(webProject);
+
+var backend = StartBuiltProject(backendProject, backendUrl);
+var web = StartBuiltProject(
     webProject,
     webUrl,
     new Dictionary<string,string> { ["TestCrmBackendUrl"] = backendUrl });
