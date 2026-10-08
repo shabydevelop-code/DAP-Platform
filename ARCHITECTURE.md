@@ -30,6 +30,7 @@ test-apps/
 
 tests/
   DAP.Data.Sqlite.Tests/
+  DAP.TestCRM.Web.Host/
   DAP.TestCRM.Web.E2E/
   DAP.TestCRM.Windows.E2E/
 ```
