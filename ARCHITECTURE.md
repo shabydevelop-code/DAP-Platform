@@ -35,8 +35,6 @@ tests/
   DAP.TestCRM.Windows.E2E/
 ```
 
-The retired shared canonical E2E scenario project no longer exists.
-
 ## Guide and persistence model
 
 Guide definitions are persisted data and are the source of truth for learner execution. Core remains independent of the physical database provider. SQLite is the current provider.
@@ -110,8 +108,6 @@ Maintenance/path options are:
 
 - `--reset-guide` for canonical TestCRM Guide maintenance
 - `--published-dap` where a packaged DAP path is required
-
-Fast, Visual, Guided, Unguided, Manual-From-Step, Visual-From-Step, and `DAP_E2E_MODE` are retired.
 
 Manual performs no synthetic learner actions. Hybrid may apply only explicitly persisted automation values; buttons, navigation, dialogs, and other learner actions remain manual unless explicitly represented by the current persisted-data contract.
 
