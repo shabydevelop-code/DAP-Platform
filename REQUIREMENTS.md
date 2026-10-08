@@ -57,7 +57,6 @@
 - Automated technical waits must not exceed five seconds without explicit approval.
 - Human Manual/Hybrid response time is not an automated timeout.
 - TestCRM source may aid diagnosis only; it must not become a production oracle.
-
 - Independent Web testing must support starting TestCRM without starting DAP, then launching the production Learner separately against the already-open browser application. Completing the Guide must not terminate the target application or browser.
 
 ## Deployment
