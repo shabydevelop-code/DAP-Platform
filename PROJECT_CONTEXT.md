@@ -95,8 +95,6 @@ Maintenance/path options:
 --published-dap
 ```
 
-Old Guided/Unguided/Fast/Visual/From-Step modes and `DAP_E2E_MODE` are retired.
-
 ## Independent Web execution
 
 `tests/DAP.TestCRM.Web.Host` runs the TestCRM backend and Web host without launching DAP. Chrome is opened separately at `http://localhost:5200`. The Learner is then started independently with the product launch contract above. Web Application Context `crm` resolves the existing browser application. The verified full Manual run ended the DAP process without closing Chrome or TestCRM.
