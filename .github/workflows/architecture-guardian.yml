@@ -20,5 +20,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
       - name: Check architectural guardrails
         run: python3 tools/architecture-guardian/check.py
+      - name: Independent AI architecture review
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GUARDIAN_MODEL: gpt-4.1-mini
+          GUARDIAN_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          GUARDIAN_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: python3 tools/architecture-guardian/review.py
