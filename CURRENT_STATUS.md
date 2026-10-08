@@ -58,8 +58,6 @@ Maintenance/path options:
 --published-dap
 ```
 
-Retired modes and mechanisms must not be reintroduced: Guided, Unguided, Fast, Visual, Manual-From-Step, Visual-From-Step, `DAP_E2E_MODE`, Playwright production execution, CDP production attachment, or the retired shared canonical E2E scenario.
-
 ## Independent Web application and Learner execution
 
 `tests/DAP.TestCRM.Web.Host` starts the TestCRM backend and Web application independently of DAP. It builds the application projects before starting a five-second Web readiness check, and keeps its owned TestCRM processes running until the host is stopped. The user opens `http://localhost:5200` in Chrome separately.
