@@ -95,7 +95,7 @@ CREATE TABLE ApplicationContextMatchers (
 
 Matchers are persisted discovery criteria. The model permits more than one matcher without another schema change.
 
-Initial useful matcher kinds include:
+Web matchers currently supported and Windows matchers planned for future context resolution:
 
 ```text
 Web:
@@ -105,7 +105,7 @@ Web:
   UrlContains
   UrlHost
 
-Windows:
+Windows (planned):
   WindowTitleContains
   AutomationId
   ProcessName
@@ -197,7 +197,7 @@ Persisting runtime identity for process restart/resume is a separate session-sta
 
 The data model must support one Guide containing Steps associated with different application contexts and runtimes.
 
-The intended execution architecture is:
+The planned cross-runtime execution architecture is:
 
 ```text
 DAP Learner
@@ -295,8 +295,6 @@ The persisted model and Web implementation support named Application Contexts. `
 A standalone TestCRM Web host and independently launched `DAP.exe` have been verified through full Manual Guide completion against an already-open Chrome tab. DAP exits at completion without terminating the application or browser.
 
 Cross-runtime Guide orchestration and Windows named Application Context resolution are not yet implemented. Concurrent Citrix-session isolation remains unverified.
-
-## Design rules
 
 ## Design rules
 
