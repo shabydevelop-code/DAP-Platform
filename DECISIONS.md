@@ -85,10 +85,10 @@ Production Runtime owns the one-time initial focus of input Steps. Hybrid must w
 
 The product launch contract is `DAP.exe --learner --guide <GuideId>`. The persisted Guide determines whether the current execution uses Web or Windows Runtime; callers do not select a runtime mode. The current launcher requires all enabled targeted Steps in a Guide to use one runtime type. Cross-runtime execution can be added without changing the external Guide-selection contract.
 
-## ADR-019 — Learner and target application have independent lifetimes
-
-Production Learner attaches to an already-open application using the persisted Application Context. DAP must not require an E2E runner to open or own the target application. Guide completion ends the Learner without closing the target application or browser. The standalone TestCRM Web host supports this execution path; the integrated E2E runners remain available for regression.
-
 ## ADR-018 — Browser Extension has no product GUI
 
 The browser Extension is an infrastructure adapter between the Web Runtime and browser. It does not own Guide selection, Guide management, settings, or other product UI, and therefore exposes no popup GUI.
+
+## ADR-019 — Learner and target application have independent lifetimes
+
+Production Learner attaches to an already-open application using the persisted Application Context. DAP must not require an E2E runner to open or own the target application. Guide completion ends the Learner without closing the target application or browser. The standalone TestCRM Web host supports this execution path; the integrated E2E runners remain available for regression.
