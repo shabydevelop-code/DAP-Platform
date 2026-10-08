@@ -60,6 +60,14 @@ Maintenance/path options:
 
 Retired modes and mechanisms must not be reintroduced: Guided, Unguided, Fast, Visual, Manual-From-Step, Visual-From-Step, `DAP_E2E_MODE`, Playwright production execution, CDP production attachment, or the retired shared canonical E2E scenario.
 
+## Independent Web application and Learner execution
+
+`tests/DAP.TestCRM.Web.Host` starts the TestCRM backend and Web application independently of DAP. It builds the application projects before starting a five-second Web readiness check, and keeps its owned TestCRM processes running until the host is stopped. The user opens `http://localhost:5200` in Chrome separately.
+
+In a separate shell, `dotnet build src\\DAP.App\\DAP.App.csproj` builds the product; `src\\DAP.App\\bin\\Debug\\net8.0-windows\\DAP.exe --learner --guide testcrm-web-canonical-workflow` launches the Learner directly, without the E2E runner. DAP attaches to the already-open CRM through its persisted Web Application Context; it does not own the site or browser lifetime.
+
+The independent Web Manual workflow has been verified through completion of the 55-Step Guide: the DAP process exited at Guide completion while TestCRM and Chrome remained running. This does not constitute a new Hybrid or Windows regression result.
+
 ## Verification state
 
 Current Manual/Hybrid behavior is persisted-data-driven on both runtimes. Windows Hybrid input focus synchronization is verified for the first input Step. Intentional Windows target closure and Web browser-session closure terminate cleanly rather than being reported as Runtime failures. Web Hybrid emits the browser-session closure message once through its owning termination path; Web Manual retains its passive clean-closure path. Web Manual browser-lifetime observation is passive and does not automate learner actions.
