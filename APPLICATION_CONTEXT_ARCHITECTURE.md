@@ -1,6 +1,6 @@
 # Application Context and Session Isolation Architecture
 
-This document defines the current target architecture for application-context resolution and per-user runtime isolation. It describes the design to be implemented; where the current code differs, that difference is stated explicitly. Historical alternatives belong in Git history.
+This document distinguishes implemented application-context capabilities from the cross-runtime and session-isolation requirements not yet implemented. Historical alternatives belong in Git history.
 
 ## Purpose
 
@@ -25,7 +25,7 @@ Application discovery is separate from target discovery:
 - Application Context answers: which application instance does this Step belong to?
 - TargetDescriptor answers: which UI element inside that application is the Step target?
 
-DAP must not use target locators as a substitute for explicit application identity once Application Context support is implemented.
+DAP must not use target locators as a substitute for explicit application identity when an Application Context is defined.
 
 ## Guide-level application contexts
 
@@ -60,7 +60,7 @@ An application context is resolved on first use, not necessarily at Guide startu
 
 ## Persistence model
 
-The target persistence model adds two tables and one Step reference.
+The persisted model uses two tables and one Step reference.
 
 ### GuideApplicationContexts
 
@@ -115,7 +115,7 @@ The exact supported matcher set is a Runtime capability and must be validated ra
 
 ### GuideSteps
 
-`GuideSteps` gains:
+`GuideSteps` contains:
 
 ```text
 ApplicationContextKey TEXT NULL
@@ -290,9 +290,13 @@ The exact transport naming/authorization mechanism must be deterministic and der
 
 ## Current Web context behavior
 
-The current browser Extension already retains a resolved production tab identity in memory after it uniquely identifies a production tab. This is useful runtime behavior, but it is currently a single production-tab binding rather than the named multi-context model defined in this document.
+The persisted model and Web implementation support named Application Contexts. `GuideApplicationContexts`, `ApplicationContextMatchers`, and `GuideSteps.ApplicationContextKey` are persisted in SQLite and exposed through the Guide repository. The Web adapter supplies the contexts to the Extension, which resolves and retains browser tabs per context key. Supported Web matcher kinds are `TitleEquals`, `TitleContains`, `UrlEquals`, `UrlContains`, and `UrlHost`; matching must resolve uniquely, without guessing. Web context-aware commands include target observation, interaction, bubble display/cleanup, capture, and centered informational Steps. The current TestCRM Web Guide has 55 Steps referencing context `crm` with matcher `UrlHost:localhost:5200`.
 
-Application Context implementation will generalize that concept so multiple named contexts can coexist in one Learner run.
+A standalone TestCRM Web host and independently launched `DAP.exe` have been verified through full Manual Guide completion against an already-open Chrome tab. DAP exits at completion without terminating the application or browser.
+
+Cross-runtime Guide orchestration and Windows named Application Context resolution are not yet implemented. Concurrent Citrix-session isolation remains unverified.
+
+## Design rules
 
 ## Design rules
 
