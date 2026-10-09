@@ -23,7 +23,7 @@ public sealed class AdapterWebGuideRuntime
     {
         await new GuideExecutionEngine().RunAsync(
             guideSteps,
-            TargetRuntime.Web,
+            new DelegateGuideStepAdapter(TargetRuntime.Web, "Web",
             async (step, index, total, plan, token) =>
             {
                 if (step.Capture is not null)
@@ -35,11 +35,10 @@ public sealed class AdapterWebGuideRuntime
                 }
 
                 await _steps.RunActiveStepAsync(step, step.Order, total, token);
-            },
+            }),
             cancellationToken,
             startStepOrder,
-            initialCapturedValues,
-            "Web");
+            initialCapturedValues);
     }
 
 }
