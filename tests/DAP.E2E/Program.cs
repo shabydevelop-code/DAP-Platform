@@ -7,8 +7,15 @@ if (args.Length < 2 || !args[0].Equals("--platform", StringComparison.OrdinalIgn
 var platform = PlatformProject.Resolve(args[1]);
 _ = DAP.Testing.E2eRunOptions.Parse(args.Skip(2).ToArray(), platform.Name == "web" ? "Web" : "Windows");
 var repositoryRoot = FindRepositoryRoot(AppContext.BaseDirectory);
-var projectFile = platform.ProjectPath(repositoryRoot);
-Environment.ExitCode = await E2eRunner.RunAsync(repositoryRoot, projectFile, args.Skip(2).ToArray());
+if (platform.Name == "windows")
+{
+    await WindowsScenario.RunAsync(args.Skip(2).ToArray());
+}
+else
+{
+    var projectFile = platform.ProjectPath(repositoryRoot);
+    Environment.ExitCode = await E2eRunner.RunAsync(repositoryRoot, projectFile, args.Skip(2).ToArray());
+}
 
 static string FindRepositoryRoot(string start)
 {
