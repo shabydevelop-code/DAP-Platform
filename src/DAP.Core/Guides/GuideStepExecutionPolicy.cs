@@ -32,6 +32,15 @@ public static class GuideStepExecutionPolicy
         return IsAutomaticValidationStep(step) && (!isTextEditTarget || textEditCommitted);
     }
 
+    /// <summary>An invalid non-click commit is consumed so a later valid edit
+    /// requires a new user commit. Click events are never consumed this way.</summary>
+    public static bool ShouldConsumeInvalidCommit(GuideStep step, bool commitObserved, bool primarySatisfied)
+    {
+        ArgumentNullException.ThrowIfNull(step);
+        return commitObserved && !primarySatisfied
+            && IsAutomaticValidationStep(step) && !IsClickValidationStep(step);
+    }
+
     /// <summary>Advancement requires both the primary event/value validation and
     /// all persisted completion conditions; a primary commit alone never advances.</summary>
     public static bool CanAdvance(bool primaryValidationSatisfied, bool completionConditionsSatisfied)
