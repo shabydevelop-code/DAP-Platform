@@ -170,7 +170,7 @@ public sealed class WindowsGuideRuntime
                 // target is minimized or the user switches to another application,
                 // hide both bubble and highlight. The next reconciliation pass
                 // restores them from fresh UIA bounds when the target becomes active.
-                if (activeState.ObserveContext(IsTargetWindowInteractive(windowRoot))
+                if (sharedEngine.ObserveContext(activeState, IsTargetWindowInteractive(windowRoot))
                     == GuideStepReconciliationResult.WaitingForContext)
                 {
                     await _bubbles.HideAsync();
@@ -189,7 +189,7 @@ public sealed class WindowsGuideRuntime
                     return GuideStepReconciliationResult.Completed;
                 }
 
-                if (activeState.ObserveContext(IsStepContextActive(windowRoot, step))
+                if (sharedEngine.ObserveContext(activeState, IsStepContextActive(windowRoot, step))
                     == GuideStepReconciliationResult.WaitingForContext)
                 {
                     await _bubbles.HideAsync();
