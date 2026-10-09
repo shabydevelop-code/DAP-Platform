@@ -648,7 +648,7 @@ dapProcess=new Process
     StartInfo=new ProcessStartInfo
     {
         FileName=dapExecutable,
-        Arguments=$"--guide {guideId}",
+        Arguments=$"--guide {guideId} --mode {(hybrid ? "hybrid" : "manual")}",
         WorkingDirectory=effectiveDapDirectory,
         UseShellExecute=false,
         CreateNoWindow=true,
