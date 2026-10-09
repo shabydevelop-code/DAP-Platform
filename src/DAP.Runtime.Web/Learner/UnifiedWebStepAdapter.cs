@@ -19,6 +19,7 @@ public sealed class UnifiedWebStepAdapter : IUnifiedStepPlatformAdapter
     private bool _clickLatched;
     private bool _valueLatched;
     private bool _previouslyResolved;
+    private Task? _centeredDismissal;
 
     public UnifiedWebStepAdapter(
         IWebBrowserAdapter browser, int number, int total,
@@ -33,6 +34,16 @@ public sealed class UnifiedWebStepAdapter : IUnifiedStepPlatformAdapter
 
     public async Task<UnifiedStepObservation> ObserveAsync(GuideStep step, CancellationToken token)
     {
+        if (GuideStepExecutionPolicy.IsCenteredInformationStep(step))
+        {
+            if (_centeredDismissal is { IsFaulted: true })
+                await _centeredDismissal;
+            if (_centeredDismissal is { IsCanceled: true })
+                await _centeredDismissal;
+            return new(false, false, false, false, false, false,
+                ManualAdvanceRequested: _centeredDismissal?.IsCompletedSuccessfully == true);
+        }
+
         if (_commit is { IsCompletedSuccessfully: true } && _commit.Result is not null)
         {
             if (GuideStepExecutionPolicy.IsClickValidationStep(step))
@@ -81,7 +92,12 @@ public sealed class UnifiedWebStepAdapter : IUnifiedStepPlatformAdapter
     public async Task SetPresentationAsync(GuideStep step, UnifiedPresentationAction action, CancellationToken token)
     {
         if (action == UnifiedPresentationAction.Show)
-            await _browser.EnsureBubbleShownAsync(step, _number, _total, true, token);
+        {
+            if (GuideStepExecutionPolicy.IsCenteredInformationStep(step))
+                _centeredDismissal ??= _browser.WaitForCenteredStepDismissalAsync(step, _number, _total, token);
+            else
+                await _browser.EnsureBubbleShownAsync(step, _number, _total, true, token);
+        }
         else if (action == UnifiedPresentationAction.Hide)
             await _browser.HideBubbleAsync(token);
     }
@@ -91,6 +107,12 @@ public sealed class UnifiedWebStepAdapter : IUnifiedStepPlatformAdapter
 
     public async Task WaitForChangeAsync(GuideStep step, GuideStepReconciliationResult reason, CancellationToken token)
     {
+        if (_centeredDismissal is { IsCompleted: false })
+        {
+            await Task.WhenAny(_centeredDismissal, Task.Delay(_waitInterval, token));
+            token.ThrowIfCancellationRequested();
+            return;
+        }
         // Wait for an armed commit when available, otherwise periodically
         // reconcile application context and asynchronous DOM changes.
         if (_commit is { IsCompleted: false })
