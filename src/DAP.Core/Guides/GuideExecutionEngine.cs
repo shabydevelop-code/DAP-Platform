@@ -52,6 +52,41 @@ public sealed class DelegateGuideStepAdapter : IGuideStepAdapter
         => _capture(step, plan, cancellationToken);
 }
 
+/// <summary>Shared per-step lifecycle state. An adapter records platform observations;
+/// the core decides whether the step may finish or needs another reconciliation.</summary>
+public sealed class GuideActiveStepState
+{
+    private readonly GuideStep _step;
+    public GuideActiveStepState(GuideStep step)
+    {
+        _step = step ?? throw new ArgumentNullException(nameof(step));
+    }
+
+    public bool HybridValueApplied { get; private set; }
+    public bool PresentationReady { get; private set; }
+    public bool ReadySignaled { get; private set; }
+
+    public void MarkPresentationReady() => PresentationReady = true;
+    public void InvalidatePresentation() => PresentationReady = false;
+    public bool TrySignalReady()
+    {
+        if (ReadySignaled) return false;
+        ReadySignaled = true;
+        return true;
+    }
+    public bool ShouldApplyHybridValue(bool hybrid, bool targetResolved)
+        => hybrid && targetResolved && !HybridValueApplied && !string.IsNullOrEmpty(_step.AutomationValue);
+    public void MarkHybridValueApplied() => HybridValueApplied = true;
+
+    public GuideStepReconciliationResult EvaluateCompletion(
+        bool primarySatisfied, bool completionConditionsSatisfied,
+        bool isTextEditTarget = false, bool textEditCommitted = false)
+        => GuideStepExecutionPolicy.IsStepComplete(
+            _step, primarySatisfied, completionConditionsSatisfied, isTextEditTarget, textEditCommitted)
+            ? GuideStepReconciliationResult.Completed
+            : GuideStepReconciliationResult.WaitingForValidation;
+}
+
 /// <summary>Platform-neutral result of a single active-step observation.</summary>
 public enum GuideStepReconciliationResult
 {
