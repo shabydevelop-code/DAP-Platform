@@ -113,3 +113,5 @@ Each DAP.exe invocation owns one learner session. After the guide runtime and cl
 - Do not delete `tests/DAP.TestCRM.Web.E2E/` or `tests/DAP.TestCRM.Windows.E2E/` until platform adapters, shared orchestration and all regression paths have moved and passed verification.
 - The new project has not yet been built or run on the user's machine.
 - The new thin entry point and its extracted runner/route components still require a post-change build and runtime verification.
+- Unified `DAP.E2E` now compiles the existing shared `E2eRunOptions` and `OwnedProcessCleanup` components; the entry point validates forwarded options and its orchestration delegates process cleanup to the shared helper. The platform-specific scenario implementations remain in the legacy projects, so migration and deletion are still pending.
+- The most recent changes require a fresh build and regression verification.
