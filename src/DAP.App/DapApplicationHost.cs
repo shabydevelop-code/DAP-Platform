@@ -210,8 +210,6 @@ public static class DapApplicationHost
     [DllImport("user32.dll")]
     private static extern bool IsIconic(IntPtr window);
 
-    [DllImport("user32.dll")]
-    private static extern bool ShowWindow(IntPtr window, int command);
 
     private static async Task ActivateWindowsTargetAsync(AutomationElement target, CancellationToken cancellationToken)
     {
