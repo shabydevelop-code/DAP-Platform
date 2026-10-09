@@ -650,13 +650,16 @@ async function handleNativeMessage(message) {
     // Bring the persisted, uniquely resolved production target to the foreground
     // once per learner session, without stealing focus on later reconciliation.
     if (contextual && !message.sessionId &&
-        (command.type === "showBubble" || command.type === "showCenteredStep") &&
+        ((command.type === "ensureBubble" && command.visible !== false) || command.type === "showCenteredStep") &&
         !activatedProductionSessions.has(String(message.sessionId || "production") + ":" + envelope.applicationContextKey)) {
       const tab = await chrome.tabs.get(tabId);
       if (tab.windowId == null)
         throw new Error("Resolved DAP Web target has no browser window.");
-      await chrome.windows.update(tab.windowId, { focused: true });
       await chrome.tabs.update(tabId, { active: true });
+      await chrome.windows.update(tab.windowId, { focused: true, state: "normal" });
+      const focusedWindow = await chrome.windows.getLastFocused();
+      if (focusedWindow.id !== tab.windowId || !focusedWindow.focused)
+        throw new Error("DAP could not bring the resolved browser window to the foreground.");
       activatedProductionSessions.add(String(message.sessionId || "production") + ":" + envelope.applicationContextKey);
     }
 
