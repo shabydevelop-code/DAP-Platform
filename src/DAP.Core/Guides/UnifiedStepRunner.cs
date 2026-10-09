@@ -25,7 +25,9 @@ public sealed class UnifiedStepRunner
         ArgumentNullException.ThrowIfNull(adapter);
 
         var machine = new UnifiedStepStateMachine(step);
-        await machine.RunAsync(
+        try
+        {
+            await machine.RunAsync(
             async token =>
             {
                 var observation = await adapter.ObserveAsync(step, token);
@@ -44,5 +46,17 @@ public sealed class UnifiedStepRunner
             (action, token) => adapter.SetPresentationAsync(step, action, token),
             (reason, token) => adapter.WaitForChangeAsync(step, reason, token),
             cancellationToken);
+        }
+        finally
+        {
+            // Never leave a stale guide bubble after cancellation or adapter failure.
+            // Cleanup must not mask the original exception.
+            try
+            {
+                await adapter.SetPresentationAsync(step, UnifiedPresentationAction.Hide,
+                    CancellationToken.None);
+            }
+            catch { /* Best-effort cleanup; preserve the original failure. */ }
+        }
     }
 }
