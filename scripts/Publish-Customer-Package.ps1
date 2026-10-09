@@ -20,8 +20,7 @@ $diag = Join-Path $Output "Diagnostics"
 Publish-Project "test-apps\DAP.TestCRM\Server\DAP.TestCRM.Server.csproj" (Join-Path $diag "TestCRM\Server")
 Publish-Project "test-apps\DAP.TestCRM\Web\DAP.TestCRM.Web.csproj" (Join-Path $diag "TestCRM\Web")
 Publish-Project "test-apps\DAP.TestCRM\Windows\DAP.TestCRM.Windows.csproj" (Join-Path $diag "TestCRM\Windows")
-Publish-Project "tests\DAP.TestCRM.Web.E2E\DAP.TestCRM.Web.E2E.csproj" (Join-Path $diag "Runners\Web")
-Publish-Project "tests\DAP.TestCRM.Windows.E2E\DAP.TestCRM.Windows.E2E.csproj" (Join-Path $diag "Runners\Windows")
+Publish-Project "tests\DAP.E2E\DAP.E2E.csproj" (Join-Path $diag "Runners\Unified")
 
 Copy-Item (Join-Path $PSScriptRoot "Run-Diagnostics.ps1") $diag
 Copy-Item (Join-Path $PSScriptRoot "Initialize-Diagnostics.ps1") $diag
