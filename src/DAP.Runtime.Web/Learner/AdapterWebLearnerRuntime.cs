@@ -93,7 +93,8 @@ public sealed class AdapterWebLearnerRuntime
                 == GuideStepReconciliationResult.WaitingForContext)
             {
                 await _browser.HideBubbleAsync(cancellationToken);
-                return await GuideActiveStepState.WaitAsync(\n                    GuideStepReconciliationResult.WaitingForContext, _reconcileInterval, cancellationToken);
+                return await GuideActiveStepState.WaitAsync(
+                    GuideStepReconciliationResult.WaitingForContext, _reconcileInterval, cancellationToken);
             }
 
             if (!activeState.PresentationReady)
@@ -102,7 +103,8 @@ public sealed class AdapterWebLearnerRuntime
                     await _browser.IsStableForPresentationAsync(step, _presentationSettleInterval, cancellationToken))
                     == GuideStepReconciliationResult.WaitingForTarget)
                 {
-                    return await GuideActiveStepState.WaitAsync(\n                        GuideStepReconciliationResult.WaitingForTarget, _reconcileInterval, cancellationToken);
+                    return await GuideActiveStepState.WaitAsync(
+                        GuideStepReconciliationResult.WaitingForTarget, _reconcileInterval, cancellationToken);
                 }
             }
 
@@ -133,7 +135,8 @@ public sealed class AdapterWebLearnerRuntime
                         return GuideStepReconciliationResult.Completed;
                     }
 
-                    return await GuideActiveStepState.WaitAsync(\n                        GuideStepReconciliationResult.WaitingForValidation, _reconcileInterval, cancellationToken);
+                    return await GuideActiveStepState.WaitAsync(
+                        GuideStepReconciliationResult.WaitingForValidation, _reconcileInterval, cancellationToken);
                 }
 
                 presentation = await presentationTask;
