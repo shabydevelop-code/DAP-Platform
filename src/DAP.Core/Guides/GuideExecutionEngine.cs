@@ -59,6 +59,17 @@ public sealed class DelegateGuideStepAdapter : IGuideStepAdapter
 /// </summary>
 public sealed class GuideStepReconciliationEngine
 {
+    public async IAsyncEnumerable<bool> TicksAsync(
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            yield return true;
+            await Task.Yield();
+        }
+    }
+
     public async Task RunAsync(
         Func<CancellationToken, Task<bool>> reconcile,
         TimeSpan interval,
