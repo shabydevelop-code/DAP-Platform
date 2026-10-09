@@ -48,6 +48,25 @@ public static class GuideStepExecutionPolicy
             && CanAdvance(actionObserved, completionConditionsSatisfied);
     }
 
+    /// <summary>Single completion gate for active target steps. Platform adapters
+    /// observe events and evaluate persisted conditions, while the shared policy
+    /// decides whether an observed action can complete the step.</summary>
+    public static bool IsStepComplete(
+        GuideStep step,
+        bool primaryValidationSatisfied,
+        bool completionConditionsSatisfied,
+        bool isTextEditTarget = false,
+        bool textEditCommitted = false)
+    {
+        ArgumentNullException.ThrowIfNull(step);
+        if (!IsAutomaticValidationStep(step))
+            return false;
+        if (!IsClickValidationStep(step) && !IsTargetDisappearanceStep(step)
+            && !CanEvaluatePrimaryValidation(step, isTextEditTarget, textEditCommitted))
+            return false;
+        return CanAdvance(primaryValidationSatisfied, completionConditionsSatisfied);
+    }
+
     public static bool IsClickValidationStep(GuideStep step)
     {
         ArgumentNullException.ThrowIfNull(step);
