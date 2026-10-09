@@ -172,6 +172,27 @@ Check(manualTarget.Advance(new UnifiedStepObservation(true, true, true, true,
     false, false, ManualAdvanceRequested: true)).StepCompleted,
     "Manual target step advances only on explicit request");
 
+var disposableAdapter = new DisposableUnifiedAdapter();
+await new UnifiedStepRunner().RunAsync(
+    new GuideStep("dispose-success", 1, null, new BubbleDefinition("Done"),
+        new ValidationDefinition("clicked")),
+    new UnifiedStepOptions(UnifiedLearnerMode.Manual), disposableAdapter, CancellationToken.None);
+Check(disposableAdapter.Disposed, "Runner releases adapter after successful step");
+
+var disposableFailure = new DisposableUnifiedAdapter { FailOnWait = true };
+try
+{
+    await new UnifiedStepRunner().RunAsync(
+        new GuideStep("dispose-failure", 1, null, new BubbleDefinition("Fail"),
+            new ValidationDefinition("clicked")),
+        new UnifiedStepOptions(UnifiedLearnerMode.Manual), disposableFailure, CancellationToken.None);
+    throw new Exception("FAILED: Expected simulated adapter failure");
+}
+catch (InvalidOperationException)
+{
+    Check(disposableFailure.Disposed, "Runner releases adapter after failure");
+}
+
 Console.WriteLine("All unified state-machine checks passed.");
 
 sealed class FakeUnifiedAdapter : IUnifiedStepPlatformAdapter
@@ -202,3 +223,24 @@ sealed class FakeUnifiedAdapter : IUnifiedStepPlatformAdapter
 }
 
 
+
+sealed class DisposableUnifiedAdapter : IUnifiedStepPlatformAdapter, IDisposable
+{
+    public bool Disposed { get; private set; }
+    public bool FailOnWait { get; set; }
+    private bool _complete;
+
+    public Task<UnifiedStepObservation> ObserveAsync(GuideStep step, CancellationToken token)
+        => Task.FromResult(new UnifiedStepObservation(true, true, true, true, _complete, _complete));
+    public Task SetPresentationAsync(GuideStep step, UnifiedPresentationAction action, CancellationToken token)
+        => Task.CompletedTask;
+    public Task ApplyAutomationAsync(GuideStep step, string value, CancellationToken token)
+        => Task.CompletedTask;
+    public Task WaitForChangeAsync(GuideStep step, GuideStepReconciliationResult reason, CancellationToken token)
+    {
+        if (FailOnWait) throw new InvalidOperationException("Simulated wait failure");
+        _complete = true;
+        return Task.CompletedTask;
+    }
+    public void Dispose() => Disposed = true;
+}
