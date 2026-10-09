@@ -91,3 +91,5 @@ The production Web learner now accepts `DAP.exe --guide <GuideId> --mode hybrid`
 Standalone TestCRM Web Host opens the application in Chrome automatically after the five-second readiness check. DAP.exe remains a separate product process and does not own the target application's browser or servers. This host change requires a local Windows execution check.
 
 The standalone TestCRM Web Host treats user-requested Ctrl+C termination as normal shutdown, stops its owned Web and backend processes, and does not report their exit code 0 as an unexpected failure. Unexpected independent process exits remain errors. Requires local verification.
+
+Current implementation: both Web and Windows use the Core GuideExecutionEngine for guide sequence orchestration. Active step execution remains platform-specific; complete engine consolidation and Windows regression verification are outstanding.
