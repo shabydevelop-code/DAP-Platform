@@ -92,5 +92,14 @@ public sealed class UnifiedStepRunner
             catch { /* Best-effort cleanup; preserve the original failure. */ }
             throw;
         }
+        finally
+        {
+            // Event subscriptions belong to a single step and must be released
+            // on completion, cancellation and failure alike.
+            if (adapter is IAsyncDisposable asyncDisposable)
+                await asyncDisposable.DisposeAsync();
+            else if (adapter is IDisposable disposable)
+                disposable.Dispose();
+        }
     }
 }
