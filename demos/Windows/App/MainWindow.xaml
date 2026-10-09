@@ -1,7 +1,7 @@
 <Window x:Class="DAP.TestCRM.Windows.MainWindow"
  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
- Title="DAP Test CRM - Windows" Height="760" Width="1120" MinHeight="560" MinWidth="760" WindowState="Maximized"
+ Title="Sample Application" Height="760" Width="1120" MinHeight="560" MinWidth="760" WindowState="Maximized"
  AutomationProperties.AutomationId="TestCrmMainWindow" FlowDirection="RightToLeft"
  Background="#EEF1F5" FontFamily="Segoe UI" FontSize="13">
  <Window.Resources>
@@ -97,7 +97,7 @@
    <DockPanel Margin="22,0">
     <Button x:Name="PortalButton"
             AutomationProperties.AutomationId="PortalHeader"
-            Content="DAP Test CRM"
+            Content="Sample Application"
             FontSize="18"
             FontWeight="Normal"
             Foreground="White"
@@ -106,7 +106,7 @@
             Padding="0"
             Margin="0"
             Click="PortalButton_Click"/>
-    <TextBlock Text="מערכת יעד לבדיקות DAP"
+    <TextBlock Text="יישום לדוגמה"
                Foreground="#E5EDF4"
                FontSize="12"
                VerticalAlignment="Center"
