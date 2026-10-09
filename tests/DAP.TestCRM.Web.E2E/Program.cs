@@ -229,30 +229,6 @@ async Task BuildIsolatedAsync(string project, string output, string name)
     }
 }
 
-void TryKillOwnedProcessTree(Process? process)
-{
-    if (process is null)
-        return;
-
-    try
-    {
-        if (!process.HasExited)
-        {
-            process.Kill(entireProcessTree: true);
-            if (!process.WaitForExit(5000) && !process.HasExited)
-            {
-                // A successful Kill request is asynchronous. Retry once so an
-                // E2E-owned DAP cannot survive the runner and keep a published
-                // package locked after Ctrl+C/process-exit cleanup.
-                process.Kill(entireProcessTree: true);
-                process.WaitForExit(5000);
-            }
-        }
-    }
-    catch (InvalidOperationException) { }
-    catch (System.ComponentModel.Win32Exception) { }
-}
-
 Process? ownedTestCrmProcess = null;
 Process? ownedTestCrmBackendProcess = null;
 Process? dapProcess = null;
@@ -262,23 +238,11 @@ Task<string>? dapStdOutTask = null;
 var testCrmWebStdOut = new System.Collections.Concurrent.ConcurrentQueue<string>();
 var testCrmWebStdErr = new System.Collections.Concurrent.ConcurrentQueue<string>();
 
-void KillOwnedDapProcess()
-{
-    TryKillOwnedProcessTree(dapProcess);
-}
-
-void KillOwnedWebChildren()
-{
-    KillOwnedDapProcess();
-    TryKillOwnedProcessTree(browserProcess);
-    TryKillOwnedProcessTree(ownedTestCrmProcess);
-    TryKillOwnedProcessTree(ownedTestCrmBackendProcess);
-}
-
-EventHandler webProcessExitCleanup = (_, _) => KillOwnedWebChildren();
-ConsoleCancelEventHandler webCancelCleanup = (_, _) => KillOwnedWebChildren();
-AppDomain.CurrentDomain.ProcessExit += webProcessExitCleanup;
-Console.CancelKeyPress += webCancelCleanup;
+using var ownedProcessCleanup = new DAP.Testing.OwnedProcessCleanup(
+    () => dapProcess,
+    () => browserProcess,
+    () => ownedTestCrmProcess,
+    () => ownedTestCrmBackendProcess);
 
 {
     if (!packagedDiagnostics && !File.Exists(testCrmProject))
@@ -819,11 +783,10 @@ if (manual)
 finally
 {
 
-    AppDomain.CurrentDomain.ProcessExit -= webProcessExitCleanup;
-    Console.CancelKeyPress -= webCancelCleanup;
+    ownedProcessCleanup.Dispose();
 
-    KillOwnedDapProcess();
-    TryKillOwnedProcessTree(browserProcess);
+    DAP.Testing.OwnedProcessCleanup.TryKillProcessTree(dapProcess);
+    DAP.Testing.OwnedProcessCleanup.TryKillProcessTree(browserProcess);
     if (testDriver is not null) await testDriver.DisposeAsync();
 
     if (ownedTestCrmProcess is not null)
