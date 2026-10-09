@@ -13,6 +13,19 @@ public sealed record UnifiedStepObservation(
     bool ActionObserved = false,
     bool TargetWasPreviouslyAvailable = false);
 
+public enum UnifiedLearnerMode { Manual, Hybrid }
+
+/// <summary>Mode is selected by the host; only persisted automation values are eligible.</summary>
+public sealed record UnifiedStepOptions(UnifiedLearnerMode Mode)
+{
+    public bool CanApplyAutomation(GuideStep step, bool targetResolved, bool alreadyApplied)
+    {
+        ArgumentNullException.ThrowIfNull(step);
+        return Mode == UnifiedLearnerMode.Hybrid && targetResolved
+            && !alreadyApplied && !string.IsNullOrEmpty(step.AutomationValue);
+    }
+}
+
 public enum UnifiedPresentationAction { None, Show, Hide }
 
 /// <summary>A decision to execute; adapters never decide whether a step advances.</summary>
@@ -43,6 +56,16 @@ public sealed class UnifiedStepStateMachine
     }
 
     public bool Completed => _completed;
+
+    /// <summary>Mark a single persisted hybrid action as executed; never repeat it.</summary>
+    public bool TryApplyHybridValue(UnifiedStepOptions options, bool targetResolved)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        if (!options.CanApplyAutomation(_step, targetResolved, _state.HybridValueApplied))
+            return false;
+        _state.MarkHybridValueApplied();
+        return true;
+    }
 
     public UnifiedStepDecision Advance(UnifiedStepObservation observation)
     {
