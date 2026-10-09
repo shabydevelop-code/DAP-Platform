@@ -105,6 +105,10 @@ Maintenance/path options:
 
 The Web and Windows E2E runners remain separate regression tools; they are not required for standalone production Learner launch.
 
+## Independent Windows execution
+
+`tests/DAP.TestCRM.Windows.Host` starts the TestCRM backend and Windows application without launching DAP. The separately launched Learner attaches to the already-open window using persisted context `crm-windows`. User testing reported successful standalone Guide execution with the target remaining open and Learner process termination appearing correct. Windows multi-context switching, delayed discovery, and rebinding are not implemented.
+
 ## Ownership rule
 
 Action drivers perform learner actions only. Persisted Guide data plus production Runtime own target resolution, validation, completion, capture required by the Guide, and Step advancement.
