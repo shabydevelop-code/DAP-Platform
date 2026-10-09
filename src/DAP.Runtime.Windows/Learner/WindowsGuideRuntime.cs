@@ -168,7 +168,7 @@ public sealed class WindowsGuideRuntime
                 // Completion is evaluated before the source context. A valid learner
                 // action may navigate away from that context while persisted
                 // post-action conditions become true on the destination screen.
-                if (clicked && clickCompleted.Task.IsCompleted && GuideStepExecutionPolicy.CanAdvanceAfterObservedAction(
+                if (clicked && clickCompleted.Task.IsCompleted && GuideStepExecutionPolicy.IsStepComplete(
                     step, true,
                     AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction)))
                 {
@@ -203,7 +203,7 @@ public sealed class WindowsGuideRuntime
                     if (step.Id == "testcrm-windows-back-to-cases")
                         Console.Error.WriteLine($"[DAP Windows guide diagnostic] Step '{step.Id}' resolver threw ElementNotAvailableException.");
                     await _bubbles.HideAsync();
-                    if (targetDisappeared && targetWasResolved && GuideStepExecutionPolicy.CanAdvanceAfterObservedAction(
+                    if (targetDisappeared && targetWasResolved && GuideStepExecutionPolicy.IsStepComplete(
                         step, true,
                         AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction)))
                         return;
@@ -216,7 +216,7 @@ public sealed class WindowsGuideRuntime
                     if (step.Id == "testcrm-windows-back-to-cases")
                         Console.Error.WriteLine($"[DAP Windows guide diagnostic] Step '{step.Id}' resolution status={resolution.Status}; targetNull={resolution.Target is null}.");
                     await _bubbles.HideAsync();
-                    if (targetDisappeared && targetWasResolved && GuideStepExecutionPolicy.CanAdvanceAfterObservedAction(
+                    if (targetDisappeared && targetWasResolved && GuideStepExecutionPolicy.IsStepComplete(
                         step, true,
                         AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction)))
                         return;
@@ -513,7 +513,9 @@ public sealed class WindowsGuideRuntime
                     // asynchronous WPF rerenders can replace a Button without any
                     // learner action and would otherwise create a false completion.
                     if (clickCompleted.Task.IsCompleted
-                        && AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction))
+                        && GuideStepExecutionPolicy.IsStepComplete(
+                            step, true,
+                            AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction)))
                     {
                         FinalizeCapture(windowRoot, step, capturedValues);
                         return;
@@ -535,9 +537,10 @@ public sealed class WindowsGuideRuntime
                     step, isTextEditTarget, Volatile.Read(ref textTargetCommitted) == 1))
                 {
                     var primaryValidationSatisfied = _validation.IsSatisfied(target, step.Validation);
-                    if (GuideStepExecutionPolicy.CanAdvance(
-                        primaryValidationSatisfied,
-                        AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction)))
+                    if (GuideStepExecutionPolicy.IsStepComplete(
+                        step, primaryValidationSatisfied,
+                        AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction),
+                        isTextEditTarget, Volatile.Read(ref textTargetCommitted) == 1))
                     {
                         return;
                     }
