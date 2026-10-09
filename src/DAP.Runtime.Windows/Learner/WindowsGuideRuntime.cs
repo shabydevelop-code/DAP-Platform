@@ -50,60 +50,46 @@ public sealed class WindowsGuideRuntime
     {
         var plan = new GuideRunPlan(guideSteps, startStepOrder, initialCapturedValues);
         var ordered = plan.Steps;
-
         AutomationElement? preExistingTargetForCurrentStep = null;
-        var capturedValues = plan.Captures;
 
-        for (var index = plan.StartIndex; index < ordered.Count; index++)
-        {
-            var persistedStep = ordered[index];
-            if (!persistedStep.IsEnabled)
+        await plan.ExecuteAsync(
+            TargetRuntime.Windows,
+            async (step, index, total, token) =>
             {
-                Console.Error.WriteLine($"[DAP Windows guide] skipping disabled Step {persistedStep.Order}/{ordered.Count} '{persistedStep.Id}'.");
-                continue;
-            }
+                var isCenteredStep = step.Target is null
+                    && step.Bubble.Placement == BubblePlacement.Center;
+                if (!isCenteredStep && step.Target is null)
+                    throw new InvalidOperationException(
+                        $"Guide Step '{step.Id}' is not a Windows target-attached or centered Step.");
 
-            var step = plan.Materialize(persistedStep);
-            var isCenteredStep = step.Target is null
-                && step.Bubble.Placement == BubblePlacement.Center;
-
-            if (!isCenteredStep && step.Target?.Runtime != TargetRuntime.Windows)
-                throw new InvalidOperationException(
-                    $"Guide Step '{step.Id}' is not a Windows Step and cannot run in WindowsGuideRuntime.");
-
-            AutomationElement? nextTargetBeforeCurrentAction = null;
-            var nextEnabledIndex = plan.NextEnabledIndex(index);
-            if (nextEnabledIndex >= 0)
-            {
-                var nextPersistedStep = ordered[nextEnabledIndex];
-                var nextStep = plan.TryMaterialize(nextPersistedStep);
-                if (nextStep?.Target?.Runtime == TargetRuntime.Windows)
+                AutomationElement? nextTargetBeforeCurrentAction = null;
+                var nextEnabledIndex = plan.NextEnabledIndex(index);
+                if (nextEnabledIndex >= 0)
                 {
-                    try
+                    var nextStep = plan.TryMaterialize(ordered[nextEnabledIndex]);
+                    if (nextStep?.Target?.Runtime == TargetRuntime.Windows)
                     {
-                        var nextResolution = _resolver.Resolve(GetActiveResolutionRoot(windowRoot), nextStep.Target);
-                        if (nextResolution.Status == TargetResolutionStatus.Resolved)
-                            nextTargetBeforeCurrentAction = nextResolution.Target;
-                    }
-                    catch (ElementNotAvailableException)
-                    {
+                        try
+                        {
+                            var resolution = _resolver.Resolve(GetActiveResolutionRoot(windowRoot), nextStep.Target);
+                            if (resolution.Status == TargetResolutionStatus.Resolved)
+                                nextTargetBeforeCurrentAction = resolution.Target;
+                        }
+                        catch (ElementNotAvailableException)
+                        {
+                        }
                     }
                 }
-            }
 
-            Console.Error.WriteLine($"[DAP Windows guide] starting Step {step.Order}/{ordered.Count} '{step.Id}'.");
-            await RunStepAsync(
-                windowRoot,
-                step,
-                step.Order,
-                ordered.Count,
-                cancellationToken,
-                preExistingTargetForCurrentStep,
-                capturedValues);
-            Console.Error.WriteLine($"[DAP Windows guide] completed Step {step.Order}/{ordered.Count} '{step.Id}'.");
-
-            preExistingTargetForCurrentStep = nextTargetBeforeCurrentAction;
-        }
+                await RunStepAsync(
+                    windowRoot, step, step.Order, total, token,
+                    preExistingTargetForCurrentStep, plan.Captures);
+                preExistingTargetForCurrentStep = nextTargetBeforeCurrentAction;
+            },
+            cancellationToken,
+            onSkipped: step => Console.Error.WriteLine($"[DAP Windows guide] skipping disabled Step {step.Order}/{ordered.Count} '{step.Id}'."),
+            onStarting: step => Console.Error.WriteLine($"[DAP Windows guide] starting Step {step.Order}/{ordered.Count} '{step.Id}'."),
+            onCompleted: step => Console.Error.WriteLine($"[DAP Windows guide] completed Step {step.Order}/{ordered.Count} '{step.Id}'."));
 
         Console.Error.WriteLine("[DAP Windows guide] persisted Guide finished.");
     }
