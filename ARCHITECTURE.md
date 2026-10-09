@@ -32,6 +32,7 @@ tests/
   DAP.Data.Sqlite.Tests/
   DAP.TestCRM.Web.Host/
   DAP.TestCRM.Web.E2E/
+  DAP.TestCRM.Windows.Host/
   DAP.TestCRM.Windows.E2E/
 ```
 
@@ -94,6 +95,12 @@ The Web E2E project has a separate Extension test-driver channel. Hybrid uses it
 Production Windows execution uses Microsoft UI Automation. It resolves targets from persisted descriptors, observes native interaction, evaluates Runtime-owned validation, and presents native learner bubbles.
 
 Text editing uses natural edit/commit semantics rather than treating every intermediate value as completion. Runtime may re-resolve targets as UI changes. For input Steps, Runtime applies the one-time initial focus before Hybrid performs the configured learner action, preventing automation from racing Runtime focus setup.
+
+## Application context and independent execution
+
+Persisted named Application Contexts identify applications separately from Step targets. Web resolves browser contexts through the Extension. Windows currently resolves exactly one persisted Windows context at startup using `WindowTitleContains`, `AutomationId`, or `ProcessName`, requiring a unique top-level window match. The Windows canonical Guide references `crm-windows` on all 55 Steps. Multiple Windows contexts, per-Step switching, delayed discovery, and rebinding are not implemented.
+
+Standalone TestCRM Web and Windows hosts launch their respective target applications independently of DAP. A separately launched Learner attaches through the persisted context; Guide completion must not close the target. User testing has reported successful standalone execution on both runtimes. The Windows host treats target exit code 0 as normal shutdown; the latest correction awaits runtime verification.
 
 ## Manual and Hybrid runners
 
