@@ -12,7 +12,7 @@ const string baseUrl = "http://localhost:5200";
 
 var runOptions = DAP.Testing.E2eRunOptions.Parse(args, "Web");
 var publishedDapDirectory = runOptions.PublishedDapDirectory;
-var guideId = runOptions.GuideId;
+var guideId = runOptions.GuideId ?? (runOptions.ResetGuide ? string.Empty : throw new ArgumentException("--guide <GuideId> is required."));
 
 if (args.Contains("--reset-guide", StringComparer.OrdinalIgnoreCase))
 {
