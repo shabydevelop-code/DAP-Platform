@@ -54,7 +54,7 @@ C:\ProgramData\DAP\Data\DAP.db
 TestCRM business database:
 
 ```text
-demos\Shared\data\testcrm.db
+demos\Shared\data\sampleapp.db
 ```
 
 These databases have different ownership and must remain separate.
@@ -64,13 +64,13 @@ These databases have different ownership and must remain separate.
 Web:
 
 ```text
-testcrm-web-canonical-workflow
+sampleapp-web-guide
 ```
 
 Windows:
 
 ```text
-testcrm-windows-canonical-workflow
+sampleapp-windows-guide
 ```
 
 Both repository seeds define 55 persisted Steps. Step 55 is the persisted centered summary.
@@ -87,7 +87,7 @@ Product Learner launch contract:
 DAP.exe --guide <GuideId>
 ```
 
-TestCRM runner execution contract:
+SampleApp runner execution contract:
 
 ```text
 --manual --guide <GuideId>
