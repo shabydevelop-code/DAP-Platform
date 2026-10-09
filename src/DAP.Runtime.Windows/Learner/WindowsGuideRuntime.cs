@@ -461,6 +461,7 @@ public sealed class WindowsGuideRuntime
 
                 if (_hybrid && !hybridValueApplied && !string.IsNullOrEmpty(step.AutomationValue))
                 {
+                    GuideStepExecutionPolicy.RequireHybridValueStep(step, "Windows");
                     if (!target.TryGetCurrentPattern(ValuePattern.Pattern, out var pattern))
                         throw new NotSupportedException($"Hybrid Step '{step.Id}' declares an automation value but the resolved target does not support UIA ValuePattern.");
                     var valuePattern = (ValuePattern)pattern;
