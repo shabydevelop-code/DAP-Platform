@@ -22,36 +22,24 @@ public sealed class AdapterWebGuideRuntime
         IReadOnlyDictionary<string,string>? initialCapturedValues = null)
     {
         var plan = new GuideRunPlan(guideSteps, startStepOrder, initialCapturedValues);
-        var captured = plan.Captures;
-        var ordered = plan.Steps;
-
-        for (var i=plan.StartIndex;i<ordered.Count;i++)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var persistedStep = ordered[i];
-            if (!persistedStep.IsEnabled)
+        await plan.ExecuteAsync(
+            TargetRuntime.Web,
+            async (step, index, total, token) =>
             {
-                Console.Error.WriteLine($"[DAP guide] skipped disabled Step {persistedStep.Order}/{ordered.Count} '{persistedStep.Id}'.");
-                continue;
-            }
+                if (step.Capture is not null)
+                {
+                    var value = await _browser.CaptureAsync(step, token);
+                    if (value is null)
+                        throw new InvalidOperationException($"Guide Step '{step.Id}' declares a Web capture that could not be resolved.");
+                    plan.Captures[step.Id] = value;
+                }
 
-            var step = plan.Materialize(persistedStep);
-            if (step.Target is not null && step.Target.Runtime != TargetRuntime.Web)
-                throw new InvalidOperationException($"Guide Step '{step.Id}' is not a Web Step.");
-
-            if (step.Capture is not null)
-            {
-                var value = await _browser.CaptureAsync(step, cancellationToken);
-                if (value is null) throw new InvalidOperationException($"Guide Step '{step.Id}' declares a Web capture that could not be resolved.");
-                captured[step.Id]=value;
-            }
-
-            await _steps.RunActiveStepAsync(
-                step, step.Order, ordered.Count, cancellationToken,
-                true,
-                () => Console.Error.WriteLine($"[DAP guide] starting Step {step.Order}/{ordered.Count} '{step.Id}'."));
-            Console.Error.WriteLine($"[DAP guide] completed Step {step.Order}/{ordered.Count} '{step.Id}'.");
-        }
+                await _steps.RunActiveStepAsync(step, step.Order, total, token);
+            },
+            cancellationToken,
+            onSkipped: step => Console.Error.WriteLine($"[DAP guide] skipped disabled Step {step.Order}/{plan.Steps.Count} '{step.Id}'."),
+            onStarting: step => Console.Error.WriteLine($"[DAP guide] starting Step {step.Order}/{plan.Steps.Count} '{step.Id}'."),
+            onCompleted: step => Console.Error.WriteLine($"[DAP guide] completed Step {step.Order}/{plan.Steps.Count} '{step.Id}'."));
 
         Console.Error.WriteLine("[DAP guide] Guide finished.");
     }
