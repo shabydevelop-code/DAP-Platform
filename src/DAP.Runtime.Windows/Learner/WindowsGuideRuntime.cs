@@ -152,7 +152,7 @@ public sealed class WindowsGuideRuntime
 
         try
         {
-            await foreach (var _ in new GuideStepReconciliationEngine().TicksAsync(cancellationToken))
+            async Task<bool> ReconcileAsync(CancellationToken cancellationToken)
             {
                 // Keep learner overlays bound to the target application. When the
                 // target is minimized or the user switches to another application,
@@ -162,7 +162,7 @@ public sealed class WindowsGuideRuntime
                 {
                     await _bubbles.HideAsync();
                     await Task.Delay(_pollInterval, cancellationToken);
-                    continue;
+                    return false;
                 }
 
                 // Completion is evaluated before the source context. A valid learner
@@ -173,14 +173,14 @@ public sealed class WindowsGuideRuntime
                     AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction)))
                 {
                     FinalizeCapture(windowRoot, step, capturedValues);
-                    return;
+                    return true;
                 }
 
                 if (!IsStepContextActive(windowRoot, step))
                 {
                     await _bubbles.HideAsync();
                     await Task.Delay(_pollInterval, cancellationToken);
-                    continue;
+                    return false;
                 }
 
                 TargetResolution<AutomationElement> resolution;
@@ -206,9 +206,9 @@ public sealed class WindowsGuideRuntime
                     if (targetDisappeared && targetWasResolved && GuideStepExecutionPolicy.IsStepComplete(
                         step, true,
                         AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction)))
-                        return;
+                        return true;
                     await Task.Delay(_pollInterval, cancellationToken);
-                    continue;
+                    return false;
                 }
 
                 if (resolution.Status != TargetResolutionStatus.Resolved || resolution.Target is null)
@@ -219,9 +219,9 @@ public sealed class WindowsGuideRuntime
                     if (targetDisappeared && targetWasResolved && GuideStepExecutionPolicy.IsStepComplete(
                         step, true,
                         AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction)))
-                        return;
+                        return true;
                     await Task.Delay(_pollInterval, cancellationToken);
-                    continue;
+                    return false;
                 }
 
                 var target = resolution.Target;
@@ -371,7 +371,7 @@ public sealed class WindowsGuideRuntime
                         Console.Error.WriteLine(
                             $"[DAP Windows guide] Step '{step.Id}' centered initial target in its scroll viewport.");
                         await Task.Delay(_pollInterval, cancellationToken);
-                        continue;
+                        return false;
                     }
                 }
 
@@ -386,7 +386,7 @@ public sealed class WindowsGuideRuntime
                         Console.Error.WriteLine($"[DAP Windows guide diagnostic] Step '{step.Id}' target has no visible bounds.");
                     await _bubbles.HideAsync();
                     await Task.Delay(_pollInterval, cancellationToken);
-                    continue;
+                    return false;
                 }
 
                 if (clicked && (subscribedTarget is null || !SameElement(subscribedTarget, target)))
@@ -427,7 +427,7 @@ public sealed class WindowsGuideRuntime
                     // of terminating the learner runtime.
                     await _bubbles.HideAsync();
                     await Task.Delay(_pollInterval, cancellationToken);
-                    continue;
+                    return false;
                 }
                 if (!bubbleFirstShownLogged)
                 {
@@ -518,7 +518,7 @@ public sealed class WindowsGuideRuntime
                             AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction)))
                     {
                         FinalizeCapture(windowRoot, step, capturedValues);
-                        return;
+                        return true;
                     }
                 }
                 else if (targetDisappeared)
@@ -542,7 +542,7 @@ public sealed class WindowsGuideRuntime
                         AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction),
                         isTextEditTarget, Volatile.Read(ref textTargetCommitted) == 1))
                     {
-                        return;
+                        return true;
                     }
 
                     if (isTextEditTarget
@@ -566,7 +566,10 @@ public sealed class WindowsGuideRuntime
                 }
 
                 await Task.Delay(_pollInterval, cancellationToken);
+                return false;
             }
+
+            await new GuideStepReconciliationEngine().RunAsync(ReconcileAsync, cancellationToken);
         }
         finally
         {
