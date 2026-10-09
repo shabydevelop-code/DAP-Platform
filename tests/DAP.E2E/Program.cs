@@ -5,6 +5,7 @@ if (args.Length < 2 || !args[0].Equals("--platform", StringComparison.OrdinalIgn
     throw new ArgumentException("Usage: --platform web|windows --guide <GuideId> --manual|--hybrid");
 
 var project = PlatformProject.Resolve(args[1]);
+_ = DAP.Testing.E2eRunOptions.Parse(args.Skip(2).ToArray(), args[1].Equals("web", StringComparison.OrdinalIgnoreCase) ? "Web" : "Windows");
 var repositoryRoot = FindRepositoryRoot(AppContext.BaseDirectory);
 var projectFile = Path.Combine(repositoryRoot, "tests", project, project + ".csproj");
 Environment.ExitCode = await E2eRunner.RunAsync(repositoryRoot, projectFile, args.Skip(2).ToArray());
