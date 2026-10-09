@@ -56,11 +56,7 @@ public sealed class WindowsGuideRuntime
             async (step, index, total, plan, token) =>
             {
                 var ordered = plan.Steps;
-                var isCenteredStep = step.Target is null
-                    && step.Bubble.Placement == BubblePlacement.Center;
-                if (!isCenteredStep && step.Target is null)
-                    throw new InvalidOperationException(
-                        $"Guide Step '{step.Id}' is not a Windows target-attached or centered Step.");
+                GuideStepExecutionPolicy.Classify(step);
 
                 AutomationElement? nextTargetBeforeCurrentAction = null;
                 var nextEnabledIndex = plan.NextEnabledIndex(index);
@@ -102,9 +98,8 @@ public sealed class WindowsGuideRuntime
         AutomationElement? preExistingTarget,
         IDictionary<string, string> capturedValues)
     {
-        if (step.Bubble.Placement == BubblePlacement.Center)
+        if (GuideStepExecutionPolicy.Classify(step) == GuideStepPresentationKind.CenteredInformation)
         {
-            GuideStepExecutionPolicy.RequireCenteredInformationStep(step);
 
             await _bubbles.WaitForCenteredStepDismissalAsync(
                 step,
