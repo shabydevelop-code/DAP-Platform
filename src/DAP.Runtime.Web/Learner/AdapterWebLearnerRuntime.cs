@@ -197,7 +197,7 @@ public sealed class AdapterWebLearnerRuntime
                 GuideStepReconciliationResult.WaitingForAction, _stableReconcileInterval, cancellationToken);
         }
 
-        await new GuideStepReconciliationEngine().RunAsync(ReconcileAsync, cancellationToken);
+        await new UnifiedGuideStepEngine().RunAsync(activeState, (_, token) => ReconcileAsync(token), cancellationToken);
     }
 
     public Task StopAsync(CancellationToken cancellationToken = default)
