@@ -86,9 +86,11 @@ void Stop(Process process)
     catch (System.ComponentModel.Win32Exception) { }
 }
 
+var stopping = 0;
 ConsoleCancelEventHandler cancel = (_, e) =>
 {
     e.Cancel = true;
+    Interlocked.Exchange(ref stopping, 1);
     Stop(web);
     Stop(backend);
 };
@@ -148,9 +150,14 @@ try
     Console.WriteLine("Press Ctrl+C here to stop TestCRM.");
 
     await Task.WhenAny(backend.WaitForExitAsync(), web.WaitForExitAsync());
-    if (backend.HasExited)
+    if (Volatile.Read(ref stopping) != 0)
+    {
+        Console.WriteLine("TestCRM host stopped normally.");
+    }
+    else if (backend.HasExited)
         throw new InvalidOperationException($"TestCRM Backend exited with code {backend.ExitCode}.");
-    throw new InvalidOperationException($"TestCRM Web exited with code {web.ExitCode}.");
+    else
+        throw new InvalidOperationException($"TestCRM Web exited with code {web.ExitCode}.");
 }
 finally
 {
