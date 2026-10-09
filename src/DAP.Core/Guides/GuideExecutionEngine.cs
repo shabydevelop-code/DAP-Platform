@@ -52,6 +52,31 @@ public sealed class DelegateGuideStepAdapter : IGuideStepAdapter
         => _capture(step, plan, cancellationToken);
 }
 
+/// <summary>
+/// Shared cancellation-aware reconciliation scheduler for active target steps.
+/// Adapters own observations and rendering; the core owns iteration, cancellation
+/// and the decision to stop once a step has completed.
+/// </summary>
+public sealed class GuideStepReconciliationEngine
+{
+    public async Task RunAsync(
+        Func<CancellationToken, Task<bool>> reconcile,
+        TimeSpan interval,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(reconcile);
+        if (interval < TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(interval));
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (await reconcile(cancellationToken))
+                return;
+            await Task.Delay(interval, cancellationToken);
+        }
+    }
+}
+
 public sealed class GuideExecutionEngine
 {
     public async Task RunAsync(
