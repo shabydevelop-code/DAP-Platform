@@ -71,3 +71,7 @@
 ## Product execution modes
 
 The same persisted Guide must run with `DAP.exe --guide <GuideId> --mode manual|hybrid` (Manual default). Windows Hybrid uses the production learner and persisted AutomationValue, with UIA target resolution, writable ValuePattern checks, verified Edit commit via TAB, and runtime-owned validation and advancement. Steps without automation values remain manual. No TestCRM E2E driver or target application source may be required. Existing SQLite columns support the configuration. Web Hybrid product execution remains a required capability and is not yet implemented.
+
+## Shared guide execution policy
+
+`DAP.Core.Guides.GuideRunPlan` is the common runtime-neutral owner of ordered Guide Steps, start-step selection, disabled-step lookahead, captured values, and runtime capture-token substitution. Both the Web adapter guide runtime and Windows guide runtime use it. Target resolution, active-step validation, bubble presentation, and UI-specific actions remain in their respective runtimes/adapters; a single unified active-step engine has **not** yet been implemented. Session termination and build-lock preflight are handled by the shared DAP.App host. Web tab/window activation and production Web Hybrid remain open gaps. This is current architecture, not a completed full runtime unification.
