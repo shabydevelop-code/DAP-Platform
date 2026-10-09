@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Net.Http;
 
-var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".."));
 var serverProject = Path.Combine(root, "demos", "Shared", "Server", "DAP.TestCRM.Server.csproj");
 var windowsProject = Path.Combine(root, "demos", "Windows", "App", "DAP.TestCRM.Windows.csproj");
 
