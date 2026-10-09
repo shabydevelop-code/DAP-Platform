@@ -56,7 +56,7 @@ Step 30 -> billing
 Step 31 -> crm
 ```
 
-An application context is resolved on first use, not necessarily at Guide startup. This allows an application such as Billing to be opened naturally by a learner action in an earlier CRM Step.
+The intended lifecycle resolves an application context on first use, not necessarily at Guide startup. The current Windows implementation instead resolves its single context at Learner startup. This allows an application such as Billing to be opened naturally by a learner action in an earlier CRM Step.
 
 ## Persistence model
 
@@ -95,7 +95,7 @@ CREATE TABLE ApplicationContextMatchers (
 
 Matchers are persisted discovery criteria. The model permits more than one matcher without another schema change.
 
-Web matchers currently supported and Windows matchers planned for future context resolution:
+Matchers supported by current context resolvers:
 
 ```text
 Web:
@@ -105,7 +105,7 @@ Web:
   UrlContains
   UrlHost
 
-Windows (planned):
+Windows (single context at startup):
   WindowTitleContains
   AutomationId
   ProcessName
@@ -294,7 +294,7 @@ The persisted model and Web implementation support named Application Contexts. `
 
 A standalone TestCRM Web host and independently launched `DAP.exe` have been verified through full Manual Guide completion against an already-open Chrome tab. DAP exits at completion without terminating the application or browser.
 
-Cross-runtime Guide orchestration and Windows named Application Context resolution are not yet implemented. Concurrent Citrix-session isolation remains unverified.
+Windows named Application Context resolution currently supports exactly one Windows context per Guide at startup, with a unique top-level window match. The Windows canonical Guide persists `crm-windows` with `AutomationId: TestCrmMainWindow` and references it from all 55 Steps. Independent Windows host and Learner execution was reported successful in user testing. Windows multi-context switching, delayed discovery, and rebinding are not implemented. Cross-runtime Guide orchestration and concurrent Citrix-session isolation remain unverified or unimplemented.
 
 ## Design rules
 
