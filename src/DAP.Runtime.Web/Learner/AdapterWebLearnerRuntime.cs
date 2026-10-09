@@ -51,9 +51,7 @@ public sealed class AdapterWebLearnerRuntime
         // exposing its target. The previous Step may have completed as soon as
         // its persisted completion condition became true while the application
         // is still finishing the same asynchronous render.
-        var presentationGatePassed = false;
-        var readySignaled = false;
-        var hybridValueApplied = false;
+        var activeState = new GuideActiveStepState(step);
         Task<WebValidationCommit?>? commitTask = automatic
             ? _browser.WaitForValidationCommitAsync(step, cancellationToken)
             : null;
@@ -65,9 +63,9 @@ public sealed class AdapterWebLearnerRuntime
                 var primary = clicked || await _browser.IsPrimaryValidationSatisfiedAsync(step, cancellationToken);
                 if (primary)
                 {
-                    if (GuideStepExecutionPolicy.IsStepComplete(
-                        step, primary,
-                        await _browser.AreCompletionConditionsSatisfiedAsync(step, cancellationToken)))
+                    if (activeState.EvaluateCompletion(
+                        primary,
+                        await _browser.AreCompletionConditionsSatisfiedAsync(step, cancellationToken)) == GuideStepReconciliationResult.Completed)
                     {
                         await _browser.HideBubbleAsync(cancellationToken);
                         return GuideStepReconciliationResult.Completed;
@@ -98,14 +96,14 @@ public sealed class AdapterWebLearnerRuntime
                 return GuideStepReconciliationResult.WaitingForContext;
             }
 
-            if (!presentationGatePassed)
+            if (!activeState.PresentationReady)
             {
                 if (!await _browser.IsStableForPresentationAsync(step, _presentationSettleInterval, cancellationToken))
                 {
                     await Task.Delay(_reconcileInterval, cancellationToken);
                     return GuideStepReconciliationResult.WaitingForTarget;
                 }
-                presentationGatePassed = true;
+                activeState.MarkPresentationReady();
             }
 
             WebBubblePresentation presentation;
@@ -149,33 +147,31 @@ public sealed class AdapterWebLearnerRuntime
             if (presentation.Status != WebTargetResolutionStatus.Resolved)
             {
                 await _browser.HideBubbleAsync(cancellationToken);
-                presentationGatePassed = false;
+                activeState.InvalidatePresentation();
             }
-            else if (!readySignaled)
+            else if (activeState.TrySignalReady())
             {
                 // EnsureBubbleShownAsync returns only after the production
                 // adapter has resolved the target and bound the current
                 // validation arm. This is the Runtime's natural readiness
                 // boundary for learner input, independent of presentation.
-                readySignaled = true;
                 onReady?.Invoke();
             }
 
-            if (_hybrid && !hybridValueApplied && presentation.Status == WebTargetResolutionStatus.Resolved
-                && !string.IsNullOrEmpty(step.AutomationValue))
+            if (activeState.ShouldApplyHybridValue(_hybrid, presentation.Status == WebTargetResolutionStatus.Resolved))
             {
                 GuideStepExecutionPolicy.RequireHybridValueStep(step, "Web");
                 await _browser.ApplyAutomationValueAsync(step, cancellationToken);
-                hybridValueApplied = true;
+                activeState.MarkHybridValueApplied();
             }
 
             // Re-check click completion after reconciliation. The browser event
             // can arrive just after the presentation race was decided.
             if (clicked && commitTask?.IsCompletedSuccessfully == true)
             {
-                if (GuideStepExecutionPolicy.IsStepComplete(
-                    step, true,
-                    await _browser.AreCompletionConditionsSatisfiedAsync(step, cancellationToken)))
+                if (activeState.EvaluateCompletion(
+                    true,
+                    await _browser.AreCompletionConditionsSatisfiedAsync(step, cancellationToken)) == GuideStepReconciliationResult.Completed)
                 {
                     await _browser.HideBubbleAsync(cancellationToken);
                     return GuideStepReconciliationResult.Completed;
