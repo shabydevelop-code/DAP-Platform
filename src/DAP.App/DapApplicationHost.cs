@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Automation;
@@ -282,6 +283,7 @@ public static class DapApplicationHost
         using var targetClosed = new CancellationTokenSource();
         using var runCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, targetClosed.Token);
         browserAdapter.TargetTabClosed += () => targetClosed.Cancel();
+        browserAdapter.TargetWindowActivationRequested += title => _ = Task.Run(() => ActivateChromeWindowAsync(title, runCancellation.Token));
         var stepRuntime = new WebGuideStepRuntime(browserAdapter, automaticStepLabel: GetAutomaticStepLabel(), hybrid: options.ExecutionMode == DapExecutionMode.Hybrid);
         var guideRuntime = new AdapterWebGuideRuntime(stepRuntime, browserAdapter);
         StartupMark(startup, "Web extension adapter composition root created");
@@ -308,5 +310,78 @@ public static class DapApplicationHost
         => string.Equals(Environment.GetEnvironmentVariable("DAP_LEARNER_AUTOMATION"), "1", StringComparison.Ordinal)
             ? "אוטומט"
             : null;
+
+    // Chrome's extension window ID is not a Win32 HWND. Match the selected tab
+    // against visible Chrome top-level window captions and refuse ambiguity.
+    private static async Task ActivateChromeWindowAsync(string title, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var matches = new List<IntPtr>();
+            EnumWindows((window, _) =>
+            {
+                if (!IsWindowVisible(window)) return true;
+                var className = new StringBuilder(128);
+                if (GetClassName(window, className, className.Capacity) == 0 ||
+                    className.ToString() != "Chrome_WidgetWin_1") return true;
+                GetWindowThreadProcessId(window, out var processId);
+                try
+                {
+                    using var process = Process.GetProcessById((int)processId);
+                    if (!string.Equals(process.ProcessName, "chrome", StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+                catch (ArgumentException) { return true; }
+                catch (InvalidOperationException) { return true; }
+                catch (System.ComponentModel.Win32Exception) { return true; }
+                var caption = new StringBuilder(1024);
+                GetWindowText(window, caption, caption.Capacity);
+                var value = caption.ToString();
+                if (value == title || value.StartsWith(title + " - ", StringComparison.Ordinal))
+                    matches.Add(window);
+                return true;
+            }, IntPtr.Zero);
+
+            if (matches.Count != 1)
+            {
+                Console.Error.WriteLine($"[DAP focus] Expected exactly one Chrome window matching active tab; found {matches.Count}.");
+                return;
+            }
+
+            var handle = matches[0];
+            ShowWindow(handle, 9); // SW_RESTORE
+            SetForegroundWindow(handle);
+            var deadline = DateTime.UtcNow.AddSeconds(5);
+            while (DateTime.UtcNow < deadline)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (GetForegroundWindow() == handle)
+                    return;
+                await Task.Delay(100, cancellationToken);
+            }
+            Console.Error.WriteLine("[DAP focus] Windows rejected foreground activation of the resolved Chrome window.");
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+    }
+
+    private delegate bool EnumWindowsCallback(IntPtr window, IntPtr parameter);
+
+    [DllImport("user32.dll")]
+    private static extern bool EnumWindows(EnumWindowsCallback callback, IntPtr parameter);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern int GetClassName(IntPtr window, StringBuilder name, int capacity);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern int GetWindowText(IntPtr window, StringBuilder text, int capacity);
+
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr window, out uint processId);
+
+    [DllImport("user32.dll")]
+    private static extern bool IsWindowVisible(IntPtr window);
+
+    [DllImport("user32.dll")]
+    private static extern bool ShowWindow(IntPtr window, int command);
 
 }
