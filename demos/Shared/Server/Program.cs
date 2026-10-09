@@ -5,14 +5,26 @@ var app = builder.Build();
 
 
 
-var testCrmRoot = Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, ".."));
-var dataDirectory = Path.Combine(testCrmRoot, "data");
+var sampleAppRoot = Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, ".."));
+var dataDirectory = Path.Combine(sampleAppRoot, "data");
 Directory.CreateDirectory(dataDirectory);
-var dbPath = Path.Combine(dataDirectory, "testcrm.db");
-var legacyDbPath = Path.Combine(testCrmRoot, "testcrm.db");
-if (!File.Exists(dbPath) && File.Exists(legacyDbPath))
+var dbPath = Path.Combine(dataDirectory, "sampleapp.db");
+// Preserve existing demo data when upgrading from the former database name/location.
+// Never overwrite an already migrated database.
+if (!File.Exists(dbPath))
 {
-    File.Move(legacyDbPath, dbPath);
+    var legacyPaths = new[]
+    {
+        Path.Combine(dataDirectory, "testcrm.db"),
+        Path.Combine(sampleAppRoot, "testcrm.db")
+    };
+    foreach (var legacyPath in legacyPaths)
+    {
+        if (!File.Exists(legacyPath))
+            continue;
+        File.Move(legacyPath, dbPath);
+        break;
+    }
 }
 var connectionString = $"Data Source={dbPath}";
 InitializeDatabase(connectionString);
