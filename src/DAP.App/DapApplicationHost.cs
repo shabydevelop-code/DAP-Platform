@@ -279,6 +279,9 @@ public static class DapApplicationHost
 
         using var browserAdapter = new ExtensionWebBrowserAdapter(texts);
         browserAdapter.ConfigureApplicationContexts(applicationContexts);
+        using var targetClosed = new CancellationTokenSource();
+        using var runCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, targetClosed.Token);
+        browserAdapter.TargetTabClosed += () => targetClosed.Cancel();
         var stepRuntime = new WebGuideStepRuntime(browserAdapter, automaticStepLabel: GetAutomaticStepLabel(), hybrid: options.ExecutionMode == DapExecutionMode.Hybrid);
         var guideRuntime = new AdapterWebGuideRuntime(stepRuntime, browserAdapter);
         StartupMark(startup, "Web extension adapter composition root created");
@@ -286,11 +289,16 @@ public static class DapApplicationHost
         try
         {
             StartupMark(startup, "Web adapter guide runtime starting");
-            await guideRuntime.RunAsync(steps, cancellationToken, options.StartStep, resumeContext);
+            await guideRuntime.RunAsync(steps, runCancellation.Token, options.StartStep, resumeContext);
+        }
+        catch (OperationCanceledException) when (targetClosed.IsCancellationRequested)
+        {
+            return 2;
         }
         finally
         {
-            await browserAdapter.HideBubbleAsync(CancellationToken.None);
+            if (!targetClosed.IsCancellationRequested)
+                await browserAdapter.HideBubbleAsync(CancellationToken.None);
         }
 
         return 0;
