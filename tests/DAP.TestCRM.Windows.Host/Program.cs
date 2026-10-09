@@ -76,10 +76,21 @@ try
     Console.WriteLine("Start DAP.exe --learner --guide testcrm-windows-canonical-workflow in another terminal.");
     Console.WriteLine("Press Ctrl+C to stop the TestCRM host.");
 
-    await Task.WhenAny(server.WaitForExitAsync(), windows.WaitForExitAsync());
-    if (server.HasExited)
-        throw new InvalidOperationException($"TestCRM server exited: {server.ExitCode}.");
-    throw new InvalidOperationException($"TestCRM Windows exited: {windows.ExitCode}.");
+    var serverExit = server.WaitForExitAsync();
+    var windowsExit = windows.WaitForExitAsync();
+    var completed = await Task.WhenAny(serverExit, windowsExit);
+    if (completed == windowsExit)
+    {
+        await windowsExit;
+        if (windows.ExitCode != 0)
+            throw new InvalidOperationException($"TestCRM Windows exited with code {windows.ExitCode}.");
+        Console.WriteLine("TestCRM Windows closed normally. Stopping the host.");
+    }
+    else
+    {
+        await serverExit;
+        throw new InvalidOperationException($"TestCRM server exited with code {server.ExitCode}.");
+    }
 }
 finally
 {
