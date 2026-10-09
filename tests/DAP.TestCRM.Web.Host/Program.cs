@@ -124,6 +124,24 @@ try
     if (!ready)
         throw new TimeoutException("TestCRM Web did not become ready within 5 seconds.");
 
+    // The TestCRM application host owns opening the application, not the DAP learner.
+    // Use the system-registered Chrome installation without an automation profile.
+    if (!OperatingSystem.IsWindows())
+        throw new PlatformNotSupportedException("TestCRM Web Host requires Windows to launch Chrome.");
+    using (var browser = Process.Start(new ProcessStartInfo
+    {
+        FileName = "cmd.exe",
+        ArgumentList = { "/c", "start", "", "chrome", webUrl },
+        WorkingDirectory = repoRoot,
+        UseShellExecute = false,
+        CreateNoWindow = true
+    }) ?? throw new InvalidOperationException("Could not request Chrome launch."))
+    {
+        await browser.WaitForExitAsync();
+        if (browser.ExitCode != 0)
+            throw new InvalidOperationException("Chrome launch failed. Verify Chrome is installed and registered.");
+    }
+
     Console.WriteLine();
     Console.WriteLine($"TestCRM is running independently at {webUrl}");
     Console.WriteLine("Leave this terminal open. Start DAP Learner from a separate terminal.");
