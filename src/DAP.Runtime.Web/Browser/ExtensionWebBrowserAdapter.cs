@@ -40,6 +40,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
     private TaskCompletionSource<bool>? _centeredDismissal;
     private bool _disposed;
     public event Action? TargetTabClosed;
+    public event Action<string>? TargetWindowActivationRequested;
 
     public ExtensionWebBrowserAdapter(
         string? eventPath = null,
@@ -173,6 +174,15 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
     {
         if (!payload.TryGetProperty("type", out var typeElement)) return;
         var eventType = typeElement.GetString();
+
+        if (eventType == "activate-target-window")
+        {
+            var contextKey = payload.TryGetProperty("applicationContextKey", out var key) ? key.GetString() : null;
+            var title = payload.TryGetProperty("title", out var titleElement) ? titleElement.GetString() : null;
+            if (!string.IsNullOrWhiteSpace(title) && string.Equals(contextKey, _activeApplicationContextKey, StringComparison.Ordinal))
+                TargetWindowActivationRequested?.Invoke(title);
+            return;
+        }
 
         if (eventType == "target-tab-closed")
         {
