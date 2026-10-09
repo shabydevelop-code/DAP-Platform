@@ -353,11 +353,8 @@ public sealed class WindowsGuideRuntime
                 if (step.Capture is not null)
                 {
                     var capture = ResolveCapture(windowRoot, step.Capture);
-                    if (capture is not null
-                        && (!capturedValues.TryGetValue(step.Id, out var previousCapture)
-                            || !string.Equals(previousCapture, capture, StringComparison.Ordinal)))
+                    if (GuideRunPlan.RecordCapture(capturedValues, step.Id, capture))
                     {
-                        capturedValues[step.Id] = capture;
                         Console.Error.WriteLine(
                             $"[DAP Windows guide] updated runtime capture for Step '{step.Id}' to '{capture}'.");
                     }
@@ -731,7 +728,7 @@ public sealed class WindowsGuideRuntime
         if (value is null)
             return;
 
-        capturedValues[step.Id] = value;
+        GuideRunPlan.RecordCapture(capturedValues, step.Id, value);
         Console.Error.WriteLine($"[DAP Windows guide] finalized runtime capture for Step '{step.Id}' as '{value}'.");
     }
 
