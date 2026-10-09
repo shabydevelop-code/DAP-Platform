@@ -52,7 +52,7 @@ public sealed class WindowsGuideRuntime
 
         await new GuideExecutionEngine().RunAsync(
             guideSteps,
-            TargetRuntime.Windows,
+            new DelegateGuideStepAdapter(TargetRuntime.Windows, "Windows",
             async (step, index, total, plan, token) =>
             {
                 var ordered = plan.Steps;
@@ -81,11 +81,10 @@ public sealed class WindowsGuideRuntime
                     windowRoot, step, step.Order, total, token,
                     preExistingTargetForCurrentStep, plan.Captures);
                 preExistingTargetForCurrentStep = nextTargetBeforeCurrentAction;
-            },
+            }),
             cancellationToken,
             startStepOrder,
-            initialCapturedValues,
-            "Windows");
+            initialCapturedValues);
 
     }
 
