@@ -32,6 +32,21 @@ public sealed class GuideRunPlan
             : new Dictionary<string, string>(initialCapturedValues, StringComparer.Ordinal);
     }
 
+    /// <summary>Store an observed capture only when it is available and changed.
+    /// Platform adapters retain control of when the value is observed.</summary>
+    public static bool RecordCapture(IDictionary<string, string> captures, string stepId, string? value)
+    {
+        ArgumentNullException.ThrowIfNull(captures);
+        ArgumentException.ThrowIfNullOrWhiteSpace(stepId);
+        if (value is null)
+            return false;
+        if (captures.TryGetValue(stepId, out var existing)
+            && string.Equals(existing, value, StringComparison.Ordinal))
+            return false;
+        captures[stepId] = value;
+        return true;
+    }
+
     /// <summary>Execute shared step lifecycle; environment-specific work stays in the callback.</summary>
     public async Task ExecuteAsync(
         TargetRuntime runtime,
