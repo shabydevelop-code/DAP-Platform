@@ -839,8 +839,7 @@ internal static class WebScenario
                 catch (Exception ex) when (
                     ex is IOException
                     or InvalidOperationException
-                    or OperationCanceledException
-                    or ObjectDisposedException)
+                    or OperationCanceledException)
                 {
                     // The tab may already have been closed by the learner.
                 }
