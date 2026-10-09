@@ -11,6 +11,9 @@ chrome.tabs.onRemoved.addListener(tabId => {
     if (retainedTabId === tabId) {
       productionContextTabs.delete(contextKey);
       closedProductionContexts.add(contextKey);
+      if (port) {
+        port.postMessage({ type: "adapterEvent", payload: { type: "target-tab-closed", applicationContextKey: contextKey } });
+      }
     }
   }
 });
