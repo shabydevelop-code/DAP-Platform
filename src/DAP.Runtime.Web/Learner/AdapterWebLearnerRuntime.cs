@@ -14,18 +14,21 @@ public sealed class AdapterWebLearnerRuntime
     private readonly TimeSpan _stableReconcileInterval;
     private readonly TimeSpan _presentationSettleInterval;
     private readonly string? _automaticStepLabel;
+    private readonly bool _hybrid;
 
     public AdapterWebLearnerRuntime(
         IWebBrowserAdapter browser,
         TimeSpan? reconcileInterval = null,
         TimeSpan? presentationSettleInterval = null,
-        string? automaticStepLabel = null)
+        string? automaticStepLabel = null,
+        bool hybrid = false)
     {
         _browser = browser ?? throw new ArgumentNullException(nameof(browser));
         _reconcileInterval = reconcileInterval ?? TimeSpan.FromMilliseconds(100);
         _stableReconcileInterval = TimeSpan.FromMilliseconds(500);
         _presentationSettleInterval = presentationSettleInterval ?? TimeSpan.FromMilliseconds(250);
         _automaticStepLabel = automaticStepLabel;
+        _hybrid = hybrid;
     }
 
     public async Task RunActiveStepAsync(
@@ -60,6 +63,7 @@ public sealed class AdapterWebLearnerRuntime
         // is still finishing the same asynchronous render.
         var presentationGatePassed = false;
         var readySignaled = false;
+        var hybridValueApplied = false;
         Task<WebValidationCommit?>? commitTask = automatic
             ? _browser.WaitForValidationCommitAsync(step, cancellationToken)
             : null;
@@ -163,6 +167,15 @@ public sealed class AdapterWebLearnerRuntime
                 // boundary for learner input, independent of presentation.
                 readySignaled = true;
                 onReady?.Invoke();
+            }
+
+            if (_hybrid && !hybridValueApplied && presentation.Status == WebTargetResolutionStatus.Resolved
+                && !string.IsNullOrEmpty(step.AutomationValue))
+            {
+                if (!automatic || !GuideValidationPolicy.IsValueValidation(step.Validation!))
+                    throw new InvalidOperationException($"Web Hybrid Step '{step.Id}' requires automatic value validation.");
+                await _browser.ApplyAutomationValueAsync(step, cancellationToken);
+                hybridValueApplied = true;
             }
 
             // Re-check click completion after reconciliation. The browser event
