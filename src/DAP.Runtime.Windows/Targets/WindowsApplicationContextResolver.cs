@@ -12,6 +12,12 @@ public sealed class WindowsApplicationContextResolver
         if (context.Runtime != TargetRuntime.Windows || context.Matchers.Count == 0)
             throw new InvalidOperationException("Invalid Windows application context.");
 
+        foreach (var matcher in context.Matchers)
+        {
+            if (string.IsNullOrWhiteSpace(matcher.Value) || matcher.Kind is not ("WindowTitleContains" or "AutomationId" or "ProcessName"))
+                throw new NotSupportedException($"Unsupported or empty Windows matcher '{matcher.Kind}'.");
+        }
+
         var windows = AutomationElement.RootElement.FindAll(TreeScope.Children, Condition.TrueCondition);
         var matches = new List<AutomationElement>();
         foreach (AutomationElement window in windows)
@@ -22,6 +28,8 @@ public sealed class WindowsApplicationContextResolver
                     matches.Add(window);
             }
             catch (ElementNotAvailableException) { }
+            catch (ArgumentException) { }
+            catch (System.ComponentModel.Win32Exception) { }
         }
         if (matches.Count != 1)
             throw new InvalidOperationException($"Application context '{context.Key}' matched {matches.Count} windows; expected exactly one.");
