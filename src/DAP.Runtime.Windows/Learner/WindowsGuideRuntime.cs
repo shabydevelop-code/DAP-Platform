@@ -553,8 +553,8 @@ public sealed class WindowsGuideRuntime
                     }
 
                     if (isTextEditTarget
-                        && Volatile.Read(ref textTargetCommitted) == 1
-                        && !primaryValidationSatisfied
+                        && GuideStepExecutionPolicy.ShouldConsumeInvalidCommit(
+                            step, Volatile.Read(ref textTargetCommitted) == 1, primaryValidationSatisfied)
                         && target.TryGetCurrentPattern(ValuePattern.Pattern, out var committedValuePattern))
                     {
                         // A text commit is one blur attempt. If that committed
