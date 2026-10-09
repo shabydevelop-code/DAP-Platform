@@ -4,10 +4,10 @@ using DAP.E2E.Runner;
 if (args.Length < 2 || !args[0].Equals("--platform", StringComparison.OrdinalIgnoreCase))
     throw new ArgumentException("Usage: --platform web|windows --guide <GuideId> --manual|--hybrid");
 
-var project = PlatformProject.Resolve(args[1]);
-_ = DAP.Testing.E2eRunOptions.Parse(args.Skip(2).ToArray(), args[1].Equals("web", StringComparison.OrdinalIgnoreCase) ? "Web" : "Windows");
+var platform = PlatformProject.Resolve(args[1]);
+_ = DAP.Testing.E2eRunOptions.Parse(args.Skip(2).ToArray(), platform.Name == "web" ? "Web" : "Windows");
 var repositoryRoot = FindRepositoryRoot(AppContext.BaseDirectory);
-var projectFile = Path.Combine(repositoryRoot, "tests", project, project + ".csproj");
+var projectFile = platform.ProjectPath(repositoryRoot);
 Environment.ExitCode = await E2eRunner.RunAsync(repositoryRoot, projectFile, args.Skip(2).ToArray());
 
 static string FindRepositoryRoot(string start)
