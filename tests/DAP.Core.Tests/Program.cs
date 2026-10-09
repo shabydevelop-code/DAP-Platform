@@ -92,7 +92,7 @@ sealed class FakeUnifiedAdapter : IUnifiedStepPlatformAdapter
     private bool _committed;
 
     public Task<UnifiedStepObservation> ObserveAsync(GuideStep step, CancellationToken token)
-        => Task.FromResult(Observation(primary: _committed, conditions: _committed));
+        => Task.FromResult(new UnifiedStepObservation(true, true, true, true, _committed, _committed));
     public Task SetPresentationAsync(GuideStep step, UnifiedPresentationAction action, CancellationToken token)
     {
         PresentationActions.Add(action);
