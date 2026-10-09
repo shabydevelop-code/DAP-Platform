@@ -37,13 +37,7 @@ public sealed class AdapterWebLearnerRuntime
     {
         if (step.Bubble.Placement == BubblePlacement.Center)
         {
-            if (step.Target is not null
-                || step.AdvanceMode != StepAdvanceMode.Manual
-                || step.Validation is not null
-                || step.Context is not null
-                || step.Capture is not null
-                || step.CompletionConditions is { Count: > 0 })
-                throw new InvalidOperationException($"Centered Guide Step '{step.Id}' must be a pure Manual information Step with no target, context, validation, capture, or completion conditions.");
+            GuideStepExecutionPolicy.RequireCenteredInformationStep(step);
 
             if (showPresentation)
                 await _browser.WaitForCenteredStepDismissalAsync(step, stepNumber, totalSteps, cancellationToken);
@@ -172,8 +166,7 @@ public sealed class AdapterWebLearnerRuntime
             if (_hybrid && !hybridValueApplied && presentation.Status == WebTargetResolutionStatus.Resolved
                 && !string.IsNullOrEmpty(step.AutomationValue))
             {
-                if (!automatic || !GuideValidationPolicy.IsValueValidation(step.Validation!))
-                    throw new InvalidOperationException($"Web Hybrid Step '{step.Id}' requires automatic value validation.");
+                GuideStepExecutionPolicy.RequireHybridValueStep(step, "Web");
                 await _browser.ApplyAutomationValueAsync(step, cancellationToken);
                 hybridValueApplied = true;
             }
