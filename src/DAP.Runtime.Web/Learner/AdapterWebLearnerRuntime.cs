@@ -52,6 +52,7 @@ public sealed class AdapterWebLearnerRuntime
         // its persisted completion condition became true while the application
         // is still finishing the same asynchronous render.
         var activeState = new GuideActiveStepState(step);
+        var sharedEngine = new UnifiedGuideStepEngine();
         Task<WebValidationCommit?>? commitTask = automatic
             ? _browser.WaitForValidationCommitAsync(step, cancellationToken)
             : null;
@@ -63,7 +64,7 @@ public sealed class AdapterWebLearnerRuntime
                 var primary = clicked || await _browser.IsPrimaryValidationSatisfiedAsync(step, cancellationToken);
                 if (primary)
                 {
-                    if (new UnifiedGuideStepEngine().EvaluateCompletion(activeState, 
+                    if (sharedEngine.EvaluateCompletion(activeState, 
                         primary,
                         await _browser.AreCompletionConditionsSatisfiedAsync(step, cancellationToken)) == GuideStepReconciliationResult.Completed)
                     {
@@ -127,7 +128,7 @@ public sealed class AdapterWebLearnerRuntime
                         TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
                         TaskScheduler.Default);
 
-                    if (new UnifiedGuideStepEngine().EvaluateCompletion(activeState, 
+                    if (sharedEngine.EvaluateCompletion(activeState, 
                         true,
                         await _browser.AreCompletionConditionsSatisfiedAsync(step, cancellationToken)) == GuideStepReconciliationResult.Completed)
                     {
@@ -148,7 +149,7 @@ public sealed class AdapterWebLearnerRuntime
                     !string.IsNullOrEmpty(step.AutomationValue) ? _automaticStepLabel : null);
             }
 
-            if (new UnifiedGuideStepEngine().ObserveReadiness(
+            if (sharedEngine.ObserveReadiness(
                 activeState, contextActive: true,
                 targetAvailable: presentation.Status == WebTargetResolutionStatus.Resolved, targetVisible: true)
                 == GuideStepReconciliationResult.WaitingForTarget)
@@ -175,7 +176,7 @@ public sealed class AdapterWebLearnerRuntime
             // can arrive just after the presentation race was decided.
             if (clicked && commitTask?.IsCompletedSuccessfully == true)
             {
-                if (new UnifiedGuideStepEngine().EvaluateCompletion(activeState, 
+                if (sharedEngine.EvaluateCompletion(activeState, 
                     true,
                     await _browser.AreCompletionConditionsSatisfiedAsync(step, cancellationToken)) == GuideStepReconciliationResult.Completed)
                 {
@@ -198,7 +199,7 @@ public sealed class AdapterWebLearnerRuntime
                 GuideStepReconciliationResult.WaitingForAction, _stableReconcileInterval, cancellationToken);
         }
 
-        await new UnifiedGuideStepEngine().RunAsync(activeState, (_, token) => ReconcileAsync(token), cancellationToken);
+        await sharedEngine.RunAsync(activeState, (_, token) => ReconcileAsync(token), cancellationToken);
     }
 
     public Task StopAsync(CancellationToken cancellationToken = default)
