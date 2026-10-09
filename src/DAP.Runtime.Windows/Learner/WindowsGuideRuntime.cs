@@ -210,7 +210,7 @@ public sealed class WindowsGuideRuntime
                             AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction)) == GuideStepReconciliationResult.Completed)
                         return GuideStepReconciliationResult.Completed;
                     return await GuideActiveStepState.WaitAsync(
-                        activeState.ObserveTarget(false), _pollInterval, cancellationToken);
+                        activeState.ObservePresentationAvailability(targetAvailable: false, visible: false), _pollInterval, cancellationToken);
                 }
 
                 if (resolution.Status != TargetResolutionStatus.Resolved || resolution.Target is null)
@@ -378,7 +378,8 @@ public sealed class WindowsGuideRuntime
                     }
                 }
 
-                if (!HasVisibleBounds(target))
+                if (activeState.ObservePresentationAvailability(targetAvailable: true, visible: HasVisibleBounds(target))
+                    == GuideStepReconciliationResult.WaitingForTarget)
                 {
                     // Do not force-scroll during reconciliation. Initial Step entry
                     // already performs the one allowed viewport adjustment. Keep
