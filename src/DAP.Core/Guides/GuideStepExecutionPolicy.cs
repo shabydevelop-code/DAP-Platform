@@ -24,6 +24,20 @@ public static class GuideStepExecutionPolicy
         return step.AdvanceMode == StepAdvanceMode.AutomaticOnValidation && step.Validation is not null;
     }
 
+    public static bool IsClickValidationStep(GuideStep step)
+    {
+        ArgumentNullException.ThrowIfNull(step);
+        return IsAutomaticValidationStep(step)
+            && string.Equals(step.Validation!.Kind, "clicked", StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static bool IsTargetDisappearanceStep(GuideStep step)
+    {
+        ArgumentNullException.ThrowIfNull(step);
+        return IsAutomaticValidationStep(step)
+            && string.Equals(step.Validation!.Kind, "target-disappeared", StringComparison.OrdinalIgnoreCase);
+    }
+
     public static bool IsCenteredInformationStep(GuideStep step)
     {
         ArgumentNullException.ThrowIfNull(step);
