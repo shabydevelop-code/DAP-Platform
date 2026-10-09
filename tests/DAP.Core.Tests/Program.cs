@@ -85,11 +85,35 @@ Check(adapter.PresentationActions.SequenceEqual(new[] {
     UnifiedPresentationAction.Show, UnifiedPresentationAction.Hide
 }), "Shared runner delegates presentation lifecycle");
 
+var editStep = new GuideStep("edit", 1, null, new BubbleDefinition("Edit"),
+    new ValidationDefinition("value"));
+var editMachine = new UnifiedStepStateMachine(editStep);
+Check(!editMachine.Advance(new UnifiedStepObservation(true, true, true, true, true, false,
+    IsTextEditTarget: true, TextEditCommitted: true)).StepCompleted,
+    "Committed edit waits for completion conditions");
+Check(editMachine.Advance(new UnifiedStepObservation(false, false, false, false, true, true,
+    IsTextEditTarget: true)).StepCompleted,
+    "Committed edit survives context replacement");
+
+var failingAdapter = new FakeUnifiedAdapter { FailOnWait = true };
+try
+{
+    await new UnifiedStepRunner().RunAsync(hybridStep,
+        new UnifiedStepOptions(UnifiedLearnerMode.Manual), failingAdapter, CancellationToken.None);
+    throw new Exception("FAILED: Adapter failure should propagate");
+}
+catch (InvalidOperationException)
+{
+    Check(failingAdapter.PresentationActions.Last() == UnifiedPresentationAction.Hide,
+        "Adapter failure hides stale bubble");
+}
+
 Console.WriteLine("All unified state-machine checks passed.");
 
 sealed class FakeUnifiedAdapter : IUnifiedStepPlatformAdapter
 {
     public int AutomationCalls { get; private set; }
+    public bool FailOnWait { get; set; }
     public List<UnifiedPresentationAction> PresentationActions { get; } = new();
     private bool _committed;
 
@@ -107,6 +131,7 @@ sealed class FakeUnifiedAdapter : IUnifiedStepPlatformAdapter
     }
     public Task WaitForChangeAsync(GuideStep step, GuideStepReconciliationResult reason, CancellationToken token)
     {
+        if (FailOnWait) throw new InvalidOperationException("Simulated platform failure");
         _committed = true;
         return Task.CompletedTask;
     }
