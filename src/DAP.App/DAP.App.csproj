@@ -8,6 +8,7 @@
     <AssemblyName>DAP</AssemblyName>
     <RootNamespace>DAP.App</RootNamespace>
     <CopyRetryCount>0</CopyRetryCount>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../DAP.Core/DAP.Core.csproj" />
