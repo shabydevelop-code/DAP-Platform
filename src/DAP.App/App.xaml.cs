@@ -9,6 +9,8 @@ public partial class App : Application
     {
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
         var exitCode = 1;
+        var sessionPid = Environment.ProcessId;
+        Trace.TraceInformation($"DAP session started: PID={sessionPid}.");
         try
         {
             exitCode = await DapApplicationHost.RunAsync(e.Args);
@@ -26,7 +28,11 @@ public partial class App : Application
         {
             // All guide termination paths, including startup exceptions, must
             // release the WPF dispatcher and the loaded assemblies.
+            Trace.TraceInformation($"DAP session ending: PID={sessionPid}, exit code={exitCode}.");
             Shutdown(exitCode);
+            // This executable hosts one learner session only. After its awaited
+            // cleanup completes, do not leave a background process holding DLLs.
+            Environment.Exit(exitCode);
         }
     }
 
