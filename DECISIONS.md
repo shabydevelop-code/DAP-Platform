@@ -42,7 +42,7 @@ A disabled persisted Step is skipped without renumbering. Disabling a Step must 
 
 ## ADR-009 — Canonical learner runners expose Manual and Hybrid only
 
-Current TestCRM learner execution modes are `--manual` and `--hybrid`, and normal execution requires `--guide <GuideId>`. The runner must load and pass the explicitly supplied Guide ID to `DAP.exe --learner --guide <GuideId>` rather than selecting a Guide implicitly.
+Current TestCRM learner execution modes are `--manual` and `--hybrid`, and normal execution requires `--guide <GuideId>`. The runner must load and pass the explicitly supplied Guide ID to `DAP.exe --guide <GuideId>` rather than selecting a Guide implicitly.
 
 `--reset-guide` is maintenance. `--published-dap` may be used as a packaging/path option.
 
@@ -83,7 +83,7 @@ Production Runtime owns the one-time initial focus of input Steps. Hybrid must w
 
 ## ADR-017 — Learner launch is Guide-driven
 
-The product launch contract is `DAP.exe --learner --guide <GuideId>`. The persisted Guide determines whether the current execution uses Web or Windows Runtime; callers do not select a runtime mode. The current launcher requires all enabled targeted Steps in a Guide to use one runtime type. Cross-runtime execution can be added without changing the external Guide-selection contract.
+The product launch contract is `DAP.exe --guide <GuideId>`; no Learner mode argument or legacy mode alias is accepted. The persisted Guide determines whether the current execution uses Web or Windows Runtime; callers do not select a runtime mode. The current launcher requires all enabled targeted Steps in a Guide to use one runtime type. Cross-runtime execution can be added without changing the external Guide-selection contract.
 
 ## ADR-018 — Browser Extension has no product GUI
 
