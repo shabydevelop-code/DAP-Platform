@@ -154,7 +154,7 @@ public sealed class WindowsGuideRuntime
         {
             bool IsDisappearedTargetStepComplete()
                 => targetDisappeared && targetWasResolved
-                    && activeState.EvaluateCompletion(
+                    && new UnifiedGuideStepEngine().EvaluateCompletion(activeState, 
                         true, AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction))
                         == GuideStepReconciliationResult.Completed;
 
@@ -175,7 +175,7 @@ public sealed class WindowsGuideRuntime
                 // Completion is evaluated before the source context. A valid learner
                 // action may navigate away from that context while persisted
                 // post-action conditions become true on the destination screen.
-                if (clicked && clickCompleted.Task.IsCompleted && activeState.EvaluateCompletion(
+                if (clicked && clickCompleted.Task.IsCompleted && new UnifiedGuideStepEngine().EvaluateCompletion(activeState, 
                             true,
                             AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction)) == GuideStepReconciliationResult.Completed)
                 {
@@ -519,7 +519,7 @@ public sealed class WindowsGuideRuntime
                     // asynchronous WPF rerenders can replace a Button without any
                     // learner action and would otherwise create a false completion.
                     if (clickCompleted.Task.IsCompleted
-                        && activeState.EvaluateCompletion(
+                        && new UnifiedGuideStepEngine().EvaluateCompletion(activeState, 
                             true,
                             AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction)) == GuideStepReconciliationResult.Completed)
                     {
@@ -543,7 +543,7 @@ public sealed class WindowsGuideRuntime
                     step, isTextEditTarget, Volatile.Read(ref textTargetCommitted) == 1))
                 {
                     var primaryValidationSatisfied = _validation.IsSatisfied(target, step.Validation!);
-                    if (activeState.EvaluateCompletion(
+                    if (new UnifiedGuideStepEngine().EvaluateCompletion(activeState, 
                             primaryValidationSatisfied,
                             AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction),
                         isTextEditTarget, Volatile.Read(ref textTargetCommitted) == 1) == GuideStepReconciliationResult.Completed)
