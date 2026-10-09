@@ -47,24 +47,12 @@ public sealed class DelegateGuideStepAdapter : IGuideStepAdapter
 
 public sealed class GuideExecutionEngine
 {
-    public Task RunAsync(
+    public async Task RunAsync(
         IReadOnlyList<GuideStep> steps,
         IGuideStepAdapter adapter,
         CancellationToken cancellationToken,
         int? startStepOrder = null,
         IReadOnlyDictionary<string, string>? initialCapturedValues = null)
-    {
-        ArgumentNullException.ThrowIfNull(adapter);
-        return RunAsync(steps, adapter,
-            cancellationToken, startStepOrder, initialCapturedValues);
-    }
-
-    private async Task RunAsync(
-        IReadOnlyList<GuideStep> steps,
-        IGuideStepAdapter adapter,
-        CancellationToken cancellationToken,
-        int? startStepOrder,
-        IReadOnlyDictionary<string, string>? initialCapturedValues)
     {
         ArgumentNullException.ThrowIfNull(steps);
         ArgumentNullException.ThrowIfNull(adapter);
