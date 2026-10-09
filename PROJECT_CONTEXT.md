@@ -75,12 +75,16 @@ testcrm-windows-canonical-workflow
 
 Both repository seeds define 55 persisted Steps. Step 55 is the persisted centered summary.
 
+## Launch contract
+
+`DAP.exe --guide <GuideId>` starts the current Learner directly. There is no `--learner` flag or compatibility alias. Instructor/Editor launch is not yet designed. Avoid retaining superseded launch modes or fallback paths solely for compatibility.
+
 ## Runner contract
 
 Product Learner launch contract:
 
 ```text
-DAP.exe --learner --guide <GuideId>
+DAP.exe --guide <GuideId>
 ```
 
 TestCRM runner execution contract:
@@ -90,7 +94,7 @@ TestCRM runner execution contract:
 --hybrid --guide <GuideId>
 ```
 
-The runner does not select the Guide. It passes the explicitly supplied persisted Guide ID to `DAP.exe --learner --guide <GuideId>`.
+The runner does not select the Guide. It passes the explicitly supplied persisted Guide ID to `DAP.exe --guide <GuideId>`.
 
 Maintenance/path options:
 
