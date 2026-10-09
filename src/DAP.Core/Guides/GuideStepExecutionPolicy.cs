@@ -37,6 +37,17 @@ public static class GuideStepExecutionPolicy
     public static bool CanAdvance(bool primaryValidationSatisfied, bool completionConditionsSatisfied)
         => primaryValidationSatisfied && completionConditionsSatisfied;
 
+    /// <summary>Shared post-action advancement rule for click events and
+    /// targets that disappeared after being observed. Platform adapters supply
+    /// their own event/target observation and persisted completion evaluation.</summary>
+    public static bool CanAdvanceAfterObservedAction(
+        GuideStep step, bool actionObserved, bool completionConditionsSatisfied)
+    {
+        ArgumentNullException.ThrowIfNull(step);
+        return (IsClickValidationStep(step) || IsTargetDisappearanceStep(step))
+            && CanAdvance(actionObserved, completionConditionsSatisfied);
+    }
+
     public static bool IsClickValidationStep(GuideStep step)
     {
         ArgumentNullException.ThrowIfNull(step);
