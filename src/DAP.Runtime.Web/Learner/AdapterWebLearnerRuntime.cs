@@ -58,7 +58,7 @@ public sealed class AdapterWebLearnerRuntime
             ? _browser.WaitForValidationCommitAsync(step, cancellationToken)
             : null;
 
-        await foreach (var reconciliationTick in new GuideStepReconciliationEngine().TicksAsync(cancellationToken))
+        async Task<bool> ReconcileAsync(CancellationToken cancellationToken)
         {
             if (commitTask?.IsCompletedSuccessfully == true)
             {
@@ -70,7 +70,7 @@ public sealed class AdapterWebLearnerRuntime
                         await _browser.AreCompletionConditionsSatisfiedAsync(step, cancellationToken)))
                     {
                         await _browser.HideBubbleAsync(cancellationToken);
-                        return;
+                        return true;
                     }
 
                     // Preserve the proven runtime behavior exactly:
@@ -95,7 +95,7 @@ public sealed class AdapterWebLearnerRuntime
             {
                 await _browser.HideBubbleAsync(cancellationToken);
                 await Task.Delay(_reconcileInterval, cancellationToken);
-                continue;
+                return false;
             }
 
             if (!presentationGatePassed)
@@ -103,7 +103,7 @@ public sealed class AdapterWebLearnerRuntime
                 if (!await _browser.IsStableForPresentationAsync(step, _presentationSettleInterval, cancellationToken))
                 {
                     await Task.Delay(_reconcileInterval, cancellationToken);
-                    continue;
+                    return false;
                 }
                 presentationGatePassed = true;
             }
@@ -130,11 +130,11 @@ public sealed class AdapterWebLearnerRuntime
                     if (await _browser.AreCompletionConditionsSatisfiedAsync(step, cancellationToken))
                     {
                         await _browser.HideBubbleAsync(cancellationToken);
-                        return;
+                        return true;
                     }
 
                     await Task.Delay(_reconcileInterval, cancellationToken);
-                    continue;
+                    return false;
                 }
 
                 presentation = await presentationTask;
@@ -178,7 +178,7 @@ public sealed class AdapterWebLearnerRuntime
                     await _browser.AreCompletionConditionsSatisfiedAsync(step, cancellationToken)))
                 {
                     await _browser.HideBubbleAsync(cancellationToken);
-                    return;
+                    return true;
                 }
             }
 
@@ -193,7 +193,10 @@ public sealed class AdapterWebLearnerRuntime
             }
             else
                 await Task.Delay(_stableReconcileInterval, cancellationToken);
+            return false;
         }
+
+        await new GuideStepReconciliationEngine().RunAsync(ReconcileAsync, cancellationToken);
     }
 
     public Task StopAsync(CancellationToken cancellationToken = default)
