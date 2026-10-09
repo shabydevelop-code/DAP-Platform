@@ -22,7 +22,8 @@
 cd C:\yossi\ChatGpt\DAP-Platform
 git pull origin main
 dotnet build src\DAP.App\DAP.App.csproj -c Release
-dotnet publish src\DAP.App\DAP.App.csproj -c Release -o C:\DAP-Production --self-contained false
+.\scripts\Publish-Customer-Package.ps1 -Output C:\DAP-Production
+.\scripts\Register-WebNativeHost.ps1 -PackagePath C:\DAP-Production
 & "C:\DAP-Production\DAP.exe" --check
 ```
 Start the demo applications in separate terminals:
@@ -42,4 +43,4 @@ Then run the learner separately:
 - Windows multi-context switching, delayed discovery, and rebinding are not implemented.
 - Web Native Host and extension still contain test-driver transport hooks; product/test isolation is not fully complete.
 - A production package and test-driver separation audit remains necessary.
-- Recent documentation changes do not constitute a fresh automated build or complete Web/Windows regression.
+- The packaged Web Native Messaging host and learner were verified locally after temporary folders were removed. A complete Web/Windows regression has not been performed.
