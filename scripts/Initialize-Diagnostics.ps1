@@ -1,13 +1,13 @@
 $ErrorActionPreference = "Stop"
 $env:DAP_DIAGNOSTICS_ROOT = $PSScriptRoot
 
-$web = Join-Path $PSScriptRoot "Runners\Web\DAP.TestCRM.Web.E2E.exe"
-$windows = Join-Path $PSScriptRoot "Runners\Windows\DAP.TestCRM.Windows.E2E.exe"
+$runner = Join-Path $PSScriptRoot "Runners\Unified\DAP.E2E.exe"
+if (!(Test-Path $runner)) { throw "Diagnostic runner was not found: $runner" }
 
-& $web --reset-guide
+& $runner --platform web --reset-guide
 if ($LASTEXITCODE -ne 0) { throw "Web Guide initialization failed." }
 
-& $windows --reset-guide
+& $runner --platform windows --reset-guide
 if ($LASTEXITCODE -ne 0) { throw "Windows Guide initialization failed." }
 
 Write-Host "DAP diagnostic Guides initialized successfully."
