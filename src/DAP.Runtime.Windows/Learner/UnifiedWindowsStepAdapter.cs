@@ -24,6 +24,7 @@ public sealed class UnifiedWindowsStepAdapter : IUnifiedStepPlatformAdapter
     private readonly TimeSpan _waitInterval;
     private AutomationElement? _target;
     private bool _targetPreviouslyResolved;
+    private Task? _centeredDismissal;
 
     public UnifiedWindowsStepAdapter(
         AutomationElement windowRoot, WindowsTargetResolver resolver,
@@ -42,6 +43,13 @@ public sealed class UnifiedWindowsStepAdapter : IUnifiedStepPlatformAdapter
     public Task<UnifiedStepObservation> ObserveAsync(GuideStep step, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
+        if (GuideStepExecutionPolicy.IsCenteredInformationStep(step))
+        {
+            if (_centeredDismissal is { IsFaulted: true } || _centeredDismissal is { IsCanceled: true })
+                return ObserveCenteredFailureAsync();
+            return Task.FromResult(new UnifiedStepObservation(false, false, false, false,
+                false, false, ManualAdvanceRequested: _centeredDismissal?.IsCompletedSuccessfully == true));
+        }
         if (step.Target is null || step.Target.Runtime != TargetRuntime.Windows)
             throw new NotSupportedException("Unified Windows adapter requires a Windows target.");
         if (GuideStepExecutionPolicy.IsClickValidationStep(step)
@@ -70,6 +78,12 @@ public sealed class UnifiedWindowsStepAdapter : IUnifiedStepPlatformAdapter
         }
     }
 
+    private async Task<UnifiedStepObservation> ObserveCenteredFailureAsync()
+    {
+        await _centeredDismissal!;
+        throw new InvalidOperationException("Centered dismissal did not complete.");
+    }
+
     public async Task SetPresentationAsync(
         GuideStep step, UnifiedPresentationAction action, CancellationToken token)
     {
@@ -77,6 +91,11 @@ public sealed class UnifiedWindowsStepAdapter : IUnifiedStepPlatformAdapter
             await _bubbles.HideAsync();
         else if (action == UnifiedPresentationAction.Show)
         {
+            if (GuideStepExecutionPolicy.IsCenteredInformationStep(step))
+            {
+                _centeredDismissal ??= _bubbles.WaitForCenteredStepDismissalAsync(step, _number, _total, token);
+                return;
+            }
             if (_target is null)
                 throw new InvalidOperationException("Cannot present a bubble without a resolved Windows target.");
             await _bubbles.ShowAsync(_target, step, _number, _total, token);
@@ -94,5 +113,13 @@ public sealed class UnifiedWindowsStepAdapter : IUnifiedStepPlatformAdapter
 
     public Task WaitForChangeAsync(
         GuideStep step, GuideStepReconciliationResult reason, CancellationToken token)
-        => Task.Delay(_waitInterval, token);
+        => _centeredDismissal is { IsCompleted: false }
+            ? WaitForCenteredOrChangeAsync(token)
+            : Task.Delay(_waitInterval, token);
+
+    private async Task WaitForCenteredOrChangeAsync(CancellationToken token)
+    {
+        await Task.WhenAny(_centeredDismissal!, Task.Delay(_waitInterval, token));
+        token.ThrowIfCancellationRequested();
+    }
 }
