@@ -46,7 +46,7 @@ public sealed class AdapterWebLearnerRuntime
         }
 
         var automatic = GuideStepExecutionPolicy.IsAutomaticValidationStep(step);
-        var clicked = automatic && string.Equals(step.Validation!.Kind, "clicked", StringComparison.Ordinal);
+        var clicked = GuideStepExecutionPolicy.IsClickValidationStep(step);
         // Every target-attached Step must wait for a quiet DOM window before
         // exposing its target. The previous Step may have completed as soon as
         // its persisted completion condition became true while the application
