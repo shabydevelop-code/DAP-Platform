@@ -173,9 +173,19 @@ public sealed class AdapterWebLearnerRuntime
 
             if (activeState.ShouldApplyHybridValue(_hybrid, presentation.Status == WebTargetResolutionStatus.Resolved))
             {
-                GuideStepExecutionPolicy.RequireHybridValueStep(step, "Web");
-                await _browser.ApplyAutomationValueAsync(step, cancellationToken);
-                activeState.MarkHybridValueApplied();
+                Console.Error.WriteLine($"[DAP Web hybrid] applying persisted value for Step {stepNumber}/{totalSteps} '{step.Id}'.");
+                try
+                {
+                    GuideStepExecutionPolicy.RequireHybridValueStep(step, "Web");
+                    await _browser.ApplyAutomationValueAsync(step, cancellationToken);
+                    activeState.MarkHybridValueApplied();
+                    Console.Error.WriteLine($"[DAP Web hybrid] applied persisted value for Step {stepNumber}/{totalSteps} '{step.Id}'.");
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+                {
+                    Console.Error.WriteLine($"[DAP Web hybrid] failed Step {stepNumber}/{totalSteps} '{step.Id}': {ex}");
+                    throw;
+                }
             }
 
             // Re-check click completion after reconciliation. The browser event
