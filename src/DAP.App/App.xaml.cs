@@ -49,6 +49,8 @@ public partial class App : Application
     {
         for (Exception? current = exception; current is not null; current = current.InnerException)
         {
+            if (current.Message.Contains("DAP_WEB_TARGET_CLOSED:", StringComparison.Ordinal))
+                return true;
             if (current.Message.Contains("DAP test driver expected exactly one session tab for", StringComparison.Ordinal)
                 && current.Message.Contains("but found 0", StringComparison.Ordinal))
                 return true;
