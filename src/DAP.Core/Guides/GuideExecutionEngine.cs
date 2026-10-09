@@ -177,7 +177,7 @@ public sealed class GuideExecutionEngine
                     await adapter.ShowCenteredInformationAsync(step, total, token);
                 else
                 {
-                    if (step.Capture is not null)
+                    if (GuideRunPlan.ShouldCapture(step, runtime, StepCaptureTiming.BeforeAction))
                         await adapter.CaptureAsync(step, plan, token);
                     await adapter.ExecuteAsync(step, index, total, plan, token);
                 }
