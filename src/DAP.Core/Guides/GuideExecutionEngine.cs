@@ -59,6 +59,17 @@ public sealed class DelegateGuideStepAdapter : IGuideStepAdapter
 /// </summary>
 public sealed class GuideStepReconciliationEngine
 {
+    public async IAsyncEnumerable<bool> TicksAsync(
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            yield return true;
+            await Task.Yield();
+        }
+    }
+
     /// <summary>Drive each reconciliation attempt, retaining adapter-specific
     /// recovery delays inside the callback. A true result completes the step.</summary>
     public async Task RunAsync(
