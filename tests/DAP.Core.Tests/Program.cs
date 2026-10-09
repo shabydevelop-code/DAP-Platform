@@ -120,9 +120,8 @@ Check(flicker.Advance(Observation(target: false)).PresentationAction == UnifiedP
 
 var repeatedAction = Machine();
 repeatedAction.Advance(Observation(action: true));
-Check(repeatedAction.Advance(Observation(action: true)).Status ==
-    GuideStepReconciliationResult.WaitingForAction ||
-    repeatedAction.Completed == false, "Repeated action never completes without conditions");
+Check(!repeatedAction.Advance(Observation(action: true)).StepCompleted,
+    "Repeated action never completes without conditions");
 Check(repeatedAction.Advance(Observation(conditions: true)).StepCompleted,
     "Repeated action completes once conditions hold");
 
