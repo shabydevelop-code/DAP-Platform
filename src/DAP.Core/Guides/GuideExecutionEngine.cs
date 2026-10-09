@@ -6,8 +6,29 @@ namespace DAP.Core.Guides;
 /// Environment-independent execution coordinator. Platform adapters own only
 /// platform-specific step operations; ordering, captures and lifecycle live here.
 /// </summary>
+/// <summary>Platform boundary for an active guide step. The engine owns ordering,
+/// materialization, validation of step shape and lifecycle diagnostics.</summary>
+public interface IGuideStepAdapter
+{
+    TargetRuntime Runtime { get; }
+    string DiagnosticName { get; }
+    Task ExecuteAsync(GuideStep step, int index, int total, GuideRunPlan plan, CancellationToken cancellationToken);
+}
+
 public sealed class GuideExecutionEngine
 {
+    public Task RunAsync(
+        IReadOnlyList<GuideStep> steps,
+        IGuideStepAdapter adapter,
+        CancellationToken cancellationToken,
+        int? startStepOrder = null,
+        IReadOnlyDictionary<string, string>? initialCapturedValues = null)
+    {
+        ArgumentNullException.ThrowIfNull(adapter);
+        return RunAsync(steps, adapter.Runtime, adapter.ExecuteAsync,
+            cancellationToken, startStepOrder, initialCapturedValues, adapter.DiagnosticName);
+    }
+
     public async Task RunAsync(
         IReadOnlyList<GuideStep> steps,
         TargetRuntime runtime,
