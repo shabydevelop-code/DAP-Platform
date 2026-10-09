@@ -104,16 +104,7 @@ public sealed class WindowsGuideRuntime
     {
         if (step.Bubble.Placement == BubblePlacement.Center)
         {
-            if (step.Target is not null)
-                throw new InvalidOperationException(
-                    $"Centered Guide Step '{step.Id}' must not define a target.");
-            if (step.AdvanceMode != StepAdvanceMode.Manual
-                || step.Validation is not null
-                || step.Context is not null
-                || step.Capture is not null
-                || step.CompletionConditions is { Count: > 0 })
-                throw new InvalidOperationException(
-                    $"Centered Guide Step '{step.Id}' must be a pure Manual information Step with no context, validation, capture, or completion conditions.");
+            GuideStepExecutionPolicy.RequireCenteredInformationStep(step);
 
             await _bubbles.WaitForCenteredStepDismissalAsync(
                 step,
