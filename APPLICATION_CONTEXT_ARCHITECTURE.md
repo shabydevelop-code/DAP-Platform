@@ -342,3 +342,5 @@ Both Web and Windows Hybrid value entry now apply the same Core GuideStepExecuti
 GuideStepExecutionPolicy now classifies centered-information versus target-attached steps consistently for Web and Windows, rejecting invalid target/presentation combinations. Web automatic-validation eligibility also delegates to Core. Active-step execution loops are still separate; Windows build and end-to-end regressions remain to be verified.
 
 Current consolidation: Core also owns the committed-text validation gate and primary/completion advancement decision. Windows uses both gates and Web uses the shared advancement decision. Platform-specific active-step loops remain; build and runtime regressions pending.
+
+Current architecture: GuideExecutionEngine dispatches through IGuideStepAdapter; Web and Windows provide DelegateGuideStepAdapter implementations. The engine owns step ordering, capture-token materialization, step-shape preflight and lifecycle diagnostics. Active-step reconciliation loops remain platform-specific; full consolidation and E2E regression tests are outstanding.
