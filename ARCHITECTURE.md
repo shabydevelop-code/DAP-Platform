@@ -138,8 +138,12 @@ Instructor/Editor is the next major product phase. It must author the same persi
 
 AI may assist development or be offered as an optional authoring aid, but production authoring and learner execution must remain deterministic and functional without AI.
 
-## Product execution modes
+## Product execution modes and Windows Hybrid
 
-The production learner accepts `DAP.exe --guide <GuideId> --mode manual` (or omits `--mode`, defaulting to Manual). The product also parses `--mode hybrid`, but explicitly rejects it as unsupported before starting a Guide: persisted `AutomationValue` actions are currently executed by TestCRM-specific E2E drivers, not by the production learner. Hybrid is **not** a completed product feature. The required design is a runtime-owned action executor for both Web and Windows, with explicit persisted automation authorization, unique target resolution, learner-owned validation/progression, and no dependency on TestCRM, test-driver protocol or target application source. One Guide must support both modes. E2E runners remain test harnesses only. Instructor launch is not decided.
+The production CLI is `DAP.exe --guide <GuideId> --mode manual|hybrid`, with Manual as default. Both modes use the same persisted Guide.
 
-Current implementation: Windows production Hybrid applies persisted AutomationValue through UIA ValuePattern on the uniquely resolved Step target; this is not yet build-tested or end-to-end verified. Web production Hybrid is rejected until the extension supports runtime-owned actions. The shared production executor is incomplete.
+The Windows production learner identifies the application using persisted Application Context matchers and resolves each Step target using Windows UI Automation. The runtime owns bubble placement, focus, validation, completion conditions, capture, and advancement. Hybrid only enters persisted nonempty `AutomationValue` on a resolved writable ValuePattern target for an automatically validated Step. For Edit controls it focuses the target, sets and verifies the value, sends TAB, verifies focus loss, and then uses the same validation and advancement engine as Manual. All other actions remain user-operated. No TestCRM-specific driver or target source is required.
+
+The existing SQLite GuideSteps schema stores AutomationValue, IsEnabled, ApplicationContextKey, targets, and validation. Startup initialization adds missing columns; no new migration is required.
+
+The user reported that the Windows Hybrid run appeared correct. Full regression verification is not established. Web production Hybrid remains unsupported and explicitly rejected; test E2E drivers are separate from the product.
