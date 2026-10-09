@@ -54,55 +54,6 @@ public sealed class SqliteDatabaseInitializer
         }
     }
 
-    private static async Task<bool> UsesLegacyTextIdsAsync(SqliteConnection connection, CancellationToken cancellationToken)
-    {
-        await using var exists = connection.CreateCommand();
-        exists.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='Guides';";
-        if (Convert.ToInt32(await exists.ExecuteScalarAsync(cancellationToken)) == 0)
-            return false;
-
-        await using var info = connection.CreateCommand();
-        info.CommandText = "PRAGMA table_info(Guides);";
-        await using var reader = await info.ExecuteReaderAsync(cancellationToken);
-        while (await reader.ReadAsync(cancellationToken))
-        {
-            if (reader.GetString(1).Equals("Key", StringComparison.OrdinalIgnoreCase))
-                return false;
-        }
-
-        return true;
-    }
-
-    private static async Task MigrateLegacyTextIdsAsync(SqliteConnection connection, CancellationToken cancellationToken)
-    {
-        await using (var foreignKeys = connection.CreateCommand())
-        {
-            foreignKeys.CommandText = "PRAGMA foreign_keys = OFF;";
-            await foreignKeys.ExecuteNonQueryAsync(cancellationToken);
-        }
-
-        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
-        try
-        {
-            await using var command = connection.CreateCommand();
-            command.Transaction = (SqliteTransaction)transaction;
-            command.CommandText = Migration001To002;
-            await command.ExecuteNonQueryAsync(cancellationToken);
-            await transaction.CommitAsync(cancellationToken);
-        }
-        catch
-        {
-            await transaction.RollbackAsync(cancellationToken);
-            throw;
-        }
-        finally
-        {
-            await using var foreignKeys = connection.CreateCommand();
-            foreignKeys.CommandText = "PRAGMA foreign_keys = ON;";
-            await foreignKeys.ExecuteNonQueryAsync(cancellationToken);
-        }
-    }
-
     private const string Migration001To002 = """
 DROP INDEX IF EXISTS IX_GuideSteps_GuideId_StepOrder;
 DROP INDEX IF EXISTS IX_TargetAnchors_GuideStepId;
