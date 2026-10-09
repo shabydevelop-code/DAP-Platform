@@ -116,6 +116,7 @@ public sealed class WindowsGuideRuntime
                 $"Target-attached Guide Step '{step.Id}' must define a target.");
 
         var activeState = new GuideActiveStepState(step);
+        var sharedEngine = new UnifiedGuideStepEngine();
         var clicked = GuideStepExecutionPolicy.IsClickValidationStep(step);
         var targetDisappeared = GuideStepExecutionPolicy.IsTargetDisappearanceStep(step);
         var targetWasResolved = false;
@@ -154,7 +155,7 @@ public sealed class WindowsGuideRuntime
         {
             bool IsDisappearedTargetStepComplete()
                 => targetDisappeared && targetWasResolved
-                    && new UnifiedGuideStepEngine().EvaluateCompletion(activeState, 
+                    && sharedEngine.EvaluateCompletion(activeState, 
                         true, AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction))
                         == GuideStepReconciliationResult.Completed;
 
@@ -175,7 +176,7 @@ public sealed class WindowsGuideRuntime
                 // Completion is evaluated before the source context. A valid learner
                 // action may navigate away from that context while persisted
                 // post-action conditions become true on the destination screen.
-                if (clicked && clickCompleted.Task.IsCompleted && new UnifiedGuideStepEngine().EvaluateCompletion(activeState, 
+                if (clicked && clickCompleted.Task.IsCompleted && sharedEngine.EvaluateCompletion(activeState, 
                             true,
                             AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction)) == GuideStepReconciliationResult.Completed)
                 {
@@ -380,7 +381,7 @@ public sealed class WindowsGuideRuntime
                     }
                 }
 
-                if (new UnifiedGuideStepEngine().ObserveReadiness(activeState, contextActive: true, targetAvailable: true, targetVisible: HasVisibleBounds(target))
+                if (sharedEngine.ObserveReadiness(activeState, contextActive: true, targetAvailable: true, targetVisible: HasVisibleBounds(target))
                     == GuideStepReconciliationResult.WaitingForTarget)
                 {
                     // Do not force-scroll during reconciliation. Initial Step entry
@@ -519,7 +520,7 @@ public sealed class WindowsGuideRuntime
                     // asynchronous WPF rerenders can replace a Button without any
                     // learner action and would otherwise create a false completion.
                     if (clickCompleted.Task.IsCompleted
-                        && new UnifiedGuideStepEngine().EvaluateCompletion(activeState, 
+                        && sharedEngine.EvaluateCompletion(activeState, 
                             true,
                             AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction)) == GuideStepReconciliationResult.Completed)
                     {
@@ -543,7 +544,7 @@ public sealed class WindowsGuideRuntime
                     step, isTextEditTarget, Volatile.Read(ref textTargetCommitted) == 1))
                 {
                     var primaryValidationSatisfied = _validation.IsSatisfied(target, step.Validation!);
-                    if (new UnifiedGuideStepEngine().EvaluateCompletion(activeState, 
+                    if (sharedEngine.EvaluateCompletion(activeState, 
                             primaryValidationSatisfied,
                             AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction),
                         isTextEditTarget, Volatile.Read(ref textTargetCommitted) == 1) == GuideStepReconciliationResult.Completed)
@@ -575,7 +576,7 @@ public sealed class WindowsGuideRuntime
                     GuideStepReconciliationResult.WaitingForAction, _pollInterval, cancellationToken);
             }
 
-            await new UnifiedGuideStepEngine().RunAsync(activeState, (_, token) => ReconcileAsync(token), cancellationToken);
+            await sharedEngine.RunAsync(activeState, (_, token) => ReconcileAsync(token), cancellationToken);
         }
         finally
         {
