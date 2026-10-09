@@ -14,6 +14,7 @@ public interface IGuideStepAdapter
     string DiagnosticName { get; }
     Task ExecuteAsync(GuideStep step, int index, int total, GuideRunPlan plan, CancellationToken cancellationToken);
     Task ShowCenteredInformationAsync(GuideStep step, int total, CancellationToken cancellationToken);
+    Task CaptureAsync(GuideStep step, GuideRunPlan plan, CancellationToken cancellationToken);
 }
 
 /// <summary>Typed adapter wrapper for platform-specific step delegates.</summary>
@@ -21,17 +22,20 @@ public sealed class DelegateGuideStepAdapter : IGuideStepAdapter
 {
     private readonly Func<GuideStep, int, int, GuideRunPlan, CancellationToken, Task> _execute;
     private readonly Func<GuideStep, int, CancellationToken, Task> _showCentered;
+    private readonly Func<GuideStep, GuideRunPlan, CancellationToken, Task> _capture;
 
     public DelegateGuideStepAdapter(
         TargetRuntime runtime,
         string diagnosticName,
         Func<GuideStep, int, int, GuideRunPlan, CancellationToken, Task> execute,
-        Func<GuideStep, int, CancellationToken, Task> showCentered)
+        Func<GuideStep, int, CancellationToken, Task> showCentered,
+        Func<GuideStep, GuideRunPlan, CancellationToken, Task> capture)
     {
         Runtime = runtime;
         DiagnosticName = diagnosticName ?? throw new ArgumentNullException(nameof(diagnosticName));
         _execute = execute ?? throw new ArgumentNullException(nameof(execute));
         _showCentered = showCentered ?? throw new ArgumentNullException(nameof(showCentered));
+        _capture = capture ?? throw new ArgumentNullException(nameof(capture));
     }
 
     public TargetRuntime Runtime { get; }
@@ -43,6 +47,9 @@ public sealed class DelegateGuideStepAdapter : IGuideStepAdapter
 
     public Task ShowCenteredInformationAsync(GuideStep step, int total, CancellationToken cancellationToken)
         => _showCentered(step, total, cancellationToken);
+
+    public Task CaptureAsync(GuideStep step, GuideRunPlan plan, CancellationToken cancellationToken)
+        => _capture(step, plan, cancellationToken);
 }
 
 public sealed class GuideExecutionEngine
@@ -68,7 +75,11 @@ public sealed class GuideExecutionEngine
                 if (presentation == GuideStepPresentationKind.CenteredInformation)
                     await adapter.ShowCenteredInformationAsync(step, total, token);
                 else
+                {
+                    if (step.Capture is not null)
+                        await adapter.CaptureAsync(step, plan, token);
                     await adapter.ExecuteAsync(step, index, total, plan, token);
+                }
             },
             cancellationToken,
             onSkipped: step => Console.Error.WriteLine($"[DAP {diagnosticName} guide] skipped disabled Step {step.Order}/{plan.Steps.Count} '{step.Id}'."),
