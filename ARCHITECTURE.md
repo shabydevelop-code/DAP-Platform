@@ -109,7 +109,7 @@ The Web and Windows TestCRM runners expose normal execution as:
 - `--manual --guide <GuideId>`
 - `--hybrid --guide <GuideId>`
 
-The runner loads the explicitly selected persisted Guide and passes the same Guide ID to `DAP.exe --learner --guide <GuideId>`; it does not select the Guide implicitly.
+The runner loads the explicitly selected persisted Guide and passes the same Guide ID to `DAP.exe --guide <GuideId>`; it does not select the Guide implicitly.
 
 Maintenance/path options are:
 
