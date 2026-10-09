@@ -94,6 +94,37 @@ public sealed class UnifiedStepStateMachine
         return Decide(status, true, false);
     }
 
+    /// <summary>
+    /// Drive observations and presentation effects without polling inside the core.
+    /// The adapter controls its event source and supplies each subsequent observation.
+    /// </summary>
+    public async Task RunAsync(
+        Func<CancellationToken, Task<UnifiedStepObservation>> observeAsync,
+        Func<UnifiedPresentationAction, CancellationToken, Task> presentAsync,
+        Func<GuideStepReconciliationResult, CancellationToken, Task> waitAsync,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(observeAsync);
+        ArgumentNullException.ThrowIfNull(presentAsync);
+        ArgumentNullException.ThrowIfNull(waitAsync);
+
+        while (!Completed)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var decision = Advance(await observeAsync(cancellationToken));
+            if (decision.PresentationAction != UnifiedPresentationAction.None)
+            {
+                await presentAsync(decision.PresentationAction, cancellationToken);
+                AcknowledgePresentation(decision.PresentationAction);
+            }
+
+            if (decision.StepCompleted)
+                return;
+
+            await waitAsync(decision.Status, cancellationToken);
+        }
+    }
+
     /// <summary>Record that the platform completed the requested show/hide effect.</summary>
     public void AcknowledgePresentation(UnifiedPresentationAction action)
     {
