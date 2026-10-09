@@ -144,6 +144,34 @@ Check(delegatePresentations.SequenceEqual(new[] {
     UnifiedPresentationAction.Show, UnifiedPresentationAction.Hide
 }), "Delegate adapter bridges bubble lifecycle");
 
+var informationStep = new GuideStep("summary", 55, null,
+    new BubbleDefinition("Guide completed", BubblePlacement.Center),
+    AdvanceMode: StepAdvanceMode.Manual);
+var information = new UnifiedStepStateMachine(informationStep);
+var prematureDismissal = new UnifiedStepObservation(false, false, false, false,
+    false, false, ManualAdvanceRequested: true);
+Check(!information.Advance(prematureDismissal).StepCompleted,
+    "Centered information cannot dismiss before presentation");
+var informationShow = information.Advance(new UnifiedStepObservation(false, false, false, false,
+    false, false));
+Check(informationShow.PresentationAction == UnifiedPresentationAction.Show,
+    "Centered information requests presentation without a target");
+information.AcknowledgePresentation(informationShow.PresentationAction);
+Check(!information.Advance(new UnifiedStepObservation(false, false, false, false,
+    false, false)).StepCompleted, "Centered information waits for manual dismissal");
+Check(information.Advance(prematureDismissal).StepCompleted,
+    "Centered information completes after manual dismissal");
+Check(information.Advance(prematureDismissal).PresentationAction == UnifiedPresentationAction.None,
+    "Completed information never requests presentation again");
+
+var manualTarget = new UnifiedStepStateMachine(new GuideStep("manual-target", 1, null,
+    new BubbleDefinition("Manual"), AdvanceMode: StepAdvanceMode.Manual));
+Check(!manualTarget.Advance(Observation(primary: true, conditions: true)).StepCompleted,
+    "Manual target step ignores automatic validation");
+Check(manualTarget.Advance(new UnifiedStepObservation(true, true, true, true,
+    false, false, ManualAdvanceRequested: true)).StepCompleted,
+    "Manual target step advances only on explicit request");
+
 Console.WriteLine("All unified state-machine checks passed.");
 
 sealed class FakeUnifiedAdapter : IUnifiedStepPlatformAdapter
