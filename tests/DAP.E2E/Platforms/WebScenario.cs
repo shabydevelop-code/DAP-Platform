@@ -208,7 +208,8 @@ internal static class WebScenario
             () => browserProcess,
             () => ownedTestCrmProcess,
             () => ownedTestCrmBackendProcess);
-        
+
+        try
         {
             if (!packagedDiagnostics && !File.Exists(testCrmProject))
                 throw new FileNotFoundException("TestCRM Web project was not found.", testCrmProject);
@@ -768,7 +769,6 @@ internal static class WebScenario
         
             DAP.Testing.OwnedProcessCleanup.TryKillProcessTree(dapProcess);
             DAP.Testing.OwnedProcessCleanup.TryKillProcessTree(browserProcess);
-            if (testDriver is not null) await testDriver.DisposeAsync();
         
             if (ownedTestCrmProcess is not null)
             {
@@ -820,7 +820,13 @@ internal static class WebScenario
             {
             }
         }
-        
-        
+        finally
+        {
+            // Startup can fail before the inner run/finally is reached (e.g. testPing).
+            // Always terminate runner-owned processes, never arbitrary port owners.
+            ownedProcessCleanup.Cleanup();
+            if (testDriver is not null)
+                await testDriver.DisposeAsync();
+        }
     }
 }
