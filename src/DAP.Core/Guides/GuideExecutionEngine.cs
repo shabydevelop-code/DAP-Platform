@@ -72,7 +72,12 @@ public sealed class GuideActiveStepState
     }
     public bool ShouldApplyHybridValue(bool hybrid, bool targetResolved)
         => hybrid && targetResolved && !HybridValueApplied && !string.IsNullOrEmpty(_step.AutomationValue);
-    public void MarkHybridValueApplied() => HybridValueApplied = true;
+    public void MarkHybridValueApplied()
+    {
+        if (HybridValueApplied)
+            throw new InvalidOperationException($"Hybrid automation for Step '{_step.Id}' was already applied.");
+        HybridValueApplied = true;
+    }
 
     /// <summary>Delay and return the next lifecycle state without changing platform polling cadence.</summary>
     public static async Task<GuideStepReconciliationResult> WaitAsync(
@@ -88,8 +93,12 @@ public sealed class GuideActiveStepState
     /// <summary>Shared reaction to a missing context or target. Rendering stays
     /// platform-specific, while presentation invalidation is a core decision.</summary>
     public GuideStepReconciliationResult ObserveContext(bool contextActive)
-        => contextActive ? GuideStepReconciliationResult.WaitingForAction
-            : GuideStepReconciliationResult.WaitingForContext;
+    {
+        if (contextActive)
+            return GuideStepReconciliationResult.WaitingForAction;
+        InvalidatePresentation();
+        return GuideStepReconciliationResult.WaitingForContext;
+    }
 
     public GuideStepReconciliationResult ObserveTarget(bool targetResolved)
     {
@@ -102,7 +111,10 @@ public sealed class GuideActiveStepState
     public GuideStepReconciliationResult ObservePresentationStability(bool stable)
     {
         if (!stable)
+        {
+            InvalidatePresentation();
             return GuideStepReconciliationResult.WaitingForTarget;
+        }
         MarkPresentationReady();
         return GuideStepReconciliationResult.WaitingForAction;
     }
