@@ -23,6 +23,7 @@ public sealed class UnifiedWindowsStepAdapter : IUnifiedStepPlatformAdapter
     private readonly int _total;
     private readonly TimeSpan _waitInterval;
     private AutomationElement? _target;
+    private bool _targetPreviouslyResolved;
 
     public UnifiedWindowsStepAdapter(
         AutomationElement windowRoot, WindowsTargetResolver resolver,
@@ -44,7 +45,6 @@ public sealed class UnifiedWindowsStepAdapter : IUnifiedStepPlatformAdapter
         if (step.Target is null || step.Target.Runtime != TargetRuntime.Windows)
             throw new NotSupportedException("Unified Windows adapter requires a Windows target.");
         if (GuideStepExecutionPolicy.IsClickValidationStep(step)
-            || GuideStepExecutionPolicy.IsTargetDisappearanceStep(step)
             || step.CompletionConditions is { Count: > 0 })
             throw new NotSupportedException(
                 "Unified Windows adapter has not yet implemented event-based or completion-condition validation.");
@@ -53,17 +53,20 @@ public sealed class UnifiedWindowsStepAdapter : IUnifiedStepPlatformAdapter
         {
             var resolution = _resolver.Resolve(_windowRoot, step.Target);
             _target = resolution.Status == TargetResolutionStatus.Resolved ? resolution.Target : null;
+            _targetPreviouslyResolved |= _target is not null;
             var visible = _target is not null && !_target.Current.IsOffscreen
                 && !_target.Current.BoundingRectangle.IsEmpty;
             var primary = visible && step.Validation is not null
                 && _validation.IsSatisfied(_target!, step.Validation);
             return Task.FromResult(new UnifiedStepObservation(
-                true, _target is not null, visible, visible, primary, true));
+                true, _target is not null, visible, visible, primary, true,
+                TargetWasPreviouslyAvailable: _targetPreviouslyResolved));
         }
         catch (ElementNotAvailableException)
         {
             _target = null;
-            return Task.FromResult(new UnifiedStepObservation(true, false, false, false, false, false));
+            return Task.FromResult(new UnifiedStepObservation(true, false, false, false, false, false,
+                TargetWasPreviouslyAvailable: _targetPreviouslyResolved));
         }
     }
 
