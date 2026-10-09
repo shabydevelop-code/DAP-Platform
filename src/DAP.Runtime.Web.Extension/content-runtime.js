@@ -4,7 +4,7 @@
   // Do not return before registering the adapter endpoint. After an extension
   // reload a tab may still contain an older __dapWebRuntime object while the
   // new extension context needs to install its current message listener.
-  if (globalThis.__dapAdapterEndpointVersion === "0.4.6") {
+  if (globalThis.__dapAdapterEndpointVersion === "0.4.7") {
     // Re-injection / an already-live page must still wake the MV3 service
     // worker so it can (re)establish Native Messaging after DAP starts.
     try {
@@ -13,7 +13,7 @@
     } catch {}
     return;
   }
-  globalThis.__dapAdapterEndpointVersion = "0.4.6";
+  globalThis.__dapAdapterEndpointVersion = "0.4.7";
 
   // Register the adapter message endpoint before the legacy POC runtime is
   // initialized. Target resolution is looked up at message time, so an
@@ -24,7 +24,7 @@
     try {
       const command = message.command || {};
       if (command.type === "ping") {
-        sendResponse({ok:true,result:{ready:true,version:"0.4.6"}});
+        sendResponse({ok:true,result:{ready:true,version:"0.4.7"}});
         return;
       }
       if (command.type === "resolveFrameChild") {
@@ -1247,7 +1247,7 @@
 
   const existingRuntime = globalThis.__dapWebRuntime;
   globalThis.__dapWebRuntime = {
-    version: "0.4.6",
+    version: "0.4.7",
     resolveTarget,
     showBubble,
     hideBubble,
