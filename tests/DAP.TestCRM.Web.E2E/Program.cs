@@ -572,7 +572,7 @@ var dapStdErrLines=new System.Collections.Concurrent.ConcurrentQueue<string>();
 
 async Task<bool> WaitForHybridGuideStep(GuideStep expected)
 {
-    var startMarker=$"[DAP guide] starting Step {expected.Order}/{dapSteps.Count} '{expected.Id}'";
+    var startMarker=$"[DAP Web guide] starting Step {expected.Order}/{dapSteps.Count} '{expected.Id}'";
 
     // Hybrid mode may stop on a manual learner action for an arbitrary amount
     // of human time. The 5-second regression synchronization timeout must not
@@ -585,7 +585,7 @@ async Task<bool> WaitForHybridGuideStep(GuideStep expected)
 
         var laterStepObserved = dapStdErrLines.Any(line =>
         {
-            const string prefix = "[DAP guide] starting Step ";
+            const string prefix = "[DAP Web guide] starting Step ";
             if (!line.StartsWith(prefix, StringComparison.Ordinal))
                 return false;
 
@@ -671,7 +671,7 @@ dapProcess.ErrorDataReceived+=(_,eventArgs)=>
     if(eventArgs.Data is not null)
     {
         dapStdErrLines.Enqueue(eventArgs.Data);
-        if (eventArgs.Data.Contains("[DAP guide]", StringComparison.Ordinal)
+        if (eventArgs.Data.Contains("[DAP Web guide]", StringComparison.Ordinal)
             || eventArgs.Data.Contains("Exception", StringComparison.OrdinalIgnoreCase)
             || eventArgs.Data.Contains("Hybrid", StringComparison.OrdinalIgnoreCase)
             || eventArgs.Data.Contains("error", StringComparison.OrdinalIgnoreCase))
