@@ -46,4 +46,35 @@ await running.RunAsync(
     (_, _) => Task.CompletedTask,
     CancellationToken.None);
 Check(effects.SequenceEqual(new[] { UnifiedPresentationAction.Show, UnifiedPresentationAction.Hide }), "Loop applies show and hide once");
+var hybridStep = new GuideStep("hybrid", 1, null, new BubbleDefinition("Test"),
+    new ValidationDefinition("clicked"), AutomationValue: "alpha");
+var hybridMachine = new UnifiedStepStateMachine(hybridStep);
+Check(!hybridMachine.TryApplyHybridValue(new UnifiedStepOptions(UnifiedLearnerMode.Manual), true),
+    "Manual mode never applies automation");
+Check(!hybridMachine.TryApplyHybridValue(new UnifiedStepOptions(UnifiedLearnerMode.Hybrid), false),
+    "Hybrid mode waits for resolved target");
+Check(hybridMachine.TryApplyHybridValue(new UnifiedStepOptions(UnifiedLearnerMode.Hybrid), true),
+    "Hybrid applies persisted value once");
+Check(!hybridMachine.TryApplyHybridValue(new UnifiedStepOptions(UnifiedLearnerMode.Hybrid), true),
+    "Hybrid never reapplies the value");
+var emptyHybrid = Machine();
+Check(!emptyHybrid.TryApplyHybridValue(new UnifiedStepOptions(UnifiedLearnerMode.Hybrid), true),
+    "Hybrid skips steps without persisted automation value");
+
+var canceled = new CancellationTokenSource();
+canceled.Cancel();
+try
+{
+    await Machine().RunAsync(
+        _ => throw new Exception("Canceled run must not observe"),
+        (_, _) => Task.CompletedTask,
+        (_, _) => Task.CompletedTask,
+        canceled.Token);
+    throw new Exception("FAILED: Canceled run should throw");
+}
+catch (OperationCanceledException)
+{
+    Console.WriteLine("PASS: Canceled run stops before observation");
+}
+
 Console.WriteLine("All unified state-machine checks passed.");
