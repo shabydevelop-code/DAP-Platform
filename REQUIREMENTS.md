@@ -72,36 +72,11 @@
 
 The same persisted Guide must run with `DAP.exe --guide <GuideId> --mode manual|hybrid` (Manual default). Windows Hybrid uses the production learner and persisted AutomationValue, with UIA target resolution, writable ValuePattern checks, verified Edit commit via TAB, and runtime-owned validation and advancement. Steps without automation values remain manual. No TestCRM E2E driver or target application source may be required. Existing SQLite columns support the configuration. Web Hybrid product execution remains a required capability and is not yet implemented.
 
-## Shared guide execution policy
+## Shared guide execution — current implementation
 
-`DAP.Core.Guides.GuideRunPlan` is the common runtime-neutral owner of ordered Guide Steps, start-step selection, disabled-step lookahead, captured values, runtime capture-token substitution, and asynchronous step lifecycle orchestration. Both the Web adapter guide runtime and Windows guide runtime use it. Target resolution, active-step validation, bubble presentation, and UI-specific actions remain in their respective runtimes/adapters; a single unified active-step validation/presentation engine has **not** yet been implemented. Session termination and build-lock preflight are handled by the shared DAP.App host. Web tab/window activation remains an open gap; production Web Hybrid value automation is implemented but unverified. This is current architecture, not a completed full runtime unification.
-
-## Shared value-validation policy
-
-`DAP.Core.Guides.GuideValidationPolicy` now evaluates persisted `value-equals` and `value-not-empty` rules using observed values supplied by runtime adapters. `WindowsValidationEvaluator` delegates these checks to Core while retaining Windows UI Automation `ValuePattern` access. The Web browser adapter also delegates value checks to Core, preserving its existing missing-expected-value behavior. Web event/commit handling, completion conditions, target resolution, and bubble presentation are unchanged. This is a focused first step, not a completed unified active-step validation engine. A fresh build and Web/Windows regression are still required.
-
-### Shared completion-condition policy
-
-`DAP.Core.Guides.GuideCompletionPolicy` evaluates `target-exists`, `target-not-exists`, `target-enabled`, and `value-equals` from runtime observations. Both Web and Windows now delegate these four checks to Core. Target inspection/resolution remains adapter-specific; Windows `target-replaced` still compares UIA element identities locally. Web retains its previous treatment of unresolved targets for `target-not-exists`. Build and regression verification of this change are pending.
-
-### Production Web Hybrid implementation (pending regression)
-
-The production Web learner now accepts `DAP.exe --guide <GuideId> --mode hybrid`. After target resolution and presentation readiness, it applies persisted `AutomationValue` once through the extension to a uniquely resolved writable text input/textarea, using focus, native value setter, input/change events and blur. The normal validation/commit and completion-condition pipeline still controls advancement. Steps without `AutomationValue` remain user-operated. The extension command is production-scoped and does not invoke TestCRM test-driver operations. No claim of end-to-end PASS is made until a local build and full Web/Windows Manual/Hybrid regressions are reported. Non-text value automation and browser tab activation are not implemented.
-
-Standalone TestCRM Web Host opens the application in Chrome automatically after the five-second readiness check. DAP.exe remains a separate product process and does not own the target application's browser or servers. This host change requires a local Windows execution check.
-
-The standalone TestCRM Web Host treats user-requested Ctrl+C termination as normal shutdown, stops its owned Web and backend processes, and does not report their exit code 0 as an unexpected failure. Unexpected independent process exits remain errors. Requires local verification.
-
-Current implementation: both Web and Windows use the Core GuideExecutionEngine for guide sequence orchestration. Active step execution remains platform-specific; complete engine consolidation and Windows regression verification are outstanding.
-
-Core GuideStepExecutionPolicy now enforces centered information-step invariants for both Web and Windows, and Web hybrid value-step eligibility. Active-step loops remain platform-specific. Build and E2E regression are pending; do not mark engine consolidation complete.
-
-Both Web and Windows Hybrid value entry now apply the same Core GuideStepExecutionPolicy eligibility check. Platform-specific value assignment and active-step execution remain in the adapters. Full engine unification is not yet complete; build and regression verification pending.
-
-GuideStepExecutionPolicy now classifies centered-information versus target-attached steps consistently for Web and Windows, rejecting invalid target/presentation combinations. Web automatic-validation eligibility also delegates to Core. Active-step execution loops are still separate; Windows build and end-to-end regressions remain to be verified.
-
-Current consolidation: Core also owns the committed-text validation gate and primary/completion advancement decision. Windows uses both gates and Web uses the shared advancement decision. Platform-specific active-step loops remain; build and runtime regressions pending.
-
-Current architecture: GuideExecutionEngine dispatches through IGuideStepAdapter; Web and Windows provide DelegateGuideStepAdapter implementations. The engine owns step ordering, capture-token materialization, step-shape preflight and lifecycle diagnostics. Core now also owns the observed-action completion decision used for Web clicks and Windows click/target disappearance. Active-step reconciliation loops remain platform-specific; full consolidation and E2E regression tests are outstanding.
-
-GuideExecutionEngine now dispatches centered information steps via the adapter presentation callback. The platform-specific target-step reconciliation loops are not yet consolidated.
+- `DAP.Core.Guides.GuideExecutionEngine` owns Guide ordering, capture-token materialization, step-shape preflight, disabled-step handling, centered-information dispatch, and lifecycle diagnostics through `IGuideStepAdapter`.
+- `GuideStepReconciliationEngine` runs the active-step observation loop for both platforms. `GuideActiveStepState` owns shared completion decisions, hybrid-value application state, presentation readiness, and context/target/stability transitions. `GuideActiveStepState.WaitAsync` provides a common wait/state transition without changing existing polling intervals.
+- `GuideStepExecutionPolicy`, `GuideValidationPolicy`, and `GuideCompletionPolicy` contain runtime-independent classification and validation rules. Web DOM events and Windows UI Automation observations remain platform-specific.
+- Web and Windows still implement separate reconciliation callbacks and bubble/UI effects. Full unification of the active-step orchestration and event/presentation behavior is **not complete**; the core loop alone does not establish behavioral parity.
+- Latest reported local `DAP.App` compilation passed **before** the newest shared-wait changes. Those changes require a fresh build and both Manual/Hybrid regression runs (including from-step, navigation, target disappearance, text commit, focus, and completion).
+- Web startup browser activation parity with Windows remains an open item. No claim is made that end-to-end regressions passed.
