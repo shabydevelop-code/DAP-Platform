@@ -35,9 +35,8 @@ public sealed class AdapterWebLearnerRuntime
         GuideStep step, int stepNumber, int totalSteps, CancellationToken cancellationToken,
         bool showPresentation = true, Action? onReady = null)
     {
-        if (step.Bubble.Placement == BubblePlacement.Center)
+        if (GuideStepExecutionPolicy.Classify(step) == GuideStepPresentationKind.CenteredInformation)
         {
-            GuideStepExecutionPolicy.RequireCenteredInformationStep(step);
 
             if (showPresentation)
                 await _browser.WaitForCenteredStepDismissalAsync(step, stepNumber, totalSteps, cancellationToken);
@@ -46,10 +45,7 @@ public sealed class AdapterWebLearnerRuntime
             return;
         }
 
-        if (step.Target is null)
-            throw new InvalidOperationException($"Target-attached Guide Step '{step.Id}' must define a target.");
-
-        var automatic = step.AdvanceMode == StepAdvanceMode.AutomaticOnValidation && step.Validation is not null;
+        var automatic = GuideStepExecutionPolicy.IsAutomaticValidationStep(step);
         var clicked = automatic && string.Equals(step.Validation!.Kind, "clicked", StringComparison.Ordinal);
         // Every target-attached Step must wait for a quiet DOM window before
         // exposing its target. The previous Step may have completed as soon as
