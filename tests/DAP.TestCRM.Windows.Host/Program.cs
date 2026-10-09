@@ -73,7 +73,7 @@ try
 
     windows = Start(windowsExe, Path.GetDirectoryName(windowsExe)!);
     Console.WriteLine("TestCRM Windows is running independently of DAP.");
-    Console.WriteLine("Start DAP.exe --learner --guide testcrm-windows-canonical-workflow in another terminal.");
+    Console.WriteLine("Start DAP.exe --guide testcrm-windows-canonical-workflow in another terminal.");
     Console.WriteLine("Press Ctrl+C to stop the TestCRM host.");
 
     var serverExit = server.WaitForExitAsync();
