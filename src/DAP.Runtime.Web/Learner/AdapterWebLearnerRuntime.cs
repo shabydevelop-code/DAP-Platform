@@ -190,10 +190,10 @@ public sealed class AdapterWebLearnerRuntime
             {
                 var delay = Task.Delay(_stableReconcileInterval, cancellationToken);
                 await Task.WhenAny(commitTask, delay);
+                return GuideStepReconciliationResult.WaitingForValidation;
             }
-            else
-                await Task.Delay(_stableReconcileInterval, cancellationToken);
-            return GuideStepReconciliationResult.WaitingForValidation;
+            return await GuideActiveStepState.WaitAsync(
+                GuideStepReconciliationResult.WaitingForAction, _stableReconcileInterval, cancellationToken);
         }
 
         await new GuideStepReconciliationEngine().RunAsync(ReconcileAsync, cancellationToken);
