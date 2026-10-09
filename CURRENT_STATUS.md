@@ -64,13 +64,13 @@ Maintenance/path options:
 
 `demos/Web/Launcher` starts the TestCRM backend and Web application independently of DAP. It builds the application projects before starting a five-second Web readiness check, and keeps its owned TestCRM processes running until the host is stopped. The host opens Chrome at `http://localhost:5200` after Web readiness succeeds.
 
-In a separate shell, `dotnet build src\\DAP.App\\DAP.App.csproj` builds the product; `src\\DAP.App\\bin\\Debug\\net8.0-windows\\DAP.exe --guide testcrm-web-canonical-workflow` launches the Learner directly, without the E2E runner. DAP attaches to the already-open CRM through its persisted Web Application Context; it does not own the site or browser lifetime.
+In a separate shell, `dotnet build src\\DAP.App\\DAP.App.csproj` builds the product; `src\\DAP.App\\bin\\Debug\\net8.0-windows\\DAP.exe --guide sampleapp-web-guide` launches the Learner directly, without the E2E runner. DAP attaches to the already-open CRM through its persisted Web Application Context; it does not own the site or browser lifetime.
 
 The independent Web Manual workflow has been verified through completion of the 55-Step Guide: the DAP process exited at Guide completion while TestCRM and Chrome remained running. Web Hybrid was separately verified with a full 55-Step user run; this Manual result does not verify Windows.
 
 ## Independent Windows application and Learner execution
 
-`demos/Windows/Launcher` builds and starts the TestCRM backend and Windows application independently of DAP. After the backend is ready, it opens the Windows application and leaves both processes running. In another terminal, the product Learner can be launched directly with `DAP.exe --guide testcrm-windows-canonical-workflow`; the persisted `crm-windows` context resolves the already-open window. The host does not launch or own DAP. The standalone Windows host and independently launched Learner were reported successful in user testing. The target application remained open after Guide completion, and the Learner process appeared to terminate; this is not an automated process-lifetime verification. The standalone host treats normal Windows application exit code 0 as a clean shutdown; the fix still requires a fresh user runtime test.
+`demos/Windows/Launcher` builds and starts the TestCRM backend and Windows application independently of DAP. After the backend is ready, it opens the Windows application and leaves both processes running. In another terminal, the product Learner can be launched directly with `DAP.exe --guide sampleapp-windows-guide`; the persisted `crm-windows` context resolves the already-open window. The host does not launch or own DAP. The standalone Windows host and independently launched Learner were reported successful in user testing. The target application remained open after Guide completion, and the Learner process appeared to terminate; this is not an automated process-lifetime verification. The standalone host treats normal Windows application exit code 0 as a clean shutdown; the fix still requires a fresh user runtime test.
 
 ## Verification state
 
