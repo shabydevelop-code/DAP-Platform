@@ -35,8 +35,7 @@ public static class DapApplicationHost
 
         // A production Hybrid executor must own actions inside the learner runtime.
         // Never silently run a Hybrid request as Manual or delegate it to TestCRM E2E.
-        if (options.ExecutionMode == DapExecutionMode.Hybrid)
-            throw new NotSupportedException("Product Hybrid execution is not implemented yet. No learner actions were started; E2E test drivers are not a production Hybrid executor.");
+
 
         var databaseOptions = SqliteDatabaseOptions.CreateDefault();
         var connections = new SqliteConnectionFactory(databaseOptions);
@@ -182,7 +181,7 @@ public static class DapApplicationHost
 
         var resolver = new WindowsTargetResolver();
         var bubbles = new WindowsBubblePresenter(texts);
-        var runtime = new WindowsGuideRuntime(resolver, bubbles, automaticStepLabel: GetAutomaticStepLabel());
+        var runtime = new WindowsGuideRuntime(resolver, bubbles, automaticStepLabel: options.ExecutionMode == DapExecutionMode.Hybrid ? "אוטומט" : null, hybrid: options.ExecutionMode == DapExecutionMode.Hybrid);
 
         try
         {
@@ -239,6 +238,8 @@ public static class DapApplicationHost
         Stopwatch startup,
         CancellationToken cancellationToken)
     {
+        if (options.ExecutionMode == DapExecutionMode.Hybrid)
+            throw new NotSupportedException("Production Web Hybrid requires extension-side action execution and is not implemented; no guide actions were started.");
         using var browserAdapter = new ExtensionWebBrowserAdapter(texts);
         browserAdapter.ConfigureApplicationContexts(applicationContexts);
         var stepRuntime = new AdapterWebLearnerRuntime(browserAdapter, automaticStepLabel: GetAutomaticStepLabel());
