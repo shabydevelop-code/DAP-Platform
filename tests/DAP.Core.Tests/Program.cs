@@ -34,4 +34,14 @@ Check(engine.ObserveReadiness(readinessState, true, true, true)
     == GuideStepReconciliationResult.WaitingForAction,
     "Shared engine accepts a visible target in active context");
 
+Check(GuideStepExecutionPolicy.ShouldConsumeInvalidCommit(step, true, false) == false,
+    "Click commits are not consumed as invalid value edits");
+var valueStep = step with { Validation = new ValidationDefinition("value-not-empty") };
+Check(GuideStepExecutionPolicy.ShouldConsumeInvalidCommit(valueStep, true, false),
+    "Invalid value commits require another learner action");
+Check(!GuideStepExecutionPolicy.ShouldConsumeInvalidCommit(valueStep, true, true),
+    "Valid value commits are preserved while completion conditions settle");
+Check(!GuideStepExecutionPolicy.ShouldConsumeInvalidCommit(valueStep, false, false),
+    "No commit cannot be consumed");
+
 Console.WriteLine("All production shared-runtime checks passed.");
