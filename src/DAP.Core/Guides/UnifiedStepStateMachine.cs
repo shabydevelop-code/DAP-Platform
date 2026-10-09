@@ -11,7 +11,8 @@ public sealed record UnifiedStepObservation(
     bool IsTextEditTarget = false,
     bool TextEditCommitted = false,
     bool ActionObserved = false,
-    bool TargetWasPreviouslyAvailable = false);
+    bool TargetWasPreviouslyAvailable = false,
+    bool ManualAdvanceRequested = false);
 
 public enum UnifiedLearnerMode { Manual, Hybrid }
 
@@ -42,7 +43,7 @@ public sealed record UnifiedStepDecision(
 /// </summary>
 public sealed class UnifiedStepStateMachine
 {
-    private readonly GuideActiveStepState _state;
+    private bool _hybridValueApplied;
     private readonly GuideStep _step;
     private bool _presentationVisible;
     private bool _completed;
@@ -54,21 +55,21 @@ public sealed class UnifiedStepStateMachine
     public UnifiedStepStateMachine(GuideStep step)
     {
         _step = step ?? throw new ArgumentNullException(nameof(step));
-        _state = new GuideActiveStepState(step);
+        GuideStepExecutionPolicy.Classify(step);
     }
 
     public bool Completed => _completed;
-    public bool HybridValueApplied => _state.HybridValueApplied;
+    public bool HybridValueApplied => _hybridValueApplied;
 
-    public void MarkHybridValueApplied() => _state.MarkHybridValueApplied();
+    public void MarkHybridValueApplied() => _hybridValueApplied = true;
 
     /// <summary>Mark a single persisted hybrid action as executed; never repeat it.</summary>
     public bool TryApplyHybridValue(UnifiedStepOptions options, bool targetResolved)
     {
         ArgumentNullException.ThrowIfNull(options);
-        if (!options.CanApplyAutomation(_step, targetResolved, _state.HybridValueApplied))
+        if (!options.CanApplyAutomation(_step, targetResolved, _hybridValueApplied))
             return false;
-        _state.MarkHybridValueApplied();
+        _hybridValueApplied = true;
         return true;
     }
 
@@ -77,6 +78,12 @@ public sealed class UnifiedStepStateMachine
         ArgumentNullException.ThrowIfNull(observation);
         if (_completed)
             return new(GuideStepReconciliationResult.Completed, false, false, true);
+
+        if (_step.AdvanceMode == StepAdvanceMode.Manual && observation.ManualAdvanceRequested)
+        {
+            _completed = true;
+            return Decide(GuideStepReconciliationResult.Completed, false, true);
+        }
 
         _targetEverAvailable |= observation.TargetAvailable || observation.TargetWasPreviouslyAvailable;
         _actionLatched |= observation.ActionObserved;
@@ -90,38 +97,37 @@ public sealed class UnifiedStepStateMachine
         if (GuideStepExecutionPolicy.IsTargetDisappearanceStep(_step))
             primary |= _targetEverAvailable && !observation.TargetAvailable;
 
-        if (_state.EvaluateCompletion(primary, observation.CompletionConditionsSatisfied,
-                observation.IsTextEditTarget, _textEditCommitted)
-            == GuideStepReconciliationResult.Completed)
+        if (GuideStepExecutionPolicy.IsStepComplete(_step, primary,
+                observation.CompletionConditionsSatisfied,
+                observation.IsTextEditTarget, _textEditCommitted))
         {
             _completed = true;
             return Decide(GuideStepReconciliationResult.Completed, false, true);
         }
 
+        if (GuideStepExecutionPolicy.IsCenteredInformationStep(_step))
+            return Decide(GuideStepReconciliationResult.WaitingForAction, true, false);
+
         if (!observation.ContextActive)
         {
             _targetWasStable = false;
-            _state.ObserveContext(false);
             return Decide(GuideStepReconciliationResult.WaitingForContext, false, false);
         }
 
         if (!observation.TargetAvailable || !observation.TargetVisible)
         {
             _targetWasStable = false;
-            _state.ObservePresentationAvailability(observation.TargetAvailable, observation.TargetVisible);
             return Decide(GuideStepReconciliationResult.WaitingForTarget, false, false);
         }
 
         if (!observation.PresentationStable)
         {
-            _state.ObservePresentationStability(false);
             // A temporary unstable layout must not flash an already visible bubble.
             // A missing or invisible target is handled separately above.
             return Decide(GuideStepReconciliationResult.WaitingForTarget, _targetWasStable, false);
         }
 
         _targetWasStable = true;
-        _state.ObservePresentationStability(true);
         var status = primary
             ? GuideStepReconciliationResult.WaitingForValidation
             : GuideStepReconciliationResult.WaitingForAction;
