@@ -125,6 +125,25 @@ Check(!repeatedAction.Advance(Observation(action: true)).StepCompleted,
 Check(repeatedAction.Advance(Observation(conditions: true)).StepCompleted,
     "Repeated action completes once conditions hold");
 
+var delegateObservations = 0;
+var delegatePresentations = new List<UnifiedPresentationAction>();
+var delegateWaits = 0;
+var delegateAdapter = new DelegateUnifiedStepPlatformAdapter(
+    (_, _) => Task.FromResult(new UnifiedStepObservation(true, true, true, true,
+        ++delegateObservations > 1, delegateObservations > 1)),
+    (_, action, _) => { delegatePresentations.Add(action); return Task.CompletedTask; },
+    (_, _, _) => throw new Exception("Manual run must not automate"),
+    (_, _, _) => { delegateWaits++; return Task.CompletedTask; });
+await new UnifiedStepRunner().RunAsync(
+    new GuideStep("delegate", 1, null, new BubbleDefinition("Test"),
+        new ValidationDefinition("clicked")),
+    new UnifiedStepOptions(UnifiedLearnerMode.Manual),
+    delegateAdapter, CancellationToken.None);
+Check(delegateWaits == 1, "Delegate adapter receives wait notifications");
+Check(delegatePresentations.SequenceEqual(new[] {
+    UnifiedPresentationAction.Show, UnifiedPresentationAction.Hide
+}), "Delegate adapter bridges bubble lifecycle");
+
 Console.WriteLine("All unified state-machine checks passed.");
 
 sealed class FakeUnifiedAdapter : IUnifiedStepPlatformAdapter
