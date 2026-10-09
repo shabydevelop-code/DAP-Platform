@@ -20,11 +20,12 @@ internal static class E2eRunner
 
         using var process = Process.Start(start) ?? throw new InvalidOperationException("Unable to start E2E runner.");
         using var cancellation = new CancellationTokenSource();
+        using var ownedProcessCleanup = new DAP.Testing.OwnedProcessCleanup(() => process);
         ConsoleCancelEventHandler cancel = (_, eventArgs) =>
         {
             eventArgs.Cancel = true;
             cancellation.Cancel();
-            StopProcess(process);
+            ownedProcessCleanup.Cleanup();
         };
         Console.CancelKeyPress += cancel;
         try
@@ -39,18 +40,8 @@ internal static class E2eRunner
         finally
         {
             Console.CancelKeyPress -= cancel;
-            StopProcess(process);
+            ownedProcessCleanup.Cleanup();
         }
     }
 
-    private static void StopProcess(Process process)
-    {
-        try
-        {
-            if (!process.HasExited)
-                process.Kill(entireProcessTree: true);
-        }
-        catch (InvalidOperationException) { }
-        catch (System.ComponentModel.Win32Exception) { }
-    }
 }
