@@ -126,3 +126,7 @@ Automated technical waits must not be increased beyond five seconds without expl
 ## Next product phase
 
 Instructor/Editor is the next major product phase. It must author the same persisted model used by Learner. AI may be optional assistance but cannot be required for production authoring or execution.
+
+## Product execution modes
+
+The production learner accepts `DAP.exe --guide <GuideId> --mode manual` (or omits `--mode`, defaulting to Manual). The product also parses `--mode hybrid`, but explicitly rejects it as unsupported before starting a Guide: persisted `AutomationValue` actions are currently executed by TestCRM-specific E2E drivers, not by the production learner. Hybrid is **not** a completed product feature. The required design is a runtime-owned action executor for both Web and Windows, with explicit persisted automation authorization, unique target resolution, learner-owned validation/progression, and no dependency on TestCRM, test-driver protocol or target application source. One Guide must support both modes. E2E runners remain test harnesses only. Instructor launch is not decided.
