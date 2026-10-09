@@ -148,7 +148,8 @@ public sealed class AdapterWebLearnerRuntime
                     !string.IsNullOrEmpty(step.AutomationValue) ? _automaticStepLabel : null);
             }
 
-            if (activeState.ObserveTarget(presentation.Status == WebTargetResolutionStatus.Resolved)
+            if (activeState.ObservePresentationAvailability(
+                presentation.Status == WebTargetResolutionStatus.Resolved, visible: true)
                 == GuideStepReconciliationResult.WaitingForTarget)
             {
                 await _browser.HideBubbleAsync(cancellationToken);
