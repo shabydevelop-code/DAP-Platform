@@ -3,7 +3,7 @@ using Microsoft.Data.Sqlite;
 var builder = WebApplication.CreateBuilder(args);
 var app = builder.Build();
 
-app.Use(async (context,next)=>{if(context.Request.Path.StartsWithSegments("/api") && context.Request.Headers["X-DAP-E2E-Mode"].ToString()!="fast")await Task.Delay(650);await next();});
+
 
 var testCrmRoot = Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, ".."));
 var dataDirectory = Path.Combine(testCrmRoot, "data");
@@ -56,7 +56,7 @@ app.MapPut("/api/sites/{id:int}", async (HttpContext context, int id, SiteInput 
 {
     if (!Exists("SELECT 1 FROM Sites WHERE Id=$id", id)) return Results.NotFound();
     var errors=ValidateSite(x); if(errors.Count>0)return Results.ValidationProblem(errors);
-    if (context.Request.Headers["X-DAP-E2E-Mode"].ToString()!="fast") await Task.Delay(450);
+
     Exec("UPDATE Sites SET Name=$a,Type=$b,Address=$c WHERE Id=$id",id,x.Name,x.Type,x.Address);
     return Results.Ok(new Site(id,GetInt("SELECT CustomerId FROM Sites WHERE Id=$id",id),x.Name,x.Type,x.Address));
 });
