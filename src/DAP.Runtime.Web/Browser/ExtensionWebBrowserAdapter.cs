@@ -518,6 +518,21 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             cancellationToken);
         return interactableResponse.GetProperty("result").GetProperty("interactable").GetBoolean();
     }
+    public async Task ApplyAutomationValueAsync(GuideStep step, CancellationToken cancellationToken = default)
+    {
+        if (step.Target is null || string.IsNullOrEmpty(step.AutomationValue))
+            throw new InvalidOperationException($"Web Hybrid Step '{step.Id}' has no automation target/value.");
+        if (step.AdvanceMode != StepAdvanceMode.AutomaticOnValidation ||
+            step.Validation is null || !GuideValidationPolicy.IsValueValidation(step.Validation))
+            throw new InvalidOperationException($"Web Hybrid Step '{step.Id}' requires automatic value validation.");
+        var response = await SendCommandAsync(ContextualCommand(step, new
+        {
+            type = "applyAutomationValue", target = step.Target,
+            framePath = step.Target.FrameContext?.Path, value = step.AutomationValue
+        }), cancellationToken);
+        if (response.GetProperty("result").GetProperty("status").GetString() != "applied")
+            throw new InvalidOperationException($"Web Hybrid Step '{step.Id}' could not resolve its unique writable target.");
+    }
     public async Task<bool> IsPrimaryValidationSatisfiedAsync(GuideStep step, CancellationToken cancellationToken = default)
     {
         if (step.Validation is null || step.Target is null) return false;
