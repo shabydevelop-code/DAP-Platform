@@ -83,7 +83,8 @@ public sealed class WindowsGuideRuntime
                 preExistingTargetForCurrentStep = nextTargetBeforeCurrentAction;
             },
             (step, total, token) => _bubbles.WaitForCenteredStepDismissalAsync(
-                step, step.Order, total, token)),
+                step, step.Order, total, token),
+            (step, plan, token) => Task.CompletedTask),
             cancellationToken,
             startStepOrder,
             initialCapturedValues);
