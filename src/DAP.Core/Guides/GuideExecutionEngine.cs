@@ -2,10 +2,6 @@ using DAP.Core.Targets;
 
 namespace DAP.Core.Guides;
 
-/// <summary>
-/// Environment-independent execution coordinator. Platform adapters own only
-/// platform-specific step operations; ordering, captures and lifecycle live here.
-/// </summary>
 /// <summary>Platform boundary for an active guide step. The engine owns ordering,
 /// materialization, validation of step shape and lifecycle diagnostics.</summary>
 public interface IGuideStepAdapter
@@ -77,6 +73,18 @@ public sealed class GuideActiveStepState
     public bool ShouldApplyHybridValue(bool hybrid, bool targetResolved)
         => hybrid && targetResolved && !HybridValueApplied && !string.IsNullOrEmpty(_step.AutomationValue);
     public void MarkHybridValueApplied() => HybridValueApplied = true;
+
+    /// <summary>Delay and return the next lifecycle state without changing platform polling cadence.</summary>
+    public static async Task<GuideStepReconciliationResult> WaitAsync(
+        GuideStepReconciliationResult reason, TimeSpan interval, CancellationToken cancellationToken)
+    {
+        if (reason == GuideStepReconciliationResult.Completed)
+            throw new ArgumentException("A completed step cannot wait.", nameof(reason));
+        if (!Enum.IsDefined(reason))
+            throw new ArgumentOutOfRangeException(nameof(reason));
+        await Task.Delay(interval, cancellationToken);
+        return reason;
+    }
     /// <summary>Shared reaction to a missing context or target. Rendering stays
     /// platform-specific, while presentation invalidation is a core decision.</summary>
     public GuideStepReconciliationResult ObserveContext(bool contextActive)
