@@ -92,7 +92,7 @@ public static class DapApplicationHost
         return enabledTargetRuntimes[0] switch
         {
             DAP.Core.Targets.TargetRuntime.Windows => await RunWindowsAsync(
-                options, steps, resumeContext, texts, startup, cancellationToken),
+                options, steps, applicationContexts, resumeContext, texts, startup, cancellationToken),
             DAP.Core.Targets.TargetRuntime.Web => await RunWebAsync(
                 options, steps, applicationContexts, resumeContext, texts, startup, cancellationToken),
             _ => throw new NotSupportedException(
@@ -157,13 +157,23 @@ public static class DapApplicationHost
     private static async Task<int> RunWindowsAsync(
         DapLaunchOptions options,
         IReadOnlyList<DAP.Core.Guides.GuideStep> steps,
+        IReadOnlyList<DAP.Core.Guides.GuideApplicationContext> applicationContexts,
         IReadOnlyDictionary<string, string> resumeContext,
         IUiTextProvider texts,
         Stopwatch startup,
         CancellationToken cancellationToken)
     {
-        var window = await WaitForWindowAsync(options.WindowAutomationId!, cancellationToken);
-        StartupMark(startup, $"Windows target window resolved ({options.WindowAutomationId})");
+        var windowsContexts = applicationContexts.Where(context => context.Runtime == DAP.Core.Targets.TargetRuntime.Windows).ToArray();
+        AutomationElement window;
+        if (windowsContexts.Length == 1)
+            window = new WindowsApplicationContextResolver().Resolve(windowsContexts[0]);
+        else if (windowsContexts.Length > 1)
+            throw new NotSupportedException("Multiple Windows application contexts require per-step context resolution.");
+        else if (!string.IsNullOrWhiteSpace(options.WindowAutomationId))
+            window = await WaitForWindowAsync(options.WindowAutomationId, cancellationToken);
+        else
+            throw new InvalidOperationException("Windows Guide requires a persisted application context or --window-automation-id.");
+        StartupMark(startup, "Windows target window resolved");
 
         var resolver = new WindowsTargetResolver();
         var bubbles = new WindowsBubblePresenter(texts);
