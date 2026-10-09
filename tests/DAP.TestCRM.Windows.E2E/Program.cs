@@ -59,7 +59,7 @@ if (args.Contains("--reset-guide", StringComparer.OrdinalIgnoreCase))
 
 var runOptions = DAP.Testing.E2eRunOptions.Parse(args, "Windows");
 var publishedDapDirectory = runOptions.PublishedDapDirectory;
-var guideId = runOptions.GuideId;
+var guideId = runOptions.GuideId ?? (runOptions.ResetGuide ? string.Empty : throw new ArgumentException("--guide <GuideId> is required."));
 var manual = runOptions.Manual;
 var hybrid = runOptions.Hybrid;
 
