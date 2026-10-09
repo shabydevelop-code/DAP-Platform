@@ -125,7 +125,9 @@ public sealed class AdapterWebLearnerRuntime
                         TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
                         TaskScheduler.Default);
 
-                    if (await _browser.AreCompletionConditionsSatisfiedAsync(step, cancellationToken))
+                    if (activeState.EvaluateCompletion(
+                        true,
+                        await _browser.AreCompletionConditionsSatisfiedAsync(step, cancellationToken)) == GuideStepReconciliationResult.Completed)
                     {
                         await _browser.HideBubbleAsync(cancellationToken);
                         return GuideStepReconciliationResult.Completed;
