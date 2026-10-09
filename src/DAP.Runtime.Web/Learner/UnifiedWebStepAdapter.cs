@@ -16,7 +16,9 @@ public sealed class UnifiedWebStepAdapter : IUnifiedStepPlatformAdapter
     private readonly TimeSpan _waitInterval;
     private Task<WebValidationCommit?>? _commit;
     private bool _armed;
-    private bool _commitLatched;
+    private bool _clickLatched;
+    private bool _valueLatched;
+    private bool _previouslyResolved;
 
     public UnifiedWebStepAdapter(
         IWebBrowserAdapter browser, int number, int total,
@@ -32,18 +34,32 @@ public sealed class UnifiedWebStepAdapter : IUnifiedStepPlatformAdapter
     public async Task<UnifiedStepObservation> ObserveAsync(GuideStep step, CancellationToken token)
     {
         if (_commit is { IsCompletedSuccessfully: true } && _commit.Result is not null)
-            _commitLatched = true;
+        {
+            if (GuideStepExecutionPolicy.IsClickValidationStep(step))
+                _clickLatched = true;
+            else if (!_valueLatched)
+            {
+                _valueLatched = await _browser.IsPrimaryValidationSatisfiedAsync(step, token);
+                if (!_valueLatched)
+                {
+                    await _browser.ConsumeValidationCommitAsync(step, token);
+                    _commit = _browser.WaitForArmedValidationCommitAsync(step, token);
+                }
+            }
+        }
         var context = await _browser.IsContextActiveAsync(step, token);
         if (!context)
             return new(false, false, false, false,
-                _commitLatched && GuideStepExecutionPolicy.IsClickValidationStep(step),
+                _clickLatched || _valueLatched,
                 await _browser.AreCompletionConditionsSatisfiedAsync(step, token),
-                ActionObserved: _commitLatched && GuideStepExecutionPolicy.IsClickValidationStep(step));
+                ActionObserved: _clickLatched,
+                TargetWasPreviouslyAvailable: _previouslyResolved);
 
         var resolution = step.Target is null
             ? new WebTargetResolution(WebTargetResolutionStatus.Resolved)
             : await _browser.ResolveTargetAsync(step.Target, token);
         var resolved = resolution.Status == WebTargetResolutionStatus.Resolved;
+        _previouslyResolved |= resolved;
         if (resolved && !_armed && GuideStepExecutionPolicy.IsAutomaticValidationStep(step))
         {
             await _browser.ArmValidationAsync(step, token);
@@ -52,11 +68,14 @@ public sealed class UnifiedWebStepAdapter : IUnifiedStepPlatformAdapter
         }
 
         var committed = _commit?.IsCompletedSuccessfully == true && _commit.Result is not null;
-        var primary = committed && await _browser.IsPrimaryValidationSatisfiedAsync(step, token);
+        var primary = _clickLatched || _valueLatched;
+        if (committed && !primary)
+            primary = await _browser.IsPrimaryValidationSatisfiedAsync(step, token);
         var conditions = await _browser.AreCompletionConditionsSatisfiedAsync(step, token);
         var stable = resolved && await _browser.IsStableForPresentationAsync(step, _quietWindow, token);
         return new(true, resolved, resolved, stable, primary, conditions,
-            ActionObserved: committed && GuideStepExecutionPolicy.IsClickValidationStep(step));
+            ActionObserved: _clickLatched,
+            TargetWasPreviouslyAvailable: _previouslyResolved);
     }
 
     public async Task SetPresentationAsync(GuideStep step, UnifiedPresentationAction action, CancellationToken token)
