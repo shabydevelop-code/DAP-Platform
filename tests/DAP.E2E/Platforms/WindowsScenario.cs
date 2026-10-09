@@ -79,13 +79,15 @@ internal static class WindowsScenario
             await new SqliteDatabaseInitializer(factory).InitializeAsync();
             var repository = new SqliteGuideStepRepository(factory);
             var persistedSteps = await repository.GetStepsAsync(guideId);
-            var expectedStepCount = DapTestCrmWindowsGuideSeed.CreateSteps().Count;
-        
-            if (persistedSteps.Count != expectedStepCount)
+            if (persistedSteps.Count == 0)
                 throw new InvalidOperationException(
-                    $"Guide '{guideId}' contains {persistedSteps.Count} persisted Steps, " +
-                    $"but the current seed defines {expectedStepCount}. Run this project once with --reset-guide first.");
-        
+                    $"Guide '{guideId}' has no persisted Steps. Initialize the Guide explicitly before running E2E.");
+            if (persistedSteps.Select(step => step.Order).Distinct().Count() != persistedSteps.Count ||
+                persistedSteps.Min(step => step.Order) != 1 ||
+                persistedSteps.Max(step => step.Order) != persistedSteps.Count)
+                throw new InvalidOperationException(
+                    $"Guide '{guideId}' must have contiguous unique Step orders 1..{persistedSteps.Count}.");
+
             var contexts = await repository.GetApplicationContextsAsync(guideId);
             var hasPersistedWindowContext = contexts.Any(context =>
                 context.Runtime == DAP.Core.Targets.TargetRuntime.Windows);
