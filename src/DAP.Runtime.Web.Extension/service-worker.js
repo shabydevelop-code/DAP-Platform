@@ -660,6 +660,9 @@ async function handleNativeMessage(message) {
       const focusedWindow = await chrome.windows.getLastFocused();
       if (focusedWindow.id !== tab.windowId || !focusedWindow.focused)
         throw new Error("DAP could not bring the resolved browser window to the foreground.");
+      const activeTab = await chrome.tabs.get(tabId);
+      if (activeTab.title && port)
+        port.postMessage({ type: "adapterEvent", payload: { type: "activate-target-window", title: activeTab.title, applicationContextKey: envelope.applicationContextKey } });
       activatedProductionSessions.add(String(message.sessionId || "production") + ":" + envelope.applicationContextKey);
     }
 
