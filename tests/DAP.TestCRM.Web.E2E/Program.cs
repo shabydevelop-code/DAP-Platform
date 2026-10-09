@@ -703,23 +703,8 @@ if (hybrid)
             continue;
         }
 
-        var order = step.Order;
-        if (string.IsNullOrEmpty(step.AutomationValue) || step.Target is null)
-            continue;
+        // Hybrid values are applied by the production runtime, not the test driver.
 
-        var selector = step.Target.Locator.Value;
-        if (testDriver is null)
-            throw new InvalidOperationException("Hybrid test driver is not available.");
-        var tagResponse = await testDriver.LocatorAsync("dap-content", selector, "tagName");
-        var tag = tagResponse.GetProperty("result").GetProperty("value").GetString() ?? "";
-
-        if (tag == "SELECT")
-            await Select(selector, step.AutomationValue);
-        else if (tag is "INPUT" or "TEXTAREA")
-            await Fill(selector, step.AutomationValue);
-        else
-            throw new InvalidOperationException(
-                $"Hybrid automation value on Step {order} '{step.Id}' targets unsupported element '{tag}'.");
     }
 
     if (dapProcess is null)
