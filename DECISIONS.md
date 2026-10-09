@@ -132,3 +132,5 @@ GuideStepExecutionPolicy now classifies centered-information versus target-attac
 Current consolidation: Core GuideStepExecutionPolicy owns automatic validation, click and target-disappearance classification, plus the committed-text validation gate and primary/completion advancement decision. Windows uses both new gates; Web uses the shared advancement decision. Platform-specific active-step loops remain; full engine unification and runtime regressions are pending.
 
 Current architecture: GuideExecutionEngine dispatches through IGuideStepAdapter; Web and Windows provide DelegateGuideStepAdapter implementations. The engine owns step ordering, capture-token materialization, step-shape preflight and lifecycle diagnostics. Core now also owns the observed-action completion decision used for Web clicks and Windows click/target disappearance. Active-step reconciliation loops remain platform-specific; full consolidation and E2E regression tests are outstanding.
+
+GuideExecutionEngine now dispatches centered information steps via the adapter presentation callback. The platform-specific target-step reconciliation loops are not yet consolidated.
