@@ -33,7 +33,8 @@ public sealed class AdapterWebLearnerRuntime
 
     public async Task RunActiveStepAsync(
         GuideStep step, int stepNumber, int totalSteps, CancellationToken cancellationToken,
-        bool showPresentation = true, Action? onReady = null)
+        bool showPresentation = true, Action? onReady = null,
+        Func<CancellationToken, Task>? onTargetObserved = null)
     {
         if (GuideStepExecutionPolicy.Classify(step) == GuideStepPresentationKind.CenteredInformation)
         {
@@ -164,6 +165,11 @@ public sealed class AdapterWebLearnerRuntime
                 // boundary for learner input, independent of presentation.
                 onReady?.Invoke();
             }
+
+            // Observe captures only against a resolved target. The guide layer
+            // owns persistence and the shared core owns capture timing.
+            if (presentation.Status == WebTargetResolutionStatus.Resolved && onTargetObserved is not null)
+                await onTargetObserved(cancellationToken);
 
             if (activeState.ShouldApplyHybridValue(_hybrid, presentation.Status == WebTargetResolutionStatus.Resolved))
             {
