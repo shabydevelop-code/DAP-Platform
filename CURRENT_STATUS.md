@@ -78,10 +78,8 @@ Current Manual/Hybrid behavior is persisted-data-driven on both runtimes. Window
 
 Do not claim a fresh full-guide regression unless such a run has actually been completed.
 
-## Product execution modes
+## Production execution status
 
-The production learner accepts `DAP.exe --guide <GuideId> --mode manual` (or omits `--mode`, defaulting to Manual). The product also parses `--mode hybrid`, but explicitly rejects it as unsupported before starting a Guide: persisted `AutomationValue` actions are currently executed by TestCRM-specific E2E drivers, not by the production learner. Hybrid is **not** a completed product feature. The required design is a runtime-owned action executor for both Web and Windows, with explicit persisted automation authorization, unique target resolution, learner-owned validation/progression, and no dependency on TestCRM, test-driver protocol or target application source. One Guide must support both modes. E2E runners remain test harnesses only. Instructor launch is not decided.
+The same persisted Guide supports `DAP.exe --guide <GuideId> --mode manual|hybrid` (Manual is the default). Windows production Hybrid reads AutomationValue from SQLite and enters it through UIA ValuePattern on resolved writable targets. For Edit controls it verifies focus, value entry, and TAB blur before the runtime evaluates the existing validation and completion conditions. Steps without an automation value remain user-operated. The product path does not call the TestCRM E2E driver.
 
-Current implementation: Windows production Hybrid applies persisted AutomationValue through UIA ValuePattern on the uniquely resolved Step target; this is not yet build-tested or end-to-end verified. Web production Hybrid is rejected until the extension supports runtime-owned actions. The shared production executor is incomplete.
-
-Windows Hybrid production path: after unique UIA target resolution and active-window verification, the learner writes persisted AutomationValue via ValuePattern. For Edit controls it requires focus, confirms the value, sends TAB, verifies focus loss and then uses the existing runtime validation and completion conditions. Non-value steps remain learner-driven. The Windows implementation is committed but has not been built or exercised on Windows in this session; production Web Hybrid remains unimplemented and explicitly rejected.
+The user reported the Windows Hybrid run appeared correct. A full-guide regression is not independently documented, so do not mark one PASS. The existing database schema and automatic column initialization support this feature without a new migration. Web production Hybrid is still explicitly unsupported; Web E2E Hybrid is test-only.
