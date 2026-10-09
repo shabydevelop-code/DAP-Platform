@@ -239,7 +239,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
                 {
                     type = "adapterCommand",
                     requestId,
-                    sessionId = _useApplicationContexts ? null : _sessionId,
+                    sessionId = _sessionId,
                     command
                 },
                 json);
