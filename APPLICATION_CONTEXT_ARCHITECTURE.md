@@ -218,7 +218,7 @@ Changing from a Web Step to a Windows Step does not itself launch the Windows ap
 The external launch contract remains Guide-driven:
 
 ```text
-DAP.exe --learner --guide <GuideId>
+DAP.exe --guide <GuideId>
 ```
 
 Current implementation note: the existing launcher still requires enabled targeted Steps in a Guide to belong to exactly one Runtime. Cross-runtime orchestration described here is the target architecture and is not yet implemented.
