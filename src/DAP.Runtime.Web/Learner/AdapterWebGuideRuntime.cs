@@ -24,19 +24,16 @@ public sealed class AdapterWebGuideRuntime
         await new GuideExecutionEngine().RunAsync(
             guideSteps,
             new DelegateGuideStepAdapter(TargetRuntime.Web, "Web",
-            async (step, index, total, plan, token) =>
+            (step, index, total, plan, token) =>
+                _steps.RunActiveStepAsync(step, step.Order, total, token),
+            (step, total, token) => _browser.WaitForCenteredStepDismissalAsync(step, step.Order, total, token),
+            async (step, plan, token) =>
             {
-                if (step.Capture is not null)
-                {
-                    var value = await _browser.CaptureAsync(step, token);
-                    if (value is null)
-                        throw new InvalidOperationException($"Guide Step '{step.Id}' declares a Web capture that could not be resolved.");
-                    plan.Captures[step.Id] = value;
-                }
-
-                await _steps.RunActiveStepAsync(step, step.Order, total, token);
-            },
-            (step, total, token) => _browser.WaitForCenteredStepDismissalAsync(step, step.Order, total, token)),
+                var value = await _browser.CaptureAsync(step, token);
+                if (value is null)
+                    throw new InvalidOperationException($"Guide Step '{step.Id}' declares a Web capture that could not be resolved.");
+                plan.Captures[step.Id] = value;
+            }),
             cancellationToken,
             startStepOrder,
             initialCapturedValues);
