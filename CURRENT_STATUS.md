@@ -108,7 +108,8 @@ Each DAP.exe invocation owns one learner session. After the guide runtime and cl
 
 ## Unified E2E project migration
 
-- `tests/DAP.E2E/` is introduced as a single CLI entry point with `--platform web|windows` and forwarded existing runner arguments.
+- `tests/DAP.E2E/` provides one CLI entry point with `--platform web|windows`; its `Runner/E2eRunner.cs` owns process execution/cancellation, and `Platforms/PlatformProject.cs` resolves the legacy platform runner during migration.
 - **Transitional only:** the unified entry point currently delegates to the existing Web/Windows E2E projects. It is not yet a consolidated orchestration engine or replacement for the platform-specific runner code.
 - Do not delete `tests/DAP.TestCRM.Web.E2E/` or `tests/DAP.TestCRM.Windows.E2E/` until platform adapters, shared orchestration and all regression paths have moved and passed verification.
 - The new project has not yet been built or run on the user's machine.
+- The new thin entry point and its extracted runner/route components still require a post-change build and runtime verification.
