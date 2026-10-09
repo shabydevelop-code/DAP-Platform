@@ -55,7 +55,8 @@ public sealed class UnifiedStepStateMachine
     public UnifiedStepStateMachine(GuideStep step)
     {
         _step = step ?? throw new ArgumentNullException(nameof(step));
-        GuideStepExecutionPolicy.Classify(step);
+        if (step.Bubble.Placement == BubblePlacement.Center)
+            GuideStepExecutionPolicy.RequireCenteredInformationStep(step);
     }
 
     public bool Completed => _completed;
