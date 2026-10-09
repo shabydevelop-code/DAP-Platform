@@ -162,8 +162,7 @@ public sealed class WindowsGuideRuntime
                     == GuideStepReconciliationResult.WaitingForContext)
                 {
                     await _bubbles.HideAsync();
-                    await Task.Delay(_pollInterval, cancellationToken);
-                    return GuideStepReconciliationResult.WaitingForContext;
+                    return await GuideActiveStepState.WaitAsync(\n                        GuideStepReconciliationResult.WaitingForContext, _pollInterval, cancellationToken);
                 }
 
                 // Completion is evaluated before the source context. A valid learner
@@ -181,8 +180,7 @@ public sealed class WindowsGuideRuntime
                     == GuideStepReconciliationResult.WaitingForContext)
                 {
                     await _bubbles.HideAsync();
-                    await Task.Delay(_pollInterval, cancellationToken);
-                    return GuideStepReconciliationResult.WaitingForContext;
+                    return await GuideActiveStepState.WaitAsync(\n                        GuideStepReconciliationResult.WaitingForContext, _pollInterval, cancellationToken);
                 }
 
                 TargetResolution<AutomationElement> resolution;
@@ -209,8 +207,7 @@ public sealed class WindowsGuideRuntime
                             true,
                             AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction)) == GuideStepReconciliationResult.Completed)
                         return GuideStepReconciliationResult.Completed;
-                    await Task.Delay(_pollInterval, cancellationToken);
-                    return activeState.ObserveTarget(false);
+                    return await GuideActiveStepState.WaitAsync(\n                        activeState.ObserveTarget(false), _pollInterval, cancellationToken);
                 }
 
                 if (resolution.Status != TargetResolutionStatus.Resolved || resolution.Target is null)
@@ -222,8 +219,7 @@ public sealed class WindowsGuideRuntime
                             true,
                             AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction)) == GuideStepReconciliationResult.Completed)
                         return GuideStepReconciliationResult.Completed;
-                    await Task.Delay(_pollInterval, cancellationToken);
-                    return GuideStepReconciliationResult.WaitingForTarget;
+                    return await GuideActiveStepState.WaitAsync(\n                        GuideStepReconciliationResult.WaitingForTarget, _pollInterval, cancellationToken);
                 }
 
                 var target = resolution.Target;
@@ -373,8 +369,7 @@ public sealed class WindowsGuideRuntime
                     {
                         Console.Error.WriteLine(
                             $"[DAP Windows guide] Step '{step.Id}' centered initial target in its scroll viewport.");
-                        await Task.Delay(_pollInterval, cancellationToken);
-                        return GuideStepReconciliationResult.WaitingForAction;
+                        return await GuideActiveStepState.WaitAsync(\n                            GuideStepReconciliationResult.WaitingForAction, _pollInterval, cancellationToken);
                     }
                 }
 
@@ -388,8 +383,7 @@ public sealed class WindowsGuideRuntime
                     if (step.Id == "testcrm-windows-back-to-cases")
                         Console.Error.WriteLine($"[DAP Windows guide diagnostic] Step '{step.Id}' target has no visible bounds.");
                     await _bubbles.HideAsync();
-                    await Task.Delay(_pollInterval, cancellationToken);
-                    return GuideStepReconciliationResult.WaitingForAction;
+                    return await GuideActiveStepState.WaitAsync(\n                        GuideStepReconciliationResult.WaitingForAction, _pollInterval, cancellationToken);
                 }
 
                 if (clicked && (subscribedTarget is null || !SameElement(subscribedTarget, target)))
@@ -429,8 +423,7 @@ public sealed class WindowsGuideRuntime
                     // transient: hide the stale bubble and resolve again instead
                     // of terminating the learner runtime.
                     await _bubbles.HideAsync();
-                    await Task.Delay(_pollInterval, cancellationToken);
-                    return GuideStepReconciliationResult.WaitingForAction;
+                    return await GuideActiveStepState.WaitAsync(\n                        GuideStepReconciliationResult.WaitingForAction, _pollInterval, cancellationToken);
                 }
                 if (!bubbleFirstShownLogged)
                 {
@@ -568,8 +561,7 @@ public sealed class WindowsGuideRuntime
                     throw new NotSupportedException("Manual Windows Steps are not implemented yet.");
                 }
 
-                await Task.Delay(_pollInterval, cancellationToken);
-                return GuideStepReconciliationResult.WaitingForAction;
+                return await GuideActiveStepState.WaitAsync(\n                    GuideStepReconciliationResult.WaitingForAction, _pollInterval, cancellationToken);
             }
 
             await new GuideStepReconciliationEngine().RunAsync(ReconcileAsync, cancellationToken);
