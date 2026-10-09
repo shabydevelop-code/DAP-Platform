@@ -44,4 +44,14 @@ Check(!GuideStepExecutionPolicy.ShouldConsumeInvalidCommit(valueStep, true, true
 Check(!GuideStepExecutionPolicy.ShouldConsumeInvalidCommit(valueStep, false, false),
     "No commit cannot be consumed");
 
+var captures = new Dictionary<string, string>(StringComparer.Ordinal);
+Check(!GuideRunPlan.RecordCapture(captures, "step-1", null) && captures.Count == 0,
+    "Missing capture leaves shared state unchanged");
+Check(GuideRunPlan.RecordCapture(captures, "step-1", "123") && captures["step-1"] == "123",
+    "Shared capture records first observed value");
+Check(!GuideRunPlan.RecordCapture(captures, "step-1", "123"),
+    "Shared capture ignores unchanged value");
+Check(GuideRunPlan.RecordCapture(captures, "step-1", "456") && captures["step-1"] == "456",
+    "Shared capture updates changed value");
+
 Console.WriteLine("All production shared-runtime checks passed.");
