@@ -4,13 +4,10 @@ param(
     [string]$Platform,
 
     [Parameter(Mandatory=$true)]
-    [ValidateSet("Fast","Visual","Manual","Unguided","ManualFromStep","VisualFromStep")]
+    [ValidateSet("Manual","Hybrid")]
     [string]$Mode,
 
-    [int]$Step = 1,
-
-    [ValidateSet("chromium","chrome","edge")]
-    [string]$Browser = "chromium"
+    [string]$GuideId
 )
 
 $ErrorActionPreference = "Stop"
@@ -18,50 +15,19 @@ $diagnosticsRoot = $PSScriptRoot
 $productionRoot = Split-Path -Parent $diagnosticsRoot
 $env:DAP_DIAGNOSTICS_ROOT = $diagnosticsRoot
 
-if ($Platform -eq "Web") {
-    $runner = Join-Path $diagnosticsRoot "Runners\Web\DAP.TestCRM.Web.E2E.exe"
-    $env:DAP_E2E_BROWSER = $Browser
-} else {
-    $runner = Join-Path $diagnosticsRoot "Runners\Windows\DAP.TestCRM.Windows.E2E.exe"
-}
-
+$runner = Join-Path $diagnosticsRoot "Runners\Unified\DAP.E2E.exe"
 if (!(Test-Path $runner)) { throw "Diagnostic runner was not found: $runner" }
 if (!(Test-Path (Join-Path $productionRoot "DAP.exe"))) { throw "Production DAP.exe was not found: $productionRoot" }
 
-# Keep the packaged diagnostic Guide definition canonical on every customer run.
-# This resets only the dedicated TestCRM Guide for the selected platform.
-& $runner --reset-guide
-if ($LASTEXITCODE -ne 0) { throw "Diagnostic Guide initialization failed." }
-
-$runnerArgs = @()
-switch ($Mode) {
-    "Fast" {
-        $env:DAP_E2E_MODE = "fast"
-        $runnerArgs = @("--guided", "--published-dap", $productionRoot)
-    }
-    "Visual" {
-        $env:DAP_E2E_MODE = "visual"
-        $runnerArgs = @("--guided", "--published-dap", $productionRoot)
-    }
-    "Manual" {
-        Remove-Item Env:DAP_E2E_MODE -ErrorAction SilentlyContinue
-        $runnerArgs = @("--manual", "--published-dap", $productionRoot)
-    }
-    "Unguided" {
-        Remove-Item Env:DAP_E2E_MODE -ErrorAction SilentlyContinue
-        $runnerArgs = @("--unguided")
-    }
-    "ManualFromStep" {
-        if ($Step -lt 1) { throw "Step must be positive." }
-        Remove-Item Env:DAP_E2E_MODE -ErrorAction SilentlyContinue
-        $runnerArgs = @("--manual-from-step", "$Step", "--published-dap", $productionRoot)
-    }
-    "VisualFromStep" {
-        if ($Step -lt 1) { throw "Step must be positive." }
-        Remove-Item Env:DAP_E2E_MODE -ErrorAction SilentlyContinue
-        $runnerArgs = @("--visual-from-step", "$Step", "--published-dap", $productionRoot)
-    }
+$platformName = $Platform.ToLowerInvariant()
+if ([string]::IsNullOrWhiteSpace($GuideId)) {
+    $GuideId = if ($platformName -eq "web") { "testcrm-web-canonical-workflow" } else { "testcrm-windows-canonical-workflow" }
 }
 
-& $runner @runnerArgs
+# Reset the selected diagnostic Guide before the run, as in the legacy diagnostic script.
+& $runner --platform $platformName --reset-guide
+if ($LASTEXITCODE -ne 0) { throw "Diagnostic Guide initialization failed." }
+
+$modeArg = if ($Mode -eq "Manual") { "--manual" } else { "--hybrid" }
+& $runner --platform $platformName --guide $GuideId $modeArg --published-dap $productionRoot
 exit $LASTEXITCODE
