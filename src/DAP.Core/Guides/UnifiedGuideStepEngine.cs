@@ -14,6 +14,15 @@ public sealed class UnifiedGuideStepEngine
         return state.ObservePresentationAvailability(targetAvailable, targetVisible);
     }
 
+    /// <summary>Apply the shared completion policy to observations from either adapter.</summary>
+    public GuideStepReconciliationResult EvaluateCompletion(
+        GuideActiveStepState state, bool primarySatisfied, bool conditionsSatisfied,
+        bool isTextEditTarget = false, bool textEditCommitted = false)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        return state.EvaluateCompletion(primarySatisfied, conditionsSatisfied, isTextEditTarget, textEditCommitted);
+    }
+
     public async Task RunAsync(GuideActiveStepState state, Func<GuideActiveStepState, CancellationToken, Task<GuideStepReconciliationResult>> observeAsync, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(state);
