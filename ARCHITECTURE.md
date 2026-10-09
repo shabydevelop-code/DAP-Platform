@@ -137,3 +137,7 @@ TestCRM source may be inspected during development diagnosis, but production DAP
 Instructor/Editor is the next major product phase. It must author the same persisted Guide model consumed by Learner rather than introduce a parallel model.
 
 AI may assist development or be offered as an optional authoring aid, but production authoring and learner execution must remain deterministic and functional without AI.
+
+## Product execution modes
+
+The production learner accepts `DAP.exe --guide <GuideId> --mode manual` (or omits `--mode`, defaulting to Manual). The product also parses `--mode hybrid`, but explicitly rejects it as unsupported before starting a Guide: persisted `AutomationValue` actions are currently executed by TestCRM-specific E2E drivers, not by the production learner. Hybrid is **not** a completed product feature. The required design is a runtime-owned action executor for both Web and Windows, with explicit persisted automation authorization, unique target resolution, learner-owned validation/progression, and no dependency on TestCRM, test-driver protocol or target application source. One Guide must support both modes. E2E runners remain test harnesses only. Instructor launch is not decided.
