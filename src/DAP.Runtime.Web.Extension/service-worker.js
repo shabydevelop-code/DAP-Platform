@@ -139,7 +139,9 @@ async function ensureContentScript(tabId, frameId) {
       { type: "dap-adapter-command", command: { type: "ping" } },
       { frameId }
     );
-    if (ready?.ok) return;
+    // A successful ping from an older injected content script is not readiness.
+    // Require the current endpoint generation before routing commands.
+    if (ready?.ok && ready.result?.version === "0.4.7") return;
   } catch {
     // A page can retain an isolated world from the previous unpacked-extension
     // generation. Treat any failed readiness probe as a stale/missing endpoint
@@ -156,8 +158,8 @@ async function ensureContentScript(tabId, frameId) {
     { type: "dap-adapter-command", command: { type: "ping" } },
     { frameId }
   );
-  if (!ready?.ok)
-    throw new Error("DAP content runtime did not become ready after injection.");
+  if (!ready?.ok || ready.result?.version !== "0.4.7")
+    throw new Error("DAP content runtime is stale after injection; reload the unpacked extension in chrome://extensions.");
 }
 
 async function ensureTabFramesReady(tabId) {
