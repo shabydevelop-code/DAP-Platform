@@ -32,6 +32,37 @@ public sealed class GuideRunPlan
             : new Dictionary<string, string>(initialCapturedValues, StringComparer.Ordinal);
     }
 
+    /// <summary>Execute shared step lifecycle; environment-specific work stays in the callback.</summary>
+    public async Task ExecuteAsync(
+        TargetRuntime runtime,
+        Func<GuideStep, int, int, CancellationToken, Task> executeStep,
+        CancellationToken cancellationToken,
+        Action<GuideStep>? onSkipped = null,
+        Action<GuideStep>? onStarting = null,
+        Action<GuideStep>? onCompleted = null)
+    {
+        ArgumentNullException.ThrowIfNull(executeStep);
+        for (var index = StartIndex; index < _steps.Length; index++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var persisted = _steps[index];
+            if (!persisted.IsEnabled)
+            {
+                onSkipped?.Invoke(persisted);
+                continue;
+            }
+
+            var step = Materialize(persisted);
+            if (step.Target is not null && step.Target.Runtime != runtime)
+                throw new InvalidOperationException(
+                    $"Guide Step '{step.Id}' is not a {runtime} Step.");
+
+            onStarting?.Invoke(step);
+            await executeStep(step, index, _steps.Length, cancellationToken);
+            onCompleted?.Invoke(step);
+        }
+    }
+
     public int NextEnabledIndex(int currentIndex) =>
         Array.FindIndex(_steps, currentIndex + 1, step => step.IsEnabled);
 
