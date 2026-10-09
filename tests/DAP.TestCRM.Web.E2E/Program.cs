@@ -669,7 +669,14 @@ dapStdOutTask=dapProcess.StandardOutput.ReadToEndAsync();
 dapProcess.ErrorDataReceived+=(_,eventArgs)=>
 {
     if(eventArgs.Data is not null)
+    {
         dapStdErrLines.Enqueue(eventArgs.Data);
+        if (eventArgs.Data.Contains("[DAP guide]", StringComparison.Ordinal)
+            || eventArgs.Data.Contains("Exception", StringComparison.OrdinalIgnoreCase)
+            || eventArgs.Data.Contains("Hybrid", StringComparison.OrdinalIgnoreCase)
+            || eventArgs.Data.Contains("error", StringComparison.OrdinalIgnoreCase))
+            Console.WriteLine("[DAP Runtime] " + eventArgs.Data);
+    }
 };
 dapProcess.BeginErrorReadLine();
 
