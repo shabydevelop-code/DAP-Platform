@@ -65,7 +65,8 @@ public sealed class AdapterWebLearnerRuntime
                 var primary = clicked || await _browser.IsPrimaryValidationSatisfiedAsync(step, cancellationToken);
                 if (primary)
                 {
-                    if (await _browser.AreCompletionConditionsSatisfiedAsync(step, cancellationToken))
+                    if (GuideStepExecutionPolicy.CanAdvance(
+                        primary, await _browser.AreCompletionConditionsSatisfiedAsync(step, cancellationToken)))
                     {
                         await _browser.HideBubbleAsync(cancellationToken);
                         return;
