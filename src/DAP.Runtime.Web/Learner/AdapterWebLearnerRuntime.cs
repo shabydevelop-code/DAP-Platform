@@ -58,7 +58,7 @@ public sealed class AdapterWebLearnerRuntime
             ? _browser.WaitForValidationCommitAsync(step, cancellationToken)
             : null;
 
-        await foreach (var _ in new GuideStepReconciliationEngine().TicksAsync(cancellationToken))
+        await foreach (var reconciliationTick in new GuideStepReconciliationEngine().TicksAsync(cancellationToken))
         {
             if (commitTask?.IsCompletedSuccessfully == true)
             {
