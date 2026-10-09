@@ -15,6 +15,29 @@ public interface IGuideStepAdapter
     Task ExecuteAsync(GuideStep step, int index, int total, GuideRunPlan plan, CancellationToken cancellationToken);
 }
 
+/// <summary>Typed adapter wrapper for platform-specific step delegates.</summary>
+public sealed class DelegateGuideStepAdapter : IGuideStepAdapter
+{
+    private readonly Func<GuideStep, int, int, GuideRunPlan, CancellationToken, Task> _execute;
+
+    public DelegateGuideStepAdapter(
+        TargetRuntime runtime,
+        string diagnosticName,
+        Func<GuideStep, int, int, GuideRunPlan, CancellationToken, Task> execute)
+    {
+        Runtime = runtime;
+        DiagnosticName = diagnosticName ?? throw new ArgumentNullException(nameof(diagnosticName));
+        _execute = execute ?? throw new ArgumentNullException(nameof(execute));
+    }
+
+    public TargetRuntime Runtime { get; }
+    public string DiagnosticName { get; }
+
+    public Task ExecuteAsync(GuideStep step, int index, int total,
+        GuideRunPlan plan, CancellationToken cancellationToken)
+        => _execute(step, index, total, plan, cancellationToken);
+}
+
 public sealed class GuideExecutionEngine
 {
     public Task RunAsync(
