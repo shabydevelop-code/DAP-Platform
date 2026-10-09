@@ -115,7 +115,7 @@ public sealed class WindowsGuideRuntime
             throw new InvalidOperationException(
                 $"Target-attached Guide Step '{step.Id}' must define a target.");
 
-        var hybridValueApplied = false;
+        var activeState = new GuideActiveStepState(step);
         var clicked = GuideStepExecutionPolicy.IsClickValidationStep(step);
         var targetDisappeared = GuideStepExecutionPolicy.IsTargetDisappearanceStep(step);
         var targetWasResolved = false;
@@ -457,7 +457,7 @@ public sealed class WindowsGuideRuntime
                         $"[DAP Windows guide] input ready Step {step.Order} '{step.Id}'.");
                 }
 
-                if (_hybrid && !hybridValueApplied && !string.IsNullOrEmpty(step.AutomationValue))
+                if (activeState.ShouldApplyHybridValue(_hybrid, targetResolved: true))
                 {
                     GuideStepExecutionPolicy.RequireHybridValueStep(step, "Windows");
                     if (!target.TryGetCurrentPattern(ValuePattern.Pattern, out var pattern))
@@ -499,7 +499,7 @@ public sealed class WindowsGuideRuntime
                             throw new InvalidOperationException($"Hybrid Step '{step.Id}' TAB did not commit the input.");
                         Volatile.Write(ref textTargetCommitted, 1);
                     }
-                    hybridValueApplied = true;
+                    activeState.MarkHybridValueApplied();
                     Console.Error.WriteLine($"[DAP Windows Hybrid] committed persisted value for Step {step.Order} '{step.Id}'.");
                 }
 
@@ -536,7 +536,7 @@ public sealed class WindowsGuideRuntime
                 else if (GuideStepExecutionPolicy.CanEvaluatePrimaryValidation(
                     step, isTextEditTarget, Volatile.Read(ref textTargetCommitted) == 1))
                 {
-                    var primaryValidationSatisfied = _validation.IsSatisfied(target, step.Validation);
+                    var primaryValidationSatisfied = _validation.IsSatisfied(target, step.Validation!);
                     if (GuideStepExecutionPolicy.IsStepComplete(
                         step, primaryValidationSatisfied,
                         AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction),
