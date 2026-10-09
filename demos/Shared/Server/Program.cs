@@ -13,27 +13,6 @@ var dataDirectory = Path.Combine(sharedDirectory, "data");
 Directory.CreateDirectory(dataDirectory);
 var dbPath = Path.Combine(dataDirectory, "sampleapp.db");
 
-// Migration priority: keep the existing canonical DB; otherwise prefer the
-// previously active sampleapp.db in the old build-output location, then legacy
-// testcrm.db. Do not silently replace a database that already exists.
-if (!File.Exists(dbPath))
-{
-    var previousBuildData = Path.Combine(serverProjectDirectory, "bin", "Debug", "data");
-    var legacyPaths = new[]
-    {
-        Path.Combine(previousBuildData, "sampleapp.db"),
-        Path.Combine(dataDirectory, "testcrm.db"),
-        Path.Combine(previousBuildData, "testcrm.db"),
-        Path.Combine(sharedDirectory, "testcrm.db")
-    };
-    foreach (var legacyPath in legacyPaths)
-    {
-        if (!File.Exists(legacyPath))
-            continue;
-        File.Move(legacyPath, dbPath);
-        break;
-    }
-}
 var connectionString = $"Data Source={dbPath}";
 InitializeDatabase(connectionString);
 
