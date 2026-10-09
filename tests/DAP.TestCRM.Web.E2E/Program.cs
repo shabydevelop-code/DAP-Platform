@@ -648,7 +648,7 @@ dapProcess=new Process
     StartInfo=new ProcessStartInfo
     {
         FileName=dapExecutable,
-        Arguments=$"--learner --guide {guideId}",
+        Arguments=$"--guide {guideId}",
         WorkingDirectory=effectiveDapDirectory,
         UseShellExecute=false,
         CreateNoWindow=true,
