@@ -77,4 +77,37 @@ catch (OperationCanceledException)
     Console.WriteLine("PASS: Canceled run stops before observation");
 }
 
+var adapter = new FakeUnifiedAdapter();
+await new UnifiedStepRunner().RunAsync(hybridStep,
+    new UnifiedStepOptions(UnifiedLearnerMode.Hybrid), adapter, CancellationToken.None);
+Check(adapter.AutomationCalls == 1, "Shared runner applies hybrid value exactly once");
+Check(adapter.PresentationActions.SequenceEqual(new[] {
+    UnifiedPresentationAction.Show, UnifiedPresentationAction.Hide
+}), "Shared runner delegates presentation lifecycle");
+
+sealed class FakeUnifiedAdapter : IUnifiedStepPlatformAdapter
+{
+    public int AutomationCalls { get; private set; }
+    public List<UnifiedPresentationAction> PresentationActions { get; } = new();
+    private bool _committed;
+
+    public Task<UnifiedStepObservation> ObserveAsync(GuideStep step, CancellationToken token)
+        => Task.FromResult(Observation(primary: _committed, conditions: _committed));
+    public Task SetPresentationAsync(GuideStep step, UnifiedPresentationAction action, CancellationToken token)
+    {
+        PresentationActions.Add(action);
+        return Task.CompletedTask;
+    }
+    public Task ApplyAutomationAsync(GuideStep step, string value, CancellationToken token)
+    {
+        AutomationCalls++;
+        return Task.CompletedTask;
+    }
+    public Task WaitForChangeAsync(GuideStep step, GuideStepReconciliationResult reason, CancellationToken token)
+    {
+        _committed = true;
+        return Task.CompletedTask;
+    }
+}
+
 Console.WriteLine("All unified state-machine checks passed.");
