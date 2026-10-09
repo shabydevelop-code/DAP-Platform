@@ -165,8 +165,8 @@ public sealed class WindowsGuideRuntime
                 // Completion is evaluated before the source context. A valid learner
                 // action may navigate away from that context while persisted
                 // post-action conditions become true on the destination screen.
-                if (clicked && GuideStepExecutionPolicy.CanAdvanceAfterObservedAction(
-                    step, clickCompleted.Task.IsCompleted,
+                if (clicked && clickCompleted.Task.IsCompleted && GuideStepExecutionPolicy.CanAdvanceAfterObservedAction(
+                    step, true,
                     AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction)))
                 {
                     FinalizeCapture(windowRoot, step, capturedValues);
@@ -200,8 +200,8 @@ public sealed class WindowsGuideRuntime
                     if (step.Id == "testcrm-windows-back-to-cases")
                         Console.Error.WriteLine($"[DAP Windows guide diagnostic] Step '{step.Id}' resolver threw ElementNotAvailableException.");
                     await _bubbles.HideAsync();
-                    if (targetDisappeared && GuideStepExecutionPolicy.CanAdvanceAfterObservedAction(
-                        step, targetWasResolved,
+                    if (targetDisappeared && targetWasResolved && GuideStepExecutionPolicy.CanAdvanceAfterObservedAction(
+                        step, true,
                         AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction)))
                         return;
                     await Task.Delay(_pollInterval, cancellationToken);
@@ -213,8 +213,8 @@ public sealed class WindowsGuideRuntime
                     if (step.Id == "testcrm-windows-back-to-cases")
                         Console.Error.WriteLine($"[DAP Windows guide diagnostic] Step '{step.Id}' resolution status={resolution.Status}; targetNull={resolution.Target is null}.");
                     await _bubbles.HideAsync();
-                    if (targetDisappeared && GuideStepExecutionPolicy.CanAdvanceAfterObservedAction(
-                        step, targetWasResolved,
+                    if (targetDisappeared && targetWasResolved && GuideStepExecutionPolicy.CanAdvanceAfterObservedAction(
+                        step, true,
                         AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction)))
                         return;
                     await Task.Delay(_pollInterval, cancellationToken);
