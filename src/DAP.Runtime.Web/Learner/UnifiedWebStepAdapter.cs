@@ -16,6 +16,7 @@ public sealed class UnifiedWebStepAdapter : IUnifiedStepPlatformAdapter
     private readonly TimeSpan _waitInterval;
     private Task<WebValidationCommit?>? _commit;
     private bool _armed;
+    private bool _commitLatched;
 
     public UnifiedWebStepAdapter(
         IWebBrowserAdapter browser, int number, int total,
@@ -30,9 +31,13 @@ public sealed class UnifiedWebStepAdapter : IUnifiedStepPlatformAdapter
 
     public async Task<UnifiedStepObservation> ObserveAsync(GuideStep step, CancellationToken token)
     {
+        if (_commit is { IsCompletedSuccessfully: true } && _commit.Result is not null)
+            _commitLatched = true;
         var context = await _browser.IsContextActiveAsync(step, token);
         if (!context)
-            return new(false, false, false, false, false, false);
+            return new(false, false, false, false, _commitLatched,
+                await _browser.AreCompletionConditionsSatisfiedAsync(step, token),
+                ActionObserved: _commitLatched && GuideStepExecutionPolicy.IsClickValidationStep(step));
 
         var resolution = step.Target is null
             ? new WebTargetResolution(WebTargetResolutionStatus.Resolved)
