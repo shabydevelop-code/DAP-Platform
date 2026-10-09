@@ -52,35 +52,30 @@ public sealed class GuideExecutionEngine
             cancellationToken, startStepOrder, initialCapturedValues, adapter.DiagnosticName);
     }
 
-    public async Task RunAsync(
+    private async Task RunAsync(
         IReadOnlyList<GuideStep> steps,
         TargetRuntime runtime,
         Func<GuideStep, int, int, GuideRunPlan, CancellationToken, Task> executePlatformStep,
         CancellationToken cancellationToken,
-        int? startStepOrder = null,
-        IReadOnlyDictionary<string, string>? initialCapturedValues = null,
-        string? diagnosticName = null)
+        int? startStepOrder,
+        IReadOnlyDictionary<string, string>? initialCapturedValues,
+        string diagnosticName)
     {
         ArgumentNullException.ThrowIfNull(steps);
         ArgumentNullException.ThrowIfNull(executePlatformStep);
 
         var plan = new GuideRunPlan(steps, startStepOrder, initialCapturedValues);
-        var name = diagnosticName ?? runtime.ToString();
-
         await plan.ExecuteAsync(
             runtime,
             async (step, index, total, token) =>
             {
-                // All enabled, materialized steps are checked by the shared engine
-                // before any platform-specific target resolution or presentation.
                 GuideStepExecutionPolicy.Classify(step);
                 await executePlatformStep(step, index, total, plan, token);
             },
             cancellationToken,
-            onSkipped: step => Console.Error.WriteLine($"[DAP {name} guide] skipped disabled Step {step.Order}/{plan.Steps.Count} '{step.Id}'."),
-            onStarting: step => Console.Error.WriteLine($"[DAP {name} guide] starting Step {step.Order}/{plan.Steps.Count} '{step.Id}'."),
-            onCompleted: step => Console.Error.WriteLine($"[DAP {name} guide] completed Step {step.Order}/{plan.Steps.Count} '{step.Id}'."));
-
-        Console.Error.WriteLine($"[DAP {name} guide] Guide finished.");
+            onSkipped: step => Console.Error.WriteLine($"[DAP {diagnosticName} guide] skipped disabled Step {step.Order}/{plan.Steps.Count} '{step.Id}'."),
+            onStarting: step => Console.Error.WriteLine($"[DAP {diagnosticName} guide] starting Step {step.Order}/{plan.Steps.Count} '{step.Id}'."),
+            onCompleted: step => Console.Error.WriteLine($"[DAP {diagnosticName} guide] completed Step {step.Order}/{plan.Steps.Count} '{step.Id}'."));
+        Console.Error.WriteLine($"[DAP {diagnosticName} guide] Guide finished.");
     }
 }
