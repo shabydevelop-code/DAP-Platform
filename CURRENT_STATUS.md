@@ -80,6 +80,8 @@ Do not claim a fresh full-guide regression unless such a run has actually been c
 
 ## Production execution status
 
+Windows startup now restores a minimized target window when needed, requests foreground activation and verifies it within five seconds before starting the Guide. This is shared by Manual and Hybrid. The change has not been verified in a local Windows run. Equivalent browser-window/tab activation is not yet implemented in the Web extension; do not claim startup focus parity.
+
 The same persisted Guide supports `DAP.exe --guide <GuideId> --mode manual|hybrid` (Manual is the default). Windows production Hybrid reads AutomationValue from SQLite and enters it through UIA ValuePattern on resolved writable targets. For Edit controls it verifies focus, value entry, and TAB blur before the runtime evaluates the existing validation and completion conditions. Steps without an automation value remain user-operated. The product path does not call the TestCRM E2E driver.
 
 The user reported the Windows Hybrid run appeared correct. A full-guide regression is not independently documented, so do not mark one PASS. The existing database schema and automatic column initialization support this feature without a new migration. Web production Hybrid is still explicitly unsupported; Web E2E Hybrid is test-only.
