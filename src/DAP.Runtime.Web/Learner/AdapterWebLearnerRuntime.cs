@@ -63,7 +63,7 @@ public sealed class AdapterWebLearnerRuntime
                 var primary = clicked || await _browser.IsPrimaryValidationSatisfiedAsync(step, cancellationToken);
                 if (primary)
                 {
-                    if (activeState.EvaluateCompletion(
+                    if (new UnifiedGuideStepEngine().EvaluateCompletion(activeState, 
                         primary,
                         await _browser.AreCompletionConditionsSatisfiedAsync(step, cancellationToken)) == GuideStepReconciliationResult.Completed)
                     {
@@ -127,7 +127,7 @@ public sealed class AdapterWebLearnerRuntime
                         TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
                         TaskScheduler.Default);
 
-                    if (activeState.EvaluateCompletion(
+                    if (new UnifiedGuideStepEngine().EvaluateCompletion(activeState, 
                         true,
                         await _browser.AreCompletionConditionsSatisfiedAsync(step, cancellationToken)) == GuideStepReconciliationResult.Completed)
                     {
@@ -175,7 +175,7 @@ public sealed class AdapterWebLearnerRuntime
             // can arrive just after the presentation race was decided.
             if (clicked && commitTask?.IsCompletedSuccessfully == true)
             {
-                if (activeState.EvaluateCompletion(
+                if (new UnifiedGuideStepEngine().EvaluateCompletion(activeState, 
                     true,
                     await _browser.AreCompletionConditionsSatisfiedAsync(step, cancellationToken)) == GuideStepReconciliationResult.Completed)
                 {
