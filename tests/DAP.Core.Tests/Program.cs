@@ -54,4 +54,21 @@ Check(!GuideRunPlan.RecordCapture(captures, "step-1", "123"),
 Check(GuideRunPlan.RecordCapture(captures, "step-1", "456") && captures["step-1"] == "456",
     "Shared capture updates changed value");
 
+var legacyCapture = step with { Capture = new StepCaptureDefinition(DAP.Core.Targets.TargetRuntime.Web, null!, "value") };
+Check(GuideRunPlan.ShouldCapture(legacyCapture, DAP.Core.Targets.TargetRuntime.Web, StepCaptureTiming.BeforeAction),
+    "Legacy Web capture remains before action");
+Check(!GuideRunPlan.ShouldCapture(legacyCapture, DAP.Core.Targets.TargetRuntime.Web, StepCaptureTiming.AfterAction),
+    "Legacy Web capture does not run after action");
+Check(GuideRunPlan.ShouldCapture(legacyCapture, DAP.Core.Targets.TargetRuntime.Windows, StepCaptureTiming.DuringStep),
+    "Legacy Windows capture remains available during step");
+Check(GuideRunPlan.ShouldCapture(legacyCapture, DAP.Core.Targets.TargetRuntime.Windows, StepCaptureTiming.AfterAction),
+    "Legacy Windows capture remains available after action");
+var explicitCapture = legacyCapture with { Capture = legacyCapture.Capture! with { Timing = StepCaptureTiming.AfterAction } };
+Check(GuideRunPlan.ShouldCapture(explicitCapture, DAP.Core.Targets.TargetRuntime.Web, StepCaptureTiming.AfterAction),
+    "Explicit after-action timing applies to Web");
+Check(GuideRunPlan.ShouldCapture(explicitCapture, DAP.Core.Targets.TargetRuntime.Windows, StepCaptureTiming.AfterAction),
+    "Explicit after-action timing applies to Windows");
+Check(!GuideRunPlan.ShouldCapture(explicitCapture, DAP.Core.Targets.TargetRuntime.Windows, StepCaptureTiming.DuringStep),
+    "Explicit timing overrides legacy Windows during-step capture");
+
 Console.WriteLine("All production shared-runtime checks passed.");
