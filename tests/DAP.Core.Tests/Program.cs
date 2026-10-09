@@ -108,6 +108,24 @@ catch (InvalidOperationException)
         "Adapter failure hides stale bubble");
 }
 
+var flicker = Machine();
+var first = flicker.Advance(Observation());
+flicker.AcknowledgePresentation(first.PresentationAction);
+Check(flicker.Advance(Observation(stable: false)).PresentationAction == UnifiedPresentationAction.None,
+    "Temporary instability does not flicker visible bubble");
+Check(flicker.Advance(Observation()).PresentationAction == UnifiedPresentationAction.None,
+    "Stable layout does not show duplicate bubble");
+Check(flicker.Advance(Observation(target: false)).PresentationAction == UnifiedPresentationAction.Hide,
+    "Real target disappearance still hides bubble");
+
+var repeatedAction = Machine();
+repeatedAction.Advance(Observation(action: true));
+Check(repeatedAction.Advance(Observation(action: true)).Status ==
+    GuideStepReconciliationResult.WaitingForAction ||
+    repeatedAction.Completed == false, "Repeated action never completes without conditions");
+Check(repeatedAction.Advance(Observation(conditions: true)).StepCompleted,
+    "Repeated action completes once conditions hold");
+
 Console.WriteLine("All unified state-machine checks passed.");
 
 sealed class FakeUnifiedAdapter : IUnifiedStepPlatformAdapter
