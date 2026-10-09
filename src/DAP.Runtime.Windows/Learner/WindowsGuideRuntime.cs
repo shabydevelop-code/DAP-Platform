@@ -527,13 +527,13 @@ public sealed class WindowsGuideRuntime
                         lastTargetDisappearedDiagnostic = diagnostic;
                     }
                 }
-                else if (step.AdvanceMode == StepAdvanceMode.AutomaticOnValidation
-                         && step.Validation is not null
-                         && (!isTextEditTarget || Volatile.Read(ref textTargetCommitted) == 1))
+                else if (GuideStepExecutionPolicy.CanEvaluatePrimaryValidation(
+                    step, isTextEditTarget, Volatile.Read(ref textTargetCommitted) == 1))
                 {
                     var primaryValidationSatisfied = _validation.IsSatisfied(target, step.Validation);
-                    if (primaryValidationSatisfied
-                        && AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction))
+                    if (GuideStepExecutionPolicy.CanAdvance(
+                        primaryValidationSatisfied,
+                        AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction)))
                     {
                         return;
                     }
