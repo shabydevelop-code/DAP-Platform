@@ -826,9 +826,30 @@ internal static class WebScenario
         {
             // Startup can fail before the inner run/finally is reached (e.g. testPing).
             // Always terminate runner-owned processes, never arbitrary port owners.
-            ownedProcessCleanup.Cleanup();
+            // Close only the browser tab tagged with this E2E session.
+            // Chrome may reuse an existing browser process, so killing its launcher
+            // is not a reliable or safe way to close the test browser window.
             if (testDriver is not null)
-                await testDriver.DisposeAsync();
+            {
+                try
+                {
+                    using var closeTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+                    await testDriver.SendAsync(new { type = "testCloseTab" }, closeTimeout.Token);
+                }
+                catch (Exception ex) when (
+                    ex is IOException
+                    or InvalidOperationException
+                    or OperationCanceledException
+                    or ObjectDisposedException)
+                {
+                    // The tab may already have been closed by the learner.
+                }
+                finally
+                {
+                    await testDriver.DisposeAsync();
+                }
+            }
+            ownedProcessCleanup.Cleanup();
         }
     }
 }
