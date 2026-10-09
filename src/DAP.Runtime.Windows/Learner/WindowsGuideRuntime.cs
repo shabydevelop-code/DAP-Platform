@@ -82,7 +82,14 @@ public sealed class WindowsGuideRuntime
             },
             (step, total, token) => _bubbles.WaitForCenteredStepDismissalAsync(
                 step, step.Order, total, token),
-            (step, plan, token) => Task.CompletedTask),
+            (step, plan, token) =>
+            {
+                var value = CaptureStepValue(windowRoot, step);
+                if (value is null)
+                    throw new InvalidOperationException($"Guide Step '{step.Id}' declares a Windows before-action capture that could not be resolved.");
+                GuideRunPlan.RecordCapture(plan.Captures, step.Id, value);
+                return Task.CompletedTask;
+            }),
             cancellationToken,
             startStepOrder,
             initialCapturedValues);
@@ -350,9 +357,9 @@ public sealed class WindowsGuideRuntime
                         $"target={DescribeTarget(target)}");
                 }
 
-                if (step.Capture is not null)
+                if (GuideRunPlan.ShouldCapture(step, TargetRuntime.Windows, StepCaptureTiming.DuringStep))
                 {
-                    var capture = ResolveCapture(windowRoot, step.Capture);
+                    var capture = ResolveCapture(windowRoot, step.Capture!);
                     if (GuideRunPlan.RecordCapture(capturedValues, step.Id, capture))
                     {
                         Console.Error.WriteLine(
@@ -721,10 +728,10 @@ public sealed class WindowsGuideRuntime
 
     private void FinalizeCapture(AutomationElement windowRoot, GuideStep step, IDictionary<string, string> capturedValues)
     {
-        if (step.Capture is null)
+        if (!GuideRunPlan.ShouldCapture(step, TargetRuntime.Windows, StepCaptureTiming.AfterAction))
             return;
 
-        var value = ResolveCapture(windowRoot, step.Capture);
+        var value = ResolveCapture(windowRoot, step.Capture!);
         if (value is null)
             return;
 
