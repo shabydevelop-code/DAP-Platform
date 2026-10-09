@@ -1,4 +1,5 @@
 using DAP.Core.Guides;
+using DAP.Core.Targets;
 using DAP.Runtime.Web.Browser;
 
 namespace DAP.Runtime.Web.Learner;
