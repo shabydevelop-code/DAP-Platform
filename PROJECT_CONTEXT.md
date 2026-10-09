@@ -14,6 +14,10 @@ Git history is the historical record. Current Markdown is the current project co
 
 This rule applies to all project-level Markdown, including `PROJECT_CONTEXT.md`, `REQUIREMENTS.md`, `ARCHITECTURE.md`, `CURRENT_STATUS.md`, and `DECISIONS.md`.
 
+## Repository write retry rule
+
+When a GitHub repository write fails or is blocked, retry the operation after re-reading the current file and SHA, checking whether the intended change was already applied. Do not immediately report that repository editing is unavailable after one failure. Use bounded retries; never overwrite concurrent changes or claim success without verifying the saved content on the current `main` branch. If retries still fail, report the unresolved failure explicitly.
+
 ## Source of truth
 
 The current `main` branch in GitHub is the authoritative code source. Historical commits, old branches, prior snapshots, and conversation excerpts do not define current implementation state unless historical investigation is explicitly requested.
