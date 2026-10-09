@@ -187,6 +187,31 @@
         sendResponse({ok:true,result:{status:"resolved",count:1}});
         return;
       }
+      if (command.type === "applyAutomationValue") {
+        const result = resolveTarget(command.target);
+        if (result.status !== "resolved") {
+          sendResponse({ok:true,result:{status:result.status,count:result.count}});
+          return;
+        }
+        const el = result.element;
+        if (!(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) ||
+            el.disabled || el.readOnly || el.getAttribute("aria-disabled") === "true" ||
+            (el instanceof HTMLInputElement && !["text","search","email","tel","url","number","password"].includes(el.type)))
+          throw new Error("Hybrid value target must be an enabled writable text editor.");
+        if (document.activeElement !== el) el.focus();
+        if (document.activeElement !== el) throw new Error("Hybrid value target could not receive focus.");
+        const value = String(command.value ?? "");
+        const prototype = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+        const setter = Object.getOwnPropertyDescriptor(prototype, "value")?.set;
+        if (!setter) throw new Error("Hybrid text editor has no native value setter.");
+        setter.call(el, value);
+        el.dispatchEvent(new Event("input", {bubbles:true}));
+        if (String(el.value) !== value) throw new Error("Hybrid text editor rejected the persisted value.");
+        el.dispatchEvent(new Event("change", {bubbles:true}));
+        el.blur();
+        sendResponse({ok:true,result:{status:"applied",value:String(el.value)}});
+        return;
+      }
       if (command.type === "readTargetValue") {
         const result = resolveTarget(command.target);
         if (result.status !== "resolved") {
