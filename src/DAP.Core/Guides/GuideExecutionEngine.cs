@@ -158,16 +158,14 @@ public sealed class GuideExecutionEngine
     public async Task RunAsync(
         IReadOnlyList<GuideStep> steps,
         IGuideStepAdapter adapter,
-        CancellationToken cancellationToken,
-        int? startStepOrder = null,
-        IReadOnlyDictionary<string, string>? initialCapturedValues = null)
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(steps);
         ArgumentNullException.ThrowIfNull(adapter);
         var runtime = adapter.Runtime;
         var diagnosticName = adapter.DiagnosticName;
 
-        var plan = new GuideRunPlan(steps, startStepOrder, initialCapturedValues);
+        var plan = new GuideRunPlan(steps);
         await plan.ExecuteAsync(
             runtime,
             async (step, index, total, token) =>
