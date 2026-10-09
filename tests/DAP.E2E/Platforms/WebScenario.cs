@@ -205,7 +205,6 @@ internal static class WebScenario
         
         using var ownedProcessCleanup = new DAP.Testing.OwnedProcessCleanup(
             () => dapProcess,
-            () => browserProcess,
             () => ownedTestCrmProcess,
             () => ownedTestCrmBackendProcess);
 
@@ -769,7 +768,6 @@ internal static class WebScenario
             ownedProcessCleanup.Dispose();
         
             DAP.Testing.OwnedProcessCleanup.TryKillProcessTree(dapProcess);
-            DAP.Testing.OwnedProcessCleanup.TryKillProcessTree(browserProcess);
         
             if (ownedTestCrmProcess is not null)
             {
