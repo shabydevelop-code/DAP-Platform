@@ -89,3 +89,7 @@ The user reported the Windows Hybrid run appeared correct. A full-guide regressi
 ### Learner session termination and local build guard
 
 Each DAP.exe invocation owns one learner session. After the guide runtime and cleanup return, the WPF application shuts down and explicitly terminates its own process so its loaded DLLs are released. The DAP.App build checks only processes running the exact DAP.exe from that build output; if one is still active, the build stops immediately with its PID and an actionable message rather than repeatedly retrying DLL copies. Copy retries are disabled for DAP.App. No other DAP processes are killed, and no global session registry is introduced. These changes require validation on Windows; a stale process from an older executable must be closed once before rebuilding.
+
+## Shared guide execution policy
+
+`DAP.Core.Guides.GuideRunPlan` is the common runtime-neutral owner of ordered Guide Steps, start-step selection, disabled-step lookahead, captured values, and runtime capture-token substitution. Both the Web adapter guide runtime and Windows guide runtime use it. Target resolution, active-step validation, bubble presentation, and UI-specific actions remain in their respective runtimes/adapters; a single unified active-step engine has **not** yet been implemented. Session termination and build-lock preflight are handled by the shared DAP.App host. Web tab/window activation and production Web Hybrid remain open gaps. This is current architecture, not a completed full runtime unification.
