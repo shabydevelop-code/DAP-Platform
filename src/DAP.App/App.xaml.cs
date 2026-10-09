@@ -15,6 +15,15 @@ public partial class App : Application
         {
             exitCode = await DapApplicationHost.RunAsync(e.Args);
         }
+        catch (Exception exception) when (IsClosedWebSession(exception))
+        {
+            // The user closed the browser tab hosting this learner session.
+            // This is an interrupted guide, not a completed guide or a UI error.
+            // Exit non-zero so E2E does not report PASS; its session probe will
+            // recognize the closed tab and clean up only runner-owned processes.
+            exitCode = 2;
+            Trace.TraceInformation($"DAP Web session ended because its browser tab was closed: {exception.Message}");
+        }
         catch (Exception exception)
         {
             Trace.TraceError($"DAP session terminated unexpectedly: {exception}");
@@ -34,6 +43,17 @@ public partial class App : Application
             // cleanup completes, do not leave a background process holding DLLs.
             Environment.Exit(exitCode);
         }
+    }
+
+    private static bool IsClosedWebSession(Exception exception)
+    {
+        for (Exception? current = exception; current is not null; current = current.InnerException)
+        {
+            if (current.Message.Contains("DAP test driver expected exactly one session tab for", StringComparison.Ordinal)
+                && current.Message.Contains("but found 0", StringComparison.Ordinal))
+                return true;
+        }
+        return false;
     }
 
     public App()
