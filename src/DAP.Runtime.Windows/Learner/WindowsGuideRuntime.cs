@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Windows.Automation;
@@ -53,12 +54,12 @@ public sealed class WindowsGuideRuntime
         AutomationElement? preExistingTargetForCurrentStep = null;
         var capturedValues = plan.Captures;
 
-        for (var index = plan.StartIndex; index < ordered.Length; index++)
+        for (var index = plan.StartIndex; index < ordered.Count; index++)
         {
             var persistedStep = ordered[index];
             if (!persistedStep.IsEnabled)
             {
-                Console.Error.WriteLine($"[DAP Windows guide] skipping disabled Step {persistedStep.Order}/{ordered.Length} '{persistedStep.Id}'.");
+                Console.Error.WriteLine($"[DAP Windows guide] skipping disabled Step {persistedStep.Order}/{ordered.Count} '{persistedStep.Id}'.");
                 continue;
             }
 
@@ -90,16 +91,16 @@ public sealed class WindowsGuideRuntime
                 }
             }
 
-            Console.Error.WriteLine($"[DAP Windows guide] starting Step {step.Order}/{ordered.Length} '{step.Id}'.");
+            Console.Error.WriteLine($"[DAP Windows guide] starting Step {step.Order}/{ordered.Count} '{step.Id}'.");
             await RunStepAsync(
                 windowRoot,
                 step,
                 step.Order,
-                ordered.Length,
+                ordered.Count,
                 cancellationToken,
                 preExistingTargetForCurrentStep,
                 capturedValues);
-            Console.Error.WriteLine($"[DAP Windows guide] completed Step {step.Order}/{ordered.Length} '{step.Id}'.");
+            Console.Error.WriteLine($"[DAP Windows guide] completed Step {step.Order}/{ordered.Count} '{step.Id}'.");
 
             preExistingTargetForCurrentStep = nextTargetBeforeCurrentAction;
         }
