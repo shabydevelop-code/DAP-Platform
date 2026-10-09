@@ -10,32 +10,9 @@ using DAP.Data.Sqlite.Guides;
 
 const string baseUrl = "http://localhost:5200";
 
-string? publishedDapDirectory = null;
-string? guideId = null;
-for (var i = 0; i < args.Length; i++)
-{
-    if (args[i].Equals("--published-dap", StringComparison.OrdinalIgnoreCase))
-    {
-        if (i + 1 >= args.Length || string.IsNullOrWhiteSpace(args[i + 1]))
-            throw new ArgumentException("--published-dap requires a directory containing DAP.exe.");
-        publishedDapDirectory = Path.GetFullPath(args[++i]);
-        continue;
-    }
-
-    if (args[i].Equals("--guide", StringComparison.OrdinalIgnoreCase))
-    {
-        if (i + 1 >= args.Length || string.IsNullOrWhiteSpace(args[i + 1]))
-            throw new ArgumentException("--guide requires a persisted Guide ID.");
-        guideId = args[++i];
-        continue;
-    }
-
-    if (!args[i].Equals("--manual", StringComparison.OrdinalIgnoreCase)
-        && !args[i].Equals("--hybrid", StringComparison.OrdinalIgnoreCase)
-        && !args[i].Equals("--reset-guide", StringComparison.OrdinalIgnoreCase))
-        throw new ArgumentException($"Unsupported Web E2E argument '{args[i]}'.");
-}
-
+var runOptions = DAP.Testing.E2eRunOptions.Parse(args, "Web");
+var publishedDapDirectory = runOptions.PublishedDapDirectory;
+var guideId = runOptions.GuideId;
 
 if (args.Contains("--reset-guide", StringComparer.OrdinalIgnoreCase))
 {
@@ -88,13 +65,8 @@ if (args.Contains("--reset-guide", StringComparer.OrdinalIgnoreCase))
     return;
 }
 
-if (string.IsNullOrWhiteSpace(guideId))
-    throw new ArgumentException("--guide <GuideId> is required.");
-
-var manual = args.Contains("--manual", StringComparer.OrdinalIgnoreCase);
-var hybrid = args.Contains("--hybrid", StringComparer.OrdinalIgnoreCase);
-if (manual == hybrid)
-    throw new ArgumentException("Choose exactly one Web run mode: --manual or --hybrid.");
+var manual = runOptions.Manual;
+var hybrid = runOptions.Hybrid;
 
 static void EnsurePortFree(int port)
 {
