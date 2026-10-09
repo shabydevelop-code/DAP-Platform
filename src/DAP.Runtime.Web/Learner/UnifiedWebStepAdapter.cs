@@ -35,7 +35,8 @@ public sealed class UnifiedWebStepAdapter : IUnifiedStepPlatformAdapter
             _commitLatched = true;
         var context = await _browser.IsContextActiveAsync(step, token);
         if (!context)
-            return new(false, false, false, false, _commitLatched,
+            return new(false, false, false, false,
+                _commitLatched && GuideStepExecutionPolicy.IsClickValidationStep(step),
                 await _browser.AreCompletionConditionsSatisfiedAsync(step, token),
                 ActionObserved: _commitLatched && GuideStepExecutionPolicy.IsClickValidationStep(step));
 
