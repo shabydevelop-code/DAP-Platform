@@ -211,6 +211,7 @@ internal static class WebScenario
 
         try
         {
+        {
             if (!packagedDiagnostics && !File.Exists(testCrmProject))
                 throw new FileNotFoundException("TestCRM Web project was not found.", testCrmProject);
             if (!packagedDiagnostics && !File.Exists(testCrmBackendProject))
@@ -819,6 +820,7 @@ internal static class WebScenario
             catch (UnauthorizedAccessException)
             {
             }
+        }
         }
         finally
         {
