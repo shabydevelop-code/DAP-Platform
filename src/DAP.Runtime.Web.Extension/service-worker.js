@@ -3,6 +3,7 @@ const TEST_DRIVER_VERSION = "1.0.1";
 const identifiedFrames = new Map();
 let port = null;
 const productionContextTabs = new Map();
+const activatedProductionSessions = new Set();
 
 function connect() {
   if (port) return port;
@@ -20,6 +21,7 @@ function connect() {
     if (port === connected) {
       port = null;
       productionContextTabs.clear();
+      activatedProductionSessions.clear();
     }
   });
 
@@ -623,6 +625,19 @@ async function handleNativeMessage(message) {
         null
       );
       return;
+    }
+
+    // Bring the persisted, uniquely resolved production target to the foreground
+    // once per learner session, without stealing focus on later reconciliation.
+    if (contextual && !message.sessionId &&
+        (command.type === "showBubble" || command.type === "showCenteredStep") &&
+        !activatedProductionSessions.has(String(message.sessionId || "production") + ":" + envelope.applicationContextKey)) {
+      const tab = await chrome.tabs.get(tabId);
+      if (tab.windowId == null)
+        throw new Error("Resolved DAP Web target has no browser window.");
+      await chrome.windows.update(tab.windowId, { focused: true });
+      await chrome.tabs.update(tabId, { active: true });
+      activatedProductionSessions.add(String(message.sessionId || "production") + ":" + envelope.applicationContextKey);
     }
 
     if (command.type === "hideBubble") {
