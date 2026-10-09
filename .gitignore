@@ -2,10 +2,10 @@
 **/bin/
 **/obj/
 
-# Local TestCRM data
-test-apps/DAP.TestCRM/data/*.db
-test-apps/DAP.TestCRM/data/*.db-shm
-test-apps/DAP.TestCRM/data/*.db-wal
+# Local TestCRM demo data
+demos/Shared/data/*.db
+demos/Shared/data/*.db-shm
+demos/Shared/data/*.db-wal
 
 # Local diagnostics and IDE state
 .vs/
