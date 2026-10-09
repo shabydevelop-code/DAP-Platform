@@ -5,8 +5,8 @@ const string webUrl = "http://localhost:5200";
 const string backendUrl = "http://localhost:5201";
 
 var repoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
-var backendProject = Path.Combine(repoRoot, "test-apps", "DAP.TestCRM", "Server", "DAP.TestCRM.Server.csproj");
-var webProject = Path.Combine(repoRoot, "test-apps", "DAP.TestCRM", "Web", "DAP.TestCRM.Web.csproj");
+var backendProject = Path.Combine(repoRoot, "demos", "Shared", "Server", "DAP.TestCRM.Server.csproj");
+var webProject = Path.Combine(repoRoot, "demos", "Web", "App", "DAP.TestCRM.Web.csproj");
 
 if (!File.Exists(backendProject))
     throw new FileNotFoundException("TestCRM Server project was not found.", backendProject);
