@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+using System.Text;
 using System.Diagnostics;
 using System.Net.Http;
 
@@ -131,6 +133,7 @@ try
     if (!OperatingSystem.IsWindows())
         throw new PlatformNotSupportedException("TestCRM Web Host requires Windows to launch Chrome.");
 
+    var existingChromeWindows = GetChromeWindows();
     using (var launcher = Process.Start(new ProcessStartInfo
     {
         FileName = "cmd.exe",
@@ -145,15 +148,35 @@ try
             throw new InvalidOperationException("Chrome launch failed.");
     }
 
+    // Chrome may reuse an existing process; its PID is not the lifetime of this window.
+    // Track only the newly created top-level Chrome window, never the whole browser.
+    nint chromeWindow = 0;
+    var windowDeadline = DateTime.UtcNow.AddSeconds(5);
+    while (DateTime.UtcNow < windowDeadline)
+    {
+        var newWindows = GetChromeWindows().Except(existingChromeWindows).ToArray();
+        if (newWindows.Length > 1)
+            throw new InvalidOperationException("Multiple new Chrome windows appeared; cannot identify the TestCRM window safely.");
+        if (newWindows.Length == 1)
+        {
+            chromeWindow = newWindows[0];
+            break;
+        }
+        await Task.Delay(100);
+    }
+    if (chromeWindow == 0)
+        throw new InvalidOperationException("Could not identify the newly opened TestCRM Chrome window.");
+
     Console.WriteLine();
     Console.WriteLine($"TestCRM is running independently at {webUrl}");
     Console.WriteLine("Leave this terminal open. Start DAP Learner from a separate terminal.");
-    Console.WriteLine("Press Ctrl+C here to stop TestCRM (closing Chrome alone does not stop the servers).");
+    Console.WriteLine("Close the TestCRM Chrome window or press Ctrl+C to stop the demo servers.");
 
     var backendExit = backend.WaitForExitAsync();
     var webExit = web.WaitForExitAsync();
-    await Task.WhenAny(backendExit, webExit);
-    if (Volatile.Read(ref stopping) != 0)
+    while (Volatile.Read(ref stopping) == 0 && !backendExit.IsCompleted && !webExit.IsCompleted && IsWindow(chromeWindow))
+        await Task.Delay(200);
+    if (Volatile.Read(ref stopping) != 0 || !IsWindow(chromeWindow))
     {
         Console.WriteLine("TestCRM host stopped normally.");
     }
@@ -170,3 +193,46 @@ finally
     web.Dispose();
     backend.Dispose();
 }
+
+static HashSet<nint> GetChromeWindows()
+{
+    var windows = new HashSet<nint>();
+    EnumWindows((handle, _) =>
+    {
+        var className = new StringBuilder(128);
+        if (GetClassName(handle, className, className.Capacity) == 0 ||
+            !string.Equals(className.ToString(), "Chrome_WidgetWin_1", StringComparison.Ordinal) ||
+            !IsWindowVisible(handle))
+            return true;
+
+        GetWindowThreadProcessId(handle, out var processId);
+        try
+        {
+            using var process = Process.GetProcessById((int)processId);
+            if (string.Equals(process.ProcessName, "chrome", StringComparison.OrdinalIgnoreCase))
+                windows.Add(handle);
+        }
+        catch (ArgumentException) { }
+        catch (InvalidOperationException) { }
+        catch (System.ComponentModel.Win32Exception) { }
+        return true;
+    }, nint.Zero);
+    return windows;
+}
+
+delegate bool EnumWindowsCallback(nint window, nint parameter);
+
+[DllImport("user32.dll")]
+static extern bool EnumWindows(EnumWindowsCallback callback, nint parameter);
+
+[DllImport("user32.dll", CharSet = CharSet.Unicode)]
+static extern int GetClassName(nint window, StringBuilder className, int maxCount);
+
+[DllImport("user32.dll")]
+static extern uint GetWindowThreadProcessId(nint window, out uint processId);
+
+[DllImport("user32.dll")]
+static extern bool IsWindowVisible(nint window);
+
+[DllImport("user32.dll")]
+static extern bool IsWindow(nint window);
