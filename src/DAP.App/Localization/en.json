@@ -12,7 +12,7 @@
   "App.InfrastructureCheckTitle": "DAP Infrastructure Check",
   "App.InfrastructureReady": "DAP.exe is ready.\n\nDatabase: {0}\n\nDiagnostics: {1}",
   "App.WindowTitle": "DAP",
-  "App.Usage": "Usage:\\nDAP.exe --check\\nDAP.exe --guide <GuideId> [--start-step <order>]",
+  "App.Usage": "Usage:\\nDAP.exe --check\\nDAP.exe --guide <GuideId>",
   "App.TargetWindowNotFoundTitle": "Unable to Start Guide",
   "App.TargetWindowNotFoundMessage": "We couldn't find the application window required for this guide. Make sure the application is open and try again."
 }
