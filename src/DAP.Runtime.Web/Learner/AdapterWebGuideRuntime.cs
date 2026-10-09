@@ -26,10 +26,15 @@ public sealed class AdapterWebGuideRuntime
             new DelegateGuideStepAdapter(TargetRuntime.Web, "Web",
             async (step, index, total, plan, token) =>
             {
+                Func<CancellationToken, Task>? onTargetObserved = null;
                 if (GuideRunPlan.ShouldCapture(step, TargetRuntime.Web, StepCaptureTiming.DuringStep))
-                    throw new NotSupportedException(
-                        $"Guide Step '{step.Id}' requests during-step Web capture, which requires an observation callback.");
-                await _steps.RunActiveStepAsync(step, step.Order, total, token);
+                    onTargetObserved = async observationToken =>
+                    {
+                        var value = await _browser.CaptureAsync(step, observationToken);
+                        GuideRunPlan.RecordCapture(plan.Captures, step.Id, value);
+                    };
+                await _steps.RunActiveStepAsync(
+                    step, step.Order, total, token, onTargetObserved: onTargetObserved);
                 if (GuideRunPlan.ShouldCapture(step, TargetRuntime.Web, StepCaptureTiming.AfterAction))
                 {
                     var value = await _browser.CaptureAsync(step, token);
