@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using System.Text.RegularExpressions;
 using System.Windows.Automation;
 using DAP.Core.Guides;
 using DAP.Core.Targets;
@@ -12,7 +11,6 @@ namespace DAP.Runtime.Windows.Learner;
 
 public sealed class WindowsGuideRuntime
 {
-    private static readonly Regex RuntimeValueToken = new(@"\{\{step:(?<step>[^}:]+):capture\}\}", RegexOptions.Compiled | RegexOptions.CultureInvariant);
     private readonly WindowsTargetResolver _resolver;
     private readonly WindowsBubblePresenter _bubbles;
     private readonly WindowsValidationEvaluator _validation;
@@ -49,22 +47,13 @@ public sealed class WindowsGuideRuntime
         int? startStepOrder = null,
         IReadOnlyDictionary<string, string>? initialCapturedValues = null)
     {
-        var ordered = guideSteps.OrderBy(step => step.Order).ToArray();
-        var startIndex = 0;
-
-        if (startStepOrder is not null)
-        {
-            startIndex = Array.FindIndex(ordered, step => step.Order == startStepOrder.Value);
-            if (startIndex < 0)
-                throw new InvalidOperationException($"Guide does not contain Step order {startStepOrder.Value}.");
-        }
+        var plan = new GuideRunPlan(guideSteps, startStepOrder, initialCapturedValues);
+        var ordered = plan.Steps;
 
         AutomationElement? preExistingTargetForCurrentStep = null;
-        var capturedValues = initialCapturedValues is null
-            ? new Dictionary<string, string>(StringComparer.Ordinal)
-            : new Dictionary<string, string>(initialCapturedValues, StringComparer.Ordinal);
+        var capturedValues = plan.Captures;
 
-        for (var index = startIndex; index < ordered.Length; index++)
+        for (var index = plan.StartIndex; index < ordered.Length; index++)
         {
             var persistedStep = ordered[index];
             if (!persistedStep.IsEnabled)
@@ -73,7 +62,7 @@ public sealed class WindowsGuideRuntime
                 continue;
             }
 
-            var step = MaterializeRuntimeValues(persistedStep, capturedValues);
+            var step = plan.Materialize(persistedStep);
             var isCenteredStep = step.Target is null
                 && step.Bubble.Placement == BubblePlacement.Center;
 
@@ -82,11 +71,11 @@ public sealed class WindowsGuideRuntime
                     $"Guide Step '{step.Id}' is not a Windows Step and cannot run in WindowsGuideRuntime.");
 
             AutomationElement? nextTargetBeforeCurrentAction = null;
-            var nextEnabledIndex = Array.FindIndex(ordered, index + 1, candidate => candidate.IsEnabled);
+            var nextEnabledIndex = plan.NextEnabledIndex(index);
             if (nextEnabledIndex >= 0)
             {
                 var nextPersistedStep = ordered[nextEnabledIndex];
-                var nextStep = TryMaterializeRuntimeValues(nextPersistedStep, capturedValues);
+                var nextStep = plan.TryMaterialize(nextPersistedStep);
                 if (nextStep?.Target?.Runtime == TargetRuntime.Windows)
                 {
                     try
@@ -815,37 +804,6 @@ public sealed class WindowsGuideRuntime
         if (!match.Success)
             return null;
         return match.Groups.Count > 1 ? match.Groups[1].Value : match.Value;
-    }
-
-    private static GuideStep MaterializeRuntimeValues(GuideStep step, IReadOnlyDictionary<string, string> values)
-    {
-        if (step.Target is null)
-            return step;
-
-        string Replace(string value) => RuntimeValueToken.Replace(value, match =>
-        {
-            var source = match.Groups["step"].Value;
-            if (!values.TryGetValue(source, out var captured))
-                throw new InvalidOperationException($"Guide Step '{step.Id}' references uncaptured runtime value from Step '{source}'.");
-            return captured;
-        });
-
-        return step with
-        {
-            Target = step.Target with
-            {
-                Locator = step.Target.Locator with { Value = Replace(step.Target.Locator.Value) },
-                Anchors = step.Target.Anchors
-                    .Select(anchor => anchor with { Locator = anchor.Locator with { Value = Replace(anchor.Locator.Value) } })
-                    .ToArray()
-            }
-        };
-    }
-
-    private static GuideStep? TryMaterializeRuntimeValues(GuideStep step, IReadOnlyDictionary<string, string> values)
-    {
-        try { return MaterializeRuntimeValues(step, values); }
-        catch (InvalidOperationException) { return null; }
     }
 
     private async Task WaitForTargetScopeStabilityAsync(
