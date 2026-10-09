@@ -655,12 +655,9 @@ async function handleNativeMessage(message) {
       const tab = await chrome.tabs.get(tabId);
       if (tab.windowId == null)
         throw new Error("Resolved DAP Web target has no browser window.");
-      await chrome.tabs.update(tabId, { active: true });
-      await chrome.windows.update(tab.windowId, { focused: true, state: "normal" });
-      const focusedWindow = await chrome.windows.getLastFocused();
-      if (focusedWindow.id !== tab.windowId || !focusedWindow.focused)
-        throw new Error("DAP could not bring the resolved browser window to the foreground.");
-      const activeTab = await chrome.tabs.get(tabId);
+      // Select the resolved tab without restoring, resizing or focusing the
+      // browser window. Native Windows activation is owned by the DAP host.
+      const activeTab = await chrome.tabs.update(tabId, { active: true });
       if (activeTab.title && port)
         port.postMessage({ type: "adapterEvent", payload: { type: "activate-target-window", title: activeTab.title, applicationContextKey: envelope.applicationContextKey } });
       activatedProductionSessions.add(String(message.sessionId || "production") + ":" + envelope.applicationContextKey);
