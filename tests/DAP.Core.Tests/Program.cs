@@ -16,6 +16,14 @@ static UnifiedStepObservation Observation(
     bool action = false)
     => new(context, target, visible, stable, primary, conditions, ActionObserved: action);
 
+var liveState = new GuideActiveStepState(new GuideStep("live", 1, null, new BubbleDefinition("Test"), new ValidationDefinition("clicked")));
+var liveEngine = new UnifiedGuideStepEngine();
+Check(liveState.ObserveContext(false) == GuideStepReconciliationResult.WaitingForContext, "Shared runtime waits for context");
+Check(liveState.ObserveTarget(false) == GuideStepReconciliationResult.WaitingForTarget, "Shared runtime waits for target");
+Check(liveEngine.EvaluateCompletion(liveState, true, false) == GuideStepReconciliationResult.WaitingForValidation, "Shared runtime waits for conditions");
+Check(liveEngine.EvaluateCompletion(liveState, true, true) == GuideStepReconciliationResult.Completed, "Shared runtime completes validated step");
+Check(liveState.TrySignalReady() && !liveState.TrySignalReady(), "Shared runtime signals readiness once");
+
 var machine = Machine();
 var missing = machine.Advance(Observation(context: false));
 Check(missing.Status == GuideStepReconciliationResult.WaitingForContext, "Inactive context waits");
