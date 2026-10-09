@@ -12,24 +12,12 @@ public sealed class GuideRunPlan
 
     private readonly GuideStep[] _steps;
     public IReadOnlyList<GuideStep> Steps => _steps;
-    public int StartIndex { get; }
     public Dictionary<string, string> Captures { get; }
 
-    public GuideRunPlan(
-        IReadOnlyList<GuideStep> steps,
-        int? startStepOrder = null,
-        IReadOnlyDictionary<string, string>? initialCapturedValues = null)
+    public GuideRunPlan(IReadOnlyList<GuideStep> steps)
     {
         _steps = steps.OrderBy(step => step.Order).ToArray();
-        StartIndex = startStepOrder is null
-            ? 0
-            : Array.FindIndex(_steps, step => step.Order == startStepOrder.Value);
-        if (StartIndex < 0)
-            throw new InvalidOperationException($"Guide does not contain Step order {startStepOrder}.");
-
-        Captures = initialCapturedValues is null
-            ? new Dictionary<string, string>(StringComparer.Ordinal)
-            : new Dictionary<string, string>(initialCapturedValues, StringComparer.Ordinal);
+        Captures = new Dictionary<string, string>(StringComparer.Ordinal);
     }
 
     /// <summary>Explicit timing is shared across runtimes. For older guides,
@@ -74,7 +62,7 @@ public sealed class GuideRunPlan
         Action<GuideStep>? onCompleted = null)
     {
         ArgumentNullException.ThrowIfNull(executeStep);
-        for (var index = StartIndex; index < _steps.Length; index++)
+        for (var index = 0; index < _steps.Length; index++)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var persisted = _steps[index];
