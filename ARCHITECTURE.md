@@ -31,9 +31,8 @@ test-apps/
 tests/
   DAP.Data.Sqlite.Tests/
   DAP.TestCRM.Web.Host/
-  DAP.TestCRM.Web.E2E/
+  DAP.E2E/
   DAP.TestCRM.Windows.Host/
-  DAP.TestCRM.Windows.E2E/
 ```
 
 ## Guide and persistence model
@@ -88,7 +87,7 @@ Production Web execution does not use Playwright or CDP.
 
 The Extension supports dynamic DOM changes, frames, target re-resolution, learner event observation, validation signals, and bubble presentation. The Native Host bridges browser Native Messaging to the .NET process.
 
-The Web E2E project has a separate Extension test-driver channel. Hybrid uses it for synthetic persisted-value actions. Manual and Hybrid both use a runner-owned Extension session identity for browser-lifetime observation and clean intentional browser closure; Manual sends no synthetic learner actions. The channel must never become a completion/progression oracle.
+The unified E2E project uses a separate Web Extension test-driver channel. Hybrid uses it for synthetic persisted-value actions. Manual and Hybrid both use a runner-owned Extension session identity for browser-lifetime observation and clean intentional browser closure; Manual sends no synthetic learner actions. The channel must never become a completion/progression oracle.
 
 ## Windows Runtime
 
