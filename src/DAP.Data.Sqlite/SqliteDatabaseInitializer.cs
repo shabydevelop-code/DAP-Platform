@@ -15,9 +15,6 @@ public sealed class SqliteDatabaseInitializer
     {
         await using var connection = await _connections.OpenAsync(cancellationToken);
 
-        if (await UsesLegacyTextIdsAsync(connection, cancellationToken))
-            await MigrateLegacyTextIdsAsync(connection, cancellationToken);
-
         await using var command = connection.CreateCommand();
         command.CommandText = Schema002;
         await command.ExecuteNonQueryAsync(cancellationToken);
