@@ -39,6 +39,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
     private readonly Task _acceptLoop;
     private TaskCompletionSource<bool>? _centeredDismissal;
     private bool _disposed;
+    public event Action? TargetTabClosed;
 
     public ExtensionWebBrowserAdapter(
         string? eventPath = null,
@@ -172,6 +173,14 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
     {
         if (!payload.TryGetProperty("type", out var typeElement)) return;
         var eventType = typeElement.GetString();
+
+        if (eventType == "target-tab-closed")
+        {
+            var contextKey = payload.TryGetProperty("applicationContextKey", out var key) ? key.GetString() : null;
+            if (contextKey != null && string.Equals(contextKey, _activeApplicationContextKey, StringComparison.Ordinal))
+                TargetTabClosed?.Invoke();
+            return;
+        }
 
         if (eventType == "centered-dismissed")
         {
