@@ -91,7 +91,7 @@ public sealed class AdapterWebLearnerRuntime
                 }
             }
 
-            if (activeState.ObserveContext(await _browser.IsContextActiveAsync(step, cancellationToken))
+            if (sharedEngine.ObserveContext(activeState, await _browser.IsContextActiveAsync(step, cancellationToken))
                 == GuideStepReconciliationResult.WaitingForContext)
             {
                 await _browser.HideBubbleAsync(cancellationToken);
