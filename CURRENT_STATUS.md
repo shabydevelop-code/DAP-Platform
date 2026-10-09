@@ -77,3 +77,7 @@ The independent Web Manual workflow has been verified through completion of the 
 Current Manual/Hybrid behavior is persisted-data-driven on both runtimes. Windows Hybrid input focus synchronization is verified for the first input Step. Intentional Windows target closure and Web browser-session closure terminate cleanly rather than being reported as Runtime failures. Web Hybrid emits the browser-session closure message once through its owning termination path; Web Manual retains its passive clean-closure path. Web Manual browser-lifetime observation is passive and does not automate learner actions.
 
 Do not claim a fresh full-guide regression unless such a run has actually been completed.
+
+## Product execution modes
+
+The production learner accepts `DAP.exe --guide <GuideId> --mode manual` (or omits `--mode`, defaulting to Manual). The product also parses `--mode hybrid`, but explicitly rejects it as unsupported before starting a Guide: persisted `AutomationValue` actions are currently executed by TestCRM-specific E2E drivers, not by the production learner. Hybrid is **not** a completed product feature. The required design is a runtime-owned action executor for both Web and Windows, with explicit persisted automation authorization, unique target resolution, learner-owned validation/progression, and no dependency on TestCRM, test-driver protocol or target application source. One Guide must support both modes. E2E runners remain test harnesses only. Instructor launch is not decided.
