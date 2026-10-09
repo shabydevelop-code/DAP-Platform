@@ -96,3 +96,7 @@ Production Learner attaches to an already-open application using the persisted A
 ## ADR-020 — Windows application identity is persisted and deterministic
 
 Windows application identity is resolved from persisted named Application Context matchers, separately from Step target descriptors. The current resolver supports `WindowTitleContains`, `AutomationId`, and `ProcessName` and requires a unique top-level window match. Current execution supports one Windows context at startup; multi-context switching, delayed discovery, and rebinding remain required.
+
+## Product execution modes
+
+The production learner accepts `DAP.exe --guide <GuideId> --mode manual` (or omits `--mode`, defaulting to Manual). The product also parses `--mode hybrid`, but explicitly rejects it as unsupported before starting a Guide: persisted `AutomationValue` actions are currently executed by TestCRM-specific E2E drivers, not by the production learner. Hybrid is **not** a completed product feature. The required design is a runtime-owned action executor for both Web and Windows, with explicit persisted automation authorization, unique target resolution, learner-owned validation/progression, and no dependency on TestCRM, test-driver protocol or target application source. One Guide must support both modes. E2E runners remain test harnesses only. Instructor launch is not decided.
