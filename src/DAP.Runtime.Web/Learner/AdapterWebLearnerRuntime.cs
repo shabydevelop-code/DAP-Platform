@@ -65,8 +65,9 @@ public sealed class AdapterWebLearnerRuntime
                 var primary = clicked || await _browser.IsPrimaryValidationSatisfiedAsync(step, cancellationToken);
                 if (primary)
                 {
-                    if (GuideStepExecutionPolicy.CanAdvance(
-                        primary, await _browser.AreCompletionConditionsSatisfiedAsync(step, cancellationToken)))
+                    if (GuideStepExecutionPolicy.IsStepComplete(
+                        step, primary,
+                        await _browser.AreCompletionConditionsSatisfiedAsync(step, cancellationToken)))
                     {
                         await _browser.HideBubbleAsync(cancellationToken);
                         return;
@@ -172,7 +173,7 @@ public sealed class AdapterWebLearnerRuntime
             // can arrive just after the presentation race was decided.
             if (clicked && commitTask?.IsCompletedSuccessfully == true)
             {
-                if (GuideStepExecutionPolicy.CanAdvanceAfterObservedAction(
+                if (GuideStepExecutionPolicy.IsStepComplete(
                     step, true,
                     await _browser.AreCompletionConditionsSatisfiedAsync(step, cancellationToken)))
                 {
