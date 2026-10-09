@@ -279,7 +279,7 @@ public static class DapApplicationHost
 
         using var browserAdapter = new ExtensionWebBrowserAdapter(texts);
         browserAdapter.ConfigureApplicationContexts(applicationContexts);
-        var stepRuntime = new AdapterWebLearnerRuntime(browserAdapter, automaticStepLabel: GetAutomaticStepLabel(), hybrid: options.ExecutionMode == DapExecutionMode.Hybrid);
+        var stepRuntime = new WebGuideStepRuntime(browserAdapter, automaticStepLabel: GetAutomaticStepLabel(), hybrid: options.ExecutionMode == DapExecutionMode.Hybrid);
         var guideRuntime = new AdapterWebGuideRuntime(stepRuntime, browserAdapter);
         StartupMark(startup, "Web extension adapter composition root created");
 
