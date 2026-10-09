@@ -40,6 +40,8 @@ Production Windows Runtime uses Microsoft UI Automation.
 
 A complete human Manual run has demonstrated persisted-data-driven learner execution without a parallel test completion engine. Hybrid uses persisted automation values only for configured value controls and synchronizes with Runtime progression. Runtime applies one-time initial input focus before Hybrid value actions, and intentional target-window closure ends the runner cleanly.
 
+A first Windows application-context resolver is implemented: when a Guide defines exactly one Windows context, DAP resolves an already-open top-level window by persisted `WindowTitleContains`, `AutomationId`, or `ProcessName` matchers and requires a unique match. Guides without a Windows context retain the explicit `--window-automation-id` fallback. This initial path is not yet verified by a Windows build or end-to-end run. Multiple Windows contexts, per-Step context switching, delayed discovery, and rebinding remain unimplemented.
+
 ## Canonical runner contract
 
 Current TestCRM execution contract:
