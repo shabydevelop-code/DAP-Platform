@@ -57,54 +57,11 @@ if (args.Contains("--reset-guide", StringComparer.OrdinalIgnoreCase))
     return;
 }
 
-string? publishedDapDirectory = null;
-string? guideId = null;
-for (var i = 0; i < args.Length; i++)
-{
-    if (args[i].Equals("--published-dap", StringComparison.OrdinalIgnoreCase))
-    {
-        if (i + 1 >= args.Length || string.IsNullOrWhiteSpace(args[i + 1]))
-            throw new ArgumentException("--published-dap requires a directory containing DAP.exe.");
-        publishedDapDirectory = Path.GetFullPath(args[++i]);
-        continue;
-    }
-
-    if (args[i].Equals("--guide", StringComparison.OrdinalIgnoreCase))
-    {
-        if (i + 1 >= args.Length || string.IsNullOrWhiteSpace(args[i + 1]))
-            throw new ArgumentException("--guide requires a persisted Guide ID.");
-        guideId = args[++i];
-        continue;
-    }
-}
-
-if (string.IsNullOrWhiteSpace(guideId))
-    throw new ArgumentException("--guide <GuideId> is required.");
-
-var manual = args.Contains("--manual", StringComparer.OrdinalIgnoreCase);
-var hybrid = args.Contains("--hybrid", StringComparer.OrdinalIgnoreCase);
-if (manual == hybrid)
-    throw new ArgumentException("Choose exactly one Windows run mode: --manual or --hybrid.");
-
-var knownArguments = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-{
-    "--manual",
-    "--hybrid",
-    "--published-dap",
-    "--guide"
-};
-for (var i = 0; i < args.Length; i++)
-{
-    if (args[i].Equals("--published-dap", StringComparison.OrdinalIgnoreCase)
-        || args[i].Equals("--guide", StringComparison.OrdinalIgnoreCase))
-    {
-        i++;
-        continue;
-    }
-
-    if (!knownArguments.Contains(args[i]))
-        throw new ArgumentException($"Unsupported Windows E2E argument '{args[i]}'.");
-}
+var runOptions = DAP.Testing.E2eRunOptions.Parse(args, "Windows");
+var publishedDapDirectory = runOptions.PublishedDapDirectory;
+var guideId = runOptions.GuideId;
+var manual = runOptions.Manual;
+var hybrid = runOptions.Hybrid;
 
 await RunLearnerAsync(manual, hybrid);
 
