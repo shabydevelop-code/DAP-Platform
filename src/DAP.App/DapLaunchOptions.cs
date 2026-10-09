@@ -9,12 +9,19 @@ public enum DapLaunchMode
     Learner
 }
 
+public enum DapExecutionMode
+{
+    Manual,
+    Hybrid
+}
+
 public sealed record DapLaunchOptions(
     DapLaunchMode Mode,
     string? GuideId,
     string? WindowAutomationId,
     int? StartStep,
-    string? ResumeContextPath)
+    string? ResumeContextPath,
+    DapExecutionMode ExecutionMode = DapExecutionMode.Manual)
 {
     public static DapLaunchOptions? Parse(string[] args, IUiTextProvider texts)
     {
@@ -26,12 +33,25 @@ public sealed record DapLaunchOptions(
             && !string.IsNullOrWhiteSpace(args[1]))
         {
             string? windowAutomationId = null;
+            var executionMode = DapExecutionMode.Manual;
+            var modeSpecified = false;
             int? startStep = null;
             string? resumeContextPath = null;
 
             for (var i = 2; i < args.Length; i++)
             {
-                if (args[i] == "--window-automation-id" && i + 1 < args.Length
+                if (args[i] == "--mode" && i + 1 < args.Length && !modeSpecified)
+                {
+                    modeSpecified = true;
+                    executionMode = args[++i] switch
+                    {
+                        "manual" => DapExecutionMode.Manual,
+                        "hybrid" => DapExecutionMode.Hybrid,
+                        _ => (DapExecutionMode)(-1)
+                    };
+                    if (!Enum.IsDefined(executionMode)) return Usage(texts);
+                }
+                else if (args[i] == "--window-automation-id" && i + 1 < args.Length
                     && !string.IsNullOrWhiteSpace(args[i + 1]))
                     windowAutomationId = args[++i];
                 else if (args[i] == "--start-step" && i + 1 < args.Length
@@ -49,7 +69,8 @@ public sealed record DapLaunchOptions(
                 args[1],
                 windowAutomationId,
                 startStep,
-                resumeContextPath);
+                resumeContextPath,
+                executionMode);
         }
 
         return Usage(texts);
