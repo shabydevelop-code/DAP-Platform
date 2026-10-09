@@ -24,55 +24,6 @@ public sealed class SqliteDatabaseInitializer
         await EnsureGuideStepHybridColumnsAsync(connection, cancellationToken);
     }
 
-    private static async Task MigrateSampleGuideKeysAsync(SqliteConnection connection, CancellationToken cancellationToken)
-    {
-        // GuideSteps and ApplicationContexts reference the numeric Guides.Id.
-        // Renaming Guides.Key preserves all existing relationships and step data.
-        var renames = new[]
-        {
-            (Old: "testcrm-web-canonical-workflow", New: "sampleapp-web-guide"),
-            (Old: "testcrm-windows-canonical-workflow", New: "sampleapp-windows-guide")
-        };
-
-        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
-        try
-        {
-            foreach (var rename in renames)
-            {
-                await using var check = connection.CreateCommand();
-                check.Transaction = (SqliteTransaction)transaction;
-                check.CommandText = "SELECT Key FROM Guides WHERE Key IN ($old, $new);";
-                check.Parameters.AddWithValue("$old", rename.Old);
-                check.Parameters.AddWithValue("$new", rename.New);
-                var keys = new HashSet<string>(StringComparer.Ordinal);
-                await using (var reader = await check.ExecuteReaderAsync(cancellationToken))
-                    while (await reader.ReadAsync(cancellationToken))
-                        keys.Add(reader.GetString(0));
-
-                if (keys.Contains(rename.Old) && keys.Contains(rename.New))
-                    throw new InvalidOperationException(
-                        $"Cannot rename Guide '{rename.Old}': '{rename.New}' already exists.");
-
-                if (!keys.Contains(rename.Old))
-                    continue;
-
-                await using var update = connection.CreateCommand();
-                update.Transaction = (SqliteTransaction)transaction;
-                update.CommandText = "UPDATE Guides SET Key = $new WHERE Key = $old;";
-                update.Parameters.AddWithValue("$old", rename.Old);
-                update.Parameters.AddWithValue("$new", rename.New);
-                await update.ExecuteNonQueryAsync(cancellationToken);
-            }
-
-            await transaction.CommitAsync(cancellationToken);
-        }
-        catch
-        {
-            await transaction.RollbackAsync(cancellationToken);
-            throw;
-        }
-    }
-
     private static async Task EnsureGuideStepHybridColumnsAsync(SqliteConnection connection, CancellationToken cancellationToken)
     {
         var columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
