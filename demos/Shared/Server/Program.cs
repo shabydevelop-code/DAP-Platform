@@ -5,18 +5,26 @@ var app = builder.Build();
 
 
 
-var sampleAppRoot = Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, ".."));
-var dataDirectory = Path.Combine(sampleAppRoot, "data");
+// Resolve the shared demo data directory from the server project, not from bin/Debug.
+// Both launchers start the server with the project directory as its working directory.
+var serverProjectDirectory = builder.Environment.ContentRootPath;
+var sharedDirectory = Path.GetFullPath(Path.Combine(serverProjectDirectory, ".."));
+var dataDirectory = Path.Combine(sharedDirectory, "data");
 Directory.CreateDirectory(dataDirectory);
 var dbPath = Path.Combine(dataDirectory, "sampleapp.db");
-// Preserve existing demo data when upgrading from the former database name/location.
-// Never overwrite an already migrated database.
+
+// Migration priority: keep the existing canonical DB; otherwise prefer the
+// previously active sampleapp.db in the old build-output location, then legacy
+// testcrm.db. Do not silently replace a database that already exists.
 if (!File.Exists(dbPath))
 {
+    var previousBuildData = Path.Combine(serverProjectDirectory, "bin", "Debug", "data");
     var legacyPaths = new[]
     {
+        Path.Combine(previousBuildData, "sampleapp.db"),
         Path.Combine(dataDirectory, "testcrm.db"),
-        Path.Combine(sampleAppRoot, "testcrm.db")
+        Path.Combine(previousBuildData, "testcrm.db"),
+        Path.Combine(sharedDirectory, "testcrm.db")
     };
     foreach (var legacyPath in legacyPaths)
     {
