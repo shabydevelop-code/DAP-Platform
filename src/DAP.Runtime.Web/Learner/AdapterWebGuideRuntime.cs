@@ -6,10 +6,6 @@ namespace DAP.Runtime.Web.Learner;
 
 public sealed class AdapterWebGuideRuntime
 {
-    private static readonly Regex RuntimeValueToken = new(
-        @"\{\{step:(?<step>[^}:]+):capture\}\}",
-        RegexOptions.Compiled | RegexOptions.CultureInvariant);
-
     private readonly AdapterWebLearnerRuntime _steps;
     private readonly IWebBrowserAdapter _browser;
 
