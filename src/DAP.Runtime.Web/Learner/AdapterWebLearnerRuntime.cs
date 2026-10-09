@@ -172,7 +172,9 @@ public sealed class AdapterWebLearnerRuntime
             // can arrive just after the presentation race was decided.
             if (clicked && commitTask?.IsCompletedSuccessfully == true)
             {
-                if (await _browser.AreCompletionConditionsSatisfiedAsync(step, cancellationToken))
+                if (GuideStepExecutionPolicy.CanAdvanceAfterObservedAction(
+                    step, true,
+                    await _browser.AreCompletionConditionsSatisfiedAsync(step, cancellationToken)))
                 {
                     await _browser.HideBubbleAsync(cancellationToken);
                     return;
