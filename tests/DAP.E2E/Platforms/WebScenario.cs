@@ -413,7 +413,23 @@ internal static class WebScenario
         using (var connectTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
         {
             await testDriver.ConnectAsync(connectTimeout.Token);
-            await testDriver.SendAsync(new { type = "testPing" }, connectTimeout.Token);
+            // Chrome can connect the Extension pipe before the new session tab is registered.
+            // Retry only the transient zero-tab result; ambiguity and other errors fail immediately.
+            while (true)
+            {
+                connectTimeout.Token.ThrowIfCancellationRequested();
+                try
+                {
+                    await testDriver.SendAsync(new { type = "testPing" }, connectTimeout.Token);
+                    break;
+                }
+                catch (InvalidOperationException ex) when (
+                    ex.Message.Contains("DAP test driver expected exactly one session tab for", StringComparison.Ordinal)
+                    && ex.Message.Contains("but found 0.", StringComparison.Ordinal))
+                {
+                    await Task.Delay(100, connectTimeout.Token);
+                }
+            }
         }
         StartupMark(hybrid
             ? "Extension-native Hybrid test driver connected"
