@@ -7,6 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>DAP</AssemblyName>
     <RootNamespace>DAP.App</RootNamespace>
+    <CopyRetryCount>0</CopyRetryCount>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../DAP.Core/DAP.Core.csproj" />
@@ -21,4 +22,7 @@
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
   </ItemGroup>
+  <Target Name="CheckCurrentDapSessionBeforeBuild" BeforeTargets="ResolveReferences" Condition="'$(DesignTimeBuild)' != 'true' and '$(IsCrossTargetingBuild)' != 'true'">
+    <Exec Command="powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\Check-DapBuildLock.ps1&quot; -ExecutablePath &quot;$(MSBuildProjectDirectory)\bin\$(Configuration)\$(TargetFramework)\DAP.exe&quot;" />
+  </Target>
 </Project>
