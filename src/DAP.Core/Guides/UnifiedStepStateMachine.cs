@@ -49,6 +49,7 @@ public sealed class UnifiedStepStateMachine
     private bool _actionLatched;
     private bool _targetEverAvailable;
     private bool _textEditCommitted;
+    private bool _targetWasStable;
 
     public UnifiedStepStateMachine(GuideStep step)
     {
@@ -99,12 +100,14 @@ public sealed class UnifiedStepStateMachine
 
         if (!observation.ContextActive)
         {
+            _targetWasStable = false;
             _state.ObserveContext(false);
             return Decide(GuideStepReconciliationResult.WaitingForContext, false, false);
         }
 
         if (!observation.TargetAvailable || !observation.TargetVisible)
         {
+            _targetWasStable = false;
             _state.ObservePresentationAvailability(observation.TargetAvailable, observation.TargetVisible);
             return Decide(GuideStepReconciliationResult.WaitingForTarget, false, false);
         }
@@ -112,9 +115,12 @@ public sealed class UnifiedStepStateMachine
         if (!observation.PresentationStable)
         {
             _state.ObservePresentationStability(false);
-            return Decide(GuideStepReconciliationResult.WaitingForTarget, false, false);
+            // A temporary unstable layout must not flash an already visible bubble.
+            // A missing or invisible target is handled separately above.
+            return Decide(GuideStepReconciliationResult.WaitingForTarget, _targetWasStable, false);
         }
 
+        _targetWasStable = true;
         _state.ObservePresentationStability(true);
         var status = primary
             ? GuideStepReconciliationResult.WaitingForValidation
