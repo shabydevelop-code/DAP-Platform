@@ -114,8 +114,8 @@ public sealed class WindowsGuideRuntime
                 $"Target-attached Guide Step '{step.Id}' must define a target.");
 
         var hybridValueApplied = false;
-        var clicked = string.Equals(step.Validation?.Kind, "clicked", StringComparison.OrdinalIgnoreCase);
-        var targetDisappeared = string.Equals(step.Validation?.Kind, "target-disappeared", StringComparison.OrdinalIgnoreCase);
+        var clicked = GuideStepExecutionPolicy.IsClickValidationStep(step);
+        var targetDisappeared = GuideStepExecutionPolicy.IsTargetDisappearanceStep(step);
         var targetWasResolved = false;
         string? initialTextValue = null;
         var textTargetObservedFocused = 0;
@@ -224,8 +224,7 @@ public sealed class WindowsGuideRuntime
                 targetWasResolved = true;
 
                 var isTextEditTarget = target.Current.ControlType == ControlType.Edit
-                    && step.AdvanceMode == StepAdvanceMode.AutomaticOnValidation
-                    && step.Validation is not null
+                    && GuideStepExecutionPolicy.IsAutomaticValidationStep(step)
                     && !clicked
                     && !targetDisappeared;
 
@@ -462,10 +461,6 @@ public sealed class WindowsGuideRuntime
                     var valuePattern = (ValuePattern)pattern;
                     if (valuePattern.Current.IsReadOnly)
                         throw new InvalidOperationException($"Hybrid Step '{step.Id}' targets a read-only control.");
-                    if (step.AdvanceMode != StepAdvanceMode.AutomaticOnValidation || step.Validation is null)
-                        throw new InvalidOperationException($"Hybrid Step '{step.Id}' cannot automate a value without automatic validation.");
-                    if (clicked || targetDisappeared)
-                        throw new InvalidOperationException($"Hybrid Step '{step.Id}' declares value automation for a non-value validation.");
                     if (!IsTargetWindowInteractive(windowRoot))
                         throw new InvalidOperationException($"Hybrid Step '{step.Id}' cannot act while the target application is inactive.");
 
