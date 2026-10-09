@@ -42,6 +42,9 @@ if (args.Contains("--reset-guide", StringComparer.OrdinalIgnoreCase))
     var repository = new SqliteGuideStepRepository(factory);
     var resetSteps = DapTestCrmWindowsGuideSeed.CreateSteps();
     await repository.ReplaceStepsAsync(DapTestCrmWindowsGuideSeed.GuideId, resetSteps);
+    await repository.ReplaceApplicationContextsAsync(
+        DapTestCrmWindowsGuideSeed.GuideId,
+        DapTestCrmWindowsGuideSeed.CreateApplicationContexts());
 
     await repository.RenameGuideAsync(
         DapTestCrmWindowsGuideSeed.GuideId,
@@ -119,6 +122,10 @@ async Task RunLearnerAsync(bool manualMode, bool hybridMode)
             $"Guide '{guideId}' contains {persistedSteps.Count} persisted Steps, " +
             $"but the current seed defines {expectedStepCount}. Run this project once with --reset-guide first.");
 
+    var contexts = await repository.GetApplicationContextsAsync(guideId);
+    var hasPersistedWindowContext = contexts.Any(context =>
+        context.Runtime == DAP.Core.Targets.TargetRuntime.Windows);
+
     Process? backend = null;
     Process? windowsApp = null;
     Process? dap = null;
@@ -174,7 +181,7 @@ async Task RunLearnerAsync(bool manualMode, bool hybridMode)
 
         dap = StartProcess(
             dapExe,
-            $"--learner --guide {guideId} --window-automation-id {mainWindowAutomationId}",
+            $"--learner --guide {guideId}" + (hasPersistedWindowContext ? "" : $" --window-automation-id {mainWindowAutomationId}"),
             hybridMode
                 ? new Dictionary<string, string?> { ["DAP_LEARNER_AUTOMATION"] = "1" }
                 : null,
