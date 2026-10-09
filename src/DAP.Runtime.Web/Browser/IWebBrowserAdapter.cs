@@ -19,6 +19,7 @@ public interface IWebBrowserAdapter
     Task<WebValidationCommit?> WaitForValidationCommitAsync(GuideStep step, CancellationToken cancellationToken = default);
     Task<WebValidationCommit?> WaitForArmedValidationCommitAsync(GuideStep step, CancellationToken cancellationToken = default);
     Task ConsumeValidationCommitAsync(GuideStep step, CancellationToken cancellationToken = default);
+    Task ApplyAutomationValueAsync(GuideStep step, CancellationToken cancellationToken = default);
     Task<bool> IsPrimaryValidationSatisfiedAsync(GuideStep step, CancellationToken cancellationToken = default);
     Task<bool> AreCompletionConditionsSatisfiedAsync(GuideStep step, CancellationToken cancellationToken = default);
     Task<WebBubblePresentation> EnsureBubbleShownAsync(GuideStep step, int stepNumber, int totalSteps, bool visible = true, CancellationToken cancellationToken = default, string? automaticStepLabel = null);
