@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
@@ -9,5 +10,8 @@
     <Compile Include="../Shared/E2eRunOptions.cs" Link="Shared/E2eRunOptions.cs" />
     <Compile Include="../Shared/E2ePortGuard.cs" Link="Shared/E2ePortGuard.cs" />
     <Compile Include="../Shared/OwnedProcessCleanup.cs" Link="Shared/OwnedProcessCleanup.cs" />
+    <Compile Include="../DAP.TestCRM.Windows.E2E/**/*.cs" Exclude="../DAP.TestCRM.Windows.E2E/Program.cs;../DAP.TestCRM.Windows.E2E/**/obj/**/*.cs;../DAP.TestCRM.Windows.E2E/**/bin/**/*.cs" LinkBase="Platforms/Windows/LegacySupport" />
+    <ProjectReference Include="../../src/DAP.Core/DAP.Core.csproj" />
+    <ProjectReference Include="../../src/DAP.Data.Sqlite/DAP.Data.Sqlite.csproj" />
   </ItemGroup>
 </Project>
