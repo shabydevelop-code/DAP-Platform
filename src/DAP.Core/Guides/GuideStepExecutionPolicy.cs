@@ -24,6 +24,19 @@ public static class GuideStepExecutionPolicy
         return step.AdvanceMode == StepAdvanceMode.AutomaticOnValidation && step.Validation is not null;
     }
 
+    /// <summary>Text edits require a committed focus transition before validation;
+    /// other automatic steps can be evaluated immediately.</summary>
+    public static bool CanEvaluatePrimaryValidation(GuideStep step, bool isTextEditTarget, bool textEditCommitted)
+    {
+        ArgumentNullException.ThrowIfNull(step);
+        return IsAutomaticValidationStep(step) && (!isTextEditTarget || textEditCommitted);
+    }
+
+    /// <summary>Advancement requires both the primary event/value validation and
+    /// all persisted completion conditions; a primary commit alone never advances.</summary>
+    public static bool CanAdvance(bool primaryValidationSatisfied, bool completionConditionsSatisfied)
+        => primaryValidationSatisfied && completionConditionsSatisfied;
+
     public static bool IsClickValidationStep(GuideStep step)
     {
         ArgumentNullException.ThrowIfNull(step);
