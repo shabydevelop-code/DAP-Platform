@@ -380,7 +380,7 @@ public sealed class WindowsGuideRuntime
                     }
                 }
 
-                if (activeState.ObservePresentationAvailability(targetAvailable: true, visible: HasVisibleBounds(target))
+                if (new UnifiedGuideStepEngine().ObserveReadiness(activeState, contextActive: true, targetAvailable: true, targetVisible: HasVisibleBounds(target))
                     == GuideStepReconciliationResult.WaitingForTarget)
                 {
                     // Do not force-scroll during reconciliation. Initial Step entry
