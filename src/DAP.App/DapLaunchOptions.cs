@@ -21,16 +21,15 @@ public sealed record DapLaunchOptions(
         if (args.Length == 1 && args[0] == "--check")
             return new(DapLaunchMode.InfrastructureCheck, null, null, null, null);
 
-        if (args.Length >= 3
-            && args[0] == "--learner"
-            && args[1] == "--guide"
-            && !string.IsNullOrWhiteSpace(args[2]))
+        if (args.Length >= 2
+            && args[0] == "--guide"
+            && !string.IsNullOrWhiteSpace(args[1]))
         {
             string? windowAutomationId = null;
             int? startStep = null;
             string? resumeContextPath = null;
 
-            for (var i = 3; i < args.Length; i++)
+            for (var i = 2; i < args.Length; i++)
             {
                 if (args[i] == "--window-automation-id" && i + 1 < args.Length
                     && !string.IsNullOrWhiteSpace(args[i + 1]))
@@ -47,7 +46,7 @@ public sealed record DapLaunchOptions(
 
             return new(
                 DapLaunchMode.Learner,
-                args[2],
+                args[1],
                 windowAutomationId,
                 startStep,
                 resumeContextPath);
