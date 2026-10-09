@@ -68,6 +68,10 @@ In a separate shell, `dotnet build src\\DAP.App\\DAP.App.csproj` builds the prod
 
 The independent Web Manual workflow has been verified through completion of the 55-Step Guide: the DAP process exited at Guide completion while TestCRM and Chrome remained running. This does not constitute a new Hybrid or Windows regression result.
 
+## Independent Windows application and Learner execution
+
+`tests/DAP.TestCRM.Windows.Host` builds and starts the TestCRM backend and Windows application independently of DAP. After the backend is ready, it opens the Windows application and leaves both processes running. In another terminal, the product Learner can be launched directly with `DAP.exe --learner --guide testcrm-windows-canonical-workflow`; the persisted `crm-windows` context resolves the already-open window. The host does not launch or own DAP. This standalone Windows path has not yet been verified by a build or manual runtime test.
+
 ## Verification state
 
 Current Manual/Hybrid behavior is persisted-data-driven on both runtimes. Windows Hybrid input focus synchronization is verified for the first input Step. Intentional Windows target closure and Web browser-session closure terminate cleanly rather than being reported as Runtime failures. Web Hybrid emits the browser-session closure message once through its owning termination path; Web Manual retains its passive clean-closure path. Web Manual browser-lifetime observation is passive and does not automate learner actions.
