@@ -105,3 +105,10 @@ Each DAP.exe invocation owns one learner session. After the guide runtime and cl
 - Both Web and Windows E2E entry points use `tests/Shared/E2eRunOptions.cs` for guide selection, mode validation and published-package arguments, and `tests/Shared/OwnedProcessCleanup.cs` for Ctrl+C/process-exit child cleanup.
 - Platform-specific startup, browser Extension or Windows UIA interaction, guide verification and target-specific cleanup remain in their respective runner `Program.cs` files. The E2E orchestration is not yet fully centralized; these entry points must not be removed merely because their common CLI and process-exit policies are shared.
 - Changes require a fresh build and Ctrl+C regression on both runners. No post-change build or E2E pass has been reported yet.
+
+## Unified E2E project migration
+
+- `tests/DAP.E2E/` is introduced as a single CLI entry point with `--platform web|windows` and forwarded existing runner arguments.
+- **Transitional only:** the unified entry point currently delegates to the existing Web/Windows E2E projects. It is not yet a consolidated orchestration engine or replacement for the platform-specific runner code.
+- Do not delete `tests/DAP.TestCRM.Web.E2E/` or `tests/DAP.TestCRM.Windows.E2E/` until platform adapters, shared orchestration and all regression paths have moved and passed verification.
+- The new project has not yet been built or run on the user's machine.
