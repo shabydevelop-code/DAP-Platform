@@ -12,5 +12,7 @@
   "App.InfrastructureCheckTitle": "בדיקת תשתית DAP",
   "App.InfrastructureReady": "DAP.exe מוכן.\n\nמסד נתונים: {0}\n\nקובץ אבחון: {1}",
   "App.WindowTitle": "DAP",
-  "App.Usage": "שימוש:\\nDAP.exe --check\\nDAP.exe --guide <GuideId> [--start-step <order>]"
+  "App.Usage": "שימוש:\\nDAP.exe --check\\nDAP.exe --guide <GuideId> [--start-step <order>]",
+  "App.TargetWindowNotFoundTitle": "לא ניתן להתחיל את המדריך",
+  "App.TargetWindowNotFoundMessage": "לא הצלחנו לזהות את חלון היישום המתאים למדריך. ודא שהיישום פתוח ונסה שוב."
 }
