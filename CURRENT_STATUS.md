@@ -32,7 +32,7 @@ DAP.exe
 
 The Native Host and unpacked Extension are implemented. Chrome Native Messaging registration has been verified during development.
 
-The Web E2E runner uses the Extension test-driver channel for Hybrid synthetic actions. Manual and Hybrid each use a dedicated Extension browser-session identity so intentional browser closure is detected independently of the Chrome launcher process and ends the run cleanly. Manual sends no synthetic learner actions. Runtime remains the sole owner of completion and Step progression.
+The Web E2E runner uses the Extension test-driver channel for browser-session observation; production Runtime owns Hybrid value application. Manual and Hybrid each use a dedicated Extension browser-session identity so intentional browser closure is detected independently of the Chrome launcher process and ends the run cleanly. Manual sends no synthetic learner actions. Runtime remains the sole owner of completion and Step progression.
 
 ## Windows
 
@@ -66,7 +66,7 @@ Maintenance/path options:
 
 In a separate shell, `dotnet build src\\DAP.App\\DAP.App.csproj` builds the product; `src\\DAP.App\\bin\\Debug\\net8.0-windows\\DAP.exe --guide testcrm-web-canonical-workflow` launches the Learner directly, without the E2E runner. DAP attaches to the already-open CRM through its persisted Web Application Context; it does not own the site or browser lifetime.
 
-The independent Web Manual workflow has been verified through completion of the 55-Step Guide: the DAP process exited at Guide completion while TestCRM and Chrome remained running. This does not constitute a new Hybrid or Windows regression result.
+The independent Web Manual workflow has been verified through completion of the 55-Step Guide: the DAP process exited at Guide completion while TestCRM and Chrome remained running. Web Hybrid was separately verified with a full 55-Step user run; this Manual result does not verify Windows.
 
 ## Independent Windows application and Learner execution
 
@@ -76,7 +76,7 @@ The independent Web Manual workflow has been verified through completion of the 
 
 Current Manual/Hybrid behavior is persisted-data-driven on both runtimes. Windows Hybrid input focus synchronization is verified for the first input Step. Intentional Windows target closure and Web browser-session closure terminate cleanly rather than being reported as Runtime failures. Web Hybrid emits the browser-session closure message once through its owning termination path; Web Manual retains its passive clean-closure path. Web Manual browser-lifetime observation is passive and does not automate learner actions.
 
-Do not claim a fresh full-guide regression unless such a run has actually been completed.
+The user confirmed a complete 55-Step Web Hybrid canonical run. Windows and other Web modes require separate verification.
 
 ## Production execution status
 
