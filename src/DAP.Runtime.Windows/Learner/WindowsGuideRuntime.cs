@@ -20,6 +20,12 @@ public sealed class WindowsGuideRuntime
     private readonly string? _automaticStepLabel;
     private readonly bool _hybrid;
 
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern void keybd_event(byte virtualKey, byte scanCode, uint flags, UIntPtr extraInfo);
+
+    private const byte VirtualKeyTab = 0x09;
+    private const uint KeyEventKeyUp = 0x0002;
+
     public WindowsGuideRuntime(
         WindowsTargetResolver resolver,
         WindowsBubblePresenter bubbles,
@@ -494,9 +500,46 @@ public sealed class WindowsGuideRuntime
                     var valuePattern = (ValuePattern)pattern;
                     if (valuePattern.Current.IsReadOnly)
                         throw new InvalidOperationException($"Hybrid Step '{step.Id}' targets a read-only control.");
-                    hybridValueApplied = true;
+                    if (step.AdvanceMode != StepAdvanceMode.AutomaticOnValidation || step.Validation is null)
+                        throw new InvalidOperationException($"Hybrid Step '{step.Id}' cannot automate a value without automatic validation.");
+                    if (clicked || targetDisappeared)
+                        throw new InvalidOperationException($"Hybrid Step '{step.Id}' declares value automation for a non-value validation.");
+                    if (!IsTargetWindowInteractive(windowRoot))
+                        throw new InvalidOperationException($"Hybrid Step '{step.Id}' cannot act while the target application is inactive.");
+
+                    // The runtime owns both the value change and its commit. UIA SetValue
+                    // alone does not commit WPF Edit controls; their validation is
+                    // intentionally armed on an edit -> blur transition.
+                    if (isTextEditTarget && !target.Current.HasKeyboardFocus)
+                        target.SetFocus();
+                    if (isTextEditTarget && !target.Current.HasKeyboardFocus)
+                        throw new InvalidOperationException($"Hybrid Step '{step.Id}' could not focus its input.");
+                    if (isTextEditTarget)
+                        Volatile.Write(ref textTargetObservedFocused, 1);
+
                     valuePattern.SetValue(step.AutomationValue);
-                    Console.Error.WriteLine($"[DAP Windows Hybrid] applied persisted value for Step {step.Order} '{step.Id}'.");
+                    if (!string.Equals(valuePattern.Current.Value, step.AutomationValue, StringComparison.Ordinal))
+                        throw new InvalidOperationException($"Hybrid Step '{step.Id}' did not retain the declared value.");
+
+                    if (isTextEditTarget)
+                    {
+                        Volatile.Write(ref textTargetChanged, 1);
+                        // Yield to UIA property-change notifications before committing.
+                        await Task.Delay(100, cancellationToken);
+                        if (!target.Current.HasKeyboardFocus || !IsTargetWindowInteractive(windowRoot))
+                            throw new InvalidOperationException($"Hybrid Step '{step.Id}' lost focus before commit.");
+                        keybd_event(VirtualKeyTab, 0, 0, UIntPtr.Zero);
+                        keybd_event(VirtualKeyTab, 0, KeyEventKeyUp, UIntPtr.Zero);
+                        // Observe the actual blur, not merely the injected key.
+                        var blurStarted = Stopwatch.StartNew();
+                        while (target.Current.HasKeyboardFocus && blurStarted.Elapsed < TimeSpan.FromSeconds(5))
+                            await Task.Delay(50, cancellationToken);
+                        if (target.Current.HasKeyboardFocus)
+                            throw new InvalidOperationException($"Hybrid Step '{step.Id}' TAB did not commit the input.");
+                        Volatile.Write(ref textTargetCommitted, 1);
+                    }
+                    hybridValueApplied = true;
+                    Console.Error.WriteLine($"[DAP Windows Hybrid] committed persisted value for Step {step.Order} '{step.Id}'.");
                 }
 
                 if (step.Id == "testcrm-windows-back-to-cases")
