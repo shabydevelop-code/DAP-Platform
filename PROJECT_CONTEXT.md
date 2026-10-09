@@ -19,6 +19,9 @@ The current GitHub main branch defines implementation. Persisted Guide definitio
 - Example Guide IDs: `sampleapp-web-guide` and `sampleapp-windows-guide`.
 - Each example Guide contains 55 persisted Steps, including a centered final summary Step.
 
+## Production packaging
+Publish with `scripts/Publish-Customer-Package.ps1 -Output C:\DAP-Production`, then register Chrome Native Messaging with `scripts/Register-WebNativeHost.ps1 -PackagePath C:\DAP-Production`. The registered host is `C:\DAP-Production\NativeHost\DAP.Runtime.Web.NativeHost.exe`. Restart Chrome after registration. Production does not depend on temporary publish folders.
+
 ## Production usage
 ```powershell
 & "C:\DAP-Production\DAP.exe" --guide sampleapp-web-guide
