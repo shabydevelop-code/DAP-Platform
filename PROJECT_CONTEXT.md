@@ -130,3 +130,7 @@ Instructor/Editor is the next major product phase. It must author the same persi
 ## Product execution modes
 
 Production CLI: `DAP.exe --guide <GuideId> --mode manual|hybrid`. Manual is default. Windows Hybrid is implemented in the production learner, not the TestCRM test driver. It resolves the UIA target and applies persisted AutomationValue to writable controls. Edit controls require focus, value confirmation and TAB blur; runtime validation determines advancement. Other Steps are manual. Existing SQLite columns support this without a schema change. The user reported Windows Hybrid appeared correct; full regression is not confirmed. Web production Hybrid remains unsupported.
+
+## Shared guide execution policy
+
+`DAP.Core.Guides.GuideRunPlan` is the common runtime-neutral owner of ordered Guide Steps, start-step selection, disabled-step lookahead, captured values, and runtime capture-token substitution. Both the Web adapter guide runtime and Windows guide runtime use it. Target resolution, active-step validation, bubble presentation, and UI-specific actions remain in their respective runtimes/adapters; a single unified active-step engine has **not** yet been implemented. Session termination and build-lock preflight are handled by the shared DAP.App host. Web tab/window activation and production Web Hybrid remain open gaps. This is current architecture, not a completed full runtime unification.
