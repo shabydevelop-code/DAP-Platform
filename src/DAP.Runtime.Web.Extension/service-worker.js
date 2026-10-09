@@ -4,6 +4,16 @@ const identifiedFrames = new Map();
 let port = null;
 const productionContextTabs = new Map();
 const activatedProductionSessions = new Set();
+const closedProductionContexts = new Set();
+
+chrome.tabs.onRemoved.addListener(tabId => {
+  for (const [contextKey, retainedTabId] of productionContextTabs) {
+    if (retainedTabId === tabId) {
+      productionContextTabs.delete(contextKey);
+      closedProductionContexts.add(contextKey);
+    }
+  }
+});
 
 function connect() {
   if (port) return port;
@@ -22,6 +32,7 @@ function connect() {
       port = null;
       productionContextTabs.clear();
       activatedProductionSessions.clear();
+      closedProductionContexts.clear();
     }
   });
 
@@ -230,13 +241,19 @@ function applicationContextMatcherMatches(tab, matcher) {
 async function resolveProductionContextTab(contextKey, context) {
   if (!contextKey || !context)
     throw new Error("DAP Web command is missing its persisted Application Context.");
+  if (closedProductionContexts.has(contextKey))
+    throw new Error("DAP_WEB_TARGET_CLOSED: The bound application tab was closed.");
 
   const retainedTabId = productionContextTabs.get(contextKey);
   if (retainedTabId != null) {
     try {
       const tab = await chrome.tabs.get(retainedTabId);
       if (tab?.id != null) return retainedTabId;
-    } catch {}
+    } catch {
+      productionContextTabs.delete(contextKey);
+      closedProductionContexts.add(contextKey);
+      throw new Error("DAP_WEB_TARGET_CLOSED: The bound application tab was closed.");
+    }
     productionContextTabs.delete(contextKey);
   }
 
