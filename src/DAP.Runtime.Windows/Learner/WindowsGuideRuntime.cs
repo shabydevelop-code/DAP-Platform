@@ -152,7 +152,7 @@ public sealed class WindowsGuideRuntime
 
         try
         {
-            while (!cancellationToken.IsCancellationRequested)
+            await foreach (var _ in new GuideStepReconciliationEngine().TicksAsync(cancellationToken))
             {
                 // Keep learner overlays bound to the target application. When the
                 // target is minimized or the user switches to another application,
