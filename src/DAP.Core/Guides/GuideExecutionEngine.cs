@@ -77,6 +77,28 @@ public sealed class GuideActiveStepState
     public bool ShouldApplyHybridValue(bool hybrid, bool targetResolved)
         => hybrid && targetResolved && !HybridValueApplied && !string.IsNullOrEmpty(_step.AutomationValue);
     public void MarkHybridValueApplied() => HybridValueApplied = true;
+    /// <summary>Shared reaction to a missing context or target. Rendering stays
+    /// platform-specific, while presentation invalidation is a core decision.</summary>
+    public GuideStepReconciliationResult ObserveContext(bool contextActive)
+        => contextActive ? GuideStepReconciliationResult.WaitingForAction
+            : GuideStepReconciliationResult.WaitingForContext;
+
+    public GuideStepReconciliationResult ObserveTarget(bool targetResolved)
+    {
+        if (targetResolved)
+            return GuideStepReconciliationResult.WaitingForAction;
+        InvalidatePresentation();
+        return GuideStepReconciliationResult.WaitingForTarget;
+    }
+
+    public GuideStepReconciliationResult ObservePresentationStability(bool stable)
+    {
+        if (!stable)
+            return GuideStepReconciliationResult.WaitingForTarget;
+        MarkPresentationReady();
+        return GuideStepReconciliationResult.WaitingForAction;
+    }
+
 
     public GuideStepReconciliationResult EvaluateCompletion(
         bool primarySatisfied, bool completionConditionsSatisfied,
