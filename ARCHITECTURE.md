@@ -147,3 +147,7 @@ The Windows production learner identifies the application using persisted Applic
 The existing SQLite GuideSteps schema stores AutomationValue, IsEnabled, ApplicationContextKey, targets, and validation. Startup initialization adds missing columns; no new migration is required.
 
 The user reported that the Windows Hybrid run appeared correct. Full regression verification is not established. Web production Hybrid remains unsupported and explicitly rejected; test E2E drivers are separate from the product.
+
+## Shared guide execution policy
+
+`DAP.Core.Guides.GuideRunPlan` is the common runtime-neutral owner of ordered Guide Steps, start-step selection, disabled-step lookahead, captured values, and runtime capture-token substitution. Both the Web adapter guide runtime and Windows guide runtime use it. Target resolution, active-step validation, bubble presentation, and UI-specific actions remain in their respective runtimes/adapters; a single unified active-step engine has **not** yet been implemented. Session termination and build-lock preflight are handled by the shared DAP.App host. Web tab/window activation and production Web Hybrid remain open gaps. This is current architecture, not a completed full runtime unification.
