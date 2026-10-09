@@ -629,39 +629,17 @@ public sealed class WindowsGuideRuntime
             }
 
             var kind = condition.Kind.Trim().ToLowerInvariant();
-            if (kind == "target-exists")
+            if (GuideCompletionPolicy.IsSupportedObservationKind(kind))
             {
-                if (resolution.Status != TargetResolutionStatus.Resolved || resolution.Target is null)
-                    return false;
-                continue;
-            }
-
-            if (kind == "target-not-exists")
-            {
-                if (resolution.Status == TargetResolutionStatus.Resolved)
-                    return false;
-                if (resolution.Status == TargetResolutionStatus.Ambiguous)
-                    return false;
-                continue;
-            }
-
-            if (kind == "target-enabled")
-            {
-                if (resolution.Status != TargetResolutionStatus.Resolved
-                    || resolution.Target is null
-                    || !resolution.Target.Current.IsEnabled)
-                    return false;
-                continue;
-            }
-
-            if (kind == "value-equals")
-            {
-                if (resolution.Status != TargetResolutionStatus.Resolved
-                    || resolution.Target is null
-                    || condition.ExpectedValue is null
-                    || !_validation.IsSatisfied(
-                        resolution.Target,
-                        new ValidationDefinition("value-equals", condition.ExpectedValue)))
+                var resolved = resolution.Status == TargetResolutionStatus.Resolved && resolution.Target is not null;
+                var ambiguous = resolution.Status == TargetResolutionStatus.Ambiguous;
+                var enabled = false;
+                string? observedValue = null;
+                if (resolved && kind == "target-enabled")
+                    enabled = resolution.Target!.Current.IsEnabled;
+                if (resolved && kind == "value-equals" && resolution.Target!.TryGetCurrentPattern(ValuePattern.Pattern, out var valuePattern))
+                    observedValue = ((ValuePattern)valuePattern).Current.Value;
+                if (!GuideCompletionPolicy.IsSatisfied(condition, resolved, ambiguous, enabled, observedValue))
                     return false;
                 continue;
             }
