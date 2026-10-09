@@ -6,6 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../Shared/OwnedProcessCleanup.cs" Link="Shared/OwnedProcessCleanup.cs" />
     <ProjectReference Include="../../src/DAP.Data.Sqlite/DAP.Data.Sqlite.csproj" />
     <ProjectReference Include="../../src/DAP.Runtime.Web/DAP.Runtime.Web.csproj" />
   </ItemGroup>
