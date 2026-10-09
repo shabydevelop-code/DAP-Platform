@@ -22,7 +22,6 @@ public sealed class SqliteDatabaseInitializer
         command.CommandText = Schema002;
         await command.ExecuteNonQueryAsync(cancellationToken);
         await EnsureGuideStepHybridColumnsAsync(connection, cancellationToken);
-        await MigrateSampleGuideKeysAsync(connection, cancellationToken);
     }
 
     private static async Task MigrateSampleGuideKeysAsync(SqliteConnection connection, CancellationToken cancellationToken)
