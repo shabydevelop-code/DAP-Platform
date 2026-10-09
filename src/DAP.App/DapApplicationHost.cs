@@ -33,6 +33,11 @@ public static class DapApplicationHost
             return 2;
         StartupMark(startup, "launch options parsed");
 
+        // A production Hybrid executor must own actions inside the learner runtime.
+        // Never silently run a Hybrid request as Manual or delegate it to TestCRM E2E.
+        if (options.ExecutionMode == DapExecutionMode.Hybrid)
+            throw new NotSupportedException("Product Hybrid execution is not implemented yet. No learner actions were started; E2E test drivers are not a production Hybrid executor.");
+
         var databaseOptions = SqliteDatabaseOptions.CreateDefault();
         var connections = new SqliteConnectionFactory(databaseOptions);
         await new SqliteDatabaseInitializer(connections).InitializeAsync(cancellationToken);
