@@ -99,7 +99,7 @@ Windows application identity is resolved from persisted named Application Contex
 
 ## ADR-021 — Unified production execution modes
 
-The product uses `DAP.exe --guide <GuideId> --mode manual|hybrid` with Manual as default. One persisted Guide supports both modes. Windows Hybrid actions are executed by the production learner using resolved UIA targets and persisted AutomationValue. Only writable ValuePattern targets with automatic validation qualify. Edit values are committed by verified TAB focus traversal; the existing runtime owns completion and progression. TestCRM E2E automation is not a product dependency. The SQLite schema already supports the configuration. Web production Hybrid remains unsupported until the extension implements production actions.
+The product uses `DAP.exe --guide <GuideId> --mode manual|hybrid` with Manual as default. One persisted Guide supports both modes. Windows Hybrid actions are executed by the production learner using resolved UIA targets and persisted AutomationValue. Only writable ValuePattern targets with automatic validation qualify. Edit values are committed by verified TAB focus traversal; the existing runtime owns completion and progression. TestCRM E2E automation is not a product dependency. The SQLite schema already supports the configuration. Web production Hybrid applies persisted AutomationValue through the browser Extension to supported writable controls; the production Runtime retains validation and Step advancement. The Extension must reject stale content-script endpoint generations.
 
 ## Shared guide execution — current implementation
 
