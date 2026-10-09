@@ -25,7 +25,13 @@ public sealed class GuideExecutionEngine
 
         await plan.ExecuteAsync(
             runtime,
-            (step, index, total, token) => executePlatformStep(step, index, total, plan, token),
+            async (step, index, total, token) =>
+            {
+                // All enabled, materialized steps are checked by the shared engine
+                // before any platform-specific target resolution or presentation.
+                GuideStepExecutionPolicy.Classify(step);
+                await executePlatformStep(step, index, total, plan, token);
+            },
             cancellationToken,
             onSkipped: step => Console.Error.WriteLine($"[DAP {name} guide] skipped disabled Step {step.Order}/{plan.Steps.Count} '{step.Id}'."),
             onStarting: step => Console.Error.WriteLine($"[DAP {name} guide] starting Step {step.Order}/{plan.Steps.Count} '{step.Id}'."),
