@@ -32,7 +32,7 @@ public sealed class AdapterWebGuideRuntime
                 var value = await _browser.CaptureAsync(step, token);
                 if (value is null)
                     throw new InvalidOperationException($"Guide Step '{step.Id}' declares a Web capture that could not be resolved.");
-                plan.Captures[step.Id] = value;
+                GuideRunPlan.RecordCapture(plan.Captures, step.Id, value);
             }),
             cancellationToken,
             startStepOrder,
