@@ -154,3 +154,5 @@ The standalone TestCRM Web Host treats user-requested Ctrl+C termination as norm
 Guide execution consolidation status (in progress): both Web and Windows guide runners now invoke DAP.Core.Guides.GuideExecutionEngine for shared sequence lifecycle, capture-state ownership, and diagnostics. Platform-specific active-step loops remain in their respective runtimes and must be refactored before the single-engine architecture can be considered complete. Build and regression tests have not yet been verified on Windows.
 
 Core GuideStepExecutionPolicy now enforces centered information-step invariants for both Web and Windows, and Web hybrid value-step eligibility. Active-step loops remain platform-specific. Build and E2E regression are pending; do not mark engine consolidation complete.
+
+Both Web and Windows Hybrid value entry now apply the same Core GuideStepExecutionPolicy eligibility check. Platform-specific value assignment and active-step execution remain in the adapters. Full engine unification is not yet complete; build and regression verification pending.
