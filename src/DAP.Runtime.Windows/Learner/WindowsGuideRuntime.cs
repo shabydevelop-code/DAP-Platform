@@ -56,8 +56,6 @@ public sealed class WindowsGuideRuntime
             async (step, index, total, plan, token) =>
             {
                 var ordered = plan.Steps;
-                GuideStepExecutionPolicy.Classify(step);
-
                 AutomationElement? nextTargetBeforeCurrentAction = null;
                 var nextEnabledIndex = plan.NextEnabledIndex(index);
                 if (nextEnabledIndex >= 0)
