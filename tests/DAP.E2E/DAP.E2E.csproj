@@ -7,6 +7,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../Shared/E2eRunOptions.cs" Link="Shared/E2eRunOptions.cs" />
+    <Compile Include="../Shared/E2ePortGuard.cs" Link="Shared/E2ePortGuard.cs" />
     <Compile Include="../Shared/OwnedProcessCleanup.cs" Link="Shared/OwnedProcessCleanup.cs" />
   </ItemGroup>
 </Project>
