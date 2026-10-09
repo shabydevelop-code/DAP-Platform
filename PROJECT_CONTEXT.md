@@ -54,7 +54,7 @@ C:\ProgramData\DAP\Data\DAP.db
 TestCRM business database:
 
 ```text
-test-apps\DAP.TestCRM\data\testcrm.db
+demos\Shared\data\testcrm.db
 ```
 
 These databases have different ownership and must remain separate.
@@ -105,13 +105,13 @@ Maintenance/path options:
 
 ## Independent Web execution
 
-`tests/DAP.TestCRM.Web.Host` runs the TestCRM backend and Web host without launching DAP. The standalone TestCRM Web host opens Chrome at `http://localhost:5200` after the application becomes ready. The Learner is then started independently with the product launch contract above. Web Application Context `crm` resolves the existing browser application. The verified full Manual run ended the DAP process without closing Chrome or TestCRM.
+`demos/Web/Launcher` runs the TestCRM backend and Web host without launching DAP. The standalone TestCRM Web host opens Chrome at `http://localhost:5200` after the application becomes ready. The Learner is then started independently with the product launch contract above. Web Application Context `crm` resolves the existing browser application. The verified full Manual run ended the DAP process without closing Chrome or TestCRM.
 
 The Web and Windows E2E runners remain separate regression tools; they are not required for standalone production Learner launch.
 
 ## Independent Windows execution
 
-`tests/DAP.TestCRM.Windows.Host` starts the TestCRM backend and Windows application without launching DAP. The separately launched Learner attaches to the already-open window using persisted context `crm-windows`. User testing reported successful standalone Guide execution with the target remaining open and Learner process termination appearing correct. Windows multi-context switching, delayed discovery, and rebinding are not implemented.
+`demos/Windows/Launcher` starts the TestCRM backend and Windows application without launching DAP. The separately launched Learner attaches to the already-open window using persisted context `crm-windows`. User testing reported successful standalone Guide execution with the target remaining open and Learner process termination appearing correct. Windows multi-context switching, delayed discovery, and rebinding are not implemented.
 
 ## Ownership rule
 
