@@ -48,6 +48,7 @@ public sealed class UnifiedStepStateMachine
     private bool _completed;
     private bool _actionLatched;
     private bool _targetEverAvailable;
+    private bool _textEditCommitted;
 
     public UnifiedStepStateMachine(GuideStep step)
     {
@@ -78,6 +79,7 @@ public sealed class UnifiedStepStateMachine
 
         _targetEverAvailable |= observation.TargetAvailable || observation.TargetWasPreviouslyAvailable;
         _actionLatched |= observation.ActionObserved;
+        _textEditCommitted |= observation.TextEditCommitted;
 
         // A click or disappearance can complete after navigation has retired its
         // source context. Check the latched action before target readiness.
@@ -88,7 +90,7 @@ public sealed class UnifiedStepStateMachine
             primary |= _targetEverAvailable && !observation.TargetAvailable;
 
         if (_state.EvaluateCompletion(primary, observation.CompletionConditionsSatisfied,
-                observation.IsTextEditTarget, observation.TextEditCommitted)
+                observation.IsTextEditTarget, _textEditCommitted)
             == GuideStepReconciliationResult.Completed)
         {
             _completed = true;
