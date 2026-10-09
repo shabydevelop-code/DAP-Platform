@@ -7,6 +7,11 @@ internal static class DapTestCrmWindowsGuideSeed
 {
     public const string GuideId = "testcrm-windows-canonical-workflow";
     public const string GuideName = "TestCRM Windows Canonical Workflow";
+    public const string ApplicationContextKey = "crm-windows";
+
+    public static IReadOnlyList<GuideApplicationContext> CreateApplicationContexts() =>
+        new[] { new GuideApplicationContext(ApplicationContextKey, TargetRuntime.Windows,
+            new[] { new ApplicationContextMatcher(1, "AutomationId", "TestCrmMainWindow") }) };
 
     private static TargetDescriptor ById(string automationId) =>
         TargetDescriptor.Create(TargetRuntime.Windows, new Locator("automation-id", automationId));
@@ -465,5 +470,5 @@ internal static class DapTestCrmWindowsGuideSeed
                 BubblePlacement.Center),
             Validation: null,
             AdvanceMode: StepAdvanceMode.Manual)
-    };
+    }.Select(step => step with { ApplicationContextKey = ApplicationContextKey }).ToArray();
 }
