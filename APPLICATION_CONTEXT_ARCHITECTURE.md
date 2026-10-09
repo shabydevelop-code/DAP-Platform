@@ -308,3 +308,7 @@ Windows named Application Context resolution currently supports exactly one Wind
 8. Runtime state is isolated per Learner execution and per Citrix/OS session.
 9. Shared Guide persistence must not contain transient HWND, tab ID, process ID, or equivalent runtime identity.
 10. Current runtime semantics remain owned by the production Runtime; Application Context resolution must not create a second validation or progression engine.
+
+## Product execution modes
+
+The production learner accepts `DAP.exe --guide <GuideId> --mode manual` (or omits `--mode`, defaulting to Manual). The product also parses `--mode hybrid`, but explicitly rejects it as unsupported before starting a Guide: persisted `AutomationValue` actions are currently executed by TestCRM-specific E2E drivers, not by the production learner. Hybrid is **not** a completed product feature. The required design is a runtime-owned action executor for both Web and Windows, with explicit persisted automation authorization, unique target resolution, learner-owned validation/progression, and no dependency on TestCRM, test-driver protocol or target application source. One Guide must support both modes. E2E runners remain test harnesses only. Instructor launch is not decided.
