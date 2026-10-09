@@ -89,7 +89,8 @@ public sealed class AdapterWebLearnerRuntime
                 }
             }
 
-            if (!await _browser.IsContextActiveAsync(step, cancellationToken))
+            if (activeState.ObserveContext(await _browser.IsContextActiveAsync(step, cancellationToken))
+                == GuideStepReconciliationResult.WaitingForContext)
             {
                 await _browser.HideBubbleAsync(cancellationToken);
                 await Task.Delay(_reconcileInterval, cancellationToken);
@@ -98,12 +99,13 @@ public sealed class AdapterWebLearnerRuntime
 
             if (!activeState.PresentationReady)
             {
-                if (!await _browser.IsStableForPresentationAsync(step, _presentationSettleInterval, cancellationToken))
+                if (activeState.ObservePresentationStability(
+                    await _browser.IsStableForPresentationAsync(step, _presentationSettleInterval, cancellationToken))
+                    == GuideStepReconciliationResult.WaitingForTarget)
                 {
                     await Task.Delay(_reconcileInterval, cancellationToken);
                     return GuideStepReconciliationResult.WaitingForTarget;
                 }
-                activeState.MarkPresentationReady();
             }
 
             WebBubblePresentation presentation;
@@ -146,10 +148,10 @@ public sealed class AdapterWebLearnerRuntime
                     !string.IsNullOrEmpty(step.AutomationValue) ? _automaticStepLabel : null);
             }
 
-            if (presentation.Status != WebTargetResolutionStatus.Resolved)
+            if (activeState.ObserveTarget(presentation.Status == WebTargetResolutionStatus.Resolved)
+                == GuideStepReconciliationResult.WaitingForTarget)
             {
                 await _browser.HideBubbleAsync(cancellationToken);
-                activeState.InvalidatePresentation();
             }
             else if (activeState.TrySignalReady())
             {
