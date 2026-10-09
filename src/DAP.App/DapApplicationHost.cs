@@ -363,7 +363,8 @@ public static class DapApplicationHost
             }
 
             var handle = matches[0];
-            ShowWindow(handle, 9); // SW_RESTORE
+            if (IsIconic(handle))
+                ShowWindow(handle, 9); // SW_RESTORE only when minimized; preserve maximized and normal window size.
             SetForegroundWindow(handle);
             var deadline = DateTime.UtcNow.AddSeconds(5);
             while (DateTime.UtcNow < deadline)
