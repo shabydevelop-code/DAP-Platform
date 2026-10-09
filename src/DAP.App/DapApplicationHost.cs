@@ -172,7 +172,22 @@ public static class DapApplicationHost
         var windowsContexts = applicationContexts.Where(context => context.Runtime == DAP.Core.Targets.TargetRuntime.Windows).ToArray();
         AutomationElement window;
         if (windowsContexts.Length == 1)
-            window = new WindowsApplicationContextResolver().Resolve(windowsContexts[0]);
+        {
+            try
+            {
+                window = new WindowsApplicationContextResolver().Resolve(windowsContexts[0]);
+            }
+            catch (WindowsApplicationContextMatchException ex)
+            {
+                Console.Error.WriteLine($"[DAP diagnostic] Windows application context resolution failed: {ex}");
+                MessageBox.Show(
+                    texts.Get("App.TargetWindowNotFoundMessage"),
+                    texts.Get("App.TargetWindowNotFoundTitle"),
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return 4;
+            }
+        }
         else if (windowsContexts.Length > 1)
             throw new NotSupportedException("Multiple Windows application contexts require per-step context resolution.");
         else if (!string.IsNullOrWhiteSpace(options.WindowAutomationId))
