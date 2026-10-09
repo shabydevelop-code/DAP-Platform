@@ -1,27 +1,20 @@
-using System.IO;
 using DAP.E2E.Platforms;
-using DAP.E2E.Runner;
 
 if (args.Length < 2 || !args[0].Equals("--platform", StringComparison.OrdinalIgnoreCase))
     throw new ArgumentException("Usage: --platform web|windows --guide <GuideId> --manual|--hybrid");
 
-var platform = PlatformProject.Resolve(args[1]);
-_ = DAP.Testing.E2eRunOptions.Parse(args.Skip(2).ToArray(), platform.Name == "web" ? "Web" : "Windows");
-var repositoryRoot = FindRepositoryRoot(AppContext.BaseDirectory);
-if (platform.Name == "windows")
+var platform = args[1].ToLowerInvariant();
+var scenarioArgs = args.Skip(2).ToArray();
+switch (platform)
 {
-    await WindowsScenario.RunAsync(args.Skip(2).ToArray());
-}
-else
-{
-    await WebScenario.RunAsync(args.Skip(2).ToArray());
-}
-
-static string FindRepositoryRoot(string start)
-{
-    for (var directory = new DirectoryInfo(start); directory is not null; directory = directory.Parent)
-        if (Directory.Exists(Path.Combine(directory.FullName, "src", "DAP.Core"))
-            && Directory.Exists(Path.Combine(directory.FullName, "tests")))
-            return directory.FullName;
-    throw new DirectoryNotFoundException("DAP repository root was not found.");
+    case "web":
+        _ = DAP.Testing.E2eRunOptions.Parse(scenarioArgs, "Web");
+        await WebScenario.RunAsync(scenarioArgs);
+        break;
+    case "windows":
+        _ = DAP.Testing.E2eRunOptions.Parse(scenarioArgs, "Windows");
+        await WindowsScenario.RunAsync(scenarioArgs);
+        break;
+    default:
+        throw new ArgumentException("Unsupported platform. Use web or windows.");
 }
