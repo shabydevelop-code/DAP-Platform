@@ -44,9 +44,7 @@ public sealed class WindowsGuideRuntime
     public async Task RunAsync(
         AutomationElement windowRoot,
         IReadOnlyList<GuideStep> guideSteps,
-        CancellationToken cancellationToken,
-        int? startStepOrder = null,
-        IReadOnlyDictionary<string, string>? initialCapturedValues = null)
+        CancellationToken cancellationToken)
     {
         AutomationElement? preExistingTargetForCurrentStep = null;
 
@@ -90,9 +88,7 @@ public sealed class WindowsGuideRuntime
                 GuideRunPlan.RecordCapture(plan.Captures, step.Id, value);
                 return Task.CompletedTask;
             }),
-            cancellationToken,
-            startStepOrder,
-            initialCapturedValues);
+            cancellationToken);
 
     }
 
