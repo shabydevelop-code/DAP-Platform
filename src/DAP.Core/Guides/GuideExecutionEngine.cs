@@ -52,42 +52,36 @@ public sealed class DelegateGuideStepAdapter : IGuideStepAdapter
         => _capture(step, plan, cancellationToken);
 }
 
+/// <summary>Platform-neutral result of a single active-step observation.</summary>
+public enum GuideStepReconciliationResult
+{
+    WaitingForContext,
+    WaitingForTarget,
+    WaitingForAction,
+    WaitingForValidation,
+    Completed
+}
+
 /// <summary>
-/// Shared cancellation-aware reconciliation scheduler for active target steps.
-/// Adapters own observations and rendering; the core owns iteration, cancellation
-/// and the decision to stop once a step has completed.
+/// The core owns the reconciliation lifecycle and completion decision.
+/// Platform adapters report observations and perform platform-specific operations.
+/// Existing adapter delays are retained to preserve runtime timing.
 /// </summary>
 public sealed class GuideStepReconciliationEngine
 {
-    /// <summary>Drive each reconciliation attempt, retaining adapter-specific
-    /// recovery delays inside the callback. A true result completes the step.</summary>
     public async Task RunAsync(
-        Func<CancellationToken, Task<bool>> reconcile,
+        Func<CancellationToken, Task<GuideStepReconciliationResult>> reconcile,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(reconcile);
         while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (await reconcile(cancellationToken))
+            var result = await reconcile(cancellationToken);
+            if (!Enum.IsDefined(result))
+                throw new InvalidOperationException($"Unknown reconciliation result: {result}.");
+            if (result == GuideStepReconciliationResult.Completed)
                 return;
-        }
-    }
-
-    public async Task RunAsync(
-        Func<CancellationToken, Task<bool>> reconcile,
-        TimeSpan interval,
-        CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(reconcile);
-        if (interval < TimeSpan.Zero)
-            throw new ArgumentOutOfRangeException(nameof(interval));
-        while (true)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (await reconcile(cancellationToken))
-                return;
-            await Task.Delay(interval, cancellationToken);
         }
     }
 }
