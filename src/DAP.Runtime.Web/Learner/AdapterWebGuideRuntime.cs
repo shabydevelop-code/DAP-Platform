@@ -1,6 +1,4 @@
-using System.Text.RegularExpressions;
 using DAP.Core.Guides;
-using DAP.Core.Targets;
 using DAP.Runtime.Web.Browser;
 
 namespace DAP.Runtime.Web.Learner;
@@ -26,18 +24,11 @@ public sealed class AdapterWebGuideRuntime
         int? startStepOrder = null,
         IReadOnlyDictionary<string,string>? initialCapturedValues = null)
     {
-        var captured = initialCapturedValues is null
-            ? new Dictionary<string,string>(StringComparer.Ordinal)
-            : new Dictionary<string,string>(initialCapturedValues, StringComparer.Ordinal);
-        var ordered = guideSteps.OrderBy(x=>x.Order).ToArray();
-        var start = 0;
-        if (startStepOrder is not null)
-        {
-            start = Array.FindIndex(ordered, x=>x.Order==startStepOrder.Value);
-            if (start < 0) throw new InvalidOperationException($"Guide does not contain Step order {startStepOrder.Value}.");
-        }
+        var plan = new GuideRunPlan(guideSteps, startStepOrder, initialCapturedValues);
+        var captured = plan.Captures;
+        var ordered = plan.Steps;
 
-        for (var i=start;i<ordered.Length;i++)
+        for (var i=plan.StartIndex;i<ordered.Length;i++)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var persistedStep = ordered[i];
@@ -47,7 +38,7 @@ public sealed class AdapterWebGuideRuntime
                 continue;
             }
 
-            var step = MaterializeRuntimeValues(persistedStep, captured);
+            var step = plan.Materialize(persistedStep);
             if (step.Target is not null && step.Target.Runtime != TargetRuntime.Web)
                 throw new InvalidOperationException($"Guide Step '{step.Id}' is not a Web Step.");
 
@@ -68,14 +59,4 @@ public sealed class AdapterWebGuideRuntime
         Console.Error.WriteLine("[DAP guide] Guide finished.");
     }
 
-    private static GuideStep MaterializeRuntimeValues(GuideStep step, IReadOnlyDictionary<string,string> values)
-    {
-        if (step.Target is null) return step;
-        Locator Mat(Locator l) => l with { Value = RuntimeValueToken.Replace(l.Value, m => {
-            var id=m.Groups["step"].Value;
-            if(!values.TryGetValue(id,out var v)) throw new InvalidOperationException($"Guide Step '{step.Id}' references runtime capture from Step '{id}', but that Step has not captured one.");
-            return v.Replace(@"\", @"\\", StringComparison.Ordinal).Replace("'", @"\'", StringComparison.Ordinal);
-        })};
-        return step with { Target = step.Target with { Locator=Mat(step.Target.Locator), Anchors=step.Target.Anchors.Select(a=>a with { Locator=Mat(a.Locator) }).ToArray() } };
-    }
 }
