@@ -118,4 +118,4 @@ Both Web and Windows Hybrid value entry now apply the same Core GuideStepExecuti
 
 GuideStepExecutionPolicy now classifies centered-information versus target-attached steps consistently for Web and Windows, rejecting invalid target/presentation combinations. Web automatic-validation eligibility also delegates to Core. Active-step execution loops are still separate; Windows build and end-to-end regressions remain to be verified.
 
-Current consolidation: Core GuideStepExecutionPolicy now owns automatic validation, click and target-disappearance classification for Web and Windows; Windows redundant hybrid eligibility guards have been removed in favor of the shared Core check. Platform-specific active-step loops remain; full engine unification and runtime regressions are pending.
+Current consolidation: Core GuideStepExecutionPolicy owns automatic validation, click and target-disappearance classification, plus the committed-text validation gate and primary/completion advancement decision. Windows uses both new gates; Web uses the shared advancement decision. Platform-specific active-step loops remain; full engine unification and runtime regressions are pending.
