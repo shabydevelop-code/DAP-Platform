@@ -13,7 +13,7 @@ namespace DAP.Runtime.Windows.Learner;
 /// Click event subscriptions and completion-condition evaluation are not yet
 /// implemented here; unsupported steps fail explicitly rather than auto-advance.
 /// </summary>
-public sealed class UnifiedWindowsStepAdapter : IUnifiedStepPlatformAdapter
+public sealed class UnifiedWindowsStepAdapter : IUnifiedStepPlatformAdapter, IDisposable
 {
     private readonly AutomationElement _windowRoot;
     private readonly WindowsTargetResolver _resolver;
@@ -25,6 +25,10 @@ public sealed class UnifiedWindowsStepAdapter : IUnifiedStepPlatformAdapter
     private AutomationElement? _target;
     private bool _targetPreviouslyResolved;
     private Task? _centeredDismissal;
+    private AutomationElement? _invokeSource;
+    private AutomationEventHandler? _invokeHandler;
+    private int _invoked;
+    private bool _disposed;
 
     public UnifiedWindowsStepAdapter(
         AutomationElement windowRoot, WindowsTargetResolver resolver,
@@ -42,6 +46,7 @@ public sealed class UnifiedWindowsStepAdapter : IUnifiedStepPlatformAdapter
 
     public Task<UnifiedStepObservation> ObserveAsync(GuideStep step, CancellationToken token)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         token.ThrowIfCancellationRequested();
         if (GuideStepExecutionPolicy.IsCenteredInformationStep(step))
         {
@@ -52,8 +57,7 @@ public sealed class UnifiedWindowsStepAdapter : IUnifiedStepPlatformAdapter
         }
         if (step.Target is null || step.Target.Runtime != TargetRuntime.Windows)
             throw new NotSupportedException("Unified Windows adapter requires a Windows target.");
-        if (GuideStepExecutionPolicy.IsClickValidationStep(step)
-            || step.CompletionConditions is { Count: > 0 })
+        if (step.CompletionConditions is { Count: > 0 })
             throw new NotSupportedException(
                 "Unified Windows adapter has not yet implemented event-based or completion-condition validation.");
 
@@ -62,12 +66,17 @@ public sealed class UnifiedWindowsStepAdapter : IUnifiedStepPlatformAdapter
             var resolution = _resolver.Resolve(_windowRoot, step.Target);
             _target = resolution.Status == TargetResolutionStatus.Resolved ? resolution.Target : null;
             _targetPreviouslyResolved |= _target is not null;
+            if (GuideStepExecutionPolicy.IsClickValidationStep(step) && _target is not null)
+                AttachInvokeHandler(_target);
             var visible = _target is not null && !_target.Current.IsOffscreen
                 && !_target.Current.BoundingRectangle.IsEmpty;
-            var primary = visible && step.Validation is not null
-                && _validation.IsSatisfied(_target!, step.Validation);
+            var primary = GuideStepExecutionPolicy.IsClickValidationStep(step)
+                ? System.Threading.Volatile.Read(ref _invoked) != 0
+                : visible && step.Validation is not null
+                    && _validation.IsSatisfied(_target!, step.Validation);
             return Task.FromResult(new UnifiedStepObservation(
                 true, _target is not null, visible, visible, primary, true,
+                ActionObserved: System.Threading.Volatile.Read(ref _invoked) != 0,
                 TargetWasPreviouslyAvailable: _targetPreviouslyResolved));
         }
         catch (ElementNotAvailableException)
@@ -76,6 +85,41 @@ public sealed class UnifiedWindowsStepAdapter : IUnifiedStepPlatformAdapter
             return Task.FromResult(new UnifiedStepObservation(true, false, false, false, false, false,
                 TargetWasPreviouslyAvailable: _targetPreviouslyResolved));
         }
+    }
+
+    private void AttachInvokeHandler(AutomationElement target)
+    {
+        if (_invokeSource is not null && _invokeSource.Equals(target))
+            return;
+        DetachInvokeHandler();
+        _invokeHandler = (_, _) => System.Threading.Interlocked.Exchange(ref _invoked, 1);
+        Automation.AddAutomationEventHandler(
+            InvokePattern.InvokedEvent, target, TreeScope.Element, _invokeHandler);
+        _invokeSource = target;
+    }
+
+    private void DetachInvokeHandler()
+    {
+        if (_invokeSource is null || _invokeHandler is null)
+            return;
+        try
+        {
+            Automation.RemoveAutomationEventHandler(
+                InvokePattern.InvokedEvent, _invokeSource, _invokeHandler);
+        }
+        catch (ElementNotAvailableException) { }
+        finally
+        {
+            _invokeSource = null;
+            _invokeHandler = null;
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        DetachInvokeHandler();
     }
 
     private async Task<UnifiedStepObservation> ObserveCenteredFailureAsync()
