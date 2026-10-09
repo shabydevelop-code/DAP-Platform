@@ -56,6 +56,9 @@ public sealed class UnifiedStepStateMachine
     }
 
     public bool Completed => _completed;
+    public bool HybridValueApplied => _state.HybridValueApplied;
+
+    public void MarkHybridValueApplied() => _state.MarkHybridValueApplied();
 
     /// <summary>Mark a single persisted hybrid action as executed; never repeat it.</summary>
     public bool TryApplyHybridValue(UnifiedStepOptions options, bool targetResolved)
