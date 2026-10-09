@@ -153,30 +153,6 @@ public enum GuideStepReconciliationResult
     Completed
 }
 
-/// <summary>
-/// The core owns the reconciliation lifecycle and completion decision.
-/// Platform adapters report observations and perform platform-specific operations.
-/// Existing adapter delays are retained to preserve runtime timing.
-/// </summary>
-public sealed class GuideStepReconciliationEngine
-{
-    public async Task RunAsync(
-        Func<CancellationToken, Task<GuideStepReconciliationResult>> reconcile,
-        CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(reconcile);
-        while (true)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var result = await reconcile(cancellationToken);
-            if (!Enum.IsDefined(result))
-                throw new InvalidOperationException($"Unknown reconciliation result: {result}.");
-            if (result == GuideStepReconciliationResult.Completed)
-                return;
-        }
-    }
-}
-
 public sealed class GuideExecutionEngine
 {
     public async Task RunAsync(
