@@ -18,19 +18,22 @@ public sealed class WindowsGuideRuntime
     private readonly WindowsValidationEvaluator _validation;
     private readonly TimeSpan _pollInterval;
     private readonly string? _automaticStepLabel;
+    private readonly bool _hybrid;
 
     public WindowsGuideRuntime(
         WindowsTargetResolver resolver,
         WindowsBubblePresenter bubbles,
         WindowsValidationEvaluator? validation = null,
         TimeSpan? pollInterval = null,
-        string? automaticStepLabel = null)
+        string? automaticStepLabel = null,
+        bool hybrid = false)
     {
         _resolver = resolver ?? throw new ArgumentNullException(nameof(resolver));
         _bubbles = bubbles ?? throw new ArgumentNullException(nameof(bubbles));
         _validation = validation ?? new WindowsValidationEvaluator();
         _pollInterval = pollInterval ?? TimeSpan.FromMilliseconds(100);
         _automaticStepLabel = automaticStepLabel;
+        _hybrid = hybrid;
     }
 
     public async Task RunAsync(
@@ -143,6 +146,7 @@ public sealed class WindowsGuideRuntime
             throw new InvalidOperationException(
                 $"Target-attached Guide Step '{step.Id}' must define a target.");
 
+        var hybridValueApplied = false;
         var clicked = string.Equals(step.Validation?.Kind, "clicked", StringComparison.OrdinalIgnoreCase);
         var targetDisappeared = string.Equals(step.Validation?.Kind, "target-disappeared", StringComparison.OrdinalIgnoreCase);
         var targetWasResolved = false;
@@ -481,6 +485,18 @@ public sealed class WindowsGuideRuntime
 
                     Console.Error.WriteLine(
                         $"[DAP Windows guide] input ready Step {step.Order} '{step.Id}'.");
+                }
+
+                if (_hybrid && !hybridValueApplied && !string.IsNullOrEmpty(step.AutomationValue))
+                {
+                    if (!target.TryGetCurrentPattern(ValuePattern.Pattern, out var pattern))
+                        throw new NotSupportedException($"Hybrid Step '{step.Id}' declares an automation value but the resolved target does not support UIA ValuePattern.");
+                    var valuePattern = (ValuePattern)pattern;
+                    if (valuePattern.Current.IsReadOnly)
+                        throw new InvalidOperationException($"Hybrid Step '{step.Id}' targets a read-only control.");
+                    hybridValueApplied = true;
+                    valuePattern.SetValue(step.AutomationValue);
+                    Console.Error.WriteLine($"[DAP Windows Hybrid] applied persisted value for Step {step.Order} '{step.Id}'.");
                 }
 
                 if (step.Id == "testcrm-windows-back-to-cases")
