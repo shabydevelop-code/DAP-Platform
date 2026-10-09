@@ -19,14 +19,12 @@ public sealed record DapLaunchOptions(
     DapLaunchMode Mode,
     string? GuideId,
     string? WindowAutomationId,
-    int? StartStep,
-    string? ResumeContextPath,
     DapExecutionMode ExecutionMode = DapExecutionMode.Manual)
 {
     public static DapLaunchOptions? Parse(string[] args, IUiTextProvider texts)
     {
         if (args.Length == 1 && args[0] == "--check")
-            return new(DapLaunchMode.InfrastructureCheck, null, null, null, null);
+            return new(DapLaunchMode.InfrastructureCheck, null, null);
 
         if (args.Length >= 2
             && args[0] == "--guide"
@@ -35,8 +33,6 @@ public sealed record DapLaunchOptions(
             string? windowAutomationId = null;
             var executionMode = DapExecutionMode.Manual;
             var modeSpecified = false;
-            int? startStep = null;
-            string? resumeContextPath = null;
 
             for (var i = 2; i < args.Length; i++)
             {
@@ -54,12 +50,6 @@ public sealed record DapLaunchOptions(
                 else if (args[i] == "--window-automation-id" && i + 1 < args.Length
                     && !string.IsNullOrWhiteSpace(args[i + 1]))
                     windowAutomationId = args[++i];
-                else if (args[i] == "--start-step" && i + 1 < args.Length
-                         && int.TryParse(args[++i], out var parsedStartStep) && parsedStartStep > 0)
-                    startStep = parsedStartStep;
-                else if (args[i] == "--resume-context-file" && i + 1 < args.Length
-                         && !string.IsNullOrWhiteSpace(args[i + 1]))
-                    resumeContextPath = args[++i];
                 else
                     return Usage(texts);
             }
@@ -68,8 +58,6 @@ public sealed record DapLaunchOptions(
                 DapLaunchMode.Learner,
                 args[1],
                 windowAutomationId,
-                startStep,
-                resumeContextPath,
                 executionMode);
         }
 
