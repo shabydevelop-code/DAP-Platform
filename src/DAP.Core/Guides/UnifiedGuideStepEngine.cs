@@ -3,6 +3,17 @@ namespace DAP.Core.Guides;
 /// <summary>Platform-neutral active-step observation loop.</summary>
 public sealed class UnifiedGuideStepEngine
 {
+    /// <summary>Centralize context and target readiness decisions without rendering effects.</summary>
+    public GuideStepReconciliationResult ObserveReadiness(
+        GuideActiveStepState state, bool contextActive, bool targetAvailable, bool targetVisible)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        var context = state.ObserveContext(contextActive);
+        if (context == GuideStepReconciliationResult.WaitingForContext)
+            return context;
+        return state.ObservePresentationAvailability(targetAvailable, targetVisible);
+    }
+
     public async Task RunAsync(GuideActiveStepState state, Func<GuideActiveStepState, CancellationToken, Task<GuideStepReconciliationResult>> observeAsync, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(state);
