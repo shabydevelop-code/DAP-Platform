@@ -547,20 +547,16 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             var response = await SendCommandAsync(ContextualCommand(step, new { type = "inspectTarget", target = condition.Target, framePath = condition.Target.FrameContext?.Path }), cancellationToken);
             var result = response.GetProperty("result");
             var resolved = result.GetProperty("status").GetString() == "resolved";
-            switch (condition.Kind.Trim().ToLowerInvariant())
-            {
-                case "target-exists": if (!resolved) return false; break;
-                case "target-not-exists": if (resolved) return false; break;
-                case "target-enabled":
-                    if (!resolved || !result.TryGetProperty("enabled", out var enabled) || !enabled.GetBoolean()) return false;
-                    break;
-                case "value-equals":
-                    if (!resolved || condition.ExpectedValue is null ||
-                        !result.TryGetProperty("value", out var value) ||
-                        !string.Equals(value.GetString(), condition.ExpectedValue, StringComparison.Ordinal)) return false;
-                    break;
-                default: throw new NotSupportedException($"Unsupported Web completion condition kind '{condition.Kind}'.");
-            }
+            var kind = condition.Kind.Trim().ToLowerInvariant();
+            if (!GuideCompletionPolicy.IsSupportedObservationKind(kind))
+                throw new NotSupportedException($"Unsupported Web completion condition kind '{condition.Kind}'.");
+            var enabled = resolved && result.TryGetProperty("enabled", out var enabledProperty) && enabledProperty.GetBoolean();
+            string? value = null;
+            if (resolved && result.TryGetProperty("value", out var valueProperty) && valueProperty.ValueKind == JsonValueKind.String)
+                value = valueProperty.GetString();
+            // Preserve the Web adapter's previous handling of non-resolved targets.
+            if (!GuideCompletionPolicy.IsSatisfied(condition, resolved, ambiguous: false, enabled, value))
+                return false;
         }
         return true;
     }
