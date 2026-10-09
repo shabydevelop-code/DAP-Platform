@@ -575,7 +575,7 @@ public sealed class WindowsGuideRuntime
                     GuideStepReconciliationResult.WaitingForAction, _pollInterval, cancellationToken);
             }
 
-            await new GuideStepReconciliationEngine().RunAsync(ReconcileAsync, cancellationToken);
+            await new UnifiedGuideStepEngine().RunAsync(activeState, (_, token) => ReconcileAsync(token), cancellationToken);
         }
         finally
         {
