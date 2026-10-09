@@ -84,7 +84,7 @@ Windows startup now restores a minimized target window when needed, requests for
 
 The same persisted Guide supports `DAP.exe --guide <GuideId> --mode manual|hybrid` (Manual is the default). Windows production Hybrid reads AutomationValue from SQLite and enters it through UIA ValuePattern on resolved writable targets. For Edit controls it verifies focus, value entry, and TAB blur before the runtime evaluates the existing validation and completion conditions. Steps without an automation value remain user-operated. The product path does not call the TestCRM E2E driver.
 
-The user reported the Windows Hybrid run appeared correct. A full-guide regression is not independently documented, so do not mark one PASS. The existing database schema and automatic column initialization support this feature without a new migration. Web production Hybrid now has an extension-backed persisted-value executor; build and full runtime regression are pending.
+The user reported the Windows Hybrid run appeared correct. A full-guide regression is not independently documented, so do not mark one PASS. The existing database schema and automatic column initialization support this feature without a new migration. Web production Hybrid applies persisted values through the browser Extension. The user confirmed successful completion of the full 55-Step Web Hybrid canonical Guide. The Extension checks content-script generation before routing commands; reload the installed unpacked Extension after source changes.
 
 ### Learner session termination and local build guard
 
