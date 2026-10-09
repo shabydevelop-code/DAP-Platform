@@ -105,7 +105,7 @@ Maintenance/path options:
 
 ## Independent Web execution
 
-`tests/DAP.TestCRM.Web.Host` runs the TestCRM backend and Web host without launching DAP. Chrome is opened separately at `http://localhost:5200`. The Learner is then started independently with the product launch contract above. Web Application Context `crm` resolves the existing browser application. The verified full Manual run ended the DAP process without closing Chrome or TestCRM.
+`tests/DAP.TestCRM.Web.Host` runs the TestCRM backend and Web host without launching DAP. The standalone TestCRM Web host opens Chrome at `http://localhost:5200` after the application becomes ready. The Learner is then started independently with the product launch contract above. Web Application Context `crm` resolves the existing browser application. The verified full Manual run ended the DAP process without closing Chrome or TestCRM.
 
 The Web and Windows E2E runners remain separate regression tools; they are not required for standalone production Learner launch.
 
@@ -146,3 +146,5 @@ Production CLI: `DAP.exe --guide <GuideId> --mode manual|hybrid`. Manual is defa
 ### Production Web Hybrid implementation (pending regression)
 
 The production Web learner now accepts `DAP.exe --guide <GuideId> --mode hybrid`. After target resolution and presentation readiness, it applies persisted `AutomationValue` once through the extension to a uniquely resolved writable text input/textarea, using focus, native value setter, input/change events and blur. The normal validation/commit and completion-condition pipeline still controls advancement. Steps without `AutomationValue` remain user-operated. The extension command is production-scoped and does not invoke TestCRM test-driver operations. No claim of end-to-end PASS is made until a local build and full Web/Windows Manual/Hybrid regressions are reported. Non-text value automation and browser tab activation are not implemented.
+
+Standalone TestCRM Web Host opens the application in Chrome automatically after the five-second readiness check. DAP.exe remains a separate product process and does not own the target application's browser or servers. This host change requires a local Windows execution check.
