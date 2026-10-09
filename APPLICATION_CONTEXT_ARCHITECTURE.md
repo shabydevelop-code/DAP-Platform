@@ -312,3 +312,7 @@ Windows named Application Context resolution currently supports exactly one Wind
 ## Execution modes and Windows application binding
 
 The production learner accepts `DAP.exe --guide <GuideId> --mode manual|hybrid`. Application identity is persisted in Guide Application Context matchers, not inferred from test drivers. Windows resolves the target application window and then resolves individual Step targets through UI Automation. Hybrid only sets explicitly persisted AutomationValue on eligible writable targets; Edit controls are focused, set, and committed through a verified TAB focus transition. Existing runtime validation controls advancement. Manual and Hybrid share the same Guide, context, and completion engine. No database schema change is required. Web production Hybrid remains unsupported.
+
+## Shared guide execution policy
+
+`DAP.Core.Guides.GuideRunPlan` is the common runtime-neutral owner of ordered Guide Steps, start-step selection, disabled-step lookahead, captured values, and runtime capture-token substitution. Both the Web adapter guide runtime and Windows guide runtime use it. Target resolution, active-step validation, bubble presentation, and UI-specific actions remain in their respective runtimes/adapters; a single unified active-step engine has **not** yet been implemented. Session termination and build-lock preflight are handled by the shared DAP.App host. Web tab/window activation and production Web Hybrid remain open gaps. This is current architecture, not a completed full runtime unification.
