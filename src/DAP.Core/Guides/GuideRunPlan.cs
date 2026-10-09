@@ -32,6 +32,23 @@ public sealed class GuideRunPlan
             : new Dictionary<string, string>(initialCapturedValues, StringComparer.Ordinal);
     }
 
+    /// <summary>Explicit timing is shared across runtimes. For older guides,
+    /// retain the established Web/Windows observation schedule.</summary>
+    public static bool ShouldCapture(GuideStep step, TargetRuntime runtime, StepCaptureTiming timing)
+    {
+        ArgumentNullException.ThrowIfNull(step);
+        if (step.Capture is null)
+            return false;
+        if (step.Capture.Timing is { } configured)
+            return configured == timing;
+        return runtime switch
+        {
+            TargetRuntime.Web => timing == StepCaptureTiming.BeforeAction,
+            TargetRuntime.Windows => timing is StepCaptureTiming.DuringStep or StepCaptureTiming.AfterAction,
+            _ => throw new ArgumentOutOfRangeException(nameof(runtime))
+        };
+    }
+
     /// <summary>Store an observed capture only when it is available and changed.
     /// Platform adapters retain control of when the value is observed.</summary>
     public static bool RecordCapture(IDictionary<string, string> captures, string stepId, string? value)
