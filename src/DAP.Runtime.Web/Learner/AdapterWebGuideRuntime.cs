@@ -25,13 +25,13 @@ public sealed class AdapterWebGuideRuntime
         var captured = plan.Captures;
         var ordered = plan.Steps;
 
-        for (var i=plan.StartIndex;i<ordered.Length;i++)
+        for (var i=plan.StartIndex;i<ordered.Count;i++)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var persistedStep = ordered[i];
             if (!persistedStep.IsEnabled)
             {
-                Console.Error.WriteLine($"[DAP guide] skipped disabled Step {persistedStep.Order}/{ordered.Length} '{persistedStep.Id}'.");
+                Console.Error.WriteLine($"[DAP guide] skipped disabled Step {persistedStep.Order}/{ordered.Count} '{persistedStep.Id}'.");
                 continue;
             }
 
@@ -47,10 +47,10 @@ public sealed class AdapterWebGuideRuntime
             }
 
             await _steps.RunActiveStepAsync(
-                step, step.Order, ordered.Length, cancellationToken,
+                step, step.Order, ordered.Count, cancellationToken,
                 true,
-                () => Console.Error.WriteLine($"[DAP guide] starting Step {step.Order}/{ordered.Length} '{step.Id}'."));
-            Console.Error.WriteLine($"[DAP guide] completed Step {step.Order}/{ordered.Length} '{step.Id}'.");
+                () => Console.Error.WriteLine($"[DAP guide] starting Step {step.Order}/{ordered.Count} '{step.Id}'."));
+            Console.Error.WriteLine($"[DAP guide] completed Step {step.Order}/{ordered.Count} '{step.Id}'.");
         }
 
         Console.Error.WriteLine("[DAP guide] Guide finished.");
