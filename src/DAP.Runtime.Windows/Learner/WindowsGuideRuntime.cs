@@ -223,8 +223,10 @@ public sealed class WindowsGuideRuntime
                     await _bubbles.HideAsync();
                     if (IsDisappearedTargetStepComplete())
                         return GuideStepReconciliationResult.Completed;
+                    // Match Web: the shared step state invalidates presentation when
+                    // the target disappears, rather than returning a raw wait reason.
                     return await GuideActiveStepState.WaitAsync(
-                        GuideStepReconciliationResult.WaitingForTarget, _pollInterval, cancellationToken);
+                        activeState.ObserveTarget(false), _pollInterval, cancellationToken);
                 }
 
                 var target = resolution.Target;
