@@ -48,14 +48,14 @@ public sealed class WindowsGuideRuntime
         int? startStepOrder = null,
         IReadOnlyDictionary<string, string>? initialCapturedValues = null)
     {
-        var plan = new GuideRunPlan(guideSteps, startStepOrder, initialCapturedValues);
-        var ordered = plan.Steps;
         AutomationElement? preExistingTargetForCurrentStep = null;
 
-        await plan.ExecuteAsync(
+        await new GuideExecutionEngine().RunAsync(
+            guideSteps,
             TargetRuntime.Windows,
-            async (step, index, total, token) =>
+            async (step, index, total, plan, token) =>
             {
+                var ordered = plan.Steps;
                 var isCenteredStep = step.Target is null
                     && step.Bubble.Placement == BubblePlacement.Center;
                 if (!isCenteredStep && step.Target is null)
@@ -87,11 +87,10 @@ public sealed class WindowsGuideRuntime
                 preExistingTargetForCurrentStep = nextTargetBeforeCurrentAction;
             },
             cancellationToken,
-            onSkipped: step => Console.Error.WriteLine($"[DAP Windows guide] skipping disabled Step {step.Order}/{ordered.Count} '{step.Id}'."),
-            onStarting: step => Console.Error.WriteLine($"[DAP Windows guide] starting Step {step.Order}/{ordered.Count} '{step.Id}'."),
-            onCompleted: step => Console.Error.WriteLine($"[DAP Windows guide] completed Step {step.Order}/{ordered.Count} '{step.Id}'."));
+            startStepOrder,
+            initialCapturedValues,
+            "Windows");
 
-        Console.Error.WriteLine("[DAP Windows guide] persisted Guide finished.");
     }
 
     private async Task RunStepAsync(
