@@ -115,3 +115,5 @@ Each DAP.exe invocation owns one learner session. After the guide runtime and cl
 - The new thin entry point and its extracted runner/route components still require a post-change build and runtime verification.
 - Unified `DAP.E2E` now compiles the existing shared `E2eRunOptions` and `OwnedProcessCleanup` components; the entry point validates forwarded options and its orchestration delegates process cleanup to the shared helper. The platform-specific scenario implementations remain in the legacy projects, so migration and deletion are still pending.
 - The most recent changes require a fresh build and regression verification.
+- `tests/Shared/E2ePortGuard.cs` now centralizes the previously duplicated TCP port preflight in the Web and Windows E2E runners, preserving platform-specific diagnostic messages. The shared file is also linked by `DAP.E2E`.
+- The platform scenario drivers and their large runner bodies have **not** yet moved into `DAP.E2E`. The old projects are still required and must not be deleted. The latest port-preflight refactor requires fresh builds on both platforms.
