@@ -181,7 +181,7 @@ async Task RunLearnerAsync(bool manualMode, bool hybridMode)
 
         dap = StartProcess(
             dapExe,
-            $"--learner --guide {guideId}" + (hasPersistedWindowContext ? "" : $" --window-automation-id {mainWindowAutomationId}"),
+            $"--guide {guideId}" + (hasPersistedWindowContext ? "" : $" --window-automation-id {mainWindowAutomationId}"),
             hybridMode
                 ? new Dictionary<string, string?> { ["DAP_LEARNER_AUTOMATION"] = "1" }
                 : null,
