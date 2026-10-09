@@ -1,3 +1,4 @@
+using System.IO;
 namespace DAP.E2E.Platforms;
 
 // Transitional platform adapters. The scenario implementations still reside in legacy projects.
