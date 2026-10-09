@@ -34,6 +34,9 @@
 - Production Windows execution uses Microsoft UI Automation.
 - Support target discovery/re-discovery, native learner bubbles, interaction observation, validation, and one-time Runtime-owned initial focus for input Steps.
 - Production behavior must work against closed third-party Windows applications.
+- Windows application discovery uses persisted named contexts and must reject ambiguous window matches; application discovery is separate from Step target discovery.
+- Standalone Windows Learner execution must attach to an already-open target without an E2E runner and must not close the target on Guide completion.
+- Multiple Windows contexts, delayed discovery, and rebinding remain required beyond the current single-context implementation.
 
 ## Data
 
@@ -57,7 +60,7 @@
 - Automated technical waits must not exceed five seconds without explicit approval.
 - Human Manual/Hybrid response time is not an automated timeout.
 - TestCRM source may aid diagnosis only; it must not become a production oracle.
-- Independent Web testing must support starting TestCRM without starting DAP, then launching the production Learner separately against the already-open browser application. Completing the Guide must not terminate the target application or browser.
+- Independent Web and Windows testing must support starting TestCRM without starting DAP, then launching the production Learner separately against the already-open application. Completing the Guide must not terminate the target application or browser.
 
 ## Deployment
 
