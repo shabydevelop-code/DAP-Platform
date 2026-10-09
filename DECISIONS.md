@@ -15,4 +15,5 @@
 13. **No legacy database support:** New code need not import or convert retired database formats. Do not delete or reset current active databases as part of code cleanup.
 14. **Timeout policy:** Automated technical waits must not be increased beyond five seconds without explicit approval; human time spent on a Guide Step is not a technical timeout.
 15. **User-facing naming:** The Chrome extension display name is **GuideMe**. Internal component names and protocols retain their DAP identifiers.
-16. **Instructor:** Authoring tools and AI-assisted diagnosis are future capabilities; the learner remains independent of them.
+16. **Deployment:** Publish the Windows x64 framework-dependent learner and Native Messaging host together. Register Chrome against the packaged host rather than source build output or temporary directories.
+17. **Instructor:** Authoring tools and AI-assisted diagnosis are future capabilities; the learner remains independent of them.
