@@ -156,3 +156,5 @@ Guide execution consolidation status (in progress): both Web and Windows guide r
 Core GuideStepExecutionPolicy now enforces centered information-step invariants for both Web and Windows, and Web hybrid value-step eligibility. Active-step loops remain platform-specific. Build and E2E regression are pending; do not mark engine consolidation complete.
 
 Both Web and Windows Hybrid value entry now apply the same Core GuideStepExecutionPolicy eligibility check. Platform-specific value assignment and active-step execution remain in the adapters. Full engine unification is not yet complete; build and regression verification pending.
+
+GuideStepExecutionPolicy now classifies centered-information versus target-attached steps consistently for Web and Windows, rejecting invalid target/presentation combinations. Web automatic-validation eligibility also delegates to Core. Active-step execution loops are still separate; Windows build and end-to-end regressions remain to be verified.
