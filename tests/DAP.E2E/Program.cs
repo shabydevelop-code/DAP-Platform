@@ -14,8 +14,7 @@ if (platform.Name == "windows")
 }
 else
 {
-    var projectFile = platform.ProjectPath(repositoryRoot);
-    Environment.ExitCode = await E2eRunner.RunAsync(repositoryRoot, projectFile, args.Skip(2).ToArray());
+    await WebScenario.RunAsync(args.Skip(2).ToArray());
 }
 
 static string FindRepositoryRoot(string start)
