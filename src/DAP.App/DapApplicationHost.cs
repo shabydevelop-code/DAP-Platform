@@ -280,7 +280,11 @@ public static class DapApplicationHost
         browserAdapter.ConfigureApplicationContexts(applicationContexts);
         using var targetClosed = new CancellationTokenSource();
         using var runCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, targetClosed.Token);
-        browserAdapter.TargetTabClosed += () => targetClosed.Cancel();
+        browserAdapter.TargetTabClosed += () =>
+        {
+            Console.Error.WriteLine("[DAP diagnostic] TargetTabClosed received; cancelling Web guide.");
+            targetClosed.Cancel();
+        };
         browserAdapter.TargetWindowActivationRequested += title => _ = Task.Run(() => ActivateChromeWindowAsync(title, runCancellation.Token));
         var stepRuntime = new WebGuideStepRuntime(browserAdapter, automaticStepLabel: GetAutomaticStepLabel(), hybrid: options.ExecutionMode == DapExecutionMode.Hybrid);
         var guideRuntime = new AdapterWebGuideRuntime(stepRuntime, browserAdapter);
@@ -290,10 +294,22 @@ public static class DapApplicationHost
         {
             StartupMark(startup, "Web adapter guide runtime starting");
             await guideRuntime.RunAsync(steps, runCancellation.Token, options.StartStep, resumeContext);
+            Console.Error.WriteLine("[DAP diagnostic] Web guide runtime completed normally.");
         }
         catch (OperationCanceledException) when (targetClosed.IsCancellationRequested)
         {
+            Console.Error.WriteLine("[DAP diagnostic] Web guide cancelled by target-tab-closed event; exit code 2.");
             return 2;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            Console.Error.WriteLine("[DAP diagnostic] Web guide cancelled externally.");
+            throw;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[DAP diagnostic] Web guide failed: {ex}");
+            throw;
         }
         finally
         {
