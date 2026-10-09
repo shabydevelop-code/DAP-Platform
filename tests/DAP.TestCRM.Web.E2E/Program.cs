@@ -244,7 +244,6 @@ using var ownedProcessCleanup = new DAP.Testing.OwnedProcessCleanup(
     () => ownedTestCrmProcess,
     () => ownedTestCrmBackendProcess);
 
-try
 {
     if (!packagedDiagnostics && !File.Exists(testCrmProject))
         throw new FileNotFoundException("TestCRM Web project was not found.", testCrmProject);
