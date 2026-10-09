@@ -1,3 +1,4 @@
+using System.IO;
 using DAP.E2E.Platforms;
 using DAP.E2E.Runner;
 
