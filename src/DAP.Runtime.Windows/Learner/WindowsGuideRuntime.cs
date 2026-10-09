@@ -158,7 +158,8 @@ public sealed class WindowsGuideRuntime
                 // target is minimized or the user switches to another application,
                 // hide both bubble and highlight. The next reconciliation pass
                 // restores them from fresh UIA bounds when the target becomes active.
-                if (!IsTargetWindowInteractive(windowRoot))
+                if (activeState.ObserveContext(IsTargetWindowInteractive(windowRoot))
+                    == GuideStepReconciliationResult.WaitingForContext)
                 {
                     await _bubbles.HideAsync();
                     await Task.Delay(_pollInterval, cancellationToken);
@@ -176,7 +177,8 @@ public sealed class WindowsGuideRuntime
                     return GuideStepReconciliationResult.Completed;
                 }
 
-                if (!IsStepContextActive(windowRoot, step))
+                if (activeState.ObserveContext(IsStepContextActive(windowRoot, step))
+                    == GuideStepReconciliationResult.WaitingForContext)
                 {
                     await _bubbles.HideAsync();
                     await Task.Delay(_pollInterval, cancellationToken);
@@ -208,7 +210,7 @@ public sealed class WindowsGuideRuntime
                             AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction)) == GuideStepReconciliationResult.Completed)
                         return GuideStepReconciliationResult.Completed;
                     await Task.Delay(_pollInterval, cancellationToken);
-                    return GuideStepReconciliationResult.WaitingForTarget;
+                    return activeState.ObserveTarget(false);
                 }
 
                 if (resolution.Status != TargetResolutionStatus.Resolved || resolution.Target is null)
@@ -225,6 +227,7 @@ public sealed class WindowsGuideRuntime
                 }
 
                 var target = resolution.Target;
+                activeState.ObserveTarget(true);
                 targetWasResolved = true;
 
                 var isTextEditTarget = target.Current.ControlType == ControlType.Edit
