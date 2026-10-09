@@ -31,6 +31,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
     private readonly object _validationGate = new();
     private readonly IUiTextProvider? _texts;
     private readonly string? _sessionId;
+    private readonly string _runtimeInstanceId = Guid.NewGuid().ToString("N");
     private bool _useApplicationContexts;
     private string? _activeApplicationContextKey;
     private GuideApplicationContext? _activeApplicationContext;
@@ -259,6 +260,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
                     type = "adapterCommand",
                     requestId,
                     sessionId = _sessionId,
+                    runtimeInstanceId = _runtimeInstanceId,
                     command
                 },
                 json);
