@@ -7,7 +7,7 @@ This document contains only the current implementation state. Historical milesto
 - .NET 8 production architecture is implemented for Web and Windows Learner runtimes.
 - SQLite is the current persistence provider behind provider-independent Core/Data contracts.
 - Default DAP database: `C:\ProgramData\DAP\Data\DAP.db`.
-- TestCRM uses its own local business database: `test-apps\DAP.TestCRM\data\testcrm.db`.
+- TestCRM uses its own local business database: `demos\Shared\data\testcrm.db`.
 - Current Web and Windows TestCRM Guide seeds contain 55 persisted Steps.
 - Step 55 is the persisted centered Guide summary.
 - Disabled persisted Steps are supported without renumbering.
@@ -62,7 +62,7 @@ Maintenance/path options:
 
 ## Independent Web application and Learner execution
 
-`tests/DAP.TestCRM.Web.Host` starts the TestCRM backend and Web application independently of DAP. It builds the application projects before starting a five-second Web readiness check, and keeps its owned TestCRM processes running until the host is stopped. The host opens Chrome at `http://localhost:5200` after Web readiness succeeds.
+`demos/Web/Launcher` starts the TestCRM backend and Web application independently of DAP. It builds the application projects before starting a five-second Web readiness check, and keeps its owned TestCRM processes running until the host is stopped. The host opens Chrome at `http://localhost:5200` after Web readiness succeeds.
 
 In a separate shell, `dotnet build src\\DAP.App\\DAP.App.csproj` builds the product; `src\\DAP.App\\bin\\Debug\\net8.0-windows\\DAP.exe --guide testcrm-web-canonical-workflow` launches the Learner directly, without the E2E runner. DAP attaches to the already-open CRM through its persisted Web Application Context; it does not own the site or browser lifetime.
 
@@ -70,7 +70,7 @@ The independent Web Manual workflow has been verified through completion of the 
 
 ## Independent Windows application and Learner execution
 
-`tests/DAP.TestCRM.Windows.Host` builds and starts the TestCRM backend and Windows application independently of DAP. After the backend is ready, it opens the Windows application and leaves both processes running. In another terminal, the product Learner can be launched directly with `DAP.exe --guide testcrm-windows-canonical-workflow`; the persisted `crm-windows` context resolves the already-open window. The host does not launch or own DAP. The standalone Windows host and independently launched Learner were reported successful in user testing. The target application remained open after Guide completion, and the Learner process appeared to terminate; this is not an automated process-lifetime verification. The standalone host treats normal Windows application exit code 0 as a clean shutdown; the fix still requires a fresh user runtime test.
+`demos/Windows/Launcher` builds and starts the TestCRM backend and Windows application independently of DAP. After the backend is ready, it opens the Windows application and leaves both processes running. In another terminal, the product Learner can be launched directly with `DAP.exe --guide testcrm-windows-canonical-workflow`; the persisted `crm-windows` context resolves the already-open window. The host does not launch or own DAP. The standalone Windows host and independently launched Learner were reported successful in user testing. The target application remained open after Guide completion, and the Learner process appeared to terminate; this is not an automated process-lifetime verification. The standalone host treats normal Windows application exit code 0 as a clean shutdown; the fix still requires a fresh user runtime test.
 
 ## Verification state
 
