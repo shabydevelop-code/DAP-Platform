@@ -1,8 +1,29 @@
 namespace DAP.Core.Guides;
 
 /// <summary>Runtime-independent invariants for presentation and hybrid step execution.</summary>
+public enum GuideStepPresentationKind { CenteredInformation, TargetAttached }
+
 public static class GuideStepExecutionPolicy
 {
+    public static GuideStepPresentationKind Classify(GuideStep step)
+    {
+        ArgumentNullException.ThrowIfNull(step);
+        if (step.Bubble.Placement == BubblePlacement.Center)
+        {
+            RequireCenteredInformationStep(step);
+            return GuideStepPresentationKind.CenteredInformation;
+        }
+        if (step.Target is null)
+            throw new InvalidOperationException($"Target-attached Guide Step '{step.Id}' must define a target.");
+        return GuideStepPresentationKind.TargetAttached;
+    }
+
+    public static bool IsAutomaticValidationStep(GuideStep step)
+    {
+        ArgumentNullException.ThrowIfNull(step);
+        return step.AdvanceMode == StepAdvanceMode.AutomaticOnValidation && step.Validation is not null;
+    }
+
     public static bool IsCenteredInformationStep(GuideStep step)
     {
         ArgumentNullException.ThrowIfNull(step);
