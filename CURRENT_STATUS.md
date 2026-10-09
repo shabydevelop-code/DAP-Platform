@@ -103,21 +103,15 @@ Each DAP.exe invocation owns one learner session. After the guide runtime and cl
 ## E2E runner responsibility separation
 
 - Both Web and Windows E2E entry points use `tests/Shared/E2eRunOptions.cs` for guide selection, mode validation and published-package arguments, and `tests/Shared/OwnedProcessCleanup.cs` for Ctrl+C/process-exit child cleanup.
-- Platform-specific startup, browser Extension or Windows UIA interaction, guide verification and target-specific cleanup remain in their respective runner `Program.cs` files. The E2E orchestration is not yet fully centralized; these entry points must not be removed merely because their common CLI and process-exit policies are shared.
-- Changes require a fresh build and Ctrl+C regression on both runners. No post-change build or E2E pass has been reported yet.
+- Platform-specific startup, browser Extension or Windows UIA interaction, and guide verification now reside in the unified E2E project's platform scenario files.
+- Ctrl+C and packaged diagnostics regression still require verification after the latest script changes.
 
-## Unified E2E project migration
+## Unified E2E project
 
-- `tests/DAP.E2E/` provides one CLI entry point with `--platform web|windows`; its `Runner/E2eRunner.cs` owns process execution/cancellation, and `Platforms/PlatformProject.cs` resolves the legacy platform runner during migration.
-- **Transitional only:** the unified entry point currently delegates to the existing Web/Windows E2E projects. It is not yet a consolidated orchestration engine or replacement for the platform-specific runner code.
-- Do not delete `tests/DAP.TestCRM.Web.E2E/` or `tests/DAP.TestCRM.Windows.E2E/` until platform adapters, shared orchestration and all regression paths have moved and passed verification.
-- The new project has not yet been built or run on the user's machine.
-- The new thin entry point and its extracted runner/route components still require a post-change build and runtime verification.
-- Unified `DAP.E2E` now compiles the existing shared `E2eRunOptions` and `OwnedProcessCleanup` components; the entry point validates forwarded options and its orchestration delegates process cleanup to the shared helper. The platform-specific scenario implementations remain in the legacy projects, so migration and deletion are still pending.
-- The most recent changes require a fresh build and regression verification.
-- `tests/Shared/E2ePortGuard.cs` now centralizes the previously duplicated TCP port preflight in the Web and Windows E2E runners, preserving platform-specific diagnostic messages. The shared file is also linked by `DAP.E2E`.
-- The platform scenario drivers and their large runner bodies have **not** yet moved into `DAP.E2E`. The old projects are still required and must not be deleted. The latest port-preflight refactor requires fresh builds on both platforms.
-- `DAP.E2E/Platforms/PlatformProject.cs` now declares `IE2ePlatform` with Web and Windows adapters; the unified entry point uses the adapter to locate the platform-specific runner. These adapters are transitional launch adapters, not migrated scenario implementations. Both legacy projects remain required. The latest change awaits a fresh build.
-- `DAP.E2E/Platforms/WindowsScenario.cs` contains the Windows E2E scenario implementation migrated from the legacy top-level runner. The unified entry point executes this scenario in-process when `--platform windows` is selected. The unified project now targets `net8.0-windows` with WPF and references DAP.Core and DAP.Data.Sqlite. Windows auxiliary source files are temporarily linked from the old Windows project; Web still launches its legacy runner. This migration has **not** yet been build-tested or runtime-tested, and old projects must remain.
-- `DAP.E2E/Platforms/WebScenario.cs` now also contains the migrated Web scenario and the unified entry point runs Web and Windows scenarios in-process. Legacy platform-specific helper sources remain linked from both old test project directories; the migration is not yet self-contained and the old directories cannot be deleted. The new Web path and unified build require verification. Existing completion/cleanup behavior remains unchanged.
-- The four Web/Windows E2E platform helper source files have been copied into `tests/DAP.E2E/Platforms/Web` and `Platforms/Windows`, and `DAP.E2E.csproj` no longer links helper sources from legacy platform-specific E2E projects. Shared E2E infrastructure remains linked from `tests/Shared`. The old project directories are retained until the updated unified build and both runtime paths are reverified; completion cleanup behavior is unchanged.
+- `tests/DAP.E2E/` is the unified Web/Windows E2E project. Both platform scenarios execute in-process and all four platform-specific helper sources reside under `tests/DAP.E2E/Platforms/`.
+- Shared option parsing, port preflight, and owned-process cleanup remain in `tests/Shared/`.
+- The user verified successful unified-project builds and Manual E2E runs on both Web and Windows after helper migration.
+- The obsolete project-launching adapter and subprocess runner have been removed from `DAP.E2E`.
+- Customer diagnostic publication now targets `tests/DAP.E2E/DAP.E2E.csproj` once, at `Diagnostics/Runners/Unified`. Initialization and run scripts now use `--platform web|windows` and supported Manual/Hybrid modes.
+- The diagnostic package publication and execution changes have **not yet been verified**. Retain both legacy E2E project directories until packaged diagnostics are tested and references audited.
+- Existing learner completion and owned-process cleanup behavior is unchanged; Web/Windows app closure differences are deferred.
