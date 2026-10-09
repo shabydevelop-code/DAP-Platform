@@ -7,6 +7,8 @@ public sealed class UnifiedGuideStepEngine
     {
         ArgumentNullException.ThrowIfNull(state);
         ArgumentNullException.ThrowIfNull(observeAsync);
+        // Platform callbacks observe targets and perform effects; the shared engine
+        // owns the observation lifecycle and validates every reported transition.
         while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
