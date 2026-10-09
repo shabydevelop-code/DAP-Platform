@@ -17,9 +17,7 @@ public sealed class AdapterWebGuideRuntime
 
     public async Task RunAsync(
         IReadOnlyList<GuideStep> guideSteps,
-        CancellationToken cancellationToken,
-        int? startStepOrder = null,
-        IReadOnlyDictionary<string,string>? initialCapturedValues = null)
+        CancellationToken cancellationToken)
     {
         await new GuideExecutionEngine().RunAsync(
             guideSteps,
@@ -51,9 +49,7 @@ public sealed class AdapterWebGuideRuntime
                     throw new InvalidOperationException($"Guide Step '{step.Id}' declares a Web capture that could not be resolved.");
                 GuideRunPlan.RecordCapture(plan.Captures, step.Id, value);
             }),
-            cancellationToken,
-            startStepOrder,
-            initialCapturedValues);
+            cancellationToken);
     }
 
 }
