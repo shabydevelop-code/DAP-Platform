@@ -108,6 +108,20 @@ public sealed class GuideActiveStepState
         return GuideStepReconciliationResult.WaitingForTarget;
     }
 
+    /// <summary>Classify a target that cannot currently be presented. A missing
+    /// target must not be mistaken for an observed learner action.</summary>
+    public GuideStepReconciliationResult ObservePresentationAvailability(bool targetAvailable, bool visible)
+    {
+        if (!targetAvailable)
+            return ObserveTarget(false);
+        if (!visible)
+        {
+            InvalidatePresentation();
+            return GuideStepReconciliationResult.WaitingForTarget;
+        }
+        return GuideStepReconciliationResult.WaitingForAction;
+    }
+
     public GuideStepReconciliationResult ObservePresentationStability(bool stable)
     {
         if (!stable)
