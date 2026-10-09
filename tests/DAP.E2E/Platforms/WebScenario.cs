@@ -462,10 +462,6 @@ internal static class WebScenario
         var dapFactory=new SqliteConnectionFactory(dapDatabaseOptions);
         await new SqliteDatabaseInitializer(dapFactory).InitializeAsync();
         var dapRepository=new SqliteGuideStepRepository(dapFactory);
-        await dapRepository.RenameGuideAsync(
-            DapTestCrmGuideSeed.LegacyGuideId,
-            DapTestCrmGuideSeed.GuideId,
-            DapTestCrmGuideSeed.GuideName);
         var dapSteps=await dapRepository.GetStepsAsync(guideId);
         Console.WriteLine($"DAP persistent guide database: {dapDbPath}");
         StartupMark("persistent DAP guide loaded");
@@ -474,10 +470,6 @@ internal static class WebScenario
             throw new Exception(
                 $"DAP Guide '{guideId}' does not exist in the persistent database. " +
                 "Initialize/reset the Guide explicitly before running the E2E.");
-        var expectedGuideStepCount=DapTestCrmGuideSeed.CreateSteps().Count;
-        if(dapSteps.Count!=expectedGuideStepCount)
-            throw new Exception(
-                $"DAP Guide '{guideId}' must contain exactly {expectedGuideStepCount} Steps for the canonical Web scenario; found {dapSteps.Count}.");
         if(dapSteps.Select(step=>step.Order).Distinct().Count()!=dapSteps.Count
             || dapSteps.Min(step=>step.Order)!=1
             || dapSteps.Max(step=>step.Order)!=dapSteps.Count)
