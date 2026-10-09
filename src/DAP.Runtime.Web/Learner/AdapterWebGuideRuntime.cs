@@ -6,10 +6,10 @@ namespace DAP.Runtime.Web.Learner;
 
 public sealed class AdapterWebGuideRuntime
 {
-    private readonly AdapterWebLearnerRuntime _steps;
+    private readonly WebGuideStepRuntime _steps;
     private readonly IWebBrowserAdapter _browser;
 
-    public AdapterWebGuideRuntime(AdapterWebLearnerRuntime steps, IWebBrowserAdapter browser)
+    public AdapterWebGuideRuntime(WebGuideStepRuntime steps, IWebBrowserAdapter browser)
     {
         _steps = steps ?? throw new ArgumentNullException(nameof(steps));
         _browser = browser ?? throw new ArgumentNullException(nameof(browser));
