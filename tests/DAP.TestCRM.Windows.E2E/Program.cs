@@ -332,25 +332,9 @@ void BuildIsolated(string project, string output, string name)
     }
 }
 
-void EnsurePortFree(int port)
-{
-    TcpListener? listener = null;
-    try
-    {
-        listener = new TcpListener(IPAddress.Loopback, port);
-        listener.Start();
-    }
-    catch (SocketException ex)
-    {
-        throw new InvalidOperationException(
-            $"Port {port} is already in use. Stop the existing TestCRM Server before running this E2E mode.",
-            ex);
-    }
-    finally
-    {
-        listener?.Stop();
-    }
-}
+void EnsurePortFree(int port) =>
+    DAP.Testing.E2ePortGuard.EnsurePortFree(port,
+        $"Port {port} is already in use. Stop the existing TestCRM Server before running this E2E mode.");
 
 Process StartProcess(
     string fileName,
