@@ -80,7 +80,7 @@ public sealed class AdapterWebLearnerRuntime
                     // second time merely because the DOM/document refresh
                     // completed after the original change event.
                 }
-                else if (!clicked)
+                else if (GuideStepExecutionPolicy.ShouldConsumeInvalidCommit(step, commitObserved: true, primarySatisfied: primary))
                 {
                     // Only an invalid non-click commit is consumed. A valid
                     // commit remains completed until its persisted completion
