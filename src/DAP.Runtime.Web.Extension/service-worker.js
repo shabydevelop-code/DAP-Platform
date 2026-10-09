@@ -5,6 +5,7 @@ let port = null;
 const productionContextTabs = new Map();
 const activatedProductionSessions = new Set();
 const closedProductionContexts = new Set();
+let activeProductionRuntimeInstanceId = null;
 
 chrome.tabs.onRemoved.addListener(tabId => {
   for (const [contextKey, retainedTabId] of productionContextTabs) {
@@ -36,6 +37,7 @@ function connect() {
       productionContextTabs.clear();
       activatedProductionSessions.clear();
       closedProductionContexts.clear();
+      activeProductionRuntimeInstanceId = null;
     }
   });
 
@@ -603,6 +605,17 @@ async function handleNativeMessage(message) {
   if (message?.type !== "adapterCommand" || !message.requestId) return;
 
   const requestId = message.requestId;
+
+  // A native host can remain connected across independent DAP guide runs.
+  // Reset tab closure and focus state only when a new production runtime
+  // identifies itself; never rebind a closed tab during the same run.
+  if (!message.sessionId && message.runtimeInstanceId &&
+      activeProductionRuntimeInstanceId !== String(message.runtimeInstanceId)) {
+    productionContextTabs.clear();
+    closedProductionContexts.clear();
+    activatedProductionSessions.clear();
+    activeProductionRuntimeInstanceId = String(message.runtimeInstanceId);
+  }
 
   try {
     const envelope = { ...(message.command || {}) };
