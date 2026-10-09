@@ -492,23 +492,6 @@ StartupMark(hybrid
 
 Console.WriteLine($"Web run mode: {(manual ? "manual" : "hybrid")}");
 
-async Task Fill(string selector,string value)
-{
-    if (testDriver is null) throw new InvalidOperationException("Hybrid test driver is not available.");
-    await testDriver.LocatorAsync("dap-content", selector, "scrollIntoView");
-    await testDriver.LocatorAsync("dap-content", selector, "focus");
-    await testDriver.KeyboardAsync("dap-content", "Control+A");
-    await testDriver.TypeAsync("dap-content", value);
-    await testDriver.KeyboardAsync("dap-content", "Tab");
-}
-
-async Task Select(string selector,string value)
-{
-    if (testDriver is null) throw new InvalidOperationException("Hybrid test driver is not available.");
-    await testDriver.LocatorAsync("dap-content", selector, "scrollIntoView");
-    await testDriver.LocatorAsync("dap-content", selector, "select", value);
-}
-
 try
 {
 Console.WriteLine("DAP TestCRM representative PeopleSoft-Web scenario");
