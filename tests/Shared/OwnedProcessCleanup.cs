@@ -40,6 +40,7 @@ internal sealed class OwnedProcessCleanup : IDisposable
             }
         }
         catch (InvalidOperationException) { }
+        catch (ObjectDisposedException) { }
         catch (System.ComponentModel.Win32Exception) { }
     }
 
