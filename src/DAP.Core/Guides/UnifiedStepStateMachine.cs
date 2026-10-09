@@ -51,6 +51,7 @@ public sealed class UnifiedStepStateMachine
     private bool _targetEverAvailable;
     private bool _textEditCommitted;
     private bool _targetWasStable;
+    private bool _manualPresentationAcknowledged;
 
     public UnifiedStepStateMachine(GuideStep step)
     {
@@ -80,7 +81,9 @@ public sealed class UnifiedStepStateMachine
         if (_completed)
             return new(GuideStepReconciliationResult.Completed, false, false, true);
 
-        if (_step.AdvanceMode == StepAdvanceMode.Manual && observation.ManualAdvanceRequested)
+        if (_step.AdvanceMode == StepAdvanceMode.Manual && observation.ManualAdvanceRequested
+            && (!GuideStepExecutionPolicy.IsCenteredInformationStep(_step)
+                || _manualPresentationAcknowledged))
         {
             _completed = true;
             return Decide(GuideStepReconciliationResult.Completed, false, true);
@@ -170,7 +173,11 @@ public sealed class UnifiedStepStateMachine
     public void AcknowledgePresentation(UnifiedPresentationAction action)
     {
         if (action == UnifiedPresentationAction.Show)
+        {
             _presentationVisible = true;
+            if (GuideStepExecutionPolicy.IsCenteredInformationStep(_step))
+                _manualPresentationAcknowledged = true;
+        }
         else if (action == UnifiedPresentationAction.Hide)
             _presentationVisible = false;
     }
