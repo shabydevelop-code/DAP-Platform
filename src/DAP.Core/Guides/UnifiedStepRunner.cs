@@ -47,7 +47,7 @@ public sealed class UnifiedStepRunner
             (reason, token) => adapter.WaitForChangeAsync(step, reason, token),
             cancellationToken);
         }
-        finally
+        catch
         {
             // Never leave a stale guide bubble after cancellation or adapter failure.
             // Cleanup must not mask the original exception.
@@ -57,6 +57,7 @@ public sealed class UnifiedStepRunner
                     CancellationToken.None);
             }
             catch { /* Best-effort cleanup; preserve the original failure. */ }
+            throw;
         }
     }
 }
