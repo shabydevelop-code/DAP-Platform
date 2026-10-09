@@ -1,3 +1,5 @@
+using System.IO;
+
 namespace DAP.Testing;
 
 /// <summary>Common command-line contract for Web and Windows E2E runners.</summary>
