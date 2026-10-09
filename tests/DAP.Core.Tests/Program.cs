@@ -85,6 +85,8 @@ Check(adapter.PresentationActions.SequenceEqual(new[] {
     UnifiedPresentationAction.Show, UnifiedPresentationAction.Hide
 }), "Shared runner delegates presentation lifecycle");
 
+Console.WriteLine("All unified state-machine checks passed.");
+
 sealed class FakeUnifiedAdapter : IUnifiedStepPlatformAdapter
 {
     public int AutomationCalls { get; private set; }
@@ -110,4 +112,4 @@ sealed class FakeUnifiedAdapter : IUnifiedStepPlatformAdapter
     }
 }
 
-Console.WriteLine("All unified state-machine checks passed.");
+
