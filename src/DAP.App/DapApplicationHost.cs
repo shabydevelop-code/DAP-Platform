@@ -151,7 +151,7 @@ public static class DapApplicationHost
         try
         {
             StartupMark(startup, "Windows guide runtime starting");
-            await runtime.RunAsync(window, steps, runCancellation.Token, );
+            await runtime.RunAsync(window, steps, runCancellation.Token);
         }
         catch (OperationCanceledException) when (targetClosed.IsCancellationRequested)
         {
@@ -281,7 +281,7 @@ public static class DapApplicationHost
         try
         {
             StartupMark(startup, "Web adapter guide runtime starting");
-            await guideRuntime.RunAsync(steps, runCancellation.Token, );
+            await guideRuntime.RunAsync(steps, runCancellation.Token);
             Console.Error.WriteLine("[DAP diagnostic] Web guide runtime completed normally.");
         }
         catch (OperationCanceledException) when (targetClosed.IsCancellationRequested)
