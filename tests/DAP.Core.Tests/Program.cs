@@ -16,4 +16,22 @@ Check(engine.EvaluateCompletion(state, true, false) == GuideStepReconciliationRe
 Check(engine.EvaluateCompletion(state, true, true) == GuideStepReconciliationResult.Completed, "Shared runtime completes validated step");
 Check(state.TrySignalReady() && !state.TrySignalReady(), "Shared runtime signals readiness once");
 
+// Shared readiness must invalidate stale presentation after target loss.
+var readinessState = new GuideActiveStepState(step);
+readinessState.MarkPresentationReady();
+Check(engine.ObserveReadiness(readinessState, true, false, false)
+    == GuideStepReconciliationResult.WaitingForTarget,
+    "Shared engine waits when target is missing");
+Check(!readinessState.PresentationReady,
+    "Missing target invalidates presentation");
+readinessState.MarkPresentationReady();
+Check(engine.ObserveReadiness(readinessState, false, true, true)
+    == GuideStepReconciliationResult.WaitingForContext,
+    "Inactive context takes precedence over a visible target");
+Check(!readinessState.PresentationReady,
+    "Inactive context invalidates presentation");
+Check(engine.ObserveReadiness(readinessState, true, true, true)
+    == GuideStepReconciliationResult.WaitingForAction,
+    "Shared engine accepts a visible target in active context");
+
 Console.WriteLine("All production shared-runtime checks passed.");
