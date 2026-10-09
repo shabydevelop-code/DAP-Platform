@@ -198,6 +198,13 @@ public static class DapApplicationHost
         await ActivateWindowsTargetAsync(window, cancellationToken);
         StartupMark(startup, "Windows target window activated");
 
+        // Observe the native window independently of UI Automation: UIA providers
+        // can throw while their owning application is shutting down.
+        var targetHandle = new IntPtr(window.Current.NativeWindowHandle);
+        using var targetClosed = new CancellationTokenSource();
+        using var runCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, targetClosed.Token);
+        var monitor = MonitorWindowsTargetAsync(targetHandle, targetClosed, runCancellation.Token);
+
         var resolver = new WindowsTargetResolver();
         var bubbles = new WindowsBubblePresenter(texts);
         var runtime = new WindowsGuideRuntime(resolver, bubbles, automaticStepLabel: options.ExecutionMode == DapExecutionMode.Hybrid ? "אוטומט" : null, hybrid: options.ExecutionMode == DapExecutionMode.Hybrid);
@@ -205,15 +212,40 @@ public static class DapApplicationHost
         try
         {
             StartupMark(startup, "Windows guide runtime starting");
-            await runtime.RunAsync(window, steps, cancellationToken, options.StartStep, resumeContext);
-
+            await runtime.RunAsync(window, steps, runCancellation.Token, options.StartStep, resumeContext);
+        }
+        catch (OperationCanceledException) when (targetClosed.IsCancellationRequested)
+        {
+            Console.Error.WriteLine("[DAP diagnostic] Windows target closed; guide stopped normally.");
+        }
+        catch (Exception ex) when (!IsWindow(targetHandle))
+        {
+            // A UIA provider may fail before the monitor's next poll.
+            Console.Error.WriteLine($"[DAP diagnostic] Windows target closed during UI automation: {ex}");
         }
         finally
         {
+            runCancellation.Cancel();
+            try { await monitor; }
+            catch (OperationCanceledException) when (runCancellation.IsCancellationRequested) { }
             await bubbles.HideAsync();
         }
 
         return 0;
+    }
+
+    private static async Task MonitorWindowsTargetAsync(IntPtr handle, CancellationTokenSource targetClosed, CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            if (!IsWindow(handle))
+            {
+                Console.Error.WriteLine("[DAP diagnostic] Windows target window handle is no longer valid.");
+                targetClosed.Cancel();
+                return;
+            }
+            await Task.Delay(100, cancellationToken);
+        }
     }
 
     [DllImport("user32.dll")]
@@ -224,6 +256,9 @@ public static class DapApplicationHost
 
     [DllImport("user32.dll")]
     private static extern bool IsIconic(IntPtr window);
+
+    [DllImport("user32.dll")]
+    private static extern bool IsWindow(IntPtr window);
 
 
     private static async Task ActivateWindowsTargetAsync(AutomationElement target, CancellationToken cancellationToken)
