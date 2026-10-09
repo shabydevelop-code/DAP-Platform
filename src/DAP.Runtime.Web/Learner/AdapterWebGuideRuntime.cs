@@ -21,10 +21,10 @@ public sealed class AdapterWebGuideRuntime
         int? startStepOrder = null,
         IReadOnlyDictionary<string,string>? initialCapturedValues = null)
     {
-        var plan = new GuideRunPlan(guideSteps, startStepOrder, initialCapturedValues);
-        await plan.ExecuteAsync(
+        await new GuideExecutionEngine().RunAsync(
+            guideSteps,
             TargetRuntime.Web,
-            async (step, index, total, token) =>
+            async (step, index, total, plan, token) =>
             {
                 if (step.Capture is not null)
                 {
@@ -37,11 +37,9 @@ public sealed class AdapterWebGuideRuntime
                 await _steps.RunActiveStepAsync(step, step.Order, total, token);
             },
             cancellationToken,
-            onSkipped: step => Console.Error.WriteLine($"[DAP guide] skipped disabled Step {step.Order}/{plan.Steps.Count} '{step.Id}'."),
-            onStarting: step => Console.Error.WriteLine($"[DAP guide] starting Step {step.Order}/{plan.Steps.Count} '{step.Id}'."),
-            onCompleted: step => Console.Error.WriteLine($"[DAP guide] completed Step {step.Order}/{plan.Steps.Count} '{step.Id}'."));
-
-        Console.Error.WriteLine("[DAP guide] Guide finished.");
+            startStepOrder,
+            initialCapturedValues,
+            "Web");
     }
 
 }
