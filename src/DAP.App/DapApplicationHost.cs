@@ -2,7 +2,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Text.Json;
 using System.Windows;
 using System.Windows.Automation;
 using DAP.Data.Sqlite;
@@ -80,11 +79,6 @@ public static class DapApplicationHost
             return 5;
         }
 
-        var resumeContext = await LoadResumeContextAsync(options.ResumeContextPath, cancellationToken);
-        ValidateResumeContext(steps, options.StartStep, resumeContext);
-        if (resumeContext.Count > 0)
-            StartupMark(startup, $"resume context loaded ({resumeContext.Count} captures)");
-
         var enabledTargetRuntimes = steps
             .Where(step => step.IsEnabled && step.Target is not null)
             .Select(step => step.Target!.Runtime)
@@ -98,73 +92,18 @@ public static class DapApplicationHost
         return enabledTargetRuntimes[0] switch
         {
             DAP.Core.Targets.TargetRuntime.Windows => await RunWindowsAsync(
-                options, steps, applicationContexts, resumeContext, texts, startup, cancellationToken),
+                options, steps, applicationContexts, texts, startup, cancellationToken),
             DAP.Core.Targets.TargetRuntime.Web => await RunWebAsync(
-                options, steps, applicationContexts, resumeContext, texts, startup, cancellationToken),
+                options, steps, applicationContexts, texts, startup, cancellationToken),
             _ => throw new NotSupportedException(
                 $"Guide '{options.GuideId}' uses unsupported Runtime '{enabledTargetRuntimes[0]}'.")
         };
-    }
-
-    private static void ValidateResumeContext(
-        IReadOnlyList<DAP.Core.Guides.GuideStep> steps,
-        int? startStep,
-        IReadOnlyDictionary<string, string> resumeContext)
-    {
-        if (resumeContext.Count == 0)
-            return;
-
-        if (startStep is null)
-            throw new InvalidOperationException(
-                "A resume context requires --start-step so DAP has an explicit continuation point.");
-
-        var byId = steps.ToDictionary(step => step.Id, StringComparer.Ordinal);
-        foreach (var pair in resumeContext)
-        {
-            if (!byId.TryGetValue(pair.Key, out var sourceStep))
-                throw new InvalidOperationException(
-                    $"Resume context references unknown Guide Step '{pair.Key}'.");
-
-            if (sourceStep.Capture is null)
-                throw new InvalidOperationException(
-                    $"Resume context contains Step '{pair.Key}', but that Step does not declare a runtime capture.");
-
-            if (sourceStep.Order >= startStep.Value)
-                throw new InvalidOperationException(
-                    $"Resume capture for Step {sourceStep.Order} '{pair.Key}' is not earlier than requested start Step {startStep.Value}.");
-
-            if (string.IsNullOrWhiteSpace(pair.Value))
-                throw new InvalidOperationException(
-                    $"Resume capture for Step '{pair.Key}' is empty.");
-        }
-    }
-
-    private static async Task<IReadOnlyDictionary<string, string>> LoadResumeContextAsync(
-        string? path,
-        CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-            return new Dictionary<string, string>(StringComparer.Ordinal);
-
-        var fullPath = Path.GetFullPath(path);
-        if (!File.Exists(fullPath))
-            throw new FileNotFoundException("DAP resume context file was not found.", fullPath);
-
-        await using var stream = File.OpenRead(fullPath);
-        var values = await JsonSerializer.DeserializeAsync<Dictionary<string, string>>(
-            stream,
-            cancellationToken: cancellationToken);
-
-        return values is null
-            ? new Dictionary<string, string>(StringComparer.Ordinal)
-            : new Dictionary<string, string>(values, StringComparer.Ordinal);
     }
 
     private static async Task<int> RunWindowsAsync(
         DapLaunchOptions options,
         IReadOnlyList<DAP.Core.Guides.GuideStep> steps,
         IReadOnlyList<DAP.Core.Guides.GuideApplicationContext> applicationContexts,
-        IReadOnlyDictionary<string, string> resumeContext,
         IUiTextProvider texts,
         Stopwatch startup,
         CancellationToken cancellationToken)
@@ -212,7 +151,7 @@ public static class DapApplicationHost
         try
         {
             StartupMark(startup, "Windows guide runtime starting");
-            await runtime.RunAsync(window, steps, runCancellation.Token, options.StartStep, resumeContext);
+            await runtime.RunAsync(window, steps, runCancellation.Token, );
         }
         catch (OperationCanceledException) when (targetClosed.IsCancellationRequested)
         {
@@ -320,7 +259,6 @@ public static class DapApplicationHost
         DapLaunchOptions options,
         IReadOnlyList<DAP.Core.Guides.GuideStep> steps,
         IReadOnlyList<DAP.Core.Guides.GuideApplicationContext> applicationContexts,
-        IReadOnlyDictionary<string, string> resumeContext,
         IUiTextProvider texts,
         Stopwatch startup,
         CancellationToken cancellationToken)
@@ -343,7 +281,7 @@ public static class DapApplicationHost
         try
         {
             StartupMark(startup, "Web adapter guide runtime starting");
-            await guideRuntime.RunAsync(steps, runCancellation.Token, options.StartStep, resumeContext);
+            await guideRuntime.RunAsync(steps, runCancellation.Token, );
             Console.Error.WriteLine("[DAP diagnostic] Web guide runtime completed normally.");
         }
         catch (OperationCanceledException) when (targetClosed.IsCancellationRequested)
