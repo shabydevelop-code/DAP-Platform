@@ -126,34 +126,42 @@ try
     if (!ready)
         throw new TimeoutException("TestCRM Web did not become ready within 5 seconds.");
 
-    // The TestCRM application host owns opening the application, not the DAP learner.
-    // Use the system-registered Chrome installation without an automation profile.
+    // Keep the demo browser isolated so closing its window also ends this host.
+    // Never reuse or terminate the user's regular Chrome profile.
     if (!OperatingSystem.IsWindows())
         throw new PlatformNotSupportedException("TestCRM Web Host requires Windows to launch Chrome.");
-    using (var browser = Process.Start(new ProcessStartInfo
+
+    var chromeProfile = Path.Combine(Path.GetTempPath(), "dap-testcrm-demo-" + Guid.NewGuid().ToString("N"));
+    Directory.CreateDirectory(chromeProfile);
+    using var browser = Process.Start(new ProcessStartInfo
     {
         FileName = "cmd.exe",
-        ArgumentList = { "/c", "start", "", "chrome", webUrl },
+        ArgumentList =
+        {
+            "/c", "start", "/wait", "", "chrome",
+            $"--user-data-dir={chromeProfile}",
+            $"--app={webUrl}"
+        },
         WorkingDirectory = repoRoot,
         UseShellExecute = false,
         CreateNoWindow = true
-    }) ?? throw new InvalidOperationException("Could not request Chrome launch."))
-    {
-        await browser.WaitForExitAsync();
-        if (browser.ExitCode != 0)
-            throw new InvalidOperationException("Chrome launch failed. Verify Chrome is installed and registered.");
-    }
+    }) ?? throw new InvalidOperationException("Could not launch the demo Chrome window.");
 
     Console.WriteLine();
     Console.WriteLine($"TestCRM is running independently at {webUrl}");
     Console.WriteLine("Leave this terminal open. Start DAP Learner from a separate terminal.");
     Console.WriteLine("Press Ctrl+C here to stop TestCRM.");
 
-    await Task.WhenAny(backend.WaitForExitAsync(), web.WaitForExitAsync());
+    var backendExit = backend.WaitForExitAsync();
+    var webExit = web.WaitForExitAsync();
+    var browserExit = browser.WaitForExitAsync();
+    var completed = await Task.WhenAny(backendExit, webExit, browserExit);
     if (Volatile.Read(ref stopping) != 0)
     {
         Console.WriteLine("TestCRM host stopped normally.");
     }
+    else if (completed == browserExit)
+        Console.WriteLine("Demo browser closed. Stopping TestCRM host.");
     else if (backend.HasExited)
         throw new InvalidOperationException($"TestCRM Backend exited with code {backend.ExitCode}.");
     else
