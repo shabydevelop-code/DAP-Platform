@@ -7,11 +7,11 @@ $repo = Split-Path -Parent $PSScriptRoot
 
 # Reject an active package before modifying any published files.
 # Do not terminate user processes or silently swallow a failed directory removal.
-$outputRoot = [System.IO.Path]::GetFullPath($Output).TrimEnd([char[]]@('\\', '/'))
+$outputRoot = [System.IO.Path]::GetFullPath($Output).TrimEnd([char[]]@('\', '/'))
 $runningFromPackage = @(Get-CimInstance Win32_Process | Where-Object {
     $command = [string]$_.CommandLine
     $executable = [string]$_.ExecutablePath
-    $prefix = $outputRoot + '\\'
+    $prefix = $outputRoot + '\'
     $executable.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase) -or
     $command.IndexOf($prefix, [StringComparison]::OrdinalIgnoreCase) -ge 0 -or
     $command.IndexOf('"' + $outputRoot + '"', [StringComparison]::OrdinalIgnoreCase) -ge 0
