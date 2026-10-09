@@ -7,13 +7,13 @@ const string webUrl = "http://localhost:5200";
 const string backendUrl = "http://localhost:5201";
 
 var repoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".."));
-var backendProject = Path.Combine(repoRoot, "demos", "Shared", "Server", "DAP.TestCRM.Server.csproj");
-var webProject = Path.Combine(repoRoot, "demos", "Web", "App", "DAP.TestCRM.Web.csproj");
+var backendProject = Path.Combine(repoRoot, "demos", "Shared", "Server", "DAP.SampleApp.Server.csproj");
+var webProject = Path.Combine(repoRoot, "demos", "Web", "App", "DAP.SampleApp.Web.csproj");
 
 if (!File.Exists(backendProject))
-    throw new FileNotFoundException("TestCRM Server project was not found.", backendProject);
+    throw new FileNotFoundException("SampleApp Server project was not found.", backendProject);
 if (!File.Exists(webProject))
-    throw new FileNotFoundException("TestCRM Web project was not found.", webProject);
+    throw new FileNotFoundException("SampleApp Web project was not found.", webProject);
 
 async Task BuildProjectAsync(string project)
 {
@@ -48,7 +48,7 @@ Process StartBuiltProject(string project, string url, IReadOnlyDictionary<string
         Path.GetFileNameWithoutExtension(project) + ".dll");
 
     if (!File.Exists(dll))
-        throw new FileNotFoundException("Built TestCRM assembly was not found.", dll);
+        throw new FileNotFoundException("Built SampleApp assembly was not found.", dll);
 
     var psi = new ProcessStartInfo
     {
@@ -106,9 +106,9 @@ try
     while (DateTime.UtcNow < deadline)
     {
         if (backend.HasExited)
-            throw new InvalidOperationException($"TestCRM Backend exited with code {backend.ExitCode}.");
+            throw new InvalidOperationException($"SampleApp Backend exited with code {backend.ExitCode}.");
         if (web.HasExited)
-            throw new InvalidOperationException($"TestCRM Web exited with code {web.ExitCode}.");
+            throw new InvalidOperationException($"SampleApp Web exited with code {web.ExitCode}.");
 
         try
         {
@@ -126,12 +126,12 @@ try
     }
 
     if (!ready)
-        throw new TimeoutException("TestCRM Web did not become ready within 5 seconds.");
+        throw new TimeoutException("SampleApp Web did not become ready within 5 seconds.");
 
     // Open a normal Chrome window using the user's existing browser profile.
     // A fresh isolated profile would not have the DAP extension installed.
     if (!OperatingSystem.IsWindows())
-        throw new PlatformNotSupportedException("TestCRM Web Host requires Windows to launch Chrome.");
+        throw new PlatformNotSupportedException("SampleApp Web Host requires Windows to launch Chrome.");
 
     var existingChromeWindows = ChromeWindowTracking.GetChromeWindows();
     using (var launcher = Process.Start(new ProcessStartInfo
@@ -156,7 +156,7 @@ try
     {
         var newWindows = ChromeWindowTracking.GetChromeWindows().Except(existingChromeWindows).ToArray();
         if (newWindows.Length > 1)
-            throw new InvalidOperationException("Multiple new Chrome windows appeared; cannot identify the TestCRM window safely.");
+            throw new InvalidOperationException("Multiple new Chrome windows appeared; cannot identify the SampleApp window safely.");
         if (newWindows.Length == 1)
         {
             chromeWindow = newWindows[0];
@@ -165,12 +165,12 @@ try
         await Task.Delay(100);
     }
     if (chromeWindow == 0)
-        throw new InvalidOperationException("Could not identify the newly opened TestCRM Chrome window.");
+        throw new InvalidOperationException("Could not identify the newly opened SampleApp Chrome window.");
 
     Console.WriteLine();
-    Console.WriteLine($"TestCRM is running independently at {webUrl}");
+    Console.WriteLine($"SampleApp is running independently at {webUrl}");
     Console.WriteLine("Leave this terminal open. Start DAP Learner from a separate terminal.");
-    Console.WriteLine("Close the TestCRM Chrome window or press Ctrl+C to stop the demo servers.");
+    Console.WriteLine("Close the SampleApp Chrome window or press Ctrl+C to stop the demo servers.");
 
     var backendExit = backend.WaitForExitAsync();
     var webExit = web.WaitForExitAsync();
@@ -178,12 +178,12 @@ try
         await Task.Delay(200);
     if (Volatile.Read(ref stopping) != 0 || !ChromeWindowTracking.IsWindow(chromeWindow))
     {
-        Console.WriteLine("TestCRM host stopped normally.");
+        Console.WriteLine("SampleApp host stopped normally.");
     }
     else if (backend.HasExited)
-        throw new InvalidOperationException($"TestCRM Backend exited with code {backend.ExitCode}.");
+        throw new InvalidOperationException($"SampleApp Backend exited with code {backend.ExitCode}.");
     else
-        throw new InvalidOperationException($"TestCRM Web exited with code {web.ExitCode}.");
+        throw new InvalidOperationException($"SampleApp Web exited with code {web.ExitCode}.");
 }
 finally
 {

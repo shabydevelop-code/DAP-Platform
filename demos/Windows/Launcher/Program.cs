@@ -2,8 +2,8 @@ using System.Diagnostics;
 using System.Net.Http;
 
 var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".."));
-var serverProject = Path.Combine(root, "demos", "Shared", "Server", "DAP.TestCRM.Server.csproj");
-var windowsProject = Path.Combine(root, "demos", "Windows", "App", "DAP.TestCRM.Windows.csproj");
+var serverProject = Path.Combine(root, "demos", "Shared", "Server", "DAP.SampleApp.Server.csproj");
+var windowsProject = Path.Combine(root, "demos", "Windows", "App", "DAP.SampleApp.Windows.csproj");
 
 async Task BuildAsync(string project)
 {
@@ -48,8 +48,8 @@ Process? server = null;
 Process? windows = null;
 try
 {
-    var serverDll = Path.Combine(Path.GetDirectoryName(serverProject)!, "bin", "Debug", "net8.0", "DAP.TestCRM.Server.dll");
-    var windowsExe = Path.Combine(Path.GetDirectoryName(windowsProject)!, "bin", "Debug", "net8.0-windows", "DAP.TestCRM.Windows.exe");
+    var serverDll = Path.Combine(Path.GetDirectoryName(serverProject)!, "bin", "Debug", "net8.0", "DAP.SampleApp.Server.dll");
+    var windowsExe = Path.Combine(Path.GetDirectoryName(windowsProject)!, "bin", "Debug", "net8.0-windows", "DAP.SampleApp.Windows.exe");
     server = Start("dotnet", Path.GetDirectoryName(serverDll)!, serverDll, "--urls", "http://localhost:5201");
 
     using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(1) };
@@ -58,7 +58,7 @@ try
     while (DateTime.UtcNow < deadline)
     {
         if (server.HasExited)
-            throw new InvalidOperationException($"TestCRM server exited: {server.ExitCode}.");
+            throw new InvalidOperationException($"SampleApp server exited: {server.ExitCode}.");
         try
         {
             using var response = await http.GetAsync("http://localhost:5201/api/customers");
@@ -69,12 +69,12 @@ try
         await Task.Delay(100);
     }
     if (!ready)
-        throw new TimeoutException("TestCRM server did not become ready within five seconds.");
+        throw new TimeoutException("SampleApp server did not become ready within five seconds.");
 
     windows = Start(windowsExe, Path.GetDirectoryName(windowsExe)!);
-    Console.WriteLine("TestCRM Windows is running independently of DAP.");
+    Console.WriteLine("SampleApp Windows is running independently of DAP.");
     Console.WriteLine("Start DAP.exe --guide testcrm-windows-canonical-workflow in another terminal.");
-    Console.WriteLine("Press Ctrl+C to stop the TestCRM host.");
+    Console.WriteLine("Press Ctrl+C to stop the SampleApp host.");
 
     var serverExit = server.WaitForExitAsync();
     var windowsExit = windows.WaitForExitAsync();
@@ -83,13 +83,13 @@ try
     {
         await windowsExit;
         if (windows.ExitCode != 0)
-            throw new InvalidOperationException($"TestCRM Windows exited with code {windows.ExitCode}.");
-        Console.WriteLine("TestCRM Windows closed normally. Stopping the host.");
+            throw new InvalidOperationException($"SampleApp Windows exited with code {windows.ExitCode}.");
+        Console.WriteLine("SampleApp Windows closed normally. Stopping the host.");
     }
     else
     {
         await serverExit;
-        throw new InvalidOperationException($"TestCRM server exited with code {server.ExitCode}.");
+        throw new InvalidOperationException($"SampleApp server exited with code {server.ExitCode}.");
     }
 }
 finally
