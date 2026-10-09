@@ -68,25 +68,9 @@ if (args.Contains("--reset-guide", StringComparer.OrdinalIgnoreCase))
 var manual = runOptions.Manual;
 var hybrid = runOptions.Hybrid;
 
-static void EnsurePortFree(int port)
-{
-    TcpListener? listener = null;
-    try
-    {
-        listener = new TcpListener(IPAddress.Loopback, port);
-        listener.Start();
-    }
-    catch (SocketException ex)
-    {
-        throw new InvalidOperationException(
-            $"Port {port} is already in use. Stop the existing process that owns this TestCRM port before starting a new Web E2E/manual run.",
-            ex);
-    }
-    finally
-    {
-        listener?.Stop();
-    }
-}
+static void EnsurePortFree(int port) =>
+    DAP.Testing.E2ePortGuard.EnsurePortFree(port,
+        $"Port {port} is already in use. Stop the existing process that owns this TestCRM port before starting a new Web E2E/manual run.");
 
 var repoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
 var testCrmProject = Path.Combine(repoRoot, "test-apps", "DAP.TestCRM", "Web", "DAP.TestCRM.Web.csproj");
