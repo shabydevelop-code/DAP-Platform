@@ -276,11 +276,10 @@ public static class DapApplicationHost
         Stopwatch startup,
         CancellationToken cancellationToken)
     {
-        if (options.ExecutionMode == DapExecutionMode.Hybrid)
-            throw new NotSupportedException("Production Web Hybrid requires extension-side action execution and is not implemented; no guide actions were started.");
+
         using var browserAdapter = new ExtensionWebBrowserAdapter(texts);
         browserAdapter.ConfigureApplicationContexts(applicationContexts);
-        var stepRuntime = new AdapterWebLearnerRuntime(browserAdapter, automaticStepLabel: GetAutomaticStepLabel());
+        var stepRuntime = new AdapterWebLearnerRuntime(browserAdapter, automaticStepLabel: GetAutomaticStepLabel(), hybrid: options.ExecutionMode == DapExecutionMode.Hybrid);
         var guideRuntime = new AdapterWebGuideRuntime(stepRuntime, browserAdapter);
         StartupMark(startup, "Web extension adapter composition root created");
 
