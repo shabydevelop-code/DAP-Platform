@@ -334,3 +334,5 @@ Standalone TestCRM Web Host opens the application in Chrome automatically after 
 The standalone TestCRM Web Host treats user-requested Ctrl+C termination as normal shutdown, stops its owned Web and backend processes, and does not report their exit code 0 as an unexpected failure. Unexpected independent process exits remain errors. Requires local verification.
 
 Current implementation: both Web and Windows use the Core GuideExecutionEngine for guide sequence orchestration. Active step execution remains platform-specific; complete engine consolidation and Windows regression verification are outstanding.
+
+Core GuideStepExecutionPolicy now enforces centered information-step invariants for both Web and Windows, and Web hybrid value-step eligibility. Active-step loops remain platform-specific. Build and E2E regression are pending; do not mark engine consolidation complete.
