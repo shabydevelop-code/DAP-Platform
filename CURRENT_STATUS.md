@@ -99,3 +99,9 @@ Each DAP.exe invocation owns one learner session. After the guide runtime and cl
 - Web `WebGuideStepRuntime` and Windows `WindowsGuideRuntime` retain platform-specific reconciliation callbacks and UI effects. Their presence alone does not establish duplicated learner policy; shared decisions reside in Core, and remaining decisions require responsibility-by-responsibility review before further extraction or deletion.
 - The user confirmed a successful local `DAP.App` build after the Web step-runtime rename and application-host reference correction. Manual end-to-end regression after these changes remains unverified.
 - Web startup browser activation parity with Windows remains an open item. The user reported successful full 55-step Web and Windows Hybrid runs before the latest Web runtime rename; post-rename end-to-end regression and Manual runs are not confirmed.
+
+## E2E runner responsibility separation
+
+- Both Web and Windows E2E entry points use `tests/Shared/E2eRunOptions.cs` for guide selection, mode validation and published-package arguments, and `tests/Shared/OwnedProcessCleanup.cs` for Ctrl+C/process-exit child cleanup.
+- Platform-specific startup, browser Extension or Windows UIA interaction, guide verification and target-specific cleanup remain in their respective runner `Program.cs` files. The E2E orchestration is not yet fully centralized; these entry points must not be removed merely because their common CLI and process-exit policies are shared.
+- Changes require a fresh build and Ctrl+C regression on both runners. No post-change build or E2E pass has been reported yet.
