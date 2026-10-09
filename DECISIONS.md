@@ -122,3 +122,5 @@ Standalone TestCRM Web Host opens the application in Chrome automatically after 
 The standalone TestCRM Web Host treats user-requested Ctrl+C termination as normal shutdown, stops its owned Web and backend processes, and does not report their exit code 0 as an unexpected failure. Unexpected independent process exits remain errors. Requires local verification.
 
 Guide execution consolidation status (in progress): both Web and Windows guide runners now invoke DAP.Core.Guides.GuideExecutionEngine for shared sequence lifecycle, capture-state ownership, and diagnostics. Platform-specific active-step loops remain in their respective runtimes and must be refactored before the single-engine architecture can be considered complete. Build and regression tests have not yet been verified on Windows.
+
+Core GuideStepExecutionPolicy now enforces centered information-step invariants for both Web and Windows, and Web hybrid value-step eligibility. Active-step loops remain platform-specific. Build and E2E regression are pending; do not mark engine consolidation complete.
