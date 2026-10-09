@@ -152,6 +152,12 @@ public sealed class WindowsGuideRuntime
 
         try
         {
+            bool IsDisappearedTargetStepComplete()
+                => targetDisappeared && targetWasResolved
+                    && activeState.EvaluateCompletion(
+                        true, AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction))
+                        == GuideStepReconciliationResult.Completed;
+
             async Task<GuideStepReconciliationResult> ReconcileAsync(CancellationToken cancellationToken)
             {
                 // Keep learner overlays bound to the target application. When the
@@ -205,9 +211,7 @@ public sealed class WindowsGuideRuntime
                     if (step.Id == "testcrm-windows-back-to-cases")
                         Console.Error.WriteLine($"[DAP Windows guide diagnostic] Step '{step.Id}' resolver threw ElementNotAvailableException.");
                     await _bubbles.HideAsync();
-                    if (targetDisappeared && targetWasResolved && activeState.EvaluateCompletion(
-                            true,
-                            AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction)) == GuideStepReconciliationResult.Completed)
+                    if (IsDisappearedTargetStepComplete())
                         return GuideStepReconciliationResult.Completed;
                     return await GuideActiveStepState.WaitAsync(
                         activeState.ObservePresentationAvailability(targetAvailable: false, visible: false), _pollInterval, cancellationToken);
@@ -218,9 +222,7 @@ public sealed class WindowsGuideRuntime
                     if (step.Id == "testcrm-windows-back-to-cases")
                         Console.Error.WriteLine($"[DAP Windows guide diagnostic] Step '{step.Id}' resolution status={resolution.Status}; targetNull={resolution.Target is null}.");
                     await _bubbles.HideAsync();
-                    if (targetDisappeared && targetWasResolved && activeState.EvaluateCompletion(
-                            true,
-                            AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction)) == GuideStepReconciliationResult.Completed)
+                    if (IsDisappearedTargetStepComplete())
                         return GuideStepReconciliationResult.Completed;
                     return await GuideActiveStepState.WaitAsync(
                         GuideStepReconciliationResult.WaitingForTarget, _pollInterval, cancellationToken);
