@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Automation;
@@ -178,6 +179,8 @@ public static class DapApplicationHost
         else
             throw new InvalidOperationException("Windows Guide requires a persisted application context or --window-automation-id.");
         StartupMark(startup, "Windows target window resolved");
+        await ActivateWindowsTargetAsync(window, cancellationToken);
+        StartupMark(startup, "Windows target window activated");
 
         var resolver = new WindowsTargetResolver();
         var bubbles = new WindowsBubblePresenter(texts);
@@ -195,6 +198,41 @@ public static class DapApplicationHost
         }
 
         return 0;
+    }
+
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr window);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    private static extern bool IsIconic(IntPtr window);
+
+    [DllImport("user32.dll")]
+    private static extern bool ShowWindow(IntPtr window, int command);
+
+    private static async Task ActivateWindowsTargetAsync(AutomationElement target, CancellationToken cancellationToken)
+    {
+        var handle = new IntPtr(target.Current.NativeWindowHandle);
+        if (handle == IntPtr.Zero)
+            throw new InvalidOperationException("Resolved Windows application has no native window handle.");
+
+        if (IsIconic(handle))
+            ShowWindow(handle, 9); // SW_RESTORE
+
+        SetForegroundWindow(handle);
+        var deadline = Stopwatch.StartNew();
+        while (deadline.Elapsed < TimeSpan.FromSeconds(5))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (GetForegroundWindow() == handle)
+                return;
+            await Task.Delay(100, cancellationToken);
+        }
+
+        throw new InvalidOperationException(
+            "Windows did not activate the target application within five seconds. Activate the application and retry.");
     }
 
     private static async Task<AutomationElement> WaitForWindowAsync(
