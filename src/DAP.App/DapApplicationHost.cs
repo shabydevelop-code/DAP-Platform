@@ -347,7 +347,10 @@ public static class DapApplicationHost
             }
 
             var handle = matches[0];
-            ShowWindow(handle, 9); // SW_RESTORE
+            // Web learner uses the available desktop area; Windows learner keeps
+            // its existing window-size behavior unchanged.
+            if (!ShowWindow(handle, 3)) // SW_MAXIMIZE; false may mean previously hidden
+                Console.Error.WriteLine("[DAP focus] Chrome window maximize requested.");
             SetForegroundWindow(handle);
             var deadline = DateTime.UtcNow.AddSeconds(5);
             while (DateTime.UtcNow < deadline)
