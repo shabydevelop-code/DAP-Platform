@@ -91,4 +91,8 @@ The browser Extension is an infrastructure adapter between the Web Runtime and b
 
 ## ADR-019 — Learner and target application have independent lifetimes
 
-Production Learner attaches to an already-open application using the persisted Application Context. DAP must not require an E2E runner to open or own the target application. Guide completion ends the Learner without closing the target application or browser. The standalone TestCRM Web host supports this execution path; the integrated E2E runners remain available for regression.
+Production Learner attaches to an already-open application using the persisted Application Context. DAP must not require an E2E runner to open or own the target application. Guide completion ends the Learner without closing the target application or browser. Standalone TestCRM Web and Windows hosts support this execution path; integrated E2E runners remain available for regression.
+
+## ADR-020 — Windows application identity is persisted and deterministic
+
+Windows application identity is resolved from persisted named Application Context matchers, separately from Step target descriptors. The current resolver supports `WindowTitleContains`, `AutomationId`, and `ProcessName` and requires a unique top-level window match. Current execution supports one Windows context at startup; multi-context switching, delayed discovery, and rebinding remain required.
