@@ -35,7 +35,8 @@ public sealed class AdapterWebGuideRuntime
                 }
 
                 await _steps.RunActiveStepAsync(step, step.Order, total, token);
-            }),
+            },
+            (step, total, token) => _browser.WaitForCenteredStepDismissalAsync(step, step.Order, total, token)),
             cancellationToken,
             startStepOrder,
             initialCapturedValues);
