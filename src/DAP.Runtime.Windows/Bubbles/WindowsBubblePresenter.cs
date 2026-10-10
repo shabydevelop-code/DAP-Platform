@@ -84,7 +84,6 @@ public sealed class WindowsBubblePresenter
                 _pointer!.Visibility = Visibility.Visible;
             }
 
-            var previousTargetRect = _targetRect;
             _targetRect = rect;
             UpdateTargetHighlight(rect);
             _content!.Text = step.Bubble.Content;
@@ -104,7 +103,7 @@ public sealed class WindowsBubblePresenter
             var windowWidth = Math.Max(_window.ActualWidth, bubbleWidth + PointerSpace * 2);
             var windowHeight = Math.Max(_window.ActualHeight, bubbleHeight + PointerSpace * 2);
 
-            if (!_manuallyPositioned)
+            if (!_manuallyPositioned && !_dragging)
             {
                 var placement = ChoosePlacement(
                     rect,
@@ -116,24 +115,6 @@ public sealed class WindowsBubblePresenter
                 _activePlacement = placement.Side;
                 _window.Left = placement.Position.X;
                 _window.Top = placement.Position.Y;
-            }
-            else if (!previousTargetRect.IsEmpty)
-            {
-                // A learner-dragged bubble keeps its manual offset from the target
-                // while the application window moves or resizes.
-                var deltaX = rect.Left + rect.Width / 2
-                             - (previousTargetRect.Left + previousTargetRect.Width / 2);
-                var deltaY = rect.Top + rect.Height / 2
-                             - (previousTargetRect.Top + previousTargetRect.Height / 2);
-                var work = SystemParameters.WorkArea;
-                _window.Left = Math.Clamp(
-                    _window.Left + deltaX,
-                    work.Left + 4,
-                    Math.Max(work.Left + 4, work.Right - windowWidth - 4));
-                _window.Top = Math.Clamp(
-                    _window.Top + deltaY,
-                    work.Top + 4,
-                    Math.Max(work.Top + 4, work.Bottom - windowHeight - 4));
             }
 
             if (!_window.IsVisible)
@@ -639,7 +620,7 @@ public sealed class WindowsBubblePresenter
             Text = "⠿",
             FontSize = 17,
             Foreground = new SolidColorBrush(Color.FromRgb(220, 228, 236)),
-            Cursor = Cursors.SizeAll,
+            Cursor = Cursors.Hand,
             ToolTip = _texts.Get("Learner.DragBubble"),
             HorizontalAlignment = HorizontalAlignment.Center,
             Margin = new Thickness(0, 0, 0, 6)
@@ -713,7 +694,7 @@ public sealed class WindowsBubblePresenter
             _dragging = true;
             _manuallyPositioned = true;
             _pointer!.Visibility = Visibility.Collapsed;
-            dragHandle.Cursor = Cursors.Hand;
+            dragHandle.Cursor = Cursors.SizeAll;
             try
             {
                 _window.DragMove();
@@ -721,7 +702,7 @@ public sealed class WindowsBubblePresenter
             finally
             {
                 _dragging = false;
-                dragHandle.Cursor = Cursors.SizeAll;
+                dragHandle.Cursor = Cursors.Hand;
                 _pointer!.Visibility = Visibility.Collapsed;
             }
         };
