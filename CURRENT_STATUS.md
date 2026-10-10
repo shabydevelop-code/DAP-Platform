@@ -115,3 +115,9 @@ The active Guide can continue while its bubble is hidden after the learner navig
 - The existing initial viewport check logged no >=50 ms duration for step 47, so the specific source of the pre-presentation gap is not yet established.
 - Commit `2e21f7f` adds generic per-step timings for target readiness (>=50 ms) and first-resolve-to-presentation (>=100 ms), without changing resolution, scrolling, wait behavior, or guide data.
 - Local Windows compilation and user-side re-run remain pending. Do not claim root cause or performance improvement until verified.
+
+## Windows latency diagnosis refinement (2026-10-10)
+- User log `windows-bubble-latency.log` confirms step 47 target first resolved at +20 ms, first bubble +4089 ms, ShowAsync 40 ms, resolved-to-presentation 4029 ms; root cause remains unknown.
+- Same run: step 12 UIA scope settle 8066 ms, target resolution 1146 ms, first bubble +9418 ms. Step 48 +1996 ms; step 50 +2037 ms. Guide completed 55/55.
+- Commit `e47c35a` adds provider-independent diagnostics for step-context check, initial scroll, UIA scope lookup, event subscriptions and quiet observation. No changes to waiting, validation, guide data or scrolling decisions.
+- Need Windows compile and next log to isolate which phase consumes the delay; do not claim optimization yet.
