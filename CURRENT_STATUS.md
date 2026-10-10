@@ -22,9 +22,9 @@
 cd C:\yossi\ChatGpt\DAP-Platform
 git pull origin main
 dotnet build src\DAP.App\DAP.App.csproj -c Release
-.\scripts\Publish-Customer-Package.ps1 -Output C:\DAP-Production
-.\scripts\Register-WebNativeHost.ps1 -PackagePath C:\DAP-Production
-& "C:\DAP-Production\DAP.exe" --check
+.\scripts\Publish-Customer-Package.ps1 -Output C:\GuideMe
+.\scripts\Register-WebNativeHost.ps1 -PackagePath C:\GuideMe
+& "C:\GuideMe\DAP.exe" --check
 ```
 Start the demo applications in separate terminals:
 ```powershell
@@ -33,8 +33,8 @@ dotnet run --project demos\Windows\Launcher\DAP.SampleApp.Windows.Host.csproj
 ```
 Then run the learner separately:
 ```powershell
-& "C:\DAP-Production\DAP.exe" --guide sampleapp-web-guide
-& "C:\DAP-Production\DAP.exe" --guide sampleapp-windows-guide
+& "C:\GuideMe\DAP.exe" --guide sampleapp-web-guide
+& "C:\GuideMe\DAP.exe" --guide sampleapp-windows-guide
 ```
 
 ## Known limitations and work
