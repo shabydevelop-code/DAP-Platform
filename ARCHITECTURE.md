@@ -33,11 +33,11 @@ Default DAP SQLite database: `C:\ProgramData\DAP\Data\DAP.db`. Demo business dat
 A completed Guide dismisses its bubbles and ends the DAP process; the target application stays open. The Web Native Messaging host is browser-owned infrastructure and may outlive an individual learner session. Production still contains some test-driver transport hooks; their isolation is an outstanding engineering task, not an intended product dependency.
 
 ## Delivery
-The Windows x64 framework-dependent package includes the learner and a complete Native Messaging host under `C:\DAP-Production\NativeHost`. Chrome registration points to the packaged executable, not a build or temporary directory. Restart Chrome after registration.
+The Windows x64 framework-dependent package includes the learner and a complete Native Messaging host under `C:\GuideMe\NativeHost`. Chrome registration points to the packaged executable, not a build or temporary directory. Restart Chrome after registration.
 
 ```powershell
 dotnet build src\DAP.App\DAP.App.csproj -c Release
-.\scripts\Publish-Customer-Package.ps1 -Output C:\DAP-Production
-.\scripts\Register-WebNativeHost.ps1 -PackagePath C:\DAP-Production
-& "C:\DAP-Production\DAP.exe" --check
+.\scripts\Publish-Customer-Package.ps1 -Output C:\GuideMe
+.\scripts\Register-WebNativeHost.ps1 -PackagePath C:\GuideMe
+& "C:\GuideMe\DAP.exe" --check
 ```
