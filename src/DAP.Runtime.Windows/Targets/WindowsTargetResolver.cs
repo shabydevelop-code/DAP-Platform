@@ -141,43 +141,31 @@ public sealed class WindowsTargetResolver
         if (scope is null)
             return true;
 
-        // For a small, already-realized grid, use the same simple row-filtering
-        // strategy as ordinary grid navigation (for example SitesGrid): enumerate
-        // the DataItem rows in the declared scope and apply the descendant anchor.
-        // The specialized anchor-first path is reserved for larger scopes where
-        // broad row enumeration is the actual performance problem.
+        // First use the provider's exact native condition. A broad primary-row
+        // enumeration is expensive and unnecessary when a uniquely named child
+        // is exposed directly by UI Automation.
+        var descendant = scope.FindFirst(TreeScope.Descendants, descendantCondition);
+        if (descendant is not null)
+        {
+            AddPrimaryAncestorCandidate(
+                descendant, scope, descriptor, scopeAnchor, descendantAnchor, candidates);
+            if (candidates.Count > 0)
+                return true;
+        }
+
+        // The provider may expose the named child without exposing the primary
+        // ancestor through the same view. Preserve the existing scoped fallback.
         var scopedPrimaryCandidates = Find(scope, descriptor.Locator).ToList();
         if (scopedPrimaryCandidates.Count <= 50)
         {
             foreach (var candidate in scopedPrimaryCandidates)
             {
-                if (MatchesRemainingAnchors(
-                        candidate,
-                        descriptor.Anchors,
-                        scopeAnchor,
-                        descendantAnchor)
+                if (MatchesRemainingAnchors(candidate, descriptor.Anchors, scopeAnchor, descendantAnchor)
                     && HasDescendant(candidate, descendantAnchor.Locator))
-                {
                     candidates.Add(candidate);
-                }
             }
-
             Console.Error.WriteLine(
-                $"[DAP Windows resolver scoped-rows] rows={scopedPrimaryCandidates.Count}, " +
-                $"final={candidates.Count}.");
-            return true;
-        }
-
-        var descendant = scope.FindFirst(TreeScope.Descendants, descendantCondition);
-        if (descendant is not null)
-        {
-            AddPrimaryAncestorCandidate(
-                descendant,
-                scope,
-                descriptor,
-                scopeAnchor,
-                descendantAnchor,
-                candidates);
+                $"[DAP Windows resolver scoped-rows] rows={scopedPrimaryCandidates.Count}, final={candidates.Count}.");
             return true;
         }
 
@@ -382,18 +370,24 @@ public sealed class WindowsTargetResolver
         Anchor descendantAnchor,
         ICollection<AutomationElement> candidates)
     {
-        var walker = TreeWalker.RawViewWalker;
-        for (var current = walker.GetParent(descendant);
-             current is not null && !Automation.Compare(current, scope);
-             current = walker.GetParent(current))
+        // Different UIA providers expose Text/Custom cells in different views.
+        // Try both parent chains; never choose a row merely by its position.
+        foreach (var walker in new[] { TreeWalker.RawViewWalker, TreeWalker.ControlViewWalker })
         {
-            if (!MatchesLocator(current, descriptor.Locator))
-                continue;
+            for (var current = walker.GetParent(descendant);
+                 current is not null && !Automation.Compare(current, scope);
+                 current = walker.GetParent(current))
+            {
+                if (!MatchesLocator(current, descriptor.Locator))
+                    continue;
 
-            if (MatchesRemainingAnchors(current, descriptor.Anchors, scopeAnchor, descendantAnchor))
-                candidates.Add(current);
-
-            break;
+                if (MatchesRemainingAnchors(current, descriptor.Anchors, scopeAnchor, descendantAnchor)
+                    && !candidates.Any(existing => Automation.Compare(existing, current)))
+                    candidates.Add(current);
+                break;
+            }
+            if (candidates.Count > 0)
+                return;
         }
     }
 
