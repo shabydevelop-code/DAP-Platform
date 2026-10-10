@@ -8,6 +8,7 @@
 - The current launcher supports Guides whose enabled targets belong to one runtime type; cross-runtime Guide execution is a future capability.
 - Hebrew and English UI are supported with RTL/LTR direction.
 - Guide content language is independent of product UI language.
+- Web and Windows learner bubbles provide a localized **End assistance** / **סיים ליווי** action. Stopping removes guidance, ends the learner process, preserves the target application, and permits launching the Guide again.
 
 ## Guide model
 
