@@ -17,6 +17,7 @@ public sealed class WindowsBubblePresenter
     private const double TargetGap = 10d;
 
     private readonly IUiTextProvider _texts;
+    public event Action? StopRequested;
     private Window? _window;
     private Window? _highlightWindow;
     private Border? _highlightBorder;
@@ -634,6 +635,18 @@ public sealed class WindowsBubblePresenter
         stack.Children.Add(_automaticBadge);
         stack.Children.Add(_content);
         stack.Children.Add(_progress);
+        var stopButton = new Button
+        {
+            Content = _texts.Get("Learner.StopAssistance"),
+            FlowDirection = _texts.IsRightToLeft ? FlowDirection.RightToLeft : FlowDirection.LeftToRight,
+            Margin = new Thickness(0, 10, 0, 0),
+            Padding = new Thickness(8, 4, 8, 4),
+            HorizontalAlignment = _texts.IsRightToLeft ? HorizontalAlignment.Right : HorizontalAlignment.Left,
+            Cursor = Cursors.Hand
+        };
+        AutomationProperties.SetAutomationId(stopButton, "DapStopAssistance");
+        stopButton.Click += (_, _) => StopRequested?.Invoke();
+        stack.Children.Add(stopButton);
 
         _bubble = new Border
         {
