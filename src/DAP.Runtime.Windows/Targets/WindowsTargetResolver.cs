@@ -198,6 +198,21 @@ public sealed class WindowsTargetResolver
                 return true;
         }
 
+        // Some providers expose GridItemPattern on the matched cell even when its
+        // parent chain omits the DataItem in both UIA views. Ask the grid for that
+        // exact row rather than scanning every realized DataItem. Only accept an
+        // explicitly matching descendant within the returned row; otherwise use
+        // the existing exhaustive scoped search.
+        if (descendant is not null
+            && TryResolveGridItemRow(
+                scope, descendant, descendantCondition, descriptor,
+                scopeAnchor, descendantAnchor, candidates))
+        {
+            Console.Error.WriteLine(
+                "[DAP Windows resolver diagnostic] phase=grid-item-row, found=True.");
+            return true;
+        }
+
         // A matching child can be exposed in a different UIA view than its row.
         // Resolve against the realized primary elements using their native exact
         // descendant condition. Do not infer ownership from row order or text.
@@ -275,6 +290,60 @@ public sealed class WindowsTargetResolver
             candidates);
 
         return true;
+    }
+
+    private static bool TryResolveGridItemRow(
+        AutomationElement scope,
+        AutomationElement descendant,
+        Condition descendantCondition,
+        TargetDescriptor descriptor,
+        Anchor scopeAnchor,
+        Anchor descendantAnchor,
+        ICollection<AutomationElement> candidates)
+    {
+        try
+        {
+            if (!scope.TryGetCurrentPattern(GridPattern.Pattern, out var rawGrid)
+                || rawGrid is not GridPattern grid)
+                return false;
+
+            // Only use a row coordinate reported by the provider itself.
+            foreach (var walker in new[] { TreeWalker.RawViewWalker, TreeWalker.ControlViewWalker })
+            {
+                for (AutomationElement? cell = descendant;
+                     cell is not null && !Automation.Compare(cell, scope);
+                     cell = walker.GetParent(cell))
+                {
+                    if (!cell.TryGetCurrentPattern(GridItemPattern.Pattern, out var rawItem)
+                        || rawItem is not GridItemPattern item)
+                        continue;
+
+                    var rowIndex = item.Current.Row;
+                    var columnCount = grid.Current.ColumnCount;
+                    if (rowIndex < 0 || rowIndex >= grid.Current.RowCount || columnCount <= 0)
+                        continue;
+
+                    // UIA grid coordinates are not visual row ordering guesses.
+                    // Locate the owning DataItem via a provider-returned cell.
+                    var gridCell = grid.GetItem(rowIndex, item.Current.Column);
+                    AddPrimaryAncestorCandidate(
+                        gridCell, scope, descriptor, scopeAnchor, descendantAnchor, candidates);
+                    if (candidates.Count > 0
+                        && candidates.All(candidate =>
+                            candidate.FindFirst(TreeScope.Descendants, descendantCondition) is not null))
+                        return true;
+
+                    candidates.Clear();
+                    // The provider might return a cell whose parent view differs;
+                    // never accept a row solely from a coordinate.
+                    return false;
+                }
+            }
+        }
+        catch (ElementNotAvailableException) { }
+        catch (InvalidOperationException) { }
+        catch (ArgumentOutOfRangeException) { }
+        return false;
     }
 
     private static bool TryResolveExistingRows(
