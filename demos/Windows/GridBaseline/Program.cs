@@ -75,8 +75,19 @@ if (args.Contains("--web", StringComparer.OrdinalIgnoreCase)
     var webContexts = await webRepository.GetApplicationContextsAsync("sampleapp-web-guide");
     var webContext = webContexts.FirstOrDefault(x => x.Runtime == TargetRuntime.Web)
         ?? throw new InvalidOperationException("Source Web Guide has no Web application context.");
+    // The Cases grid is rendered inside the SampleApp content iframe.
+    // Reuse its frame descriptor from the existing guide rather than searching
+    // the top-level document (where the row does not exist).
+    var sourceWebSteps = await webRepository.GetStepsAsync("sampleapp-web-guide");
+    var casesFrame = sourceWebSteps
+        .Where(step => step.Target?.FrameContext is not null)
+        .Where(step => step.Id.Contains("case", StringComparison.OrdinalIgnoreCase))
+        .Select(step => step.Target!.FrameContext)
+        .FirstOrDefault()
+        ?? throw new InvalidOperationException("Source Web Guide has no Cases frame context.");
     var webTarget = TargetDescriptor.Create(TargetRuntime.Web,
-        new Locator("css", "tr:has-text('DAP-GRID-BASELINE-0050')"));
+        new Locator("css", "tr:has-text('DAP-GRID-BASELINE-0050')"),
+        frameContext: casesFrame);
     var webStep = new GuideStep("web-grid-baseline-target", 1, webTarget,
         new BubbleDefinition("בדיקת Web: פנייה 0050 מתוך 100. בדוק גלילה, חזרה, יציבות ומיון.", BubblePlacement.Auto),
         AdvanceMode: StepAdvanceMode.Manual, ApplicationContextKey: webContext.Key);
