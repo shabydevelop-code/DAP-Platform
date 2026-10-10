@@ -157,3 +157,8 @@ The active Guide can continue while its bubble is hidden after the learner navig
 - Menu initially shows Guide/session status and a confirmed **End assistance and exit** action; termination is owned by the learner and must leave the target app/browser running. This must remain available if the bubble is hidden after navigating away.
 - Remove the risky bubble-level End assistance control only after the tray alternative is working in both runtimes. Provide keyboard/screen-reader accessibility and avoid a permanent background agent or duplicate icons. The menu architecture should support future Instructor actions without implementing them now.
 - **Status: design approved; not implemented, built, published, or regression-tested.**
+
+## Notification-area implementation checkpoint (2026-10-11)
+- Added session-scoped `GuideSessionTray` with Windows Forms notification icon, context menu, and confirmation on exit; wired into Web and Windows guide execution in `DapApplicationHost`. Tray disposal is scoped to each guide session.
+- **Unverified:** no Windows build or full Web/Windows regression has been executed after these commits. Existing bubble exit remains available until verification.
+- **Outstanding:** icon currently falls back to the executable/application icon, not the extension artwork; package the actual GuideMe extension icon and update the resolver before declaring visual parity complete. Check taskbar overflow behavior and accessible keyboard operation.
