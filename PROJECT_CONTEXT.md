@@ -36,7 +36,7 @@ cd C:\yossi\ChatGpt\DAP-Platform
 dotnet run --project demos\Web\Launcher\DAP.SampleApp.Web.Host.csproj
 dotnet run --project demos\Windows\Launcher\DAP.SampleApp.Windows.Host.csproj
 ```
-Run each host in its own terminal; launch the corresponding learner separately. Completing a Guide or choosing **End assistance** / **סיים ליווי** ends DAP without closing the target application. The same Guide may be launched again. The Web Native Messaging host may remain active while Chrome is open because the extension maintains a persistent connection; it is independent of an active learner session.
+Run each host in its own terminal; launch the corresponding learner separately. Completing a Guide or confirming **End assistance and exit** in the GuideMe Windows notification-area menu ends DAP without closing the target application. The same embedded GuideMe icon is used for Web and Windows Guide sessions; no exit control appears in guidance bubbles. The same Guide may be launched again. The Web Native Messaging host may remain active while Chrome is open because the extension maintains a persistent connection; it is independent of an active learner session.
 
 ## Documentation
 - `ARCHITECTURE.md`: current implementation and boundaries.
