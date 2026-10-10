@@ -17,4 +17,5 @@
 15. **User-facing naming:** The Chrome extension display name is **GuideMe**. Internal component names and protocols retain their DAP identifiers.
 16. **Deployment:** Publish the Windows x64 framework-dependent learner and Native Messaging host together. Register Chrome against the packaged host rather than source build output or temporary directories.
 17. **Web transport lifecycle:** The GuideMe extension currently keeps a Native Messaging connection that may outlive Guide sessions. Do not introduce on-demand connection/disconnection without a reliable reactivation mechanism and regression coverage. An idle native host is not by itself a learner-process leak.
-18. **Instructor:** Authoring tools and AI-assisted diagnosis are future capabilities; the learner remains independent of them.
+18. **Existing text values:** A text-input Step requires an observed focus-and-leave interaction before evaluating a pre-existing value. No text modification is required; persisted validation and completion conditions must still pass. The same rule applies to Web and Windows, without demo-specific checks.
+19. **Instructor:** Authoring tools and AI-assisted diagnosis are future capabilities; the learner remains independent of them.
