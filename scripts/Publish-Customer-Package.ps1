@@ -1,5 +1,5 @@
 param(
-    [string]$Output = "C:\DAP-Production"
+    [string]$Output = "C:\GuideMe"
 )
 
 $ErrorActionPreference = "Stop"
