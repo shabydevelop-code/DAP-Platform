@@ -46,6 +46,12 @@ Then run the learner separately:
 - The definitions and relevant source paths were inspected; a fresh end-to-end run proving capture against newly assigned IDs was **not** performed in this review.
 - SQLite does not persist explicit capture timing. Substitution does not yet cover every Guide field. Capture values live only for the current Guide run.
 
+## Multi-user and Citrix readiness
+- Web transport currently uses a fixed named-pipe name shared across learner instances. Concurrent learner sessions are not yet proven isolated.
+- A per-user, per-Windows-session transport namespace and a per-learner binding protocol are required before declaring multi-user support.
+- Windows UI Automation context discovery, concurrent SQLite access, and browser-profile routing require multi-session regression.
+- Citrix compatibility has not been verified; a regular Windows machine can test concurrent processes and distinct logon sessions, but does not replace a final Citrix test.
+
 ## Known limitations and work
 - Instructor/Editor is not yet implemented. Dynamic-capture authoring assistance is a design topic, not an approved or delivered feature.
 - A Guide currently runs against one target runtime type; cross-runtime orchestration is not implemented.
