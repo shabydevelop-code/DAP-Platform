@@ -146,12 +146,19 @@ public static class DapApplicationHost
 
         var resolver = new WindowsTargetResolver();
         var bubbles = new WindowsBubblePresenter(texts);
+        using var userStopped = new CancellationTokenSource();
+        bubbles.StopRequested += () => userStopped.Cancel();
+        using var stopRegistration = userStopped.Token.Register(() => runCancellation.Cancel());
         var runtime = new WindowsGuideRuntime(resolver, bubbles, automaticStepLabel: options.ExecutionMode == DapExecutionMode.Hybrid ? "אוטומט" : null, hybrid: options.ExecutionMode == DapExecutionMode.Hybrid);
 
         try
         {
             StartupMark(startup, "Windows guide runtime starting");
             await runtime.RunAsync(window, steps, runCancellation.Token);
+        }
+        catch (OperationCanceledException) when (userStopped.IsCancellationRequested)
+        {
+            Console.Error.WriteLine("[DAP diagnostic] Windows assistance stopped by user.");
         }
         catch (OperationCanceledException) when (targetClosed.IsCancellationRequested)
         {
@@ -268,6 +275,8 @@ public static class DapApplicationHost
         browserAdapter.ConfigureApplicationContexts(applicationContexts);
         using var targetClosed = new CancellationTokenSource();
         using var runCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, targetClosed.Token);
+        using var webUserStopped = new CancellationTokenSource();
+        browserAdapter.StopRequested += () => { webUserStopped.Cancel(); runCancellation.Cancel(); };
         browserAdapter.TargetTabClosed += () =>
         {
             Console.Error.WriteLine("[DAP diagnostic] TargetTabClosed received; cancelling Web guide.");
@@ -283,6 +292,10 @@ public static class DapApplicationHost
             StartupMark(startup, "Web adapter guide runtime starting");
             await guideRuntime.RunAsync(steps, runCancellation.Token);
             Console.Error.WriteLine("[DAP diagnostic] Web guide runtime completed normally.");
+        }
+        catch (OperationCanceledException) when (webUserStopped.IsCancellationRequested)
+        {
+            Console.Error.WriteLine("[DAP diagnostic] Web assistance stopped by user.");
         }
         catch (OperationCanceledException) when (targetClosed.IsCancellationRequested)
         {
