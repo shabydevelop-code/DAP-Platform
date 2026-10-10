@@ -46,3 +46,5 @@ Then run the learner separately:
 - Windows multi-context switching, delayed discovery, and rebinding are not implemented.
 - Production Web extension and Native Messaging host no longer contain the extension-native E2E driver or its dedicated pipe. The changes require a fresh customer-package build and Web/Windows regression on the user's machine.
 - End-assistance and restart checks passed in Web and Windows. A complete Web/Windows Guide regression has not been performed.
+
+Customer package includes `ChromeExtension` (unpacked extension files) and `Register-WebNativeHost.ps1`. On a new machine, load `ChromeExtension` using Chrome's **Load unpacked**, copy the actual extension ID from `chrome://extensions`, and run the packaged registration script with `-ExtensionId <ID>`. Do not assume the development-machine extension ID. The package still requires Chrome extension loading and host registration; copying the directory alone does not install either.
