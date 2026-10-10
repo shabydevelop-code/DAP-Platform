@@ -1,5 +1,5 @@
 param(
-    [string]$PackagePath = "C:\DAP-Production",
+    [string]$PackagePath = "C:\GuideMe",
     [string]$ExtensionId = "kadfnneenggbfhjjeglaenpiimkelioe"
 )
 
