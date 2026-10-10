@@ -27,7 +27,7 @@ public partial class App : System.Windows.Application
         catch (Exception exception)
         {
             Trace.TraceError($"DAP session terminated unexpectedly: {exception}");
-            MessageBox.Show(
+            System.Windows.MessageBox.Show(
                 exception.Message,
                 "DAP - Session Error",
                 MessageBoxButton.OK,
