@@ -41,3 +41,5 @@ dotnet build src\DAP.App\DAP.App.csproj -c Release
 .\scripts\Register-WebNativeHost.ps1 -PackagePath C:\GuideMe
 & "C:\GuideMe\DAP.exe" --check
 ```
+
+Customer package includes `ChromeExtension` (unpacked extension files) and `Register-WebNativeHost.ps1`. On a new machine, load `ChromeExtension` using Chrome's **Load unpacked**, copy the actual extension ID from `chrome://extensions`, and run the packaged registration script with `-ExtensionId <ID>`. Do not assume the development-machine extension ID. The package still requires Chrome extension loading and host registration; copying the directory alone does not install either.
