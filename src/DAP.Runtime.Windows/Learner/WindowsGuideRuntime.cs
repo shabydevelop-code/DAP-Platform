@@ -206,6 +206,18 @@ public sealed class WindowsGuideRuntime
                     var strategy = step.Target!.Locator.Strategy.Trim().ToLowerInvariant();
                     var cacheEligible = step.Target.Anchors.Count == 0
                         && (strategy == "automation-id" || strategy == "name");
+                    // Reuse an anchored row only while its identifying cell remains.
+                    var rowAnchor = step.Target.Anchors.FirstOrDefault(anchor =>
+                        anchor.Relation == AnchorRelation.Descendant
+                        && anchor.Locator.Strategy.Equals("name-regex", StringComparison.OrdinalIgnoreCase));
+                    var expression = rowAnchor?.Locator.Value;
+                    var exactRowName = expression is { Length: >= 3 }
+                        && expression[0] == (char)94 && expression[^1] == (char)36
+                        && expression[1..^1].IndexOfAny(new[] { '.', '*', '+', '?', '[', ']', '(', ')', '{', '}', '|' }) < 0
+                        ? expression[1..^1] : null;
+                    cacheEligible |= exactRowName is not null
+                        && strategy == "control-type"
+                        && step.Target.Locator.Value.Equals("dataitem", StringComparison.OrdinalIgnoreCase);
                     var reusedCachedTarget = false;
                     if (cacheEligible && cachedExactTarget is not null
                         && lastFullResolution.ElapsedMilliseconds < 1000)
@@ -213,8 +225,13 @@ public sealed class WindowsGuideRuntime
                         try
                         {
                             var current = cachedExactTarget.Current;
-                            if ((strategy == "automation-id" && current.AutomationId == step.Target.Locator.Value)
-                                || (strategy == "name" && current.Name == step.Target.Locator.Value))
+                            if ((step.Target.Anchors.Count == 0
+                                && ((strategy == "automation-id" && current.AutomationId == step.Target.Locator.Value)
+                                    || (strategy == "name" && current.Name == step.Target.Locator.Value)))
+                                || (exactRowName is not null
+                                    && current.ControlType == ControlType.DataItem
+                                    && cachedExactTarget.FindFirst(TreeScope.Descendants,
+                                        new PropertyCondition(AutomationElement.NameProperty, exactRowName)) is not null))
                             {
                                 resolution = TargetResolution<AutomationElement>.Resolved(cachedExactTarget);
                                 reusedCachedTarget = true;
