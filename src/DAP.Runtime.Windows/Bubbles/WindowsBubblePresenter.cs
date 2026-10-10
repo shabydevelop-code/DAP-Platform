@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Automation;
@@ -29,6 +30,7 @@ public sealed class WindowsBubblePresenter
     private TextBlock? _automaticBadgeText;
     private Rect _targetRect;
     private bool _dragging;
+    private bool _hiddenByViewport;
     private bool _manuallyPositioned;
     private string? _activeStepId;
     private BubblePlacement _activePlacement = BubblePlacement.Bottom;
@@ -50,11 +52,19 @@ public sealed class WindowsBubblePresenter
         if (physicalRect.IsEmpty || physicalRect.Width <= 0 || physicalRect.Height <= 0)
             throw new InvalidOperationException($"Windows target '{step.Id}' has no visible bounds.");
 
-        if (!IsFullyVisibleInScrollableViewport(target, physicalRect))
+        var viewportTimer = Stopwatch.StartNew();
+        var visibleInViewport = IsFullyVisibleInScrollableViewport(target, physicalRect);
+        viewportTimer.Stop();
+        if (!visibleInViewport)
         {
+            if (!_hiddenByViewport)
+                Console.Error.WriteLine($"[DAP Windows bubble viewport] Step '{step.Id}' hidden; viewportCheck={viewportTimer.ElapsedMilliseconds} ms.");
+            _hiddenByViewport = true;
             await HideAsync();
             return;
         }
+        var returningFromViewport = _hiddenByViewport;
+        var presentationTimer = Stopwatch.StartNew();
 
         var scale = GetTargetScale(target);
         var rect = new Rect(
@@ -140,6 +150,11 @@ public sealed class WindowsBubblePresenter
             }
         });
 
+        if (returningFromViewport)
+        {
+            _hiddenByViewport = false;
+            Console.Error.WriteLine($"[DAP Windows bubble viewport] Step '{step.Id}' restored; viewportCheck={viewportTimer.ElapsedMilliseconds} ms, presentation={presentationTimer.ElapsedMilliseconds} ms.");
+        }
         cancellationToken.ThrowIfCancellationRequested();
     }
 
