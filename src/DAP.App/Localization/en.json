@@ -1,6 +1,7 @@
 {
   "Ui.Direction": "ltr",
   "Learner.StepProgress": "Step {0} of {1}",
+  "Learner.StopAssistance": "End assistance",
   "Learner.DragBubble": "Drag to move the bubble",
   "Learner.GuideCompleted": "Guide completed successfully",
   "Learner.Finish": "Finish",
