@@ -91,3 +91,9 @@ The active Guide can continue while its bubble is hidden after the learner navig
 - Fixed WindowsBubblePresenter so a manually dragged bubble no longer follows target movement/scrolling after release. Automatic placement is also suppressed during active dragging. The pointer stays hidden until the next step.
 - Windows drag handle now uses a hand cursor when idle and a move cursor while dragging; the browser uses native CSS grab/grabbing cursors. Exact cursor artwork parity is not yet implemented.
 - Change committed in `62e8030`. User-side Windows build and a 100-row grid scroll/drag regression check are pending.
+
+## Windows grid-related latency investigation (2026-10-10)
+- User reports delayed bubbles on screens containing grids, even for targets outside the grid; smaller grids also show delay.
+- Added phase timing for completion-baseline capture, initial viewport check, and bubble presentation in WindowsGuideRuntime (`3533313`). Existing target-resolution and UIA settle timing remains available. Threshold for added phase diagnostics: 50 ms.
+- No target resolution or runtime behavior was optimized yet: collect comparative logs from grid and non-grid screens before modifying resolution or UIA stability logic.
+- Local build and user-side measurements are pending.
