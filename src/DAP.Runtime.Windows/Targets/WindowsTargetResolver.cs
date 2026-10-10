@@ -162,24 +162,35 @@ public sealed class WindowsTargetResolver
                 return true;
         }
 
-        // The provider may expose the named child without exposing the primary
-        // ancestor through the same view. Preserve the existing scoped fallback.
+        // A matching child can be exposed in a different UIA view than its row.
+        // Resolve against the realized primary elements using their native exact
+        // descendant condition. Do not infer ownership from row order or text.
+        // The previous fallback timed out before inspecting any row in large grids.
         var rowsTimer = Stopwatch.StartNew();
         var scopedPrimaryCandidates = Find(scope, descriptor.Locator).ToList();
         Console.Error.WriteLine(
             $"[DAP Windows resolver diagnostic] phase=primary-enumeration, rows={scopedPrimaryCandidates.Count}, elapsed={rowsTimer.ElapsedMilliseconds} ms.");
-        if (scopedPrimaryCandidates.Count <= 50)
+        foreach (var candidate in scopedPrimaryCandidates)
         {
-            foreach (var candidate in scopedPrimaryCandidates)
+            try
             {
-                if (MatchesRemainingAnchors(candidate, descriptor.Anchors, scopeAnchor, descendantAnchor)
-                    && HasDescendant(candidate, descendantAnchor.Locator))
+                if (candidate.FindFirst(TreeScope.Descendants, descendantCondition) is null)
+                    continue;
+                if (MatchesRemainingAnchors(candidate, descriptor.Anchors, scopeAnchor, descendantAnchor))
                     candidates.Add(candidate);
             }
-            Console.Error.WriteLine(
-                $"[DAP Windows resolver scoped-rows] rows={scopedPrimaryCandidates.Count}, final={candidates.Count}.");
-            return true;
+            catch (ElementNotAvailableException)
+            {
+                // Rows may be recycled while the user scrolls or sorts.
+            }
+            catch (InvalidOperationException)
+            {
+                // A provider can invalidate a row during a refresh.
+            }
         }
+        Console.Error.WriteLine(
+            $"[DAP Windows resolver scoped-rows] rows={scopedPrimaryCandidates.Count}, final={candidates.Count}, elapsed={rowsTimer.ElapsedMilliseconds} ms.");
+        return true;
 
         // Some WPF providers expose already-realized row descendants to broad UIA
         // enumeration even when a filtered FindFirst cannot see the same element.
