@@ -19,6 +19,9 @@
     <ProjectReference Include="../DAP.Runtime.Windows/DAP.Runtime.Windows.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="..\DAP.Runtime.Web.Extension\icon48.png" LogicalName="GuideMe.TrayIcon.png" />
+  </ItemGroup>
+  <ItemGroup>
     <Content Include="Localization\*.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
