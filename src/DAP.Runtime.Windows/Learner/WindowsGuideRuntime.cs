@@ -611,10 +611,6 @@ public sealed class WindowsGuideRuntime
                 }
 
                 if (step.Id == "testcrm-windows-back-to-cases")
-                        Console.Error.WriteLine($"[DAP Windows guide diagnostic] Step '{step.Id}' subscribed to Invoke.");
-                }
-
-                if (step.Id == "testcrm-windows-back-to-cases")
                     Console.Error.WriteLine($"[DAP Windows guide diagnostic] Step '{step.Id}' showing bubble.");
 
                 var bubbleStartedAt = stepStopwatch.ElapsedMilliseconds;
