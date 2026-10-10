@@ -935,110 +935,62 @@ public sealed class WindowsGuideRuntime
         var scopeAnchor = descriptor.Anchors.FirstOrDefault(anchor =>
             anchor.Relation is AnchorRelation.Ancestor or AnchorRelation.Context
             && IsSimpleExactLocator(anchor.Locator));
-        if (scopeAnchor is null)
+        var descendantAnchor = descriptor.Anchors.FirstOrDefault(anchor =>
+            anchor.Relation == AnchorRelation.Descendant
+            && IsExactNameRegex(anchor.Locator));
+        if (scopeAnchor is null || descendantAnchor is null)
             return;
 
-        var scopeWait = Stopwatch.StartNew();
-        AutomationElement? scope = null;
-        while (scope is null && scopeWait.Elapsed < TimeSpan.FromSeconds(5))
+        // A stable, exact descendant is a stronger readiness signal than UIA
+        // structure notifications. Some providers block for ~4 seconds on
+        // both subscription and unsubscription, even without any events.
+        // Never enumerate the whole grid or change the resolver's authority.
+        var exactName = descendantAnchor.Locator.Value[1..^1];
+        var stopwatch = Stopwatch.StartNew();
+        var consecutiveMatches = 0;
+        var observations = 0;
+        const int maxObservationMilliseconds = 1000;
+
+        while (stopwatch.ElapsedMilliseconds < maxObservationMilliseconds)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+            var found = false;
             try
             {
-                scope = FindFirstExact(windowRoot, scopeAnchor.Locator);
+                var scope = FindFirstExact(windowRoot, scopeAnchor.Locator);
+                if (scope is not null)
+                {
+                    found = scope.FindFirst(
+                        TreeScope.Descendants,
+                        new PropertyCondition(AutomationElement.NameProperty, exactName)) is not null;
+                }
             }
             catch (ElementNotAvailableException)
             {
+                // Re-rendered UIA elements are transient; authoritative target
+                // resolution below will handle the next available element.
+            }
+            catch (InvalidOperationException)
+            {
+                // A provider can invalidate its tree during a refresh.
             }
 
-            if (scope is null)
-                await Task.Delay(_pollInterval, cancellationToken);
+            observations++;
+            consecutiveMatches = found ? consecutiveMatches + 1 : 0;
+            if (consecutiveMatches >= 2)
+                break;
+
+            var remaining = maxObservationMilliseconds - stopwatch.ElapsedMilliseconds;
+            if (remaining <= 0)
+                break;
+            await Task.Delay(TimeSpan.FromMilliseconds(Math.Min(100, remaining)), cancellationToken);
         }
 
         Console.Error.WriteLine(
-            $"[DAP Windows UIA settle timing] phase=scope-lookup duration={scopeWait.ElapsedMilliseconds} ms, found={scope is not null}.");
-        if (scope is null)
-            return;
-
-        var observation = Stopwatch.StartNew();
-        long lastSignal = Stopwatch.GetTimestamp();
-        var signalCount = 0;
-
-        void MarkSignal()
-        {
-            Interlocked.Exchange(ref lastSignal, Stopwatch.GetTimestamp());
-            Interlocked.Increment(ref signalCount);
-        }
-
-        StructureChangedEventHandler structureHandler = (_, _) => MarkSignal();
-        AutomationEventHandler asyncContentHandler = (_, _) => MarkSignal();
-
-        try
-        {
-            var subscriptionStartedAt = observation.ElapsedMilliseconds;
-            Automation.AddStructureChangedEventHandler(
-                scope,
-                TreeScope.Subtree,
-                structureHandler);
-            Automation.AddAutomationEventHandler(
-                AutomationElement.AsyncContentLoadedEvent,
-                scope,
-                TreeScope.Subtree,
-                asyncContentHandler);
-            Console.Error.WriteLine(
-                $"[DAP Windows UIA settle timing] phase=subscribe duration={observation.ElapsedMilliseconds - subscriptionStartedAt} ms.");
-
-            var quietPeriod = TimeSpan.FromMilliseconds(450);
-            var maxObservation = TimeSpan.FromSeconds(5);
-
-            var quietStartedAt = observation.ElapsedMilliseconds;
-            while (observation.Elapsed < maxObservation)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                var last = Interlocked.Read(ref lastSignal);
-                var quietFor = Stopwatch.GetElapsedTime(last);
-                if (quietFor >= quietPeriod)
-                    break;
-
-                await Task.Delay(TimeSpan.FromMilliseconds(100), cancellationToken);
-            }
-
-            Console.Error.WriteLine(
-                $"[DAP Windows UIA settle timing] phase=quiet-observation duration={observation.ElapsedMilliseconds - quietStartedAt} ms, signals={signalCount}.");
-            if (signalCount > 0 || observation.ElapsedMilliseconds >= 100)
-            {
-                Console.Error.WriteLine(
-                    $"[DAP Windows UIA settle] scope={scopeAnchor.Locator.Strategy}='{scopeAnchor.Locator.Value}', " +
-                    $"signals={signalCount}, elapsed={observation.ElapsedMilliseconds} ms.");
-            }
-        }
-        catch (ElementNotAvailableException)
-        {
-        }
-        catch (InvalidOperationException)
-        {
-        }
-        finally
-        {
-            try
-            {
-                Automation.RemoveStructureChangedEventHandler(scope, structureHandler);
-            }
-            catch (ElementNotAvailableException)
-            {
-            }
-
-            try
-            {
-                Automation.RemoveAutomationEventHandler(
-                    AutomationElement.AsyncContentLoadedEvent,
-                    scope,
-                    asyncContentHandler);
-            }
-            catch (ElementNotAvailableException)
-            {
-            }
-        }
+            $"[DAP Windows UIA settle] strategy=exact-descendant-poll, " +
+            $"scope={scopeAnchor.Locator.Strategy}='{scopeAnchor.Locator.Value}', " +
+            $"observations={observations}, consecutiveMatches={consecutiveMatches}, " +
+            $"elapsed={stopwatch.ElapsedMilliseconds} ms.");
     }
 
     private static bool ShouldWaitForUiStability(TargetDescriptor descriptor)
