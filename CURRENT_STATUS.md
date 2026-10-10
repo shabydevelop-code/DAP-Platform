@@ -40,8 +40,14 @@ Then run the learner separately:
 & "C:\GuideMe\DAP.exe" --guide sampleapp-windows-guide
 ```
 
+## Dynamic capture verification
+- The current Core engine supports per-run capture storage and token replacement in target and anchor locators; Web and Windows adapters expose capture operations.
+- The locally inspected example database defines Web capture at Step 11 and reuse at Steps 12, 48 and 50. The Windows example defines capture at Step 11 and matching dynamic descendant anchors at Steps 12, 48 and 50. These are example Guide data, not hard-coded runtime behavior.
+- The definitions and relevant source paths were inspected; a fresh end-to-end run proving capture against newly assigned IDs was **not** performed in this review.
+- SQLite does not persist explicit capture timing. Substitution does not yet cover every Guide field. Capture values live only for the current Guide run.
+
 ## Known limitations and work
-- Instructor/Editor is not yet implemented.
+- Instructor/Editor is not yet implemented. Dynamic-capture authoring assistance is a design topic, not an approved or delivered feature.
 - A Guide currently runs against one target runtime type; cross-runtime orchestration is not implemented.
 - Windows multi-context switching, delayed discovery, and rebinding are not implemented.
 - Production Web extension and Native Messaging host no longer contain the extension-native E2E driver or its dedicated pipe. The changes require a fresh customer-package build and Web/Windows regression on the user's machine.
