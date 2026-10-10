@@ -56,6 +56,11 @@ Then run the learner separately:
 - Windows now briefly reuses resolved UIA elements for exact unanchored `automation-id` and `name` locators, rechecking their identifying property and forcing a full resolution at least once per second. This is a limited, generic optimization; anchored and dynamic grid-row targets still resolve authoritatively on each reconciliation cycle to avoid stale business-record bindings.
 - Build, performance measurement, and full Web/Windows regression after this change remain pending. Further work is needed on event-driven tracking and safe invalidation for anchored/dynamic targets; do not claim the large-grid performance issue is resolved.
 
+## Windows grid baseline fixture (demo only)
+- The Windows SampleApp launcher accepts `--seed-grid-baseline` and passes it to the demo server. The server idempotently creates 100 tagged cases (`DAP-GRID-BASELINE-0001` through `0100`) under SiteId 1 in `demos/Shared/data/sampleapp.db`. Existing records and the DAP Guide database are not modified by the fixture. Tagged fixture rows are excluded from the server's existing startup trim.
+- Run `dotnet run --project demos/Windows/Launcher/DAP.SampleApp.Windows.Host.csproj -- --seed-grid-baseline`; open the customer/site Cases grid and inspect UIA resolution timings while running the independent production learner. This is a baseline data fixture, not a new Guide or an automated performance assertion. Current persisted Guide targets are not automatically redirected to a tagged fixture row.
+- Local build, rendering of the 100-row grid, and measured UIA performance remain unverified. Do not extrapolate these results to 1,000+ rows or claim the anchored-grid slowdown is fixed.
+
 ## Known limitations and work
 - Instructor/Editor is not yet implemented. Dynamic-capture authoring assistance is a design topic, not an approved or delivered feature.
 - A Guide currently runs against one target runtime type; cross-runtime orchestration is not implemented.
