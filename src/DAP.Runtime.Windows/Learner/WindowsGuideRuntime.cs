@@ -133,6 +133,8 @@ public sealed class WindowsGuideRuntime
         string? lastTargetDisappearedDiagnostic = null;
         var stepStopwatch = Stopwatch.StartNew();
         var resolutionAttempt = 0;
+        AutomationElement? cachedExactTarget = null;
+        var lastFullResolution = Stopwatch.StartNew();
         var targetFirstResolvedLogged = false;
         var bubbleFirstShownLogged = false;
         var initialVisibilityChecked = false;
@@ -198,7 +200,38 @@ public sealed class WindowsGuideRuntime
                 resolutionAttempt++;
                 try
                 {
-                    resolution = _resolver.Resolve(GetActiveResolutionRoot(windowRoot), step.Target!);
+                    // Reuse stable exact targets briefly instead of traversing the UIA
+                    // tree on every poll. Anchored targets, including grid rows, still
+                    // require authoritative resolution to prevent stale record binding.
+                    var strategy = step.Target!.Locator.Strategy.Trim().ToLowerInvariant();
+                    var cacheEligible = step.Target.Anchors.Count == 0
+                        && (strategy == "automation-id" || strategy == "name");
+                    var reusedCachedTarget = false;
+                    if (cacheEligible && cachedExactTarget is not null
+                        && lastFullResolution.ElapsedMilliseconds < 1000)
+                    {
+                        try
+                        {
+                            var current = cachedExactTarget.Current;
+                            if ((strategy == "automation-id" && current.AutomationId == step.Target.Locator.Value)
+                                || (strategy == "name" && current.Name == step.Target.Locator.Value))
+                            {
+                                resolution = TargetResolution<AutomationElement>.Resolved(cachedExactTarget);
+                                reusedCachedTarget = true;
+                            }
+                        }
+                        catch (ElementNotAvailableException)
+                        {
+                            cachedExactTarget = null;
+                        }
+                    }
+                    if (!reusedCachedTarget)
+                    {
+                        resolution = _resolver.Resolve(GetActiveResolutionRoot(windowRoot), step.Target);
+                        cachedExactTarget = cacheEligible && resolution.Status == TargetResolutionStatus.Resolved
+                            ? resolution.Target : null;
+                        lastFullResolution.Restart();
+                    }
                     resolutionStopwatch.Stop();
                     if (resolutionStopwatch.ElapsedMilliseconds >= 100)
                     {
