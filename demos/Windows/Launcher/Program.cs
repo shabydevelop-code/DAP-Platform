@@ -50,7 +50,9 @@ try
 {
     var serverDll = Path.Combine(Path.GetDirectoryName(serverProject)!, "bin", "Debug", "net8.0", "DAP.SampleApp.Server.dll");
     var windowsExe = Path.Combine(Path.GetDirectoryName(windowsProject)!, "bin", "Debug", "net8.0-windows", "DAP.SampleApp.Windows.exe");
-    server = Start("dotnet", Path.GetDirectoryName(serverDll)!, serverDll, "--urls", "http://localhost:5201");
+    server = args.Contains("--seed-grid-baseline", StringComparer.OrdinalIgnoreCase)
+        ? Start("dotnet", Path.GetDirectoryName(serverDll)!, serverDll, "--urls", "http://localhost:5201", "--seed-grid-baseline")
+        : Start("dotnet", Path.GetDirectoryName(serverDll)!, serverDll, "--urls", "http://localhost:5201");
 
     using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(1) };
     var deadline = DateTime.UtcNow.AddSeconds(5);
