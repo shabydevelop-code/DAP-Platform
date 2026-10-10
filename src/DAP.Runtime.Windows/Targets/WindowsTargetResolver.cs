@@ -137,25 +137,37 @@ public sealed class WindowsTargetResolver
         // descendant match. Searching from the desktop/window root can miss descendants
         // exposed lazily by virtualized controls, while a scope-local query lets the
         // owning provider materialize its own subtree without enumerating every DataItem.
+        var scopeTimer = Stopwatch.StartNew();
         var scope = FindFirst(root, scopeAnchor.Locator);
+        Console.Error.WriteLine(
+            $"[DAP Windows resolver diagnostic] phase=scope, found={scope is not null}, elapsed={scopeTimer.ElapsedMilliseconds} ms.");
         if (scope is null)
             return true;
 
         // First use the provider's exact native condition. A broad primary-row
         // enumeration is expensive and unnecessary when a uniquely named child
         // is exposed directly by UI Automation.
+        var childTimer = Stopwatch.StartNew();
         var descendant = scope.FindFirst(TreeScope.Descendants, descendantCondition);
+        Console.Error.WriteLine(
+            $"[DAP Windows resolver diagnostic] phase=exact-child, found={descendant is not null}, elapsed={childTimer.ElapsedMilliseconds} ms.");
         if (descendant is not null)
         {
+            var ancestorTimer = Stopwatch.StartNew();
             AddPrimaryAncestorCandidate(
                 descendant, scope, descriptor, scopeAnchor, descendantAnchor, candidates);
+            Console.Error.WriteLine(
+                $"[DAP Windows resolver diagnostic] phase=primary-ancestor, found={candidates.Count > 0}, elapsed={ancestorTimer.ElapsedMilliseconds} ms.");
             if (candidates.Count > 0)
                 return true;
         }
 
         // The provider may expose the named child without exposing the primary
         // ancestor through the same view. Preserve the existing scoped fallback.
+        var rowsTimer = Stopwatch.StartNew();
         var scopedPrimaryCandidates = Find(scope, descriptor.Locator).ToList();
+        Console.Error.WriteLine(
+            $"[DAP Windows resolver diagnostic] phase=primary-enumeration, rows={scopedPrimaryCandidates.Count}, elapsed={rowsTimer.ElapsedMilliseconds} ms.");
         if (scopedPrimaryCandidates.Count <= 50)
         {
             foreach (var candidate in scopedPrimaryCandidates)
@@ -173,6 +185,7 @@ public sealed class WindowsTargetResolver
         // enumeration even when a filtered FindFirst cannot see the same element.
         // Scan only the DataItems that already exist in this scope, stop immediately on
         // a match, and keep the fallback bounded so it cannot turn into a full-grid walk.
+        var fallbackTimer = Stopwatch.StartNew();
         if (TryResolveExistingRows(
                 scope,
                 descendantAnchor.Locator,
@@ -180,7 +193,11 @@ public sealed class WindowsTargetResolver
                 scopeAnchor,
                 descendantAnchor,
                 candidates))
+        {
+            Console.Error.WriteLine($"[DAP Windows resolver diagnostic] phase=existing-rows, found=True, elapsed={fallbackTimer.ElapsedMilliseconds} ms.");
             return true;
+        }
+        Console.Error.WriteLine($"[DAP Windows resolver diagnostic] phase=existing-rows, found=False, elapsed={fallbackTimer.ElapsedMilliseconds} ms.");
 
         // Some providers make repeated cross-process property reads very expensive.
         // Pull the scope subtree once with the identifying property cached, then filter
