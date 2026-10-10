@@ -8,7 +8,9 @@
 - Manual execution by default and persisted-value Hybrid execution where supported.
 - Enabled/disabled Steps, targetless centered informational Steps, and persisted final summary.
 - Independent Web and Windows demo hosts; each example Guide currently contains 55 Steps.
-- Completion shuts down the learner without closing the target application. A completed local check found no remaining `DAP` process.
+- Guide completion and the bubble action **End assistance** / **סיים ליווי** stop the learner, remove its bubble, and leave the target application open.
+- End-assistance behavior was verified in Web and Windows, including starting the same Guide again and stopping it again. No `DAP.exe` process remained after stopping.
+- The Web Native Messaging host may remain running while Chrome is open without an active Guide; this is the current persistent-connection design, not evidence of a leaked learner process.
 - Legacy demo database fallback and legacy Guide-key/text-ID migration execution paths have been removed.
 
 ## Example data
@@ -43,4 +45,4 @@ Then run the learner separately:
 - Windows multi-context switching, delayed discovery, and rebinding are not implemented.
 - Web Native Host and extension still contain test-driver transport hooks; product/test isolation is not fully complete.
 - A production package and test-driver separation audit remains necessary.
-- The packaged Web Native Messaging host and learner were verified locally after temporary folders were removed. A complete Web/Windows regression has not been performed.
+- End-assistance and restart checks passed in Web and Windows. A complete Web/Windows Guide regression has not been performed.
