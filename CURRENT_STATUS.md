@@ -121,3 +121,8 @@ The active Guide can continue while its bubble is hidden after the learner navig
 - Same run: step 12 UIA scope settle 8066 ms, target resolution 1146 ms, first bubble +9418 ms. Step 48 +1996 ms; step 50 +2037 ms. Guide completed 55/55.
 - Commit `e47c35a` adds provider-independent diagnostics for step-context check, initial scroll, UIA scope lookup, event subscriptions and quiet observation. No changes to waiting, validation, guide data or scrolling decisions.
 - Need Windows compile and next log to isolate which phase consumes the delay; do not claim optimization yet.
+
+## Windows UIA scope readiness change (2026-10-10)
+- User log confirmed expensive UIA event subscriptions at steps 12 and 50: subscribe ~4024/4035 ms, overall settle ~8060/8075 ms with zero events. Step 47 was fast (+58 ms first bubble) in the same run.
+- Commit `3549428` replaces per-step UIA event registration/unregistration with bounded (1-second observation budget, excluding provider call overrun) polling for two consecutive appearances of the exact descendant name within the exact scoped ancestor. Existing authoritative target resolution and completion validation are unchanged.
+- This avoids known provider-side event handler stalls; it does not guarantee the same semantics as event-based quiescence. The full 55-step Windows regression, compile and performance results remain unverified after this change. If a provider blocks inside FindFirst, the nominal observation budget cannot interrupt that synchronous call.
