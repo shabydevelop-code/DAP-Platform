@@ -3,6 +3,55 @@ using DAP.Core.Targets;
 using DAP.Data.Sqlite;
 using DAP.Data.Sqlite.Guides;
 using Microsoft.Data.Sqlite;
+using System.Windows.Automation;
+using System.Diagnostics;
+
+if (args.Contains("--probe", StringComparer.OrdinalIgnoreCase))
+{
+    var watch = Stopwatch.StartNew();
+    var windows = AutomationElement.RootElement.FindAll(TreeScope.Children,
+        new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Window));
+    Console.WriteLine($"Top-level windows: {windows.Count}");
+    for (var i = 0; i < windows.Count; i++)
+    {
+        var window = windows[i];
+        AutomationElement? grid;
+        try { grid = window.FindFirst(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.AutomationIdProperty, "CasesGrid")); }
+        catch (ElementNotAvailableException) { continue; }
+        if (grid is null) continue;
+        Console.WriteLine($"Grid found in window: {window.Current.Name}, elapsed={watch.ElapsedMilliseconds}ms");
+        var rows = grid.FindAll(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.DataItem));
+        Console.WriteLine($"UIA DataItem rows={rows.Count}, elapsed={watch.ElapsedMilliseconds}ms");
+        var exact = new PropertyCondition(AutomationElement.NameProperty, "DAP-GRID-BASELINE-0050");
+        var cell = grid.FindFirst(TreeScope.Descendants, exact);
+        Console.WriteLine($"Exact cell name found={cell is not null}, elapsed={watch.ElapsedMilliseconds}ms");
+        for (var j = 0; j < rows.Count; j++)
+        {
+            var row = rows[j];
+            try
+            {
+                var name = row.Current.Name;
+                if (name.Contains("0050", StringComparison.Ordinal) || j < 3)
+                {
+                    Console.WriteLine($"row[{j}] name='{name}', id='{row.Current.AutomationId}'");
+                    var descendants = row.FindAll(TreeScope.Descendants, Condition.TrueCondition);
+                    for (var k = 0; k < descendants.Count && k < 30; k++)
+                    {
+                        var element = descendants[k];
+                        Console.WriteLine($"  child[{k}] type={element.Current.ControlType.ProgrammaticName}, name='{element.Current.Name}', id='{element.Current.AutomationId}'");
+                    }
+                }
+            }
+            catch (ElementNotAvailableException) { }
+        }
+        Console.WriteLine($"Probe completed in {watch.ElapsedMilliseconds}ms");
+        return;
+    }
+    Console.WriteLine("CasesGrid not found in any top-level window.");
+    return;
+}
 
 const string guideKey = "sampleapp-windows-grid-baseline-temporary";
 const string sourceGuideKey = "sampleapp-windows-guide";
