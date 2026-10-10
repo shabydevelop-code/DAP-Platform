@@ -300,8 +300,10 @@ public sealed class WindowsGuideRuntime
 
                             if (args.NewValue is bool lostKeyboardFocus && !lostKeyboardFocus)
                             {
-                                if (Volatile.Read(ref textTargetObservedFocused) == 1
-                                    && Volatile.Read(ref textTargetChanged) == 1)
+                                // Leaving a focused Edit control is an explicit commit
+                                // attempt even when its already-valid value is unchanged.
+                                // Validation still decides whether the Step may advance.
+                                if (Volatile.Read(ref textTargetObservedFocused) == 1)
                                     Volatile.Write(ref textTargetCommitted, 1);
                             }
                         };
@@ -327,7 +329,6 @@ public sealed class WindowsGuideRuntime
                         Volatile.Write(ref textTargetChanged, 1);
 
                     if (Volatile.Read(ref textTargetObservedFocused) == 1
-                        && Volatile.Read(ref textTargetChanged) == 1
                         && !target.Current.HasKeyboardFocus)
                     {
                         Volatile.Write(ref textTargetCommitted, 1);
