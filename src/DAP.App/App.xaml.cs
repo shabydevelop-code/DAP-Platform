@@ -3,7 +3,7 @@ using System.Windows;
 
 namespace DAP.App;
 
-public partial class App : Application
+public partial class App : System.Windows.Application
 {
     private async void OnStartup(object sender, StartupEventArgs e)
     {
