@@ -97,3 +97,8 @@ The active Guide can continue while its bubble is hidden after the learner navig
 - Added phase timing for completion-baseline capture, initial viewport check, and bubble presentation in WindowsGuideRuntime (`3533313`). Existing target-resolution and UIA settle timing remains available. Threshold for added phase diagnostics: 50 ms.
 - No target resolution or runtime behavior was optimized yet: collect comparative logs from grid and non-grid screens before modifying resolution or UIA stability logic.
 - Local build and user-side measurements are pending.
+
+## Guide target search scope audit (2026-10-10)
+- Added read-only Python 3 SQLite audit `scripts/audit-guide-targets.py` (`b0c2f48`) to classify actual persisted guide targets and anchors by resolver search path.
+- Run locally against the production DAP.db and sampleapp-windows-guide; CSV output is required to establish actual counts and identify steps for remediation.
+- This static classification does not establish runtime uniqueness or latency. No guide definitions or resolver behavior changed.
