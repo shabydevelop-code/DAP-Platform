@@ -135,6 +135,7 @@ public sealed class WindowsGuideRuntime
         var resolutionAttempt = 0;
         AutomationElement? cachedExactTarget = null;
         var lastFullResolution = Stopwatch.StartNew();
+        Task<TargetResolution<AutomationElement>>? pendingRowResolution = null;
         var targetFirstResolvedLogged = false;
         var bubbleFirstShownLogged = false;
         var initialVisibilityChecked = false;
@@ -220,7 +221,7 @@ public sealed class WindowsGuideRuntime
                         && step.Target.Locator.Value.Equals("dataitem", StringComparison.OrdinalIgnoreCase);
                     var reusedCachedTarget = false;
                     if (cacheEligible && cachedExactTarget is not null
-                        && lastFullResolution.ElapsedMilliseconds < (exactRowName is null ? 1000 : 5000))
+                        && (pendingRowResolution is not null || lastFullResolution.ElapsedMilliseconds < (exactRowName is null ? 1000 : 5000)))
                     {
                         try
                         {
@@ -243,12 +244,54 @@ public sealed class WindowsGuideRuntime
                             cachedExactTarget = null;
                         }
                     }
+                    // Full anchored-row scans must not block the viewport refresh loop.
+                    if (exactRowName is not null && cachedExactTarget is not null
+                        && pendingRowResolution is null && lastFullResolution.ElapsedMilliseconds >= 5000)
+                    {
+                        var resolutionRoot = GetActiveResolutionRoot(windowRoot);
+                        var resolutionDescriptor = step.Target;
+                        pendingRowResolution = Task.Run(
+                            () => _resolver.Resolve(resolutionRoot, resolutionDescriptor));
+                        lastFullResolution.Restart();
+                    }
+                    if (pendingRowResolution?.IsCompleted == true)
+                    {
+                        try
+                        {
+                            var refreshed = await pendingRowResolution;
+                            cachedExactTarget = refreshed.Status == TargetResolutionStatus.Resolved
+                                ? refreshed.Target : null;
+                            resolution = refreshed;
+                            reusedCachedTarget = true;
+                        }
+                        catch (ElementNotAvailableException)
+                        {
+                            cachedExactTarget = null;
+                        }
+                        catch (InvalidOperationException)
+                        {
+                            cachedExactTarget = null;
+                        }
+                        finally
+                        {
+                            pendingRowResolution = null;
+                        }
+                    }
                     if (!reusedCachedTarget)
                     {
-                        resolution = _resolver.Resolve(GetActiveResolutionRoot(windowRoot), step.Target);
-                        cachedExactTarget = cacheEligible && resolution.Status == TargetResolutionStatus.Resolved
-                            ? resolution.Target : null;
-                        lastFullResolution.Restart();
+                        if (pendingRowResolution is not null)
+                        {
+                            // A stale cached row must never be presented as a valid target.
+                            cachedExactTarget = null;
+                            resolution = TargetResolution<AutomationElement>.NotFound();
+                        }
+                        else
+                        {
+                            resolution = _resolver.Resolve(GetActiveResolutionRoot(windowRoot), step.Target);
+                            cachedExactTarget = cacheEligible && resolution.Status == TargetResolutionStatus.Resolved
+                                ? resolution.Target : null;
+                            lastFullResolution.Restart();
+                        }
                     }
                     resolutionStopwatch.Stop();
                     if (resolutionStopwatch.ElapsedMilliseconds >= 100)
