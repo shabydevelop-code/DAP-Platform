@@ -234,53 +234,6 @@ public sealed class WindowsTargetResolver
             $"[DAP Windows resolver scoped-rows] rows={scopedPrimaryCandidates.Count}, final={candidates.Count}, elapsed={rowsTimer.ElapsedMilliseconds} ms.");
         return true;
 
-        // Some WPF providers expose already-realized row descendants to broad UIA
-        // enumeration even when a filtered FindFirst cannot see the same element.
-        // Scan only the DataItems that already exist in this scope, stop immediately on
-        // a match, and keep the fallback bounded so it cannot turn into a full-grid walk.
-        var fallbackTimer = Stopwatch.StartNew();
-        if (TryResolveExistingRows(
-                scope,
-                descendantAnchor.Locator,
-                descriptor,
-                scopeAnchor,
-                descendantAnchor,
-                candidates))
-        {
-            Console.Error.WriteLine($"[DAP Windows resolver diagnostic] phase=existing-rows, found=True, elapsed={fallbackTimer.ElapsedMilliseconds} ms.");
-            return true;
-        }
-        Console.Error.WriteLine($"[DAP Windows resolver diagnostic] phase=existing-rows, found=False, elapsed={fallbackTimer.ElapsedMilliseconds} ms.");
-
-        // Some providers make repeated cross-process property reads very expensive.
-        // Pull the scope subtree once with the identifying property cached, then filter
-        // locally. This is the Windows/UIA equivalent of using a DOM snapshot instead of
-        // issuing one remote query per row/cell.
-        descendant = FindDescendantFromCachedSnapshot(scope, descendantAnchor.Locator);
-        if (descendant is not null)
-        {
-            AddPrimaryAncestorCandidate(
-                descendant,
-                scope,
-                descriptor,
-                scopeAnchor,
-                descendantAnchor,
-                candidates);
-            return true;
-        }
-
-        // Prefer the provider's logical grid contract over realizing rows one by one.
-        // GridPattern gives direct cell access by row/column and avoids constructing the
-        // full descendant subtree for every DataItem.
-        TryResolveGridPattern(
-            scope,
-            descendantCondition,
-            descriptor,
-            scopeAnchor,
-            descendantAnchor,
-            candidates);
-
-        return true;
     }
 
     private static bool TryResolveGridItemRow(
