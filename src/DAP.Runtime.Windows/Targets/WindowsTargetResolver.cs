@@ -71,6 +71,42 @@ public sealed class WindowsTargetResolver
             };
         }
 
+        // Self anchors describe properties of the target itself. Push native exact
+        // predicates into UIA instead of enumerating every primary match first.
+        // Keep all non-self anchors for the existing validation pass.
+        var nativeSelfAnchors = descriptor.Anchors
+            .Where(anchor => anchor.Relation == AnchorRelation.Self
+                && TryCreateNativeCondition(anchor.Locator, out _))
+            .ToArray();
+        if (nativeSelfAnchors.Length > 0
+            && TryCreateNativeCondition(descriptor.Locator, out var primaryCondition))
+        {
+            var conditions = new List<Condition> { primaryCondition };
+            foreach (var anchor in nativeSelfAnchors)
+            {
+                TryCreateNativeCondition(anchor.Locator, out var condition);
+                conditions.Add(condition);
+            }
+            var combined = new AndCondition(conditions.ToArray());
+            var matched = root.FindAll(TreeScope.Descendants, combined)
+                .Cast<AutomationElement>()
+                .Where(candidate => descriptor.Anchors
+                    .Where(anchor => !nativeSelfAnchors.Contains(anchor))
+                    .All(anchor => MatchesAnchor(candidate, anchor)))
+                .ToList();
+            stopwatch.Stop();
+            if (stopwatch.ElapsedMilliseconds >= 100)
+                Console.Error.WriteLine(
+                    $"[DAP Windows resolver timing] locator={descriptor.Locator.Strategy}='{descriptor.Locator.Value}', " +
+                    $"fast-path=native-self-anchors, final={matched.Count}, elapsed={stopwatch.ElapsedMilliseconds} ms.");
+            return matched.Count switch
+            {
+                0 => TargetResolution<AutomationElement>.NotFound(),
+                1 => TargetResolution<AutomationElement>.Resolved(matched[0]),
+                _ => TargetResolution<AutomationElement>.Ambiguous(matched.Count)
+            };
+        }
+
         var primaryFindStopwatch = Stopwatch.StartNew();
         var primaryFindCpuStarted = process.TotalProcessorTime;
         var candidates = Find(root, descriptor.Locator).ToList();
@@ -611,6 +647,8 @@ public sealed class WindowsTargetResolver
     {
         if (locator.Strategy.Trim().Equals("name-regex", StringComparison.OrdinalIgnoreCase))
         {
+            if (TryCreateNativeCondition(locator, out var exactCondition))
+                return root.FindAll(TreeScope.Descendants, exactCondition).Cast<AutomationElement>();
             var regex = new Regex(locator.Value, RegexOptions.CultureInvariant);
             return root.FindAll(TreeScope.Descendants, Condition.TrueCondition)
                 .Cast<AutomationElement>()
