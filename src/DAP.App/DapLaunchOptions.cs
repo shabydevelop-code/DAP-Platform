@@ -66,7 +66,7 @@ public sealed record DapLaunchOptions(
 
     private static DapLaunchOptions? Usage(IUiTextProvider texts)
     {
-        MessageBox.Show(
+        System.Windows.MessageBox.Show(
             texts.Get("App.Usage"),
             texts.Get("App.WindowTitle"),
             MessageBoxButton.OK,
