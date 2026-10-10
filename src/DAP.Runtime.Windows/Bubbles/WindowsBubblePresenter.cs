@@ -631,18 +631,6 @@ public sealed class WindowsBubblePresenter
         stack.Children.Add(_automaticBadge);
         stack.Children.Add(_content);
         stack.Children.Add(_progress);
-        var stopButton = new Button
-        {
-            Content = _texts.Get("Learner.StopAssistance"),
-            FlowDirection = _texts.IsRightToLeft ? FlowDirection.RightToLeft : FlowDirection.LeftToRight,
-            Margin = new Thickness(0, 10, 0, 0),
-            Padding = new Thickness(8, 4, 8, 4),
-            HorizontalAlignment = HorizontalAlignment.Center,
-            Cursor = Cursors.Hand
-        };
-        AutomationProperties.SetAutomationId(stopButton, "DapStopAssistance");
-        stopButton.Click += (_, _) => StopRequested?.Invoke();
-        stack.Children.Add(stopButton);
 
         _bubble = new Border
         {
