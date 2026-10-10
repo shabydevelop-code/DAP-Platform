@@ -137,6 +137,7 @@ public sealed class WindowsGuideRuntime
         var lastFullResolution = Stopwatch.StartNew();
         Task<TargetResolution<AutomationElement>>? pendingRowResolution = null;
         var targetFirstResolvedLogged = false;
+        long firstTargetResolvedAt = -1;
         var bubbleFirstShownLogged = false;
         var initialVisibilityChecked = false;
         var initialInputFocusApplied = false;
@@ -458,6 +459,7 @@ public sealed class WindowsGuideRuntime
                 if (!targetFirstResolvedLogged)
                 {
                     targetFirstResolvedLogged = true;
+                    firstTargetResolvedAt = stepStopwatch.ElapsedMilliseconds;
                     Console.Error.WriteLine(
                         $"[DAP Windows step timing] Step '{step.Id}' target first resolved at " +
                         $"+{stepStopwatch.ElapsedMilliseconds} ms after {resolutionAttempt} attempt(s).");
@@ -508,8 +510,15 @@ public sealed class WindowsGuideRuntime
                     }
                 }
 
-                if (sharedEngine.ObserveReadiness(activeState, contextActive: true, targetAvailable: true, targetVisible: HasVisibleBounds(target))
-                    == GuideStepReconciliationResult.WaitingForTarget)
+                var readinessStartedAt = stepStopwatch.ElapsedMilliseconds;
+                var targetVisible = HasVisibleBounds(target);
+                var readinessResult = sharedEngine.ObserveReadiness(
+                    activeState, contextActive: true, targetAvailable: true, targetVisible: targetVisible);
+                var readinessDuration = stepStopwatch.ElapsedMilliseconds - readinessStartedAt;
+                if (readinessDuration >= 50)
+                    Console.Error.WriteLine(
+                        $"[DAP Windows performance] Step '{step.Id}' phase=target-readiness duration={readinessDuration} ms, visible={targetVisible}.");
+                if (readinessResult == GuideStepReconciliationResult.WaitingForTarget)
                 {
                     // Do not force-scroll during reconciliation. Initial Step entry
                     // already performs the one allowed viewport adjustment. Keep
@@ -546,6 +555,13 @@ public sealed class WindowsGuideRuntime
                     Console.Error.WriteLine($"[DAP Windows guide diagnostic] Step '{step.Id}' showing bubble.");
 
                 var bubbleStartedAt = stepStopwatch.ElapsedMilliseconds;
+                if (!bubbleFirstShownLogged && firstTargetResolvedAt >= 0)
+                {
+                    var preBubbleDuration = bubbleStartedAt - firstTargetResolvedAt;
+                    if (preBubbleDuration >= 100)
+                        Console.Error.WriteLine(
+                            $"[DAP Windows performance] Step '{step.Id}' phase=resolved-to-presentation duration={preBubbleDuration} ms.");
+                }
                 try
                 {
                     await _bubbles.ShowAsync(
