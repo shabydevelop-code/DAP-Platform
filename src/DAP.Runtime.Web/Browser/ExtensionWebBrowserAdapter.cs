@@ -286,7 +286,12 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             try
             {
                 var response = await completion.Task.WaitAsync(commandToken);
-                Console.Error.WriteLine($"[DAP transport] received response request={requestId}");
+                var diagnosticResult = response.TryGetProperty("result", out var resultValue) ? resultValue : default;
+                var status = diagnosticResult.ValueKind == JsonValueKind.Object && diagnosticResult.TryGetProperty("status", out var statusValue) ? statusValue.ToString() : "-";
+                var count = diagnosticResult.ValueKind == JsonValueKind.Object && diagnosticResult.TryGetProperty("count", out var countValue) ? countValue.ToString() : "-";
+                var stable = diagnosticResult.ValueKind == JsonValueKind.Object && diagnosticResult.TryGetProperty("stable", out var stableValue) ? stableValue.ToString() : "-";
+                var interactable = diagnosticResult.ValueKind == JsonValueKind.Object && diagnosticResult.TryGetProperty("interactable", out var interactableValue) ? interactableValue.ToString() : "-";
+                Console.Error.WriteLine($"[DAP transport] response request={requestId} status={status} count={count} stable={stable} interactable={interactable}");
                 if (response.TryGetProperty("ok", out var ok) && !ok.GetBoolean())
                     throw new InvalidOperationException(
                         response.TryGetProperty("error", out var error)
