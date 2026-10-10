@@ -54,6 +54,40 @@ if (args.Contains("--probe", StringComparer.OrdinalIgnoreCase))
     return;
 }
 
+// Web baseline shares the existing 100 demo records but installs an independent Guide.
+if (args.Contains("--web", StringComparer.OrdinalIgnoreCase)
+    || args.Contains("--remove-web", StringComparer.OrdinalIgnoreCase))
+{
+    const string webGuideKey = "sampleapp-web-grid-baseline-temporary";
+    var webRepository = new SqliteGuideStepRepository(
+        new SqliteConnectionFactory(SqliteDatabaseOptions.CreateDefault()));
+    if (args.Contains("--remove-web", StringComparer.OrdinalIgnoreCase))
+    {
+        await using var db = await new SqliteConnectionFactory(
+            SqliteDatabaseOptions.CreateDefault()).OpenAsync();
+        await using var delete = db.CreateCommand();
+        delete.CommandText = "DELETE FROM Guides WHERE Key=$key;";
+        delete.Parameters.AddWithValue("$key", webGuideKey);
+        Console.WriteLine($"Temporary Web Guide removed: {await delete.ExecuteNonQueryAsync()}");
+        return;
+    }
+
+    var webContexts = await webRepository.GetApplicationContextsAsync("sampleapp-web-guide");
+    var webContext = webContexts.FirstOrDefault(x => x.Runtime == TargetRuntime.Web)
+        ?? throw new InvalidOperationException("Source Web Guide has no Web application context.");
+    var webTarget = TargetDescriptor.Create(TargetRuntime.Web,
+        new Locator("css", "tr:has-text('DAP-GRID-BASELINE-0050')"));
+    var webStep = new GuideStep("web-grid-baseline-target", 1, webTarget,
+        new BubbleDefinition("בדיקת Web: פנייה 0050 מתוך 100. בדוק גלילה, חזרה, יציבות ומיון.", BubblePlacement.Auto),
+        AdvanceMode: StepAdvanceMode.Manual, ApplicationContextKey: webContext.Key);
+    await webRepository.ReplaceApplicationContextsAsync(webGuideKey, [webContext]);
+    await webRepository.ReplaceStepsAsync(webGuideKey, [webStep]);
+    Console.WriteLine($"Temporary Web Guide installed: {webGuideKey}");
+    Console.WriteLine("Open the SampleApp Web Cases tab for SiteId 1 before starting DAP.");
+    Console.WriteLine("Remove later with --remove-web (does not remove the shared 100 records).");
+    return;
+}
+
 const string guideKey = "sampleapp-windows-grid-baseline-temporary";
 const string sourceGuideKey = "sampleapp-windows-guide";
 var repo = new SqliteGuideStepRepository(new SqliteConnectionFactory(SqliteDatabaseOptions.CreateDefault()));
