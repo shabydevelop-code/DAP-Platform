@@ -14,7 +14,13 @@ Directory.CreateDirectory(dataDirectory);
 var dbPath = Path.Combine(dataDirectory, "sampleapp.db");
 
 var connectionString = $"Data Source={dbPath}";
-InitializeDatabase(connectionString);
+var seedGridBaseline = args.Contains("--seed-grid-baseline", StringComparer.OrdinalIgnoreCase);
+InitializeDatabase(connectionString, preserveCases: seedGridBaseline);
+if (seedGridBaseline)
+{
+    var count = SeedGridBaseline(connectionString);
+    Console.WriteLine($"SampleApp grid baseline: {count} tagged cases available at SiteId=1.");
+}
 
 app.MapGet("/api/customers", (string? name, string? phone, string? email, string? sort, string? dir) =>
 {
@@ -118,7 +124,30 @@ int GetInt(string sql,int id){using var c=new SqliteConnection(connectionString)
 int InsertRoot(string sql,params string[] values){using var c=new SqliteConnection(connectionString);c.Open();using var cmd=c.CreateCommand();cmd.CommandText=sql+"; SELECT last_insert_rowid();";for(var i=0;i<values.Length;i++)cmd.Parameters.AddWithValue("$"+(char)('a'+i),values[i]);return Convert.ToInt32((long)cmd.ExecuteScalar()!);}
 int Insert(string sql,int parent,params string[] values){using var c=new SqliteConnection(connectionString);c.Open();using var cmd=c.CreateCommand();cmd.CommandText=sql+"; SELECT last_insert_rowid();";cmd.Parameters.AddWithValue("$parent",parent);for(var i=0;i<values.Length;i++)cmd.Parameters.AddWithValue("$"+(char)('a'+i),values[i]);return Convert.ToInt32((long)cmd.ExecuteScalar()!);}
 void Exec(string sql,int id,params string[] values){using var c=new SqliteConnection(connectionString);c.Open();using var cmd=c.CreateCommand();cmd.CommandText=sql;cmd.Parameters.AddWithValue("$id",id);for(var i=0;i<values.Length;i++)cmd.Parameters.AddWithValue("$"+(char)('a'+i),values[i]);cmd.ExecuteNonQuery();}
-void InitializeDatabase(string cs){using var c=new SqliteConnection(cs);c.Open();using var cmd=c.CreateCommand();cmd.CommandText=@"CREATE TABLE IF NOT EXISTS Customers(Id INTEGER PRIMARY KEY,Name TEXT NOT NULL,Phone TEXT NOT NULL,Email TEXT NOT NULL);CREATE TABLE IF NOT EXISTS Sites(Id INTEGER PRIMARY KEY AUTOINCREMENT,CustomerId INTEGER NOT NULL,Name TEXT NOT NULL,Type TEXT NOT NULL,Address TEXT NOT NULL);CREATE TABLE IF NOT EXISTS Cases(Id INTEGER PRIMARY KEY AUTOINCREMENT,SiteId INTEGER NOT NULL,Status TEXT NOT NULL,Subject TEXT NOT NULL,Description TEXT NOT NULL);CREATE TABLE IF NOT EXISTS Leads(Id INTEGER PRIMARY KEY AUTOINCREMENT,SiteId INTEGER NOT NULL,Source TEXT NOT NULL,ContactName TEXT NOT NULL,Status TEXT NOT NULL,Notes TEXT NOT NULL);";cmd.ExecuteNonQuery();try{cmd.CommandText="ALTER TABLE Cases ADD COLUMN CloseReason TEXT NOT NULL DEFAULT ''";cmd.ExecuteNonQuery();}catch(SqliteException){}try{cmd.CommandText="ALTER TABLE Leads ADD COLUMN SelectedService TEXT NOT NULL DEFAULT ''";cmd.ExecuteNonQuery();}catch(SqliteException){}try{cmd.CommandText="ALTER TABLE Leads ADD COLUMN LostReason TEXT NOT NULL DEFAULT ''";cmd.ExecuteNonQuery();}catch(SqliteException){}cmd.CommandText="SELECT COUNT(*) FROM Customers";if(Convert.ToInt32(cmd.ExecuteScalar())>0){TrimTestCases(cmd);return;}cmd.CommandText=@"INSERT INTO Customers VALUES(1,'אלפא פתרונות בע""מ','03-5550100','service@alpha.test'),(2,'אופק שירותים בע""מ','03-5550200','office@ofek.test');INSERT INTO Sites(CustomerId,Name,Type,Address) VALUES(1,'מטה תל אביב','משרד','הארבעה 10, תל אביב'),(1,'סניף חיפה','סניף','הנמל 20, חיפה'),(2,'משרד ירושלים','משרד','יפו 50, ירושלים');INSERT INTO Cases(SiteId,Status,Subject,Description) VALUES(1,'פתוחה','תקלה בחיבור לאינטרנט','החיבור אינו יציב'),(1,'סגורה','כרטיס כניסה','החלפת הכרטיס הושלמה'),(2,'פתוחה','תקלה במדפסת','המדפסת אינה זמינה');INSERT INTO Leads(SiteId,Source,ContactName,Status,Notes) VALUES(1,'אתר אינטרנט','דנה לוי','חדש','ביקשה מידע נוסף על המוצר'),(1,'הפניה','אבי כהן','בתהליך','נקבעה שיחת המשך'),(2,'קמפיין','נועה בר','חדש','מתעניינת בשדרוג');";cmd.ExecuteNonQuery();}
+void InitializeDatabase(string cs, bool preserveCases = false){using var c=new SqliteConnection(cs);c.Open();using var cmd=c.CreateCommand();cmd.CommandText=@"CREATE TABLE IF NOT EXISTS Customers(Id INTEGER PRIMARY KEY,Name TEXT NOT NULL,Phone TEXT NOT NULL,Email TEXT NOT NULL);CREATE TABLE IF NOT EXISTS Sites(Id INTEGER PRIMARY KEY AUTOINCREMENT,CustomerId INTEGER NOT NULL,Name TEXT NOT NULL,Type TEXT NOT NULL,Address TEXT NOT NULL);CREATE TABLE IF NOT EXISTS Cases(Id INTEGER PRIMARY KEY AUTOINCREMENT,SiteId INTEGER NOT NULL,Status TEXT NOT NULL,Subject TEXT NOT NULL,Description TEXT NOT NULL);CREATE TABLE IF NOT EXISTS Leads(Id INTEGER PRIMARY KEY AUTOINCREMENT,SiteId INTEGER NOT NULL,Source TEXT NOT NULL,ContactName TEXT NOT NULL,Status TEXT NOT NULL,Notes TEXT NOT NULL);";cmd.ExecuteNonQuery();try{cmd.CommandText="ALTER TABLE Cases ADD COLUMN CloseReason TEXT NOT NULL DEFAULT ''";cmd.ExecuteNonQuery();}catch(SqliteException){}try{cmd.CommandText="ALTER TABLE Leads ADD COLUMN SelectedService TEXT NOT NULL DEFAULT ''";cmd.ExecuteNonQuery();}catch(SqliteException){}try{cmd.CommandText="ALTER TABLE Leads ADD COLUMN LostReason TEXT NOT NULL DEFAULT ''";cmd.ExecuteNonQuery();}catch(SqliteException){}cmd.CommandText="SELECT COUNT(*) FROM Customers";if(Convert.ToInt32(cmd.ExecuteScalar())>0){if (!preserveCases) TrimTestCases(cmd);return;}cmd.CommandText=@"INSERT INTO Customers VALUES(1,'אלפא פתרונות בע""מ','03-5550100','service@alpha.test'),(2,'אופק שירותים בע""מ','03-5550200','office@ofek.test');INSERT INTO Sites(CustomerId,Name,Type,Address) VALUES(1,'מטה תל אביב','משרד','הארבעה 10, תל אביב'),(1,'סניף חיפה','סניף','הנמל 20, חיפה'),(2,'משרד ירושלים','משרד','יפו 50, ירושלים');INSERT INTO Cases(SiteId,Status,Subject,Description) VALUES(1,'פתוחה','תקלה בחיבור לאינטרנט','החיבור אינו יציב'),(1,'סגורה','כרטיס כניסה','החלפת הכרטיס הושלמה'),(2,'פתוחה','תקלה במדפסת','המדפסת אינה זמינה');INSERT INTO Leads(SiteId,Source,ContactName,Status,Notes) VALUES(1,'אתר אינטרנט','דנה לוי','חדש','ביקשה מידע נוסף על המוצר'),(1,'הפניה','אבי כהן','בתהליך','נקבעה שיחת המשך'),(2,'קמפיין','נועה בר','חדש','מתעניינת בשדרוג');";cmd.ExecuteNonQuery();}
+// Explicit demo-only fixture. No product code or Guide database is modified.
+int SeedGridBaseline(string cs)
+{
+    using var connection = new SqliteConnection(cs);
+    connection.Open();
+    using var transaction = connection.BeginTransaction();
+    using var command = connection.CreateCommand();
+    command.Transaction = transaction;
+    command.CommandText = "SELECT COUNT(*) FROM Cases WHERE SiteId=1 AND Subject LIKE 'DAP-GRID-BASELINE-%'";
+    var existing = Convert.ToInt32(command.ExecuteScalar());
+    // Insert only missing fixture records; repeated launches never duplicate them.
+    for (var index = existing + 1; index <= 100; index++)
+    {
+        command.Parameters.Clear();
+        command.CommandText = "INSERT INTO Cases(SiteId,Status,Subject,Description,CloseReason) VALUES(1,$status,$subject,$description,'')";
+        command.Parameters.AddWithValue("$status", "פתוחה");
+        command.Parameters.AddWithValue("$subject", $"DAP-GRID-BASELINE-{index:0000}");
+        command.Parameters.AddWithValue("$description", "רשומת בדיקת ביצועים");
+        command.ExecuteNonQuery();
+    }
+    transaction.Commit();
+    return Math.Max(existing, 100);
+}
 void TrimTestCases(SqliteCommand cmd){cmd.CommandText=@"DELETE FROM Cases WHERE SiteId=1 AND Id NOT IN (SELECT Id FROM Cases WHERE SiteId=1 ORDER BY Id DESC LIMIT 10);";cmd.ExecuteNonQuery();}
 
 record Customer(int Id,string Name,string Phone,string Email);
