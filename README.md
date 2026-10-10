@@ -7,7 +7,7 @@ Digital Adoption Platform for guided learning across Web and Windows application
 - One .NET 8 Windows product with Learner and future Instructor/Editor capabilities.
 - Web learner runtime through the DAP browser Extension and Native Messaging.
 - Windows learner runtime through Microsoft UI Automation.
-- Web-only, Windows-only, and Hybrid Guides.
+- Web-only and Windows-only Guides; optional Manual/Hybrid execution modes. A single Guide spanning Web and Windows is not currently supported.
 - Persisted Guide data as the learner execution source of truth.
 - Hebrew/English UI with RTL/LTR support.
 - Provider-independent data architecture with SQLite as the current provider.
@@ -18,7 +18,7 @@ All project-level documentation is kept at the repository root:
 
 - `PROJECT_CONTEXT.md` — persistent project scope and rules.
 - `REQUIREMENTS.md` — current product and technical requirements.
-- `ARCHITECTURE.md` — current production architecture.
+- `ARCHITECTURE.md` — current production architecture and capture mechanism.
 - `CURRENT_STATUS.md` — current implementation/verification state.
 - `DECISIONS.md` — active architectural decisions.
 
