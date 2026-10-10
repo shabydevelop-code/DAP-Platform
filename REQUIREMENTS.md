@@ -54,14 +54,10 @@
 
 ## Testing
 
-- TestCRM learner runners expose Manual and Hybrid only, and normal execution requires an explicit persisted Guide ID via `--guide <GuideId>`.
-- The runner must pass that exact Guide ID to the product Learner; it must not choose a Guide implicitly.
-- Hybrid may perform configured learner actions but Runtime owns outcomes and progression.
-- Intentional target-application/browser closure must terminate Manual/Hybrid cleanly while genuine Runtime failures remain failures.
-- Automated technical waits must not exceed five seconds without explicit approval.
-- Human Manual/Hybrid response time is not an automated timeout.
-- TestCRM source may aid diagnosis only; it must not become a production oracle.
-- Independent Web and Windows testing must support starting TestCRM without starting DAP, then launching the production Learner separately against the already-open application. Completing the Guide must not terminate the target application or browser.
+- Product verification must exercise the production Learner against already-open third-party-style Web and Windows applications, independently of demo or test runners.
+- Demo applications and test harnesses are optional verification fixtures, not execution dependencies or business-rule authorities.
+- Automated technical waits must not exceed five seconds without explicit approval; user interaction time is not a technical timeout.
+- Verify ambiguous-target rejection, dynamic capture and reuse, navigation, validation, completion, and clean learner exit without closing the target application.
 
 ## Deployment
 
@@ -71,13 +67,14 @@
 
 ## Product execution modes
 
-The same persisted Guide must run with `DAP.exe --guide <GuideId> --mode manual|hybrid` (Manual default). Windows Hybrid uses the production learner and persisted AutomationValue, with UIA target resolution, writable ValuePattern checks, verified Edit commit via TAB, and runtime-owned validation and advancement. Steps without automation values remain manual. No TestCRM E2E driver or target application source may be required. Existing SQLite columns support the configuration. Web Hybrid product execution remains a required capability and is not yet implemented.
+- The Learner launches with `DAP.exe --guide <GuideId>`; `--mode manual|hybrid` is optional, with Manual as default.
+- Hybrid may apply only persisted, supported automation values; Runtime retains validation and advancement ownership. Steps without automation values remain manual.
+- Platform-specific Hybrid capability and regression status belong in `CURRENT_STATUS.md`; do not treat demo-runner behavior as a production guarantee.
 
-## Shared guide execution — current implementation
+## Shared guide execution
 
-- `DAP.Core.Guides.GuideExecutionEngine` owns Guide ordering, capture-token materialization, step-shape preflight, disabled-step handling, centered-information dispatch, and lifecycle diagnostics through `IGuideStepAdapter`.
-- `GuideStepReconciliationEngine` runs the active-step observation loop for both platforms. `GuideActiveStepState` owns shared completion decisions, hybrid-value application state, presentation readiness, and context/target/stability transitions. `GuideActiveStepState.WaitAsync` provides a common wait/state transition without changing existing polling intervals.
-- `GuideStepExecutionPolicy`, `GuideValidationPolicy`, and `GuideCompletionPolicy` contain runtime-independent classification and validation rules. Web DOM events and Windows UI Automation observations remain platform-specific.
-- Web and Windows still implement separate reconciliation callbacks and bubble/UI effects. Full unification of the active-step orchestration and event/presentation behavior is **not complete**; the core loop alone does not establish behavioral parity.
-- Latest reported local `DAP.App` compilation passed **before** the newest shared-wait changes. Those changes require a fresh build and both Manual/Hybrid regression runs (including from-step, navigation, target disappearance, text commit, focus, and completion).
-- Web startup browser activation parity with Windows remains an open item. No claim is made that end-to-end regressions passed.
+- `GuideExecutionEngine` provides runtime-neutral sequencing, capture-token materialization, and Step dispatch through platform adapters.
+- Capture definitions may read a UI-observed value in one Step and reference it in a later Step using `{{step:<step-id>:capture}}` within target or anchor locator values.
+- Missing capture references fail explicitly rather than guessing a target.
+- Capture timing persistence and broader variable substitution are not yet complete; see `ARCHITECTURE.md` and `CURRENT_STATUS.md`.
+- Platform-specific UI observation and presentation remain separate. Shared Core contracts alone do not prove Web/Windows behavioral parity.
