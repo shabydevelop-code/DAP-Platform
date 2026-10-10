@@ -151,3 +151,9 @@ The active Guide can continue while its bubble is hidden after the learner navig
 - User-side Release build of `src/DAP.App/DAP.App.csproj` succeeded with one existing CS0162 unreachable-code warning at `src/DAP.Runtime.Windows/Targets/WindowsTargetResolver.cs:241`.
 - Temporary local `.log`, `.stderr`, and `.stdout` files were cleared by the user. The Windows performance-timing cleanup was merged into `main` as `a1655d7`, pulled locally, and its temporary remote branch deleted.
 - These are user-reported full manual production-learner runs against SampleApp, not automated test-suite runs or quantified latency benchmarks. No additional code changes were made for this documentation update.
+
+## GuideMe notification-area control — approved, implementation pending (2026-10-11)
+- User approved one Windows notification-area (system tray) icon for both Web and Windows learner Guides, reusing the existing GuideMe browser-extension artwork. Icon exists only during an active Guide session.
+- Menu initially shows Guide/session status and a confirmed **End assistance and exit** action; termination is owned by the learner and must leave the target app/browser running. This must remain available if the bubble is hidden after navigating away.
+- Remove the risky bubble-level End assistance control only after the tray alternative is working in both runtimes. Provide keyboard/screen-reader accessibility and avoid a permanent background agent or duplicate icons. The menu architecture should support future Instructor actions without implementing them now.
+- **Status: design approved; not implemented, built, published, or regression-tested.**
