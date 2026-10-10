@@ -130,26 +130,17 @@ public sealed class WindowsGuideRuntime
         var clickCompleted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         AutomationEventHandler? clickHandler = null;
         AutomationElement? subscribedTarget = null;
-        var stepStopwatch = Stopwatch.StartNew();
+
         var resolutionAttempt = 0;
         AutomationElement? cachedExactTarget = null;
         var lastFullResolution = Stopwatch.StartNew();
         Task<TargetResolution<AutomationElement>>? pendingRowResolution = null;
-        var targetFirstResolvedLogged = false;
-        long firstTargetResolvedAt = -1;
-        var bubbleFirstShownLogged = false;
+
         var initialVisibilityChecked = false;
         var initialInputFocusApplied = false;
-        var captureStartedAt = stepStopwatch.ElapsedMilliseconds;
+
         var completionTargetsBeforeAction = CaptureReplacementBaselines(windowRoot, step);
-        var captureDuration = stepStopwatch.ElapsedMilliseconds - captureStartedAt;
-        if (captureDuration >= 50)
-            Console.Error.WriteLine(
-                $"[DAP Windows performance] Step '{step.Id}' phase=completion-baseline duration={captureDuration} ms.");
 
-
-        Console.Error.WriteLine(
-            $"[DAP Windows step timing] Step {stepNumber}/{totalSteps} '{step.Id}' entered at +0 ms.");
 
         // Authoritative target resolution below already checks the exact scoped
         // descendant. Avoid repeating the same expensive provider query before
@@ -188,12 +179,8 @@ public sealed class WindowsGuideRuntime
                     return GuideStepReconciliationResult.Completed;
                 }
 
-                var contextStartedAt = stepStopwatch.ElapsedMilliseconds;
                 var stepContextActive = IsStepContextActive(windowRoot, step);
-                var contextDuration = stepStopwatch.ElapsedMilliseconds - contextStartedAt;
-                if (contextDuration >= 50)
-                    Console.Error.WriteLine(
-                        $"[DAP Windows performance] Step '{step.Id}' phase=step-context-check duration={contextDuration} ms, active={stepContextActive}.");
+
                 if (sharedEngine.ObserveContext(activeState, stepContextActive)
                     == GuideStepReconciliationResult.WaitingForContext)
                 {
@@ -203,7 +190,7 @@ public sealed class WindowsGuideRuntime
                 }
 
                 TargetResolution<AutomationElement> resolution = TargetResolution<AutomationElement>.NotFound();
-                var resolutionStopwatch = Stopwatch.StartNew();
+
                 resolutionAttempt++;
                 try
                 {
@@ -319,14 +306,7 @@ public sealed class WindowsGuideRuntime
                             lastFullResolution.Restart();
                         }
                     }
-                    resolutionStopwatch.Stop();
-                    if (resolutionStopwatch.ElapsedMilliseconds >= 100)
-                    {
-                        Console.Error.WriteLine(
-                            $"[DAP Windows step timing] Step '{step.Id}' resolution attempt {resolutionAttempt} " +
-                            $"status={resolution.Status}, duration={resolutionStopwatch.ElapsedMilliseconds} ms, " +
-                            $"stepElapsed={stepStopwatch.ElapsedMilliseconds} ms.");
-                    }
+
                 }
                 catch (ElementNotAvailableException)
                 {
@@ -451,14 +431,6 @@ public sealed class WindowsGuideRuntime
                     }
                 }
 
-                if (!targetFirstResolvedLogged)
-                {
-                    targetFirstResolvedLogged = true;
-                    firstTargetResolvedAt = stepStopwatch.ElapsedMilliseconds;
-                    Console.Error.WriteLine(
-                        $"[DAP Windows step timing] Step '{step.Id}' target first resolved at " +
-                        $"+{stepStopwatch.ElapsedMilliseconds} ms after {resolutionAttempt} attempt(s).");
-                }
 
                 var sameAsPreExisting = clicked
                     && preExistingTarget is not null
@@ -482,18 +454,11 @@ public sealed class WindowsGuideRuntime
                 if (!initialVisibilityChecked)
                 {
                     initialVisibilityChecked = true;
-                    var viewportStartedAt = stepStopwatch.ElapsedMilliseconds;
+
                     var needsAdjustment = NeedsInitialViewportAdjustment(windowRoot, target);
-                    var viewportDuration = stepStopwatch.ElapsedMilliseconds - viewportStartedAt;
-                    if (viewportDuration >= 50)
-                        Console.Error.WriteLine(
-                            $"[DAP Windows performance] Step '{step.Id}' phase=initial-viewport-check duration={viewportDuration} ms.");
-                    var scrollStartedAt = stepStopwatch.ElapsedMilliseconds;
+
                     var scrollSucceeded = needsAdjustment && TryScrollIntoComfortableView(target);
-                    var scrollDuration = stepStopwatch.ElapsedMilliseconds - scrollStartedAt;
-                    if (scrollDuration >= 50)
-                        Console.Error.WriteLine(
-                            $"[DAP Windows performance] Step '{step.Id}' phase=initial-scroll duration={scrollDuration} ms, needed={needsAdjustment}, succeeded={scrollSucceeded}.");
+
                     if (scrollSucceeded)
                     {
                         Console.Error.WriteLine(
@@ -503,14 +468,10 @@ public sealed class WindowsGuideRuntime
                     }
                 }
 
-                var readinessStartedAt = stepStopwatch.ElapsedMilliseconds;
                 var targetVisible = HasVisibleBounds(target);
                 var readinessResult = sharedEngine.ObserveReadiness(
                     activeState, contextActive: true, targetAvailable: true, targetVisible: targetVisible);
-                var readinessDuration = stepStopwatch.ElapsedMilliseconds - readinessStartedAt;
-                if (readinessDuration >= 50)
-                    Console.Error.WriteLine(
-                        $"[DAP Windows performance] Step '{step.Id}' phase=target-readiness duration={readinessDuration} ms, visible={targetVisible}.");
+
                 if (readinessResult == GuideStepReconciliationResult.WaitingForTarget)
                 {
                     // Do not force-scroll during reconciliation. Initial Step entry
@@ -532,27 +493,16 @@ public sealed class WindowsGuideRuntime
                     }
 
                     clickHandler = (_, _) => clickCompleted.TrySetResult();
-                    var invokeSubscriptionStartedAt = stepStopwatch.ElapsedMilliseconds;
+
                     Automation.AddAutomationEventHandler(
                         InvokePattern.InvokedEvent,
                         target,
                         TreeScope.Element,
                         clickHandler);
-                    var invokeSubscriptionDuration = stepStopwatch.ElapsedMilliseconds - invokeSubscriptionStartedAt;
-                    if (invokeSubscriptionDuration >= 50)
-                        Console.Error.WriteLine(
-                            $"[DAP Windows performance] Step '{step.Id}' phase=invoke-event-subscribe duration={invokeSubscriptionDuration} ms.");
+
                     subscribedTarget = target;
                 }
 
-                var bubbleStartedAt = stepStopwatch.ElapsedMilliseconds;
-                if (!bubbleFirstShownLogged && firstTargetResolvedAt >= 0)
-                {
-                    var preBubbleDuration = bubbleStartedAt - firstTargetResolvedAt;
-                    if (preBubbleDuration >= 100)
-                        Console.Error.WriteLine(
-                            $"[DAP Windows performance] Step '{step.Id}' phase=resolved-to-presentation duration={preBubbleDuration} ms.");
-                }
                 try
                 {
                     await _bubbles.ShowAsync(
@@ -570,18 +520,7 @@ public sealed class WindowsGuideRuntime
                     return await GuideActiveStepState.WaitAsync(
                         GuideStepReconciliationResult.WaitingForAction, _pollInterval, cancellationToken);
                 }
-                var presentationDuration = stepStopwatch.ElapsedMilliseconds - bubbleStartedAt;
-                if (presentationDuration >= 50)
-                    Console.Error.WriteLine(
-                        $"[DAP Windows performance] Step '{step.Id}' phase=bubble-presentation duration={presentationDuration} ms.");
-                if (!bubbleFirstShownLogged)
-                {
-                    Console.Error.WriteLine(
-                        $"[DAP Windows step timing] Step '{step.Id}' first bubble shown at " +
-                        $"+{stepStopwatch.ElapsedMilliseconds} ms " +
-                        $"(ShowAsync duration={stepStopwatch.ElapsedMilliseconds - bubbleStartedAt} ms).");
-                    bubbleFirstShownLogged = true;
-                }
+
 
                 // Initial input focus belongs to the production learner Runtime,
                 // so Manual and Hybrid start each input Step identically. Apply it
