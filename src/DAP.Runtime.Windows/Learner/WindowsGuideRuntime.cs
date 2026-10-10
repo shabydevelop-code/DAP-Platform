@@ -281,9 +281,29 @@ public sealed class WindowsGuideRuntime
                     {
                         if (pendingRowResolution is not null)
                         {
-                            // A stale cached row must never be presented as a valid target.
-                            cachedExactTarget = null;
-                            resolution = TargetResolution<AutomationElement>.NotFound();
+                            // Preserve only a cached target whose identity was verified on this pass.
+                            // A background refresh must not make a valid bubble blink.
+                            if (cachedExactTarget is not null)
+                            {
+                                try
+                                {
+                                    var current = cachedExactTarget.Current;
+                                    if (exactRowName is not null
+                                        && current.ControlType == ControlType.DataItem
+                                        && cachedExactTarget.FindFirst(TreeScope.Descendants,
+                                            new PropertyCondition(AutomationElement.NameProperty, exactRowName)) is not null)
+                                    {
+                                        resolution = TargetResolution<AutomationElement>.Resolved(cachedExactTarget);
+                                        reusedCachedTarget = true;
+                                    }
+                                }
+                                catch (ElementNotAvailableException)
+                                {
+                                    cachedExactTarget = null;
+                                }
+                            }
+                            if (!reusedCachedTarget)
+                                resolution = TargetResolution<AutomationElement>.NotFound();
                         }
                         else
                         {
