@@ -546,11 +546,16 @@ public sealed class WindowsGuideRuntime
                     }
 
                     clickHandler = (_, _) => clickCompleted.TrySetResult();
+                    var invokeSubscriptionStartedAt = stepStopwatch.ElapsedMilliseconds;
                     Automation.AddAutomationEventHandler(
                         InvokePattern.InvokedEvent,
                         target,
                         TreeScope.Element,
                         clickHandler);
+                    var invokeSubscriptionDuration = stepStopwatch.ElapsedMilliseconds - invokeSubscriptionStartedAt;
+                    if (invokeSubscriptionDuration >= 50)
+                        Console.Error.WriteLine(
+                            $"[DAP Windows performance] Step '{step.Id}' phase=invoke-event-subscribe duration={invokeSubscriptionDuration} ms.");
                     subscribedTarget = target;
                     if (step.Id == "testcrm-windows-back-to-cases")
                         Console.Error.WriteLine($"[DAP Windows guide diagnostic] Step '{step.Id}' subscribed to Invoke.");
