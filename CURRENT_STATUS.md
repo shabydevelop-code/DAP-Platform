@@ -143,3 +143,11 @@ The active Guide can continue while its bubble is hidden after the learner navig
 - Commit `5f7fdbe` removes TestCRM-specific Windows learner diagnostics and repeated full target descriptions while retaining step lifecycle and performance timings for the upcoming Windows/Web regression.
 - Existing local log files are not deleted remotely; operator may clear only explicitly named old log outputs before creating fresh Windows and Web logs. Do not delete guide data, SQLite databases, or application state as part of log cleanup.
 - Windows and Web full regressions have not yet been rerun after this cleanup.
+
+## Production learner regression verified (2026-10-11)
+- User confirmed successful full Windows SampleApp Guide run using published `C:\GuideMe\DAP.exe --guide sampleapp-windows-guide`, after launching the Windows SampleApp. The previous Step 2 loop did not recur during this run.
+- User confirmed successful full Web SampleApp Guide run using `C:\GuideMe\DAP.exe --guide sampleapp-web-guide` with SampleApp server on port 5201 and Web app on port 5200. Chrome extension connectivity and Guide completion were observed as successful in that run.
+- Initial Web attempts failed while port 5200 was not listening (5201 was listening). Starting `demos/Web/App/DAP.SampleApp.Web.csproj` restored port 5200; the user confirmed the site loaded before successfully rerunning the Guide. Extension showed INACTIVE before the successful run; this alone was not proof of a fault.
+- User-side Release build of `src/DAP.App/DAP.App.csproj` succeeded with one existing CS0162 unreachable-code warning at `src/DAP.Runtime.Windows/Targets/WindowsTargetResolver.cs:241`.
+- Temporary local `.log`, `.stderr`, and `.stdout` files were cleared by the user. The Windows performance-timing cleanup was merged into `main` as `a1655d7`, pulled locally, and its temporary remote branch deleted.
+- These are user-reported full manual production-learner runs against SampleApp, not automated test-suite runs or quantified latency benchmarks. No additional code changes were made for this documentation update.
