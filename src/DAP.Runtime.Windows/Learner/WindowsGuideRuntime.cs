@@ -130,7 +130,6 @@ public sealed class WindowsGuideRuntime
         var clickCompleted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         AutomationEventHandler? clickHandler = null;
         AutomationElement? subscribedTarget = null;
-        string? lastTargetDisappearedDiagnostic = null;
         var stepStopwatch = Stopwatch.StartNew();
         var resolutionAttempt = 0;
         AutomationElement? cachedExactTarget = null;
@@ -331,8 +330,6 @@ public sealed class WindowsGuideRuntime
                 }
                 catch (ElementNotAvailableException)
                 {
-                    if (step.Id == "testcrm-windows-back-to-cases")
-                        Console.Error.WriteLine($"[DAP Windows guide diagnostic] Step '{step.Id}' resolver threw ElementNotAvailableException.");
                     await _bubbles.HideAsync();
                     if (IsDisappearedTargetStepComplete())
                         return GuideStepReconciliationResult.Completed;
@@ -342,8 +339,6 @@ public sealed class WindowsGuideRuntime
 
                 if (resolution.Status != TargetResolutionStatus.Resolved || resolution.Target is null)
                 {
-                    if (step.Id == "testcrm-windows-back-to-cases")
-                        Console.Error.WriteLine($"[DAP Windows guide diagnostic] Step '{step.Id}' resolution status={resolution.Status}; targetNull={resolution.Target is null}.");
                     await _bubbles.HideAsync();
                     if (IsDisappearedTargetStepComplete())
                         return GuideStepReconciliationResult.Completed;
@@ -468,13 +463,6 @@ public sealed class WindowsGuideRuntime
                 var sameAsPreExisting = clicked
                     && preExistingTarget is not null
                     && SameElement(preExistingTarget, target);
-                if (step.Id == "testcrm-windows-back-to-cases")
-                {
-                    Console.Error.WriteLine(
-                        $"[DAP Windows guide diagnostic] Step '{step.Id}' resolved; " +
-                        $"sameAsPreExisting={sameAsPreExisting}; " +
-                        $"target={DescribeTarget(target)}");
-                }
 
                 if (GuideRunPlan.ShouldCapture(step, TargetRuntime.Windows, StepCaptureTiming.DuringStep))
                 {
@@ -530,8 +518,6 @@ public sealed class WindowsGuideRuntime
                     // completion/validation semantics independent of bubble
                     // placement; the presenter decides whether a partially clipped
                     // target is suitable for showing an attached bubble.
-                    if (step.Id == "testcrm-windows-back-to-cases")
-                        Console.Error.WriteLine($"[DAP Windows guide diagnostic] Step '{step.Id}' target has no visible bounds.");
                     await _bubbles.HideAsync();
                     return await GuideActiveStepState.WaitAsync(
                         GuideStepReconciliationResult.WaitingForAction, _pollInterval, cancellationToken);
@@ -558,9 +544,6 @@ public sealed class WindowsGuideRuntime
                             $"[DAP Windows performance] Step '{step.Id}' phase=invoke-event-subscribe duration={invokeSubscriptionDuration} ms.");
                     subscribedTarget = target;
                 }
-
-                if (step.Id == "testcrm-windows-back-to-cases")
-                    Console.Error.WriteLine($"[DAP Windows guide diagnostic] Step '{step.Id}' showing bubble.");
 
                 var bubbleStartedAt = stepStopwatch.ElapsedMilliseconds;
                 if (!bubbleFirstShownLogged && firstTargetResolvedAt >= 0)
@@ -665,9 +648,6 @@ public sealed class WindowsGuideRuntime
                     Console.Error.WriteLine($"[DAP Windows Hybrid] committed persisted value for Step {step.Order} '{step.Id}'.");
                 }
 
-                if (step.Id == "testcrm-windows-back-to-cases")
-                    Console.Error.WriteLine($"[DAP Windows guide diagnostic] Step '{step.Id}' bubble shown.");
-
                 if (clicked)
                 {
                     // A clicked Step completes only from observed activation of the
@@ -687,13 +667,7 @@ public sealed class WindowsGuideRuntime
                 {
                     // Completion is detected on a later reconciliation pass when
                     // the previously resolved target leaves the current UI tree.
-                    var diagnostic = DescribeTarget(target);
-                    if (!string.Equals(diagnostic, lastTargetDisappearedDiagnostic, StringComparison.Ordinal))
-                    {
-                        Console.Error.WriteLine(
-                            $"[DAP Windows guide] Step '{step.Id}' target-disappeared still resolves: {diagnostic}");
-                        lastTargetDisappearedDiagnostic = diagnostic;
-                    }
+
                 }
                 else if (GuideStepExecutionPolicy.CanEvaluatePrimaryValidation(
                     step, isTextEditTarget, Volatile.Read(ref textTargetCommitted) == 1))
