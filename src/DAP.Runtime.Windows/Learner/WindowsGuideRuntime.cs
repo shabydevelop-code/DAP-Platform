@@ -195,7 +195,13 @@ public sealed class WindowsGuideRuntime
                     return GuideStepReconciliationResult.Completed;
                 }
 
-                if (sharedEngine.ObserveContext(activeState, IsStepContextActive(windowRoot, step))
+                var contextStartedAt = stepStopwatch.ElapsedMilliseconds;
+                var stepContextActive = IsStepContextActive(windowRoot, step);
+                var contextDuration = stepStopwatch.ElapsedMilliseconds - contextStartedAt;
+                if (contextDuration >= 50)
+                    Console.Error.WriteLine(
+                        $"[DAP Windows performance] Step '{step.Id}' phase=step-context-check duration={contextDuration} ms, active={stepContextActive}.");
+                if (sharedEngine.ObserveContext(activeState, stepContextActive)
                     == GuideStepReconciliationResult.WaitingForContext)
                 {
                     await _bubbles.HideAsync();
@@ -500,8 +506,13 @@ public sealed class WindowsGuideRuntime
                     if (viewportDuration >= 50)
                         Console.Error.WriteLine(
                             $"[DAP Windows performance] Step '{step.Id}' phase=initial-viewport-check duration={viewportDuration} ms.");
-                    if (needsAdjustment
-                        && TryScrollIntoComfortableView(target))
+                    var scrollStartedAt = stepStopwatch.ElapsedMilliseconds;
+                    var scrollSucceeded = needsAdjustment && TryScrollIntoComfortableView(target);
+                    var scrollDuration = stepStopwatch.ElapsedMilliseconds - scrollStartedAt;
+                    if (scrollDuration >= 50)
+                        Console.Error.WriteLine(
+                            $"[DAP Windows performance] Step '{step.Id}' phase=initial-scroll duration={scrollDuration} ms, needed={needsAdjustment}, succeeded={scrollSucceeded}.");
+                    if (scrollSucceeded)
                     {
                         Console.Error.WriteLine(
                             $"[DAP Windows guide] Step '{step.Id}' centered initial target in its scroll viewport.");
@@ -943,6 +954,8 @@ public sealed class WindowsGuideRuntime
                 await Task.Delay(_pollInterval, cancellationToken);
         }
 
+        Console.Error.WriteLine(
+            $"[DAP Windows UIA settle timing] phase=scope-lookup duration={scopeWait.ElapsedMilliseconds} ms, found={scope is not null}.");
         if (scope is null)
             return;
 
@@ -961,6 +974,7 @@ public sealed class WindowsGuideRuntime
 
         try
         {
+            var subscriptionStartedAt = observation.ElapsedMilliseconds;
             Automation.AddStructureChangedEventHandler(
                 scope,
                 TreeScope.Subtree,
@@ -970,10 +984,13 @@ public sealed class WindowsGuideRuntime
                 scope,
                 TreeScope.Subtree,
                 asyncContentHandler);
+            Console.Error.WriteLine(
+                $"[DAP Windows UIA settle timing] phase=subscribe duration={observation.ElapsedMilliseconds - subscriptionStartedAt} ms.");
 
             var quietPeriod = TimeSpan.FromMilliseconds(450);
             var maxObservation = TimeSpan.FromSeconds(5);
 
+            var quietStartedAt = observation.ElapsedMilliseconds;
             while (observation.Elapsed < maxObservation)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -986,6 +1003,8 @@ public sealed class WindowsGuideRuntime
                 await Task.Delay(TimeSpan.FromMilliseconds(100), cancellationToken);
             }
 
+            Console.Error.WriteLine(
+                $"[DAP Windows UIA settle timing] phase=quiet-observation duration={observation.ElapsedMilliseconds - quietStartedAt} ms, signals={signalCount}.");
             if (signalCount > 0 || observation.ElapsedMilliseconds >= 100)
             {
                 Console.Error.WriteLine(
