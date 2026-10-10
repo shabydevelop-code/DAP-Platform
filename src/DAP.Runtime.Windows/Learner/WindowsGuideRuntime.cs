@@ -195,7 +195,7 @@ public sealed class WindowsGuideRuntime
                         GuideStepReconciliationResult.WaitingForContext, _pollInterval, cancellationToken);
                 }
 
-                TargetResolution<AutomationElement> resolution;
+                TargetResolution<AutomationElement> resolution = TargetResolution<AutomationElement>.NotFound();
                 var resolutionStopwatch = Stopwatch.StartNew();
                 resolutionAttempt++;
                 try
