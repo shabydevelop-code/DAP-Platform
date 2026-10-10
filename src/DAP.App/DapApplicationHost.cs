@@ -57,7 +57,7 @@ public static class DapApplicationHost
                 $"DAP.exe ready.{Environment.NewLine}Database: {databaseOptions.DatabasePath}{Environment.NewLine}UTC: {DateTimeOffset.UtcNow:O}{Environment.NewLine}",
                 cancellationToken);
 
-            MessageBox.Show(
+            System.Windows.MessageBox.Show(
                 texts.Format("App.InfrastructureReady", databaseOptions.DatabasePath, diagnosticsPath),
                 texts.Get("App.InfrastructureCheckTitle"),
                 MessageBoxButton.OK,
@@ -71,7 +71,7 @@ public static class DapApplicationHost
         StartupMark(startup, $"guide loaded ({steps.Count} steps, {applicationContexts.Count} application contexts)");
         if (steps.Count == 0)
         {
-            MessageBox.Show(
+            System.Windows.MessageBox.Show(
                 texts.Format("Learner.GuideHasNoSteps", options.GuideId!),
                 texts.Get("Learner.WindowTitle"),
                 MessageBoxButton.OK,
@@ -119,7 +119,7 @@ public static class DapApplicationHost
             catch (WindowsApplicationContextMatchException ex)
             {
                 Console.Error.WriteLine($"[DAP diagnostic] Windows application context resolution failed: {ex}");
-                MessageBox.Show(
+                System.Windows.MessageBox.Show(
                     texts.Get("App.TargetWindowNotFoundMessage"),
                     texts.Get("App.TargetWindowNotFoundTitle"),
                     MessageBoxButton.OK,
