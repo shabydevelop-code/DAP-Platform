@@ -126,3 +126,9 @@ The active Guide can continue while its bubble is hidden after the learner navig
 - User log confirmed expensive UIA event subscriptions at steps 12 and 50: subscribe ~4024/4035 ms, overall settle ~8060/8075 ms with zero events. Step 47 was fast (+58 ms first bubble) in the same run.
 - Commit `3549428` replaces per-step UIA event registration/unregistration with bounded (1-second observation budget, excluding provider call overrun) polling for two consecutive appearances of the exact descendant name within the exact scoped ancestor. Existing authoritative target resolution and completion validation are unchanged.
 - This avoids known provider-side event handler stalls; it does not guarantee the same semantics as event-based quiescence. The full 55-step Windows regression, compile and performance results remain unverified after this change. If a provider blocks inside FindFirst, the nominal observation budget cannot interrupt that synchronous call.
+
+## Windows performance follow-up (2026-10-10)
+- Full 55-step user-side regression completed after the earlier event-settle replacement. Step 12 first bubble +2480 ms, step 48 +2633 ms, step 50 +2625 ms; redundant preflight exact-descendant scans took ~1146–1179 ms before authoritative resolution (~1144–1235 ms).
+- Commit `f7c180c` removes the redundant pre-resolution UIA scan; target resolution and normal reconciliation still handle changing targets. This changes readiness behavior and requires full regression, especially on dynamically refreshing grids.
+- Step 47 still has +4038 ms between first target resolution and ShowAsync, while target lookup is +21 ms and ShowAsync 39 ms. Commit `5f4b38c` instruments Invoke event subscription, a suspected provider-side bottleneck, without changing event semantics. Cause is not yet verified.
+- No Windows build or user-side post-change regression has been performed yet.
