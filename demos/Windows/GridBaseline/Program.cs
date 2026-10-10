@@ -1,3 +1,4 @@
+using System.IO;
 using DAP.Core.Guides;
 using DAP.Core.Targets;
 using DAP.Data.Sqlite;
