@@ -140,7 +140,13 @@ public sealed class WindowsGuideRuntime
         var bubbleFirstShownLogged = false;
         var initialVisibilityChecked = false;
         var initialInputFocusApplied = false;
+        var captureStartedAt = stepStopwatch.ElapsedMilliseconds;
         var completionTargetsBeforeAction = CaptureReplacementBaselines(windowRoot, step);
+        var captureDuration = stepStopwatch.ElapsedMilliseconds - captureStartedAt;
+        if (captureDuration >= 50)
+            Console.Error.WriteLine(
+                $"[DAP Windows performance] Step '{step.Id}' phase=completion-baseline duration={captureDuration} ms.");
+
 
         Console.Error.WriteLine(
             $"[DAP Windows step timing] Step {stepNumber}/{totalSteps} '{step.Id}' entered at +0 ms.");
@@ -486,7 +492,13 @@ public sealed class WindowsGuideRuntime
                 if (!initialVisibilityChecked)
                 {
                     initialVisibilityChecked = true;
-                    if (NeedsInitialViewportAdjustment(windowRoot, target)
+                    var viewportStartedAt = stepStopwatch.ElapsedMilliseconds;
+                    var needsAdjustment = NeedsInitialViewportAdjustment(windowRoot, target);
+                    var viewportDuration = stepStopwatch.ElapsedMilliseconds - viewportStartedAt;
+                    if (viewportDuration >= 50)
+                        Console.Error.WriteLine(
+                            $"[DAP Windows performance] Step '{step.Id}' phase=initial-viewport-check duration={viewportDuration} ms.");
+                    if (needsAdjustment
                         && TryScrollIntoComfortableView(target))
                     {
                         Console.Error.WriteLine(
@@ -551,6 +563,10 @@ public sealed class WindowsGuideRuntime
                     return await GuideActiveStepState.WaitAsync(
                         GuideStepReconciliationResult.WaitingForAction, _pollInterval, cancellationToken);
                 }
+                var presentationDuration = stepStopwatch.ElapsedMilliseconds - bubbleStartedAt;
+                if (presentationDuration >= 50)
+                    Console.Error.WriteLine(
+                        $"[DAP Windows performance] Step '{step.Id}' phase=bubble-presentation duration={presentationDuration} ms.");
                 if (!bubbleFirstShownLogged)
                 {
                     Console.Error.WriteLine(
