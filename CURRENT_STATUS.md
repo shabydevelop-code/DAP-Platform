@@ -109,3 +109,9 @@ The active Guide can continue while its bubble is hidden after the learner navig
 - Temporary grid ownership/property-type diagnostics were removed in `68d9c9e`; generic fallback resolution remains intact.
 - Remaining measured step-12 cost: exact descendant search ~1165 ms, scope settle ~580 ms. Prior run also showed an ~8-second settle on another grid step. Do not weaken stability waits without a provider-independent correctness check.
 - Full-guide post-fix regression and Windows build of diagnostic cleanup are not yet verified.
+
+## Windows step 47 pre-bubble latency investigation (2026-10-10)
+- Full user-side 55-step run finished successfully. Step 46 first bubble appeared at +71 ms; the observed ~4-second delay was at step 47: target first resolved +19 ms, bubble first shown +4092 ms, ShowAsync 41 ms. Step 48 and 50 first bubbles appeared at +704 ms and +710 ms.
+- The existing initial viewport check logged no >=50 ms duration for step 47, so the specific source of the pre-presentation gap is not yet established.
+- Commit `2e21f7f` adds generic per-step timings for target readiness (>=50 ms) and first-resolve-to-presentation (>=100 ms), without changing resolution, scrolling, wait behavior, or guide data.
+- Local Windows compilation and user-side re-run remain pending. Do not claim root cause or performance improvement until verified.
