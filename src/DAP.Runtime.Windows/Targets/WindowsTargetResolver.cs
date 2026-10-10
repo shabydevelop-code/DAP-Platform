@@ -937,10 +937,17 @@ public sealed class WindowsTargetResolver
             return false;
 
         var actual = element.GetCurrentPropertyValue(property.Property, true);
-        // UIA can return distinct managed wrappers for the same native ControlType.
-        // Compare their stable numeric IDs rather than wrapper object identity.
-        if (actual is ControlType actualType && property.Value is ControlType expectedType)
-            return actualType.Id == expectedType.Id;
+        // UIA returns a ControlType object for ControlTypeProperty, while
+        // PropertyCondition.Value exposes its numeric control type ID.
+        // Normalize both representations before comparing.
+        if (property.Property == AutomationElement.ControlTypeProperty)
+        {
+            var actualId = actual is ControlType actualType ? actualType.Id
+                : actual is int actualNumber ? actualNumber : (int?)null;
+            var expectedId = property.Value is ControlType expectedType ? expectedType.Id
+                : property.Value is int expectedNumber ? expectedNumber : (int?)null;
+            return actualId.HasValue && expectedId.HasValue && actualId.Value == expectedId.Value;
+        }
         return Equals(actual, property.Value);
     }
 }
