@@ -173,33 +173,21 @@ public sealed class WindowsTargetResolver
         // descendant match. Searching from the desktop/window root can miss descendants
         // exposed lazily by virtualized controls, while a scope-local query lets the
         // owning provider materialize its own subtree without enumerating every DataItem.
-        var scopeTimer = Stopwatch.StartNew();
         var scope = FindFirst(root, scopeAnchor.Locator);
-        Console.Error.WriteLine(
-            $"[DAP Windows resolver diagnostic] phase=scope, found={scope is not null}, elapsed={scopeTimer.ElapsedMilliseconds} ms.");
         if (scope is null)
             return true;
 
         // First use the provider's exact native condition. A broad primary-row
         // enumeration is expensive and unnecessary when a uniquely named child
         // is exposed directly by UI Automation.
-        var childTimer = Stopwatch.StartNew();
         var descendant = scope.FindFirst(TreeScope.Descendants, descendantCondition);
-        Console.Error.WriteLine(
-            $"[DAP Windows resolver diagnostic] phase=exact-child, found={descendant is not null}, elapsed={childTimer.ElapsedMilliseconds} ms.");
         if (descendant is not null)
         {
-            var ancestorTimer = Stopwatch.StartNew();
             AddPrimaryAncestorCandidate(
                 descendant, scope, descriptor, scopeAnchor, descendantAnchor, candidates);
-            Console.Error.WriteLine(
-                $"[DAP Windows resolver diagnostic] phase=primary-ancestor, found={candidates.Count > 0}, elapsed={ancestorTimer.ElapsedMilliseconds} ms.");
             if (candidates.Count > 0)
                 return true;
         }
-
-        if (descendant is not null)
-            DiagnoseGridOwnership(scope, descendant, descriptor.Locator);
 
         // Some providers expose GridItemPattern on the matched cell even when its
         // parent chain omits the DataItem in both UIA views. Ask the grid for that
@@ -293,66 +281,6 @@ public sealed class WindowsTargetResolver
             candidates);
 
         return true;
-    }
-
-    // Diagnostic only: inspect provider-exposed ownership without changing resolution.
-    // Bounded by depth and emitted only for scoped exact-descendant searches.
-    private static void DiagnoseGridOwnership(
-        AutomationElement scope,
-        AutomationElement descendant,
-        Locator primaryLocator)
-    {
-        try
-        {
-            var gridPattern = scope.TryGetCurrentPattern(GridPattern.Pattern, out _);
-            var paths = new List<string>();
-            foreach (var (view, walker) in new[]
-            {
-                ("raw", TreeWalker.RawViewWalker),
-                ("control", TreeWalker.ControlViewWalker)
-            })
-            {
-                var chain = new List<string>();
-                var foundPrimary = false;
-                var foundScope = false;
-                var foundGridItem = false;
-                AutomationElement? current = descendant;
-                for (var depth = 0; depth < 12 && current is not null; depth++)
-                {
-                    try
-                    {
-                        var type = current.Current.ControlType.ProgrammaticName;
-                        var id = current.Current.AutomationId;
-                        var isPrimary = MatchesLocator(current, primaryLocator);
-                        var primaryCondition = CreateCondition(primaryLocator) as PropertyCondition;
-                        var actualProperty = primaryCondition is null
-                            ? null
-                            : current.GetCurrentPropertyValue(primaryCondition.Property, true);
-                        var expectedProperty = primaryCondition?.Value;
-                        var propertyDiagnostic =
-                            $"actual='{actualProperty}'({actualProperty?.GetType().FullName ?? "null"}),expected='{expectedProperty}'({expectedProperty?.GetType().FullName ?? "null"})";
-                        var isGridItem = current.TryGetCurrentPattern(GridItemPattern.Pattern, out var pattern)
-                            && pattern is GridItemPattern;
-                        chain.Add($"{type}(id='{id}',primary={isPrimary},gridItem={isGridItem},{propertyDiagnostic})");
-                        foundPrimary |= isPrimary;
-                        foundGridItem |= isGridItem;
-                        if (Automation.Compare(current, scope))
-                        {
-                            foundScope = true;
-                            break;
-                        }
-                        current = walker.GetParent(current);
-                    }
-                    catch (ElementNotAvailableException) { break; }
-                    catch (InvalidOperationException) { break; }
-                }
-                paths.Add($"view={view}, primary={foundPrimary}, scope={foundScope}, gridItem={foundGridItem}, chain=[{string.Join(" <- ", chain)}]");
-            }
-            Console.Error.WriteLine(
-                $"[DAP Windows grid ownership] gridPattern={gridPattern}, {string.Join("; ", paths)}");
-        }
-        catch (ElementNotAvailableException) { }
-        catch (InvalidOperationException) { }
     }
 
     private static bool TryResolveGridItemRow(
