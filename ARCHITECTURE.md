@@ -15,6 +15,11 @@
 
 A Step may contain a target descriptor, multiple anchors, application context, validation and completion rules, capture/materialization, bubble definition, advance mode, enabled flag, and optional Hybrid automation value. Ambiguous or missing targets must not be guessed. Disabled Steps are skipped without renumbering. Targetless centered Steps are supported.
 
+## Captured values and dynamic targets
+A persisted `StepCaptureDefinition` identifies a runtime-observable source (locator, property and optional extraction pattern). `GuideRunPlan` records the captured string by Step ID for the current run. Subsequent target and anchor locator values may contain `{{step:<step-id>:capture}}`; materialization replaces the token with the observed value and rejects missing captures rather than choosing a fallback target. This supports linking a newly created business record to later steps without accessing the target application's source or business database.
+
+Capture is currently limited to supported adapter properties and capture-token substitution in target/anchor locators. `StepCaptureTiming` exists in Core but the SQLite `StepCaptures` repository does not persist its timing field, so platform defaults apply. Web defaults to before-action capture; Windows supports during-step/after-action capture. These defaults are not interchangeable guarantees. Captures are per-run, not durable business records. The Instructor's future authoring workflow for suggesting and confirming dynamic captures is not implemented or approved as a product design.
+
 ## Web
 ```text
 DAP.exe → .NET Web Runtime → ExtensionWebBrowserAdapter
