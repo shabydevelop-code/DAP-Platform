@@ -86,3 +86,8 @@ The active Guide can continue while its bubble is hidden after the learner navig
 - The temporary GridBaseline installer and SampleApp seed flag/function were removed from the repository after the checks. Production runtime code was not modified during cleanup.
 - Local database cleanup is **not verified**. The user must remove only the two temporary Guide keys (`sampleapp-web-grid-baseline-temporary`, `sampleapp-windows-grid-baseline-temporary`) and 100 SampleApp records with subjects `DAP-GRID-BASELINE-0001` through `DAP-GRID-BASELINE-0100`, if still present.
 - Do not run the old `demos/Windows/GridBaseline` cleanup commands after pulling this commit; the utility has been deleted. Keep ordinary demo guides and other SampleApp data intact.
+
+## Windows detached bubble behavior (2026-10-10)
+- Fixed WindowsBubblePresenter so a manually dragged bubble no longer follows target movement/scrolling after release. Automatic placement is also suppressed during active dragging. The pointer stays hidden until the next step.
+- Windows drag handle now uses a hand cursor when idle and a move cursor while dragging; the browser uses native CSS grab/grabbing cursors. Exact cursor artwork parity is not yet implemented.
+- Change committed in `62e8030`. User-side Windows build and a 100-row grid scroll/drag regression check are pending.
