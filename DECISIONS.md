@@ -19,3 +19,5 @@
 17. **Web transport lifecycle:** The GuideMe extension currently keeps a Native Messaging connection that may outlive Guide sessions. Do not introduce on-demand connection/disconnection without a reliable reactivation mechanism and regression coverage. An idle native host is not by itself a learner-process leak.
 18. **Existing text values:** A text-input Step requires an observed focus-and-leave interaction before evaluating a pre-existing value. No text modification is required; persisted validation and completion conditions must still pass. The same rule applies to Web and Windows, without demo-specific checks.
 19. **Instructor:** Authoring tools and AI-assisted diagnosis are future capabilities; the learner remains independent of them.
+
+20. **Dynamic captures:** A Guide may reuse values observed in earlier Steps through persisted capture definitions and locator/anchor tokens. Missing or ambiguous observations must not be guessed. The Instructor's UI and suggestion workflow for authoring these definitions remain undecided.
