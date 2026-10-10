@@ -16,7 +16,7 @@ namespace DAP.Runtime.Web.Browser;
 /// </summary>
 public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
 {
-    private const string PipeName = "dap-web-runtime-v1";
+    private static readonly string PipeName = "dap-web-runtime-v1-" + System.Diagnostics.Process.GetCurrentProcess().SessionId;
     private static readonly TimeSpan CommandTimeout = TimeSpan.FromSeconds(5);
 
     private readonly ConcurrentDictionary<string, TaskCompletionSource<JsonElement>> _pendingResponses = new(StringComparer.Ordinal);
