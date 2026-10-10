@@ -1,6 +1,6 @@
 param(
     [string]$PackagePath = "C:\GuideMe",
-    [string]$ExtensionId = "kadfnneenggbfhjjeglaenpiimkelioe"
+    [Parameter(Mandatory=$true)][string]$ExtensionId
 )
 
 $ErrorActionPreference = "Stop"
