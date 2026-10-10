@@ -132,3 +132,8 @@ The active Guide can continue while its bubble is hidden after the learner navig
 - Commit `f7c180c` removes the redundant pre-resolution UIA scan; target resolution and normal reconciliation still handle changing targets. This changes readiness behavior and requires full regression, especially on dynamically refreshing grids.
 - Step 47 still has +4038 ms between first target resolution and ShowAsync, while target lookup is +21 ms and ShowAsync 39 ms. Commit `5f4b38c` instruments Invoke event subscription, a suspected provider-side bottleneck, without changing event semantics. Cause is not yet verified.
 - No Windows build or user-side post-change regression has been performed yet.
+
+## Windows guide-wide Invoke listener (2026-10-10)
+- User regression `windows-performance-regression.log` completed all 55 steps. After removing duplicate readiness scanning, first bubble at step 12 +1377 ms, step 48 +1420 ms, step 50 +1412 ms. Step 26 +4076 ms and step 47 +4085 ms were dominated by UIA Invoke event subscription (4008 and 4019 ms respectively).
+- Commit `0632a5c` replaces per-button UIA Invoke subscriptions with one window-root subtree subscription per guide run, using the active target's UIA RuntimeId to gate completion. Existing completion conditions and click-required policy remain unchanged; listener is cleared after each click step and disposed at guide end.
+- Requires Windows build and full 55-step manual regression, particularly dialog Invoke events, target replacement and cancellation. The shared root subscription may have its own provider-side startup/cleanup cost, and some providers may not deliver nested/modal Invoke events via the root scope. No performance or functional verification yet.
