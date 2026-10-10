@@ -2,6 +2,7 @@ using DAP.Core.Guides;
 using DAP.Core.Targets;
 using DAP.Data.Sqlite;
 using DAP.Data.Sqlite.Guides;
+using Microsoft.Data.Sqlite;
 
 const string guideKey = "sampleapp-windows-grid-baseline-temporary";
 const string sourceGuideKey = "sampleapp-windows-guide";
@@ -15,6 +16,16 @@ if (remove)
     command.Parameters.AddWithValue("$key", guideKey);
     var affected = await command.ExecuteNonQueryAsync();
     Console.WriteLine($"Temporary Guide removed: {affected}");
+    var demoDb = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "demos", "Shared", "data", "sampleapp.db"));
+    if (File.Exists(demoDb))
+    {
+        await using var demo = new SqliteConnection($"Data Source={demoDb}");
+        await demo.OpenAsync();
+        await using var delete = demo.CreateCommand();
+        delete.CommandText = "DELETE FROM Cases WHERE SiteId=1 AND Subject LIKE 'DAP-GRID-BASELINE-%';";
+        var removed = await delete.ExecuteNonQueryAsync();
+        Console.WriteLine($"Temporary demo cases removed: {removed}");
+    }
     return;
 }
 var contexts = await repo.GetApplicationContextsAsync(sourceGuideKey);
