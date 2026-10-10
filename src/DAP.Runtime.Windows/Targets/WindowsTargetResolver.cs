@@ -198,6 +198,9 @@ public sealed class WindowsTargetResolver
                 return true;
         }
 
+        if (descendant is not null)
+            DiagnoseGridOwnership(scope, descendant, descriptor.Locator);
+
         // Some providers expose GridItemPattern on the matched cell even when its
         // parent chain omits the DataItem in both UIA views. Ask the grid for that
         // exact row rather than scanning every realized DataItem. Only accept an
@@ -290,6 +293,59 @@ public sealed class WindowsTargetResolver
             candidates);
 
         return true;
+    }
+
+    // Diagnostic only: inspect provider-exposed ownership without changing resolution.
+    // Bounded by depth and emitted only for scoped exact-descendant searches.
+    private static void DiagnoseGridOwnership(
+        AutomationElement scope,
+        AutomationElement descendant,
+        Locator primaryLocator)
+    {
+        try
+        {
+            var gridPattern = scope.TryGetCurrentPattern(GridPattern.Pattern, out _);
+            var paths = new List<string>();
+            foreach (var (view, walker) in new[]
+            {
+                ("raw", TreeWalker.RawViewWalker),
+                ("control", TreeWalker.ControlViewWalker)
+            })
+            {
+                var chain = new List<string>();
+                var foundPrimary = false;
+                var foundScope = false;
+                var foundGridItem = false;
+                AutomationElement? current = descendant;
+                for (var depth = 0; depth < 12 && current is not null; depth++)
+                {
+                    try
+                    {
+                        var type = current.Current.ControlType.ProgrammaticName;
+                        var id = current.Current.AutomationId;
+                        var isPrimary = MatchesLocator(current, primaryLocator);
+                        var isGridItem = current.TryGetCurrentPattern(GridItemPattern.Pattern, out var pattern)
+                            && pattern is GridItemPattern;
+                        chain.Add($"{type}(id='{id}',primary={isPrimary},gridItem={isGridItem})");
+                        foundPrimary |= isPrimary;
+                        foundGridItem |= isGridItem;
+                        if (Automation.Compare(current, scope))
+                        {
+                            foundScope = true;
+                            break;
+                        }
+                        current = walker.GetParent(current);
+                    }
+                    catch (ElementNotAvailableException) { break; }
+                    catch (InvalidOperationException) { break; }
+                }
+                paths.Add($"view={view}, primary={foundPrimary}, scope={foundScope}, gridItem={foundGridItem}, chain=[{string.Join(" <- ", chain)}]");
+            }
+            Console.Error.WriteLine(
+                $"[DAP Windows grid ownership] gridPattern={gridPattern}, {string.Join("; ", paths)}");
+        }
+        catch (ElementNotAvailableException) { }
+        catch (InvalidOperationException) { }
     }
 
     private static bool TryResolveGridItemRow(
