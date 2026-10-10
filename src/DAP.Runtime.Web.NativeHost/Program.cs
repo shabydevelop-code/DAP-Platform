@@ -8,7 +8,6 @@ using DAP.Data.Sqlite;
 using DAP.Data.Sqlite.Guides;
 
 const string RuntimePipeName = "dap-web-runtime-v1";
-const string TestPipeName = "dap-web-e2e-v1";
 
 using var nativeLog = new NativeHostLog();
 nativeLog.Write("process-start", $"pid={Environment.ProcessId}; args=[{string.Join(", ", args)}]");
@@ -22,9 +21,7 @@ json.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
 using var shutdown = new CancellationTokenSource();
 var nativeOutput = new NativeOutputWriter(output, json);
 var runtimeBridge = new DapPipeBridge(RuntimePipeName, nativeOutput, json, nativeLog);
-var testBridge = new DapPipeBridge(TestPipeName, nativeOutput, json, nativeLog);
 var runtimeBridgeTask = runtimeBridge.RunAsync(shutdown.Token);
-var testBridgeTask = testBridge.RunAsync(shutdown.Token);
 
 try
 {
@@ -62,8 +59,6 @@ try
                 "ping" => new { requestId = request?.RequestId, ok = true, type = "pong" },
                 "adapterEvent" => await runtimeBridge.ForwardToDapAsync(request!, shutdown.Token),
                 "adapterResponse" => await runtimeBridge.ForwardToDapAsync(request!, shutdown.Token),
-                "testDriverResponse" => await testBridge.ForwardToDapAsync(request!, shutdown.Token),
-                "testDriverEvent" => await testBridge.ForwardToDapAsync(request!, shutdown.Token),
                 _ => new { requestId = request?.RequestId, ok = false, error = "Unsupported native request." }
             };
         }
@@ -79,7 +74,6 @@ finally
 {
     shutdown.Cancel();
     try { await runtimeBridgeTask; } catch (OperationCanceledException) { }
-    try { await testBridgeTask; } catch (OperationCanceledException) { }
 }
 
 static async Task<bool> ReadExactAsync(Stream stream, byte[] buffer)
