@@ -102,3 +102,10 @@ The active Guide can continue while its bubble is hidden after the learner navig
 - Added read-only Python 3 SQLite audit `scripts/audit-guide-targets.py` (`b0c2f48`) to classify actual persisted guide targets and anchors by resolver search path.
 - Run locally against the production DAP.db and sampleapp-windows-guide; CSV output is required to establish actual counts and identify steps for remediation.
 - This static classification does not establish runtime uniqueness or latency. No guide definitions or resolver behavior changed.
+
+## Windows grid ancestor resolution verified (2026-10-10)
+- User-side Windows log confirmed step 12 direct ancestor match (`phase=primary-ancestor, found=True`) with no 101-row enumeration after normalizing UIA ControlType property values (ControlType object vs numeric PropertyCondition.Value), commit `5c08266`.
+- Step 12 target resolution improved from 3636 ms to 1199 ms; first bubble from 4417 ms to 2017 ms (separate runs; timings may vary).
+- Temporary grid ownership/property-type diagnostics were removed in `68d9c9e`; generic fallback resolution remains intact.
+- Remaining measured step-12 cost: exact descendant search ~1165 ms, scope settle ~580 ms. Prior run also showed an ~8-second settle on another grid step. Do not weaken stability waits without a provider-independent correctness check.
+- Full-guide post-fix regression and Windows build of diagnostic cleanup are not yet verified.
