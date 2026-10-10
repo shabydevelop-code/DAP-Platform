@@ -47,7 +47,7 @@ Then run the learner separately:
 - SQLite does not persist explicit capture timing. Substitution does not yet cover every Guide field. Capture values live only for the current Guide run.
 
 ## Multi-user and Citrix readiness
-- Web transport currently uses a fixed named-pipe name shared across learner instances. Concurrent learner sessions are not yet proven isolated.
+- Web learner and Native Messaging Host now derive the same named-pipe name using the Windows process Session ID. This separates pipe names across different Windows logon sessions. This is a code change only; no build or multi-session runtime test has yet been performed.
 - A per-user, per-Windows-session transport namespace and a per-learner binding protocol are required before declaring multi-user support.
 - Windows UI Automation context discovery, concurrent SQLite access, and browser-profile routing require multi-session regression.
 - Citrix compatibility has not been verified; a regular Windows machine can test concurrent processes and distinct logon sessions, but does not replace a final Citrix test.
