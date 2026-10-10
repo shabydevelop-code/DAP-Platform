@@ -24,7 +24,7 @@ The former JSONL command/response/event journals were migration scaffolding and 
 
 ## Behavioral contract
 
-The extension path is the single Web browser-access architecture for production learner execution and Web E2E. It must preserve the persisted Guide semantics owned by the .NET Runtime and must not invent a second Web runtime model.
+The extension path is the single Web browser-access architecture for production learner execution. It must preserve the persisted Guide semantics owned by the .NET Runtime and must not invent a second Web runtime model.
 
 Current implemented behavior includes:
 
@@ -35,7 +35,7 @@ Current implemented behavior includes:
 - content readiness probing and idempotent reinjection when a frame has no receiver;
 - safe handling of invalidated extension contexts after extension reload;
 - DOM/target re-resolution through reconciliation;
-- natural validation commits: text edit followed by blur, discrete-control change, and click event;
+- natural validation commits: text field focus followed by blur (including unchanged values), discrete-control change, and click event;
 - click acknowledgement/replay for browser-default navigation/submission-capable targets;
 - live validation rebinding when the current DOM target is replaced;
 - valid non-click commits remain latched while persisted completion conditions are pending;
@@ -65,19 +65,3 @@ The content runtime must not:
 - persist Guide progress;
 - become dependent on target-application source code or private APIs.
 
-## E2E boundary
-
-The Web E2E runner uses explicit test-driver commands routed through this same extension boundary. Those commands are synthetic learner/test actions only. They must never become a source of target identity, validation rules, completion rules, or progression decisions required by the production learner.
-
-A persisted Guide that works manually must not require extra E2E-only selectors or hidden business rules to pass automatically.
-
-## Current verification status — 2026-10-06
-
-The persisted `testcrm-web-canonical-workflow` has completed 54/54 Steps through the production extension path in both of these verified forms:
-
-- runner-free manual execution;
-- Guided Fast automated execution.
-
-The automated run uses the installed DAP extension profile and Native Host transport. Browser profile discovery is automatic. The legacy browser-mode environment selector is not part of the active extension-native path.
-
-Stable idle CPU for the TestCRM Chrome tab is approximately 2% with the accepted 500 ms stable reconciliation cadence; recovery reconciliation remains 100 ms.
