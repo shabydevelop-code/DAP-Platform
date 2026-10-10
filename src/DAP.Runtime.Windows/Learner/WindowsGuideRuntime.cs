@@ -220,7 +220,7 @@ public sealed class WindowsGuideRuntime
                         && step.Target.Locator.Value.Equals("dataitem", StringComparison.OrdinalIgnoreCase);
                     var reusedCachedTarget = false;
                     if (cacheEligible && cachedExactTarget is not null
-                        && lastFullResolution.ElapsedMilliseconds < 1000)
+                        && lastFullResolution.ElapsedMilliseconds < (exactRowName is null ? 1000 : 5000))
                     {
                         try
                         {
