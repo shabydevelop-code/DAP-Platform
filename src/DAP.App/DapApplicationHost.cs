@@ -148,7 +148,6 @@ public static class DapApplicationHost
         var bubbles = new WindowsBubblePresenter(texts);
         using var userStopped = new CancellationTokenSource();
         using var tray = new GuideSessionTray(options.GuideId!, texts.Language, () => userStopped.Cancel());
-        bubbles.StopRequested += () => userStopped.Cancel();
         using var stopRegistration = userStopped.Token.Register(() => runCancellation.Cancel());
         var runtime = new WindowsGuideRuntime(resolver, bubbles, automaticStepLabel: options.ExecutionMode == DapExecutionMode.Hybrid ? "אוטומט" : null, hybrid: options.ExecutionMode == DapExecutionMode.Hybrid);
 
