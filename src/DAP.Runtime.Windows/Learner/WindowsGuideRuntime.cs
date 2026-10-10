@@ -152,15 +152,9 @@ public sealed class WindowsGuideRuntime
         Console.Error.WriteLine(
             $"[DAP Windows step timing] Step {stepNumber}/{totalSteps} '{step.Id}' entered at +0 ms.");
 
-        if (ShouldWaitForUiStability(step.Target!))
-        {
-            var settleStartedAt = stepStopwatch.ElapsedMilliseconds;
-            await WaitForTargetScopeStabilityAsync(windowRoot, step.Target!, cancellationToken);
-            Console.Error.WriteLine(
-                $"[DAP Windows step timing] Step '{step.Id}' UIA scope settled at " +
-                $"+{stepStopwatch.ElapsedMilliseconds} ms " +
-                $"(wait={stepStopwatch.ElapsedMilliseconds - settleStartedAt} ms).");
-        }
+        // Authoritative target resolution below already checks the exact scoped
+        // descendant. Avoid repeating the same expensive provider query before
+        // the first resolution; the regular reconciliation loop handles rerenders.
 
         try
         {
@@ -925,84 +919,6 @@ public sealed class WindowsGuideRuntime
         if (!match.Success)
             return null;
         return match.Groups.Count > 1 ? match.Groups[1].Value : match.Value;
-    }
-
-    private async Task WaitForTargetScopeStabilityAsync(
-        AutomationElement windowRoot,
-        TargetDescriptor descriptor,
-        CancellationToken cancellationToken)
-    {
-        var scopeAnchor = descriptor.Anchors.FirstOrDefault(anchor =>
-            anchor.Relation is AnchorRelation.Ancestor or AnchorRelation.Context
-            && IsSimpleExactLocator(anchor.Locator));
-        var descendantAnchor = descriptor.Anchors.FirstOrDefault(anchor =>
-            anchor.Relation == AnchorRelation.Descendant
-            && IsExactNameRegex(anchor.Locator));
-        if (scopeAnchor is null || descendantAnchor is null)
-            return;
-
-        // A stable, exact descendant is a stronger readiness signal than UIA
-        // structure notifications. Some providers block for ~4 seconds on
-        // both subscription and unsubscription, even without any events.
-        // Never enumerate the whole grid or change the resolver's authority.
-        var exactName = descendantAnchor.Locator.Value[1..^1];
-        var stopwatch = Stopwatch.StartNew();
-        var consecutiveMatches = 0;
-        var observations = 0;
-        const int maxObservationMilliseconds = 1000;
-
-        while (stopwatch.ElapsedMilliseconds < maxObservationMilliseconds)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var found = false;
-            try
-            {
-                var scope = FindFirstExact(windowRoot, scopeAnchor.Locator);
-                if (scope is not null)
-                {
-                    found = scope.FindFirst(
-                        TreeScope.Descendants,
-                        new PropertyCondition(AutomationElement.NameProperty, exactName)) is not null;
-                }
-            }
-            catch (ElementNotAvailableException)
-            {
-                // Re-rendered UIA elements are transient; authoritative target
-                // resolution below will handle the next available element.
-            }
-            catch (InvalidOperationException)
-            {
-                // A provider can invalidate its tree during a refresh.
-            }
-
-            observations++;
-            consecutiveMatches = found ? consecutiveMatches + 1 : 0;
-            if (consecutiveMatches >= 2)
-                break;
-
-            var remaining = maxObservationMilliseconds - stopwatch.ElapsedMilliseconds;
-            if (remaining <= 0)
-                break;
-            await Task.Delay(TimeSpan.FromMilliseconds(Math.Min(100, remaining)), cancellationToken);
-        }
-
-        Console.Error.WriteLine(
-            $"[DAP Windows UIA settle] strategy=exact-descendant-poll, " +
-            $"scope={scopeAnchor.Locator.Strategy}='{scopeAnchor.Locator.Value}', " +
-            $"observations={observations}, consecutiveMatches={consecutiveMatches}, " +
-            $"elapsed={stopwatch.ElapsedMilliseconds} ms.");
-    }
-
-    private static bool ShouldWaitForUiStability(TargetDescriptor descriptor)
-    {
-        var hasScope = descriptor.Anchors.Any(anchor =>
-            anchor.Relation is AnchorRelation.Ancestor or AnchorRelation.Context
-            && IsSimpleExactLocator(anchor.Locator));
-        var hasExactDynamicDescendant = descriptor.Anchors.Any(anchor =>
-            anchor.Relation == AnchorRelation.Descendant
-            && IsExactNameRegex(anchor.Locator));
-
-        return hasScope && hasExactDynamicDescendant;
     }
 
     private static bool IsSimpleExactLocator(Locator locator)
