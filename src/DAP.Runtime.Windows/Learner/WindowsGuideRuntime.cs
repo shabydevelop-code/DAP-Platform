@@ -230,8 +230,9 @@ public sealed class WindowsGuideRuntime
                                     || (strategy == "name" && current.Name == step.Target.Locator.Value)))
                                 || (exactRowName is not null
                                     && current.ControlType == ControlType.DataItem
-                                    && cachedExactTarget.FindFirst(TreeScope.Descendants,
-                                        new PropertyCondition(AutomationElement.NameProperty, exactRowName)) is not null))
+                                    && (current.IsOffscreen
+                                        || cachedExactTarget.FindFirst(TreeScope.Descendants,
+                                            new PropertyCondition(AutomationElement.NameProperty, exactRowName)) is not null)))
                             {
                                 resolution = TargetResolution<AutomationElement>.Resolved(cachedExactTarget);
                                 reusedCachedTarget = true;
