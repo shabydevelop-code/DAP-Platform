@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "GuideMe",
   "version": "0.2.13",
-  "description": "DAP browser-native Web learner runtime and extension-native E2E driver.",
+  "description": "DAP browser-native Web learner runtime.",
   "icons": {
     "16": "icon16.png",
     "48": "icon48.png",
