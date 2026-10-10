@@ -18,7 +18,6 @@ public sealed class WindowsBubblePresenter
     private const double TargetGap = 10d;
 
     private readonly IUiTextProvider _texts;
-    public event Action? StopRequested;
     private Window? _window;
     private Window? _highlightWindow;
     private Border? _highlightBorder;
