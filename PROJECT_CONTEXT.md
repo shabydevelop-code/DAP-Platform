@@ -7,7 +7,7 @@ The current GitHub main branch defines implementation. Persisted Guide definitio
 
 ## Product boundaries
 - The learner must work with closed third-party applications without their source code, internal databases, private APIs, or AI at runtime.
-- The production learner must not depend on demo-specific workflow code or test runners.
+- The production learner must not depend on demo-specific workflow code or test runners. The Web extension and Native Messaging host do not expose the former extension-native E2E driver or dedicated test pipe.
 - Web uses a browser extension, Native Messaging, and the .NET runtime; Windows uses UI Automation.
 - The Instructor/Editor is future work; no editor GUI is currently delivered.
 - SQLite is the current storage provider behind independent data contracts.
