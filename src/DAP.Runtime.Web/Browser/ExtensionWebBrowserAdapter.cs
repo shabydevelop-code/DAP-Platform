@@ -271,9 +271,11 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
                     command
                 },
                 json);
+            Console.Error.WriteLine($"[DAP transport] sending request={requestId}");
             try
             {
                 await WritePipeLineAsync(line, commandToken);
+                Console.Error.WriteLine($"[DAP transport] sent request={requestId}");
             }
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
@@ -284,6 +286,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             try
             {
                 var response = await completion.Task.WaitAsync(commandToken);
+                Console.Error.WriteLine($"[DAP transport] received response request={requestId}");
                 if (response.TryGetProperty("ok", out var ok) && !ok.GetBoolean())
                     throw new InvalidOperationException(
                         response.TryGetProperty("error", out var error)
@@ -293,6 +296,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             }
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
+                Console.Error.WriteLine($"[DAP transport] response timeout request={requestId}");
                 var suffix = _pendingErrors.TryGetValue(requestId, out var lastError)
                     ? $" Last browser-host response: {lastError}"
                     : string.Empty;
