@@ -28,8 +28,7 @@
 - Production Web execution must not depend on Playwright, CDP, Python, customer source code, customer database access, or private customer APIs.
 - The Extension is an adapter; Guide sequencing/progression stays in .NET Runtime.
 - Support dynamic DOM changes, frames, navigation, asynchronous server behavior, and target re-resolution.
-- Synthetic E2E actions must remain test-only and must not become a second learner engine.
-- Web Manual and Hybrid runners must identify their browser session through the Extension so intentional browser closure ends cleanly without treating the Chrome launcher PID as browser lifetime.
+- Production browser extension and Native Messaging host must not contain synthetic E2E actions, test-driver commands, or a dedicated test-driver pipe. Browser closure must be handled by the production learner independently of any test runner.
 
 ## Windows
 
