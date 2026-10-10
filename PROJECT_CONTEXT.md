@@ -18,6 +18,7 @@ The current GitHub main branch defines implementation. Persisted Guide definitio
 - Demo business database: `demos/Shared/data/sampleapp.db`, separate from the platform database.
 - Example Guide IDs: `sampleapp-web-guide` and `sampleapp-windows-guide`.
 - Each example Guide contains 55 persisted Steps, including a centered final summary Step.
+- Web and Windows text-input Steps validate an already-present value after the user focuses and leaves the field, without requiring a value change; an invalid value cannot advance the Guide.
 
 ## Production packaging
 Publish with `scripts/Publish-Customer-Package.ps1 -Output C:\GuideMe`, then register Chrome Native Messaging with `scripts/Register-WebNativeHost.ps1 -PackagePath C:\GuideMe`. The registered host is `C:\GuideMe\NativeHost\DAP.Runtime.Web.NativeHost.exe`. Restart Chrome after registration. Production does not depend on temporary publish folders.
