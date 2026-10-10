@@ -579,27 +579,6 @@
   }
 
 
-  function addStopAssistanceButton(container, label, direction){
-    const button=document.createElement("button");
-    button.type="button";
-    button.textContent=label||"סיים ליווי";
-    button.dataset.dapStopAssistance="1";
-    Object.assign(button.style,{
-      display:"block",margin:"10px auto 0",padding:"4px 8px",
-      cursor:"pointer",font:"inherit",direction:direction||"rtl",
-      background:"transparent",color:"inherit",
-      border:"1px solid currentColor",borderRadius:"4px"
-    });
-    button.addEventListener("click",event=>{
-      event.preventDefault();
-      event.stopPropagation();
-      void chrome.runtime.sendMessage({
-        type:"dap-adapter-event",payload:{type:"stop-assistance"}
-      });
-    });
-    container.appendChild(button);
-  }
-
   function showBubbleProxy(step,stepNumber,totalSteps,targetRect,presentation={}){
     if (presentation.topFrameLocator && presentation.localTargetRect) {
       try {
@@ -662,7 +641,6 @@
       });
       bubble.appendChild(progress);
     }
-    addStopAssistanceButton(bubble,presentation.stopText,presentation.direction);
 
     const pointer=document.createElement("div");
     pointer.dataset.dapPointer="1";
@@ -852,7 +830,6 @@
     }
     b.appendChild(content);
     if(stepNumber&&totalSteps){const p=root.createElement("div");p.textContent=presentation.progressText||("שלב "+stepNumber+" מתוך "+totalSteps);Object.assign(p.style,{fontSize:theme.fontSize+"px",opacity:".78",marginTop:"8px",fontWeight:"600",cursor:"default"});b.appendChild(p);}
-    addStopAssistanceButton(b,presentation.stopText,presentation.direction);
     const pointer=root.createElement("div");pointer.dataset.dapPointer="1";Object.assign(pointer.style,{position:"absolute",width:"0",height:"0",cursor:"default"});b.appendChild(pointer);
     Object.assign(b.style,{position:"fixed",zIndex:"2147483646",maxWidth:theme.maxWidth+"px",padding:theme.padding,background:theme.backgroundColor,color:theme.textColor,border:theme.borderWidth+"px solid "+theme.borderColor,borderRadius:theme.borderRadius+"px",boxShadow:theme.boxShadow,fontFamily:theme.fontFamily,fontSize:theme.fontSize+"px",lineHeight:String(theme.lineHeight),direction:presentation.direction||"rtl",visibility:"hidden",touchAction:"none",userSelect:"none"});b.style.setProperty("cursor","default","important");if(presentation.visible===false)b.style.setProperty("display","none","important");root.body.appendChild(b);
     let manual=false,drag=null;const margin=8;
