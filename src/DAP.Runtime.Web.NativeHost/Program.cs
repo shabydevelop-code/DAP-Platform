@@ -7,7 +7,7 @@ using System.Text.Json.Serialization;
 using DAP.Data.Sqlite;
 using DAP.Data.Sqlite.Guides;
 
-const string RuntimePipeName = "dap-web-runtime-v1";
+var runtimePipeName = "dap-web-runtime-v1-" + Process.GetCurrentProcess().SessionId;
 
 using var nativeLog = new NativeHostLog();
 nativeLog.Write("process-start", $"pid={Environment.ProcessId}; args=[{string.Join(", ", args)}]");
@@ -20,7 +20,7 @@ json.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
 
 using var shutdown = new CancellationTokenSource();
 var nativeOutput = new NativeOutputWriter(output, json);
-var runtimeBridge = new DapPipeBridge(RuntimePipeName, nativeOutput, json, nativeLog);
+var runtimeBridge = new DapPipeBridge(runtimePipeName, nativeOutput, json, nativeLog);
 var runtimeBridgeTask = runtimeBridge.RunAsync(shutdown.Token);
 
 try
