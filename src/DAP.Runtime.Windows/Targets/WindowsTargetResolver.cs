@@ -324,9 +324,16 @@ public sealed class WindowsTargetResolver
                         var type = current.Current.ControlType.ProgrammaticName;
                         var id = current.Current.AutomationId;
                         var isPrimary = MatchesLocator(current, primaryLocator);
+                        var primaryCondition = CreateCondition(primaryLocator) as PropertyCondition;
+                        var actualProperty = primaryCondition is null
+                            ? null
+                            : current.GetCurrentPropertyValue(primaryCondition.Property, true);
+                        var expectedProperty = primaryCondition?.Value;
+                        var propertyDiagnostic =
+                            $"actual='{actualProperty}'({actualProperty?.GetType().FullName ?? "null"}),expected='{expectedProperty}'({expectedProperty?.GetType().FullName ?? "null"})";
                         var isGridItem = current.TryGetCurrentPattern(GridItemPattern.Pattern, out var pattern)
                             && pattern is GridItemPattern;
-                        chain.Add($"{type}(id='{id}',primary={isPrimary},gridItem={isGridItem})");
+                        chain.Add($"{type}(id='{id}',primary={isPrimary},gridItem={isGridItem},{propertyDiagnostic})");
                         foundPrimary |= isPrimary;
                         foundGridItem |= isGridItem;
                         if (Automation.Compare(current, scope))
