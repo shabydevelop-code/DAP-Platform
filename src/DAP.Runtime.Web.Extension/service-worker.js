@@ -72,11 +72,9 @@ function ensureNativeConnection() {
 // Step.
 chrome.runtime.onStartup.addListener(ensureNativeConnection);
 chrome.runtime.onInstalled.addListener(ensureNativeConnection);
-chrome.tabs.onUpdated.addListener((_tabId, changeInfo) => {
-  const url = changeInfo.url || "";
-  if (url.startsWith("http://") || url.startsWith("https://"))
-    ensureNativeConnection();
-});
+// Page navigation must not initiate a native connection. The transport
+// remains established by the existing startup handshake until an explicit
+// runtime-activation channel is available.
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === "dap-runtime-ready") {
