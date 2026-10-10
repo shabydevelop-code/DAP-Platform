@@ -20,6 +20,7 @@
 - Missing or ambiguous targets must never be guessed.
 - Disabled Steps retain their persisted order.
 - Runtime owns validation, completion, capture required by the Guide, and advancement.
+- Web and Windows input Steps accept an unchanged pre-existing value after a focus-to-blur interaction, provided the persisted validation and completion conditions succeed. Presence of a value alone is insufficient.
 
 ## Web
 
