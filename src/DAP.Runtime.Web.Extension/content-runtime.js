@@ -1192,7 +1192,7 @@
       }
 
       const commit = event => {
-        if (isTextEditor && !state.changed) return;
+        // Blur confirms an existing value too; .NET validation still gates advancement.
         state.changed = false;
         const currentArmId = element.__dapValidationArmId;
         void emitAdapterEvent(
