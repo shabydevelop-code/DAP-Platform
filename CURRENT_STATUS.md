@@ -14,6 +14,11 @@
 - The Web Native Messaging host may remain running while Chrome is open without an active Guide; this is the current persistent-connection design, not evidence of a leaked learner process.
 - Legacy demo database fallback and legacy Guide-key/text-ID migration execution paths have been removed.
 
+## SampleApp Cases grid baseline (2026-10-10)
+- The shared demo server now keeps at least 100 persisted Cases for SiteId=1 on startup, including after the existing demo reset/trim path. Existing records are retained; missing records are added without recreating the old temporary stress-test Guide.
+- The demo cleanup cap is 100 instead of 10. This change affects SampleApp demo data only, not the DAP production runtime or Guide schema.
+- GitHub change is committed; local Windows execution/build remains to be verified by the user.
+
 ## Example data
 - DAP: `C:\ProgramData\DAP\Data\DAP.db`
 - SampleApp: `demos/Shared/data/sampleapp.db`
