@@ -41,6 +41,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
     private TaskCompletionSource<bool>? _centeredDismissal;
     private bool _disposed;
     public event Action? TargetTabClosed;
+    public event Action? StopRequested;
     public event Action<string>? TargetWindowActivationRequested;
 
     public ExtensionWebBrowserAdapter(
@@ -190,6 +191,12 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             var contextKey = payload.TryGetProperty("applicationContextKey", out var key) ? key.GetString() : null;
             if (contextKey != null && string.Equals(contextKey, _activeApplicationContextKey, StringComparison.Ordinal))
                 TargetTabClosed?.Invoke();
+            return;
+        }
+
+        if (eventType == "stop-assistance")
+        {
+            StopRequested?.Invoke();
             return;
         }
 
@@ -613,6 +620,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             visible,
             progressText = _texts?.Format("Learner.StepProgress", stepNumber, totalSteps) ?? $"שלב {stepNumber} מתוך {totalSteps}",
             dragText = _texts?.Get("Learner.DragBubble") ?? "גרור להזזת הבועה",
+            stopText = _texts?.Get("Learner.StopAssistance") ?? "סיים ליווי",
             automaticStepLabel,
             direction = _texts?.IsRightToLeft == false ? "ltr" : "rtl",
             framePath = step.Target.FrameContext?.Path
