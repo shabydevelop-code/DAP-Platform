@@ -1,6 +1,7 @@
 {
   "Ui.Direction": "rtl",
   "Learner.StepProgress": "שלב {0} מתוך {1}",
+  "Learner.StopAssistance": "סיים ליווי",
   "Learner.DragBubble": "גרור להזזת הבועה",
   "Learner.GuideCompleted": "המדריך הושלם בהצלחה",
   "Learner.Finish": "סיום",
