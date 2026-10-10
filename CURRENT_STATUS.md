@@ -76,10 +76,8 @@ Customer package includes `ChromeExtension` (unpacked extension files) and `Regi
 ## Open issue: Ending assistance when the bubble is hidden
 The active Guide can continue while its bubble is hidden after the learner navigates to another screen. The current **End assistance** action is only available on the bubble, so it can become inaccessible. A user-accessible, low-friction exit path is required across Web and Windows, without adding persistent UI burden. No UX or architectural solution has been approved; do not implement a floating controller, global shortcut, or other mechanism until a design is agreed. The learner runtime must remain the owner of Guide termination, and ending assistance must not close the target application.
 
-## Temporary 100-row grid baseline cleanup (2026-10-10)
-- Web and Windows grid baseline checks were reported successful, including Web target 0050 inside the content iframe, scrolling, sorting, and stable bubble presentation.
-- The temporary Web guide must use the content iframe context inherited from `sampleapp-web-guide`; the temporary installer was corrected in commit `b84a3a2`. This is fixture configuration, not a production runtime change.
-- Temporary Guide keys: `sampleapp-web-grid-baseline-temporary` and `sampleapp-windows-grid-baseline-temporary`.
-- Local database cleanup is **pending user execution**; do not claim that the Guide rows or 100 SampleApp records have already been removed.
-- Before deleting the temporary fixture source, run `dotnet run --project demos\\Windows\\GridBaseline\\DAP.SampleApp.GridBaseline.csproj -- --remove-web` to delete only the Web temporary Guide. The existing `--remove` command deletes the Windows temporary Guide **and** the 100 tagged SampleApp records, so run it only when the user approves removal of those records.
-- Remove the temporary `demos/Windows/GridBaseline` utility and its seed support only after local cleanup is confirmed. Keep production code and ordinary demo guides independent of this fixture.
+## Completed 100-row grid baseline (2026-10-10)
+- User confirmed successful Web and Windows 100-row grid baseline checks; Web target 0050 was resolved inside the content iframe, with scrolling, sorting, and stable bubble behavior.
+- The temporary GridBaseline installer and SampleApp seed flag/function were removed from the repository after the checks. Production runtime code was not modified during cleanup.
+- Local database cleanup is **not verified**. The user must remove only the two temporary Guide keys (`sampleapp-web-grid-baseline-temporary`, `sampleapp-windows-grid-baseline-temporary`) and 100 SampleApp records with subjects `DAP-GRID-BASELINE-0001` through `DAP-GRID-BASELINE-0100`, if still present.
+- Do not run the old `demos/Windows/GridBaseline` cleanup commands after pulling this commit; the utility has been deleted. Keep ordinary demo guides and other SampleApp data intact.
