@@ -614,7 +614,7 @@ public sealed class WindowsBubblePresenter
         _progress = new TextBlock
         {
             Margin = new Thickness(0, 8, 0, 0),
-            FontSize = 11,
+            FontSize = 15,
             Foreground = new SolidColorBrush(Color.FromRgb(220, 228, 236)),
             FlowDirection = _texts.IsRightToLeft ? FlowDirection.RightToLeft : FlowDirection.LeftToRight
         };
@@ -641,7 +641,7 @@ public sealed class WindowsBubblePresenter
             FlowDirection = _texts.IsRightToLeft ? FlowDirection.RightToLeft : FlowDirection.LeftToRight,
             Margin = new Thickness(0, 10, 0, 0),
             Padding = new Thickness(8, 4, 8, 4),
-            HorizontalAlignment = _texts.IsRightToLeft ? HorizontalAlignment.Right : HorizontalAlignment.Left,
+            HorizontalAlignment = HorizontalAlignment.Center,
             Cursor = Cursors.Hand
         };
         AutomationProperties.SetAutomationId(stopButton, "DapStopAssistance");
