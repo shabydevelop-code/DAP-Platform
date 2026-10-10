@@ -28,7 +28,7 @@ internal sealed class GuideSessionTray : IDisposable
         var exit = new Forms.ToolStripMenuItem(hebrew ? "סיום ליווי ויציאה" : "End assistance and exit");
         exit.Click += (_, _) =>
         {
-            var answer = MessageBox.Show(
+            var answer = System.Windows.MessageBox.Show(
                 hebrew ? "האם לסיים את הליווי? היישום המודרך יישאר פתוח." : "End assistance? The target application will remain open.",
                 "GuideMe",
                 MessageBoxButton.YesNo,
