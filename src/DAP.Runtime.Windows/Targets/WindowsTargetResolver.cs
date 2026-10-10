@@ -930,6 +930,10 @@ public sealed class WindowsTargetResolver
             return false;
 
         var actual = element.GetCurrentPropertyValue(property.Property, true);
+        // UIA can return distinct managed wrappers for the same native ControlType.
+        // Compare their stable numeric IDs rather than wrapper object identity.
+        if (actual is ControlType actualType && property.Value is ControlType expectedType)
+            return actualType.Id == expectedType.Id;
         return Equals(actual, property.Value);
     }
 }
