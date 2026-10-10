@@ -137,3 +137,9 @@ The active Guide can continue while its bubble is hidden after the learner navig
 - User regression `windows-performance-regression.log` completed all 55 steps. After removing duplicate readiness scanning, first bubble at step 12 +1377 ms, step 48 +1420 ms, step 50 +1412 ms. Step 26 +4076 ms and step 47 +4085 ms were dominated by UIA Invoke event subscription (4008 and 4019 ms respectively).
 - Commit `0632a5c` replaces per-button UIA Invoke subscriptions with one window-root subtree subscription per guide run, using the active target's UIA RuntimeId to gate completion. Existing completion conditions and click-required policy remain unchanged; listener is cleared after each click step and disposed at guide end.
 - Requires Windows build and full 55-step manual regression, particularly dialog Invoke events, target replacement and cancellation. The shared root subscription may have its own provider-side startup/cleanup cost, and some providers may not deliver nested/modal Invoke events via the root scope. No performance or functional verification yet.
+
+## Pre-regression log cleanup (2026-10-10)
+- Shared Windows Invoke listener was rolled back in commit `c43e850` after a Step 2 loop. The prior per-target Invoke subscription is restored; full post-rollback regression is pending.
+- Commit `5f7fdbe` removes TestCRM-specific Windows learner diagnostics and repeated full target descriptions while retaining step lifecycle and performance timings for the upcoming Windows/Web regression.
+- Existing local log files are not deleted remotely; operator may clear only explicitly named old log outputs before creating fresh Windows and Web logs. Do not delete guide data, SQLite databases, or application state as part of log cleanup.
+- Windows and Web full regressions have not yet been rerun after this cleanup.
