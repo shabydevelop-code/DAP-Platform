@@ -601,10 +601,10 @@ public sealed class WindowsGuideRuntime
                         Volatile.Write(ref textTargetCommitted, 0);
                     }
                 }
-                else if (step.AdvanceMode == StepAdvanceMode.Manual)
-                {
-                    throw new NotSupportedException("Manual Windows Steps are not implemented yet.");
-                }
+                // A manually advanced, target-attached step has no automatic completion
+                // signal. Keep its resolved target and bubble visible instead of
+                // terminating the session. Explicit manual advancement requires a
+                // separate learner navigation action and must not be fabricated here.
 
                 return await GuideActiveStepState.WaitAsync(
                     GuideStepReconciliationResult.WaitingForAction, _pollInterval, cancellationToken);
