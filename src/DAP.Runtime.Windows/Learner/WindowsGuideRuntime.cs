@@ -47,10 +47,6 @@ public sealed class WindowsGuideRuntime
         CancellationToken cancellationToken)
     {
         AutomationElement? preExistingTargetForCurrentStep = null;
-        // One guide-wide listener avoids provider-side ~4s subscriptions on
-        // individual buttons. Only an Invoke from the active target can complete
-        // its step; the shared handler never advances the guide by itself.
-        using var invokeListener = new GuideInvokeListener(windowRoot);
 
         await new GuideExecutionEngine().RunAsync(
             guideSteps,
@@ -79,7 +75,7 @@ public sealed class WindowsGuideRuntime
 
                 await RunStepAsync(
                     windowRoot, step, step.Order, total, token,
-                    preExistingTargetForCurrentStep, plan.Captures, invokeListener);
+                    preExistingTargetForCurrentStep, plan.Captures);
                 preExistingTargetForCurrentStep = nextTargetBeforeCurrentAction;
             },
             (step, total, token) => _bubbles.WaitForCenteredStepDismissalAsync(
@@ -96,69 +92,6 @@ public sealed class WindowsGuideRuntime
 
     }
 
-    private sealed class GuideInvokeListener : IDisposable
-    {
-        private readonly AutomationElement _root;
-        private readonly AutomationEventHandler _handler;
-        private readonly object _gate = new();
-        private int[]? _activeRuntimeId;
-        private TaskCompletionSource? _completion;
-
-        public GuideInvokeListener(AutomationElement root)
-        {
-            _root = root;
-            _handler = OnInvoked;
-            Automation.AddAutomationEventHandler(
-                InvokePattern.InvokedEvent, root, TreeScope.Subtree, _handler);
-        }
-
-        public void SetActiveTarget(AutomationElement target, TaskCompletionSource completion)
-        {
-            // A RuntimeId identifies the actual UIA element, not merely its
-            // AutomationId or caption (which may be reused by another control).
-            var id = target.GetRuntimeId();
-            lock (_gate)
-            {
-                _activeRuntimeId = id;
-                _completion = completion;
-            }
-        }
-
-        public void ClearActiveTarget()
-        {
-            lock (_gate)
-            {
-                _activeRuntimeId = null;
-                _completion = null;
-            }
-        }
-
-        private void OnInvoked(object sender, AutomationEventArgs args)
-        {
-            if (sender is not AutomationElement element)
-                return;
-            int[] eventId;
-            try { eventId = element.GetRuntimeId(); }
-            catch (ElementNotAvailableException) { return; }
-            catch (InvalidOperationException) { return; }
-
-            lock (_gate)
-            {
-                if (_activeRuntimeId is not null
-                    && eventId.AsSpan().SequenceEqual(_activeRuntimeId))
-                    _completion?.TrySetResult();
-            }
-        }
-
-        public void Dispose()
-        {
-            ClearActiveTarget();
-            try { Automation.RemoveAutomationEventHandler(InvokePattern.InvokedEvent, _root, _handler); }
-            catch (ElementNotAvailableException) { }
-            catch (InvalidOperationException) { }
-        }
-    }
-
     private async Task RunStepAsync(
         AutomationElement windowRoot,
         GuideStep step,
@@ -166,8 +99,7 @@ public sealed class WindowsGuideRuntime
         int totalSteps,
         CancellationToken cancellationToken,
         AutomationElement? preExistingTarget,
-        IDictionary<string, string> capturedValues,
-        GuideInvokeListener invokeListener)
+        IDictionary<string, string> capturedValues)
     {
         if (GuideStepExecutionPolicy.Classify(step) == GuideStepPresentationKind.CenteredInformation)
         {
@@ -196,6 +128,7 @@ public sealed class WindowsGuideRuntime
         AutomationElement? subscribedTextTarget = null;
         AutomationPropertyChangedEventHandler? textEditPropertyChangedHandler = null;
         var clickCompleted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        AutomationEventHandler? clickHandler = null;
         AutomationElement? subscribedTarget = null;
         string? lastTargetDisappearedDiagnostic = null;
         var stepStopwatch = Stopwatch.StartNew();
@@ -606,7 +539,23 @@ public sealed class WindowsGuideRuntime
 
                 if (clicked && (subscribedTarget is null || !SameElement(subscribedTarget, target)))
                 {
-                    invokeListener.SetActiveTarget(target, clickCompleted);
+                    if (subscribedTarget is not null && clickHandler is not null)
+                    {
+                        try { Automation.RemoveAutomationEventHandler(InvokePattern.InvokedEvent, subscribedTarget, clickHandler); }
+                        catch (ElementNotAvailableException) { }
+                    }
+
+                    clickHandler = (_, _) => clickCompleted.TrySetResult();
+                    var invokeSubscriptionStartedAt = stepStopwatch.ElapsedMilliseconds;
+                    Automation.AddAutomationEventHandler(
+                        InvokePattern.InvokedEvent,
+                        target,
+                        TreeScope.Element,
+                        clickHandler);
+                    var invokeSubscriptionDuration = stepStopwatch.ElapsedMilliseconds - invokeSubscriptionStartedAt;
+                    if (invokeSubscriptionDuration >= 50)
+                        Console.Error.WriteLine(
+                            $"[DAP Windows performance] Step '{step.Id}' phase=invoke-event-subscribe duration={invokeSubscriptionDuration} ms.");
                     subscribedTarget = target;
                 }
 
@@ -799,8 +748,11 @@ public sealed class WindowsGuideRuntime
                 }
             }
 
-            if (clicked)
-                invokeListener.ClearActiveTarget();
+            if (subscribedTarget is not null && clickHandler is not null)
+            {
+                try { Automation.RemoveAutomationEventHandler(InvokePattern.InvokedEvent, subscribedTarget, clickHandler); }
+                catch (ElementNotAvailableException) { }
+            }
             await _bubbles.HideAsync();
         }
     }
