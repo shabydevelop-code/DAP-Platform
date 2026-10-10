@@ -754,6 +754,28 @@
     return bubble;
   }
 
+
+  function addStopAssistanceButton(container, label, direction){
+    const button=document.createElement("button");
+    button.type="button";
+    button.textContent=label||"סיים ליווי";
+    button.dataset.dapStopAssistance="1";
+    Object.assign(button.style,{
+      display:"block",marginTop:"10px",padding:"4px 8px",
+      cursor:"pointer",font:"inherit",direction:direction||"rtl",
+      background:"transparent",color:"inherit",
+      border:"1px solid currentColor",borderRadius:"4px"
+    });
+    button.addEventListener("click",event=>{
+      event.preventDefault();
+      event.stopPropagation();
+      void chrome.runtime.sendMessage({
+        type:"dap-adapter-event",payload:{type:"stop-assistance"}
+      });
+    });
+    container.appendChild(button);
+  }
+
   function showBubbleProxy(step,stepNumber,totalSteps,targetRect,presentation={}){
     if (presentation.topFrameLocator && presentation.localTargetRect) {
       try {
@@ -806,6 +828,7 @@
     content.textContent=step.bubble?.content||"";
     content.style.cursor="default";
     bubble.appendChild(content);
+    addStopAssistanceButton(bubble,presentation.stopText,presentation.direction);
 
     if(stepNumber&&totalSteps){
       const progress=document.createElement("div");
@@ -1004,6 +1027,7 @@
       const badge=root.createElement("div");badge.dataset.dapAutomaticStep="true";badge.textContent=String(presentation.automaticStepLabel);Object.assign(badge.style,{display:"inline-block",fontSize:"12px",fontWeight:"700",padding:"2px 8px",marginBottom:"8px",border:"1px solid currentColor",borderRadius:"999px"});b.appendChild(badge);
     }
     b.appendChild(content);
+    addStopAssistanceButton(b,presentation.stopText,presentation.direction);
     if(stepNumber&&totalSteps){const p=root.createElement("div");p.textContent=presentation.progressText||("שלב "+stepNumber+" מתוך "+totalSteps);Object.assign(p.style,{fontSize:"12px",opacity:".78",marginTop:"8px",fontWeight:"600",cursor:"default"});b.appendChild(p);}
     const pointer=root.createElement("div");pointer.dataset.dapPointer="1";Object.assign(pointer.style,{position:"absolute",width:"0",height:"0",cursor:"default"});b.appendChild(pointer);
     Object.assign(b.style,{position:"fixed",zIndex:"2147483646",maxWidth:theme.maxWidth+"px",padding:theme.padding,background:theme.backgroundColor,color:theme.textColor,border:theme.borderWidth+"px solid "+theme.borderColor,borderRadius:theme.borderRadius+"px",boxShadow:theme.boxShadow,fontFamily:theme.fontFamily,fontSize:theme.fontSize+"px",lineHeight:String(theme.lineHeight),direction:presentation.direction||"rtl",visibility:"hidden",touchAction:"none",userSelect:"none"});b.style.setProperty("cursor","default","important");if(presentation.visible===false)b.style.setProperty("display","none","important");root.body.appendChild(b);
