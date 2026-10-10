@@ -44,6 +44,5 @@ Then run the learner separately:
 - Instructor/Editor is not yet implemented.
 - A Guide currently runs against one target runtime type; cross-runtime orchestration is not implemented.
 - Windows multi-context switching, delayed discovery, and rebinding are not implemented.
-- Web Native Host and extension still contain test-driver transport hooks; product/test isolation is not fully complete.
-- A production package and test-driver separation audit remains necessary.
+- Production Web extension and Native Messaging host no longer contain the extension-native E2E driver or its dedicated pipe. The changes require a fresh customer-package build and Web/Windows regression on the user's machine.
 - End-assistance and restart checks passed in Web and Windows. A complete Web/Windows Guide regression has not been performed.
