@@ -52,6 +52,10 @@ Then run the learner separately:
 - Windows UI Automation context discovery, concurrent SQLite access, and browser-profile routing require multi-session regression.
 - Citrix compatibility has not been verified; a regular Windows machine can test concurrent processes and distinct logon sessions, but does not replace a final Citrix test.
 
+## Windows target-resolution performance
+- Windows now briefly reuses resolved UIA elements for exact unanchored `automation-id` and `name` locators, rechecking their identifying property and forcing a full resolution at least once per second. This is a limited, generic optimization; anchored and dynamic grid-row targets still resolve authoritatively on each reconciliation cycle to avoid stale business-record bindings.
+- Build, performance measurement, and full Web/Windows regression after this change remain pending. Further work is needed on event-driven tracking and safe invalidation for anchored/dynamic targets; do not claim the large-grid performance issue is resolved.
+
 ## Known limitations and work
 - Instructor/Editor is not yet implemented. Dynamic-capture authoring assistance is a design topic, not an approved or delivered feature.
 - A Guide currently runs against one target runtime type; cross-runtime orchestration is not implemented.
