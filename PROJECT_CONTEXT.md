@@ -20,12 +20,12 @@ The current GitHub main branch defines implementation. Persisted Guide definitio
 - Each example Guide contains 55 persisted Steps, including a centered final summary Step.
 
 ## Production packaging
-Publish with `scripts/Publish-Customer-Package.ps1 -Output C:\DAP-Production`, then register Chrome Native Messaging with `scripts/Register-WebNativeHost.ps1 -PackagePath C:\DAP-Production`. The registered host is `C:\DAP-Production\NativeHost\DAP.Runtime.Web.NativeHost.exe`. Restart Chrome after registration. Production does not depend on temporary publish folders.
+Publish with `scripts/Publish-Customer-Package.ps1 -Output C:\GuideMe`, then register Chrome Native Messaging with `scripts/Register-WebNativeHost.ps1 -PackagePath C:\GuideMe`. The registered host is `C:\GuideMe\NativeHost\DAP.Runtime.Web.NativeHost.exe`. Restart Chrome after registration. Production does not depend on temporary publish folders.
 
 ## Production usage
 ```powershell
-& "C:\DAP-Production\DAP.exe" --guide sampleapp-web-guide
-& "C:\DAP-Production\DAP.exe" --guide sampleapp-windows-guide
+& "C:\GuideMe\DAP.exe" --guide sampleapp-web-guide
+& "C:\GuideMe\DAP.exe" --guide sampleapp-windows-guide
 ```
 `--mode manual|hybrid` is optional; Manual is the default. The Guide determines Web or Windows execution. Neither `--start-step` nor `--resume-context-file` is supported.
 
