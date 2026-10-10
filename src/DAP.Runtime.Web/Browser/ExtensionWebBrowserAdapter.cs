@@ -629,7 +629,6 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             visible,
             progressText = _texts?.Format("Learner.StepProgress", stepNumber, totalSteps) ?? $"שלב {stepNumber} מתוך {totalSteps}",
             dragText = _texts?.Get("Learner.DragBubble") ?? "גרור להזזת הבועה",
-            stopText = _texts?.Get("Learner.StopAssistance") ?? "סיים ליווי",
             automaticStepLabel,
             direction = _texts?.IsRightToLeft == false ? "ltr" : "rtl",
             framePath = step.Target.FrameContext?.Path
