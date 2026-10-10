@@ -21,10 +21,10 @@ DAP.exe → .NET Web Runtime → ExtensionWebBrowserAdapter
         → named pipe → Native Messaging host
         → GuideMe Chrome extension → content script → target DOM
 ```
-The extension observes and interacts with the page; Guide sequencing stays in .NET. Frames, DOM replacement, target re-resolution, and browser events are handled by the Web adapter. Production Web does not use Playwright.
+For text-input validation Steps, the extension reports a blur as a commit attempt even when no input/change event occurred. The .NET runtime still checks persisted validation and completion conditions before advancing. The extension observes and interacts with the page; Guide sequencing stays in .NET. Frames, DOM replacement, target re-resolution, and browser events are handled by the Web adapter. Production Web does not use Playwright.
 
 ## Windows
-The Windows runtime resolves targets with UI Automation, presents bubbles, observes actions, and applies persisted validation rules. A single persisted Windows application context can identify an existing top-level window. Windows and Web share runtime-neutral Guide semantics.
+The Windows runtime resolves targets with UI Automation, presents bubbles, observes actions, and applies persisted validation rules. For Edit targets, a previously focused field losing focus counts as a commit attempt even when its value is unchanged; validation still controls progression. A single persisted Windows application context can identify an existing top-level window. Windows and Web share runtime-neutral Guide semantics.
 
 ## Data and isolation
 Default DAP SQLite database: `C:\ProgramData\DAP\Data\DAP.db`. Demo business data is separate at `demos/Shared/data/sampleapp.db`. Neither the product runtime nor Guide progression may rely on demo application internals. Test harnesses are separate consumers of production functionality, not product dependencies.
