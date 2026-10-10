@@ -133,22 +133,28 @@ int SeedGridBaseline(string cs)
     using var transaction = connection.BeginTransaction();
     using var command = connection.CreateCommand();
     command.Transaction = transaction;
-    command.CommandText = "SELECT COUNT(*) FROM Cases WHERE SiteId=1 AND Subject LIKE 'DAP-GRID-BASELINE-%'";
-    var existing = Convert.ToInt32(command.ExecuteScalar());
-    // Insert only missing fixture records; repeated launches never duplicate them.
-    for (var index = existing + 1; index <= 100; index++)
+    for (var index = 1; index <= 100; index++)
     {
+        var subject = $"DAP-GRID-BASELINE-{index:0000}";
+        command.Parameters.Clear();
+        command.CommandText = "SELECT COUNT(*) FROM Cases WHERE SiteId=1 AND Subject=$subject";
+        command.Parameters.AddWithValue("$subject", subject);
+        if (Convert.ToInt32(command.ExecuteScalar()) > 0)
+            continue;
         command.Parameters.Clear();
         command.CommandText = "INSERT INTO Cases(SiteId,Status,Subject,Description,CloseReason) VALUES(1,$status,$subject,$description,'')";
         command.Parameters.AddWithValue("$status", "פתוחה");
-        command.Parameters.AddWithValue("$subject", $"DAP-GRID-BASELINE-{index:0000}");
+        command.Parameters.AddWithValue("$subject", subject);
         command.Parameters.AddWithValue("$description", "רשומת בדיקת ביצועים");
         command.ExecuteNonQuery();
     }
+    command.Parameters.Clear();
+    command.CommandText = "SELECT COUNT(*) FROM Cases WHERE SiteId=1 AND Subject LIKE 'DAP-GRID-BASELINE-%'";
+    var count = Convert.ToInt32(command.ExecuteScalar());
     transaction.Commit();
-    return Math.Max(existing, 100);
+    return count;
 }
-void TrimTestCases(SqliteCommand cmd){cmd.CommandText=@"DELETE FROM Cases WHERE SiteId=1 AND Id NOT IN (SELECT Id FROM Cases WHERE SiteId=1 ORDER BY Id DESC LIMIT 10);";cmd.ExecuteNonQuery();}
+void TrimTestCases(SqliteCommand cmd){cmd.CommandText=@"DELETE FROM Cases WHERE SiteId=1 AND Subject NOT LIKE 'DAP-GRID-BASELINE-%' AND Id NOT IN (SELECT Id FROM Cases WHERE SiteId=1 AND Subject NOT LIKE 'DAP-GRID-BASELINE-%' ORDER BY Id DESC LIMIT 10);";cmd.ExecuteNonQuery();}
 
 record Customer(int Id,string Name,string Phone,string Email);
 record Site(int Id,int CustomerId,string Name,string Type,string Address);
