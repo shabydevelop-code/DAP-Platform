@@ -14,7 +14,7 @@ The current GitHub main branch defines implementation. Persisted Guide definitio
 
 ## Runtime and data
 - Product executable: `DAP.exe` (.NET 8 / WPF).
-- Default database: `C:\ProgramData\DAP\Data\DAP.db`.
+- Default database: `C:\ProgramData\GuideMe\Data\GuideMe.db`.
 - Demo business database: `demos/Shared/data/sampleapp.db`, separate from the platform database.
 - Example Guide IDs: `sampleapp-web-guide` and `sampleapp-windows-guide`.
 - Each example Guide contains 55 persisted Steps, including a centered final summary Step.
