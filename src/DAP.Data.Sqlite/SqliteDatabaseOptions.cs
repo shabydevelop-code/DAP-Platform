@@ -15,6 +15,6 @@ public sealed record SqliteDatabaseOptions(string DatabasePath)
             throw new InvalidOperationException("Windows ProgramData path could not be resolved.");
 
         return new SqliteDatabaseOptions(
-            Path.Combine(programData, "DAP", "Data", "DAP.db"));
+            Path.Combine(programData, "GuideMe", "Data", "GuideMe.db"));
     }
 }
