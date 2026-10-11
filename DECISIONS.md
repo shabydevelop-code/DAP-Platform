@@ -14,7 +14,7 @@
 12. **Demo/test separation:** SampleApp and test-specific drivers must not define product behavior. Example Guides are data, not special cases in runtime code.
 13. **No legacy database support:** New code need not import or convert retired database formats. Do not delete or reset current active databases as part of code cleanup.
 14. **Timeout policy:** Automated technical waits must not be increased beyond five seconds without explicit approval; human time spent on a Guide Step is not a technical timeout.
-15. **User-facing naming:** The Chrome extension display name is **GuideMe**. Internal component names and protocols retain their DAP identifiers.
+15. **Product naming:** The user-facing product and Chrome extension are named **GuideMe**. Existing internal executable, assembly, component and protocol identifiers retain DAP naming.
 16. **Deployment:** Publish the Windows x64 framework-dependent learner and Native Messaging host together. Register Chrome against the packaged host rather than source build output or temporary directories.
 17. **Web transport lifecycle:** The GuideMe extension currently keeps a Native Messaging connection that may outlive Guide sessions. Do not introduce on-demand connection/disconnection without a reliable reactivation mechanism and regression coverage. An idle native host is not by itself a learner-process leak.
 18. **Existing text values:** A text-input Step requires an observed focus-and-leave interaction before evaluating a pre-existing value. No text modification is required; persisted validation and completion conditions must still pass. The same rule applies to Web and Windows, without demo-specific checks.
