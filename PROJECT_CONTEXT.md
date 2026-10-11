@@ -1,6 +1,6 @@
 # Project Context
 
-DAP is a digital assistance platform for guiding users through existing Web and Windows applications. The installed browser extension is displayed as **GuideMe**; DAP remains the internal platform name.
+DAP is a digital assistance platform for guiding users through existing Web and Windows applications. The user-facing product and installed browser extension are named **GuideMe**; DAP remains the internal name of executable and code components.
 
 ## Source of truth
 The current GitHub main branch defines implementation. Persisted Guide definitions in the DAP database define learner behavior. Project Markdown documents describe the current state only; Git retains history. Do not keep superseded commands, migration narratives, or old test results here.
@@ -36,7 +36,7 @@ cd C:\yossi\ChatGpt\DAP-Platform
 dotnet run --project demos\Web\Launcher\DAP.SampleApp.Web.Host.csproj
 dotnet run --project demos\Windows\Launcher\DAP.SampleApp.Windows.Host.csproj
 ```
-Run each host in its own terminal; launch the corresponding learner separately. Completing a Guide or confirming **End assistance and exit** in the GuideMe Windows notification-area menu ends DAP without closing the target application. The same embedded GuideMe icon is used for Web and Windows Guide sessions; no exit control appears in guidance bubbles. The same Guide may be launched again. The Web Native Messaging host may remain active while Chrome is open because the extension maintains a persistent connection; it is independent of an active learner session.
+Run each host in its own terminal; launch the corresponding learner separately. Completing a Guide or confirming **End assistance and exit** in the GuideMe Windows notification-area menu ends DAP without closing the target application. The same embedded GuideMe icon is used for Web and Windows Guide sessions; no exit control appears in guidance bubbles. The same Guide may be launched again. The Web Native Messaging host may remain active while Chrome is open because the extension maintains a persistent connection; it is independent of an active learner session. A focused Windows-then-Web launch check succeeded, but intermittent Web startup/target-visibility failures are not yet diagnosed and a complete 55-step regression is pending.
 
 ## Documentation
 - `ARCHITECTURE.md`: current implementation and boundaries.
