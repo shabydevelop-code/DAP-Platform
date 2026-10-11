@@ -8,11 +8,12 @@
 - Both demo Guides contain 55 persisted Steps, including a final summary. Demo applications are independent of the production learner.
 - Guide sessions in both runtimes have a single session-scoped Windows notification-area icon using the embedded GuideMe extension artwork. Its menu shows Guide identity and a confirmed **End assistance and exit** action. Bubble-level exit controls are absent. The icon is disposed when the session ends; the target application remains open.
 - User verified the notification-area icon, menu and confirmed exit in Windows, and the corresponding Web behavior. Windows restores the bubble on return to the target application after focus moves away. Windows controls whether the icon is directly visible or inside notification overflow.
-- Release build and customer-package publication were successful for the notification-area change. These checks do not constitute a full post-change 55-step regression.
+- The Windows-to-Web launch sequence was manually verified: the Windows Guide opened, and the subsequently launched Web Guide displayed its bubble and advanced. During a working Web session, `DAP.exe` and `DAP.Runtime.Web.NativeHost.exe` were both observed in Windows session 25. This is a focused smoke test, not a full 55-step regression.
+- Web startup has also intermittently failed to connect or repeatedly reported a hidden first target. The cause has not been established; successful subsequent runs do not establish a permanent fix.
 - A Web Native Messaging host may remain running while Chrome is open even without a learner session; it can lock the deployed host files during republishing.
 
 ## Current paths and Guide IDs
-- DAP database: `C:\ProgramData\GuideMe\Data\GuideMe.db`
+- GuideMe database: `C:\ProgramData\GuideMe\Data\GuideMe.db`
 - Demo database: `demos/Shared/data/sampleapp.db`
 - Web Guide: `sampleapp-web-guide`
 - Windows Guide: `sampleapp-windows-guide`
@@ -38,7 +39,7 @@ Then launch the corresponding Guide separately:
 Do not run the shared demo server separately alongside a launcher; both use port 5201. For a new Chrome installation, load the packaged extension and register its actual extension ID using `Register-WebNativeHost.ps1`.
 
 ## Current limitations and verification gaps
-- A complete 55-step regression of both Guides after the notification-area changes is still required.
+- A complete 55-step regression of both Guides remains required. The intermittent Web startup/first-target failure has not been conclusively diagnosed.
 - Instructor/Editor is not implemented. A Guide currently supports one target runtime type; cross-runtime orchestration is not implemented.
 - Windows multi-context switching, delayed discovery and rebinding are not implemented.
 - Multi-user and Citrix operation remain unverified. The named-pipe transport is session-aware, but end-to-end isolation and concurrency require dedicated testing.
