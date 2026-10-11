@@ -12,7 +12,7 @@
 - A Web Native Messaging host may remain running while Chrome is open even without a learner session; it can lock the deployed host files during republishing.
 
 ## Current paths and Guide IDs
-- DAP database: `C:\ProgramData\DAP\Data\DAP.db`
+- DAP database: `C:\ProgramData\GuideMe\Data\GuideMe.db`
 - Demo database: `demos/Shared/data/sampleapp.db`
 - Web Guide: `sampleapp-web-guide`
 - Windows Guide: `sampleapp-windows-guide`
