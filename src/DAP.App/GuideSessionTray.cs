@@ -50,6 +50,15 @@ internal sealed class GuideSessionTray : IDisposable
             ContextMenuStrip = _menu,
             Visible = true
         };
+        _icon.MouseClick += (_, e) =>
+        {
+            if (e.Button == Forms.MouseButtons.Left && !_disposed && !_menu.Visible)
+            {
+                // Right-click is handled by NotifyIcon.ContextMenuStrip.
+                // Show the same menu on a single left-click.
+                _menu.Show(System.Windows.Forms.Cursor.Position);
+            }
+        };
     }
 
     private static Icon ResolveIcon()
