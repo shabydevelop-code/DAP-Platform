@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Windows;
+using Microsoft.Win32;
 using Forms = System.Windows.Forms;
 
 namespace DAP.App;
@@ -13,7 +14,7 @@ namespace DAP.App;
 internal sealed class GuideSessionTray : IDisposable
 {
     private readonly Forms.NotifyIcon _icon;
-    private readonly Icon _trayIcon;
+    private Icon _trayIcon;
     private readonly Forms.ContextMenuStrip _menu;
     private bool _disposed;
 
@@ -41,6 +42,7 @@ internal sealed class GuideSessionTray : IDisposable
             ContextMenuStrip = _menu,
             Visible = true
         };
+        SystemEvents.UserPreferenceChanged += OnUserPreferenceChanged;
         _icon.MouseClick += (_, e) =>
         {
             if (e.Button == Forms.MouseButtons.Left && !_disposed && !_menu.Visible)
@@ -52,16 +54,60 @@ internal sealed class GuideSessionTray : IDisposable
         };
     }
 
+    private void OnUserPreferenceChanged(object sender, UserPreferenceChangedEventArgs e)
+    {
+        if (_disposed) return;
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        if (dispatcher is null || dispatcher.HasShutdownStarted) return;
+        dispatcher.BeginInvoke(() =>
+        {
+            if (_disposed) return;
+            var updated = ResolveIcon();
+            var previous = _trayIcon;
+            _trayIcon = updated;
+            _icon.Icon = updated;
+            previous.Dispose();
+        });
+    }
+
+    private static bool IsLightTaskbar()
+    {
+        try
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(
+                @"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
+            return key?.GetValue("SystemUsesLightTheme") is int value && value != 0;
+        }
+        catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException or IOException)
+        {
+            return false;
+        }
+    }
+
     private static Icon ResolveIcon()
     {
-        // Use the Windows app icon embedded at build time, independently
-        // of the browser extension assets.
+        // Use the original dark application icon on light taskbars.
+        if (IsLightTaskbar())
+        {
+            var path = Environment.ProcessPath;
+            if (!string.IsNullOrEmpty(path))
+            {
+                try
+                {
+                    var darkIcon = Icon.ExtractAssociatedIcon(path);
+                    if (darkIcon is not null) return darkIcon;
+                }
+                catch (IOException) { }
+                catch (ArgumentException) { }
+            }
+        }
+        // Use the original white tray icon on dark taskbars.
         using (var stream = typeof(GuideSessionTray).Assembly.GetManifestResourceStream("GuideMe.TrayIcon.ico"))
         {
             if (stream is not null)
             {
                 using var embeddedIcon = new Icon(stream);
-                return AddContrastOutline(embeddedIcon);
+                return (Icon)embeddedIcon.Clone();
             }
         }
 
@@ -82,67 +128,11 @@ internal sealed class GuideSessionTray : IDisposable
     }
 
 
-    // Add a one-pixel dark silhouette behind the existing white bulb.
-    // The resulting single icon remains visible on both light and dark taskbars.
-    private static Icon AddContrastOutline(Icon source)
-    {
-        const int size = 32;
-        using var original = new Bitmap(size, size, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-        using (var graphics = Graphics.FromImage(original))
-        {
-            graphics.Clear(Color.Transparent);
-            graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
-            graphics.DrawIcon(source, new Rectangle(0, 0, size, size));
-        }
-
-        using var outlined = new Bitmap(size, size, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-        // Expand the alpha mask by up to two pixels for legibility at tray sizes.
-        for (var y = 0; y < size; y++)
-        {
-            for (var x = 0; x < size; x++)
-            {
-                var alpha = 0;
-                for (var dy = -2; dy <= 2; dy++)
-                {
-                    for (var dx = -2; dx <= 2; dx++)
-                    {
-                        var nx = x + dx;
-                        var ny = y + dy;
-                        if (nx >= 0 && nx < size && ny >= 0 && ny < size)
-                            alpha = Math.Max(alpha, original.GetPixel(nx, ny).A);
-                    }
-                }
-                if (alpha > 0)
-                    outlined.SetPixel(x, y, Color.FromArgb(alpha, 24, 24, 24));
-            }
-        }
-
-        using (var graphics = Graphics.FromImage(outlined))
-        {
-            graphics.CompositingMode = System.Drawing.Drawing2D.CompositingMode.SourceOver;
-            graphics.DrawImageUnscaled(original, 0, 0);
-        }
-
-        var handle = outlined.GetHicon();
-        try
-        {
-            using var temporary = Icon.FromHandle(handle);
-            return (Icon)temporary.Clone();
-        }
-        finally
-        {
-            DestroyIcon(handle);
-        }
-    }
-
-    [System.Runtime.InteropServices.DllImport("user32.dll")]
-    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
-    private static extern bool DestroyIcon(IntPtr handle);
-
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
+        SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
         _icon.Visible = false;
         _icon.Dispose();
         _trayIcon.Dispose();
