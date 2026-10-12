@@ -92,19 +92,19 @@ internal sealed class GuideSessionTray : IDisposable
         {
             graphics.Clear(Color.Transparent);
             graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
-            graphics.DrawIcon(source, new Rectangle(1, 1, size - 2, size - 2));
+            graphics.DrawIcon(source, new Rectangle(0, 0, size, size));
         }
 
         using var outlined = new Bitmap(size, size, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-        // Expand the alpha mask by one pixel, without changing the original bulb.
+        // Expand the alpha mask by up to two pixels for legibility at tray sizes.
         for (var y = 0; y < size; y++)
         {
             for (var x = 0; x < size; x++)
             {
                 var alpha = 0;
-                for (var dy = -1; dy <= 1; dy++)
+                for (var dy = -2; dy <= 2; dy++)
                 {
-                    for (var dx = -1; dx <= 1; dx++)
+                    for (var dx = -2; dx <= 2; dx++)
                     {
                         var nx = x + dx;
                         var ny = y + dy;
