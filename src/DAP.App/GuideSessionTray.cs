@@ -26,20 +26,11 @@ internal sealed class GuideSessionTray : IDisposable
         var heading = new Forms.ToolStripMenuItem("GuideMe — " + guideId) { Enabled = false };
         _menu.Items.Add(heading);
         _menu.Items.Add(new Forms.ToolStripSeparator());
-        var exit = new Forms.ToolStripMenuItem(hebrew ? "סיום ליווי ויציאה" : "End assistance and exit");
+        var exit = new Forms.ToolStripMenuItem(hebrew ? "יציאה" : "Exit");
         exit.Click += (_, _) =>
         {
-            var answer = System.Windows.MessageBox.Show(
-                hebrew ? "האם לסיים את הליווי? היישום המודרך יישאר פתוח." : "End assistance? The target application will remain open.",
-                "GuideMe",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question,
-                MessageBoxResult.No);
-            if (answer == MessageBoxResult.Yes)
-            {
-                exit.Enabled = false;
-                stop();
-            }
+            exit.Enabled = false;
+            stop();
         };
         _menu.Items.Add(exit);
         _trayIcon = ResolveIcon();
