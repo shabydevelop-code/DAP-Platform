@@ -23,7 +23,7 @@ internal sealed class GuideSessionTray : IDisposable
         var hebrew = string.Equals(language, "he", StringComparison.OrdinalIgnoreCase);
         _menu = new Forms.ContextMenuStrip();
         _menu.RightToLeft = hebrew ? Forms.RightToLeft.Yes : Forms.RightToLeft.No;
-        var heading = new Forms.ToolStripMenuItem("GuideMe — " + guideId) { Enabled = false };
+        var heading = new Forms.ToolStripMenuItem("GuideMe") { Enabled = false };
         _menu.Items.Add(heading);
         _menu.Items.Add(new Forms.ToolStripSeparator());
         var exit = new Forms.ToolStripMenuItem(hebrew ? "יציאה" : "Exit");
