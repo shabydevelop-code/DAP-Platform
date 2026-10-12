@@ -61,7 +61,7 @@ internal sealed class GuideSessionTray : IDisposable
             if (stream is not null)
             {
                 using var embeddedIcon = new Icon(stream);
-                return (Icon)embeddedIcon.Clone();
+                return AddContrastOutline(embeddedIcon);
             }
         }
 
@@ -80,6 +80,64 @@ internal sealed class GuideSessionTray : IDisposable
         }
         return (Icon)SystemIcons.Application.Clone();
     }
+
+
+    // Add a one-pixel dark silhouette behind the existing white bulb.
+    // The resulting single icon remains visible on both light and dark taskbars.
+    private static Icon AddContrastOutline(Icon source)
+    {
+        const int size = 32;
+        using var original = new Bitmap(size, size, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+        using (var graphics = Graphics.FromImage(original))
+        {
+            graphics.Clear(Color.Transparent);
+            graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+            graphics.DrawIcon(source, new Rectangle(1, 1, size - 2, size - 2));
+        }
+
+        using var outlined = new Bitmap(size, size, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+        // Expand the alpha mask by one pixel, without changing the original bulb.
+        for (var y = 0; y < size; y++)
+        {
+            for (var x = 0; x < size; x++)
+            {
+                var alpha = 0;
+                for (var dy = -1; dy <= 1; dy++)
+                {
+                    for (var dx = -1; dx <= 1; dx++)
+                    {
+                        var nx = x + dx;
+                        var ny = y + dy;
+                        if (nx >= 0 && nx < size && ny >= 0 && ny < size)
+                            alpha = Math.Max(alpha, original.GetPixel(nx, ny).A);
+                    }
+                }
+                if (alpha > 0)
+                    outlined.SetPixel(x, y, Color.FromArgb(alpha, 24, 24, 24));
+            }
+        }
+
+        using (var graphics = Graphics.FromImage(outlined))
+        {
+            graphics.CompositingMode = System.Drawing.Drawing2D.CompositingMode.SourceOver;
+            graphics.DrawImageUnscaled(original, 0, 0);
+        }
+
+        var handle = outlined.GetHicon();
+        try
+        {
+            using var temporary = Icon.FromHandle(handle);
+            return (Icon)temporary.Clone();
+        }
+        finally
+        {
+            DestroyIcon(handle);
+        }
+    }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    private static extern bool DestroyIcon(IntPtr handle);
 
     public void Dispose()
     {
