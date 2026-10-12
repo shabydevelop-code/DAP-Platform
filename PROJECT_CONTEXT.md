@@ -21,7 +21,7 @@ The current GitHub main branch defines implementation. Persisted Guide definitio
 - Web and Windows text-input Steps validate an already-present value after the user focuses and leaves the field, without requiring a value change; an invalid value cannot advance the Guide.
 
 ## Production packaging
-Publish with `scripts/Publish-Customer-Package.ps1 -Output C:\GuideMe`, then register Chrome Native Messaging with `scripts/Register-WebNativeHost.ps1 -PackagePath C:\GuideMe`. The registered host is `C:\GuideMe\NativeHost\DAP.Runtime.Web.NativeHost.exe`. Restart Chrome after registration. Production does not depend on temporary publish folders.
+For a complete customer package, publish with `scripts/Publish-Customer-Package.ps1 -Output C:\GuideMe` (including the learner, Native Messaging host, extension and icon assets), then register Chrome Native Messaging with `scripts/Register-WebNativeHost.ps1 -PackagePath C:\GuideMe`. The registered host is `C:\GuideMe\NativeHost\DAP.Runtime.Web.NativeHost.exe`. Restart Chrome after registration. For an existing `C:\GuideMe` deployment, `scripts/Publish-GuideMe.ps1` republishes the learner and synchronizes and verifies the three Chrome extension icon files. It does not replace the complete customer package or register the Native Messaging host. The Windows executable and Chrome extension use black lightbulb artwork; the session notification-area icon remains white. Production does not depend on temporary publish folders.
 
 ## Production usage
 ```powershell
