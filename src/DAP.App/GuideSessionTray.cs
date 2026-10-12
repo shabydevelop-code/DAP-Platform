@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Windows;
 using Forms = System.Windows.Forms;
 
@@ -55,23 +54,14 @@ internal sealed class GuideSessionTray : IDisposable
 
     private static Icon ResolveIcon()
     {
-        // Use the exact artwork shipped with the Chrome extension, embedded
-        // at build time so customer installations need no external image file.
-        using (var stream = typeof(GuideSessionTray).Assembly.GetManifestResourceStream("GuideMe.TrayIcon.png"))
+        // Use the Windows app icon embedded at build time, independently
+        // of the browser extension assets.
+        using (var stream = typeof(GuideSessionTray).Assembly.GetManifestResourceStream("GuideMe.TrayIcon.ico"))
         {
             if (stream is not null)
             {
-                using var bitmap = new Bitmap(stream);
-                var handle = bitmap.GetHicon();
-                try
-                {
-                    using var temporary = Icon.FromHandle(handle);
-                    return (Icon)temporary.Clone();
-                }
-                finally
-                {
-                    DestroyIcon(handle);
-                }
+                using var embeddedIcon = new Icon(stream);
+                return (Icon)embeddedIcon.Clone();
             }
         }
 
@@ -90,10 +80,6 @@ internal sealed class GuideSessionTray : IDisposable
         }
         return (Icon)SystemIcons.Application.Clone();
     }
-
-    [DllImport("user32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool DestroyIcon(IntPtr handle);
 
     public void Dispose()
     {

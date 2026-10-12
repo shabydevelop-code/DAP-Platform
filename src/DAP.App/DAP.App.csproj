@@ -20,7 +20,7 @@
     <ProjectReference Include="../DAP.Runtime.Windows/DAP.Runtime.Windows.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="..\DAP.Runtime.Web.Extension\icon48.png" LogicalName="GuideMe.TrayIcon.png" />
+    <EmbeddedResource Include="Resources\GuideMe.ico" LogicalName="GuideMe.TrayIcon.ico" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Localization\*.json">
