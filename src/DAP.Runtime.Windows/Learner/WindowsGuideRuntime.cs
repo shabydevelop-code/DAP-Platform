@@ -41,16 +41,19 @@ public sealed class WindowsGuideRuntime
         _hybrid = hybrid;
     }
 
-    public async Task RunAsync(
+    public Task RunAsync(
         AutomationElement windowRoot,
         IReadOnlyList<GuideStep> guideSteps,
         CancellationToken cancellationToken)
     {
-        AutomationElement? preExistingTargetForCurrentStep = null;
+        return new GuideExecutionEngine().RunAsync(guideSteps, CreateStepAdapter(windowRoot), cancellationToken);
+    }
 
-        await new GuideExecutionEngine().RunAsync(
-            guideSteps,
-            new DelegateGuideStepAdapter(TargetRuntime.Windows, "Windows",
+    public IGuideStepAdapter CreateStepAdapter(AutomationElement windowRoot)
+    {
+        ArgumentNullException.ThrowIfNull(windowRoot);
+        AutomationElement? preExistingTargetForCurrentStep = null;
+        return new DelegateGuideStepAdapter(TargetRuntime.Windows, "Windows",
             async (step, index, total, plan, token) =>
             {
                 var ordered = plan.Steps;
@@ -87,9 +90,7 @@ public sealed class WindowsGuideRuntime
                     throw new InvalidOperationException($"Guide Step '{step.Id}' declares a Windows before-action capture that could not be resolved.");
                 GuideRunPlan.RecordCapture(plan.Captures, step.Id, value);
                 return Task.CompletedTask;
-            }),
-            cancellationToken);
-
+            });
     }
 
     private async Task RunStepAsync(
