@@ -186,23 +186,27 @@ public static class DapApplicationHost
                         await ActivateWindowsTargetAsync(targetWindow, token);
                         if (GetForegroundWindow() != new IntPtr(targetWindow.Current.NativeWindowHandle))
                         {
-                            // Use the target application UIA focus path when the OS
-                            // declines background foreground-window activation.
+                            Console.Error.WriteLine($"[DAP focus diagnostic] Windows transition: trying UIA SetFocus for Step {step.Order}.");
                             try { targetWindow.SetFocus(); }
-                            catch (ElementNotAvailableException) { }
-                            catch (InvalidOperationException) { }
+                            catch (ElementNotAvailableException ex) { Console.Error.WriteLine($"[DAP focus diagnostic] UIA target unavailable: {ex.Message}"); }
+                            catch (InvalidOperationException ex) { Console.Error.WriteLine($"[DAP focus diagnostic] UIA focus rejected: {ex.Message}"); }
+                            var foregroundAfterUia = GetForegroundWindow();
+                            GetWindowThreadProcessId(foregroundAfterUia, out var foregroundAfterUiaPid);
+                            Console.Error.WriteLine($"[DAP focus diagnostic] Windows transition after UIA: foreground=0x{foregroundAfterUia.ToInt64():X}, foregroundPid={foregroundAfterUiaPid}, target=0x{targetWindow.Current.NativeWindowHandle:X}.");
                         }
                         return;
                     }
 
                     // The extension resolves the exact persisted Web context and selects
                     // its tab. The host then requests foreground activation of that window.
+                    Console.Error.WriteLine($"[DAP focus diagnostic] Web transition starting at Step {step.Order}, context={step.ApplicationContextKey}.");
                     var activation = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                     pendingWebActivation = activation;
                     try
                     {
                         await browser.ActivateContextWindowAsync(step, token);
                         await activation.Task.WaitAsync(TimeSpan.FromSeconds(5), token);
+                        Console.Error.WriteLine($"[DAP focus diagnostic] Web transition activation request finished at Step {step.Order}.");
                     }
                     finally
                     {
