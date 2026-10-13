@@ -182,7 +182,16 @@ public static class DapApplicationHost
                 {
                     if (runtime == DAP.Core.Targets.TargetRuntime.Windows)
                     {
-                        await ActivateWindowsTargetAsync(ResolveWindow(step), token);
+                        var targetWindow = ResolveWindow(step);
+                        await ActivateWindowsTargetAsync(targetWindow, token);
+                        if (GetForegroundWindow() != new IntPtr(targetWindow.Current.NativeWindowHandle))
+                        {
+                            // Use the target application UIA focus path when the OS
+                            // declines background foreground-window activation.
+                            try { targetWindow.SetFocus(); }
+                            catch (ElementNotAvailableException) { }
+                            catch (InvalidOperationException) { }
+                        }
                         return;
                     }
 
