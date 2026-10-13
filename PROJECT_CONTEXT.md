@@ -20,6 +20,9 @@ The current GitHub main branch defines implementation. Persisted Guide definitio
 - Each example Guide contains 55 persisted Steps, including a centered final summary Step.
 - Web and Windows text-input Steps validate an already-present value after the user focuses and leaves the field, without requiring a value change; an invalid value cannot advance the Guide.
 
+## Localization
+Learner UI text is centralized in the Hebrew/English catalogs under `src/DAP.App/Localization` and accessed through `IUiTextProvider`. The fixed product name **GuideMe** is unchanged across languages. The `DAP.App` build runs `scripts/check-localization.py` before compilation; it checks translation parity and common UI literals in selected learner components and reports file and line. Python is required on the build machine. This lightweight check is not a comprehensive static analyzer.
+
 ## Production packaging
 For a complete customer package, publish with `scripts/Publish-Customer-Package.ps1 -Output C:\GuideMe` (including the learner, Native Messaging host, extension and icon assets), then register Chrome Native Messaging with `scripts/Register-WebNativeHost.ps1 -PackagePath C:\GuideMe`. The registered host is `C:\GuideMe\NativeHost\DAP.Runtime.Web.NativeHost.exe`. Restart Chrome after registration. For an existing `C:\GuideMe` deployment, `scripts/Publish-GuideMe.ps1` republishes the learner and synchronizes and verifies the three Chrome extension icon files. It does not replace the complete customer package or register the Native Messaging host. The Windows executable and Chrome extension use black lightbulb artwork; the session notification-area icon remains white. Production does not depend on temporary publish folders.
 
