@@ -165,7 +165,7 @@
           actionText:command.actionText||"אישור",
           actionDataKey:"dapGuideConfirm",
           progressText:command.progressText||null,
-          dragText:command.dragText||"גרור להזזת הבועה",
+          dragText:command.dragText||"",
           eventType:"centered-dismissed",
           stepId:command.step?.id||null
         });
