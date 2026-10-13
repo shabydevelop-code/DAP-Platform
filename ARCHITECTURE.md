@@ -40,7 +40,7 @@ Guide completion or confirmed exit from the GuideMe notification-area menu dismi
 ## Localization enforcement
 All learner-visible UI strings must come from the shared `IUiTextProvider` catalog in `src/DAP.App/Localization/he.json` and `en.json`. The tray menu, WPF messages, and Web bubble presentation use the same localized source. Do not introduce inline Hebrew/English text or language-specific ternaries in learner UI code. Internal diagnostics and exception details are distinct from learner-visible messages; translate them if they are exposed in UI.
 
-`scripts/check-localization.py` validates matching nonempty translation keys and detects selected direct UI literals and known nonlocalized fallbacks. It is automatically invoked during `DAP.App` compilation. A failed check fails the local build. Python must be installed and available as `python` for local builds. This guard is intentionally limited and does not replace code review of new UI paths.
+`scripts/check-localization.py` validates matching nonempty translation keys and detects common direct UI assignments and nonlocalized Hebrew fallbacks in learner UI entry points, reporting file and line. It is automatically invoked during `DAP.App` compilation. A failed check fails the local build. Python must be installed and available as `python` for local builds. This guard is intentionally limited and does not replace code review of new UI paths.
 
 ## Delivery
 The Windows x64 framework-dependent package includes the learner and a complete Native Messaging host under `C:\GuideMe\NativeHost`. Chrome registration points to the packaged executable, not a build or temporary directory. Restart Chrome after registration.
