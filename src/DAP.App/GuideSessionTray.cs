@@ -3,6 +3,7 @@ using System.Drawing;
 using System.IO;
 using System.Windows;
 using Microsoft.Win32;
+using DAP.Core.Localization;
 using Forms = System.Windows.Forms;
 
 namespace DAP.App;
@@ -18,16 +19,16 @@ internal sealed class GuideSessionTray : IDisposable
     private readonly Forms.ContextMenuStrip _menu;
     private bool _disposed;
 
-    public GuideSessionTray(string guideId, string language, Action stop)
+    public GuideSessionTray(string guideId, IUiTextProvider texts, Action stop)
     {
         ArgumentNullException.ThrowIfNull(stop);
-        var hebrew = string.Equals(language, "he", StringComparison.OrdinalIgnoreCase);
+        var hebrew = texts.IsRightToLeft;
         _menu = new Forms.ContextMenuStrip();
         _menu.RightToLeft = hebrew ? Forms.RightToLeft.Yes : Forms.RightToLeft.No;
         var heading = new Forms.ToolStripMenuItem("GuideMe") { Enabled = false };
         _menu.Items.Add(heading);
         _menu.Items.Add(new Forms.ToolStripSeparator());
-        var exit = new Forms.ToolStripMenuItem(hebrew ? "יציאה" : "Exit");
+        var exit = new Forms.ToolStripMenuItem(texts.Get("Learner.Exit"));
         exit.Click += (_, _) =>
         {
             exit.Enabled = false;
