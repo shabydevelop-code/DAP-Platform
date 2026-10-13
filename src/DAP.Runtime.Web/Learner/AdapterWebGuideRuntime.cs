@@ -15,13 +15,16 @@ public sealed class AdapterWebGuideRuntime
         _browser = browser ?? throw new ArgumentNullException(nameof(browser));
     }
 
-    public async Task RunAsync(
+    public Task RunAsync(
         IReadOnlyList<GuideStep> guideSteps,
         CancellationToken cancellationToken)
     {
-        await new GuideExecutionEngine().RunAsync(
-            guideSteps,
-            new DelegateGuideStepAdapter(TargetRuntime.Web, "Web",
+        return new GuideExecutionEngine().RunAsync(guideSteps, CreateStepAdapter(), cancellationToken);
+    }
+
+    public IGuideStepAdapter CreateStepAdapter()
+    {
+        return new DelegateGuideStepAdapter(TargetRuntime.Web, "Web",
             async (step, index, total, plan, token) =>
             {
                 Func<CancellationToken, Task>? onTargetObserved = null;
@@ -48,8 +51,7 @@ public sealed class AdapterWebGuideRuntime
                 if (value is null)
                     throw new InvalidOperationException($"Guide Step '{step.Id}' declares a Web capture that could not be resolved.");
                 GuideRunPlan.RecordCapture(plan.Captures, step.Id, value);
-            }),
-            cancellationToken);
+            });
     }
 
 }
