@@ -183,7 +183,24 @@ public static class DapApplicationHost
                     if (runtime == DAP.Core.Targets.TargetRuntime.Windows)
                     {
                         var targetWindow = ResolveWindow(step);
-                        await ActivateWindowsTargetAsync(targetWindow, token);
+                        // UIA focus is the effective fallback for a Windows transition.
+                        // Apply it immediately instead of waiting through five seconds of
+                        // repeated foreground requests (which flash the taskbar).
+                        try
+                        {
+                            targetWindow.SetFocus();
+                            Console.Error.WriteLine($"[DAP focus diagnostic] Windows transition: early UIA SetFocus requested for Step {step.Order}.");
+                        }
+                        catch (ElementNotAvailableException ex)
+                        {
+                            Console.Error.WriteLine($"[DAP focus diagnostic] Early UIA target unavailable: {ex.Message}");
+                        }
+                        catch (InvalidOperationException ex)
+                        {
+                            Console.Error.WriteLine($"[DAP focus diagnostic] Early UIA focus rejected: {ex.Message}");
+                        }
+                        if (GetForegroundWindow() != new IntPtr(targetWindow.Current.NativeWindowHandle))
+                            await ActivateWindowsTargetAsync(targetWindow, token);
                         if (GetForegroundWindow() != new IntPtr(targetWindow.Current.NativeWindowHandle))
                         {
                             Console.Error.WriteLine($"[DAP focus diagnostic] Windows transition: trying UIA SetFocus for Step {step.Order}.");
