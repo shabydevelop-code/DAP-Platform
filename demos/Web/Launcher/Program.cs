@@ -65,10 +65,12 @@ Process StartBuiltProject(string project, string url, IReadOnlyDictionary<string
         ?? throw new InvalidOperationException($"Could not start {Path.GetFileNameWithoutExtension(project)}.");
 }
 
-await BuildProjectAsync(backendProject);
+var useExistingServer = args.Contains("--use-existing-server", StringComparer.OrdinalIgnoreCase);
+if (!useExistingServer)
+    await BuildProjectAsync(backendProject);
 await BuildProjectAsync(webProject);
 
-var backend = StartBuiltProject(backendProject, backendUrl);
+Process? backend = useExistingServer ? null : StartBuiltProject(backendProject, backendUrl);
 var web = StartBuiltProject(
     webProject,
     webUrl,
@@ -94,7 +96,7 @@ ConsoleCancelEventHandler cancel = (_, e) =>
     e.Cancel = true;
     Interlocked.Exchange(ref stopping, 1);
     Stop(web);
-    Stop(backend);
+    if (backend is not null) Stop(backend);
 };
 Console.CancelKeyPress += cancel;
 
@@ -105,15 +107,17 @@ try
     var ready = false;
     while (DateTime.UtcNow < deadline)
     {
-        if (backend.HasExited)
+        if (backend is not null && backend.HasExited)
             throw new InvalidOperationException($"SampleApp Backend exited with code {backend.ExitCode}.");
         if (web.HasExited)
             throw new InvalidOperationException($"SampleApp Web exited with code {web.ExitCode}.");
 
         try
         {
-            using var response = await http.GetAsync(webUrl);
-            if ((int)response.StatusCode < 500)
+            using var response = await http.GetAsync(backendUrl + "/api/customers");
+            if (!response.IsSuccessStatusCode) { await Task.Delay(100); continue; }
+            using var webResponse = await http.GetAsync(webUrl);
+            if (webResponse.IsSuccessStatusCode)
             {
                 ready = true;
                 break;
@@ -170,17 +174,19 @@ try
     Console.WriteLine();
     Console.WriteLine($"SampleApp is running independently at {webUrl}");
     Console.WriteLine("Leave this terminal open. Start DAP Learner from a separate terminal.");
-    Console.WriteLine("Close the SampleApp Chrome window or press Ctrl+C to stop the demo servers.");
+    Console.WriteLine(useExistingServer
+        ? "Close the SampleApp Chrome window or press Ctrl+C to stop this Web host; the shared server stays running."
+        : "Close the SampleApp Chrome window or press Ctrl+C to stop the demo servers.");
 
-    var backendExit = backend.WaitForExitAsync();
+    var backendExit = backend?.WaitForExitAsync();
     var webExit = web.WaitForExitAsync();
-    while (Volatile.Read(ref stopping) == 0 && !backendExit.IsCompleted && !webExit.IsCompleted && ChromeWindowTracking.IsWindow(chromeWindow))
+    while (Volatile.Read(ref stopping) == 0 && (backendExit is null || !backendExit.IsCompleted) && !webExit.IsCompleted && ChromeWindowTracking.IsWindow(chromeWindow))
         await Task.Delay(200);
     if (Volatile.Read(ref stopping) != 0 || !ChromeWindowTracking.IsWindow(chromeWindow))
     {
         Console.WriteLine("SampleApp host stopped normally.");
     }
-    else if (backend.HasExited)
+    else if (backend is not null && backend.HasExited)
         throw new InvalidOperationException($"SampleApp Backend exited with code {backend.ExitCode}.");
     else
         throw new InvalidOperationException($"SampleApp Web exited with code {web.ExitCode}.");
@@ -191,7 +197,7 @@ finally
     Stop(web);
     Stop(backend);
     web.Dispose();
-    backend.Dispose();
+    backend?.Dispose();
 }
 
 static class ChromeWindowTracking
