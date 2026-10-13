@@ -162,7 +162,7 @@
         showCenteredMessage({
           elementId:"dap-guide-centered",
           content:command.step?.bubble?.content||"",
-          actionText:command.actionText||"אישור",
+          actionText:command.actionText||"",
           actionDataKey:"dapGuideConfirm",
           progressText:command.progressText||null,
           dragText:command.dragText||"",
