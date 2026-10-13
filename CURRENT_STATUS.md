@@ -8,7 +8,7 @@
 - Both demo Guides contain 55 persisted Steps, including a final summary. Demo applications are independent of the production learner.
 - Guide sessions in both runtimes have a single session-scoped Windows notification-area icon using the separate white GuideMe tray artwork. The Windows executable and Chrome extension use black lightbulb icons. A single left-click or a right-click on the tray icon opens the same menu, which shows the fixed heading **GuideMe** and an immediate **Exit** action ("יציאה" in Hebrew), without confirmation. Bubble-level exit controls are absent. The icon is disposed when the session ends; the target application remains open.
 - User verified the notification-area icon, menu and confirmed exit in Windows, and the corresponding Web behavior. Windows restores the bubble on return to the target application after focus moves away. Windows controls whether the icon is directly visible or inside notification overflow.
-- The Windows-to-Web launch sequence was manually verified: the Windows Guide opened, and the subsequently launched Web Guide displayed its bubble and advanced. During a working Web session, `DAP.exe` and `DAP.Runtime.Web.NativeHost.exe` were both observed in Windows session 25. This is a focused smoke test, not a full 55-step regression.
+- The Windows-to-Web launch sequence was manually verified: the Windows Guide opened, and the subsequently launched Web Guide displayed its bubble and advanced. During a working Web session, `DAP.exe` and `GuideMe.NativeHost.exe` were both observed in Windows session 25. This is a focused smoke test, not a full 55-step regression.
 - Web startup has also intermittently failed to connect or repeatedly reported a hidden first target. The cause has not been established; successful subsequent runs do not establish a permanent fix.
 - A Web Native Messaging host may remain running while Chrome is open even without a learner session; it can lock the deployed host files during republishing.
 
@@ -25,6 +25,8 @@
 - Deployment: `C:\GuideMe`
 
 ## Build and launch
+The packaged browser Native Messaging process is `GuideMe.NativeHost.exe` (internal project remains `DAP.Runtime.Web.NativeHost`). The Chrome extension description is **GuideMe – Interactive Software Guidance**. Existing Chrome Native Messaging registration must be refreshed after deploying the renamed executable.
+
 The complete customer package is published with `scripts/Publish-Customer-Package.ps1 -Output C:\GuideMe`, including the .NET learner, Native Messaging host, Chrome extension files and icons, and registration script. For an existing deployment, `scripts/Publish-GuideMe.ps1` publishes the learner and synchronizes the three Chrome icon files to its existing `ChromeExtension` directory; it does not rebuild or register the Native Messaging host. Its publish and icon-hash verification passed on the current Windows deployment.
 
 ```powershell
