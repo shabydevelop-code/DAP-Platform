@@ -5,8 +5,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 $package = [System.IO.Path]::GetFullPath($PackagePath)
-$exe = Join-Path $package "NativeHost\DAP.Runtime.Web.NativeHost.exe"
-$config = Join-Path $package "NativeHost\DAP.Runtime.Web.NativeHost.runtimeconfig.json"
+$exe = Join-Path $package "NativeHost\GuideMe.NativeHost.exe"
+$config = Join-Path $package "NativeHost\GuideMe.NativeHost.runtimeconfig.json"
 if (-not (Test-Path $exe) -or -not (Test-Path $config)) {
     throw "Native Host executable or runtime configuration is missing from $package"
 }
