@@ -334,20 +334,33 @@ public static class DapApplicationHost
     {
         if (handle == IntPtr.Zero || !IsWindow(handle))
             throw new InvalidOperationException($"Target {label} window is not available.");
-        if (GetForegroundWindow() == handle)
+        var foregroundBefore = GetForegroundWindow();
+        GetWindowThreadProcessId(handle, out var targetProcessId);
+        GetWindowThreadProcessId(foregroundBefore, out var foregroundProcessId);
+        Console.Error.WriteLine($"[DAP focus diagnostic] {label} before: target=0x{handle.ToInt64():X}, targetPid={targetProcessId}, foreground=0x{foregroundBefore.ToInt64():X}, foregroundPid={foregroundProcessId}, callerPid={Environment.ProcessId}.");
+        if (foregroundBefore == handle)
+        {
+            Console.Error.WriteLine($"[DAP focus diagnostic] {label} already foreground.");
             return;
+        }
         if (IsIconic(handle))
             ShowWindow(handle, 9);
-        SetForegroundWindow(handle);
+        var activationAccepted = SetForegroundWindow(handle);
+        Console.Error.WriteLine($"[DAP focus diagnostic] {label} SetForegroundWindow returned {activationAccepted}.");
         var deadline = Stopwatch.StartNew();
         while (deadline.Elapsed < TimeSpan.FromSeconds(5))
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (GetForegroundWindow() == handle)
+            {
+                Console.Error.WriteLine($"[DAP focus diagnostic] {label} foreground confirmed after {deadline.ElapsedMilliseconds}ms.");
                 return;
+            }
             await Task.Delay(100, cancellationToken);
         }
-        Console.Error.WriteLine($"[DAP focus] Windows did not grant foreground activation of {label}.");
+        var foregroundAfter = GetForegroundWindow();
+        GetWindowThreadProcessId(foregroundAfter, out var foregroundAfterProcessId);
+        Console.Error.WriteLine($"[DAP focus diagnostic] {label} timeout: foreground=0x{foregroundAfter.ToInt64():X}, foregroundPid={foregroundAfterProcessId}, targetPid={targetProcessId}.");
     }
 
     private static Task ActivateWindowsTargetAsync(AutomationElement target, CancellationToken cancellationToken)
