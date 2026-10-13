@@ -46,7 +46,7 @@ public static class DapApplicationHost
             {
                 guideGate.Dispose();
                 System.Windows.MessageBox.Show(
-                    "Another Guide is already running in the current Windows session.",
+                    texts.Get("Learner.GuideAlreadyRunning"),
                     texts.Get("Learner.WindowTitle"),
                     MessageBoxButton.OK,
                     MessageBoxImage.Information);
