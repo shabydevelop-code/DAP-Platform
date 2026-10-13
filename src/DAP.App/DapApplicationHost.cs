@@ -189,41 +189,32 @@ public static class DapApplicationHost
                         try
                         {
                             targetWindow.SetFocus();
-                            Console.Error.WriteLine($"[DAP focus diagnostic] Windows transition: early UIA SetFocus requested for Step {step.Order}.");
                         }
                         catch (ElementNotAvailableException ex)
                         {
-                            Console.Error.WriteLine($"[DAP focus diagnostic] Early UIA target unavailable: {ex.Message}");
                         }
                         catch (InvalidOperationException ex)
                         {
-                            Console.Error.WriteLine($"[DAP focus diagnostic] Early UIA focus rejected: {ex.Message}");
                         }
                         if (GetForegroundWindow() != new IntPtr(targetWindow.Current.NativeWindowHandle))
                             await ActivateWindowsTargetAsync(targetWindow, token);
                         if (GetForegroundWindow() != new IntPtr(targetWindow.Current.NativeWindowHandle))
                         {
-                            Console.Error.WriteLine($"[DAP focus diagnostic] Windows transition: trying UIA SetFocus for Step {step.Order}.");
                             try { targetWindow.SetFocus(); }
-                            catch (ElementNotAvailableException ex) { Console.Error.WriteLine($"[DAP focus diagnostic] UIA target unavailable: {ex.Message}"); }
-                            catch (InvalidOperationException ex) { Console.Error.WriteLine($"[DAP focus diagnostic] UIA focus rejected: {ex.Message}"); }
                             var foregroundAfterUia = GetForegroundWindow();
                             GetWindowThreadProcessId(foregroundAfterUia, out var foregroundAfterUiaPid);
-                            Console.Error.WriteLine($"[DAP focus diagnostic] Windows transition after UIA: foreground=0x{foregroundAfterUia.ToInt64():X}, foregroundPid={foregroundAfterUiaPid}, target=0x{targetWindow.Current.NativeWindowHandle:X}.");
                         }
                         return;
                     }
 
                     // The extension resolves the exact persisted Web context and selects
                     // its tab. The host then requests foreground activation of that window.
-                    Console.Error.WriteLine($"[DAP focus diagnostic] Web transition starting at Step {step.Order}, context={step.ApplicationContextKey}.");
                     var activation = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                     pendingWebActivation = activation;
                     try
                     {
                         await browser.ActivateContextWindowAsync(step, token);
                         await activation.Task.WaitAsync(TimeSpan.FromSeconds(5), token);
-                        Console.Error.WriteLine($"[DAP focus diagnostic] Web transition activation request finished at Step {step.Order}.");
                     }
                     finally
                     {
@@ -379,15 +370,12 @@ public static class DapApplicationHost
         try
         {
             if (foregroundThread != callerThread && !callerAttached)
-                Console.Error.WriteLine("[DAP focus diagnostic] Caller input queue attachment rejected.");
             if (foregroundThread != targetThread && !targetAttached)
-                Console.Error.WriteLine("[DAP focus diagnostic] Target input queue attachment rejected.");
             if ((foregroundThread != callerThread && !callerAttached) ||
                 (foregroundThread != targetThread && !targetAttached))
                 return false;
 
             var accepted = SetForegroundWindow(target);
-            Console.Error.WriteLine($"[DAP focus diagnostic] Joined-queue SetForegroundWindow returned {accepted}.");
             return accepted;
         }
         finally
@@ -399,48 +387,18 @@ public static class DapApplicationHost
         }
     }
 
-    private static async Task ActivateWindowAsync(IntPtr handle, string label, CancellationToken cancellationToken)
+    private static Task ActivateWindowAsync(IntPtr handle, string label, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (handle == IntPtr.Zero || !IsWindow(handle))
             throw new InvalidOperationException($"Target {label} window is not available.");
-        var foregroundBefore = GetForegroundWindow();
-        GetWindowThreadProcessId(handle, out var targetProcessId);
-        GetWindowThreadProcessId(foregroundBefore, out var foregroundProcessId);
-        Console.Error.WriteLine($"[DAP focus diagnostic] {label} before: target=0x{handle.ToInt64():X}, targetPid={targetProcessId}, foreground=0x{foregroundBefore.ToInt64():X}, foregroundPid={foregroundProcessId}, callerPid={Environment.ProcessId}.");
-        if (foregroundBefore == handle)
-        {
-            Console.Error.WriteLine($"[DAP focus diagnostic] {label} already foreground.");
-            return;
-        }
+        if (GetForegroundWindow() == handle)
+            return Task.CompletedTask;
         if (IsIconic(handle))
             ShowWindow(handle, 9);
-        var deadline = Stopwatch.StartNew();
-        var attempt = 0;
-        var acceptedAtLeastOnce = false;
-        while (deadline.Elapsed < TimeSpan.FromSeconds(5))
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var currentForeground = GetForegroundWindow();
-            if (currentForeground == handle)
-            {
-                Console.Error.WriteLine($"[DAP focus diagnostic] {label} observed foreground after {deadline.ElapsedMilliseconds}ms; acceptedRequest={acceptedAtLeastOnce}, attempts={attempt}. Observation alone does not establish automatic activation.");
-                return;
-            }
-            // The foreground window may change while a mixed Guide transitions.
-            // Re-resolve it for each bounded retry rather than attaching to a stale queue.
-            var accepted = RequestForegroundActivation(handle, currentForeground);
-            attempt++;
-            acceptedAtLeastOnce |= accepted;
-            var afterRequest = GetForegroundWindow();
-            GetWindowThreadProcessId(afterRequest, out var afterPid);
-            Console.Error.WriteLine($"[DAP focus diagnostic] {label} attempt={attempt}, accepted={accepted}, foreground=0x{afterRequest.ToInt64():X}, foregroundPid={afterPid}, targetPid={targetProcessId}.");
-            if (afterRequest == handle)
-                return;
-            await Task.Delay(250, cancellationToken);
-        }
-        var foregroundAfter = GetForegroundWindow();
-        GetWindowThreadProcessId(foregroundAfter, out var foregroundAfterProcessId);
-        Console.Error.WriteLine($"[DAP focus diagnostic] {label} timeout: foreground=0x{foregroundAfter.ToInt64():X}, foregroundPid={foregroundAfterProcessId}, targetPid={targetProcessId}.");
+        // Avoid repeated requests that flash the taskbar.
+        RequestForegroundActivation(handle, GetForegroundWindow());
+        return Task.CompletedTask;
     }
 
     private static Task ActivateWindowsTargetAsync(AutomationElement target, CancellationToken cancellationToken)
