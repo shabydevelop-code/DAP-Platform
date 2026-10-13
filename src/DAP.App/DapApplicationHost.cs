@@ -153,7 +153,7 @@ public static class DapApplicationHost
         browser.ConfigureApplicationContexts(applicationContexts);
         using var stopped = new CancellationTokenSource();
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, stopped.Token);
-        using var tray = new GuideSessionTray(options.GuideId!, texts.Language, () => stopped.Cancel());
+        using var tray = new GuideSessionTray(options.GuideId!, texts, () => stopped.Cancel());
         browser.StopRequested += () => stopped.Cancel();
         browser.TargetTabClosed += () => stopped.Cancel();
         TaskCompletionSource<bool>? pendingWebActivation = null;
@@ -312,7 +312,7 @@ public static class DapApplicationHost
         var resolver = new WindowsTargetResolver();
         var bubbles = new WindowsBubblePresenter(texts);
         using var userStopped = new CancellationTokenSource();
-        using var tray = new GuideSessionTray(options.GuideId!, texts.Language, () => userStopped.Cancel());
+        using var tray = new GuideSessionTray(options.GuideId!, texts, () => userStopped.Cancel());
         using var stopRegistration = userStopped.Token.Register(() => runCancellation.Cancel());
         var runtime = new WindowsGuideRuntime(resolver, bubbles, automaticStepLabel: options.ExecutionMode == DapExecutionMode.Hybrid ? "אוטומט" : null, hybrid: options.ExecutionMode == DapExecutionMode.Hybrid);
 
@@ -480,7 +480,7 @@ public static class DapApplicationHost
         using var targetClosed = new CancellationTokenSource();
         using var runCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, targetClosed.Token);
         using var webUserStopped = new CancellationTokenSource();
-        using var tray = new GuideSessionTray(options.GuideId!, texts.Language, () => { webUserStopped.Cancel(); runCancellation.Cancel(); });
+        using var tray = new GuideSessionTray(options.GuideId!, texts, () => { webUserStopped.Cancel(); runCancellation.Cancel(); });
         browserAdapter.StopRequested += () => { webUserStopped.Cancel(); runCancellation.Cancel(); };
         browserAdapter.TargetTabClosed += () =>
         {
