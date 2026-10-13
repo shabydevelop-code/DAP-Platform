@@ -161,10 +161,17 @@ public sealed class GuideExecutionEngine
         IReadOnlyList<GuideStep> steps,
         IReadOnlyCollection<IGuideStepAdapter> adapters,
         TargetRuntime defaultRuntime,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IReadOnlyList<GuideApplicationContext>? applicationContexts = null)
     {
         ArgumentNullException.ThrowIfNull(steps);
         ArgumentNullException.ThrowIfNull(adapters);
+        var contextsByKey = new Dictionary<string, GuideApplicationContext>(StringComparer.Ordinal);
+        foreach (var context in applicationContexts ?? Array.Empty<GuideApplicationContext>())
+        {
+            if (!contextsByKey.TryAdd(context.Key, context))
+                throw new InvalidOperationException($"Duplicate application context '{context.Key}'.");
+        }
         var byRuntime = new Dictionary<TargetRuntime, IGuideStepAdapter>();
         foreach (var adapter in adapters)
         {
@@ -184,7 +191,17 @@ public sealed class GuideExecutionEngine
                 continue;
 
             var step = plan.Materialize(persisted);
-            var runtime = step.Target?.Runtime ?? defaultRuntime;
+            GuideApplicationContext? context = null;
+            if (!string.IsNullOrWhiteSpace(step.ApplicationContextKey))
+            {
+                if (!contextsByKey.TryGetValue(step.ApplicationContextKey, out context))
+                    throw new InvalidOperationException(
+                        $"Guide Step '{step.Id}' references unknown application context '{step.ApplicationContextKey}'.");
+                if (step.Target is not null && step.Target.Runtime != context.Runtime)
+                    throw new InvalidOperationException(
+                        $"Guide Step '{step.Id}' target runtime does not match its application context.");
+            }
+            var runtime = step.Target?.Runtime ?? context?.Runtime ?? defaultRuntime;
             if (!byRuntime.TryGetValue(runtime, out var adapter))
                 throw new InvalidOperationException(
                     $"Guide Step '{step.Id}' requires unavailable runtime '{runtime}'.");
