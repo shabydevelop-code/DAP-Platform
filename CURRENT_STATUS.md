@@ -12,6 +12,11 @@
 - Web startup has also intermittently failed to connect or repeatedly reported a hidden first target. The cause has not been established; successful subsequent runs do not establish a permanent fix.
 - A Web Native Messaging host may remain running while Chrome is open even without a learner session; it can lock the deployed host files during republishing.
 
+## Localization and build
+- Learner-facing UI text is supplied by the shared Hebrew/English catalogs in `src/DAP.App/Localization`. The tray exit label, Windows learner UI and Web bubble labels use localized text; the fixed product name **GuideMe** is not translated.
+- `scripts/check-localization.py` runs automatically before `DAP.App` compilation. It checks translation-key parity and common direct UI literals in selected learner UI entry points, with file-and-line diagnostics. It is intentionally lightweight, not exhaustive; Python must be available on the build machine.
+- The updated localization check and Windows x64 framework-dependent publish completed successfully on the development machine.
+
 ## Current paths and Guide IDs
 - GuideMe database: `C:\ProgramData\GuideMe\Data\GuideMe.db`
 - Demo database: `demos/Shared/data/sampleapp.db`
