@@ -155,6 +155,54 @@ public enum GuideStepReconciliationResult
 
 public sealed class GuideExecutionEngine
 {
+    /// <summary>Run one Guide using the matching platform adapter for each Step.
+    /// Existing single-runtime execution remains unchanged.</summary>
+    public async Task RunAsync(
+        IReadOnlyList<GuideStep> steps,
+        IReadOnlyCollection<IGuideStepAdapter> adapters,
+        TargetRuntime defaultRuntime,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(steps);
+        ArgumentNullException.ThrowIfNull(adapters);
+        var byRuntime = new Dictionary<TargetRuntime, IGuideStepAdapter>();
+        foreach (var adapter in adapters)
+        {
+            ArgumentNullException.ThrowIfNull(adapter);
+            if (!byRuntime.TryAdd(adapter.Runtime, adapter))
+                throw new InvalidOperationException($"Duplicate adapter for runtime '{adapter.Runtime}'.");
+        }
+        if (!byRuntime.ContainsKey(defaultRuntime))
+            throw new InvalidOperationException($"Missing default runtime adapter '{defaultRuntime}'.");
+
+        var plan = new GuideRunPlan(steps);
+        for (var index = 0; index < plan.Steps.Count; index++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var persisted = plan.Steps[index];
+            if (!persisted.IsEnabled)
+                continue;
+
+            var step = plan.Materialize(persisted);
+            var runtime = step.Target?.Runtime ?? defaultRuntime;
+            if (!byRuntime.TryGetValue(runtime, out var adapter))
+                throw new InvalidOperationException(
+                    $"Guide Step '{step.Id}' requires unavailable runtime '{runtime}'.");
+
+            Console.Error.WriteLine($"[DAP {adapter.DiagnosticName} guide] starting Step {step.Order}/{plan.Steps.Count} '{step.Id}'.");
+            if (GuideStepExecutionPolicy.Classify(step) == GuideStepPresentationKind.CenteredInformation)
+                await adapter.ShowCenteredInformationAsync(step, plan.Steps.Count, cancellationToken);
+            else
+            {
+                if (GuideRunPlan.ShouldCapture(step, runtime, StepCaptureTiming.BeforeAction))
+                    await adapter.CaptureAsync(step, plan, cancellationToken);
+                await adapter.ExecuteAsync(step, index, plan.Steps.Count, plan, cancellationToken);
+            }
+            Console.Error.WriteLine($"[DAP {adapter.DiagnosticName} guide] completed Step {step.Order}/{plan.Steps.Count} '{step.Id}'.");
+        }
+        Console.Error.WriteLine("[DAP guide] Guide finished.");
+    }
+
     public async Task RunAsync(
         IReadOnlyList<GuideStep> steps,
         IGuideStepAdapter adapter,
