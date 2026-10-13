@@ -162,13 +162,11 @@ public static class DapApplicationHost
             async (step, index, total, plan, token) =>
             {
                 var root = ResolveWindow(step);
-                await ActivateWindowsTargetAsync(root, token);
                 await windows.CreateStepAdapter(root).ExecuteAsync(step, index, total, plan, token);
             },
             async (step, total, token) =>
             {
                 var root = ResolveWindow(step);
-                await ActivateWindowsTargetAsync(root, token);
                 await windows.CreateStepAdapter(root).ShowCenteredInformationAsync(step, total, token);
             },
             (step, plan, token) =>
@@ -184,7 +182,7 @@ public static class DapApplicationHost
                 {
                     if (runtime == DAP.Core.Targets.TargetRuntime.Windows)
                     {
-                        // Windows adapter resolves and activates its own context at step entry.
+                        await ActivateWindowsTargetAsync(ResolveWindow(step), token);
                         return;
                     }
 
@@ -323,50 +321,28 @@ public static class DapApplicationHost
     private static extern bool IsWindow(IntPtr window);
 
 
-    // Windows may reject SetForegroundWindow for a background process. In that case
-    // require a real user interaction rather than injecting input or stealing focus.
-    private static async Task ActivateWindowWithConsentAsync(
-        IntPtr handle, string label, CancellationToken cancellationToken)
+    private static async Task ActivateWindowAsync(IntPtr handle, string label, CancellationToken cancellationToken)
     {
         if (handle == IntPtr.Zero || !IsWindow(handle))
             throw new InvalidOperationException($"Target {label} window is not available.");
-
+        if (GetForegroundWindow() == handle)
+            return;
         if (IsIconic(handle))
             ShowWindow(handle, 9);
-
-        for (var attempt = 0; attempt < 2; attempt++)
+        SetForegroundWindow(handle);
+        var deadline = Stopwatch.StartNew();
+        while (deadline.Elapsed < TimeSpan.FromSeconds(5))
         {
-            SetForegroundWindow(handle);
-            var deadline = Stopwatch.StartNew();
-            while (deadline.Elapsed < TimeSpan.FromSeconds(2))
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                if (GetForegroundWindow() == handle)
-                    return;
-                await Task.Delay(100, cancellationToken);
-            }
-
-            if (attempt == 0)
-            {
-                Console.Error.WriteLine($"[DAP focus] Windows denied foreground activation of {label}; requesting user interaction.");
-                var answer = System.Windows.MessageBox.Show(
-                    $"Windows prevented automatic switching to {label}. Click OK to switch to the target application, or Cancel to stop the guide.",
-                    "GuideMe - Switch application",
-                    MessageBoxButton.OKCancel, MessageBoxImage.Information);
-                if (answer != MessageBoxResult.OK)
-                    throw new OperationCanceledException("Application switch cancelled by user.", cancellationToken);
-            }
+            cancellationToken.ThrowIfCancellationRequested();
+            if (GetForegroundWindow() == handle)
+                return;
+            await Task.Delay(100, cancellationToken);
         }
-
-        throw new InvalidOperationException(
-            $"Windows did not activate the {label} application after user confirmation.");
+        Console.Error.WriteLine($"[DAP focus] Windows did not grant foreground activation of {label}.");
     }
 
     private static Task ActivateWindowsTargetAsync(AutomationElement target, CancellationToken cancellationToken)
-    {
-        var handle = new IntPtr(target.Current.NativeWindowHandle);
-        return ActivateWindowWithConsentAsync(handle, "Windows", cancellationToken);
-    }
+        => ActivateWindowAsync(new IntPtr(target.Current.NativeWindowHandle), "Windows", cancellationToken);
 
     private static async Task<AutomationElement> WaitForWindowAsync(
         string automationId,
@@ -501,7 +477,7 @@ public static class DapApplicationHost
                 throw new InvalidOperationException($"Expected exactly one Chrome window matching active tab; found {matches.Count}.");
             }
 
-            await ActivateWindowWithConsentAsync(matches[0], "Web", cancellationToken);
+            await ActivateWindowAsync(matches[0], "Web", cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
     }
