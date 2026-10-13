@@ -346,26 +346,41 @@ public static class DapApplicationHost
     {
         if (SetForegroundWindow(target)) return true;
         if (foreground == IntPtr.Zero || foreground == target) return false;
+
         var foregroundThread = GetWindowThreadProcessId(foreground, out _);
+        var targetThread = GetWindowThreadProcessId(target, out _);
         var callerThread = GetCurrentThreadId();
-        if (foregroundThread == 0 || foregroundThread == callerThread) return false;
-        if (!AttachThreadInput(callerThread, foregroundThread, true))
-        {
-            Console.Error.WriteLine("[DAP focus diagnostic] AttachThreadInput was rejected.");
-            return false;
-        }
+        if (foregroundThread == 0 || targetThread == 0) return false;
+
+        // Attach both input queues to the currently foreground queue for the
+        // duration of this request. The prior implementation attached only the
+        // caller, leaving the target window on an independent queue.
+        var callerAttached = foregroundThread != callerThread &&
+            AttachThreadInput(callerThread, foregroundThread, true);
+        var targetAttached = foregroundThread != targetThread &&
+            AttachThreadInput(targetThread, foregroundThread, true);
         try
         {
+            if (foregroundThread != callerThread && !callerAttached)
+                Console.Error.WriteLine("[DAP focus diagnostic] Caller input queue attachment rejected.");
+            if (foregroundThread != targetThread && !targetAttached)
+                Console.Error.WriteLine("[DAP focus diagnostic] Target input queue attachment rejected.");
+            if ((foregroundThread != callerThread && !callerAttached) ||
+                (foregroundThread != targetThread && !targetAttached))
+                return false;
+
             var accepted = SetForegroundWindow(target);
-            Console.Error.WriteLine($"[DAP focus diagnostic] Attached-thread SetForegroundWindow returned {accepted}.");
+            Console.Error.WriteLine($"[DAP focus diagnostic] Joined-queue SetForegroundWindow returned {accepted}.");
             return accepted;
         }
         finally
         {
-            AttachThreadInput(callerThread, foregroundThread, false);
+            if (targetAttached)
+                AttachThreadInput(targetThread, foregroundThread, false);
+            if (callerAttached)
+                AttachThreadInput(callerThread, foregroundThread, false);
         }
     }
-
 
     private static async Task ActivateWindowAsync(IntPtr handle, string label, CancellationToken cancellationToken)
     {
