@@ -647,6 +647,8 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
         var result = response.GetProperty("result");
         var status = result.GetProperty("status").GetString();
         var count = result.TryGetProperty("count", out var n) ? n.GetInt32() : 0;
+        if (stepNumber == 1)
+            Console.Error.WriteLine($"[DAP first bubble diagnostic] step={step.Id}, context={step.ApplicationContextKey}, visible={visible}, status={status}, count={count}.");
         return new(status switch
         {
             "resolved" => WebTargetResolutionStatus.Resolved,
