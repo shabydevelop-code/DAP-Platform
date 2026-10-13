@@ -43,6 +43,8 @@ All learner-visible UI strings must come from the shared `IUiTextProvider` catal
 `scripts/check-localization.py` validates matching nonempty translation keys and detects common direct UI assignments and nonlocalized Hebrew fallbacks in learner UI entry points, reporting file and line. It is automatically invoked during `DAP.App` compilation. A failed check fails the local build. Python must be installed and available as `python` for local builds. The check covers selected learner UI entry points in the app host, Windows bubble presenter, Web adapter and extension content script. The fixed product name **GuideMe** is exempt. This guard is intentionally limited and does not replace code review of new UI paths. The updated check passed during a Windows x64 framework-dependent publish.
 
 ## Delivery
+The packaged browser host executable is `NativeHost/GuideMe.NativeHost.exe`; the internal project and Chrome Native Messaging registration name remain unchanged. After deployment, rerun the registration script to point Chrome to the renamed executable.
+
 The Windows x64 framework-dependent package includes the learner and a complete Native Messaging host under `C:\GuideMe\NativeHost`. Chrome registration points to the packaged executable, not a build or temporary directory. Restart Chrome after registration.
 
 ```powershell
