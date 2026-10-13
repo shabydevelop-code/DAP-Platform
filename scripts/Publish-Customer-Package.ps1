@@ -35,8 +35,8 @@ $nativeHostDir = Join-Path $Output "NativeHost"
 New-Item -ItemType Directory -Force -Path $nativeHostDir | Out-Null
 Publish-Project "src\DAP.Runtime.Web.NativeHost\DAP.Runtime.Web.NativeHost.csproj" $nativeHostDir
 
-$nativeExe = Join-Path $nativeHostDir "DAP.Runtime.Web.NativeHost.exe"
-$nativeConfig = Join-Path $nativeHostDir "DAP.Runtime.Web.NativeHost.runtimeconfig.json"
+$nativeExe = Join-Path $nativeHostDir "GuideMe.NativeHost.exe"
+$nativeConfig = Join-Path $nativeHostDir "GuideMe.NativeHost.runtimeconfig.json"
 if (-not (Test-Path $nativeExe) -or -not (Test-Path $nativeConfig)) {
     throw "Native Messaging host publish is incomplete."
 }
