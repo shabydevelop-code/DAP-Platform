@@ -617,9 +617,9 @@
 
     const handle=document.createElement("div");
     handle.dataset.dapDragHandle="1";
-    handle.setAttribute("aria-label",presentation.dragText||"גרור להזזת הבועה");
+    handle.setAttribute("aria-label",presentation.dragText||"");
     handle.textContent="⠿";
-    handle.title=presentation.dragText||"גרור להזזת הבועה";
+    handle.title=presentation.dragText||"";
     Object.assign(handle.style,{
       display:"block",width:"fit-content",marginLeft:"auto",marginRight:"auto",
       textAlign:"center",fontSize:"18px",lineHeight:"14px",opacity:".72",
@@ -634,7 +634,7 @@
 
     if(stepNumber&&totalSteps){
       const progress=document.createElement("div");
-      progress.textContent=presentation.progressText||("שלב "+stepNumber+" מתוך "+totalSteps);
+      progress.textContent=presentation.progressText||"";
       Object.assign(progress.style,{
         fontSize:theme.fontSize+"px",opacity:".78",marginTop:"8px",
         fontWeight:"600",cursor:"default"
@@ -823,13 +823,13 @@
     const previous={outline:el.style.outline,outlineOffset:el.style.outlineOffset,boxShadow:el.style.boxShadow};
     el.style.outline=theme.targetHighlightWidth+"px solid "+theme.targetHighlightColor;el.style.outlineOffset="0px";el.style.boxShadow=theme.targetHighlightShadow;
     const b=root.createElement("div");b.id="dap-guide-bubble";b.dataset.dapStepId=step.id;b.dataset.placement=String(step.bubble?.placement||"Auto");b.__dapTarget=el;b.setAttribute("role","status");
-    const handle=root.createElement("div");handle.dataset.dapDragHandle="1";handle.setAttribute("aria-label",presentation.dragText||"גרור להזזת הבועה");handle.textContent="⠿";handle.title=presentation.dragText||"גרור להזזת הבועה";Object.assign(handle.style,{display:"block",width:"fit-content",marginLeft:"auto",marginRight:"auto",textAlign:"center",fontSize:"18px",lineHeight:"14px",opacity:".72",marginBottom:"6px",cursor:"grab",touchAction:"none"});
+    const handle=root.createElement("div");handle.dataset.dapDragHandle="1";handle.setAttribute("aria-label",presentation.dragText||"");handle.textContent="⠿";handle.title=presentation.dragText||"";Object.assign(handle.style,{display:"block",width:"fit-content",marginLeft:"auto",marginRight:"auto",textAlign:"center",fontSize:"18px",lineHeight:"14px",opacity:".72",marginBottom:"6px",cursor:"grab",touchAction:"none"});
     const content=root.createElement("div");content.textContent=step.bubble?.content||"";content.style.cursor="default";b.append(handle);
     if(presentation.automaticStepLabel){
       const badge=root.createElement("div");badge.dataset.dapAutomaticStep="true";badge.textContent=String(presentation.automaticStepLabel);Object.assign(badge.style,{display:"inline-block",fontSize:"12px",fontWeight:"700",padding:"2px 8px",marginBottom:"8px",border:"1px solid currentColor",borderRadius:"999px"});b.appendChild(badge);
     }
     b.appendChild(content);
-    if(stepNumber&&totalSteps){const p=root.createElement("div");p.textContent=presentation.progressText||("שלב "+stepNumber+" מתוך "+totalSteps);Object.assign(p.style,{fontSize:theme.fontSize+"px",opacity:".78",marginTop:"8px",fontWeight:"600",cursor:"default"});b.appendChild(p);}
+    if(stepNumber&&totalSteps){const p=root.createElement("div");p.textContent=presentation.progressText||"";Object.assign(p.style,{fontSize:theme.fontSize+"px",opacity:".78",marginTop:"8px",fontWeight:"600",cursor:"default"});b.appendChild(p);}
     const pointer=root.createElement("div");pointer.dataset.dapPointer="1";Object.assign(pointer.style,{position:"absolute",width:"0",height:"0",cursor:"default"});b.appendChild(pointer);
     Object.assign(b.style,{position:"fixed",zIndex:"2147483646",maxWidth:theme.maxWidth+"px",padding:theme.padding,background:theme.backgroundColor,color:theme.textColor,border:theme.borderWidth+"px solid "+theme.borderColor,borderRadius:theme.borderRadius+"px",boxShadow:theme.boxShadow,fontFamily:theme.fontFamily,fontSize:theme.fontSize+"px",lineHeight:String(theme.lineHeight),direction:presentation.direction||"rtl",visibility:"hidden",touchAction:"none",userSelect:"none"});b.style.setProperty("cursor","default","important");if(presentation.visible===false)b.style.setProperty("display","none","important");root.body.appendChild(b);
     let manual=false,drag=null;const margin=8;
