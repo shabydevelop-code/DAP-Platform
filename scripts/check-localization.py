@@ -32,16 +32,16 @@ ui_sources = [
     "src/DAP.Runtime.Web/Browser/ExtensionWebBrowserAdapter.cs",
     "src/DAP.Runtime.Web.Extension/content-runtime.js",
 ]
-key_pattern = re.compile(r'\\b(?:texts|_texts)\\??\\.(?:Get|Format)\\(\\s*"([^"]+)"')
+key_pattern = re.compile(r'\b(?:texts|_texts)\??\.(?:Get|Format)\(\s*"([^"]+)"')
 # Direct quoted learner-facing UI values only; variable/DB-sourced text is fine.
 cs_literal = re.compile(
-    r'\\b(?:Text|ToolTip|Header|Title|Content)\\s*=\\s*"([^"]*[A-Za-z\\u0590-\\u05ff][^"]*)"'
+    r'\b(?:Text|ToolTip|Header|Title|Content)\s*=\s*"([^"]*[A-Za-z\u0590-\u05ff][^"]*)"'
 )
 js_literal = re.compile(
-    r'\\b(?:textContent|innerText|title)\\s*=\\s*"([^"]*[A-Za-z\\u0590-\\u05ff][^"]*)"'
+    r'\b(?:textContent|innerText|title)\s*=\s*"([^"]*[A-Za-z\u0590-\u05ff][^"]*)"'
 )
 known_fallback = re.compile(
-    r'(?:\\?\\?|\\|\\|)\\s*(?:\\$?")([^"\\n]*[\\u0590-\\u05ff][^"\\n]*)"'
+    r'(?:\?\?|\|\|)\s*(?:\$?")([^"\n]*[\u0590-\u05ff][^"\n]*)"'
 )
 
 for path in ui_sources:
@@ -56,9 +56,9 @@ for path in ui_sources:
         if path.endswith(".cs"):
             for match in cs_literal.finditer(line):
                 report(path, number, f"hardcoded UI string: {match.group(1)!r}")
-            if "MessageBox.Show(" in line and re.search(r'MessageBox\\.Show\\(\\s*"', line):
+            if "MessageBox.Show(" in line and re.search(r'MessageBox\.Show\(\s*"', line):
                 report(path, number, "hardcoded MessageBox text")
-            if "ToolStripMenuItem(" in line and re.search(r'ToolStripMenuItem\\(\\s*"', line):
+            if "ToolStripMenuItem(" in line and re.search(r'ToolStripMenuItem\(\s*"', line):
                 report(path, number, "hardcoded tray menu text")
         else:
             for match in js_literal.finditer(line):
@@ -67,6 +67,6 @@ for path in ui_sources:
             report(path, number, f"Hebrew-only UI fallback: {match.group(1)!r}")
 
 if errors:
-    print("\\n".join(errors))
+    print("\n".join(errors))
     sys.exit(1)
 print("Localization guard passed.")
