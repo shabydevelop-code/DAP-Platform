@@ -5,7 +5,7 @@ param(
 $ErrorActionPreference = "Stop"
 $project = Join-Path $PSScriptRoot "DAP.Runtime.Web.NativeHost.csproj"
 dotnet build $project -c $Configuration
-$exe = Join-Path $PSScriptRoot "bin\$Configuration\net8.0\DAP.Runtime.Web.NativeHost.exe"
+$exe = Join-Path $PSScriptRoot "bin\$Configuration\net8.0\GuideMe.NativeHost.exe"
 if (!(Test-Path $exe)) { throw "Native host executable was not produced: $exe" }
 $manifestDir = Join-Path $env:LOCALAPPDATA "DAP\NativeMessaging"
 New-Item -ItemType Directory -Force -Path $manifestDir | Out-Null
