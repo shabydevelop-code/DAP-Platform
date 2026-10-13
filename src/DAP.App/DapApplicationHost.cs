@@ -333,6 +333,39 @@ public static class DapApplicationHost
     [DllImport("user32.dll")]
     private static extern bool IsWindow(IntPtr window);
 
+    [DllImport("kernel32.dll")]
+    private static extern uint GetCurrentThreadId();
+
+    [DllImport("user32.dll")]
+    private static extern bool AttachThreadInput(uint attachThreadId, uint attachToThreadId, bool attach);
+
+    // Try the normal Win32 activation first. If the foreground process owns
+    // another input queue, temporarily join that queue for the activation call.
+    // No synthetic keystrokes or mouse events are sent.
+    private static bool RequestForegroundActivation(IntPtr target, IntPtr foreground)
+    {
+        if (SetForegroundWindow(target)) return true;
+        if (foreground == IntPtr.Zero || foreground == target) return false;
+        var foregroundThread = GetWindowThreadProcessId(foreground, out _);
+        var callerThread = GetCurrentThreadId();
+        if (foregroundThread == 0 || foregroundThread == callerThread) return false;
+        if (!AttachThreadInput(callerThread, foregroundThread, true))
+        {
+            Console.Error.WriteLine("[DAP focus diagnostic] AttachThreadInput was rejected.");
+            return false;
+        }
+        try
+        {
+            var accepted = SetForegroundWindow(target);
+            Console.Error.WriteLine($"[DAP focus diagnostic] Attached-thread SetForegroundWindow returned {accepted}.");
+            return accepted;
+        }
+        finally
+        {
+            AttachThreadInput(callerThread, foregroundThread, false);
+        }
+    }
+
 
     private static async Task ActivateWindowAsync(IntPtr handle, string label, CancellationToken cancellationToken)
     {
@@ -349,15 +382,15 @@ public static class DapApplicationHost
         }
         if (IsIconic(handle))
             ShowWindow(handle, 9);
-        var activationAccepted = SetForegroundWindow(handle);
-        Console.Error.WriteLine($"[DAP focus diagnostic] {label} SetForegroundWindow returned {activationAccepted}.");
+        var activationAccepted = RequestForegroundActivation(handle, foregroundBefore);
+        Console.Error.WriteLine($"[DAP focus diagnostic] {label} foreground activation request returned {activationAccepted}.");
         var deadline = Stopwatch.StartNew();
         while (deadline.Elapsed < TimeSpan.FromSeconds(5))
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (GetForegroundWindow() == handle)
             {
-                Console.Error.WriteLine($"[DAP focus diagnostic] {label} foreground confirmed after {deadline.ElapsedMilliseconds}ms.");
+                Console.Error.WriteLine($"[DAP focus diagnostic] {label} observed foreground after {deadline.ElapsedMilliseconds}ms (may include manual activation).");
                 return;
             }
             await Task.Delay(100, cancellationToken);
