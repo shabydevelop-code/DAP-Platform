@@ -208,7 +208,9 @@ public sealed class GuideExecutionEngine
                 throw new InvalidOperationException(
                     $"Guide Step '{step.Id}' requires unavailable runtime '{runtime}'.");
 
-            if (previousRuntime is not null && previousRuntime.Value != runtime && onRuntimeTransition is not null)
+            // Initialize the first active application context as well as subsequent
+            // runtime switches. Single-runtime callers do not supply this callback.
+            if ((previousRuntime is null || previousRuntime.Value != runtime) && onRuntimeTransition is not null)
                 await onRuntimeTransition(step, runtime, cancellationToken);
             previousRuntime = runtime;
 
