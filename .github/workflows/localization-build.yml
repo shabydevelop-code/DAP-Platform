@@ -1,0 +1,21 @@
+name: Localization and build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Check localization
+        run: python scripts/check-localization.py
+      - name: Build product
+        run: dotnet build src/DAP.App/DAP.App.csproj -c Release
