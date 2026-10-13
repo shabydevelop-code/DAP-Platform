@@ -676,7 +676,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
                 stepNumber,
                 totalSteps,
                 progressText = _texts?.Format("Learner.StepProgress", stepNumber, totalSteps) ?? string.Empty,
-                actionText = _texts?.Get("Learner.Confirm") ?? "אישור",
+                actionText = _texts?.Get("Learner.Confirm") ?? string.Empty,
                 dragText = _texts?.Get("Learner.DragBubble") ?? string.Empty
             }), cancellationToken);
 
