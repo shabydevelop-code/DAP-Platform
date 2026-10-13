@@ -126,8 +126,19 @@ public static class DapApplicationHost
         using var tray = new GuideSessionTray(options.GuideId!, texts.Language, () => stopped.Cancel());
         browser.StopRequested += () => stopped.Cancel();
         browser.TargetTabClosed += () => stopped.Cancel();
+        TaskCompletionSource<bool>? pendingWebActivation = null;
         browser.TargetWindowActivationRequested += title =>
-            _ = Task.Run(() => ActivateChromeWindowAsync(title, linked.Token));
+        {
+            var activation = Task.Run(() => ActivateChromeWindowAsync(title, linked.Token));
+            var pending = pendingWebActivation;
+            if (pending is not null)
+                _ = activation.ContinueWith(task =>
+                {
+                    if (task.IsFaulted) pending.TrySetException(task.Exception!.GetBaseException());
+                    else if (task.IsCanceled) pending.TrySetCanceled();
+                    else pending.TrySetResult(true);
+                }, TaskScheduler.Default);
+        };
 
         var web = new AdapterWebGuideRuntime(
             new WebGuideStepRuntime(browser, automaticStepLabel: GetAutomaticStepLabel(),
@@ -168,7 +179,29 @@ public static class DapApplicationHost
             StartupMark(startup, "Mixed Web/Windows guide runtime starting");
             await new DAP.Core.Guides.GuideExecutionEngine().RunAsync(
                 steps, new DAP.Core.Guides.IGuideStepAdapter[] { web.CreateStepAdapter(), windowsAdapter },
-                DAP.Core.Targets.TargetRuntime.Web, linked.Token, applicationContexts);
+                DAP.Core.Targets.TargetRuntime.Web, linked.Token, applicationContexts,
+                async (step, runtime, token) =>
+                {
+                    if (runtime == DAP.Core.Targets.TargetRuntime.Windows)
+                    {
+                        // Windows adapter resolves and activates its own context at step entry.
+                        return;
+                    }
+
+                    // The extension resolves the exact persisted Web context and selects
+                    // its tab. The host then requests foreground activation of that window.
+                    var activation = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    pendingWebActivation = activation;
+                    try
+                    {
+                        await browser.ActivateContextWindowAsync(step, token);
+                        await activation.Task.WaitAsync(TimeSpan.FromSeconds(5), token);
+                    }
+                    finally
+                    {
+                        pendingWebActivation = null;
+                    }
+                });
         }
         catch (OperationCanceledException) when (stopped.IsCancellationRequested)
         {
