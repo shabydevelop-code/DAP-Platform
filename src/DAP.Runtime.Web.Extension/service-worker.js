@@ -444,8 +444,8 @@ async function handleNativeMessage(message) {
     // Bring the persisted, uniquely resolved production target to the foreground
     // once per learner session, without stealing focus on later reconciliation.
     if (contextual && !message.sessionId &&
-        ((command.type === "ensureBubble" && command.visible !== false) || command.type === "showCenteredStep") &&
-        !activatedProductionSessions.has(String(message.sessionId || "production") + ":" + envelope.applicationContextKey)) {
+        ((command.type === "ensureBubble" && command.visible !== false) || command.type === "showCenteredStep" || command.type === "activateContextWindow") &&
+        (command.type === "activateContextWindow" || !activatedProductionSessions.has(String(message.sessionId || "production") + ":" + envelope.applicationContextKey))) {
       const tab = await chrome.tabs.get(tabId);
       if (tab.windowId == null)
         throw new Error("Resolved DAP Web target has no browser window.");
@@ -455,6 +455,11 @@ async function handleNativeMessage(message) {
       if (activeTab.title && port)
         port.postMessage({ type: "adapterEvent", payload: { type: "activate-target-window", title: activeTab.title, applicationContextKey: envelope.applicationContextKey } });
       activatedProductionSessions.add(String(message.sessionId || "production") + ":" + envelope.applicationContextKey);
+    }
+
+    if (command.type === "activateContextWindow") {
+      postAdapterResponse(requestId, { ok: true, result: { status: "activated" } }, tabId, null);
+      return;
     }
 
     if (command.type === "hideBubble") {
