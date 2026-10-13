@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "GuideMe",
   "version": "0.2.13",
-  "description": "DAP browser-native Web learner runtime.",
+  "description": "GuideMe – Interactive Software Guidance",
   "icons": {
     "16": "icon16.png",
     "48": "icon48.png",
