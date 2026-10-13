@@ -397,18 +397,29 @@ public static class DapApplicationHost
         }
         if (IsIconic(handle))
             ShowWindow(handle, 9);
-        var activationAccepted = RequestForegroundActivation(handle, foregroundBefore);
-        Console.Error.WriteLine($"[DAP focus diagnostic] {label} foreground activation request returned {activationAccepted}.");
         var deadline = Stopwatch.StartNew();
+        var attempt = 0;
+        var acceptedAtLeastOnce = false;
         while (deadline.Elapsed < TimeSpan.FromSeconds(5))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (GetForegroundWindow() == handle)
+            var currentForeground = GetForegroundWindow();
+            if (currentForeground == handle)
             {
-                Console.Error.WriteLine($"[DAP focus diagnostic] {label} observed foreground after {deadline.ElapsedMilliseconds}ms (may include manual activation).");
+                Console.Error.WriteLine($"[DAP focus diagnostic] {label} observed foreground after {deadline.ElapsedMilliseconds}ms; acceptedRequest={acceptedAtLeastOnce}, attempts={attempt}. Observation alone does not establish automatic activation.");
                 return;
             }
-            await Task.Delay(100, cancellationToken);
+            // The foreground window may change while a mixed Guide transitions.
+            // Re-resolve it for each bounded retry rather than attaching to a stale queue.
+            var accepted = RequestForegroundActivation(handle, currentForeground);
+            attempt++;
+            acceptedAtLeastOnce |= accepted;
+            var afterRequest = GetForegroundWindow();
+            GetWindowThreadProcessId(afterRequest, out var afterPid);
+            Console.Error.WriteLine($"[DAP focus diagnostic] {label} attempt={attempt}, accepted={accepted}, foreground=0x{afterRequest.ToInt64():X}, foregroundPid={afterPid}, targetPid={targetProcessId}.");
+            if (afterRequest == handle)
+                return;
+            await Task.Delay(250, cancellationToken);
         }
         var foregroundAfter = GetForegroundWindow();
         GetWindowThreadProcessId(foregroundAfter, out var foregroundAfterProcessId);
