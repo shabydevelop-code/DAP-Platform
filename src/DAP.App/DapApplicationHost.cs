@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.IO;
-using System.Security.Cryptography;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows;
@@ -35,20 +34,19 @@ public static class DapApplicationHost
             return 2;
         StartupMark(startup, "launch options parsed");
 
-        // One active execution per Guide per Windows logon session, across processes.
+        // One active Guide execution per Windows logon session, across processes.
         // A named semaphore is used because an async run can resume on another thread.
         Semaphore? guideGate = null;
         var guideGateAcquired = false;
         if (options.Mode != DapLaunchMode.InfrastructureCheck)
         {
-            var guideKey = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(options.GuideId!)));
-            guideGate = new Semaphore(1, 1, @"Local\DAP.Guide." + guideKey);
+            guideGate = new Semaphore(1, 1, @"Local\DAP.ActiveGuide");
             guideGateAcquired = guideGate.WaitOne(0);
             if (!guideGateAcquired)
             {
                 guideGate.Dispose();
                 System.Windows.MessageBox.Show(
-                    "This Guide is already running in the current Windows session.",
+                    "Another Guide is already running in the current Windows session.",
                     texts.Get("Learner.WindowTitle"),
                     MessageBoxButton.OK,
                     MessageBoxImage.Information);
