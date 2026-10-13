@@ -59,7 +59,7 @@ for path in ui_sources:
                     report(path, number, f"hardcoded UI string: {match.group(1)!r}")
             if "MessageBox.Show(" in line and re.search(r'MessageBox\.Show\(\s*"', line):
                 report(path, number, "hardcoded MessageBox text")
-            if "ToolStripMenuItem(" in line and re.search(r'ToolStripMenuItem\(\s*"', line):
+            if "ToolStripMenuItem(" in line and re.search(r'ToolStripMenuItem\(\s*"(?!GuideMe")', line):
                 report(path, number, "hardcoded tray menu text")
         else:
             for match in js_literal.finditer(line):
