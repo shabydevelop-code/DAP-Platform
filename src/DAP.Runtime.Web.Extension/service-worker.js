@@ -452,6 +452,9 @@ async function handleNativeMessage(message) {
       // Select the resolved tab without restoring, resizing or focusing the
       // browser window. Native Windows activation is owned by the DAP host.
       const activeTab = await chrome.tabs.update(tabId, { active: true });
+      if (command.type === "activateContextWindow") {
+        await chrome.windows.update(tab.windowId, { focused: true });
+      }
       if (activeTab.title && port)
         port.postMessage({ type: "adapterEvent", payload: { type: "activate-target-window", title: activeTab.title, applicationContextKey: envelope.applicationContextKey } });
       activatedProductionSessions.add(String(message.sessionId || "production") + ":" + envelope.applicationContextKey);
