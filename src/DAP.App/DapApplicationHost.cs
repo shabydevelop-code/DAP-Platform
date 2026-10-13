@@ -85,6 +85,11 @@ public static class DapApplicationHost
             .Distinct()
             .ToArray();
 
+        if (enabledTargetRuntimes.Length == 2 &&
+            enabledTargetRuntimes.Contains(DAP.Core.Targets.TargetRuntime.Web) &&
+            enabledTargetRuntimes.Contains(DAP.Core.Targets.TargetRuntime.Windows))
+            return await RunMixedAsync(options, steps, applicationContexts, texts, startup, cancellationToken);
+
         if (enabledTargetRuntimes.Length != 1)
             throw new InvalidOperationException(
                 $"Guide '{options.GuideId}' must currently contain enabled targets for exactly one Runtime; found {enabledTargetRuntimes.Length}.");
@@ -98,6 +103,84 @@ public static class DapApplicationHost
             _ => throw new NotSupportedException(
                 $"Guide '{options.GuideId}' uses unsupported Runtime '{enabledTargetRuntimes[0]}'.")
         };
+    }
+
+    private static async Task<int> RunMixedAsync(
+        DapLaunchOptions options,
+        IReadOnlyList<DAP.Core.Guides.GuideStep> steps,
+        IReadOnlyList<DAP.Core.Guides.GuideApplicationContext> applicationContexts,
+        IUiTextProvider texts,
+        Stopwatch startup,
+        CancellationToken cancellationToken)
+    {
+        var windowsContexts = applicationContexts
+            .Where(context => context.Runtime == DAP.Core.Targets.TargetRuntime.Windows)
+            .ToDictionary(context => context.Key, StringComparer.Ordinal);
+        if (windowsContexts.Count == 0)
+            throw new InvalidOperationException("Mixed Guide requires persisted Windows application contexts.");
+
+        using var browser = new ExtensionWebBrowserAdapter(texts);
+        browser.ConfigureApplicationContexts(applicationContexts);
+        using var stopped = new CancellationTokenSource();
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, stopped.Token);
+        using var tray = new GuideSessionTray(options.GuideId!, texts.Language, () => stopped.Cancel());
+        browser.StopRequested += () => stopped.Cancel();
+        browser.TargetTabClosed += () => stopped.Cancel();
+        browser.TargetWindowActivationRequested += title =>
+            _ = Task.Run(() => ActivateChromeWindowAsync(title, linked.Token));
+
+        var web = new AdapterWebGuideRuntime(
+            new WebGuideStepRuntime(browser, automaticStepLabel: GetAutomaticStepLabel(),
+                hybrid: options.ExecutionMode == DapExecutionMode.Hybrid), browser);
+        var bubbles = new WindowsBubblePresenter(texts);
+        var windows = new WindowsGuideRuntime(new WindowsTargetResolver(), bubbles,
+            automaticStepLabel: options.ExecutionMode == DapExecutionMode.Hybrid ? "אוטומט" : null,
+            hybrid: options.ExecutionMode == DapExecutionMode.Hybrid);
+
+        AutomationElement ResolveWindow(DAP.Core.Guides.GuideStep step)
+        {
+            if (string.IsNullOrWhiteSpace(step.ApplicationContextKey) ||
+                !windowsContexts.TryGetValue(step.ApplicationContextKey, out var context))
+                throw new InvalidOperationException(
+                    $"Mixed Guide Windows Step '{step.Id}' requires a persisted Windows application context.");
+            return new WindowsApplicationContextResolver().Resolve(context);
+        }
+
+        var windowsAdapter = new DAP.Core.Guides.DelegateGuideStepAdapter(
+            DAP.Core.Targets.TargetRuntime.Windows, "Windows",
+            async (step, index, total, plan, token) =>
+            {
+                var root = ResolveWindow(step);
+                await ActivateWindowsTargetAsync(root, token);
+                await windows.CreateStepAdapter(root).ExecuteAsync(step, index, total, plan, token);
+            },
+            async (step, total, token) =>
+            {
+                var root = ResolveWindow(step);
+                await ActivateWindowsTargetAsync(root, token);
+                await windows.CreateStepAdapter(root).ShowCenteredInformationAsync(step, total, token);
+            },
+            (step, plan, token) =>
+                windows.CreateStepAdapter(ResolveWindow(step)).CaptureAsync(step, plan, token));
+
+        try
+        {
+            StartupMark(startup, "Mixed Web/Windows guide runtime starting");
+            await new DAP.Core.Guides.GuideExecutionEngine().RunAsync(
+                steps, new DAP.Core.Guides.IGuideStepAdapter[] { web.CreateStepAdapter(), windowsAdapter },
+                DAP.Core.Targets.TargetRuntime.Web, linked.Token, applicationContexts);
+        }
+        catch (OperationCanceledException) when (stopped.IsCancellationRequested)
+        {
+            Console.Error.WriteLine("[DAP diagnostic] Mixed guide stopped.");
+        }
+        finally
+        {
+            await bubbles.HideAsync();
+            if (!linked.IsCancellationRequested)
+                await browser.HideBubbleAsync(CancellationToken.None);
+        }
+        return 0;
     }
 
     private static async Task<int> RunWindowsAsync(
