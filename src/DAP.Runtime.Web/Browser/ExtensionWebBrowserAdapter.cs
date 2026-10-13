@@ -638,8 +638,8 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             totalSteps,
             armId,
             visible,
-            progressText = _texts?.Format("Learner.StepProgress", stepNumber, totalSteps) ?? $"שלב {stepNumber} מתוך {totalSteps}",
-            dragText = _texts?.Get("Learner.DragBubble") ?? "גרור להזזת הבועה",
+            progressText = _texts?.Format("Learner.StepProgress", stepNumber, totalSteps) ?? string.Empty,
+            dragText = _texts?.Get("Learner.DragBubble") ?? string.Empty,
             automaticStepLabel,
             direction = _texts?.IsRightToLeft == false ? "ltr" : "rtl",
             framePath = step.Target.FrameContext?.Path
@@ -675,9 +675,9 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
                 step,
                 stepNumber,
                 totalSteps,
-                progressText = _texts?.Format("Learner.StepProgress", stepNumber, totalSteps) ?? $"שלב {stepNumber} מתוך {totalSteps}",
+                progressText = _texts?.Format("Learner.StepProgress", stepNumber, totalSteps) ?? string.Empty,
                 actionText = _texts?.Get("Learner.Confirm") ?? "אישור",
-                dragText = _texts?.Get("Learner.DragBubble") ?? "גרור להזזת הבועה"
+                dragText = _texts?.Get("Learner.DragBubble") ?? string.Empty
             }), cancellationToken);
 
             await _centeredDismissal.Task.WaitAsync(cancellationToken);
