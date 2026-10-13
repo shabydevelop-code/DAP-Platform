@@ -195,7 +195,8 @@ finally
 {
     Console.CancelKeyPress -= cancel;
     Stop(web);
-    Stop(backend);
+    if (backend is not null)
+        Stop(backend);
     web.Dispose();
     backend?.Dispose();
 }
