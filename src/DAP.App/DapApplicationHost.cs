@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using System.Security.Cryptography;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows;
@@ -33,6 +34,29 @@ public static class DapApplicationHost
         if (options is null)
             return 2;
         StartupMark(startup, "launch options parsed");
+
+        // One active execution per Guide per Windows logon session, across processes.
+        // A named semaphore is used because an async run can resume on another thread.
+        Semaphore? guideGate = null;
+        var guideGateAcquired = false;
+        if (options.Mode != DapLaunchMode.InfrastructureCheck)
+        {
+            var guideKey = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(options.GuideId!)));
+            guideGate = new Semaphore(1, 1, @"Local\DAP.Guide." + guideKey);
+            guideGateAcquired = guideGate.WaitOne(0);
+            if (!guideGateAcquired)
+            {
+                guideGate.Dispose();
+                System.Windows.MessageBox.Show(
+                    "This Guide is already running in the current Windows session.",
+                    texts.Get("Learner.WindowTitle"),
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return 6;
+            }
+        }
+        try
+        {
 
         // A production Hybrid executor must own actions inside the learner runtime.
         // Never silently run a Hybrid request as Manual or delegate it to TestCRM E2E.
@@ -103,6 +127,14 @@ public static class DapApplicationHost
             _ => throw new NotSupportedException(
                 $"Guide '{options.GuideId}' uses unsupported Runtime '{enabledTargetRuntimes[0]}'.")
         };
+
+        }
+        finally
+        {
+            if (guideGateAcquired)
+                guideGate!.Release();
+            guideGate?.Dispose();
+        }
     }
 
     private static async Task<int> RunMixedAsync(
@@ -201,8 +233,8 @@ public static class DapApplicationHost
                         if (GetForegroundWindow() != new IntPtr(targetWindow.Current.NativeWindowHandle))
                         {
                             try { targetWindow.SetFocus(); }
-                            var foregroundAfterUia = GetForegroundWindow();
-                            GetWindowThreadProcessId(foregroundAfterUia, out var foregroundAfterUiaPid);
+                            catch (ElementNotAvailableException) { }
+                            catch (InvalidOperationException) { }
                         }
                         return;
                     }
