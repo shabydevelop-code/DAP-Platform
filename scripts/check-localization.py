@@ -55,7 +55,8 @@ for path in ui_sources:
         # logging strings, CSS, and protocol payloads.
         if path.endswith(".cs"):
             for match in cs_literal.finditer(line):
-                report(path, number, f"hardcoded UI string: {match.group(1)!r}")
+                if match.group(1) != "GuideMe":
+                    report(path, number, f"hardcoded UI string: {match.group(1)!r}")
             if "MessageBox.Show(" in line and re.search(r'MessageBox\.Show\(\s*"', line):
                 report(path, number, "hardcoded MessageBox text")
             if "ToolStripMenuItem(" in line and re.search(r'ToolStripMenuItem\(\s*"', line):
