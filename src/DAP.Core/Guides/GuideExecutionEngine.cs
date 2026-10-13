@@ -162,7 +162,8 @@ public sealed class GuideExecutionEngine
         IReadOnlyCollection<IGuideStepAdapter> adapters,
         TargetRuntime defaultRuntime,
         CancellationToken cancellationToken,
-        IReadOnlyList<GuideApplicationContext>? applicationContexts = null)
+        IReadOnlyList<GuideApplicationContext>? applicationContexts = null,
+        Func<GuideStep, TargetRuntime, CancellationToken, Task>? onRuntimeTransition = null)
     {
         ArgumentNullException.ThrowIfNull(steps);
         ArgumentNullException.ThrowIfNull(adapters);
@@ -183,6 +184,7 @@ public sealed class GuideExecutionEngine
             throw new InvalidOperationException($"Missing default runtime adapter '{defaultRuntime}'.");
 
         var plan = new GuideRunPlan(steps);
+        TargetRuntime? previousRuntime = null;
         for (var index = 0; index < plan.Steps.Count; index++)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -205,6 +207,10 @@ public sealed class GuideExecutionEngine
             if (!byRuntime.TryGetValue(runtime, out var adapter))
                 throw new InvalidOperationException(
                     $"Guide Step '{step.Id}' requires unavailable runtime '{runtime}'.");
+
+            if (previousRuntime is not null && previousRuntime.Value != runtime && onRuntimeTransition is not null)
+                await onRuntimeTransition(step, runtime, cancellationToken);
+            previousRuntime = runtime;
 
             Console.Error.WriteLine($"[DAP {adapter.DiagnosticName} guide] starting Step {step.Order}/{plan.Steps.Count} '{step.Id}'.");
             if (GuideStepExecutionPolicy.Classify(step) == GuideStepPresentationKind.CenteredInformation)
