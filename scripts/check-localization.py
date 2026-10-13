@@ -18,10 +18,10 @@ for path in [
     "src/DAP.App/DapLaunchOptions.cs",
 ]:
     source = (root / path).read_text(encoding="utf-8")
-    for key in re.findall(r'texts\\.(?:Get|Format)\\("([^"]+)"', source):
+    for key in re.findall(r'texts\.(?:Get|Format)\("([^"]+)"', source):
         if key not in he or key not in en:
             errors.append(f"{path}: missing localized key {key}")
-    if re.search(r'(?:MessageBox\\.Show|ToolStripMenuItem)\\(\\s*"(?!GuideMe)', source):
+    if re.search(r'(?:MessageBox\.Show|ToolStripMenuItem)\(\s*"(?!GuideMe)', source):
         errors.append(f"{path}: direct UI literal; use localized text")
 for path in [
     "src/DAP.Runtime.Web.Extension/content-runtime.js",
@@ -32,6 +32,6 @@ for path in [
         if literal in source:
             errors.append(f"{path}: Hebrew-only UI fallback: {literal}")
 if errors:
-    print("\\n".join(errors))
+    print("\n".join(errors))
     sys.exit(1)
 print("Localization guard passed.")
