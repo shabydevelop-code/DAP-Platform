@@ -31,4 +31,7 @@
   <Target Name="CheckCurrentDapSessionBeforeBuild" BeforeTargets="ResolveReferences" Condition="'$(DesignTimeBuild)' != 'true' and '$(IsCrossTargetingBuild)' != 'true'">
     <Exec Command="powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\Check-DapBuildLock.ps1&quot; -ExecutablePath &quot;$(MSBuildProjectDirectory)\bin\$(Configuration)\$(TargetFramework)\DAP.exe&quot;" />
   </Target>
+  <Target Name="CheckLocalizationBeforeBuild" BeforeTargets="CoreCompile" Condition="'$(DesignTimeBuild)' != 'true' and '$(IsCrossTargetingBuild)' != 'true'">
+    <Exec Command="python &quot;$(MSBuildProjectDirectory)\..\..\scripts\check-localization.py&quot;" />
+  </Target>
 </Project>
