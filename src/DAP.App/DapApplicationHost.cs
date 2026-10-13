@@ -129,7 +129,7 @@ public static class DapApplicationHost
         TaskCompletionSource<bool>? pendingWebActivation = null;
         browser.TargetWindowActivationRequested += title =>
         {
-            var activation = Task.CompletedTask;
+            var activation = Task.Run(() => ActivateChromeWindowAsync(title, linked.Token));
             var pending = pendingWebActivation;
             if (pending is not null)
                 _ = activation.ContinueWith(task =>
