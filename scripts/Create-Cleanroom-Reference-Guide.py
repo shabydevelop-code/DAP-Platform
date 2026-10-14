@@ -32,6 +32,7 @@ def a(relation, strategy, value):
 STEPS = [
  step("Web","web-intro","ניצור לקוח חדש בדפדפן, נאתר אותו ביישום החלונות ונחזור לבדוק את הנתונים.",advance="Manual",placement="Center"),
  step("Web","web-new-customer","פתח לקוח חדש.", "css", 'button[data-go="#/customer/new"]', "Top",
+      validation="clicked",
       completion=[("target-exists","css","#customer-form input[name=name]",None)]),
  step("Web","web-name","הזן שם לקוח חדש: "+CUSTOMER,"css","#customer-form input[name=name]",
       anchors=[a("Ancestor","css","#customer-form")],validation="value-equals",expected=CUSTOMER,placement="Right"),
