@@ -30,3 +30,23 @@ with sqlite3.connect(DB.resolve().as_uri() + "?mode=ro", uri=True, timeout=5) as
     print(f"Missing explicit state completion: {len(missing)}; steps: {missing}")
     if len(steps) != 55:
         raise SystemExit("Unexpected step count; no changes made.")
+
+    print("\\nDETAILED CONDITION REVIEW")
+    for idx, step in enumerate(steps):
+        conds = conn.execute("""SELECT Kind, ExpectedValue, TargetJson
+                                 FROM StepCompletionConditions
+                                 WHERE GuideStepId=? ORDER BY ConditionOrder""", (step["Id"],)).fetchall()
+        if step["AdvanceMode"] == "Manual":
+            continue
+        if conds:
+            for cond in conds:
+                print(f"{step['StepOrder']:>2} {step['Key']}: {cond['Kind']} "
+                      f"expected={cond['ExpectedValue']!r} target={cond['TargetJson']}")
+        else:
+            print(f"{step['StepOrder']:>2} {step['Key']}: MISSING; "
+                  f"validation={step['ValidationKind']!r}; "
+                  f"target={step['LocatorStrategy']}:{step['LocatorValue']}")
+            if idx + 1 < len(steps):
+                nxt = steps[idx + 1]
+                print(f"   next={nxt['Key']} target={nxt['LocatorStrategy']}:{nxt['LocatorValue']}")
+    print("\\nWARNING: Condition presence does not prove transition uniqueness.")
