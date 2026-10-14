@@ -72,7 +72,7 @@ public sealed class WebGuideStepRuntime
             && string.Equals(stateKind, "state-observed", StringComparison.OrdinalIgnoreCase)
             && step.CompletionConditions is { Count: > 0 };
         var initialObservationRecorded = false;
-        var initialObservationSatisfied = false;
+        var observationSawUnsatisfied = false;
         // Every target-attached Step must wait for a quiet DOM window before
         // exposing its target. The previous Step may have completed as soon as
         // its persisted completion condition became true while the application
@@ -99,12 +99,14 @@ public sealed class WebGuideStepRuntime
                 if (!initialObservationRecorded)
                 {
                     initialObservationRecorded = true;
-                    initialObservationSatisfied = satisfied;
                     if (satisfied)
-                        Console.Error.WriteLine($"[DAP state observation] Step {stepNumber}/{totalSteps} '{step.Id}': completion condition was already true at first observation; waiting for a distinct transition instead of skipping.");
+                        Console.Error.WriteLine($"[DAP state observation] Step {stepNumber}/{totalSteps} '{step.Id}': completion condition already true; waiting for it to become false and then true.");
                 }
-                // A pre-existing destination must never auto-complete a transition.
-                if (!initialObservationSatisfied && satisfied)
+                if (!satisfied)
+                    observationSawUnsatisfied = true;
+                // A reused DOM marker can be true on entry. Require a false->true
+                // observation within this step; do not permanently latch its initial state.
+                if (observationSawUnsatisfied && satisfied)
                 {
                     await _browser.HideBubbleAsync(cancellationToken);
                     return GuideStepReconciliationResult.Completed;
