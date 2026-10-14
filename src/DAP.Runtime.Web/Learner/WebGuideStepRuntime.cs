@@ -64,9 +64,15 @@ public sealed class WebGuideStepRuntime
         var clicked = GuideStepExecutionPolicy.IsClickValidationStep(step);
         // Opt-in observation-only steps do not arm browser input listeners.
         // Existing Guides retain their original validation semantics.
+        var stateKind = step.Validation?.Kind;
+        var stateValue = step.AdvanceMode == StepAdvanceMode.AutomaticOnValidation
+            && (string.Equals(stateKind, "state-value-equals", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(stateKind, "state-value-not-empty", StringComparison.OrdinalIgnoreCase));
         var observationOnly = step.AdvanceMode == StepAdvanceMode.AutomaticOnValidation
-            && string.Equals(step.Validation?.Kind, "state-observed", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(stateKind, "state-observed", StringComparison.OrdinalIgnoreCase)
             && step.CompletionConditions is { Count: > 0 };
+        var initialObservationRecorded = false;
+        var initialObservationSatisfied = false;
         // Every target-attached Step must wait for a quiet DOM window before
         // exposing its target. The previous Step may have completed as soon as
         // its persisted completion condition became true while the application
@@ -74,17 +80,33 @@ public sealed class WebGuideStepRuntime
         var activeState = new GuideActiveStepState(step);
         var hybridWriteCompleted = false;
         var sharedEngine = new UnifiedGuideStepEngine();
-        Task<WebValidationCommit?>? commitTask = automatic && !observationOnly
+        Task<WebValidationCommit?>? commitTask = automatic && !observationOnly && !stateValue
             ? _browser.WaitForValidationCommitAsync(step, cancellationToken)
             : null;
 
         async Task<GuideStepReconciliationResult> ReconcileAsync(CancellationToken cancellationToken)
         {
-            if (observationOnly && activeState.PresentationReady &&
-                await _browser.AreCompletionConditionsSatisfiedAsync(step, cancellationToken))
+            if (stateValue && activeState.PresentationReady
+                && await _browser.IsPrimaryValidationSatisfiedAsync(step, cancellationToken)
+                && await _browser.AreCompletionConditionsSatisfiedAsync(step, cancellationToken))
             {
                 await _browser.HideBubbleAsync(cancellationToken);
                 return GuideStepReconciliationResult.Completed;
+            }
+            if (observationOnly && activeState.PresentationReady)
+            {
+                var satisfied = await _browser.AreCompletionConditionsSatisfiedAsync(step, cancellationToken);
+                if (!initialObservationRecorded)
+                {
+                    initialObservationRecorded = true;
+                    initialObservationSatisfied = satisfied;
+                }
+                // A pre-existing destination must never auto-complete a transition.
+                if (!initialObservationSatisfied && satisfied)
+                {
+                    await _browser.HideBubbleAsync(cancellationToken);
+                    return GuideStepReconciliationResult.Completed;
+                }
             }
 
             // A Hybrid write can replace its own iframe before the DOM commit event
