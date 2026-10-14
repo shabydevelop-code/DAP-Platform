@@ -50,7 +50,7 @@ Do not run the shared demo server separately alongside a launcher; both use port
 
 ## Current limitations and verification gaps
 - All currently persisted Guides have passed full validation according to the user's latest confirmation. This does not establish that future changes or new Guides have been validated. Historical intermittent Web startup/first-target behavior has not been independently root-caused.
-- Instructor/Editor is not implemented. A Guide currently supports one target runtime type; cross-runtime orchestration is not implemented.
+- Instructor/Editor is not implemented. A mixed Web–Windows–Web Guide is persisted and is included in the user's confirmation that all existing database Guides passed full validation. The previous blanket assertion that a Guide supports only one runtime type / that cross-runtime execution is not implemented is withdrawn. The exact implementation boundaries should be checked in current runtime code before claiming arbitrary cross-runtime transitions.
 - Windows multi-context switching, delayed discovery and rebinding are not implemented.
 - Multi-user and Citrix operation remain unverified. The named-pipe transport is session-aware, but end-to-end isolation and concurrency require dedicated testing.
 - Dynamic captures are per-run and supported for defined observable properties and target/anchor tokens. Capture timing is not fully persisted and substitution does not cover every Guide field.
