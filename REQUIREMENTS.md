@@ -5,7 +5,7 @@
 - DAP is a production-target .NET 8 Windows application.
 - One product supports Learner and future Instructor/Editor experiences.
 - Learner launch uses exactly `DAP.exe --guide <GuideId>` as the required product entry contract. No `--learner` mode argument or compatibility alias is accepted. The runtime type is derived from the persisted Guide. Instructor/Editor launch remains undecided.
-- The current launcher supports Guides whose enabled targets belong to one runtime type; cross-runtime Guide execution is a future capability.
+- The launcher supports Guides containing Web and Windows targets in one persisted workflow, including Web–Windows–Web transitions. Cross-runtime execution is an existing, user-verified capability, not a future feature.
 - Hebrew and English UI are supported with RTL/LTR direction.
 - Guide content language is independent of product UI language.
 - Web and Windows learner bubbles provide a localized **End assistance** / **סיים ליווי** action. Stopping removes guidance, ends the learner process, preserves the target application, and permits launching the Guide again.
