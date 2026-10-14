@@ -50,3 +50,26 @@ with sqlite3.connect(DB.resolve().as_uri() + "?mode=ro", uri=True, timeout=5) as
                 nxt = steps[idx + 1]
                 print(f"   next={nxt['Key']} target={nxt['LocatorStrategy']}:{nxt['LocatorValue']}")
     print("\\nWARNING: Condition presence does not prove transition uniqueness.")
+
+    print("\\nSTATE-ONLY CONVERSION CLASSIFICATION (NO DB CHANGES)")
+    value_kinds = {"value-equals", "value-not-empty"}
+    manual_count = 0
+    value_count = 0
+    action_count = 0
+    for step in steps:
+        if step["AdvanceMode"] == "Manual":
+            manual_count += 1
+            print(f"{step['StepOrder']:>2} MANUAL: keep explicit learner confirmation")
+        elif step["ValidationKind"] in value_kinds:
+            value_count += 1
+            print(f"{step['StepOrder']:>2} VALUE: evaluate current target value directly; "
+                  "do not infer completion from next target presence")
+        else:
+            action_count += 1
+            print(f"{step['StepOrder']:>2} TRANSITION: inspect source and destination "
+                  "state; prove postcondition was not already satisfied")
+    print(f"SUMMARY: {value_count} value steps, {action_count} transition steps, "
+          f"{manual_count} manual steps")
+    print("NOT SAFE TO AUTO-CONVERT: pre-existing targets, transient alerts, "
+          "saved-record confirmation, and reused screen components require "
+          "explicit before/after semantics.")
