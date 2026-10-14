@@ -36,7 +36,7 @@ def main():
             parser.error("Both Guides must contain 55 steps")
         for order in ORDERS:
             src, dst = original[order], clone[order]
-            if src["Key"] != dst["Key"] or src["ValidationKind"] != "clicked" or dst["ValidationKind"] not in ("clicked", "state-observed"):
+            if dst["Key"] not in (src["Key"], src["Key"].replace("testcrm-", "sampleapp-", 1)) or src["ValidationKind"] != "clicked" or dst["ValidationKind"] not in ("clicked", "state-observed"):
                 parser.error(f"Unexpected Guide step {order}; aborting")
             source_conditions = conn.execute(
                 "SELECT Kind, ExpectedValue, TargetJson FROM StepCompletionConditions WHERE GuideStepId=? ORDER BY ConditionOrder",
