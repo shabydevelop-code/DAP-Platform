@@ -56,3 +56,5 @@ Do not run the shared demo server separately alongside a launcher; both use port
 - Dynamic captures are per-run and supported for defined observable properties and target/anchor tokens. Capture timing is not fully persisted and substitution does not cover every Guide field.
 - Windows UIA target-resolution performance on complex dynamic grids remains a measurement and correctness concern; do not claim universal latency improvement.
 - Keyboard and screen-reader accessibility of the tray menu have not been independently verified.
+
+- Capture timing persistence has been implemented in the SQLite initializer and Guide repository. Existing null timing values preserve legacy Web/Windows defaults. GitHub source changes are committed; local build, database migration execution, and end-to-end regression have not yet been run in this session.
