@@ -62,6 +62,11 @@ public sealed class WebGuideStepRuntime
         if (diagnoseReference) ReferenceDiagnostic($"[DAP reference diagnostic] Starting Web Step {stepNumber}/{totalSteps} '{step.Id}'.");
         var automatic = GuideStepExecutionPolicy.IsAutomaticValidationStep(step);
         var clicked = GuideStepExecutionPolicy.IsClickValidationStep(step);
+        // Opt-in observation-only steps do not arm browser input listeners.
+        // Existing Guides retain their original validation semantics.
+        var observationOnly = step.AdvanceMode == StepAdvanceMode.AutomaticOnValidation
+            && string.Equals(step.Validation?.Kind, "state-observed", StringComparison.OrdinalIgnoreCase)
+            && step.CompletionConditions is { Count: > 0 };
         // Every target-attached Step must wait for a quiet DOM window before
         // exposing its target. The previous Step may have completed as soon as
         // its persisted completion condition became true while the application
@@ -69,12 +74,19 @@ public sealed class WebGuideStepRuntime
         var activeState = new GuideActiveStepState(step);
         var hybridWriteCompleted = false;
         var sharedEngine = new UnifiedGuideStepEngine();
-        Task<WebValidationCommit?>? commitTask = automatic
+        Task<WebValidationCommit?>? commitTask = automatic && !observationOnly
             ? _browser.WaitForValidationCommitAsync(step, cancellationToken)
             : null;
 
         async Task<GuideStepReconciliationResult> ReconcileAsync(CancellationToken cancellationToken)
         {
+            if (observationOnly && activeState.PresentationReady &&
+                await _browser.AreCompletionConditionsSatisfiedAsync(step, cancellationToken))
+            {
+                await _browser.HideBubbleAsync(cancellationToken);
+                return GuideStepReconciliationResult.Completed;
+            }
+
             // A Hybrid write can replace its own iframe before the DOM commit event
             // reaches the adapter. Validate the persisted postconditions directly
             // only after this Runtime has successfully performed that write.
