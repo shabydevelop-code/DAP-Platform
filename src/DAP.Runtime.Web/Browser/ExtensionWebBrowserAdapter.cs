@@ -595,8 +595,9 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
         var value = result.TryGetProperty("value", out var v) && v.ValueKind != JsonValueKind.Null ? v.GetString() ?? "" : "";
         return step.Validation.Kind switch
         {
-            "value-not-empty" => GuideValidationPolicy.IsValueSatisfied(step.Validation, value),
-            "value-equals" => step.Validation.ExpectedValue is not null && GuideValidationPolicy.IsValueSatisfied(step.Validation, value),
+            "value-not-empty" or "state-value-not-empty" => !string.IsNullOrWhiteSpace(value),
+            "value-equals" or "state-value-equals" => step.Validation.ExpectedValue is not null
+                && string.Equals(value, step.Validation.ExpectedValue, StringComparison.Ordinal),
             _ => throw new NotSupportedException($"Unsupported Web validation kind '{step.Validation.Kind}'.")
         };
     }
