@@ -43,11 +43,7 @@ def main():
             guide = db.execute("SELECT Id FROM Guides WHERE Key=?", (key,)).fetchone()
             if guide is None:
                 parser.error(f"Missing original guide: {key}")
-            steps = db.execute("""
-                SELECT Id, StepOrder, Key, ValidationKind, ValidationExpectedValue,
-                       AdvanceMode, TargetDescriptor
-                FROM GuideSteps WHERE GuideId=? ORDER BY StepOrder
-            """, (guide["Id"],)).fetchall()
+            steps = db.execute("SELECT * FROM GuideSteps WHERE GuideId=? ORDER BY StepOrder", (guide["Id"],)).fetchall()
             if len(steps) != 55:
                 parser.error(f"Expected 55 steps for {key}, found {len(steps)}")
             for step in steps:
@@ -55,6 +51,7 @@ def main():
                     SELECT Kind, TargetJson FROM StepCompletionConditions
                     WHERE GuideStepId=? ORDER BY ConditionOrder
                 """, (step["Id"],)).fetchall()
+                fields = set(step.keys())
                 kind = step["ValidationKind"] or ""
                 rows.append({
                     "Guide": key,
@@ -62,8 +59,8 @@ def main():
                     "Key": step["Key"],
                     "AdvanceMode": step["AdvanceMode"],
                     "ValidationKind": kind,
-                    "ExpectedValue": step["ValidationExpectedValue"] or "",
-                    "ActionTarget": describe_target(step["TargetDescriptor"]),
+                    "ExpectedValue": step["ValidationExpectedValue"] if "ValidationExpectedValue" in fields else "",
+                    "ActionTarget": describe_target(next((step[name] for name in ("TargetDescriptor", "TargetDescriptorJson", "TargetJson") if name in fields), None)),
                     "CompletionConditionCount": len(conditions),
                     "CompletionConditions": json.dumps([
                         {"kind": c["Kind"], "target": describe_target(c["TargetJson"])}
