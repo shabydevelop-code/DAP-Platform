@@ -135,12 +135,12 @@ def main():
                 conn.execute("""INSERT INTO TargetAnchors(
                     GuideStepId,AnchorOrder,Relation,LocatorStrategy,LocatorValue)
                     VALUES(?,?,?,?,?)""",(sid,index,relation,strategy,value))
-            for kind,strategy,value,expected in s["completion"]:
+            for condition_order,(kind,strategy,value,expected) in enumerate(s["completion"]):
                 target={"Runtime":s["runtime"],"Locator":{"Strategy":strategy,"Value":value},
                         "Anchors":[],"FrameContext":{"Path":FRAME} if s["runtime"]=="Web" else None}
                 conn.execute("""INSERT INTO StepCompletionConditions(
-                    GuideStepId,Kind,ExpectedValue,TargetJson) VALUES(?,?,?,?)""",
-                    (sid,kind,expected,json.dumps(target,ensure_ascii=False)))
+                    GuideStepId,ConditionOrder,Kind,ExpectedValue,TargetJson) VALUES(?,?,?,?,?)""",
+                    (sid,condition_order,kind,expected,json.dumps(target,ensure_ascii=False)))
         conn.commit()
         print(f"CREATED {KEY}: {len(STEPS)} steps. Not runtime verified.")
 
