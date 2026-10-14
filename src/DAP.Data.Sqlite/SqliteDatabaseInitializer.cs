@@ -19,6 +19,7 @@ public sealed class SqliteDatabaseInitializer
         command.CommandText = Schema002;
         await command.ExecuteNonQueryAsync(cancellationToken);
         await EnsureGuideStepHybridColumnsAsync(connection, cancellationToken);
+        await EnsureStepCaptureTimingColumnAsync(connection, cancellationToken);
     }
 
     private static async Task EnsureGuideStepHybridColumnsAsync(SqliteConnection connection, CancellationToken cancellationToken)
@@ -54,6 +55,24 @@ public sealed class SqliteDatabaseInitializer
         }
     }
 
+    private static async Task EnsureStepCaptureTimingColumnAsync(SqliteConnection connection, CancellationToken cancellationToken)
+    {
+        var hasTiming = false;
+        await using (var info = connection.CreateCommand())
+        {
+            info.CommandText = "PRAGMA table_info(StepCaptures);";
+            await using var reader = await info.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+                hasTiming |= string.Equals(reader.GetString(1), "Timing", StringComparison.OrdinalIgnoreCase);
+        }
+        if (!hasTiming)
+        {
+            await using var add = connection.CreateCommand();
+            add.CommandText = "ALTER TABLE StepCaptures ADD COLUMN Timing TEXT NULL;";
+            await add.ExecuteNonQueryAsync(cancellationToken);
+        }
+    }
+
     private const string Schema002 = """
 PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS Guides (
@@ -84,7 +103,7 @@ CREATE TABLE IF NOT EXISTS TargetAnchors (
  UNIQUE (GuideStepId, AnchorOrder));
 CREATE TABLE IF NOT EXISTS StepCaptures (
  GuideStepId INTEGER PRIMARY KEY, Runtime TEXT NOT NULL, LocatorStrategy TEXT NOT NULL,
- LocatorValue TEXT NOT NULL, Property TEXT NOT NULL, Pattern TEXT NULL,
+ LocatorValue TEXT NOT NULL, Property TEXT NOT NULL, Pattern TEXT NULL, Timing TEXT NULL,
  FOREIGN KEY (GuideStepId) REFERENCES GuideSteps(Id) ON DELETE CASCADE);
 CREATE TABLE IF NOT EXISTS StepCompletionConditions (
  Id INTEGER PRIMARY KEY AUTOINCREMENT, GuideStepId INTEGER NOT NULL, ConditionOrder INTEGER NOT NULL,
