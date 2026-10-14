@@ -45,6 +45,8 @@ def main():
     parser.add_argument("--db", default=str(DB))
     parser.add_argument("--apply", action="store_true")
     args = parser.parse_args()
+    if args.apply:
+        parser.error("DISABLED: concatenating canonical guides does not create a valid capability reference. No DB changes allowed.")
     path = Path(args.db)
     if not path.is_file():
         parser.error(f"Database not found: {path}")
