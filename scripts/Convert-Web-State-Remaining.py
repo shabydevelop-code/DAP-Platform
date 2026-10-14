@@ -54,7 +54,7 @@ def main():
             if b["Key"] not in (a["Key"], a["Key"].replace("testcrm-", "sampleapp-", 1)):
                 p.error(f"Unexpected key at step {order}")
             conditions = list(db.execute(
-                "SELECT rowid, Kind, TargetJson FROM StepCompletionConditions WHERE GuideStepId=? ORDER BY ConditionOrder", (b["Id"],)))
+                "SELECT rowid AS ConditionRowId, Kind, TargetJson FROM StepCompletionConditions WHERE GuideStepId=? ORDER BY ConditionOrder", (b["Id"],)))
             if len(conditions) != 1 or conditions[0]["Kind"] != "target-exists":
                 p.error(f"Unexpected conditions at step {order}")
             target = json.loads(conditions[0]["TargetJson"])
@@ -69,7 +69,7 @@ def main():
             # Never modify FrameContext.Path or Anchors: those identify the
             # containing frame and fallback targets, not the condition itself.
             locator["Value"] = selector
-            plans.append((order, b["Id"], conditions[0]["rowid"], json.dumps(target, ensure_ascii=False, separators=(",", ":"))))
+            plans.append((order, b["Id"], conditions[0]["ConditionRowId"], json.dumps(target, ensure_ascii=False, separators=(",", ":"))))
             print(f"{order:2}: {b['ValidationKind']} -> state-observed; {old} -> {selector}")
         print("Step 15 excluded: no verified state transition.")
         if not args.apply:
