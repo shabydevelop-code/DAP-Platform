@@ -203,13 +203,14 @@ SELECT Id FROM GuideSteps WHERE GuideId=$guideId AND Key=$key;
         {
             await using var insertCapture = connection.CreateCommand();
             insertCapture.Transaction = (SqliteTransaction)transaction;
-            insertCapture.CommandText = "INSERT INTO StepCaptures(GuideStepId,Runtime,LocatorStrategy,LocatorValue,Property,Pattern) VALUES($id,$runtime,$strategy,$value,$property,$pattern);";
+            insertCapture.CommandText = "INSERT INTO StepCaptures(GuideStepId,Runtime,LocatorStrategy,LocatorValue,Property,Pattern,Timing) VALUES($id,$runtime,$strategy,$value,$property,$pattern,$timing);";
             Add(insertCapture,"$id",numericStepId);
             Add(insertCapture,"$runtime",step.Capture.Runtime.ToString());
             Add(insertCapture,"$strategy",step.Capture.Locator.Strategy);
             Add(insertCapture,"$value",step.Capture.Locator.Value);
             Add(insertCapture,"$property",step.Capture.Property);
             Add(insertCapture,"$pattern",step.Capture.Pattern);
+            Add(insertCapture,"$timing",step.Capture.Timing?.ToString());
             await insertCapture.ExecuteNonQueryAsync(cancellationToken);
         }
 
@@ -325,13 +326,14 @@ SELECT last_insert_rowid();
             {
                 await using var insertCapture = connection.CreateCommand();
                 insertCapture.Transaction = (SqliteTransaction)transaction;
-                insertCapture.CommandText = "INSERT INTO StepCaptures(GuideStepId,Runtime,LocatorStrategy,LocatorValue,Property,Pattern) VALUES($id,$runtime,$strategy,$value,$property,$pattern);";
+                insertCapture.CommandText = "INSERT INTO StepCaptures(GuideStepId,Runtime,LocatorStrategy,LocatorValue,Property,Pattern,Timing) VALUES($id,$runtime,$strategy,$value,$property,$pattern,$timing);";
                 Add(insertCapture,"$id",numericStepId);
                 Add(insertCapture,"$runtime",step.Capture.Runtime.ToString());
                 Add(insertCapture,"$strategy",step.Capture.Locator.Strategy);
                 Add(insertCapture,"$value",step.Capture.Locator.Value);
                 Add(insertCapture,"$property",step.Capture.Property);
                 Add(insertCapture,"$pattern",step.Capture.Pattern);
+            Add(insertCapture,"$timing",step.Capture.Timing?.ToString());
                 await insertCapture.ExecuteNonQueryAsync(cancellationToken);
             }
 
@@ -413,7 +415,7 @@ WHERE Key = $newKey;
         StepCaptureDefinition? capture=null;
         await using (var captureCommand=connection.CreateCommand())
         {
-            captureCommand.CommandText="SELECT Runtime,LocatorStrategy,LocatorValue,Property,Pattern FROM StepCaptures WHERE GuideStepId=$id;";
+            captureCommand.CommandText="SELECT Runtime,LocatorStrategy,LocatorValue,Property,Pattern,Timing FROM StepCaptures WHERE GuideStepId=$id;";
             captureCommand.Parameters.AddWithValue("$id",row.NumericId);
             await using var captureReader=await captureCommand.ExecuteReaderAsync(ct);
             if(await captureReader.ReadAsync(ct))
@@ -421,7 +423,8 @@ WHERE Key = $newKey;
                     Enum.Parse<TargetRuntime>(captureReader.GetString(0)),
                     new Locator(captureReader.GetString(1),captureReader.GetString(2)),
                     captureReader.GetString(3),
-                    captureReader.IsDBNull(4)?null:captureReader.GetString(4));
+                    captureReader.IsDBNull(4)?null:captureReader.GetString(4),
+                    captureReader.IsDBNull(5)?null:Enum.Parse<StepCaptureTiming>(captureReader.GetString(5)));
         }
         var completionConditions = new List<StepCompletionCondition>();
         await using (var completionCommand = connection.CreateCommand())
