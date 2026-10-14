@@ -38,7 +38,7 @@ def main():
         changes = []
         for order in VALUE_STEPS:
             a, b = src[order], dest[order]
-            if (a["Key"], a["ValidationExpectedValue"]) != (b["Key"], b["ValidationExpectedValue"]):
+            if (a["Key"].replace("testcrm-", "sampleapp-", 1), a["ValidationExpectedValue"]) != (b["Key"], b["ValidationExpectedValue"]):
                 parser.error(f"Step {order} differs from original; refusing conversion")
             expected = {"value-equals": "state-value-equals",
                         "value-not-empty": "state-value-not-empty"}.get(a["ValidationKind"])
