@@ -43,6 +43,8 @@ def main():
     p.add_argument("--db", default=DEFAULT_DB)
     p.add_argument("--apply", action="store_true")
     args = p.parse_args()
+    if args.apply:
+        p.error("Installation disabled: this four-step draft is incomplete and lacks validated application contexts.")
     db = Path(args.db)
     if not db.is_file():
         p.error(f"Missing database: {db}")
