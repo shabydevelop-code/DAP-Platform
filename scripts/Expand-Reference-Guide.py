@@ -1,7 +1,7 @@
-"""Build a 40-step mixed Web/Windows reference from persisted canonical guides.
+"""Build a 110-step mixed Web/Windows reference from persisted canonical guides.
 
 The existing six-step reference is replaced only with --apply, after checking its
-expected untouched baseline. Canonical guides and smoke guide are never edited.
+expected step keys. This does not certify runtime behavior or full feature coverage. Canonical guides and smoke guide are never edited.
 Use --preview (default) to inspect the proposed step order and capability counts.
 """
 import argparse
@@ -12,8 +12,8 @@ from pathlib import Path
 
 DB = Path(r"C:\ProgramData\GuideMe\Data\GuideMe.db")
 DEST = "sampleapp-reference-guide"
-SOURCES = (("sampleapp-web-guide", "web", 20),
-           ("sampleapp-windows-guide", "windows", 20))
+SOURCES = (("sampleapp-web-guide", "web", 55),
+           ("sampleapp-windows-guide", "windows", 55))
 EXPECTED_BASELINE = ("web-testcrm-customer-name", "web-testcrm-customer-search-button",
                      "windows-testcrm-windows-customer-name",
                      "windows-testcrm-windows-customer-search-button",
@@ -58,7 +58,7 @@ def main():
             (dest["Id"],)).fetchall()
         actual_keys = tuple(r["Key"] for r in current)
         if actual_keys != EXPECTED_BASELINE:
-            raise ValueError("Reference Guide is not the untouched six-step baseline; refusing replacement")
+            raise ValueError("Reference Guide is not the expected six-step baseline; refusing replacement")
         source_data = []
         for guide_key, prefix, count in SOURCES:
             guide = fetch_one(conn, "SELECT * FROM Guides WHERE Key=?", (guide_key,))
@@ -70,11 +70,13 @@ def main():
             contexts = conn.execute(
                 "SELECT * FROM GuideApplicationContexts WHERE GuideId=?", (guide["Id"],)).fetchall()
             source_data.append((prefix, steps, contexts))
-        print("Proposed 40-step reference:")
+        print("Proposed 110-step reference (CONFIG ONLY; runtime continuity unverified):")
         for prefix, steps, _ in source_data:
             for step in steps:
                 print(f"  {prefix.upper()} {step['StepOrder']:02d}: {step['Key']}")
         if not args.apply:
+            print("WARNING: This copies canonical steps; it does not add missing capabilities.")
+            print("WARNING: Cross-runtime continuity and completion-bubble transitions require testing.")
             print("PREVIEW ONLY; database unchanged. Run with --apply to install.")
             return
         conn.execute("PRAGMA foreign_keys=ON")
@@ -132,10 +134,11 @@ def main():
                         copy_row(conn, table, child, overrides)
         count = conn.execute(
             "SELECT COUNT(*) FROM GuideSteps WHERE GuideId=?", (dest["Id"],)).fetchone()[0]
-        if count != 40:
-            raise RuntimeError(f"Expected 40 steps, got {count}")
+        if count != 110:
+            raise RuntimeError(f"Expected 110 steps, got {count}")
         conn.commit()
         print(f"Installed {DEST}: {count} steps; canonical guides unchanged")
+        print("UNVERIFIED: runtime flow and missing feature coverage must still be implemented.")
 
 
 if __name__ == "__main__":
