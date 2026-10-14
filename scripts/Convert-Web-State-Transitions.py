@@ -1,4 +1,4 @@
-"""Convert a conservative subset of Web transitions to state observation.
+"""Convert a reviewed subset of Web transitions to state observation.
 
 Only the isolated cloned Guide is changed. All other transitions remain on
 click validation until their postconditions can be proved distinct.
@@ -11,7 +11,7 @@ DB = r"C:\ProgramData\GuideMe\Data\GuideMe.db"
 SOURCE = "sampleapp-web-guide"
 DEST = "sampleapp-web-state-guide"
 # Destination differs from the source page, with no reused modal or saved-record marker.
-ORDERS = (2, 3, 4, 5, 7, 10, 23, 24, 25, 26, 38, 39, 40, 46, 47, 54)
+ORDERS = (2, 3, 4, 5, 7, 10, 11, 12, 22, 23, 24, 25, 26, 28, 38, 39, 40, 41, 46, 47, 48, 49, 50, 54)
 
 def main():
     parser = argparse.ArgumentParser()
