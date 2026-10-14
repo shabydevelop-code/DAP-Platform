@@ -12,6 +12,7 @@ DB = r"C:\ProgramData\GuideMe\Data\GuideMe.db"
 KEY = "sampleapp-cleanroom-reference"
 CUSTOMER = "לקוח מדריך ייחוס"
 WINDOWS_CONTEXT = "reference-sampleapp-windows"
+WEB_CONTEXT = "reference-sampleapp-web"
 FRAME = [{"Strategy": "css", "Value": "#content-frame"}]
 
 def step(runtime, key, message, strategy=None, value=None, placement="Auto",
@@ -132,6 +133,12 @@ def main():
         conn.execute(
             "INSERT INTO ApplicationContextMatchers(ApplicationContextId,MatcherOrder,Kind,Value) VALUES(?,?,?,?)",
             (windows_context_id,0,"AutomationId","TestCrmMainWindow"))
+        web_context_id=conn.execute(
+            "INSERT INTO GuideApplicationContexts(GuideId,Key,Runtime) VALUES(?,?,?)",
+            (gid,WEB_CONTEXT,"Web")).lastrowid
+        conn.execute(
+            "INSERT INTO ApplicationContextMatchers(ApplicationContextId,MatcherOrder,Kind,Value) VALUES(?,?,?,?)",
+            (web_context_id,0,"UrlContains","localhost:5200"))
         for order,s in enumerate(STEPS,1):
             runtime=s["runtime"] if s["strategy"] else None
             frame=json.dumps([{"Strategy":"css","Value":"#header-frame"}] if s["key"]=="reference-web-return" else FRAME) if runtime=="Web" else None
@@ -144,7 +151,7 @@ def main():
                 (gid,s["key"],order,s["advance"],runtime,s["strategy"],s["value"],frame,
                  context[0] if context else None,context[1] if context else None,
                  s["bubble"],s["placement"],s["validation"],s["expected"],1,
-                 WINDOWS_CONTEXT if s["runtime"]=="Windows" else None)).lastrowid
+                 WINDOWS_CONTEXT if s["runtime"]=="Windows" else WEB_CONTEXT)).lastrowid
             for index,(relation,strategy,value) in enumerate(s["anchors"]):
                 conn.execute("""INSERT INTO TargetAnchors(
                     GuideStepId,AnchorOrder,Relation,LocatorStrategy,LocatorValue)
