@@ -8,6 +8,19 @@ namespace DAP.Runtime.Web.Learner;
 /// </summary>
 public sealed class WebGuideStepRuntime
 {
+    private static readonly object ReferenceDiagnosticGate = new();
+    private static readonly string ReferenceDiagnosticPath = Path.Combine(Path.GetTempPath(), "GuideMe-reference-diagnostic.log");
+    private static void ReferenceDiagnostic(string message)
+    {
+        try
+        {
+            lock (ReferenceDiagnosticGate)
+                File.AppendAllText(ReferenceDiagnosticPath, $"{DateTimeOffset.Now:O} {message}{Environment.NewLine}");
+        }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
+    }
+
     private readonly IWebBrowserAdapter _browser;
     private readonly TimeSpan _reconcileInterval;
     private readonly TimeSpan _stableReconcileInterval;
@@ -46,7 +59,7 @@ public sealed class WebGuideStepRuntime
         }
 
         var diagnoseReference = step.Id.StartsWith("reference-", StringComparison.Ordinal);
-        if (diagnoseReference) Console.Error.WriteLine($"[DAP reference diagnostic] Starting Web Step {stepNumber}/{totalSteps} '{step.Id}'.");
+        if (diagnoseReference) ReferenceDiagnostic($"[DAP reference diagnostic] Starting Web Step {stepNumber}/{totalSteps} '{step.Id}'.");
         var automatic = GuideStepExecutionPolicy.IsAutomaticValidationStep(step);
         var clicked = GuideStepExecutionPolicy.IsClickValidationStep(step);
         // Every target-attached Step must wait for a quiet DOM window before
@@ -106,7 +119,7 @@ public sealed class WebGuideStepRuntime
             }
 
             var contextActive = await _browser.IsContextActiveAsync(step, cancellationToken);
-            if (diagnoseReference && !contextActive) Console.Error.WriteLine($"[DAP reference diagnostic] Step '{step.Id}' waiting for active context.");
+            if (diagnoseReference && !contextActive) ReferenceDiagnostic($"[DAP reference diagnostic] Step '{step.Id}' waiting for active context.");
             if (sharedEngine.ObserveContext(activeState, contextActive)
                 == GuideStepReconciliationResult.WaitingForContext)
             {
@@ -118,7 +131,7 @@ public sealed class WebGuideStepRuntime
             if (!activeState.PresentationReady)
             {
                 var presentationStable = await _browser.IsStableForPresentationAsync(step, _presentationSettleInterval, cancellationToken);
-                if (diagnoseReference && !presentationStable) Console.Error.WriteLine($"[DAP reference diagnostic] Step '{step.Id}' waiting for stable/interactable target.");
+                if (diagnoseReference && !presentationStable) ReferenceDiagnostic($"[DAP reference diagnostic] Step '{step.Id}' waiting for stable/interactable target.");
                 if (activeState.ObservePresentationStability(
                     presentationStable)
                     == GuideStepReconciliationResult.WaitingForTarget)
@@ -168,7 +181,7 @@ public sealed class WebGuideStepRuntime
                     !string.IsNullOrEmpty(step.AutomationValue) ? _automaticStepLabel : null);
             }
 
-            if (diagnoseReference) Console.Error.WriteLine($"[DAP reference diagnostic] Step '{step.Id}' bubble resolution: {presentation.Status}.");
+            if (diagnoseReference) ReferenceDiagnostic($"[DAP reference diagnostic] Step '{step.Id}' bubble resolution: {presentation.Status}.");
             if (sharedEngine.ObserveReadiness(
                 activeState, contextActive: true,
                 targetAvailable: presentation.Status == WebTargetResolutionStatus.Resolved, targetVisible: true)
