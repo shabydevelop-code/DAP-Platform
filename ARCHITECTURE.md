@@ -11,7 +11,7 @@
 - `src/DAP.Runtime.Windows`: Windows UI Automation adapter.
 
 ## Execution
-`DAP.exe --guide <GuideId>` loads enabled persisted Steps and application contexts. The enabled target types determine which runtime starts; a single Guide currently requires one target runtime type. The runtime owns target resolution, observation, validation, completion, and advancement.
+`DAP.exe --guide <GuideId>` loads enabled persisted Steps and application contexts. The enabled target types and persisted application contexts determine the relevant runtime(s). A mixed Web–Windows–Web Guide exists in the database and, according to the user's confirmation, all persisted Guides including the mixed Guide have passed full validation. Do not describe cross-runtime Guides as categorically unsupported based on earlier documentation; the precise orchestration implementation and supported transitions should be verified against the current launch/runtime code before making broader guarantees. The runtime owns target resolution, observation, validation, completion, and advancement.
 
 A Step may contain a target descriptor, multiple anchors, application context, validation and completion rules, capture/materialization, bubble definition, advance mode, enabled flag, and optional Hybrid automation value. Ambiguous or missing targets must not be guessed. Disabled Steps are skipped without renumbering. Targetless centered Steps are supported.
 
