@@ -1,6 +1,6 @@
 """Read-only capability inventory for the proposed 40-step reference Guide.
 
-Counts *configured* capabilities, not successful runtime executions.
+Counts *configured* capabilities, not successful runtime executions.\nThe inventory is deliberately partial and cannot prove total engine coverage.
 Never modifies SQLite. Reports separate Web and Windows percentages.
 """
 import argparse
@@ -20,7 +20,7 @@ CATALOG = {
         "completion": ["target-exists", "target-not-exists", "target-enabled", "value-equals"],
         "capture_timing": ["BeforeAction", "DuringStep", "AfterAction"],
         "presentation": ["Auto", "Top", "Right", "Bottom", "Left", "Center", "targetless"],
-        "advance": ["Manual", "Automatic"],
+        "advance": ["Manual", "AutomaticOnValidation"],
         "frame": ["nested-frame"],
     },
     "Windows": {
@@ -29,7 +29,7 @@ CATALOG = {
         "completion": ["target-exists", "target-not-exists", "target-enabled", "value-equals", "target-replaced"],
         "capture_timing": ["BeforeAction", "DuringStep", "AfterAction"],
         "presentation": ["Auto", "Top", "Right", "Bottom", "Left", "Center", "targetless"],
-        "advance": ["Manual", "Automatic"],
+        "advance": ["Manual", "AutomaticOnValidation"],
     },
 }
 
@@ -70,6 +70,9 @@ def observed(steps):
         for capture in step["StepCaptures"]:
             if capture["Timing"]:
                 found["capture_timing"].add(capture["Timing"])
+            else:
+                # Null timing is a legacy default, not proof of an explicit timing test.
+                pass
         if step["BubblePlacement"]:
             found["presentation"].add(step["BubblePlacement"])
         if not step["LocatorStrategy"]:
@@ -85,6 +88,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--db", default=DEFAULT_DB)
     parser.add_argument("--output", default="reference-guide-coverage.json")
+    parser.add_argument("--all-steps", action="store_true", help="Measure both full canonical guides instead of the proposed first 20 steps")
     args = parser.parse_args()
     path = Path(args.db)
     if not path.is_file():
@@ -92,10 +96,11 @@ def main():
     with sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True, timeout=5) as conn:
         conn.row_factory = sqlite3.Row
         result = {"Status": "PROPOSED_CONFIG_ONLY_NOT_RUNTIME_TESTED",
-                  "Source": "First 20 persisted steps of each canonical Guide",
+                  "Source": "Full canonical guides" if args.all_steps else "First 20 persisted steps of each canonical Guide",
                   "Runtimes": {}}
         for runtime, key, count in SOURCES:
-            seen = observed(collect(conn, key, count))
+            selected_count = 55 if args.all_steps else count
+            seen = observed(collect(conn, key, selected_count))
             groups = {}
             for group, possible in CATALOG[runtime].items():
                 configured = sorted(set(possible) & seen[group])
@@ -107,7 +112,7 @@ def main():
             covered = sum(x["covered"] for x in groups.values())
             total = sum(x["applicable"] for x in groups.values())
             result["Runtimes"][runtime] = {
-                "StepCount": count, "ConfiguredCoveragePercent": round(100 * covered / total, 1),
+                "StepCount": selected_count, "ConfiguredCoveragePercent": round(100 * covered / total, 1),
                 "Configured": covered, "Applicable": total,
                 "VerifiedRuntimeCoveragePercent": None,
                 "Groups": groups}
