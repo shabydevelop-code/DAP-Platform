@@ -60,24 +60,15 @@ def main():
             target = json.loads(conditions[0]["TargetJson"])
             # Selector is nested in TargetDescriptor; update only a known Locator structure.
             # Fail closed on unknown JSON shapes.
-            candidates = []
-            def walk(obj):
-                if isinstance(obj, dict):
-                    for key, value in obj.items():
-                        if key.lower() in ("value", "selector") and isinstance(value, str):
-                            candidates.append((obj, key, value))
-                        else:
-                            walk(value)
-                elif isinstance(obj, list):
-                    for value in obj:
-                        walk(value)
-            walk(target)
-            css = [(obj, key, val) for obj, key, val in candidates if val.startswith(("#", "h2:", "th["))]
-            if len(css) != 1:
-                p.error(f"Unrecognized target JSON at step {order}: {conditions[0]['TargetJson'][:250]}")
-            obj, key, old = css[0]
-            if old != selector:
-                obj[key] = selector
+            locator = target.get("Locator")
+            if not isinstance(locator, dict) or str(locator.get("Strategy", "")).lower() != "css":
+                p.error(f"Unsupported CSS Locator at step {order}")
+            old = locator.get("Value")
+            if not isinstance(old, str):
+                p.error(f"Missing CSS Locator.Value at step {order}")
+            # Never modify FrameContext.Path or Anchors: those identify the
+            # containing frame and fallback targets, not the condition itself.
+            locator["Value"] = selector
             plans.append((order, b["Id"], conditions[0]["rowid"], json.dumps(target, ensure_ascii=False, separators=(",", ":"))))
             print(f"{order:2}: {b['ValidationKind']} -> state-observed; {old} -> {selector}")
         print("Step 15 excluded: no verified state transition.")
