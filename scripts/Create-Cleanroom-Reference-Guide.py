@@ -64,8 +64,7 @@ STEPS = [
  step("Windows","windows-status","שנה את סטטוס הפנייה ל'בטיפול'.","automation-id","CaseStatus",placement="Right"),
  step("Windows","windows-save","שמור את השינוי בפנייה.","automation-id","SaveCaseButton",placement="Bottom"),
  step("Windows","windows-handoff","חזור לדפדפן ובדוק את הנתונים שנשמרו.",advance="Manual",placement="Center"),
- step("Web","web-return","חזור לפורטל באמצעות כותרת היישום.","css","#portal-header",placement="Top",
-      context=("css-exists","#portal-header")),
+ step("Web","web-return","חזור לפורטל באמצעות כותרת היישום.","css","#portal-header",placement="Top"),
  step("Web","web-search-name","הזן את שם הלקוח שיצרת.","css","#customer-search input[name=name]",
       anchors=[a("Ancestor","css","#customer-search"),a("Ancestor","css","label.field")],
       validation="value-equals",expected=CUSTOMER,placement="Right"),
@@ -100,7 +99,7 @@ def main():
                          (KEY,"SampleApp Cleanroom Capability Reference")).lastrowid
         for order,s in enumerate(STEPS,1):
             runtime=s["runtime"] if s["strategy"] else None
-            frame=json.dumps(FRAME) if runtime=="Web" else None
+            frame=json.dumps([{"Strategy":"css","Value":"#header-frame"}] if s["key"]=="reference-web-return" else FRAME) if runtime=="Web" else None
             context=s["context"]
             sid=conn.execute("""INSERT INTO GuideSteps(
                 GuideId,Key,StepOrder,AdvanceMode,Runtime,LocatorStrategy,LocatorValue,
