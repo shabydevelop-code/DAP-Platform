@@ -40,16 +40,16 @@ STEPS = [
  step("Web","web-save","שמור את הלקוח.","css","#customer-form button.primary",
       anchors=[a("Ancestor","css","#customer-form")],placement="Top",
       completion=[("target-not-exists","css","#customer-form button.primary",None)]),
- step("Web","web-new-site","צור אתר חדש עבור הלקוח שנשמר.","css",'button[data-go$="/site/new"]',placement="Right"),
+ step("Web","web-new-site","צור אתר חדש עבור הלקוח שנשמר.","css",'button[data-go$="/site/new"]',advance="Manual",placement="Right"),
  step("Web","web-site-name","הזן שם אתר חדש.","css","#site-form input[name=name]",
       validation="value-not-empty",placement="Left"),
- step("Web","web-site-type","בחר סוג אתר.","css","#site-form select[name=type]",placement="Bottom"),
+ step("Web","web-site-type","בחר סוג אתר.","css","#site-form select[name=type]",placement="Bottom",validation="value-not-empty"),
  step("Web","web-site-address","הזן כתובת לאתר.","css","#site-form input[name=address]",
       validation="value-not-empty",placement="Top"),
  step("Web","web-site-save","שמור את האתר.","css","#site-form button.primary",placement="Right",
       completion=[("target-not-exists","css","#site-form button.primary",None)]),
- step("Web","web-cases-tab","פתח את לשונית הפניות.","css",'nav.tabs button[data-go$="/cases"]',placement="Top"),
- step("Web","web-new-case","פתח פנייה חדשה.","css",'button[data-go$="/case/new"]',placement="Right"),
+ step("Web","web-cases-tab","פתח את לשונית הפניות.","css",'nav.tabs button[data-go$="/cases"]',advance="Manual",placement="Top"),
+ step("Web","web-new-case","פתח פנייה חדשה.","css",'button[data-go$="/case/new"]',advance="Manual",placement="Right"),
  step("Web","web-case-subject","הזן נושא לפנייה.","css","#record-form input[name=subject]",
       validation="value-not-empty",placement="Left"),
  step("Web","web-case-description","הזן תיאור לפנייה.","css","#record-form textarea[name=description]",
@@ -71,7 +71,7 @@ STEPS = [
       completion=[("target-exists","automation-id","CaseStatus",None)]),
  step("Windows","windows-status","שנה את סטטוס הפנייה ל'בטיפול'.","automation-id","CaseStatus",placement="Right",
       validation="value-equals",expected="בטיפול"),
- step("Windows","windows-save","שמור את השינוי בפנייה.","automation-id","SaveCaseButton",placement="Bottom"),
+ step("Windows","windows-save","שמור את השינוי בפנייה.","automation-id","SaveCaseButton",advance="Manual",placement="Bottom"),
  step("Windows","windows-handoff","חזור לדפדפן ובדוק את הנתונים שנשמרו.",advance="Manual",placement="Center"),
  step("Web","web-return","חזור לפורטל באמצעות כותרת היישום.","css","#portal-header",placement="Top",
       completion=[("target-exists","css","#customer-search",None)]),
@@ -80,7 +80,7 @@ STEPS = [
       validation="value-equals",expected=CUSTOMER,placement="Right"),
  step("Web","web-search-submit","הפעל חיפוש.","css","#customer-search button.primary",placement="Bottom",
       completion=[("target-exists","css","#search-results tbody tr.clickable",None)]),
- step("Web","web-results","אתר את הלקוח בתוצאות ופתח אותו.","css","#search-results tbody tr.clickable",placement="Left",
+ step("Web","web-results","בדוק את שם הלקוח בתוצאות ורק אז פתח את השורה המתאימה.","css","#search-results tbody tr.clickable",placement="Left",
       completion=[("target-not-exists","css","#search-results tbody tr.clickable",None)]),
  step("Web","web-finish","הגעת לסיום תרחיש הייחוס. ודא שהנתונים מופיעים בשני היישומים.",advance="Manual",placement="Center"),
 ]
@@ -91,6 +91,16 @@ def main():
     p.add_argument("--apply",action="store_true")
     p.add_argument("--manifest",default="cleanroom-reference-manifest.json")
     args=p.parse_args()
+    # Static contract: every automatic step must have a meaningful observable
+    # transition or value validation. Target presence alone is not completion.
+    keys=[item["key"] for item in STEPS]
+    if len(keys)!=len(set(keys)):
+        p.error("Duplicate step keys")
+    for index,item in enumerate(STEPS,1):
+        if item["advance"]=="AutomaticOnValidation" and not (item["validation"] or item["completion"]):
+            p.error(f"Step {index} has no observable completion: {item['key']}")
+        if item["runtime"] not in ("Web","Windows"):
+            p.error(f"Invalid runtime in step {index}")
     if args.apply:
         p.error("Full runtime and capability validation is not complete; installation blocked.")
     Path(args.manifest).write_text(json.dumps({"guide":KEY,"status":"AUTHORING_NOT_RUNTIME_VERIFIED",
