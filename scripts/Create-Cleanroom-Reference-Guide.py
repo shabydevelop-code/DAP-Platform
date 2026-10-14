@@ -1,7 +1,7 @@
 """Independently authored, end-to-end SampleApp reference authoring manifest.
 
-No existing Guide or GuideStep is read. Safe preview by default. --apply
-creates a NEW Guide only. Runtime verification is a separate acceptance gate.
+No existing Guide or GuideStep is used as authoring input. --apply creates
+or updates only this reference Guide. Runtime verification is separate.
 """
 import argparse
 import json
@@ -31,7 +31,7 @@ STEPS = [
  step("Web","web-intro","ניצור לקוח חדש בדפדפן, נאתר אותו ביישום החלונות ונחזור לבדוק את הנתונים.",advance="Manual",placement="Center"),
  step("Web","web-new-customer","פתח לקוח חדש.", "css", 'button[data-go="#/customer/new"]', "Top",
       completion=[("target-not-exists","css",'button[data-go="#/customer/new"]',None)]),
- step("Web","web-name","הזן שם לקוח חדש: "+CUSTOMER,"label","שם",
+ step("Web","web-name","הזן שם לקוח חדש: "+CUSTOMER,"css","#customer-form input[name=name]",
       anchors=[a("Ancestor","css","#customer-form")],validation="value-equals",expected=CUSTOMER,placement="Right"),
  step("Web","web-phone","הזן מספר טלפון תקין.","css","#customer-form input[name=phone]",
       validation="value-not-empty",placement="Left"),
@@ -110,15 +110,21 @@ def main():
     with sqlite3.connect(uri,uri=True,timeout=5) as conn:
         conn.row_factory=sqlite3.Row
         conn.execute("PRAGMA busy_timeout=5000")
-        if conn.execute("SELECT 1 FROM Guides WHERE Key=?",(KEY,)).fetchone():
-            p.error("Reference already exists; refusing to overwrite")
         if not args.apply:
             print("PREVIEW ONLY; no DB changes. Live runtime validation is pending.")
             return
         conn.execute("PRAGMA foreign_keys=ON")
         conn.execute("BEGIN IMMEDIATE")
-        gid=conn.execute("INSERT INTO Guides(Key,Name) VALUES(?,?)",
-                         (KEY,"SampleApp Cleanroom Capability Reference")).lastrowid
+        existing=conn.execute("SELECT Id FROM Guides WHERE Key=?",(KEY,)).fetchone()
+        if existing:
+            gid=existing["Id"]
+            # Replace only this Guide's persisted steps; dependent rows are
+            # deleted through the repository's ON DELETE CASCADE relationships.
+            conn.execute("DELETE FROM GuideSteps WHERE GuideId=?",(gid,))
+            conn.execute("DELETE FROM GuideApplicationContexts WHERE GuideId=?",(gid,))
+        else:
+            gid=conn.execute("INSERT INTO Guides(Key,Name) VALUES(?,?)",
+                             (KEY,"SampleApp Cleanroom Capability Reference")).lastrowid
         for order,s in enumerate(STEPS,1):
             runtime=s["runtime"] if s["strategy"] else None
             frame=json.dumps([{"Strategy":"css","Value":"#header-frame"}] if s["key"]=="reference-web-return" else FRAME) if runtime=="Web" else None
@@ -137,12 +143,12 @@ def main():
                     VALUES(?,?,?,?,?)""",(sid,index,relation,strategy,value))
             for condition_order,(kind,strategy,value,expected) in enumerate(s["completion"]):
                 target={"Runtime":s["runtime"],"Locator":{"Strategy":strategy,"Value":value},
-                        "Anchors":[],"FrameContext":{"Path":FRAME} if s["runtime"]=="Web" else None}
+                        "Anchors":[],"FrameContext":{"Path":([{"Strategy":"css","Value":"#header-frame"}] if s["key"]=="reference-web-return" else FRAME)} if s["runtime"]=="Web" else None}
                 conn.execute("""INSERT INTO StepCompletionConditions(
                     GuideStepId,ConditionOrder,Kind,ExpectedValue,TargetJson) VALUES(?,?,?,?,?)""",
                     (sid,condition_order,kind,expected,json.dumps(target,ensure_ascii=False)))
         conn.commit()
-        print(f"CREATED {KEY}: {len(STEPS)} steps. Not runtime verified.")
+        print(f"INSTALLED {KEY}: {len(STEPS)} steps. Not runtime verified.")
 
 if __name__=="__main__":
     main()
