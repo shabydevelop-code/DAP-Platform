@@ -87,6 +87,13 @@ public sealed class WebGuideStepRuntime
                 return GuideStepReconciliationResult.Completed;
             }
 
+            if (diagnoseReference && step.Id == "reference-web-save")
+            {
+                var clickObserved = commitTask?.IsCompletedSuccessfully == true;
+                var destinationObserved = await _browser.AreCompletionConditionsSatisfiedAsync(step, cancellationToken);
+                ReferenceDiagnostic($"[DAP reference diagnostic] Save gate: clickObserved={clickObserved}, destinationObserved={destinationObserved}.");
+            }
+
             if (commitTask?.IsCompletedSuccessfully == true)
             {
                 var primary = clicked || await _browser.IsPrimaryValidationSatisfiedAsync(step, cancellationToken);
