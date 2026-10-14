@@ -12,14 +12,12 @@ Digital Adoption Platform for guided learning across Web and Windows application
 - Hebrew/English UI with RTL/LTR support.
 - Provider-independent data architecture with SQLite as the current provider.
 
-## Documentation
+## Documentation and source of truth
 
-All project-level documentation is kept at the repository root:
+The current source code defines implemented capabilities and runtime behavior. The active GuideMe database defines persisted Guide configuration. Successful actual executions establish what has been verified. Documentation is supporting context only; never infer support or lack of support solely from a Markdown file.
 
-- `PROJECT_CONTEXT.md` — persistent project scope and rules.
-- `REQUIREMENTS.md` — current product and technical requirements.
-- `ARCHITECTURE.md` — current production architecture and capture mechanism.
-- `CURRENT_STATUS.md` — current implementation/verification state.
-- `DECISIONS.md` — active architectural decisions.
+- `REQUIREMENTS.md` — desired behavior and product requirements, not proof of implementation.
+- `DECISIONS.md` — architectural decisions and design constraints.
+- `PROJECT_CONTEXT.md` — compact project scope and working conventions.
 
-Component-specific documentation may remain beside the component it documents, for example the browser Extension README.
+Build and run the current source rather than relying on a hand-maintained status snapshot. For runtime verification, distinguish observed test results from expectations or documentation. Component-local documentation may remain beside the component.
