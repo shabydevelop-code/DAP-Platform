@@ -142,7 +142,7 @@ def main():
                     GuideStepId,AnchorOrder,Relation,LocatorStrategy,LocatorValue)
                     VALUES(?,?,?,?,?)""",(sid,index,relation,strategy,value))
             for condition_order,(kind,strategy,value,expected) in enumerate(s["completion"]):
-                target={"Runtime":s["runtime"],"Locator":{"Strategy":strategy,"Value":value},
+                target={"Runtime":0 if s["runtime"]=="Web" else 1,"Locator":{"Strategy":strategy,"Value":value},
                         "Anchors":[],"FrameContext":{"Path":([{"Strategy":"css","Value":"#header-frame"}] if s["key"]=="reference-web-return" else FRAME)} if s["runtime"]=="Web" else None}
                 conn.execute("""INSERT INTO StepCompletionConditions(
                     GuideStepId,ConditionOrder,Kind,ExpectedValue,TargetJson) VALUES(?,?,?,?,?)""",
