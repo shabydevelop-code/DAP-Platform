@@ -6,6 +6,7 @@
 - Web: Chrome GuideMe extension, Native Messaging host, named pipes, and .NET runtime. No Playwright production dependency.
 - Windows: Microsoft UI Automation and WPF guidance bubbles.
 - Both demo Guides contain 55 persisted Steps, including a final summary. Demo applications are independent of the production learner.
+- User-confirmed verification status: all Guides currently present in the GuideMe database have passed full validation. This is a reported completed verification, not a new automated test run in this repository session.
 - Guide sessions in both runtimes have a single session-scoped Windows notification-area icon using the separate white GuideMe tray artwork. The Windows executable and Chrome extension use black lightbulb icons. A single left-click or a right-click on the tray icon opens the same menu, which shows the fixed heading **GuideMe** and an immediate **Exit** action ("יציאה" in Hebrew), without confirmation. Bubble-level exit controls are absent. The icon is disposed when the session ends; the target application remains open.
 - User verified the notification-area icon, menu and confirmed exit in Windows, and the corresponding Web behavior. Windows restores the bubble on return to the target application after focus moves away. Windows controls whether the icon is directly visible or inside notification overflow.
 - The Windows-to-Web launch sequence was manually verified: the Windows Guide opened, and the subsequently launched Web Guide displayed its bubble and advanced. During a working Web session, `DAP.exe` and `GuideMe.NativeHost.exe` were both observed in Windows session 25. This is a focused smoke test, not a full 55-step regression.
@@ -48,7 +49,7 @@ Then launch the corresponding Guide separately:
 Do not run the shared demo server separately alongside a launcher; both use port 5201. For a new Chrome installation, load the packaged extension and register its actual extension ID using `Register-WebNativeHost.ps1`.
 
 ## Current limitations and verification gaps
-- A complete 55-step regression of both Guides remains required. The intermittent Web startup/first-target failure has not been conclusively diagnosed.
+- All currently persisted Guides have passed full validation according to the user's latest confirmation. This does not establish that future changes or new Guides have been validated. Historical intermittent Web startup/first-target behavior has not been independently root-caused.
 - Instructor/Editor is not implemented. A Guide currently supports one target runtime type; cross-runtime orchestration is not implemented.
 - Windows multi-context switching, delayed discovery and rebinding are not implemented.
 - Multi-user and Citrix operation remain unverified. The named-pipe transport is session-aware, but end-to-end isolation and concurrency require dedicated testing.
