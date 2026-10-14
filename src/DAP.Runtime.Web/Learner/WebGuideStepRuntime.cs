@@ -100,6 +100,8 @@ public sealed class WebGuideStepRuntime
                 {
                     initialObservationRecorded = true;
                     initialObservationSatisfied = satisfied;
+                    if (satisfied)
+                        Console.Error.WriteLine($"[DAP state observation] Step {stepNumber}/{totalSteps} '{step.Id}': completion condition was already true at first observation; waiting for a distinct transition instead of skipping.");
                 }
                 // A pre-existing destination must never auto-complete a transition.
                 if (!initialObservationSatisfied && satisfied)
