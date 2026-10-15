@@ -39,8 +39,7 @@ for guide in guides:
             "Types": dict(sorted(Counter(str(item.get("Kind") or item.get("Relation") or item.get("Property") or "(none)")
                 for s in matching for item in s[field]).items()))}
     for label, field in (("FrameContext", "FrameContextJson"),
-                         ("StepContext", "ContextKind"),
-                         ("AutomationValue", "AutomationValue")):
+                         ("StepContext", "ContextKind")):
         entry["Capabilities"][label] = {"StepOrders": [
             s["StepOrder"] for s in steps if s.get(field) is not None and s.get(field) != ""]}
     entry["Capabilities"]["Targetless"] = {"StepOrders": [
