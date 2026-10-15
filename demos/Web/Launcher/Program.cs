@@ -65,11 +65,25 @@ Process StartBuiltProject(string project, string url, IReadOnlyDictionary<string
         ?? throw new InvalidOperationException($"Could not start {Path.GetFileNameWithoutExtension(project)}.");
 }
 
-var useExistingServer = args.Contains("--use-existing-server", StringComparer.OrdinalIgnoreCase);
+async Task<bool> IsBackendReadyAsync()
+{
+    using var probe = new HttpClient { Timeout = TimeSpan.FromSeconds(1) };
+    try
+    {
+        using var response = await probe.GetAsync(backendUrl + "/api/customers");
+        return response.IsSuccessStatusCode;
+    }
+    catch (HttpRequestException) { return false; }
+    catch (TaskCanceledException) { return false; }
+}
+
+var useExistingServer = args.Contains("--use-existing-server", StringComparer.OrdinalIgnoreCase)
+    || await IsBackendReadyAsync();
 if (!useExistingServer)
     await BuildProjectAsync(backendProject);
 await BuildProjectAsync(webProject);
 
+// Only the launcher that starts the backend owns and stops it.
 Process? backend = useExistingServer ? null : StartBuiltProject(backendProject, backendUrl);
 var web = StartBuiltProject(
     webProject,
