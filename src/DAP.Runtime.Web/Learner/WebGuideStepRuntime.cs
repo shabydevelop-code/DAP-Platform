@@ -78,7 +78,6 @@ public sealed class WebGuideStepRuntime
         // its persisted completion condition became true while the application
         // is still finishing the same asynchronous render.
         var activeState = new GuideActiveStepState(step);
-        var hybridWriteCompleted = false;
         var sharedEngine = new UnifiedGuideStepEngine();
         Task<WebValidationCommit?>? commitTask = automatic && !observationOnly && !stateValue
             ? _browser.WaitForValidationCommitAsync(step, cancellationToken)
@@ -111,18 +110,6 @@ public sealed class WebGuideStepRuntime
                     await _browser.HideBubbleAsync(cancellationToken);
                     return GuideStepReconciliationResult.Completed;
                 }
-            }
-
-            // A Hybrid write can replace its own iframe before the DOM commit event
-            // reaches the adapter. Validate the persisted postconditions directly
-            // only after this Runtime has successfully performed that write.
-            if (hybridWriteCompleted &&
-                await _browser.IsPrimaryValidationSatisfiedAsync(step, cancellationToken) &&
-                sharedEngine.EvaluateCompletion(activeState, true,
-                    await _browser.AreCompletionConditionsSatisfiedAsync(step, cancellationToken)) == GuideStepReconciliationResult.Completed)
-            {
-                await _browser.HideBubbleAsync(cancellationToken);
-                return GuideStepReconciliationResult.Completed;
             }
 
             if (diagnoseReference && step.Id == "reference-web-save")
@@ -247,24 +234,6 @@ public sealed class WebGuideStepRuntime
             // owns persistence and the shared core owns capture timing.
             if (presentation.Status == WebTargetResolutionStatus.Resolved && onTargetObserved is not null)
                 await onTargetObserved(cancellationToken);
-
-            if (activeState.ShouldApplyHybridValue(_hybrid, presentation.Status == WebTargetResolutionStatus.Resolved))
-            {
-                Console.Error.WriteLine($"[DAP Web hybrid] applying persisted value for Step {stepNumber}/{totalSteps} '{step.Id}'.");
-                try
-                {
-                    GuideStepExecutionPolicy.RequireHybridValueStep(step, "Web");
-                    await _browser.ApplyAutomationValueAsync(step, cancellationToken);
-                    activeState.MarkHybridValueApplied();
-                    hybridWriteCompleted = true;
-                    Console.Error.WriteLine($"[DAP Web hybrid] applied persisted value for Step {stepNumber}/{totalSteps} '{step.Id}'.");
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
-                {
-                    Console.Error.WriteLine($"[DAP Web hybrid] failed Step {stepNumber}/{totalSteps} '{step.Id}': {ex}");
-                    throw;
-                }
-            }
 
             // Re-check click completion after reconciliation. The browser event
             // can arrive just after the presentation race was decided.
