@@ -390,7 +390,7 @@ WHERE Key = $newKey;
 
     private static StepRow ReadStep(SqliteDataReader r)=>new(
         r.GetInt64(0),r.GetString(1),r.GetInt32(2),r.GetString(3),N(r,4),N(r,5),N(r,6),N(r,7),N(r,8),N(r,9),
-        r.GetString(10),r.GetString(11),N(r,12),N(r,13),N(r,14),r.GetInt32(15) != 0,N(r,16),N(r,17));
+        r.GetString(10),r.GetString(11),N(r,12),N(r,13),N(r,14),r.GetInt32(15) != 0,N(r,16));
 
     private static string? N(SqliteDataReader r,int i)=>r.IsDBNull(i)?null:r.GetString(i);
 
