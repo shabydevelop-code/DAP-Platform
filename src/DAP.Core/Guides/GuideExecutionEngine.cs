@@ -71,7 +71,7 @@ public sealed class GuideActiveStepState
         return true;
     }
     public bool ShouldApplyHybridValue(bool hybrid, bool targetResolved)
-        => hybrid && targetResolved && !HybridValueApplied && !string.IsNullOrEmpty(_step.AutomationValue);
+        => false; // DAP Learner never injects persisted values into the target application.
     public void MarkHybridValueApplied()
     {
         if (HybridValueApplied)
