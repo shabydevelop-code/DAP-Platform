@@ -41,7 +41,21 @@ void Stop(Process? process)
     catch (System.ComponentModel.Win32Exception) { }
 }
 
-await BuildAsync(serverProject);
+async Task<bool> IsServerReadyAsync()
+{
+    using var probe = new HttpClient { Timeout = TimeSpan.FromSeconds(1) };
+    try
+    {
+        using var response = await probe.GetAsync("http://localhost:5201/api/customers");
+        return response.IsSuccessStatusCode;
+    }
+    catch (HttpRequestException) { return false; }
+    catch (TaskCanceledException) { return false; }
+}
+
+var reuseServer = await IsServerReadyAsync();
+if (!reuseServer)
+    await BuildAsync(serverProject);
 await BuildAsync(windowsProject);
 
 Process? server = null;
@@ -50,16 +64,17 @@ try
 {
     var serverDll = Path.Combine(Path.GetDirectoryName(serverProject)!, "bin", "Debug", "net8.0", "DAP.SampleApp.Server.dll");
     var windowsExe = Path.Combine(Path.GetDirectoryName(windowsProject)!, "bin", "Debug", "net8.0-windows", "DAP.SampleApp.Windows.exe");
-    server = args.Contains("--seed-grid-baseline", StringComparer.OrdinalIgnoreCase)
-        ? Start("dotnet", Path.GetDirectoryName(serverDll)!, serverDll, "--urls", "http://localhost:5201", "--seed-grid-baseline")
-        : Start("dotnet", Path.GetDirectoryName(serverDll)!, serverDll, "--urls", "http://localhost:5201");
+    if (!reuseServer)
+        server = args.Contains("--seed-grid-baseline", StringComparer.OrdinalIgnoreCase)
+            ? Start("dotnet", Path.GetDirectoryName(serverDll)!, serverDll, "--urls", "http://localhost:5201", "--seed-grid-baseline")
+            : Start("dotnet", Path.GetDirectoryName(serverDll)!, serverDll, "--urls", "http://localhost:5201");
 
     using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(1) };
     var deadline = DateTime.UtcNow.AddSeconds(5);
     var ready = false;
     while (DateTime.UtcNow < deadline)
     {
-        if (server.HasExited)
+        if (server is not null && server.HasExited)
             throw new InvalidOperationException($"SampleApp server exited: {server.ExitCode}.");
         try
         {
@@ -78,9 +93,9 @@ try
     Console.WriteLine("Start DAP.exe --guide testcrm-windows-canonical-workflow in another terminal.");
     Console.WriteLine("Press Ctrl+C to stop the SampleApp host.");
 
-    var serverExit = server.WaitForExitAsync();
+    var serverExit = server?.WaitForExitAsync();
     var windowsExit = windows.WaitForExitAsync();
-    var completed = await Task.WhenAny(serverExit, windowsExit);
+    var completed = serverExit is null ? windowsExit : await Task.WhenAny(serverExit, windowsExit);
     if (completed == windowsExit)
     {
         await windowsExit;
@@ -90,8 +105,8 @@ try
     }
     else
     {
-        await serverExit;
-        throw new InvalidOperationException($"SampleApp server exited with code {server.ExitCode}.");
+        await serverExit!;
+        throw new InvalidOperationException($"SampleApp server exited with code {server!.ExitCode}.");
     }
 }
 finally
