@@ -92,7 +92,7 @@ def main():
                 "LocatorStrategy", "LocatorValue", "FrameContextJson", "ContextKind",
                 "ContextValue", "BubbleContent", "BubblePlacement", "ValidationKind",
                 "ValidationExpectedValue", "ValidationOptionsJson", "IsEnabled",
-                "AutomationValue", "ApplicationContextKey"
+                "ApplicationContextKey"
             ], "WHERE GuideId = ? ORDER BY StepOrder", (guides[key]["Id"],))
             for s in steps:
                 sid = s["Id"]
@@ -121,7 +121,6 @@ def main():
                     "validation_options": s.get("ValidationOptionsJson"),
                     "advance_mode": s.get("AdvanceMode"),
                     "enabled": s.get("IsEnabled"),
-                    "automation_value": s.get("AutomationValue"),
                     "application_context_key": s.get("ApplicationContextKey"),
                     "anchors": anchors, "captures": captures,
                     "completion_conditions": conditions, "issues": issues
@@ -135,7 +134,7 @@ def main():
                    "locator_strategy", "locator_value", "frame_context",
                    "context_kind", "context_value", "bubble", "bubble_placement",
                    "validation_kind", "validation_expected", "validation_options",
-                   "advance_mode", "enabled", "automation_value", "application_context_key",
+                   "advance_mode", "enabled", "application_context_key",
                    "anchors", "captures", "completion_conditions", "issues"]
         with csv_path.open("w", newline="", encoding="utf-8-sig") as f:
             writer = csv.DictWriter(f, fieldnames=columns)
