@@ -508,7 +508,7 @@ public sealed class WindowsGuideRuntime
                 {
                     await _bubbles.ShowAsync(
                         target, step, stepNumber, totalSteps, cancellationToken,
-                        !string.IsNullOrEmpty(step.AutomationValue) ? _automaticStepLabel : null);
+                        null);
                 }
                 catch (InvalidOperationException) when (!HasVisibleBounds(target))
                 {
@@ -540,52 +540,6 @@ public sealed class WindowsGuideRuntime
 
                     Console.Error.WriteLine(
                         $"[DAP Windows guide] input ready Step {step.Order} '{step.Id}'.");
-                }
-
-                if (activeState.ShouldApplyHybridValue(_hybrid, targetResolved: true))
-                {
-                    GuideStepExecutionPolicy.RequireHybridValueStep(step, "Windows");
-                    if (!target.TryGetCurrentPattern(ValuePattern.Pattern, out var pattern))
-                        throw new NotSupportedException($"Hybrid Step '{step.Id}' declares an automation value but the resolved target does not support UIA ValuePattern.");
-                    var valuePattern = (ValuePattern)pattern;
-                    if (valuePattern.Current.IsReadOnly)
-                        throw new InvalidOperationException($"Hybrid Step '{step.Id}' targets a read-only control.");
-                    if (!IsTargetWindowInteractive(windowRoot))
-                        throw new InvalidOperationException($"Hybrid Step '{step.Id}' cannot act while the target application is inactive.");
-
-                    // The runtime owns both the value change and its commit. UIA SetValue
-                    // alone does not commit WPF Edit controls; their validation is
-                    // intentionally armed on an edit -> blur transition.
-                    if (isTextEditTarget && !target.Current.HasKeyboardFocus)
-                        target.SetFocus();
-                    if (isTextEditTarget && !target.Current.HasKeyboardFocus)
-                        throw new InvalidOperationException($"Hybrid Step '{step.Id}' could not focus its input.");
-                    if (isTextEditTarget)
-                        Volatile.Write(ref textTargetObservedFocused, 1);
-
-                    valuePattern.SetValue(step.AutomationValue);
-                    if (!string.Equals(valuePattern.Current.Value, step.AutomationValue, StringComparison.Ordinal))
-                        throw new InvalidOperationException($"Hybrid Step '{step.Id}' did not retain the declared value.");
-
-                    if (isTextEditTarget)
-                    {
-                        Volatile.Write(ref textTargetChanged, 1);
-                        // Yield to UIA property-change notifications before committing.
-                        await Task.Delay(100, cancellationToken);
-                        if (!target.Current.HasKeyboardFocus || !IsTargetWindowInteractive(windowRoot))
-                            throw new InvalidOperationException($"Hybrid Step '{step.Id}' lost focus before commit.");
-                        keybd_event(VirtualKeyTab, 0, 0, UIntPtr.Zero);
-                        keybd_event(VirtualKeyTab, 0, KeyEventKeyUp, UIntPtr.Zero);
-                        // Observe the actual blur, not merely the injected key.
-                        var blurStarted = Stopwatch.StartNew();
-                        while (target.Current.HasKeyboardFocus && blurStarted.Elapsed < TimeSpan.FromSeconds(5))
-                            await Task.Delay(50, cancellationToken);
-                        if (target.Current.HasKeyboardFocus)
-                            throw new InvalidOperationException($"Hybrid Step '{step.Id}' TAB did not commit the input.");
-                        Volatile.Write(ref textTargetCommitted, 1);
-                    }
-                    activeState.MarkHybridValueApplied();
-                    Console.Error.WriteLine($"[DAP Windows Hybrid] committed persisted value for Step {step.Order} '{step.Id}'.");
                 }
 
                 if (clicked)
