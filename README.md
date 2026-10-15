@@ -18,10 +18,11 @@ The current source code defines implemented capabilities and runtime behavior. T
 
 - [`REQUIREMENTS.md`](docs/REQUIREMENTS.md) — desired behavior and product requirements, not proof of implementation.
 - [`DECISIONS.md`](docs/DECISIONS.md) — architectural decisions and design constraints.
-- [`PROJECT_CONTEXT.md`](docs/PROJECT_CONTEXT.md) — compact project scope and working conventions.
 
 Build and run the current source rather than relying on a hand-maintained status snapshot. For runtime verification, distinguish observed test results from expectations or documentation. Component-local documentation may remain beside the component.
 
 Other documentation:
+- [Instructor design specification](docs/INSTRUCTOR_DECISION_TREE_SPEC.md)
+- [Reference guide from scratch](docs/REFERENCE_GUIDE_FROM_SCRATCH.md)
 - [Application context architecture](docs/APPLICATION_CONTEXT_ARCHITECTURE.md)
 - [Verified run commands](docs/RUN_COMMANDS.md)
