@@ -16,8 +16,12 @@ Digital Adoption Platform for guided learning across Web and Windows application
 
 The current source code defines implemented capabilities and runtime behavior. The active GuideMe database defines persisted Guide configuration. Successful actual executions establish what has been verified. Documentation is supporting context only; never infer support or lack of support solely from a Markdown file.
 
-- `REQUIREMENTS.md` — desired behavior and product requirements, not proof of implementation.
-- `DECISIONS.md` — architectural decisions and design constraints.
-- `PROJECT_CONTEXT.md` — compact project scope and working conventions.
+- [`REQUIREMENTS.md`](docs/REQUIREMENTS.md) — desired behavior and product requirements, not proof of implementation.
+- [`DECISIONS.md`](docs/DECISIONS.md) — architectural decisions and design constraints.
+- [`PROJECT_CONTEXT.md`](docs/PROJECT_CONTEXT.md) — compact project scope and working conventions.
 
 Build and run the current source rather than relying on a hand-maintained status snapshot. For runtime verification, distinguish observed test results from expectations or documentation. Component-local documentation may remain beside the component.
+
+Other documentation:
+- [Application context architecture](docs/APPLICATION_CONTEXT_ARCHITECTURE.md)
+- [Verified run commands](docs/RUN_COMMANDS.md)
