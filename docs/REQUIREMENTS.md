@@ -4,7 +4,7 @@
 
 - DAP is a production-target .NET 8 Windows application.
 - One product supports Learner and future Instructor/Editor experiences.
-- Learner launch uses exactly `DAP.exe --guide <GuideId>` as the required product entry contract. No `--learner` mode argument or compatibility alias is accepted. The runtime type is derived from the persisted Guide. Instructor/Editor launch remains undecided.
+- Learner launch uses exactly `DAP.exe --guide <GuideKey>` as the required product entry contract. No `--learner` mode argument or compatibility alias is accepted. The runtime type is derived from the persisted Guide. Instructor/Editor launch remains undecided.
 - The launcher supports Guides containing Web and Windows targets in one persisted workflow, including Web–Windows–Web transitions. Cross-runtime execution is an existing, user-verified capability, not a future feature.
 - Hebrew and English UI are supported with RTL/LTR direction.
 - Guide content language is independent of product UI language.
@@ -65,16 +65,16 @@
 - Web deployment must install/validate the browser Extension and Native Messaging host.
 - Python and Playwright are not production prerequisites.
 
-## Product execution modes
+## Product execution
 
-- The Learner launches with `DAP.exe --guide <GuideId>`; `--mode manual|hybrid` is optional, with Manual as default.
-- Hybrid may apply only persisted, supported automation values; Runtime retains validation and advancement ownership. Steps without automation values remain manual.
-- Platform-specific Hybrid capability and regression status belong in `CURRENT_STATUS.md`; do not treat demo-runner behavior as a production guarantee.
+- Launch the Learner with `DAP.exe --guide <GuideKey>`, using the persisted Guide key rather than the database numeric ID.
+- The Learner observes and validates user actions; persisted automatic value injection is not a product capability.
+- Web, Windows and mixed Web–Windows–Web Guides are supported.
 
 ## Shared guide execution
 
 - `GuideExecutionEngine` provides runtime-neutral sequencing, capture-token materialization, and Step dispatch through platform adapters.
 - Capture definitions may read a UI-observed value in one Step and reference it in a later Step using `{{step:<step-id>:capture}}` within target or anchor locator values.
 - Missing capture references fail explicitly rather than guessing a target.
-- Capture timing persistence and broader variable substitution are not yet complete; see `ARCHITECTURE.md` and `CURRENT_STATUS.md`.
+- Capture timing persistence and broader variable substitution are not yet complete; see `APPLICATION_CONTEXT_ARCHITECTURE.md` and `RUN_COMMANDS.md`.
 - Platform-specific UI observation and presentation remain separate. Shared Core contracts alone do not prove Web/Windows behavioral parity.
