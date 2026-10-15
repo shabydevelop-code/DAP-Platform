@@ -58,7 +58,6 @@ public sealed class GuideActiveStepState
         _step = step ?? throw new ArgumentNullException(nameof(step));
     }
 
-    public bool HybridValueApplied { get; private set; }
     public bool PresentationReady { get; private set; }
     public bool ReadySignaled { get; private set; }
 
@@ -69,14 +68,6 @@ public sealed class GuideActiveStepState
         if (ReadySignaled) return false;
         ReadySignaled = true;
         return true;
-    }
-    public bool ShouldApplyHybridValue(bool hybrid, bool targetResolved)
-        => false; // DAP Learner never injects persisted values into the target application.
-    public void MarkHybridValueApplied()
-    {
-        if (HybridValueApplied)
-            throw new InvalidOperationException($"Hybrid automation for Step '{_step.Id}' was already applied.");
-        HybridValueApplied = true;
     }
 
     /// <summary>Delay and return the next lifecycle state without changing platform polling cadence.</summary>
