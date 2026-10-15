@@ -187,36 +187,6 @@
         sendResponse({ok:true,result:{status:"resolved",count:1}});
         return;
       }
-      if (command.type === "applyAutomationValue") {
-        const result = resolveTarget(command.target);
-        if (result.status !== "resolved") {
-          sendResponse({ok:true,result:{status:result.status,count:result.count}});
-          return;
-        }
-        const el = result.element;
-        const select = el instanceof HTMLSelectElement;
-        const textEditor = el instanceof HTMLTextAreaElement ||
-          (el instanceof HTMLInputElement && ["text","search","email","tel","url","number","password"].includes(el.type));
-        if ((!select && !textEditor) || el.disabled || el.getAttribute("aria-disabled") === "true" ||
-            (!select && el.readOnly))
-          throw new Error("Hybrid value target must be an enabled writable text editor or select.");
-        const value = String(command.value ?? "");
-        if (select && !Array.from(el.options).some(option => option.value === value && !option.disabled))
-          throw new Error("Hybrid select does not contain an enabled option matching the persisted value.");
-        if (document.activeElement !== el) el.focus();
-        if (document.activeElement !== el) throw new Error("Hybrid value target could not receive focus.");
-        const prototype = select ? HTMLSelectElement.prototype :
-          el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
-        const setter = Object.getOwnPropertyDescriptor(prototype, "value")?.set;
-        if (!setter) throw new Error("Hybrid value target has no native value setter.");
-        setter.call(el, value);
-        if (String(el.value) !== value) throw new Error("Hybrid value target rejected the persisted value.");
-        el.dispatchEvent(new Event("input", {bubbles:true}));
-        el.dispatchEvent(new Event("change", {bubbles:true}));
-        el.blur();
-        sendResponse({ok:true,result:{status:"applied",value:String(el.value)}});
-        return;
-      }
       if (command.type === "readTargetValue") {
         const result = resolveTarget(command.target);
         if (result.status !== "resolved") {
