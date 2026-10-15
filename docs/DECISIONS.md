@@ -8,7 +8,7 @@
 6. **Web adapter:** The production Web path uses GuideMe (Chrome extension), Native Messaging, named pipes, and .NET. No Playwright production dependency.
 7. **Windows adapter:** The production Windows path uses UI Automation.
 8. **Application contexts:** Resolve an explicitly identified application instance; do not infer identity from arbitrary target matches. Unsupported multi-context behavior must fail explicitly.
-9. **Guide launch:** `DAP.exe --guide <GuideId>` selects the runtime from persisted Steps. Manual is the default; the Learner observes user actions and never injects persisted automation values. There is no start-from-step launch.
+9. **Guide launch:** `DAP.exe --guide <GuideKey>` selects the runtime from persisted Steps. Manual is the default; the Learner observes user actions and never injects persisted automation values. There is no start-from-step launch.
 10. **Guide Steps:** Disabled Steps keep their identity; centered targetless Steps are valid; the example Guide's final summary is persisted rather than synthesized.
 11. **Target ownership:** Guide completion and termination through the session-scoped GuideMe notification-area menu end the learner and clean its UI without closing the target application. The same Guide can be launched again.
 12. **Demo/test separation:** SampleApp and test-specific drivers must not define product behavior. Example Guides are data, not special cases in runtime code.
