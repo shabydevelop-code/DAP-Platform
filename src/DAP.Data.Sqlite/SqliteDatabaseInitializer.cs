@@ -20,6 +20,7 @@ public sealed class SqliteDatabaseInitializer
         await command.ExecuteNonQueryAsync(cancellationToken);
         await EnsureGuideStepHybridColumnsAsync(connection, cancellationToken);
         await EnsureStepCaptureTimingColumnAsync(connection, cancellationToken);
+        await DropObsoleteAutomationValueAsync(connection, cancellationToken);
     }
 
     private static async Task EnsureGuideStepHybridColumnsAsync(SqliteConnection connection, CancellationToken cancellationToken)
@@ -37,13 +38,6 @@ public sealed class SqliteDatabaseInitializer
         {
             await using var add = connection.CreateCommand();
             add.CommandText = "ALTER TABLE GuideSteps ADD COLUMN IsEnabled INTEGER NOT NULL DEFAULT 1;";
-            await add.ExecuteNonQueryAsync(cancellationToken);
-        }
-
-        if (!columns.Contains("AutomationValue"))
-        {
-            await using var add = connection.CreateCommand();
-            add.CommandText = "ALTER TABLE GuideSteps ADD COLUMN AutomationValue TEXT NULL;";
             await add.ExecuteNonQueryAsync(cancellationToken);
         }
 
@@ -73,6 +67,22 @@ public sealed class SqliteDatabaseInitializer
         }
     }
 
+    private static async Task DropObsoleteAutomationValueAsync(SqliteConnection connection, CancellationToken cancellationToken)
+    {
+        var exists = false;
+        await using (var info = connection.CreateCommand())
+        {
+            info.CommandText = "PRAGMA table_info(GuideSteps);";
+            await using var reader = await info.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+                exists |= string.Equals(reader.GetString(1), "AutomationValue", StringComparison.OrdinalIgnoreCase);
+        }
+        if (!exists) return;
+        await using var drop = connection.CreateCommand();
+        drop.CommandText = "ALTER TABLE GuideSteps DROP COLUMN AutomationValue;";
+        await drop.ExecuteNonQueryAsync(cancellationToken);
+    }
+
     private const string Schema002 = """
 PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS Guides (
@@ -83,7 +93,7 @@ CREATE TABLE IF NOT EXISTS GuideSteps (
  LocatorStrategy TEXT NULL, LocatorValue TEXT NULL, FrameContextJson TEXT NULL,
  ContextKind TEXT NULL, ContextValue TEXT NULL, BubbleContent TEXT NOT NULL,
  BubblePlacement TEXT NOT NULL, ValidationKind TEXT NULL, ValidationExpectedValue TEXT NULL,
- ValidationOptionsJson TEXT NULL, IsEnabled INTEGER NOT NULL DEFAULT 1, AutomationValue TEXT NULL,
+ ValidationOptionsJson TEXT NULL, IsEnabled INTEGER NOT NULL DEFAULT 1,
  ApplicationContextKey TEXT NULL,
  FOREIGN KEY (GuideId) REFERENCES Guides(Id) ON DELETE CASCADE,
  UNIQUE (GuideId, Key), UNIQUE (GuideId, StepOrder));
