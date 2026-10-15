@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.IO;
+using System.Text;
 using System.Windows;
 
 namespace DAP.App;
@@ -27,8 +29,9 @@ public partial class App : System.Windows.Application
         catch (Exception exception)
         {
             Trace.TraceError($"DAP session terminated unexpectedly: {exception}");
+            var diagnosticPath = WriteFailureDiagnostic(exception, e.Args, sessionPid);
             System.Windows.MessageBox.Show(
-                exception.Message,
+                $"{exception.Message}{Environment.NewLine}{Environment.NewLine}Diagnostic: {diagnosticPath ?? "Could not write diagnostic log."}",
                 "DAP - Session Error",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
@@ -43,6 +46,42 @@ public partial class App : System.Windows.Application
             // cleanup completes, do not leave a background process holding DLLs.
             Environment.Exit(exitCode);
         }
+    }
+
+    private static string? WriteFailureDiagnostic(Exception exception, string[] arguments, int processId)
+    {
+        try
+        {
+            var directory = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "DAP", "Logs");
+            Directory.CreateDirectory(directory);
+            var path = Path.Combine(directory, $"session-error-{DateTime.UtcNow:yyyyMMdd-HHmmssfff}-{processId}.log");
+            var detail = new StringBuilder()
+                .AppendLine($"UTC: {DateTimeOffset.UtcNow:O}")
+                .AppendLine($"Process ID: {processId}")
+                .AppendLine($"Executable: {Environment.ProcessPath}")
+                .AppendLine($"Guide: {ReadGuideId(arguments) ?? "(not available)"}")
+                .AppendLine("Active step: not available at application exception boundary")
+                .AppendLine()
+                .AppendLine("Exception (including inner exceptions and stack traces):")
+                .AppendLine(exception.ToString());
+            File.WriteAllText(path, detail.ToString());
+            return path;
+        }
+        catch (Exception loggingException)
+        {
+            Trace.TraceError($"Failed to persist DAP error diagnostic: {loggingException}");
+            return null;
+        }
+    }
+
+    private static string? ReadGuideId(string[] arguments)
+    {
+        for (var i = 0; i + 1 < arguments.Length; i++)
+            if (string.Equals(arguments[i], "--guide", StringComparison.OrdinalIgnoreCase))
+                return arguments[i + 1];
+        return null;
     }
 
     private static bool IsClosedWebSession(Exception exception)
