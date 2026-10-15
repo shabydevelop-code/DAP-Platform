@@ -19,7 +19,6 @@ public sealed record GuideStep(
     StepCaptureDefinition? Capture = null,
     IReadOnlyList<StepCompletionCondition>? CompletionConditions = null,
     bool IsEnabled = true,
-    string? AutomationValue = null,
     string? ApplicationContextKey = null);
 
 /// <summary>Optional capture schedule. Null preserves existing runtime behavior.</summary>
