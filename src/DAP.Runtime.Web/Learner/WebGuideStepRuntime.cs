@@ -25,8 +25,6 @@ public sealed class WebGuideStepRuntime
     private readonly TimeSpan _reconcileInterval;
     private readonly TimeSpan _stableReconcileInterval;
     private readonly TimeSpan _presentationSettleInterval;
-    private readonly string? _automaticStepLabel;
-    private readonly bool _hybrid;
 
     public WebGuideStepRuntime(
         IWebBrowserAdapter browser,
@@ -39,8 +37,6 @@ public sealed class WebGuideStepRuntime
         _reconcileInterval = reconcileInterval ?? TimeSpan.FromMilliseconds(100);
         _stableReconcileInterval = TimeSpan.FromMilliseconds(500);
         _presentationSettleInterval = presentationSettleInterval ?? TimeSpan.FromMilliseconds(250);
-        _automaticStepLabel = automaticStepLabel;
-        _hybrid = hybrid;
     }
 
     public async Task RunActiveStepAsync(
@@ -178,7 +174,7 @@ public sealed class WebGuideStepRuntime
             {
                 var presentationTask = _browser.EnsureBubbleShownAsync(
                     step, stepNumber, totalSteps, showPresentation, cancellationToken,
-                    !string.IsNullOrEmpty(step.AutomationValue) ? _automaticStepLabel : null);
+                    null);
                 var winner = await Task.WhenAny(presentationTask, commitTask);
 
                 if (winner == commitTask && commitTask.IsCompletedSuccessfully)
@@ -210,7 +206,7 @@ public sealed class WebGuideStepRuntime
             {
                 presentation = await _browser.EnsureBubbleShownAsync(
                     step, stepNumber, totalSteps, showPresentation, cancellationToken,
-                    !string.IsNullOrEmpty(step.AutomationValue) ? _automaticStepLabel : null);
+                    null);
             }
 
             if (diagnoseReference) ReferenceDiagnostic($"[DAP reference diagnostic] Step '{step.Id}' bubble resolution: {presentation.Status}.");
