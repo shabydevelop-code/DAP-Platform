@@ -108,14 +108,4 @@ public static class GuideStepExecutionPolicy
             throw new InvalidOperationException(
                 $"Centered Guide Step '{step.Id}' must be a pure Manual information Step with no target, context, validation, capture, or completion conditions.");
     }
-
-    public static void RequireHybridValueStep(GuideStep step, string runtime)
-    {
-        ArgumentNullException.ThrowIfNull(step);
-        if (step.AdvanceMode != StepAdvanceMode.AutomaticOnValidation
-            || step.Validation is null
-            || !GuideValidationPolicy.IsValueValidation(step.Validation))
-            throw new InvalidOperationException(
-                $"{runtime} Hybrid Step '{step.Id}' requires automatic value validation.");
-    }
 }
