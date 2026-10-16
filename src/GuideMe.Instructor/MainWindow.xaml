@@ -1,7 +1,7 @@
 <Window x:Class="GuideMe.Instructor.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="GuideMe Instructor" Height="550" Width="480" MinWidth="420" MinHeight="480"
+        Title="GuideMe Instructor" Height="600" Width="480" MinWidth="420" MinHeight="480"
         WindowStartupLocation="CenterScreen" FlowDirection="RightToLeft"
         Background="#FFF8FAFC">
   <Grid Margin="22">
@@ -21,6 +21,9 @@
         <TextBlock Text="מדריך חדש" FontWeight="SemiBold"/>
         <TextBox x:Name="GuideKey" Text="sampleapp-web-instructor" FlowDirection="LeftToRight" Margin="0,8,0,0" Padding="8"/>
         <TextBlock Text="המדריך המקורי לא ישתנה." Foreground="#FF64748B" FontSize="12" Margin="0,8,0,0"/>
+        <TextBlock Text="קוד חיבור מקומי (לשימוש עתידי בתוסף)" FontWeight="SemiBold" Margin="0,12,0,0"/>
+        <TextBox x:Name="PairingToken" IsReadOnly="True" FlowDirection="LeftToRight" Margin="0,6,0,0" Padding="8"/>
+        <Button Content="העתק קוד חיבור" HorizontalAlignment="Right" Margin="0,8,0,0" Padding="10,6" Click="CopyPairingToken_Click"/>
       </StackPanel>
     </Border>
     <Border Grid.Row="2" BorderBrush="#FFCBD5E1" BorderThickness="1" CornerRadius="8" Padding="14" Background="White">
