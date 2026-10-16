@@ -1,5 +1,12 @@
 const status = document.getElementById("status");
 const tokenInput = document.getElementById("token");
+const pairingControls = document.getElementById("pairing-controls");
+const disconnectButton = document.getElementById("disconnect");
+
+function showConnectionState(connected) {
+  pairingControls.hidden = connected;
+  disconnectButton.hidden = !connected;
+}
 
 async function refreshConnectionStatus() {
   try {
@@ -7,6 +14,7 @@ async function refreshConnectionStatus() {
       chrome.storage.session.get("instructorPairing"),
       chrome.tabs.query({ active: true, currentWindow: true })
     ]);
+    showConnectionState(Boolean(instructorPairing));
     if (!instructorPairing) {
       status.textContent = "לא מחובר.";
     } else if (tab?.id === instructorPairing.tabId) {
@@ -15,6 +23,7 @@ async function refreshConnectionStatus() {
       status.textContent = "קיים חיבור ללשונית אחרת. עבור אליה כדי להקליט פעולות.";
     }
   } catch (error) {
+    showConnectionState(false);
     status.textContent = String(error.message || error);
   }
 }
