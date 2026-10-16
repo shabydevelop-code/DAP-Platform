@@ -60,9 +60,27 @@ public partial class MainWindow : Window
         _state = RecordingState.Review;
         StateLabel.Text = $"סקירת שלב {_stepNumber}";
         StatusDetail.Text = events.Count > 0 ? "נקלטו פעולות מהדפדפן." : "לא נקלטו פעולות. בדוק את חיבור התוסף.";
-        ReviewText.Text = $"התחלה: {_startedAt:HH:mm:ss}\\nסיום: {endedAt:HH:mm:ss}\\nאירועים שנקלטו: {events.Count}\\n" +
-            string.Join("\\n", events.Take(10).Select(e => $"{e.Kind}: {e.Tag} {e.Label} ({e.ElementId})")) +
-            "\\nתנאי השלמה: טרם נותח";
+        var reviewLines = new System.Collections.Generic.List<string>
+        {
+            $"התחלה: {_startedAt:HH:mm:ss}",
+            $"סיום: {endedAt:HH:mm:ss}",
+            $"אירועים שנקלטו: {events.Count}",
+            ""
+        };
+        foreach (var (capturedEvent, index) in events.Take(10).Select((item, index) => (item, index)))
+        {
+            reviewLines.Add($"פעולה {index + 1}");
+            reviewLines.Add($"סוג: {capturedEvent.Kind}");
+            reviewLines.Add($"רכיב: {capturedEvent.Tag}");
+            reviewLines.Add($"תווית: {capturedEvent.Label}");
+            reviewLines.Add($"מזהה: {capturedEvent.ElementId ?? "לא זוהה"}");
+            reviewLines.Add($"כתובת: {capturedEvent.Url}");
+            reviewLines.Add("");
+        }
+        if (events.Count > 10)
+            reviewLines.Add($"מוצגות 10 פעולות מתוך {events.Count}.");
+        reviewLines.Add("תנאי השלמה: טרם נותח");
+        ReviewText.Text = string.Join(Environment.NewLine, reviewLines);
         StartButton.IsEnabled = false;
         EndButton.IsEnabled = false;
         BubbleText.IsEnabled = true;
