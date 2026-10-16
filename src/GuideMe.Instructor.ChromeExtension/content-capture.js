@@ -2,6 +2,30 @@
   if (globalThis.__guideMeCaptureInstalled) return;
   globalThis.__guideMeCaptureInstalled = true;
 
+  let active = true;
+  const eventTypes = ["click", "change", "blur"];
+
+  function stopCapture() {
+    if (!active) return;
+    active = false;
+    for (const type of eventTypes) removeEventListener(type, report, true);
+    globalThis.__guideMeCaptureInstalled = false;
+  }
+
+  function extensionAvailable() {
+    if (!active) return false;
+    try {
+      if (!chrome?.runtime?.id) {
+        stopCapture();
+        return false;
+      }
+      return true;
+    } catch {
+      stopCapture();
+      return false;
+    }
+  }
+
   // Structural snapshot only: never collect input values or page text wholesale.
   function snapshot() {
     const visible = element => {
@@ -38,7 +62,7 @@
   }
 
   function report(event) {
-    if (!event.isTrusted) return;
+    if (!event.isTrusted || !extensionAvailable()) return;
     const element = event.target instanceof Element ? event.target : null;
     if (!element) return;
     const target = element.closest("button,a,input,select,textarea,[role='button']") || element;
@@ -55,14 +79,23 @@
     };
     // Allow SPA handlers to update the DOM before recording the outcome.
     setTimeout(() => {
-      chrome.runtime.sendMessage({
-        type: "guideme-instructor-event",
-        event: { ...details, before, after: snapshot() }
-      }).catch(() => {});
+      if (!extensionAvailable()) return;
+      try {
+        const pending = chrome.runtime.sendMessage({
+          type: "guideme-instructor-event",
+          event: { ...details, before, after: snapshot() }
+        });
+        if (pending && typeof pending.catch === "function") {
+          pending.catch(() => {
+            // A reload can invalidate the context after sendMessage was initiated.
+            if (!extensionAvailable()) stopCapture();
+          });
+        }
+      } catch {
+        stopCapture();
+      }
     }, 600);
   }
 
-  addEventListener("click", report, true);
-  addEventListener("change", report, true);
-  addEventListener("blur", report, true);
+  for (const type of eventTypes) addEventListener(type, report, true);
 })();
