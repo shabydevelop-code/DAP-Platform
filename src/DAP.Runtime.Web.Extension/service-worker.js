@@ -183,7 +183,7 @@ async function ensureTabFramesReady(tabId) {
     try {
       await ensureContentScript(tabId, frame.frameId);
     } catch (error) {
-      // A frame can disappear while TestCRM/server applications rebuild their
+      // A frame can disappear while a target application rebuilds its
       // document tree. It will be re-discovered by the next command.
       const current = await chrome.webNavigation.getFrame({ tabId, frameId: frame.frameId })
         .catch(() => null);
