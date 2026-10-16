@@ -131,9 +131,12 @@ public partial class MainWindow : Window
         StartButton.IsEnabled = false;
         EndButton.IsEnabled = false;
         BubbleText.IsEnabled = true;
+        ContextIdText.Text = "unresolved";
+        ContextKindText.Text = "unverified";
+        ContextValueText.Text = fieldEvent?.Url ?? "";
         ContextIdText.IsEnabled = false;
-        ContextKindText.IsEnabled = true;
-        ContextValueText.IsEnabled = true;
+        ContextKindText.IsEnabled = false;
+        ContextValueText.IsEnabled = false;
         ApproveButton.IsEnabled = fieldEvent is not null &&
             (!string.IsNullOrWhiteSpace(fieldEvent.ElementId) || !string.IsNullOrWhiteSpace(fieldEvent.Name));
     }
