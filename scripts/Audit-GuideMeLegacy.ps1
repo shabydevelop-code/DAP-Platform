@@ -21,7 +21,8 @@ $files = foreach ($area in $areas) {
         Get-ChildItem -LiteralPath $dir -Recurse -File -ErrorAction Stop |
             Where-Object {
                 $_.Extension -in @('.cs', '.csproj', '.ps1', '.props', '.targets') -and
-                $_.FullName -notmatch '[\\/](bin|obj)[\\/]'
+                $_.FullName -notmatch '[\\/](bin|obj)[\\/]' -and
+                $_.Name -ne 'Audit-GuideMeLegacy.ps1'
             }
     }
 }
