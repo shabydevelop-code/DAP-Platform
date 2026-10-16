@@ -41,7 +41,14 @@ public static class GuideV5ExecutionCompiler
             FrameContext? frame = null;
             if (element.FrameContextJson is not null)
             {
-                var path = JsonSerializer.Deserialize<Locator[]>(element.FrameContextJson)
+                using var frameJson = JsonDocument.Parse(element.FrameContextJson);
+                var pathNode = frameJson.RootElement;
+                if (pathNode.ValueKind == JsonValueKind.Object
+                    && pathNode.TryGetProperty("Path", out var nestedPath))
+                    pathNode = nestedPath;
+                if (pathNode.ValueKind != JsonValueKind.Array)
+                    throw new InvalidOperationException($"Invalid frame context shape for '{element.ElementId}'.");
+                var path = pathNode.Deserialize<Locator[]>()
                     ?? throw new InvalidOperationException($"Invalid frame context '{element.ElementId}'.");
                 frame = new FrameContext(path);
             }
