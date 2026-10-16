@@ -45,7 +45,12 @@ public static class DapApplicationHost
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
+                var reportPath = Path.Combine(Path.GetTempPath(), "GuideMe-V5-validation-error.txt");
+                await File.WriteAllTextAsync(reportPath,
+                    $"Guide: {options.GuideId}{Environment.NewLine}{ex}",
+                    cancellationToken);
                 Console.Error.WriteLine($"V5 validation failed for '{options.GuideId}': {ex}");
+                Console.Error.WriteLine($"Diagnostic report: {reportPath}");
                 return 7;
             }
         }
