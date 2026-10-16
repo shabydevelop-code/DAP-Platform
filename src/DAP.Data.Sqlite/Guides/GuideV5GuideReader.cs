@@ -25,7 +25,6 @@ public static class GuideV5GuideReader
             databasePath, guideKey, cancellationToken);
         if (additional.GuideId != catalog.GuideId)
             throw new InvalidOperationException("V5 context/capture guide identity mismatch.");
-        var contextIds = additional.Contexts.Select(x => x.ContextId).ToHashSet(StringComparer.Ordinal);
         var variableIds = additional.Variables.Select(x => x.VariableId).ToHashSet(StringComparer.Ordinal);
         var usageIds = catalog.Usages.Select(x => (x.StepId, x.UsageId)).ToHashSet();
         var stepIds = new HashSet<string>(StringComparer.Ordinal);
