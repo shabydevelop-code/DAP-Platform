@@ -124,7 +124,7 @@ public partial class MainWindow : Window
         }
         else
             reviewLines.Add("לא זוהה ערך שדה מתאים להפקת value-equals.");
-        reviewLines.Add("יתר ההגדרות (הקשר יישומי, בועית, מזהי שלב): דורשות הגדרת עורך.");
+        reviewLines.Add("הקשר יישומי טרם אומת; טיוטה זו אינה מוכנה לפרסום. טקסט הבועית ניתן לעריכה.");
 
         ReviewText.Text = string.Join(Environment.NewLine, reviewLines);
         CopyReviewButton.IsEnabled = true;
@@ -159,7 +159,7 @@ public partial class MainWindow : Window
             return;
         if (string.IsNullOrWhiteSpace(BubbleText.Text))
         {
-            MessageBox.Show("יש להשלים את פרטי השלב לפני אישור הטיוטה.", "GuideMe Instructor");
+            MessageBox.Show("יש להזין טקסט בועית לפני אישור הטיוטה.", "GuideMe Instructor");
             return;
         }
         // Explicitly approve a session-only draft. No database mutation or claim of persistence.
@@ -183,7 +183,7 @@ public partial class MainWindow : Window
         _proposedField = null;
         _state = RecordingState.Ready;
         StateLabel.Text = $"מוכן לתחילת שלב {_stepNumber}";
-        StatusDetail.Text = "הטיוטה אושרה בזיכרון בלבד. לא נשמר דבר במסד הנתונים.";
+        StatusDetail.Text = "טיוטה זמנית אושרה. ההקשר טרם אומת ולכן אינה מוכנה לפרסום. לא נשמר דבר במסד הנתונים.";
         ReviewText.Text = string.Join(Environment.NewLine + Environment.NewLine, _approvedDrafts);
         CopyReviewButton.IsEnabled = true;
         StartButton.IsEnabled = true;
