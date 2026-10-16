@@ -80,16 +80,17 @@ public static class DapApplicationHost
 
 
 
-        var databaseOptions = SqliteDatabaseOptions.CreateDefault();
-        var useV5 = options.V5DatabasePath is not null;
-        SqliteGuideStepRepository? repository = null;
-        if (!useV5)
-        {
-            var connections = new SqliteConnectionFactory(databaseOptions);
-            await new SqliteDatabaseInitializer(connections).InitializeAsync(cancellationToken);
-            repository = new SqliteGuideStepRepository(connections);
-        }
-        StartupMark(startup, useV5 ? "V5 execution selected (legacy database untouched)" : "SQLite initialized");
+        // V5 is the only learner persistence format. Do not initialize or
+        // attempt an implicit migration of a legacy production database.
+        var databaseOptions = SqliteDatabaseOptions.CreateV5Default();
+        var activeDatabasePath = options.V5DatabasePath is null
+            ? databaseOptions.DatabasePath
+            : Path.GetFullPath(options.V5DatabasePath);
+        if (!File.Exists(activeDatabasePath))
+            throw new FileNotFoundException(
+                "GuideMe V5 database not found. Provision a validated V5 database before launching a guide.",
+                activeDatabasePath);
+        StartupMark(startup, $"V5 database selected ({activeDatabasePath})");
 
         if (options.Mode == DapLaunchMode.InfrastructureCheck)
         {
@@ -113,20 +114,10 @@ public static class DapApplicationHost
             return 0;
         }
 
-        IReadOnlyList<DAP.Core.Guides.GuideStep> steps;
-        IReadOnlyList<DAP.Core.Guides.GuideApplicationContext> applicationContexts;
-        if (useV5)
-        {
-            var v5 = await GuideV5ExecutionCompiler.CompileAsync(
-                Path.GetFullPath(options.V5DatabasePath!), options.GuideId!, cancellationToken);
-            steps = v5.Steps;
-            applicationContexts = v5.Contexts;
-        }
-        else
-        {
-            steps = await repository!.GetStepsAsync(options.GuideId!, cancellationToken);
-            applicationContexts = await repository.GetApplicationContextsAsync(options.GuideId!, cancellationToken);
-        }
+        var v5 = await GuideV5ExecutionCompiler.CompileAsync(
+            activeDatabasePath, options.GuideId!, cancellationToken);
+        IReadOnlyList<DAP.Core.Guides.GuideStep> steps = v5.Steps;
+        IReadOnlyList<DAP.Core.Guides.GuideApplicationContext> applicationContexts = v5.Contexts;
         StartupMark(startup, $"guide loaded ({steps.Count} steps, {applicationContexts.Count} application contexts)");
         if (steps.Count == 0)
         {
