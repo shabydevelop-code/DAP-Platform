@@ -5,7 +5,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Automation;
 using System.Windows.Data;
 
-namespace DAP.TestCRM.Windows;
+namespace DAP.SampleApp.Windows;
 
 public partial class MainWindow : Window
 {
