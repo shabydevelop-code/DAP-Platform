@@ -1,7 +1,7 @@
 <Window x:Class="GuideMe.Instructor.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="GuideMe Instructor" Height="600" Width="480" MinWidth="420" MinHeight="480"
+        Title="GuideMe Instructor" Height="720" Width="620" MinWidth="420" MinHeight="480"
         WindowStartupLocation="CenterScreen" FlowDirection="RightToLeft"
         Background="#FFF8FAFC">
   <Grid Margin="22">
@@ -21,7 +21,7 @@
         <TextBlock Text="מדריך חדש" FontWeight="SemiBold"/>
         <TextBox x:Name="GuideKey" Text="sampleapp-web-instructor" FlowDirection="LeftToRight" Margin="0,8,0,0" Padding="8"/>
         <TextBlock Text="המדריך המקורי לא ישתנה." Foreground="#FF64748B" FontSize="12" Margin="0,8,0,0"/>
-        <TextBlock Text="קוד חיבור מקומי (לשימוש עתידי בתוסף)" FontWeight="SemiBold" Margin="0,12,0,0"/>
+        <TextBlock Text="קוד חיבור מקומי לתוסף" FontWeight="SemiBold" Margin="0,12,0,0"/>
         <TextBox x:Name="PairingToken" IsReadOnly="True" FlowDirection="LeftToRight" Margin="0,6,0,0" Padding="8"/>
         <Button Content="העתק קוד חיבור" HorizontalAlignment="Right" Margin="0,8,0,0" Padding="10,6" Click="CopyPairingToken_Click"/>
       </StackPanel>
@@ -36,15 +36,19 @@
         </WrapPanel>
       </StackPanel>
     </Border>
-    <StackPanel Grid.Row="3" Margin="0,18,0,0">
+    <ScrollViewer Grid.Row="3" Margin="0,14,0,12" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+      <StackPanel>
       <TextBlock Text="סקירת השלב" FontWeight="SemiBold" FontSize="15"/>
-      <TextBlock x:Name="ReviewText" Text="לאחר סיום שלב יוצגו כאן גבולות ההקלטה. זיהוי פעולות ותוצאות יחובר בהמשך." TextWrapping="Wrap" Margin="0,10,0,0"/>
+      <Border BorderBrush="#FFCBD5E1" BorderThickness="1" CornerRadius="6" Background="White" Padding="12" Margin="0,10,0,0">
+        <TextBlock x:Name="ReviewText" Text="לאחר סיום שלב יוצגו כאן הפעולות שנקלטו." TextWrapping="Wrap" LineHeight="24"/>
+      </Border>
       <TextBlock Text="טקסט בועית מוצע (לעריכה)" Margin="0,18,0,6" FontWeight="SemiBold"/>
       <TextBox x:Name="BubbleText" Height="80" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" IsEnabled="False"/>
-    </StackPanel>
+      </StackPanel>
+    </ScrollViewer>
     <StackPanel Grid.Row="4">
       <Button x:Name="ApproveButton" Content="אשר ושמור" Padding="14,10" IsEnabled="False" Click="Approve_Click"/>
-      <TextBlock Text="מצב אב־טיפוס: אין עדיין שמירה ל־V5 או קליטת פעולות מ־Chrome." FontSize="12" Foreground="#FF9A3412" TextWrapping="Wrap" Margin="0,10,0,0"/>
+      <TextBlock Text="מצב אב־טיפוס: פעולות Chrome נקלטות, אך עדיין אין ניתוח תנאי השלמה או שמירה ל־V5." FontSize="12" Foreground="#FF9A3412" TextWrapping="Wrap" Margin="0,10,0,0"/>
     </StackPanel>
   </Grid>
 </Window>
