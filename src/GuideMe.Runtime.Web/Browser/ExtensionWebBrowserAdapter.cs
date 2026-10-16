@@ -555,7 +555,10 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
         var response = await SendCommandAsync(
             ContextualCommand(step, new { type = "waitForDomQuiet", quietMilliseconds = Math.Max(0, (int)quietWindow.TotalMilliseconds), framePath = step.Target.FrameContext?.Path }),
             cancellationToken);
-        if (!response.GetProperty("result").GetProperty("stable").GetBoolean())
+        if (!response.TryGetProperty("result", out var quietResult) ||
+            quietResult.ValueKind != JsonValueKind.Object ||
+            !quietResult.TryGetProperty("stable", out var stableValue) ||
+            stableValue.ValueKind != JsonValueKind.True)
             return false;
 
         // DOM quiet alone is insufficient: an application may still have a
