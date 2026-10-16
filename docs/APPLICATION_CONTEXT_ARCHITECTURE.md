@@ -33,7 +33,7 @@ Context matching must identify an unambiguous target window. Do not assume suppo
 Web-only, Windows-only and mixed Web–Windows–Web Guides are supported. The persisted application context of each step identifies which application the learner must attach to. The sample mixed smoke Guide has been executed successfully.
 
 ## Example contexts
-The example Web Guide `sampleapp-web-guide` uses context `crm` and a local Web URL host matcher. The Windows Guide `sampleapp-windows-guide` uses `crm-windows` with the demo window automation ID `TestCrmMainWindow`. These are persisted example values, not hard-coded product rules.
+The example Web Guide `sampleapp-web-guide` uses context `crm` and a local Web URL host matcher. The Windows Guide `sampleapp-windows-guide` uses `crm-windows` with the demo window automation ID `SampleAppMainWindow`. These are persisted example values, not hard-coded product rules.
 
 ## Session and ownership
 DAP attaches to an already-running target application. It does not own the target's process lifetime. Guide completion removes learner UI and terminates the DAP learner; the target remains open. Browser Native Messaging infrastructure can persist independently of the learner session.
