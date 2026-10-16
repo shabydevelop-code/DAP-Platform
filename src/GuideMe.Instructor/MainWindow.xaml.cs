@@ -157,10 +157,7 @@ public partial class MainWindow : Window
     {
         if (_state != RecordingState.Review || _proposedField is null)
             return;
-        if (string.IsNullOrWhiteSpace(ContextIdText.Text) ||
-            string.IsNullOrWhiteSpace(ContextKindText.Text) ||
-            string.IsNullOrWhiteSpace(ContextValueText.Text) ||
-            string.IsNullOrWhiteSpace(BubbleText.Text))
+        if (string.IsNullOrWhiteSpace(BubbleText.Text))
         {
             MessageBox.Show("יש להשלים את פרטי השלב לפני אישור הטיוטה.", "GuideMe Instructor");
             return;
