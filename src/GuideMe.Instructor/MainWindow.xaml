@@ -38,10 +38,15 @@
     </Border>
     <ScrollViewer Grid.Row="3" Margin="0,14,0,12" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
       <StackPanel>
-      <TextBlock Text="סקירת השלב" FontWeight="SemiBold" FontSize="15"/>
-      <Border BorderBrush="#FFCBD5E1" BorderThickness="1" CornerRadius="6" Background="White" Padding="12" Margin="0,10,0,0">
-        <TextBlock x:Name="ReviewText" Text="לאחר סיום שלב יוצגו כאן הפעולות שנקלטו." TextWrapping="Wrap" LineHeight="24"/>
-      </Border>
+      <DockPanel LastChildFill="False">
+        <TextBlock Text="סקירת השלב" FontWeight="SemiBold" FontSize="15" DockPanel.Dock="Right" VerticalAlignment="Center"/>
+        <Button x:Name="CopyReviewButton" Content="העתק סקירת שלב" Padding="10,6" DockPanel.Dock="Left" HorizontalAlignment="Left" IsEnabled="False" Click="CopyReview_Click"/>
+      </DockPanel>
+      <TextBox x:Name="ReviewText" Text="לאחר סיום שלב יוצגו כאן הפעולות שנקלטו."
+               IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True"
+               VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+               MinHeight="120" Padding="12" Margin="0,10,0,0"
+               BorderBrush="#FFCBD5E1" BorderThickness="1" Background="White"/>
       <TextBlock Text="טקסט בועית מוצע (לעריכה)" Margin="0,18,0,6" FontWeight="SemiBold"/>
       <TextBox x:Name="BubbleText" Height="80" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" IsEnabled="False"/>
       </StackPanel>
