@@ -75,6 +75,24 @@ public partial class MainWindow : Window
             reviewLines.Add($"תווית: {capturedEvent.Label}");
             reviewLines.Add($"מזהה: {capturedEvent.ElementId ?? "לא זוהה"}");
             reviewLines.Add($"כתובת: {capturedEvent.Url}");
+            if (!string.IsNullOrEmpty(capturedEvent.Before) && !string.IsNullOrEmpty(capturedEvent.After))
+            {
+                using var before = System.Text.Json.JsonDocument.Parse(capturedEvent.Before);
+                using var after = System.Text.Json.JsonDocument.Parse(capturedEvent.After);
+                reviewLines.Add("השוואת מצב הדף (לפני ← אחרי):");
+                foreach (var property in new[] { "url", "dialogs", "inputs", "selects", "buttons", "headings", "dialogsLabels" })
+                {
+                    var oldValue = before.RootElement.GetProperty(property).ToString();
+                    var newValue = after.RootElement.GetProperty(property).ToString();
+                    if (oldValue != newValue)
+                        reviewLines.Add($"  {property}: {oldValue} ← {newValue}");
+                }
+                if (before.RootElement.ToString() == after.RootElement.ToString())
+                    reviewLines.Add("  לא זוהה שינוי במדדים המבניים שנאספו.");
+                reviewLines.Add("הערה: השוואה ראשונית בלבד; אינה תנאי השלמה מאומת.");
+            }
+            else
+                reviewLines.Add("מצב לפני/אחרי: לא נאסף (יש לטעון מחדש את תוסף Chrome).");
             reviewLines.Add("");
         }
         if (events.Count > 10)
