@@ -120,7 +120,8 @@ internal sealed class BrowserCaptureServer : IDisposable
             var captured = new BrowserCaptureEvent(
                 DateTimeOffset.UtcNow, kind.GetString() ?? "", url.GetString() ?? "",
                 ReadOptional("tag"), ReadOptional("label"), ReadOptional("id"),
-                ReadSnapshot("before"), ReadSnapshot("after"), ReadOptional("value"));
+                ReadSnapshot("before"), ReadSnapshot("after"), ReadOptional("value"),
+                ReadOptional("name"), ReadOptional("frameSelector"));
             bool accepted;
             lock (_sync)
             {
@@ -143,4 +144,4 @@ internal sealed class BrowserCaptureServer : IDisposable
     }
 }
 
-internal sealed record BrowserCaptureEvent(DateTimeOffset Timestamp, string Kind, string Url, string Tag, string Label, string ElementId, string Before, string After, string Value);
+internal sealed record BrowserCaptureEvent(DateTimeOffset Timestamp, string Kind, string Url, string Tag, string Label, string ElementId, string Before, string After, string Value, string Name, string FrameSelector);
