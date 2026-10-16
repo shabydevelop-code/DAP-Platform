@@ -86,6 +86,12 @@ public static class DapApplicationHost
         var activeDatabasePath = options.V5DatabasePath is null
             ? databaseOptions.DatabasePath
             : Path.GetFullPath(options.V5DatabasePath);
+        // A V5 launch must never open the old production schema, including when
+        // DAP_DATABASE_PATH or --v5-db points to the legacy default file.
+        var legacyDatabasePath = SqliteDatabaseOptions.CreateDefault().DatabasePath;
+        if (string.Equals(activeDatabasePath, legacyDatabasePath, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException(
+                "Refusing to load the legacy GuideMe database as V5. Use a separately validated V5 database.");
         if (options.Mode != DapLaunchMode.InfrastructureCheck && !File.Exists(activeDatabasePath))
             throw new FileNotFoundException(
                 "GuideMe V5 database not found. Provision a validated V5 database before launching a guide.",
