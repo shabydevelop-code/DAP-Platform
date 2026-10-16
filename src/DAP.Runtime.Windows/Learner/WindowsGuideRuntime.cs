@@ -16,8 +16,6 @@ public sealed class WindowsGuideRuntime
     private readonly WindowsBubblePresenter _bubbles;
     private readonly WindowsValidationEvaluator _validation;
     private readonly TimeSpan _pollInterval;
-    private readonly string? _automaticStepLabel;
-    private readonly bool _hybrid;
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern void keybd_event(byte virtualKey, byte scanCode, uint flags, UIntPtr extraInfo);
@@ -29,16 +27,12 @@ public sealed class WindowsGuideRuntime
         WindowsTargetResolver resolver,
         WindowsBubblePresenter bubbles,
         WindowsValidationEvaluator? validation = null,
-        TimeSpan? pollInterval = null,
-        string? automaticStepLabel = null,
-        bool hybrid = false)
+        TimeSpan? pollInterval = null)
     {
         _resolver = resolver ?? throw new ArgumentNullException(nameof(resolver));
         _bubbles = bubbles ?? throw new ArgumentNullException(nameof(bubbles));
         _validation = validation ?? new WindowsValidationEvaluator();
         _pollInterval = pollInterval ?? TimeSpan.FromMilliseconds(100);
-        _automaticStepLabel = automaticStepLabel;
-        _hybrid = hybrid;
     }
 
     public Task RunAsync(
