@@ -24,7 +24,8 @@ function Assert-Directory([string]$Path) {
 Assert-Directory $ActiveDirectory
 Assert-Directory $StagingDirectory
 Assert-File (Join-Path $StagingDirectory 'DAP.exe')
-Assert-File (Join-Path $StagingDirectory 'GuideMe.NativeHost.exe')
+Assert-File (Join-Path $StagingDirectory 'NativeHost\GuideMe.NativeHost.exe')
+Assert-File (Join-Path $ActiveDirectory 'NativeHost\GuideMe.NativeHost.exe')
 Assert-File (Join-Path $ActiveDirectory 'DAP.exe')
 Assert-File $LegacyDatabase
 Assert-File $V5Database
@@ -60,7 +61,8 @@ Copy-Item -LiteralPath $LegacyDatabase -Destination $dbBackup -ErrorAction Stop
 
 $manifest = @(
     [pscustomobject]@{ Original = $LegacyDatabase; Backup = $dbBackup },
-    [pscustomobject]@{ Original = (Join-Path $ActiveDirectory 'DAP.exe'); Backup = (Join-Path $installationBackup 'DAP.exe') }
+    [pscustomobject]@{ Original = (Join-Path $ActiveDirectory 'DAP.exe'); Backup = (Join-Path $installationBackup 'DAP.exe') },
+    [pscustomobject]@{ Original = (Join-Path $ActiveDirectory 'NativeHost\GuideMe.NativeHost.exe'); Backup = (Join-Path $installationBackup 'NativeHost\GuideMe.NativeHost.exe') }
 )
 foreach ($item in $manifest) {
     Assert-File $item.Backup
