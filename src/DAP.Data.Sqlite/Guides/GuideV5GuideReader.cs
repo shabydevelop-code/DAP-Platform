@@ -11,7 +11,8 @@ public static class GuideV5GuideReader
     public sealed record GuideDefinition(
         long GuideId,
         IReadOnlyList<GuideV5DefinitionReader.StepDefinition> Steps,
-        GuideV5ElementReader.ElementCatalog ElementCatalog);
+        GuideV5ElementReader.ElementCatalog ElementCatalog,
+        GuideV5ContextCaptureReader.Definitions ContextsAndCaptures);
 
     public static async Task<GuideDefinition> ReadAsync(
         string databasePath, string guideKey, CancellationToken cancellationToken = default)
@@ -20,6 +21,13 @@ public static class GuideV5GuideReader
             databasePath, guideKey, cancellationToken);
         var catalog = await GuideV5ElementReader.ReadAsync(
             databasePath, guideKey, cancellationToken);
+        var additional = await GuideV5ContextCaptureReader.ReadAsync(
+            databasePath, guideKey, cancellationToken);
+        if (additional.GuideId != catalog.GuideId)
+            throw new InvalidOperationException("V5 context/capture guide identity mismatch.");
+        var contextIds = additional.Contexts.Select(x => x.ContextId).ToHashSet(StringComparer.Ordinal);
+        var variableIds = additional.Variables.Select(x => x.VariableId).ToHashSet(StringComparer.Ordinal);
+        var usageIds = catalog.Usages.Select(x => (x.StepId, x.UsageId)).ToHashSet();
         var stepIds = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (var step in steps)
@@ -54,6 +62,15 @@ public static class GuideV5GuideReader
                     $"V5 element usage '{usage.UsageId}' references unknown step '{usage.StepId}'.");
         }
 
-        return new GuideDefinition(catalog.GuideId, steps, catalog);
+        foreach (var capture in additional.Captures)
+        {
+            if (!stepIds.Contains(capture.StepId)
+                || !variableIds.Contains(capture.VariableId)
+                || !usageIds.Contains((capture.StepId, capture.TargetUsageId)))
+                throw new InvalidOperationException(
+                    $"V5 capture '{capture.CaptureId}' has an unresolved step, variable, or element usage.");
+        }
+
+        return new GuideDefinition(catalog.GuideId, steps, catalog, additional);
     }
 }
