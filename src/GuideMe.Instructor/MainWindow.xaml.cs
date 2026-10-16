@@ -81,10 +81,17 @@ public partial class MainWindow : Window
             reviewLines.Add($"מוצגות 10 פעולות מתוך {events.Count}.");
         reviewLines.Add("תנאי השלמה: טרם נותח");
         ReviewText.Text = string.Join(Environment.NewLine, reviewLines);
+        CopyReviewButton.IsEnabled = true;
         StartButton.IsEnabled = false;
         EndButton.IsEnabled = false;
         BubbleText.IsEnabled = true;
         ApproveButton.IsEnabled = false; // Never pretend a step can be persisted without a validated browser capture.
+    }
+
+    private void CopyReview_Click(object sender, RoutedEventArgs e)
+    {
+        if (_state == RecordingState.Review && !string.IsNullOrWhiteSpace(ReviewText.Text))
+            Clipboard.SetText(ReviewText.Text);
     }
 
     private void CopyPairingToken_Click(object sender, RoutedEventArgs e)
