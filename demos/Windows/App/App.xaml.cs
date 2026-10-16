@@ -1,6 +1,6 @@
 using System.Windows;
 
-namespace DAP.TestCRM.Windows;
+namespace DAP.SampleApp.Windows;
 
 public partial class App : Application
 {
