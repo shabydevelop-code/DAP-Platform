@@ -16,9 +16,9 @@ if (-not (Test-Path -LiteralPath $db -PathType Leaf)) {
     throw "V5 database file does not exist: $db"
 }
 
-$production = Join-Path ([Environment]::GetFolderPath('CommonApplicationData')) 'GuideMe\Data\GuideMe.db'
+$production = Join-Path ([Environment]::GetFolderPath('CommonApplicationData')) 'GuideMe\Data\GuideMe-V5.db'
 if ([string]::Equals($db, [System.IO.Path]::GetFullPath($production), [StringComparison]::OrdinalIgnoreCase)) {
-    throw 'Refusing to run V5 against the production GuideMe.db. Use an isolated copy.'
+    throw 'Smoke testing requires a separate V5 database copy; do not use the active GuideMe-V5.db.'
 }
 
 $guide = switch ($Target) {
