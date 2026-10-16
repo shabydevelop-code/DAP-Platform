@@ -220,10 +220,10 @@ public static class DapApplicationHost
                         {
                             targetWindow.SetFocus();
                         }
-                        catch (ElementNotAvailableException ex)
+                        catch (ElementNotAvailableException)
                         {
                         }
-                        catch (InvalidOperationException ex)
+                        catch (InvalidOperationException)
                         {
                         }
                         if (GetForegroundWindow() != new IntPtr(targetWindow.Current.NativeWindowHandle))
