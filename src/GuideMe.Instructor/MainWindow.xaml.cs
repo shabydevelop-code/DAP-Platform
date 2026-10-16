@@ -20,7 +20,7 @@ public partial class MainWindow : Window
             _capture.Start();
             PairingToken.Text = _capture.SessionToken;
             _captureAvailable = true;
-            StatusDetail.Text = "ערוץ הקלטה מקומי מוכן. חיבור תוסף Chrome עדיין לא הותקן.";
+            StatusDetail.Text = "ערוץ ההקלטה מוכן. חבר את התוסף באמצעות קוד החיבור.";
             _capture.EventCaptured += _ => Dispatcher.BeginInvoke(new Action(() =>
             {
                 if (_state == RecordingState.Recording)
@@ -44,7 +44,7 @@ public partial class MainWindow : Window
         _capture.BeginStep();
         _state = RecordingState.Recording;
         StateLabel.Text = $"מקליט גבולות שלב {_stepNumber}";
-        StatusDetail.Text = "בצע פעולה באתר ולאחר מכן לחץ על ״סיים שלב״. חיבור להקלטת אירועי Chrome עדיין לא מומש.";
+        StatusDetail.Text = "בצע פעולה באתר ולחץ על ״סיים שלב״.";
         StartButton.IsEnabled = false;
         EndButton.IsEnabled = true;
         GuideKey.IsEnabled = false;
@@ -59,7 +59,7 @@ public partial class MainWindow : Window
         var events = _capture.EndStep();
         _state = RecordingState.Review;
         StateLabel.Text = $"סקירת שלב {_stepNumber}";
-        StatusDetail.Text = "גבולות השלב נקלטו. אין עדיין נתוני פעולה או תוצאה מהדפדפן.";
+        StatusDetail.Text = events.Count > 0 ? "נקלטו פעולות מהדפדפן." : "לא נקלטו פעולות. בדוק את חיבור התוסף.";
         ReviewText.Text = $"התחלה: {_startedAt:HH:mm:ss}\nסיום: {endedAt:HH:mm:ss}\nפעולה: לא זוהתה (חיבור הדפדפן טרם מומש)\nתנאי השלמה: לא הוגדר";
         StartButton.IsEnabled = false;
         EndButton.IsEnabled = false;
