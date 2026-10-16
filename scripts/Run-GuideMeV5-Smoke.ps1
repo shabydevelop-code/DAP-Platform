@@ -4,10 +4,7 @@ param(
     [string]$Target,
 
     [Parameter(Mandatory = $true)]
-    [string]$DatabasePath,
-
-    [ValidateSet('manual', 'hybrid')]
-    [string]$Mode = 'manual'
+    [string]$DatabasePath
 )
 
 $ErrorActionPreference = 'Stop'
@@ -42,10 +39,10 @@ try {
         throw "Cannot start V5 learner: compilation failed (exit code $LASTEXITCODE)."
     }
 
-    Write-Host "Starting isolated V5 learner: $guide (mode: $Mode)"
+    Write-Host "Starting isolated V5 learner: $guide"
     Write-Host 'Start the corresponding SampleApp demo launcher separately before running this script.'
     $runStartedUtc = [DateTime]::UtcNow
-    & dotnet run --no-build -c Release --project $project -- --guide $guide --mode $Mode --v5-db $db
+    & dotnet run --no-build -c Release --project $project -- --guide $guide --v5-db $db
     if ($LASTEXITCODE -ne 0) {
         $learnerExitCode = $LASTEXITCODE
         $logDir = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'DAP\Logs'
