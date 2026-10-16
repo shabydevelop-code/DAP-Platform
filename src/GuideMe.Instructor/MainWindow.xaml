@@ -31,7 +31,7 @@
         <TextBlock x:Name="StateLabel" Text="מוכן לתחילת שלב 1" FontSize="17" FontWeight="SemiBold"/>
         <TextBlock x:Name="StatusDetail" Text="טרם הופעל חיבור להקלטת אירועים מהדפדפן." TextWrapping="Wrap" Foreground="#FF64748B" Margin="0,8,0,14"/>
         <WrapPanel FlowDirection="RightToLeft">
-          <Button x:Name="StartButton" Content="התחל שלב" Padding="16,9" Margin="0,0,8,0" Click="StartStep_Click"/>
+          <Button x:Name="StartButton" Content="התחל שלב" IsEnabled="False" Padding="16,9" Margin="0,0,8,0" Click="StartStep_Click"/>
           <Button x:Name="EndButton" Content="סיים שלב" Padding="16,9" IsEnabled="False" Click="EndStep_Click"/>
         </WrapPanel>
       </StackPanel>
