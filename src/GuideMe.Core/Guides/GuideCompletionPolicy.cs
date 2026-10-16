@@ -1,4 +1,4 @@
-namespace DAP.Core.Guides;
+namespace GuideMe.Core.Guides;
 
 /// <summary>Runtime-neutral completion checks over adapter observations.</summary>
 public static class GuideCompletionPolicy

@@ -1,4 +1,4 @@
-namespace DAP.Core.Guides;
+namespace GuideMe.Core.Guides;
 
 /// <summary>Runtime-neutral evaluation of persisted value validation.</summary>
 public static class GuideValidationPolicy

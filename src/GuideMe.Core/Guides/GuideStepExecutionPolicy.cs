@@ -1,4 +1,4 @@
-namespace DAP.Core.Guides;
+namespace GuideMe.Core.Guides;
 
 /// <summary>Runtime-independent invariants for presentation and hybrid step execution.</summary>
 public enum GuideStepPresentationKind { CenteredInformation, TargetAttached }

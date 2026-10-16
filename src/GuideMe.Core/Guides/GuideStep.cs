@@ -1,6 +1,6 @@
-using DAP.Core.Targets;
+using GuideMe.Core.Targets;
 
-namespace DAP.Core.Guides;
+namespace GuideMe.Core.Guides;
 
 public enum StepAdvanceMode
 {

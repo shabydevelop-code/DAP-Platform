@@ -1,4 +1,4 @@
-namespace DAP.Core.Guides;
+namespace GuideMe.Core.Guides;
 
 public enum BubblePlacement
 {

@@ -1,6 +1,6 @@
-using DAP.Core.Targets;
+using GuideMe.Core.Targets;
 
-namespace DAP.Core.Guides;
+namespace GuideMe.Core.Guides;
 
 /// <summary>Platform boundary for an active guide step. The engine owns ordering,
 /// materialization, validation of step shape and lifecycle diagnostics.</summary>
@@ -205,7 +205,7 @@ public sealed class GuideExecutionEngine
                 await onRuntimeTransition(step, runtime, cancellationToken);
             previousRuntime = runtime;
 
-            Console.Error.WriteLine($"[DAP {adapter.DiagnosticName} guide] starting Step {step.Order}/{plan.Steps.Count} '{step.Id}'.");
+            Console.Error.WriteLine($"[GuideMe {adapter.DiagnosticName} guide] starting Step {step.Order}/{plan.Steps.Count} '{step.Id}'.");
             if (GuideStepExecutionPolicy.Classify(step) == GuideStepPresentationKind.CenteredInformation)
                 await adapter.ShowCenteredInformationAsync(step, plan.Steps.Count, cancellationToken);
             else
@@ -214,9 +214,9 @@ public sealed class GuideExecutionEngine
                     await adapter.CaptureAsync(step, plan, cancellationToken);
                 await adapter.ExecuteAsync(step, index, plan.Steps.Count, plan, cancellationToken);
             }
-            Console.Error.WriteLine($"[DAP {adapter.DiagnosticName} guide] completed Step {step.Order}/{plan.Steps.Count} '{step.Id}'.");
+            Console.Error.WriteLine($"[GuideMe {adapter.DiagnosticName} guide] completed Step {step.Order}/{plan.Steps.Count} '{step.Id}'.");
         }
-        Console.Error.WriteLine("[DAP guide] Guide finished.");
+        Console.Error.WriteLine("[GuideMe guide] Guide finished.");
     }
 
     public async Task RunAsync(
@@ -245,9 +245,9 @@ public sealed class GuideExecutionEngine
                 }
             },
             cancellationToken,
-            onSkipped: step => Console.Error.WriteLine($"[DAP {diagnosticName} guide] skipped disabled Step {step.Order}/{plan.Steps.Count} '{step.Id}'."),
-            onStarting: step => Console.Error.WriteLine($"[DAP {diagnosticName} guide] starting Step {step.Order}/{plan.Steps.Count} '{step.Id}'."),
-            onCompleted: step => Console.Error.WriteLine($"[DAP {diagnosticName} guide] completed Step {step.Order}/{plan.Steps.Count} '{step.Id}'."));
-        Console.Error.WriteLine($"[DAP {diagnosticName} guide] Guide finished.");
+            onSkipped: step => Console.Error.WriteLine($"[GuideMe {diagnosticName} guide] skipped disabled Step {step.Order}/{plan.Steps.Count} '{step.Id}'."),
+            onStarting: step => Console.Error.WriteLine($"[GuideMe {diagnosticName} guide] starting Step {step.Order}/{plan.Steps.Count} '{step.Id}'."),
+            onCompleted: step => Console.Error.WriteLine($"[GuideMe {diagnosticName} guide] completed Step {step.Order}/{plan.Steps.Count} '{step.Id}'."));
+        Console.Error.WriteLine($"[GuideMe {diagnosticName} guide] Guide finished.");
     }
 }

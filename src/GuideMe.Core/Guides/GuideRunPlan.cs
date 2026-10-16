@@ -1,7 +1,7 @@
 using System.Text.RegularExpressions;
-using DAP.Core.Targets;
+using GuideMe.Core.Targets;
 
-namespace DAP.Core.Guides;
+namespace GuideMe.Core.Guides;
 
 /// <summary>Runtime-neutral guide sequencing and captured-value substitution.</summary>
 public sealed class GuideRunPlan
