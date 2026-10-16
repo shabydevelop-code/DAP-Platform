@@ -11,6 +11,7 @@ public partial class MainWindow : Window
     private DateTimeOffset? _startedAt;
     private readonly BrowserCaptureServer _capture = new();
     private bool _captureAvailable;
+    private readonly System.Windows.Threading.DispatcherTimer _connectionTimer = new() { Interval = TimeSpan.FromSeconds(1) };
     private BrowserCaptureEvent? _proposedField;
     private readonly System.Collections.Generic.List<string> _approvedDrafts = new();
 
@@ -34,12 +35,34 @@ public partial class MainWindow : Window
             StatusDetail.Text = "לא ניתן לפתוח את ערוץ ההקלטה המקומי: " + ex.Message;
             StartButton.IsEnabled = false;
         }
-        Closed += (_, _) => _capture.Dispose();
+        _connectionTimer.Tick += (_, _) => RefreshConnection();
+        _connectionTimer.Start();
+        Closed += (_, _) => { _connectionTimer.Stop(); _capture.Dispose(); };
+    }
+
+    private void RefreshConnection()
+    {
+        var connected = _captureAvailable && _capture.IsConnected;
+        if (_state == RecordingState.Ready)
+        {
+            StartButton.IsEnabled = connected;
+            StatusDetail.Text = connected ? "התוסף מחובר ומאומת. ניתן להתחיל שלב." : "התוסף אינו מחובר או שהחיבור פג. חבר מחדש את התוסף.";
+        }
+        else if (_state == RecordingState.Recording && !connected)
+        {
+            _capture.EndStep();
+            _state = RecordingState.Ready;
+            _startedAt = null;
+            EndButton.IsEnabled = false;
+            StartButton.IsEnabled = false;
+            StateLabel.Text = $"הקלטת שלב {_stepNumber} הופסקה";
+            StatusDetail.Text = "החיבור לתוסף אבד. ההקלטה הופסקה ללא אישור טיוטה; חבר מחדש ונסה שוב.";
+        }
     }
 
     private void StartStep_Click(object sender, RoutedEventArgs e)
     {
-        if (!_captureAvailable || _state != RecordingState.Ready || string.IsNullOrWhiteSpace(GuideKey.Text))
+        if (!_captureAvailable || !_capture.IsConnected || _state != RecordingState.Ready || string.IsNullOrWhiteSpace(GuideKey.Text))
             return;
 
         _startedAt = DateTimeOffset.Now;
@@ -193,7 +216,7 @@ public partial class MainWindow : Window
         StatusDetail.Text = "טיוטה זמנית אושרה. ההקשר טרם אומת ולכן אינה מוכנה לפרסום. לא נשמר דבר במסד הנתונים.";
         ReviewText.Text = string.Join(Environment.NewLine + Environment.NewLine, _approvedDrafts);
         CopyReviewButton.IsEnabled = true;
-        StartButton.IsEnabled = true;
+        StartButton.IsEnabled = _capture.IsConnected;
         EndButton.IsEnabled = false;
         ApproveButton.IsEnabled = false;
         BubbleText.IsEnabled = false;
