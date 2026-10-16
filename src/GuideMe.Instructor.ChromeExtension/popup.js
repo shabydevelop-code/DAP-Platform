@@ -1,11 +1,31 @@
 const status = document.getElementById("status");
+const tokenInput = document.getElementById("token");
+
+async function refreshConnectionStatus() {
+  try {
+    const [{ instructorPairing }, [tab]] = await Promise.all([
+      chrome.storage.session.get("instructorPairing"),
+      chrome.tabs.query({ active: true, currentWindow: true })
+    ]);
+    if (!instructorPairing) {
+      status.textContent = "לא מחובר.";
+    } else if (tab?.id === instructorPairing.tabId) {
+      status.textContent = "מחובר ללשונית זו. לחץ ״התחל שלב״ בחלון ה־Instructor.";
+    } else {
+      status.textContent = "קיים חיבור ללשונית אחרת. עבור אליה כדי להקליט פעולות.";
+    }
+  } catch (error) {
+    status.textContent = String(error.message || error);
+  }
+}
+
 document.getElementById("connect").addEventListener("click", async () => {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab?.id || !/^https?:/.test(tab.url || "")) throw new Error("פתח אתר בלשונית הפעילה.");
     const response = await chrome.runtime.sendMessage({
       type: "guideme-instructor-pair",
-      token: document.getElementById("token").value.trim(),
+      token: tokenInput.value.trim(),
       tabId: tab.id
     });
     if (!response?.ok) throw new Error(response?.error || "Pairing failed");
@@ -13,12 +33,22 @@ document.getElementById("connect").addEventListener("click", async () => {
       target: { tabId: tab.id, allFrames: true },
       files: ["content-capture.js"]
     });
-    status.textContent = "מחובר ללשונית. לחץ ״התחל שלב״ בחלון ה־Instructor.";
+    tokenInput.value = "";
+    await refreshConnectionStatus();
   } catch (error) {
     status.textContent = String(error.message || error);
   }
 });
+
 document.getElementById("disconnect").addEventListener("click", async () => {
-  await chrome.runtime.sendMessage({ type: "guideme-instructor-stop" });
-  status.textContent = "מנותק.";
+  try {
+    const response = await chrome.runtime.sendMessage({ type: "guideme-instructor-stop" });
+    if (!response?.ok) throw new Error(response?.error || "Disconnect failed");
+    tokenInput.value = "";
+    await refreshConnectionStatus();
+  } catch (error) {
+    status.textContent = String(error.message || error);
+  }
 });
+
+refreshConnectionStatus();
