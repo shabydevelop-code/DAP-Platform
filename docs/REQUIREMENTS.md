@@ -8,7 +8,7 @@
 - The launcher supports Guides containing Web and Windows targets in one persisted workflow, including Web–Windows–Web transitions. Cross-runtime execution is an existing, user-verified capability, not a future feature.
 - Hebrew and English UI are supported with RTL/LTR direction.
 - Guide content language is independent of product UI language.
-- Web and Windows learner bubbles provide a localized **End assistance** / **סיים ליווי** action. Stopping removes guidance, ends the learner process, preserves the target application, and permits launching the Guide again.
+- Web and Windows guidance sessions end through the GuideMe notification-area menu **Exit** / **יציאה** action. Ending removes guidance, ends the learner process, preserves the target application, and permits launching the Guide again.
 
 ## Guide model
 
@@ -76,5 +76,5 @@
 - `GuideExecutionEngine` provides runtime-neutral sequencing, capture-token materialization, and Step dispatch through platform adapters.
 - Capture definitions may read a UI-observed value in one Step and reference it in a later Step using `{{step:<step-id>:capture}}` within target or anchor locator values.
 - Missing capture references fail explicitly rather than guessing a target.
-- Capture timing persistence and broader variable substitution are not yet complete; see `APPLICATION_CONTEXT_ARCHITECTURE.md` and `RUN_COMMANDS.md`.
+- V5 persists capture timing in `StepCaptures.Timing`. Runtime support for each capture timing and token placement must be verified against the adapters before being advertised as supported.
 - Platform-specific UI observation and presentation remain separate. Shared Core contracts alone do not prove Web/Windows behavioral parity.
