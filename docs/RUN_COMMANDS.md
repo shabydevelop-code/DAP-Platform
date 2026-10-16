@@ -1,6 +1,6 @@
 # פקודות הרצה מאומתות — DAP / SampleApp
 
-> עודכן: 15.10.2026. פקודות הרצת שלושת המדריכים אומתו בפועל במסגרת הרגרסיה לאחר הסרת AutomationValue.
+> עודכן: 16.10.2026. שלושת מסלולי המדריכים אומתו מתוך התקנת GuideMe V5 הפעילה.
 >
 > **כלל:** הפרמטר `--guide` מקבל את **Key** של המדריך, לא את השדה המספרי `Guides.Id`. אין להשתמש ב-`--guide 965`.
 
@@ -11,7 +11,7 @@
 ```powershell
 cd C:\yossi\ChatGpt\DAP-Platform
 git pull --ff-only origin main
-dotnet publish .\src\DAP.App\DAP.App.csproj -c Release -r win-x64 --self-contained false -o C:\GuideMe
+.\scripts\Publish-GuideMe.ps1
 ```
 
 **סדר הרגרסיה המחייב:** עדכון → פרסום → הפעלת אפליקציות הדוגמה → הפעלת מדריך מתוך `C:\GuideMe` → רגרסיה.
@@ -46,24 +46,24 @@ dotnet run --project demos\Web\Launcher\DAP.SampleApp.Web.Host.csproj
 & "C:\GuideMe\DAP.exe" --guide sampleapp-web-guide
 ```
 
-אין להוסיף `--use-existing-server` להרצת אפליקציית הדוגמה; ההפעלה התקינה שאומתה היא ללא הפרמטר.
+כאשר Web מופעלת ראשונה, היא מקימה את שרת הדוגמה. בהרצת Windows במקביל יש להוסיף `--use-existing-server` כדי למנוע התנגשות בפורט 5201.
 
 ## 4. מדריך משולב Web → Windows → Web
 
 יש להפעיל **שתי** אפליקציות דוגמה, כל אחת בחלון PowerShell נפרד, ולהשאיר אותן פתוחות.
 
-חלון ראשון — Windows:
-
-```powershell
-cd C:\yossi\ChatGpt\DAP-Platform
-dotnet run --project demos\Windows\Launcher\DAP.SampleApp.Windows.Host.csproj
-```
-
-חלון שני — Web:
+חלון ראשון — Web (מעלה גם את השרת בפורט 5201):
 
 ```powershell
 cd C:\yossi\ChatGpt\DAP-Platform
 dotnet run --project demos\Web\Launcher\DAP.SampleApp.Web.Host.csproj
+```
+
+חלון שני — Windows, עם שימוש בשרת הקיים:
+
+```powershell
+cd C:\yossi\ChatGpt\DAP-Platform
+dotnet run --project demos\Windows\Launcher\DAP.SampleApp.Windows.Host.csproj -- --use-existing-server
 ```
 
 חלון שלישי — הפעלת המדריך המשולב:
@@ -84,6 +84,7 @@ Name: SampleApp Mixed Web-Windows-Web Smoke
 
 - אין להפעיל את המדריכים באמצעות `--learner-web`, `--learner-windows` או מזהי מדריכים מספריים.
 - הפקודות לעיל מפעילות את גרסת הייצור מתוך `C:\GuideMe`, לא עותק ישן מתיקיית `bin`.
-- לפני רגרסיה של תיקוני קוד חדשים יש לפרסם מחדש ל-`C:\GuideMe`.
+- לאחר שינוי בקוד יש לבצע Build ולפרסם מחדש ל-`C:\GuideMe`, כולל `NativeHost\GuideMe.NativeHost.exe` באמצעות סקריפט הפרסום.
+- מסד ברירת המחדל הוא `C:\ProgramData\GuideMe\Data\GuideMe-V5.db`; אין להשתמש במסד הישן `GuideMe.db` להרצת V5.
 - אין להריץ רגרסיה דרך תיקיות בדיקות E2E; יש לבדוק את ה-Learner מול אפליקציות הדוגמה כמוצר.
 - עבודה ב-Git מתבצעת בענף `main` בלבד, ללא ענפים נפרדים.
