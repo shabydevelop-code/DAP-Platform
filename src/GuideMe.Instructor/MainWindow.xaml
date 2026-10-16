@@ -47,13 +47,20 @@
                VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
                MinHeight="120" Padding="12" Margin="0,10,0,0"
                BorderBrush="#FFCBD5E1" BorderThickness="1" Background="White"/>
+      <TextBlock Text="הקשר יישומי (להגדרת העורך)" Margin="0,18,0,6" FontWeight="SemiBold"/>
+      <TextBlock Text="ContextId" Margin="0,4,0,4"/>
+      <TextBox x:Name="ContextIdText" Text="crm" FlowDirection="LeftToRight" Padding="6" IsEnabled="False"/>
+      <TextBlock Text="ContextKind" Margin="0,8,0,4"/>
+      <TextBox x:Name="ContextKindText" Text="css-exists" FlowDirection="LeftToRight" Padding="6" IsEnabled="False"/>
+      <TextBlock Text="ContextValue" Margin="0,8,0,4"/>
+      <TextBox x:Name="ContextValueText" Text="#customer-search" FlowDirection="LeftToRight" Padding="6" IsEnabled="False"/>
       <TextBlock Text="טקסט בועית מוצע (לעריכה)" Margin="0,18,0,6" FontWeight="SemiBold"/>
       <TextBox x:Name="BubbleText" Height="80" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" IsEnabled="False"/>
       </StackPanel>
     </ScrollViewer>
     <StackPanel Grid.Row="4">
-      <Button x:Name="ApproveButton" Content="אשר ושמור" Padding="14,10" IsEnabled="False" Click="Approve_Click"/>
-      <TextBlock Text="מצב אב־טיפוס: פעולות Chrome נקלטות, אך עדיין אין ניתוח תנאי השלמה או שמירה ל־V5." FontSize="12" Foreground="#FF9A3412" TextWrapping="Wrap" Margin="0,10,0,0"/>
+      <Button x:Name="ApproveButton" Content="אשר טיוטת שלב" Padding="14,10" IsEnabled="False" Click="Approve_Click"/>
+      <TextBlock Text="מצב אב־טיפוס: אישור טיוטה בלבד; אין עדיין שמירה ל־V5." FontSize="12" Foreground="#FF9A3412" TextWrapping="Wrap" Margin="0,10,0,0"/>
     </StackPanel>
   </Grid>
 </Window>
