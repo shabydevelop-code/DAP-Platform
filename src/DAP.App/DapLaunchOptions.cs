@@ -6,6 +6,7 @@ namespace DAP.App;
 public enum DapLaunchMode
 {
     InfrastructureCheck,
+    ValidateV5,
     Learner
 }
 
@@ -24,6 +25,10 @@ public sealed record DapLaunchOptions(
 {
     public static DapLaunchOptions? Parse(string[] args, IUiTextProvider texts)
     {
+        if (args.Length == 4 && args[0] == "--validate-v5" && !string.IsNullOrWhiteSpace(args[1])
+            && args[2] == "--guide" && !string.IsNullOrWhiteSpace(args[3]))
+            return new(DapLaunchMode.ValidateV5, args[3], null, V5DatabasePath: args[1]);
+
         if (args.Length == 1 && args[0] == "--check")
             return new(DapLaunchMode.InfrastructureCheck, null, null);
 
