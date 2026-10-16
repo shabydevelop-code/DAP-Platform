@@ -75,6 +75,8 @@ public partial class MainWindow : Window
             reviewLines.Add($"תווית: {capturedEvent.Label}");
             reviewLines.Add($"מזהה: {capturedEvent.ElementId ?? "לא זוהה"}");
             reviewLines.Add($"כתובת: {capturedEvent.Url}");
+            if ((capturedEvent.Kind == "blur" || capturedEvent.Kind == "change") && !string.IsNullOrEmpty(capturedEvent.Value))
+                reviewLines.Add($"ערך השדה בזמן האירוע: {capturedEvent.Value}");
             if (!string.IsNullOrEmpty(capturedEvent.Before) && !string.IsNullOrEmpty(capturedEvent.After))
             {
                 using var before = System.Text.Json.JsonDocument.Parse(capturedEvent.Before);
