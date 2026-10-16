@@ -56,6 +56,18 @@
     };
   }
 
+  function contextCandidate(target) {
+    // Prefer a unique, visible, non-generic ancestor container over the input itself.
+    for (let node = target.parentElement; node && node !== document.body; node = node.parentElement) {
+      const id = node.id;
+      if (!id || !/^[a-zA-Z][a-zA-Z0-9_-]{2,79}$/.test(id)) continue;
+      if (/^(root|app|main|content|container|wrapper|layout)$/i.test(id)) continue;
+      const selector = "#" + CSS.escape(id);
+      if (document.querySelectorAll(selector).length === 1) return selector;
+    }
+    return null;
+  }
+
   function safeFieldValue(target) {
     if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement))
       return null;
@@ -83,6 +95,7 @@
         label: String(target.getAttribute("aria-label") || target.getAttribute("name") || target.textContent || "").trim().slice(0, 120),
         id: target.id || null,
         name: target.getAttribute("name") || null,
+        contextCandidate: contextCandidate(target),
         frameSelector: (() => { try { const frame = window.frameElement; return frame?.id ? "#" + CSS.escape(frame.id) : null; } catch { return null; } })(),
         value: event.type === "change" || event.type === "blur" ? safeFieldValue(target) : null
       };
