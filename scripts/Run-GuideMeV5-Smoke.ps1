@@ -44,9 +44,23 @@ try {
 
     Write-Host "Starting isolated V5 learner: $guide (mode: $Mode)"
     Write-Host 'Start the corresponding SampleApp demo launcher separately before running this script.'
+    $runStartedUtc = [DateTime]::UtcNow
     & dotnet run --no-build -c Release --project $project -- --guide $guide --mode $Mode --v5-db $db
     if ($LASTEXITCODE -ne 0) {
-        throw "V5 learner finished with exit code $LASTEXITCODE."
+        $learnerExitCode = $LASTEXITCODE
+        $logDir = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'DAP\Logs'
+        $latestError = Get-ChildItem -LiteralPath $logDir -Filter 'session-error-*.log' -File -ErrorAction SilentlyContinue |
+            Where-Object { $_.LastWriteTimeUtc -ge $runStartedUtc.AddSeconds(-2) } |
+            Sort-Object LastWriteTimeUtc -Descending |
+            Select-Object -First 1
+        if ($null -ne $latestError) {
+            Write-Host "V5 learner failure log: $($latestError.FullName)"
+            Get-Content -LiteralPath $latestError.FullName | Out-Host
+        }
+        else {
+            Write-Warning "No new DAP session-error log found in $logDir. Check for a popup, application startup failure, or non-exception exit."
+        }
+        throw "V5 learner finished with exit code $learnerExitCode."
     }
 }
 finally {
