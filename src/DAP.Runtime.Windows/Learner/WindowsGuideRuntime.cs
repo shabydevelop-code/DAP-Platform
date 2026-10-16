@@ -504,6 +504,14 @@ public sealed class WindowsGuideRuntime
                         target, step, stepNumber, totalSteps, cancellationToken,
                         null);
                 }
+                catch (ElementNotAvailableException)
+                {
+                    // The target was removed or virtualized after resolution.
+                    // Retry resolution on the next reconciliation cycle.
+                    await _bubbles.HideAsync();
+                    return await GuideActiveStepState.WaitAsync(
+                        GuideStepReconciliationResult.WaitingForAction, _pollInterval, cancellationToken);
+                }
                 catch (InvalidOperationException) when (!HasVisibleBounds(target))
                 {
                     // UIA targets can be replaced or lose their bounds between
@@ -518,11 +526,11 @@ public sealed class WindowsGuideRuntime
 
 
                 // Initial input focus belongs to the production learner Runtime,
-                // so Manual and Hybrid start each input Step identically. Apply it
+                // regardless of the presentation flow. Apply it
                 // only once; reconciliation must never steal focus back.
                 if (!initialInputFocusApplied && IsInputFocusTarget(target))
                 {
-                    // Mark the one-time focus action before invoking UIA. Hybrid can
+                    // Mark the one-time focus action before invoking UIA. The runtime can
                     // begin its learner action as soon as the Step-start marker is
                     // observed; setting this flag first prevents a later reconciliation
                     // pass from re-focusing the first editor after Hybrid has already
