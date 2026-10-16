@@ -47,7 +47,7 @@
                VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
                MinHeight="120" Padding="12" Margin="0,10,0,0"
                BorderBrush="#FFCBD5E1" BorderThickness="1" Background="White"/>
-      <TextBlock Text="הקשר יישומי (להגדרת העורך)" Margin="0,18,0,6" FontWeight="SemiBold"/>
+      <TextBlock Text="פרטי הקשר טכניים — לא נדרשת הזנת עורך" Margin="0,18,0,6" FontWeight="SemiBold"/>
       <TextBlock Text="ContextId" Margin="0,4,0,4"/>
       <TextBox x:Name="ContextIdText" Text="" FlowDirection="LeftToRight" Padding="6" IsEnabled="False"/>
       <TextBlock Text="ContextKind" Margin="0,8,0,4"/>
