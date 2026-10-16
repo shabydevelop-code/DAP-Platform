@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "GuideMe",
-  "version": "0.2.14",
+  "version": "0.2.13",
   "description": "GuideMe – Interactive Software Guidance",
   "icons": {
     "16": "icon16.png",
@@ -17,14 +17,12 @@
   ],
   "host_permissions": [
     "http://*/*",
-    "https://*/*",
-    "http://127.0.0.1:53921/*"
+    "https://*/*"
   ],
   "background": {
     "service_worker": "service-worker-entry.js"
   },
   "action": {
-    "default_popup": "instructor-popup.html",
     "default_icon": {
       "16": "icon16.png",
       "48": "icon48.png",
