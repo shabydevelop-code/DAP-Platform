@@ -88,7 +88,7 @@ Process? backend = useExistingServer ? null : StartBuiltProject(backendProject, 
 var web = StartBuiltProject(
     webProject,
     webUrl,
-    new Dictionary<string,string> { ["TestCrmBackendUrl"] = backendUrl });
+    new Dictionary<string,string> { ["SampleAppBackendUrl"] = backendUrl });
 
 void Stop(Process process)
 {
