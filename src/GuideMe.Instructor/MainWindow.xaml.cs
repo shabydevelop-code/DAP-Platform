@@ -18,6 +18,7 @@ public partial class MainWindow : Window
         try
         {
             _capture.Start();
+            PairingToken.Text = _capture.SessionToken;
             _captureAvailable = true;
             StatusDetail.Text = "ערוץ הקלטה מקומי מוכן. חיבור תוסף Chrome עדיין לא הותקן.";
             _capture.EventCaptured += _ => Dispatcher.BeginInvoke(new Action(() =>
@@ -64,6 +65,12 @@ public partial class MainWindow : Window
         EndButton.IsEnabled = false;
         BubbleText.IsEnabled = true;
         ApproveButton.IsEnabled = false; // Never pretend a step can be persisted without a validated browser capture.
+    }
+
+    private void CopyPairingToken_Click(object sender, RoutedEventArgs e)
+    {
+        if (_captureAvailable)
+            Clipboard.SetText(_capture.SessionToken);
     }
 
     private void Approve_Click(object sender, RoutedEventArgs e)
