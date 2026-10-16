@@ -1,5 +1,10 @@
 // Instructor transport is separate from the production Native Messaging channel.
 const captureEndpoint = "http://127.0.0.1:53921/event";
+const heartbeatEndpoint = "http://127.0.0.1:53921/heartbeat";
+async function heartbeat(token) {
+  const response = await fetch(heartbeatEndpoint, { method: "POST", headers: { "X-GuideMe-Capture-Token": token } });
+  return response.ok;
+}
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === "guideme-instructor-pair") {
     const token = String(message.token || "");
@@ -7,8 +12,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse({ ok: false, error: "Invalid pairing request" });
       return false;
     }
-    chrome.storage.session.set({ instructorPairing: { token, tabId: message.tabId } })
-      .then(() => sendResponse({ ok: true }))
+    heartbeat(token).then(async ok => {
+        if (!ok) throw new Error("Instructor rejected pairing");
+        await chrome.storage.session.set({ instructorPairing: { token, tabId: message.tabId } });
+        sendResponse({ ok: true });
+      })
       .catch(error => sendResponse({ ok: false, error: String(error) }));
     return true;
   }
@@ -16,6 +24,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     chrome.storage.session.remove("instructorPairing")
       .then(() => sendResponse({ ok: true }));
     return true;
+  }
+  if (message?.type === "guideme-instructor-heartbeat") {
+    chrome.storage.session.get("instructorPairing").then(async state => {
+      const pairing = state.instructorPairing;
+      if (!pairing || pairing.tabId !== sender.tab?.id) return;
+      const ok = await heartbeat(pairing.token);
+      if (!ok) await chrome.storage.session.remove("instructorPairing");
+    }).catch(() => {});
+    return false;
   }
   if (message?.type !== "guideme-instructor-event") return false;
   if (!sender.tab?.id || !sender.url?.startsWith("http")) return false;
