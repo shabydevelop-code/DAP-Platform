@@ -24,6 +24,19 @@
     };
   }
 
+  function safeFieldValue(target) {
+    if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement))
+      return null;
+    const type = String(target.type || "").toLowerCase();
+    const autocomplete = String(target.autocomplete || "").toLowerCase();
+    if (["password", "hidden", "file", "email", "tel", "number"].includes(type) ||
+        /password|cc-|credit|one-time-code|otp|token|secret|email|tel|address|birth/.test(autocomplete) ||
+        /password|passcode|secret|token|otp|credit|card|email|phone|mobile|address|birth/i.test(
+          [target.name, target.id, target.getAttribute("aria-label")].join(" ")))
+      return null;
+    return String(target.value ?? "").slice(0, 160);
+  }
+
   function report(event) {
     if (!event.isTrusted) return;
     const element = event.target instanceof Element ? event.target : null;
@@ -35,7 +48,8 @@
       url: location.href,
       tag: target.tagName.toLowerCase(),
       label: String(target.getAttribute("aria-label") || target.getAttribute("name") || target.textContent || "").trim().slice(0, 120),
-      id: target.id || null
+      id: target.id || null,
+      value: event.type === "change" || event.type === "blur" ? safeFieldValue(target) : null
     };
     // Allow SPA handlers to update the DOM before recording the outcome.
     setTimeout(() => {
@@ -48,4 +62,5 @@
 
   addEventListener("click", report, true);
   addEventListener("change", report, true);
+  addEventListener("blur", report, true);
 })();
