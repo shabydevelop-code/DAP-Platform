@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "GuideMe Instructor",
+  "version": "0.1.0",
+  "description": "Authoring capture extension for GuideMe Instructor. Separate from GuideMe Learner.",
+  "permissions": [
+    "storage",
+    "tabs",
+    "scripting"
+  ],
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*",
+    "http://127.0.0.1:53921/*"
+  ],
+  "background": {
+    "service_worker": "service-worker.js"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  }
+}
