@@ -10,6 +10,13 @@ $nativeHostProject = Join-Path $root 'src\DAP.Runtime.Web.NativeHost\DAP.Runtime
 $extensionSource = Join-Path $root 'src\DAP.Runtime.Web.Extension'
 $extensionDestination = Join-Path $Destination 'ChromeExtension'
 
+if ($SkipExtensionSync -and [string]::Equals(
+    [System.IO.Path]::GetFullPath($Destination).TrimEnd([char]'\\'),
+    [System.IO.Path]::GetFullPath('C:\\GuideMe').TrimEnd([char]'\\'),
+    [StringComparison]::OrdinalIgnoreCase)) {
+    throw 'Isolated publish cannot target the active C:\\GuideMe installation.'
+}
+
 if (-not (Test-Path -LiteralPath $appProject -PathType Leaf)) {
     throw "App project not found: $appProject"
 }
