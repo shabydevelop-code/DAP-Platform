@@ -76,7 +76,15 @@ dotnet run --project demos\Windows\Launcher\GuideMe.SampleApp.Windows.Host.cspro
 sampleapp-mixed-smoke-guide
 ```
 
-## 5. כללי עבודה
+## 5. מצב אימות נוכחי
+
+- מדריך Web (`sampleapp-web-guide`): **55/55 שלבים — תקין**.
+- מדריך Windows (`sampleapp-windows-guide`): **55/55 שלבים — תקין**.
+- מדריך משולב (`sampleapp-mixed-smoke-guide`): **6/6 שלבים — תקין**, כולל מעבר Web → Windows → Web.
+- סך הכול **116/116 שלבים** אומתו בהפעלה ישירה של ה-Learner המותקן מול אפליקציות הדוגמה.
+- במדריך Web, רכיב `testcrm-header-home::primary` משתמש בנתיב המסגרת `iframe[name='guideMe-header']`. מזהי `testcrm-*` משמשים כמפתחות פנימיים, לרבות הפניות `capture`, ואין לשנותם באופן גורף.
+
+## 6. כללי עבודה
 
 - אין להפעיל את המדריכים באמצעות `--learner-web`, `--learner-windows` או מזהי מדריכים מספריים.
 - הפקודות לעיל מפעילות את גרסת הייצור מתוך `C:\GuideMe`, לא עותק ישן מתיקיית `bin`.
@@ -84,3 +92,5 @@ sampleapp-mixed-smoke-guide
 - מסד ברירת המחדל הוא `C:\ProgramData\GuideMe\Data\GuideMe-V5.db`; זהו מסד הנתונים הפעיל היחיד.
 - אין להריץ רגרסיה דרך תיקיות בדיקות E2E; יש לבדוק את ה-Learner מול אפליקציות הדוגמה כמוצר.
 - עבודה ב-Git מתבצעת בענף `main` בלבד, ללא ענפים נפרדים.
+- אין ליצור גיבויים או עותקי עבודה של מסדי נתונים באופן יזום; רק לפי בקשה מפורשת.
+- מסמכי MD מתארים מצב פעיל בלבד, ללא יומן שינויים.
