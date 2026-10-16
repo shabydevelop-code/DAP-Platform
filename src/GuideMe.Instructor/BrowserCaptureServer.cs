@@ -111,9 +111,16 @@ internal sealed class BrowserCaptureServer : IDisposable
                     return "";
                 return (property.GetString() ?? "")[..Math.Min(property.GetString()?.Length ?? 0, 160)];
             }
+            string ReadSnapshot(string name)
+            {
+                if (!root.TryGetProperty(name, out var value) || value.ValueKind != JsonValueKind.Object)
+                    return "";
+                return value.GetRawText();
+            }
             var captured = new BrowserCaptureEvent(
                 DateTimeOffset.UtcNow, kind.GetString() ?? "", url.GetString() ?? "",
-                ReadOptional("tag"), ReadOptional("label"), ReadOptional("id"));
+                ReadOptional("tag"), ReadOptional("label"), ReadOptional("id"),
+                ReadSnapshot("before"), ReadSnapshot("after"));
             bool accepted;
             lock (_sync)
             {
@@ -136,4 +143,4 @@ internal sealed class BrowserCaptureServer : IDisposable
     }
 }
 
-internal sealed record BrowserCaptureEvent(DateTimeOffset Timestamp, string Kind, string Url, string Tag, string Label, string ElementId);
+internal sealed record BrowserCaptureEvent(DateTimeOffset Timestamp, string Kind, string Url, string Tag, string Label, string ElementId, string Before, string After);
