@@ -38,10 +38,15 @@ document.getElementById("connect").addEventListener("click", async () => {
       tabId: tab.id
     });
     if (!response?.ok) throw new Error(response?.error || "Pairing failed");
-    await chrome.scripting.executeScript({
-      target: { tabId: tab.id, allFrames: true },
-      files: ["content-capture.js"]
-    });
+    try {
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id, allFrames: true },
+        files: ["content-capture.js"]
+      });
+    } catch (error) {
+      await chrome.runtime.sendMessage({ type: "guideme-instructor-stop" });
+      throw error;
+    }
     tokenInput.value = "";
     await refreshConnectionStatus();
   } catch (error) {
