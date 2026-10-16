@@ -1,4 +1,4 @@
-namespace DAP.TestCRM.Windows;
+namespace DAP.SampleApp.Windows;
 
 public sealed record Customer(int Id, string Name, string Phone, string Email);
 public sealed record Site(int Id, int CustomerId, string Name, string Type, string Address);
