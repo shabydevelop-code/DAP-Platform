@@ -1,0 +1,47 @@
+<Window x:Class="GuideMe.Instructor.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="GuideMe Instructor" Height="550" Width="480" MinWidth="420" MinHeight="480"
+        WindowStartupLocation="CenterScreen" FlowDirection="RightToLeft"
+        Background="#FFF8FAFC">
+  <Grid Margin="22">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+      <RowDefinition Height="Auto"/>
+    </Grid.RowDefinitions>
+    <StackPanel Grid.Row="0" Margin="0,0,0,20">
+      <TextBlock Text="GuideMe Instructor" FontSize="24" FontWeight="Bold" FlowDirection="LeftToRight" TextAlignment="Right"/>
+      <TextBlock Text="יצירת מדריך Web — סביבת עבודה ראשונית" FontSize="14" Foreground="#FF475569" Margin="0,6,0,0"/>
+    </StackPanel>
+    <Border Grid.Row="1" BorderBrush="#FFCBD5E1" BorderThickness="1" CornerRadius="8" Padding="12" Background="White" Margin="0,0,0,14">
+      <StackPanel>
+        <TextBlock Text="מדריך חדש" FontWeight="SemiBold"/>
+        <TextBox x:Name="GuideKey" Text="sampleapp-web-instructor" FlowDirection="LeftToRight" Margin="0,8,0,0" Padding="8"/>
+        <TextBlock Text="המדריך המקורי לא ישתנה." Foreground="#FF64748B" FontSize="12" Margin="0,8,0,0"/>
+      </StackPanel>
+    </Border>
+    <Border Grid.Row="2" BorderBrush="#FFCBD5E1" BorderThickness="1" CornerRadius="8" Padding="14" Background="White">
+      <StackPanel>
+        <TextBlock x:Name="StateLabel" Text="מוכן לתחילת שלב 1" FontSize="17" FontWeight="SemiBold"/>
+        <TextBlock x:Name="StatusDetail" Text="טרם הופעל חיבור להקלטת אירועים מהדפדפן." TextWrapping="Wrap" Foreground="#FF64748B" Margin="0,8,0,14"/>
+        <WrapPanel FlowDirection="RightToLeft">
+          <Button x:Name="StartButton" Content="התחל שלב" Padding="16,9" Margin="0,0,8,0" Click="StartStep_Click"/>
+          <Button x:Name="EndButton" Content="סיים שלב" Padding="16,9" IsEnabled="False" Click="EndStep_Click"/>
+        </WrapPanel>
+      </StackPanel>
+    </Border>
+    <StackPanel Grid.Row="3" Margin="0,18,0,0">
+      <TextBlock Text="סקירת השלב" FontWeight="SemiBold" FontSize="15"/>
+      <TextBlock x:Name="ReviewText" Text="לאחר סיום שלב יוצגו כאן גבולות ההקלטה. זיהוי פעולות ותוצאות יחובר בהמשך." TextWrapping="Wrap" Margin="0,10,0,0"/>
+      <TextBlock Text="טקסט בועית מוצע (לעריכה)" Margin="0,18,0,6" FontWeight="SemiBold"/>
+      <TextBox x:Name="BubbleText" Height="80" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" IsEnabled="False"/>
+    </StackPanel>
+    <StackPanel Grid.Row="4">
+      <Button x:Name="ApproveButton" Content="אשר ושמור" Padding="14,10" IsEnabled="False" Click="Approve_Click"/>
+      <TextBlock Text="מצב אב־טיפוס: אין עדיין שמירה ל־V5 או קליטת פעולות מ־Chrome." FontSize="12" Foreground="#FF9A3412" TextWrapping="Wrap" Margin="0,10,0,0"/>
+    </StackPanel>
+  </Grid>
+</Window>
