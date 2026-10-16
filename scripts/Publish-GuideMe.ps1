@@ -30,17 +30,18 @@ if ($publishExitCode -ne 0) {
 }
 
 # The Chrome native messaging manifest points at GuideMe.NativeHost.exe
-# in the same deployment directory. Publishing only the WPF app leaves
+# in the NativeHost subdirectory. Publishing only the WPF app leaves
 # a stale legacy data reader installed even when source builds pass.
 if (-not (Test-Path -LiteralPath $nativeHostProject -PathType Leaf)) {
     throw "Native Host project not found: $nativeHostProject"
 }
-& dotnet publish $nativeHostProject -c Release -r win-x64 --self-contained false -o $Destination
+$nativeHostDestination = Join-Path $Destination 'NativeHost'
+& dotnet publish $nativeHostProject -c Release -r win-x64 --self-contained false -o $nativeHostDestination
 $nativePublishExitCode = $LASTEXITCODE
 if ($nativePublishExitCode -ne 0) {
     throw "GuideMe Native Host publish failed with exit code $nativePublishExitCode."
 }
-$nativeExecutable = Join-Path $Destination 'GuideMe.NativeHost.exe'
+$nativeExecutable = Join-Path $nativeHostDestination 'GuideMe.NativeHost.exe'
 if (-not (Test-Path -LiteralPath $nativeExecutable -PathType Leaf)) {
     throw "GuideMe Native Host executable missing after publish: $nativeExecutable"
 }
