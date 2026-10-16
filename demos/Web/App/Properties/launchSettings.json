@@ -8,7 +8,7 @@
       "applicationUrl": "http://localhost:5200",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "TestCrmBackendUrl": "http://localhost:5201"
+        "SampleAppBackendUrl": "http://localhost:5201"
       }
     }
   }
