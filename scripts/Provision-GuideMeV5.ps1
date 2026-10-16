@@ -20,8 +20,9 @@ if (Test-Path -LiteralPath $target) {
 }
 
 $validator = Join-Path $PSScriptRoot 'Validate-GuideMeV5.ps1'
+# Validation is a PowerShell script that throws on any failed guide.
+# Do not inspect $LASTEXITCODE here: it may be stale after a successful script.
 & $validator -DatabasePath $source
-if ($LASTEXITCODE -ne 0) { throw 'V5 validation failed; no file was copied.' }
 $destinationDir = Split-Path -Parent $target
 New-Item -ItemType Directory -Force -Path $destinationDir | Out-Null
 Copy-Item -LiteralPath $source -Destination $target -ErrorAction Stop
