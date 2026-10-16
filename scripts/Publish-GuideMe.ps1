@@ -5,6 +5,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $appProject = Join-Path $root 'src\DAP.App\DAP.App.csproj'
+$nativeHostProject = Join-Path $root 'src\DAP.Runtime.Web.NativeHost\DAP.Runtime.Web.NativeHost.csproj'
 $extensionSource = Join-Path $root 'src\DAP.Runtime.Web.Extension'
 $extensionDestination = Join-Path $Destination 'ChromeExtension'
 
@@ -16,6 +17,22 @@ if (-not (Test-Path -LiteralPath $appProject -PathType Leaf)) {
 $publishExitCode = $LASTEXITCODE
 if ($publishExitCode -ne 0) {
     throw "GuideMe publish failed with exit code $publishExitCode."
+}
+
+# The Chrome native messaging manifest points at GuideMe.NativeHost.exe
+# in the same deployment directory. Publishing only the WPF app leaves
+# a stale legacy data reader installed even when source builds pass.
+if (-not (Test-Path -LiteralPath $nativeHostProject -PathType Leaf)) {
+    throw "Native Host project not found: $nativeHostProject"
+}
+& dotnet publish $nativeHostProject -c Release -r win-x64 --self-contained false -o $Destination
+$nativePublishExitCode = $LASTEXITCODE
+if ($nativePublishExitCode -ne 0) {
+    throw "GuideMe Native Host publish failed with exit code $nativePublishExitCode."
+}
+$nativeExecutable = Join-Path $Destination 'GuideMe.NativeHost.exe'
+if (-not (Test-Path -LiteralPath $nativeExecutable -PathType Leaf)) {
+    throw "GuideMe Native Host executable missing after publish: $nativeExecutable"
 }
 
 if (-not (Test-Path -LiteralPath $extensionDestination -PathType Container)) {
@@ -35,4 +52,4 @@ foreach ($name in @('icon16.png', 'icon48.png', 'icon128.png')) {
     }
 }
 
-Write-Host 'PASS: GuideMe published and Chrome extension icons synchronized.'
+Write-Host 'PASS: GuideMe application and Native Host published; Chrome extension icons synchronized.'
