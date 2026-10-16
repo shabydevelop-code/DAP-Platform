@@ -776,12 +776,21 @@ public sealed class WindowsGuideRuntime
         if (resolution.Status != TargetResolutionStatus.Resolved || resolution.Target is null)
             return null;
 
-        var raw = capture.Property.Trim().ToLowerInvariant() switch
+        string? raw;
+        try
         {
-            "name" => resolution.Target.Current.Name,
-            "automation-id" => resolution.Target.Current.AutomationId,
-            _ => throw new NotSupportedException($"Unsupported Windows capture property '{capture.Property}'.")
-        };
+            raw = capture.Property.Trim().ToLowerInvariant() switch
+            {
+                "name" => resolution.Target.Current.Name,
+                "automation-id" => resolution.Target.Current.AutomationId,
+                _ => throw new NotSupportedException($"Unsupported Windows capture property '{capture.Property}'.")
+            };
+        }
+        catch (ElementNotAvailableException)
+        {
+            // Capture retries on the next observation if UIA replaced the element.
+            return null;
+        }
 
         if (string.IsNullOrEmpty(capture.Pattern))
             return raw;
