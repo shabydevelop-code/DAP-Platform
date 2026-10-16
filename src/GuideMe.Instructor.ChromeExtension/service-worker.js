@@ -23,7 +23,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const pairing = state.instructorPairing;
     if (!pairing || pairing.tabId !== sender.tab.id) return;
     const event = message.event;
-    if (!event || !["click", "change"].includes(event.kind) || typeof event.url !== "string") return;
+    if (!event || !["click", "change", "blur"].includes(event.kind) || typeof event.url !== "string") return;
     await fetch(captureEndpoint, {
       method: "POST",
       headers: {
