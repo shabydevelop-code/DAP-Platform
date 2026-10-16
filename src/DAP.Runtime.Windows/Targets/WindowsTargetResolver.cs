@@ -665,7 +665,19 @@ public sealed class WindowsTargetResolver
             var regex = new Regex(locator.Value, RegexOptions.CultureInvariant);
             return root.FindAll(TreeScope.Descendants, Condition.TrueCondition)
                 .Cast<AutomationElement>()
-                .Where(element => regex.IsMatch(element.Current.Name ?? string.Empty))
+                .Where(element =>
+                {
+                    try
+                    {
+                        return regex.IsMatch(element.Current.Name ?? string.Empty);
+                    }
+                    catch (ElementNotAvailableException)
+                    {
+                        // Dynamic UIA trees can invalidate an element between
+                        // FindAll and reading Current.Name. Skip only that element.
+                        return false;
+                    }
+                })
                 .ToArray();
         }
 
