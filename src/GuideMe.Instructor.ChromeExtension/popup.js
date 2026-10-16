@@ -11,7 +11,7 @@ document.getElementById("connect").addEventListener("click", async () => {
     if (!response?.ok) throw new Error(response?.error || "Pairing failed");
     await chrome.scripting.executeScript({
       target: { tabId: tab.id, allFrames: true },
-      files: ["instructor-capture.js"]
+      files: ["content-capture.js"]
     });
     status.textContent = "מחובר ללשונית. לחץ ״התחל שלב״ בחלון ה־Instructor.";
   } catch (error) {
