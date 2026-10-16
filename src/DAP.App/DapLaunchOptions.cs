@@ -19,7 +19,8 @@ public sealed record DapLaunchOptions(
     DapLaunchMode Mode,
     string? GuideId,
     string? WindowAutomationId,
-    DapExecutionMode ExecutionMode = DapExecutionMode.Manual)
+    DapExecutionMode ExecutionMode = DapExecutionMode.Manual,
+    string? V5DatabasePath = null)
 {
     public static DapLaunchOptions? Parse(string[] args, IUiTextProvider texts)
     {
@@ -33,6 +34,7 @@ public sealed record DapLaunchOptions(
             string? windowAutomationId = null;
             var executionMode = DapExecutionMode.Manual;
             var modeSpecified = false;
+            string? v5DatabasePath = null;
 
             for (var i = 2; i < args.Length; i++)
             {
@@ -47,6 +49,9 @@ public sealed record DapLaunchOptions(
                     };
                     if (!Enum.IsDefined(executionMode)) return Usage(texts);
                 }
+                else if (args[i] == "--v5-db" && i + 1 < args.Length
+                    && v5DatabasePath is null && !string.IsNullOrWhiteSpace(args[i + 1]))
+                    v5DatabasePath = args[++i];
                 else if (args[i] == "--window-automation-id" && i + 1 < args.Length
                     && !string.IsNullOrWhiteSpace(args[i + 1]))
                     windowAutomationId = args[++i];
@@ -58,7 +63,8 @@ public sealed record DapLaunchOptions(
                 DapLaunchMode.Learner,
                 args[1],
                 windowAutomationId,
-                executionMode);
+                executionMode,
+                v5DatabasePath);
         }
 
         return Usage(texts);
