@@ -1,4 +1,4 @@
-# DAP Web Runtime Extension
+# GuideMe Learner Chrome Extension
 
 This project is the production browser adapter used by the Web Learner path.
 
