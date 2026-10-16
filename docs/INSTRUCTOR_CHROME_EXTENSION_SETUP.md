@@ -19,7 +19,7 @@ If the old Instructor-in-Learner extension files were previously copied into `C:
 
 ```powershell
 $root = "C:\yossi\ChatGpt\DAP-Platform"
-$learnerSource = Join-Path $root "src\DAP.Runtime.Web.Extension"
+$learnerSource = Join-Path $root "src\GuideMe.Learner.ChromeExtension"
 $learnerTarget = "C:\GuideMe\ChromeExtension"
 Copy-Item (Join-Path $learnerSource "manifest.json") (Join-Path $learnerTarget "manifest.json") -Force
 Copy-Item (Join-Path $learnerSource "service-worker-entry.js") (Join-Path $learnerTarget "service-worker-entry.js") -Force

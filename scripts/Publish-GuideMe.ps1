@@ -7,7 +7,7 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $appProject = Join-Path $root 'src\DAP.App\DAP.App.csproj'
 $nativeHostProject = Join-Path $root 'src\DAP.Runtime.Web.NativeHost\DAP.Runtime.Web.NativeHost.csproj'
-$extensionSource = Join-Path $root 'src\DAP.Runtime.Web.Extension'
+$extensionSource = Join-Path $root 'src\GuideMe.Learner.ChromeExtension'
 $extensionDestination = Join-Path $Destination 'ChromeExtension'
 
 $destinationCanonical = [System.IO.Path]::GetFullPath($Destination).TrimEnd(

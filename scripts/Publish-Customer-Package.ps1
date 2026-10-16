@@ -42,7 +42,7 @@ if (-not (Test-Path $nativeExe) -or -not (Test-Path $nativeConfig)) {
 }
 
 # Include the unpacked Chrome extension and customer-side registration script.
-$extensionSource = Join-Path $repo "src\DAP.Runtime.Web.Extension"
+$extensionSource = Join-Path $repo "src\GuideMe.Learner.ChromeExtension"
 $extensionDestination = Join-Path $Output "ChromeExtension"
 $extensionFiles = @(
     "manifest.json",
