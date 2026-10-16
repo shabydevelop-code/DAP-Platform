@@ -29,9 +29,7 @@ public sealed class WebGuideStepRuntime
     public WebGuideStepRuntime(
         IWebBrowserAdapter browser,
         TimeSpan? reconcileInterval = null,
-        TimeSpan? presentationSettleInterval = null,
-        string? automaticStepLabel = null,
-        bool hybrid = false)
+        TimeSpan? presentationSettleInterval = null)
     {
         _browser = browser ?? throw new ArgumentNullException(nameof(browser));
         _reconcileInterval = reconcileInterval ?? TimeSpan.FromMilliseconds(100);
