@@ -19,6 +19,8 @@ internal sealed class BrowserCaptureServer : IDisposable
     private readonly List<BrowserCaptureEvent> _events = new();
     private CancellationTokenSource? _shutdown;
     private bool _recording;
+    private DateTimeOffset _lastHeartbeat = DateTimeOffset.MinValue;
+    public bool IsConnected { get { lock (_sync) return DateTimeOffset.UtcNow - _lastHeartbeat < TimeSpan.FromSeconds(5); } }
 
     public const int Port = 53921;
     public string SessionToken => _token;
@@ -77,6 +79,12 @@ internal sealed class BrowserCaptureServer : IDisposable
             if (!string.Equals(ctx.Request.Headers["X-GuideMe-Capture-Token"], _token, StringComparison.Ordinal))
             {
                 ctx.Response.StatusCode = 403;
+                return;
+            }
+            if (ctx.Request.HttpMethod == "POST" && ctx.Request.Url?.AbsolutePath == "/heartbeat")
+            {
+                lock (_sync) _lastHeartbeat = DateTimeOffset.UtcNow;
+                ctx.Response.StatusCode = 200;
                 return;
             }
             if (ctx.Request.HttpMethod == "GET" && ctx.Request.Url?.AbsolutePath == "/status")
