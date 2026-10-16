@@ -159,7 +159,7 @@ public partial class MainWindow : Window
             string.IsNullOrWhiteSpace(ContextValueText.Text) ||
             string.IsNullOrWhiteSpace(BubbleText.Text))
         {
-            MessageBox.Show("יש להשלים הקשר יישומי וטקסט בועית לפני אישור הטיוטה.", "GuideMe Instructor");
+            MessageBox.Show("יש להשלים את פרטי השלב לפני אישור הטיוטה.", "GuideMe Instructor");
             return;
         }
         // Explicitly approve a session-only draft. No database mutation or claim of persistence.
