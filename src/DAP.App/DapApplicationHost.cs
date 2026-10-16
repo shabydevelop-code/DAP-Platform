@@ -86,7 +86,7 @@ public static class DapApplicationHost
         var activeDatabasePath = options.V5DatabasePath is null
             ? databaseOptions.DatabasePath
             : Path.GetFullPath(options.V5DatabasePath);
-        if (!File.Exists(activeDatabasePath))
+        if (options.Mode != DapLaunchMode.InfrastructureCheck && !File.Exists(activeDatabasePath))
             throw new FileNotFoundException(
                 "GuideMe V5 database not found. Provision a validated V5 database before launching a guide.",
                 activeDatabasePath);
@@ -102,11 +102,11 @@ public static class DapApplicationHost
             Directory.CreateDirectory(Path.GetDirectoryName(diagnosticsPath)!);
             await File.WriteAllTextAsync(
                 diagnosticsPath,
-                $"DAP.exe ready.{Environment.NewLine}Database: {databaseOptions.DatabasePath}{Environment.NewLine}UTC: {DateTimeOffset.UtcNow:O}{Environment.NewLine}",
+                $"DAP.exe ready.{Environment.NewLine}Database: {activeDatabasePath}{Environment.NewLine}UTC: {DateTimeOffset.UtcNow:O}{Environment.NewLine}",
                 cancellationToken);
 
             System.Windows.MessageBox.Show(
-                texts.Format("App.InfrastructureReady", databaseOptions.DatabasePath, diagnosticsPath),
+                texts.Format("App.InfrastructureReady", activeDatabasePath, diagnosticsPath),
                 texts.Get("App.InfrastructureCheckTitle"),
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
