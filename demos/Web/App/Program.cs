@@ -4,7 +4,7 @@ var app = builder.Build();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
-var backendUrl = builder.Configuration["TestCrmBackendUrl"] ?? "http://localhost:5201";
+var backendUrl = builder.Configuration["SampleAppBackendUrl"] ?? "http://localhost:5201";
 var backend = new HttpClient { BaseAddress = new Uri(backendUrl) };
 
 app.Map("/api/{**path}", async context =>
