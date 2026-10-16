@@ -5,30 +5,53 @@
 <iframe id="header-frame" name="guideMe-header" src="/header.html" title="כותרת המערכת"></iframe>
 <iframe id="content-frame" name="guideMe-content" src="/content.html" title="תוכן המערכת"></iframe>
 <script>
+let pendingContentFrame=null;
 function replaceContentFrame(hash){
   const old=document.querySelector('#content-frame');
   if(!old)return;
+  // Cancel a previous navigation rather than accumulating hidden iframes.
+  if(pendingContentFrame){
+    pendingContentFrame.remove();
+    pendingContentFrame=null;
+  }
   const next=document.createElement('iframe');
+  pendingContentFrame=next;
   next.id='content-frame-next';
   next.name='guideMe-content-next';
   next.title='תוכן המערכת';
   next.className='content-frame-next';
-  next.src='/content.html'+hash;
+  const started=Date.now();
+  let finished=false;
+  const fail=reason=>{
+    if(finished||pendingContentFrame!==next)return;
+    finished=true;
+    next.remove();
+    pendingContentFrame=null;
+    console.error('SampleApp content navigation failed:',reason,hash);
+  };
   const promote=()=>{
+    if(finished||pendingContentFrame!==next)return;
     try{
-      if(next.contentDocument?.documentElement?.dataset?.guideMeReady!=='1'){
-        setTimeout(promote,50);
+      const doc=next.contentDocument;
+      const state=doc?.documentElement?.dataset?.guideMeRouteState;
+      const ready=doc?.documentElement?.dataset?.guideMeReady==='1';
+      // The app marks readiness after its asynchronous route has rendered.
+      if(ready){
+        finished=true;
+        next.id='content-frame';
+        next.name='guideMe-content';
+        next.classList.remove('content-frame-next');
+        old.remove();
+        pendingContentFrame=null;
         return;
       }
-      old.id='content-frame-old';
-      old.name='guideMe-content-old';
-      next.id='content-frame';
-      next.name='guideMe-content';
-      next.classList.remove('content-frame-next');
-      old.remove();
-    }catch{setTimeout(promote,50)}
+      if(state==='error')return fail(doc.documentElement.dataset.guideMeRouteError||'route error');
+    }catch(err){return fail(err)}
+    if(Date.now()-started>=5000)return fail('content did not become ready within 5 seconds');
+    setTimeout(promote,50);
   };
   next.addEventListener('load',promote,{once:true});
+  next.src='/content.html'+hash;
   old.insertAdjacentElement('afterend',next);
 }
 </script>
