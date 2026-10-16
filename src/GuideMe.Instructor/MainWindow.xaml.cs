@@ -60,7 +60,9 @@ public partial class MainWindow : Window
         _state = RecordingState.Review;
         StateLabel.Text = $"סקירת שלב {_stepNumber}";
         StatusDetail.Text = events.Count > 0 ? "נקלטו פעולות מהדפדפן." : "לא נקלטו פעולות. בדוק את חיבור התוסף.";
-        ReviewText.Text = $"התחלה: {_startedAt:HH:mm:ss}\nסיום: {endedAt:HH:mm:ss}\nפעולה: לא זוהתה (חיבור הדפדפן טרם מומש)\nתנאי השלמה: לא הוגדר";
+        ReviewText.Text = $"התחלה: {_startedAt:HH:mm:ss}\\nסיום: {endedAt:HH:mm:ss}\\nאירועים שנקלטו: {events.Count}\\n" +
+            string.Join("\\n", events.Take(10).Select(e => $"{e.Kind}: {e.Tag} {e.Label} ({e.ElementId})")) +
+            "\\nתנאי השלמה: טרם נותח";
         StartButton.IsEnabled = false;
         EndButton.IsEnabled = false;
         BubbleText.IsEnabled = true;
