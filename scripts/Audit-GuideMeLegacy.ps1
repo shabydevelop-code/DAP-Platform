@@ -27,7 +27,7 @@ $files = foreach ($area in $areas) {
 }
 
 $results = foreach ($file in $files) {
-    $rootPrefix = $root.TrimEnd([char]'\\', [char]'/') + [System.IO.Path]::DirectorySeparatorChar
+    $rootPrefix = $root.TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
     $relativePath = if ($file.FullName.StartsWith($rootPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
         $file.FullName.Substring($rootPrefix.Length)
     } else {
