@@ -3,7 +3,7 @@ using System.Net.Http.Json;
 using System.Net;
 using System.Text.Json;
 
-namespace DAP.TestCRM.Windows;
+namespace DAP.SampleApp.Windows;
 
 public sealed class CrmApiException : Exception
 {
