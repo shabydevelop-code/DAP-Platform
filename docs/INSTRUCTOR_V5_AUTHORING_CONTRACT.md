@@ -17,12 +17,14 @@ Instructor is an independent authoring application. It records UI interactions a
 - `GuideVariables` and `StepCaptures`: data capture definitions.
 
 ## MVP decisions (approved)
-- Web-first Instructor, separate Windows GUI; no branching, alternate paths or graph routing in MVP.
+- Web-first Instructor, separate Windows GUI and separate Chrome extension; no branching, alternate paths or graph routing in MVP.
 - The author explicitly starts and ends each step recording. No automatic segmentation.
 - One linear successor per enabled step. A validation error can be the *expected* result of a step; its acknowledgement/correction is captured in subsequent linear steps.
 - Workflow: Start step -> perform target-app action -> End step -> deterministic analysis -> review/correct proposal -> approve and save.
 - Never silently infer uncertain completion conditions. Surface confidence/alternatives and require explicit author confirmation.
 - Do not change the production MANUAL/HYBRID learner behavior for this MVP.
+- The authoring Chrome extension is installed independently from the production Learner extension. Never add Instructor capture code or local authoring permissions to the Learner manifest.
+- Browser events are sent over a token-protected loopback endpoint while an explicit Instructor recording window is active; no target application source code or AI is required.
 
 ## Proposed recording sequence
 1. Select/create a guide and associate its Web application context.
