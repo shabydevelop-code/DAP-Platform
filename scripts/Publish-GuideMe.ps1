@@ -19,6 +19,28 @@ if ($SkipExtensionSync -and [string]::Equals(
     throw 'Isolated publish cannot target the active C:\GuideMe installation.'
 }
 
+# Fail fast before publishing to an active installation. A running app or
+# Chrome native messaging host can lock DLLs in the deployment directory.
+# Do not terminate processes automatically: the operator should close them.
+if ([string]::Equals($destinationCanonical, $activeCanonical,
+    [StringComparison]::OrdinalIgnoreCase)) {
+    $runningGuideMe = @(Get-Process -Name 'DAP', 'GuideMe.NativeHost' -ErrorAction SilentlyContinue |
+        Where-Object {
+            $executablePath = $_.Path
+            if ([string]::IsNullOrWhiteSpace($executablePath)) {
+                # Cannot safely rule out an active installed process.
+                return $true
+            }
+            $executablePath.StartsWith(
+                $activeCanonical + [System.IO.Path]::DirectorySeparatorChar,
+                [StringComparison]::OrdinalIgnoreCase)
+        })
+    if ($runningGuideMe.Count -gt 0) {
+        $details = ($runningGuideMe | ForEach-Object { "$($_.ProcessName) (PID $($_.Id))" }) -join ', '
+        throw "GuideMe publish blocked: running processes lock C:\GuideMe files: $details. Close GuideMe and Chrome windows using the GuideMe extension, then retry. No files were published."
+    }
+}
+
 if (-not (Test-Path -LiteralPath $appProject -PathType Leaf)) {
     throw "App project not found: $appProject"
 }
