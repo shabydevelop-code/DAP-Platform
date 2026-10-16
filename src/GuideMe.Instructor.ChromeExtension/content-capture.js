@@ -49,6 +49,8 @@
       tag: target.tagName.toLowerCase(),
       label: String(target.getAttribute("aria-label") || target.getAttribute("name") || target.textContent || "").trim().slice(0, 120),
       id: target.id || null,
+      name: target.getAttribute("name") || null,
+      frameSelector: (() => { try { const frame = window.frameElement; return frame?.id ? "#" + CSS.escape(frame.id) : null; } catch { return null; } })(),
       value: event.type === "change" || event.type === "blur" ? safeFieldValue(target) : null
     };
     // Allow SPA handlers to update the DOM before recording the outcome.
