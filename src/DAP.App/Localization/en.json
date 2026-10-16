@@ -1,0 +1,21 @@
+{
+  "Ui.Direction": "ltr",
+  "Learner.StepProgress": "Step {0} of {1}",
+  "Learner.StopAssistance": "End assistance",
+  "Learner.DragBubble": "Drag to move the bubble",
+  "Learner.GuideCompleted": "Guide completed successfully",
+  "Learner.Finish": "Finish",
+  "Learner.Confirm": "OK",
+  "Learner.CompletedMessage": "The guide completed successfully.",
+  "Learner.WindowTitle": "DAP Learner",
+  "Learner.GuideHasNoSteps": "Guide '{0}' has no steps.",
+  "Learner.BrowserPageCountError": "DAP found {0} matching browser pages; exactly one is required.",
+  "App.InfrastructureCheckTitle": "DAP Infrastructure Check",
+  "App.InfrastructureReady": "DAP.exe is ready.\n\nDatabase: {0}\n\nDiagnostics: {1}",
+  "App.WindowTitle": "DAP",
+  "App.Usage": "Usage:\\nDAP.exe --check\\nDAP.exe --guide <GuideId>",
+  "App.TargetWindowNotFoundTitle": "Unable to Start Guide",
+  "App.TargetWindowNotFoundMessage": "We couldn't find the application window required for this guide. Make sure the application is open and try again.",
+  "Learner.GuideAlreadyRunning": "Another guide is already running in this Windows session. End it before starting a new guide.",
+  "Learner.Exit": "Exit"
+}

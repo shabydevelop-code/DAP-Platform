@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>DAP</AssemblyName>
+    <RootNamespace>DAP.App</RootNamespace>
+    <CopyRetryCount>0</CopyRetryCount>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <ApplicationIcon>Resources\GuideMe.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../DAP.Core/DAP.Core.csproj" />
+    <ProjectReference Include="../DAP.Data/DAP.Data.csproj" />
+    <ProjectReference Include="../DAP.Data.Sqlite/DAP.Data.Sqlite.csproj" />
+    <ProjectReference Include="../DAP.Runtime.Web/DAP.Runtime.Web.csproj" />
+    <ProjectReference Include="../DAP.Runtime.Windows/DAP.Runtime.Windows.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\GuideMe.Tray.ico" LogicalName="GuideMe.TrayIcon.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Localization\*.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+  <Target Name="CheckCurrentGuideMeSessionBeforeBuild" BeforeTargets="ResolveReferences" Condition="'$(DesignTimeBuild)' != 'true' and '$(IsCrossTargetingBuild)' != 'true'">
+    <Exec Command="powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\Check-GuideMeBuildLock.ps1&quot; -ExecutablePath &quot;$(MSBuildProjectDirectory)\bin\$(Configuration)\$(TargetFramework)\DAP.exe&quot;" />
+  </Target>
+  <Target Name="CheckLocalizationBeforeBuild" BeforeTargets="CoreCompile" Condition="'$(DesignTimeBuild)' != 'true' and '$(IsCrossTargetingBuild)' != 'true'">
+    <Exec Command="python &quot;$(MSBuildProjectDirectory)\..\..\scripts\check-localization.py&quot;" />
+  </Target>
+</Project>
