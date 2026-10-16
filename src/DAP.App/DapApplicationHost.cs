@@ -560,11 +560,6 @@ public static class DapApplicationHost
         return 0;
     }
 
-    private static string? GetAutomaticStepLabel()
-        => string.Equals(Environment.GetEnvironmentVariable("DAP_LEARNER_AUTOMATION"), "1", StringComparison.Ordinal)
-            ? "אוטומט"
-            : null;
-
     // Chrome's extension window ID is not a Win32 HWND. Match the selected tab
     // against visible Chrome top-level window captions and refuse ambiguity.
     private static async Task ActivateChromeWindowAsync(string title, CancellationToken cancellationToken)
