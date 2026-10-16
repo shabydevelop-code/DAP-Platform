@@ -12,7 +12,7 @@ public partial class App : System.Windows.Application
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
         var exitCode = 1;
         var sessionPid = Environment.ProcessId;
-        Trace.TraceInformation($"DAP session started: PID={sessionPid}.");
+        Trace.TraceInformation($"GuideMe session started: PID={sessionPid}.");
         try
         {
             exitCode = await DapApplicationHost.RunAsync(e.Args);
@@ -28,11 +28,11 @@ public partial class App : System.Windows.Application
         }
         catch (Exception exception)
         {
-            Trace.TraceError($"DAP session terminated unexpectedly: {exception}");
+            Trace.TraceError($"GuideMe session terminated unexpectedly: {exception}");
             var diagnosticPath = WriteFailureDiagnostic(exception, e.Args, sessionPid);
             System.Windows.MessageBox.Show(
                 $"{exception.Message}{Environment.NewLine}{Environment.NewLine}Diagnostic: {diagnosticPath ?? "Could not write diagnostic log."}",
-                "DAP - Session Error",
+                "GuideMe - Session Error",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
         }
@@ -40,7 +40,7 @@ public partial class App : System.Windows.Application
         {
             // All guide termination paths, including startup exceptions, must
             // release the WPF dispatcher and the loaded assemblies.
-            Trace.TraceInformation($"DAP session ending: PID={sessionPid}, exit code={exitCode}.");
+            Trace.TraceInformation($"GuideMe session ending: PID={sessionPid}, exit code={exitCode}.");
             Shutdown(exitCode);
             // This executable hosts one learner session only. After its awaited
             // cleanup completes, do not leave a background process holding DLLs.
