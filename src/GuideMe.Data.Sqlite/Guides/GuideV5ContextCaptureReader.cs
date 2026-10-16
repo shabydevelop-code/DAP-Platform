@@ -1,6 +1,6 @@
 using Microsoft.Data.Sqlite;
 
-namespace DAP.Data.Sqlite.Guides;
+namespace GuideMe.Data.Sqlite.Guides;
 
 /// <summary>Experimental V5 context and capture loader; read-only and independent of legacy schema.</summary>
 public static class GuideV5ContextCaptureReader

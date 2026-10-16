@@ -1,9 +1,9 @@
 using System.Text.Json;
-using DAP.Core.Guides;
-using DAP.Core.Targets;
+using GuideMe.Core.Guides;
+using GuideMe.Core.Targets;
 using Microsoft.Data.Sqlite;
 
-namespace DAP.Data.Sqlite.Guides;
+namespace GuideMe.Data.Sqlite.Guides;
 
 /// <summary>
 /// Experimental compiler from V5 definitions to the existing platform-neutral

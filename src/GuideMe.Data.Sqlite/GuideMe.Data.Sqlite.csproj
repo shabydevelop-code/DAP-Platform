@@ -5,8 +5,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../DAP.Core/DAP.Core.csproj" />
-    <ProjectReference Include="../DAP.Data/DAP.Data.csproj" />
+    <ProjectReference Include="../GuideMe.Core/GuideMe.Core.csproj" />
+    <ProjectReference Include="../GuideMe.Data/GuideMe.Data.csproj" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.11" />
   </ItemGroup>
 </Project>

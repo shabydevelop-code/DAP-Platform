@@ -1,11 +1,11 @@
-namespace DAP.Data.Sqlite;
+namespace GuideMe.Data.Sqlite;
 
 public sealed record SqliteDatabaseOptions(string DatabasePath)
 {
-    public const string DatabasePathEnvironmentVariable = "DAP_DATABASE_PATH";
+    public const string DatabasePathEnvironmentVariable = "GuideMe_DATABASE_PATH";
 
     // Separate default until explicitly approved migration of the active production DB.
-    // DAP_DATABASE_PATH remains supported for controlled deployments.
+    // GuideMe_DATABASE_PATH remains supported for controlled deployments.
     public static SqliteDatabaseOptions CreateV5Default()
     {
         var overridePath = Environment.GetEnvironmentVariable(DatabasePathEnvironmentVariable);

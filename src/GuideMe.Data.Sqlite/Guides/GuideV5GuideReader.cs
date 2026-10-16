@@ -1,6 +1,6 @@
 using Microsoft.Data.Sqlite;
 
-namespace DAP.Data.Sqlite.Guides;
+namespace GuideMe.Data.Sqlite.Guides;
 
 /// <summary>
 /// Read-only, experimental V5 aggregate. Validates references between step

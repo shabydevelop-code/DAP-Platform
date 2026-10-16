@@ -1,6 +1,6 @@
 using Microsoft.Data.Sqlite;
 
-namespace DAP.Data.Sqlite.Guides;
+namespace GuideMe.Data.Sqlite.Guides;
 
 /// <summary>
 /// Loads reusable V5 element definitions and their step usages without falling
