@@ -47,14 +47,14 @@
                VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
                MinHeight="120" Padding="12" Margin="0,10,0,0"
                BorderBrush="#FFCBD5E1" BorderThickness="1" Background="White"/>
-      <TextBlock Text="פרטי הקשר טכניים — לא נדרשת הזנת עורך" Margin="0,18,0,6" FontWeight="SemiBold"/>
-      <Expander Header="פרטים טכניים — אבחון בלבד" Margin="0,8,0,0"><StackPanel><TextBlock Text="ContextId" Margin="0,4,0,4"/>
+      <TextBlock Text="הקשר יישומי (להגדרת העורך)" Margin="0,18,0,6" FontWeight="SemiBold"/>
+      <TextBlock Text="ContextId" Margin="0,4,0,4"/>
       <TextBox x:Name="ContextIdText" Text="" FlowDirection="LeftToRight" Padding="6" IsEnabled="False"/>
       <TextBlock Text="ContextKind" Margin="0,8,0,4"/>
       <TextBox x:Name="ContextKindText" Text="css-exists" FlowDirection="LeftToRight" Padding="6" IsEnabled="False"/>
       <TextBlock Text="ContextValue" Margin="0,8,0,4"/>
       <TextBox x:Name="ContextValueText" Text="" FlowDirection="LeftToRight" Padding="6" IsEnabled="False"/>
-      </StackPanel></Expander><TextBlock Text="טקסט בועית מוצע (לעריכה)" Margin="0,18,0,6" FontWeight="SemiBold"/>
+      <TextBlock Text="טקסט בועית מוצע (לעריכה)" Margin="0,18,0,6" FontWeight="SemiBold"/>
       <TextBox x:Name="BubbleText" Height="80" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" IsEnabled="False"/>
       </StackPanel>
     </ScrollViewer>
