@@ -19,6 +19,32 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
     private static readonly string PipeName = "guideMe-web-runtime-v1-" + System.Diagnostics.Process.GetCurrentProcess().SessionId;
     private static readonly TimeSpan CommandTimeout = TimeSpan.FromSeconds(5);
 
+    private static readonly object PresentationDiagnosticGate = new();
+    private static readonly string PresentationDiagnosticPath = Path.Combine(Path.GetTempPath(), "GuideMe-web-presentation-diagnostic.log");
+    private static readonly Dictionary<string, (string Status, DateTimeOffset LoggedAt)> PresentationDiagnosticStates = new(StringComparer.Ordinal);
+
+    private static void TracePresentation(GuideStep step, string stage, string status, JsonElement? response = null)
+    {
+        var key = step.Id + ":" + stage;
+        var now = DateTimeOffset.UtcNow;
+        lock (PresentationDiagnosticGate)
+        {
+            if (PresentationDiagnosticStates.TryGetValue(key, out var previous) &&
+                previous.Status == status && now - previous.LoggedAt < TimeSpan.FromSeconds(5))
+                return;
+            PresentationDiagnosticStates[key] = (status, now);
+            try
+            {
+                var framePath = JsonSerializer.Serialize(step.Target?.FrameContext?.Path);
+                var detail = response.HasValue ? response.Value.GetRawText() : "-";
+                File.AppendAllText(PresentationDiagnosticPath,
+                    $"{now:O} step={step.Id} stage={stage} status={status} framePath={framePath} response={detail}{Environment.NewLine}");
+            }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+        }
+    }
+
     private readonly ConcurrentDictionary<string, TaskCompletionSource<JsonElement>> _pendingResponses = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, string> _pendingErrors = new(StringComparer.Ordinal);
     private readonly Dictionary<string, Queue<WebValidationCommit>> _commits = new(StringComparer.Ordinal);
@@ -559,7 +585,11 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             quietResult.ValueKind != JsonValueKind.Object ||
             !quietResult.TryGetProperty("stable", out var stableValue) ||
             stableValue.ValueKind != JsonValueKind.True)
+        {
+            TracePresentation(step, "dom-quiet", "waiting", response);
             return false;
+        }
+        TracePresentation(step, "dom-quiet", "stable");
 
         // DOM quiet alone is insufficient: an application may still have a
         // loading/busy layer above an otherwise stable target. Do not expose
@@ -572,9 +602,14 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             !interactableResult.TryGetProperty("interactable", out var interactableValue) ||
             (interactableValue.ValueKind != JsonValueKind.True &&
              interactableValue.ValueKind != JsonValueKind.False))
+        {
+            TracePresentation(step, "target-interactable", "missing-field", interactableResponse);
             return false;
+        }
 
-        return interactableValue.GetBoolean();
+        var interactable = interactableValue.GetBoolean();
+        TracePresentation(step, "target-interactable", interactable ? "ready" : "not-interactable", interactableResponse);
+        return interactable;
     }
     public async Task<bool> IsPrimaryValidationSatisfiedAsync(GuideStep step, CancellationToken cancellationToken = default)
     {
