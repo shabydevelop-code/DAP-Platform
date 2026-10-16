@@ -51,18 +51,22 @@ if (-not $SkipExtensionSync) {
         throw "Chrome extension deployment directory not found: $extensionDestination. Existing extension files were not modified."
     }
 
-    foreach ($name in @('icon16.png', 'icon48.png', 'icon128.png')) {
-        $source = Join-Path $extensionSource $name
-        $target = Join-Path $extensionDestination $name
-        if (-not (Test-Path -LiteralPath $source -PathType Leaf)) {
-            throw "Source icon not found: $source"
-        }
-        Copy-Item -LiteralPath $source -Destination $target -Force
-        if ((Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash -ne
+    # Deploy every extension asset, not just icons. Documentation and Git
+    # placeholder files are not part of the Chrome extension package.
+    $extensionFiles = @(Get-ChildItem -LiteralPath $extensionSource -File -Recurse |
+        Where-Object { $_.Name -notin @('README.md', '.gitkeep') })
+    foreach ($file in $extensionFiles) {
+        $relativePath = $file.FullName.Substring($extensionSource.Length).TrimStart('\')
+        $target = Join-Path $extensionDestination $relativePath
+        $targetDirectory = Split-Path -Parent $target
+        New-Item -ItemType Directory -Path $targetDirectory -Force | Out-Null
+        Copy-Item -LiteralPath $file.FullName -Destination $target -Force
+        if ((Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash -ne
             (Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash) {
-            throw "Icon verification failed: $name"
+            throw "Chrome extension verification failed: $relativePath"
         }
     }
+    Write-Host "PASS: $($extensionFiles.Count) Chrome extension files synchronized and SHA256-verified."
 
 }
 
@@ -72,5 +76,5 @@ if (-not (Test-Path -LiteralPath (Join-Path $Destination 'DAP.exe') -PathType Le
 if ($SkipExtensionSync) {
     Write-Host 'PASS: GuideMe and Native Host published to isolated output.'
 } else {
-    Write-Host 'PASS: GuideMe and Native Host published; Chrome extension icons synchronized.'
+    Write-Host 'PASS: GuideMe and Native Host published; Chrome extension files synchronized.'
 }
