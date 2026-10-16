@@ -61,10 +61,15 @@ public static class DapApplicationHost
 
 
         var databaseOptions = SqliteDatabaseOptions.CreateDefault();
-        var connections = new SqliteConnectionFactory(databaseOptions);
-        await new SqliteDatabaseInitializer(connections).InitializeAsync(cancellationToken);
-        var repository = new SqliteGuideStepRepository(connections);
-        StartupMark(startup, "SQLite initialized");
+        var useV5 = options.V5DatabasePath is not null;
+        SqliteGuideStepRepository? repository = null;
+        if (!useV5)
+        {
+            var connections = new SqliteConnectionFactory(databaseOptions);
+            await new SqliteDatabaseInitializer(connections).InitializeAsync(cancellationToken);
+            repository = new SqliteGuideStepRepository(connections);
+        }
+        StartupMark(startup, useV5 ? "V5 execution selected (legacy database untouched)" : "SQLite initialized");
 
         if (options.Mode == DapLaunchMode.InfrastructureCheck)
         {
@@ -88,8 +93,20 @@ public static class DapApplicationHost
             return 0;
         }
 
-        var steps = await repository.GetStepsAsync(options.GuideId!, cancellationToken);
-        var applicationContexts = await repository.GetApplicationContextsAsync(options.GuideId!, cancellationToken);
+        IReadOnlyList<DAP.Core.Guides.GuideStep> steps;
+        IReadOnlyList<DAP.Core.Guides.GuideApplicationContext> applicationContexts;
+        if (useV5)
+        {
+            var v5 = await GuideV5ExecutionCompiler.CompileAsync(
+                Path.GetFullPath(options.V5DatabasePath!), options.GuideId!, cancellationToken);
+            steps = v5.Steps;
+            applicationContexts = v5.Contexts;
+        }
+        else
+        {
+            steps = await repository!.GetStepsAsync(options.GuideId!, cancellationToken);
+            applicationContexts = await repository.GetApplicationContextsAsync(options.GuideId!, cancellationToken);
+        }
         StartupMark(startup, $"guide loaded ({steps.Count} steps, {applicationContexts.Count} application contexts)");
         if (steps.Count == 0)
         {
