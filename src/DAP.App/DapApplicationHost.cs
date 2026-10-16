@@ -78,8 +78,6 @@ public static class DapApplicationHost
         try
         {
 
-        // A production Hybrid executor must own actions inside the learner runtime.
-        // Never silently run a Hybrid request as Manual or delegate it to TestCRM E2E.
 
 
         var databaseOptions = SqliteDatabaseOptions.CreateDefault();
@@ -210,12 +208,12 @@ public static class DapApplicationHost
         };
 
         var web = new AdapterWebGuideRuntime(
-            new WebGuideStepRuntime(browser, automaticStepLabel: GetAutomaticStepLabel(),
-                hybrid: options.ExecutionMode == DapExecutionMode.Hybrid), browser);
+            new WebGuideStepRuntime(browser, 
+                ), browser);
         var bubbles = new WindowsBubblePresenter(texts);
         var windows = new WindowsGuideRuntime(new WindowsTargetResolver(), bubbles,
-            automaticStepLabel: options.ExecutionMode == DapExecutionMode.Hybrid ? "אוטומט" : null,
-            hybrid: options.ExecutionMode == DapExecutionMode.Hybrid);
+            
+            );
 
         AutomationElement ResolveWindow(DAP.Core.Guides.GuideStep step)
         {
@@ -353,7 +351,7 @@ public static class DapApplicationHost
         using var userStopped = new CancellationTokenSource();
         using var tray = new GuideSessionTray(options.GuideId!, texts, () => userStopped.Cancel());
         using var stopRegistration = userStopped.Token.Register(() => runCancellation.Cancel());
-        var runtime = new WindowsGuideRuntime(resolver, bubbles, automaticStepLabel: options.ExecutionMode == DapExecutionMode.Hybrid ? "אוטומט" : null, hybrid: options.ExecutionMode == DapExecutionMode.Hybrid);
+        var runtime = new WindowsGuideRuntime(resolver, bubbles);
 
         try
         {
@@ -527,7 +525,7 @@ public static class DapApplicationHost
             targetClosed.Cancel();
         };
         browserAdapter.TargetWindowActivationRequested += title => _ = Task.Run(() => ActivateChromeWindowAsync(title, runCancellation.Token));
-        var stepRuntime = new WebGuideStepRuntime(browserAdapter, automaticStepLabel: GetAutomaticStepLabel(), hybrid: options.ExecutionMode == DapExecutionMode.Hybrid);
+        var stepRuntime = new WebGuideStepRuntime(browserAdapter,  );
         var guideRuntime = new AdapterWebGuideRuntime(stepRuntime, browserAdapter);
         StartupMark(startup, "Web extension adapter composition root created");
 
