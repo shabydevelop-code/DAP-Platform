@@ -4,6 +4,7 @@ using System.IO.Pipes;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using DAP.Data.Sqlite;
 using DAP.Data.Sqlite.Guides;
 
 var runtimePipeName = "dap-web-runtime-v1-" + Process.GetCurrentProcess().SessionId;
@@ -11,11 +12,12 @@ var runtimePipeName = "dap-web-runtime-v1-" + Process.GetCurrentProcess().Sessio
 using var nativeLog = new NativeHostLog();
 nativeLog.Write("process-start", $"pid={Environment.ProcessId}; args=[{string.Join(", ", args)}]");
 
-var v5DatabasePath = Environment.GetEnvironmentVariable("DAP_DATABASE_PATH");
-if (string.IsNullOrWhiteSpace(v5DatabasePath))
-    v5DatabasePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
-        "GuideMe", "Data", "GuideMe-V5.db");
-v5DatabasePath = Path.GetFullPath(v5DatabasePath);
+var v5DatabasePath = SqliteDatabaseOptions.CreateV5Default().DatabasePath;
+var legacyDatabasePath = Path.Combine(
+    Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+    "GuideMe", "Data", "GuideMe.db");
+if (string.Equals(v5DatabasePath, legacyDatabasePath, StringComparison.OrdinalIgnoreCase))
+    throw new InvalidOperationException("Native Host cannot open the legacy GuideMe database as V5.");
 var input = Console.OpenStandardInput();
 var output = Console.OpenStandardOutput();
 var json = new JsonSerializerOptions(JsonSerializerDefaults.Web);
