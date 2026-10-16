@@ -105,7 +105,15 @@ internal sealed class BrowserCaptureServer : IDisposable
                 ctx.Response.StatusCode = 400;
                 return;
             }
-            var captured = new BrowserCaptureEvent(DateTimeOffset.UtcNow, kind.GetString() ?? "", url.GetString() ?? "");
+            string ReadOptional(string name)
+            {
+                if (!root.TryGetProperty(name, out var property) || property.ValueKind != JsonValueKind.String)
+                    return "";
+                return (property.GetString() ?? "")[..Math.Min(property.GetString()?.Length ?? 0, 160)];
+            }
+            var captured = new BrowserCaptureEvent(
+                DateTimeOffset.UtcNow, kind.GetString() ?? "", url.GetString() ?? "",
+                ReadOptional("tag"), ReadOptional("label"), ReadOptional("id"));
             bool accepted;
             lock (_sync)
             {
@@ -128,4 +136,4 @@ internal sealed class BrowserCaptureServer : IDisposable
     }
 }
 
-internal sealed record BrowserCaptureEvent(DateTimeOffset Timestamp, string Kind, string Url);
+internal sealed record BrowserCaptureEvent(DateTimeOffset Timestamp, string Kind, string Url, string Tag, string Label, string ElementId);
