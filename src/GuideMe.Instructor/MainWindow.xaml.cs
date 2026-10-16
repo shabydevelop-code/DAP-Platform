@@ -131,7 +131,7 @@ public partial class MainWindow : Window
         StartButton.IsEnabled = false;
         EndButton.IsEnabled = false;
         BubbleText.IsEnabled = true;
-        ContextIdText.IsEnabled = true;
+        ContextIdText.IsEnabled = false;
         ContextKindText.IsEnabled = true;
         ContextValueText.IsEnabled = true;
         ApproveButton.IsEnabled = fieldEvent is not null &&
