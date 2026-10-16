@@ -1,16 +1,24 @@
 (() => {
-  if (globalThis.__guideMeCaptureInstalled) return;
+  // Replace any capture listener from an earlier injection in this document.
+  try { globalThis.__guideMeCaptureCleanup?.(); } catch { /* stale context */ }
   globalThis.__guideMeCaptureInstalled = true;
 
   let active = true;
+  const pendingTimers = new Set();
   const eventTypes = ["click", "change", "blur"];
 
   function stopCapture() {
     if (!active) return;
     active = false;
     for (const type of eventTypes) removeEventListener(type, report, true);
+    for (const timer of pendingTimers) clearTimeout(timer);
+    pendingTimers.clear();
     globalThis.__guideMeCaptureInstalled = false;
+    if (globalThis.__guideMeCaptureCleanup === stopCapture)
+      delete globalThis.__guideMeCaptureCleanup;
   }
+
+  globalThis.__guideMeCaptureCleanup = stopCapture;
 
   function extensionAvailable() {
     if (!active) return false;
@@ -62,39 +70,45 @@
   }
 
   function report(event) {
-    if (!event.isTrusted || !extensionAvailable()) return;
-    const element = event.target instanceof Element ? event.target : null;
-    if (!element) return;
-    const target = element.closest("button,a,input,select,textarea,[role='button']") || element;
-    const before = snapshot();
-    const details = {
-      kind: event.type,
-      url: location.href,
-      tag: target.tagName.toLowerCase(),
-      label: String(target.getAttribute("aria-label") || target.getAttribute("name") || target.textContent || "").trim().slice(0, 120),
-      id: target.id || null,
-      name: target.getAttribute("name") || null,
-      frameSelector: (() => { try { const frame = window.frameElement; return frame?.id ? "#" + CSS.escape(frame.id) : null; } catch { return null; } })(),
-      value: event.type === "change" || event.type === "blur" ? safeFieldValue(target) : null
-    };
-    // Allow SPA handlers to update the DOM before recording the outcome.
-    setTimeout(() => {
-      if (!extensionAvailable()) return;
-      try {
-        const pending = chrome.runtime.sendMessage({
-          type: "guideme-instructor-event",
-          event: { ...details, before, after: snapshot() }
-        });
-        if (pending && typeof pending.catch === "function") {
-          pending.catch(() => {
-            // A reload can invalidate the context after sendMessage was initiated.
-            if (!extensionAvailable()) stopCapture();
+    try {
+      if (!event.isTrusted || !extensionAvailable()) return;
+      const element = event.target instanceof Element ? event.target : null;
+      if (!element) return;
+      const target = element.closest("button,a,input,select,textarea,[role='button']") || element;
+      const before = snapshot();
+      const details = {
+        kind: event.type,
+        url: location.href,
+        tag: target.tagName.toLowerCase(),
+        label: String(target.getAttribute("aria-label") || target.getAttribute("name") || target.textContent || "").trim().slice(0, 120),
+        id: target.id || null,
+        name: target.getAttribute("name") || null,
+        frameSelector: (() => { try { const frame = window.frameElement; return frame?.id ? "#" + CSS.escape(frame.id) : null; } catch { return null; } })(),
+        value: event.type === "change" || event.type === "blur" ? safeFieldValue(target) : null
+      };
+      // Allow SPA handlers to update the DOM before recording the outcome.
+      const timer = setTimeout(() => {
+        pendingTimers.delete(timer);
+        if (!extensionAvailable()) return;
+        try {
+          const pending = chrome.runtime.sendMessage({
+            type: "guideme-instructor-event",
+            event: { ...details, before, after: snapshot() }
           });
+          if (pending && typeof pending.catch === "function") {
+            pending.catch(() => {
+              if (!extensionAvailable()) stopCapture();
+            });
+          }
+        } catch {
+          stopCapture();
         }
-      } catch {
-        stopCapture();
-      }
-    }, 600);
+      }, 600);
+      pendingTimers.add(timer);
+    } catch {
+      // An invalidated extension context must never break the target application.
+      stopCapture();
+    }
   }
 
   for (const type of eventTypes) addEventListener(type, report, true);
