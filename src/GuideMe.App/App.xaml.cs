@@ -3,7 +3,7 @@ using System.IO;
 using System.Text;
 using System.Windows;
 
-namespace DAP.App;
+namespace GuideMe.App;
 
 public partial class App : System.Windows.Application
 {
@@ -15,7 +15,7 @@ public partial class App : System.Windows.Application
         Trace.TraceInformation($"GuideMe session started: PID={sessionPid}.");
         try
         {
-            exitCode = await DapApplicationHost.RunAsync(e.Args);
+            exitCode = await GuideMeApplicationHost.RunAsync(e.Args);
         }
         catch (Exception exception) when (IsClosedWebSession(exception))
         {
@@ -24,7 +24,7 @@ public partial class App : System.Windows.Application
             // Exit non-zero so E2E does not report PASS; its session probe will
             // recognize the closed tab and clean up only runner-owned processes.
             exitCode = 2;
-            Trace.TraceInformation($"DAP Web session ended because its browser tab was closed: {exception.Message}");
+            Trace.TraceInformation($"GuideMe Web session ended because its browser tab was closed: {exception.Message}");
         }
         catch (Exception exception)
         {
@@ -54,7 +54,7 @@ public partial class App : System.Windows.Application
         {
             var directory = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "DAP", "Logs");
+                "GuideMe", "Logs");
             Directory.CreateDirectory(directory);
             var path = Path.Combine(directory, $"session-error-{DateTime.UtcNow:yyyyMMdd-HHmmssfff}-{processId}.log");
             var detail = new StringBuilder()
@@ -71,7 +71,7 @@ public partial class App : System.Windows.Application
         }
         catch (Exception loggingException)
         {
-            Trace.TraceError($"Failed to persist DAP error diagnostic: {loggingException}");
+            Trace.TraceError($"Failed to persist GuideMe error diagnostic: {loggingException}");
             return null;
         }
     }
@@ -88,9 +88,9 @@ public partial class App : System.Windows.Application
     {
         for (Exception? current = exception; current is not null; current = current.InnerException)
         {
-            if (current.Message.Contains("DAP_WEB_TARGET_CLOSED:", StringComparison.Ordinal))
+            if (current.Message.Contains("GuideMe_WEB_TARGET_CLOSED:", StringComparison.Ordinal))
                 return true;
-            if (current.Message.Contains("DAP test driver expected exactly one session tab for", StringComparison.Ordinal)
+            if (current.Message.Contains("GuideMe test driver expected exactly one session tab for", StringComparison.Ordinal)
                 && current.Message.Contains("but found 0", StringComparison.Ordinal))
                 return true;
         }

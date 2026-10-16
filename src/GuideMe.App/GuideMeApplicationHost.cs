@@ -4,22 +4,22 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows;
 using System.Windows.Automation;
-using DAP.Data.Sqlite;
-using DAP.App.Localization;
-using DAP.Core.Localization;
-using DAP.Data.Sqlite.Guides;
-using DAP.Runtime.Web.Browser;
-using DAP.Runtime.Web.Learner;
-using DAP.Runtime.Windows.Bubbles;
-using DAP.Runtime.Windows.Learner;
-using DAP.Runtime.Windows.Targets;
+using GuideMe.Data.Sqlite;
+using GuideMe.App.Localization;
+using GuideMe.Core.Localization;
+using GuideMe.Data.Sqlite.Guides;
+using GuideMe.Runtime.Web.Browser;
+using GuideMe.Runtime.Web.Learner;
+using GuideMe.Runtime.Windows.Bubbles;
+using GuideMe.Runtime.Windows.Learner;
+using GuideMe.Runtime.Windows.Targets;
 
-namespace DAP.App;
+namespace GuideMe.App;
 
-public static class DapApplicationHost
+public static class GuideMeApplicationHost
 {
     private static void StartupMark(Stopwatch timer, string stage)
-        => Console.Error.WriteLine($"[DAP startup] {timer.Elapsed.TotalMilliseconds:F0} ms - {stage}");
+        => Console.Error.WriteLine($"[GuideMe startup] {timer.Elapsed.TotalMilliseconds:F0} ms - {stage}");
 
     public static async Task<int> RunAsync(string[] args, CancellationToken cancellationToken = default)
     {
@@ -29,12 +29,12 @@ public static class DapApplicationHost
         IUiTextProvider texts = JsonUiTextProvider.LoadFromApplicationDirectory();
         StartupMark(startup, $"localization loaded ({texts.Language})");
 
-        var options = DapLaunchOptions.Parse(args, texts);
+        var options = GuideMeLaunchOptions.Parse(args, texts);
         if (options is null)
             return 2;
         StartupMark(startup, "launch options parsed");
 
-        if (options.Mode == DapLaunchMode.ValidateV5)
+        if (options.Mode == GuideMeLaunchMode.ValidateV5)
         {
             try
             {
@@ -60,9 +60,9 @@ public static class DapApplicationHost
         // A named semaphore is used because an async run can resume on another thread.
         Semaphore? guideGate = null;
         var guideGateAcquired = false;
-        if (options.Mode != DapLaunchMode.InfrastructureCheck)
+        if (options.Mode != GuideMeLaunchMode.InfrastructureCheck)
         {
-            guideGate = new Semaphore(1, 1, @"Local\DAP.ActiveGuide");
+            guideGate = new Semaphore(1, 1, @"Local\GuideMe.ActiveGuide");
             guideGateAcquired = guideGate.WaitOne(0);
             if (!guideGateAcquired)
             {
@@ -87,30 +87,30 @@ public static class DapApplicationHost
             ? databaseOptions.DatabasePath
             : Path.GetFullPath(options.V5DatabasePath);
         // A V5 launch must never open the old production schema, including when
-        // DAP_DATABASE_PATH or --v5-db points to the legacy default file.
+        // GuideMe_DATABASE_PATH or --v5-db points to the legacy default file.
         var legacyDatabasePath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
             "GuideMe", "Data", "GuideMe.db");
         if (string.Equals(activeDatabasePath, legacyDatabasePath, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException(
                 "Refusing to load the legacy GuideMe database as V5. Use a separately validated V5 database.");
-        if (options.Mode != DapLaunchMode.InfrastructureCheck && !File.Exists(activeDatabasePath))
+        if (options.Mode != GuideMeLaunchMode.InfrastructureCheck && !File.Exists(activeDatabasePath))
             throw new FileNotFoundException(
                 "GuideMe V5 database not found. Provision a validated V5 database before launching a guide.",
                 activeDatabasePath);
         StartupMark(startup, $"V5 database selected ({activeDatabasePath})");
 
-        if (options.Mode == DapLaunchMode.InfrastructureCheck)
+        if (options.Mode == GuideMeLaunchMode.InfrastructureCheck)
         {
             var diagnosticsPath = Path.Combine(
                 Path.GetTempPath(),
-                "DAP",
-                "dap-check.txt");
+                "GuideMe",
+                "guideMe-check.txt");
 
             Directory.CreateDirectory(Path.GetDirectoryName(diagnosticsPath)!);
             await File.WriteAllTextAsync(
                 diagnosticsPath,
-                $"DAP.exe ready.{Environment.NewLine}Database: {activeDatabasePath}{Environment.NewLine}UTC: {DateTimeOffset.UtcNow:O}{Environment.NewLine}",
+                $"GuideMe.exe ready.{Environment.NewLine}Database: {activeDatabasePath}{Environment.NewLine}UTC: {DateTimeOffset.UtcNow:O}{Environment.NewLine}",
                 cancellationToken);
 
             System.Windows.MessageBox.Show(
@@ -124,8 +124,8 @@ public static class DapApplicationHost
 
         var v5 = await GuideV5ExecutionCompiler.CompileAsync(
             activeDatabasePath, options.GuideId!, cancellationToken);
-        IReadOnlyList<DAP.Core.Guides.GuideStep> steps = v5.Steps;
-        IReadOnlyList<DAP.Core.Guides.GuideApplicationContext> applicationContexts = v5.Contexts;
+        IReadOnlyList<GuideMe.Core.Guides.GuideStep> steps = v5.Steps;
+        IReadOnlyList<GuideMe.Core.Guides.GuideApplicationContext> applicationContexts = v5.Contexts;
         StartupMark(startup, $"guide loaded ({steps.Count} steps, {applicationContexts.Count} application contexts)");
         if (steps.Count == 0)
         {
@@ -144,8 +144,8 @@ public static class DapApplicationHost
             .ToArray();
 
         if (enabledTargetRuntimes.Length == 2 &&
-            enabledTargetRuntimes.Contains(DAP.Core.Targets.TargetRuntime.Web) &&
-            enabledTargetRuntimes.Contains(DAP.Core.Targets.TargetRuntime.Windows))
+            enabledTargetRuntimes.Contains(GuideMe.Core.Targets.TargetRuntime.Web) &&
+            enabledTargetRuntimes.Contains(GuideMe.Core.Targets.TargetRuntime.Windows))
             return await RunMixedAsync(options, steps, applicationContexts, texts, startup, cancellationToken);
 
         if (enabledTargetRuntimes.Length != 1)
@@ -154,9 +154,9 @@ public static class DapApplicationHost
 
         return enabledTargetRuntimes[0] switch
         {
-            DAP.Core.Targets.TargetRuntime.Windows => await RunWindowsAsync(
+            GuideMe.Core.Targets.TargetRuntime.Windows => await RunWindowsAsync(
                 options, steps, applicationContexts, texts, startup, cancellationToken),
-            DAP.Core.Targets.TargetRuntime.Web => await RunWebAsync(
+            GuideMe.Core.Targets.TargetRuntime.Web => await RunWebAsync(
                 options, steps, applicationContexts, texts, startup, cancellationToken),
             _ => throw new NotSupportedException(
                 $"Guide '{options.GuideId}' uses unsupported Runtime '{enabledTargetRuntimes[0]}'.")
@@ -172,15 +172,15 @@ public static class DapApplicationHost
     }
 
     private static async Task<int> RunMixedAsync(
-        DapLaunchOptions options,
-        IReadOnlyList<DAP.Core.Guides.GuideStep> steps,
-        IReadOnlyList<DAP.Core.Guides.GuideApplicationContext> applicationContexts,
+        GuideMeLaunchOptions options,
+        IReadOnlyList<GuideMe.Core.Guides.GuideStep> steps,
+        IReadOnlyList<GuideMe.Core.Guides.GuideApplicationContext> applicationContexts,
         IUiTextProvider texts,
         Stopwatch startup,
         CancellationToken cancellationToken)
     {
         var windowsContexts = applicationContexts
-            .Where(context => context.Runtime == DAP.Core.Targets.TargetRuntime.Windows)
+            .Where(context => context.Runtime == GuideMe.Core.Targets.TargetRuntime.Windows)
             .ToDictionary(context => context.Key, StringComparer.Ordinal);
         if (windowsContexts.Count == 0)
             throw new InvalidOperationException("Mixed Guide requires persisted Windows application contexts.");
@@ -211,7 +211,7 @@ public static class DapApplicationHost
         var bubbles = new WindowsBubblePresenter(texts);
         var windows = new WindowsGuideRuntime(new WindowsTargetResolver(), bubbles);
 
-        AutomationElement ResolveWindow(DAP.Core.Guides.GuideStep step)
+        AutomationElement ResolveWindow(GuideMe.Core.Guides.GuideStep step)
         {
             if (string.IsNullOrWhiteSpace(step.ApplicationContextKey) ||
                 !windowsContexts.TryGetValue(step.ApplicationContextKey, out var context))
@@ -220,8 +220,8 @@ public static class DapApplicationHost
             return new WindowsApplicationContextResolver().Resolve(context);
         }
 
-        var windowsAdapter = new DAP.Core.Guides.DelegateGuideStepAdapter(
-            DAP.Core.Targets.TargetRuntime.Windows, "Windows",
+        var windowsAdapter = new GuideMe.Core.Guides.DelegateGuideStepAdapter(
+            GuideMe.Core.Targets.TargetRuntime.Windows, "Windows",
             async (step, index, total, plan, token) =>
             {
                 var root = ResolveWindow(step);
@@ -238,12 +238,12 @@ public static class DapApplicationHost
         try
         {
             StartupMark(startup, "Mixed Web/Windows guide runtime starting");
-            await new DAP.Core.Guides.GuideExecutionEngine().RunAsync(
-                steps, new DAP.Core.Guides.IGuideStepAdapter[] { web.CreateStepAdapter(), windowsAdapter },
-                DAP.Core.Targets.TargetRuntime.Web, linked.Token, applicationContexts,
+            await new GuideMe.Core.Guides.GuideExecutionEngine().RunAsync(
+                steps, new GuideMe.Core.Guides.IGuideStepAdapter[] { web.CreateStepAdapter(), windowsAdapter },
+                GuideMe.Core.Targets.TargetRuntime.Web, linked.Token, applicationContexts,
                 async (step, runtime, token) =>
                 {
-                    if (runtime == DAP.Core.Targets.TargetRuntime.Windows)
+                    if (runtime == GuideMe.Core.Targets.TargetRuntime.Windows)
                     {
                         var targetWindow = ResolveWindow(step);
                         // UIA focus is the effective fallback for a Windows transition.
@@ -287,7 +287,7 @@ public static class DapApplicationHost
         }
         catch (OperationCanceledException) when (stopped.IsCancellationRequested)
         {
-            Console.Error.WriteLine("[DAP diagnostic] Mixed guide stopped.");
+            Console.Error.WriteLine("[GuideMe diagnostic] Mixed guide stopped.");
         }
         finally
         {
@@ -299,14 +299,14 @@ public static class DapApplicationHost
     }
 
     private static async Task<int> RunWindowsAsync(
-        DapLaunchOptions options,
-        IReadOnlyList<DAP.Core.Guides.GuideStep> steps,
-        IReadOnlyList<DAP.Core.Guides.GuideApplicationContext> applicationContexts,
+        GuideMeLaunchOptions options,
+        IReadOnlyList<GuideMe.Core.Guides.GuideStep> steps,
+        IReadOnlyList<GuideMe.Core.Guides.GuideApplicationContext> applicationContexts,
         IUiTextProvider texts,
         Stopwatch startup,
         CancellationToken cancellationToken)
     {
-        var windowsContexts = applicationContexts.Where(context => context.Runtime == DAP.Core.Targets.TargetRuntime.Windows).ToArray();
+        var windowsContexts = applicationContexts.Where(context => context.Runtime == GuideMe.Core.Targets.TargetRuntime.Windows).ToArray();
         AutomationElement window;
         if (windowsContexts.Length == 1)
         {
@@ -316,7 +316,7 @@ public static class DapApplicationHost
             }
             catch (WindowsApplicationContextMatchException ex)
             {
-                Console.Error.WriteLine($"[DAP diagnostic] Windows application context resolution failed: {ex}");
+                Console.Error.WriteLine($"[GuideMe diagnostic] Windows application context resolution failed: {ex}");
                 System.Windows.MessageBox.Show(
                     texts.Get("App.TargetWindowNotFoundMessage"),
                     texts.Get("App.TargetWindowNotFoundTitle"),
@@ -356,16 +356,16 @@ public static class DapApplicationHost
         }
         catch (OperationCanceledException) when (userStopped.IsCancellationRequested)
         {
-            Console.Error.WriteLine("[DAP diagnostic] Windows assistance stopped by user.");
+            Console.Error.WriteLine("[GuideMe diagnostic] Windows assistance stopped by user.");
         }
         catch (OperationCanceledException) when (targetClosed.IsCancellationRequested)
         {
-            Console.Error.WriteLine("[DAP diagnostic] Windows target closed; guide stopped normally.");
+            Console.Error.WriteLine("[GuideMe diagnostic] Windows target closed; guide stopped normally.");
         }
         catch (Exception ex) when (!IsWindow(targetHandle))
         {
             // A UIA provider may fail before the monitor's next poll.
-            Console.Error.WriteLine($"[DAP diagnostic] Windows target closed during UI automation: {ex}");
+            Console.Error.WriteLine($"[GuideMe diagnostic] Windows target closed during UI automation: {ex}");
         }
         finally
         {
@@ -384,7 +384,7 @@ public static class DapApplicationHost
         {
             if (!IsWindow(handle))
             {
-                Console.Error.WriteLine("[DAP diagnostic] Windows target window handle is no longer valid.");
+                Console.Error.WriteLine("[GuideMe diagnostic] Windows target window handle is no longer valid.");
                 targetClosed.Cancel();
                 return;
             }
@@ -490,19 +490,19 @@ public static class DapApplicationHost
 
             if (matches.Length > 1)
                 throw new InvalidOperationException(
-                    $"DAP.exe found {matches.Length} Windows target windows with AutomationId '{automationId}'; exactly one is required.");
+                    $"GuideMe.exe found {matches.Length} Windows target windows with AutomationId '{automationId}'; exactly one is required.");
 
             await Task.Delay(100, cancellationToken);
         }
 
         throw new TimeoutException(
-            $"DAP.exe did not find a Windows target window with AutomationId '{automationId}' within 30 seconds.");
+            $"GuideMe.exe did not find a Windows target window with AutomationId '{automationId}' within 30 seconds.");
     }
 
     private static async Task<int> RunWebAsync(
-        DapLaunchOptions options,
-        IReadOnlyList<DAP.Core.Guides.GuideStep> steps,
-        IReadOnlyList<DAP.Core.Guides.GuideApplicationContext> applicationContexts,
+        GuideMeLaunchOptions options,
+        IReadOnlyList<GuideMe.Core.Guides.GuideStep> steps,
+        IReadOnlyList<GuideMe.Core.Guides.GuideApplicationContext> applicationContexts,
         IUiTextProvider texts,
         Stopwatch startup,
         CancellationToken cancellationToken)
@@ -517,7 +517,7 @@ public static class DapApplicationHost
         browserAdapter.StopRequested += () => { webUserStopped.Cancel(); runCancellation.Cancel(); };
         browserAdapter.TargetTabClosed += () =>
         {
-            Console.Error.WriteLine("[DAP diagnostic] TargetTabClosed received; cancelling Web guide.");
+            Console.Error.WriteLine("[GuideMe diagnostic] TargetTabClosed received; cancelling Web guide.");
             targetClosed.Cancel();
         };
         browserAdapter.TargetWindowActivationRequested += title => _ = Task.Run(() => ActivateChromeWindowAsync(title, runCancellation.Token));
@@ -529,25 +529,25 @@ public static class DapApplicationHost
         {
             StartupMark(startup, "Web adapter guide runtime starting");
             await guideRuntime.RunAsync(steps, runCancellation.Token);
-            Console.Error.WriteLine("[DAP diagnostic] Web guide runtime completed normally.");
+            Console.Error.WriteLine("[GuideMe diagnostic] Web guide runtime completed normally.");
         }
         catch (OperationCanceledException) when (webUserStopped.IsCancellationRequested)
         {
-            Console.Error.WriteLine("[DAP diagnostic] Web assistance stopped by user.");
+            Console.Error.WriteLine("[GuideMe diagnostic] Web assistance stopped by user.");
         }
         catch (OperationCanceledException) when (targetClosed.IsCancellationRequested)
         {
-            Console.Error.WriteLine("[DAP diagnostic] Web guide cancelled by target-tab-closed event; exit code 2.");
+            Console.Error.WriteLine("[GuideMe diagnostic] Web guide cancelled by target-tab-closed event; exit code 2.");
             return 2;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            Console.Error.WriteLine("[DAP diagnostic] Web guide cancelled externally.");
+            Console.Error.WriteLine("[GuideMe diagnostic] Web guide cancelled externally.");
             throw;
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"[DAP diagnostic] Web guide failed: {ex}");
+            Console.Error.WriteLine($"[GuideMe diagnostic] Web guide failed: {ex}");
             throw;
         }
         finally

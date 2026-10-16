@@ -1,29 +1,29 @@
 using System.Windows;
-using DAP.Core.Localization;
+using GuideMe.Core.Localization;
 
-namespace DAP.App;
+namespace GuideMe.App;
 
-public enum DapLaunchMode
+public enum GuideMeLaunchMode
 {
     InfrastructureCheck,
     ValidateV5,
     Learner
 }
 
-public sealed record DapLaunchOptions(
-    DapLaunchMode Mode,
+public sealed record GuideMeLaunchOptions(
+    GuideMeLaunchMode Mode,
     string? GuideId,
     string? WindowAutomationId,
     string? V5DatabasePath = null)
 {
-    public static DapLaunchOptions? Parse(string[] args, IUiTextProvider texts)
+    public static GuideMeLaunchOptions? Parse(string[] args, IUiTextProvider texts)
     {
         if (args.Length == 4 && args[0] == "--validate-v5" && !string.IsNullOrWhiteSpace(args[1])
             && args[2] == "--guide" && !string.IsNullOrWhiteSpace(args[3]))
-            return new(DapLaunchMode.ValidateV5, args[3], null, V5DatabasePath: args[1]);
+            return new(GuideMeLaunchMode.ValidateV5, args[3], null, V5DatabasePath: args[1]);
 
         if (args.Length == 1 && args[0] == "--check")
-            return new(DapLaunchMode.InfrastructureCheck, null, null);
+            return new(GuideMeLaunchMode.InfrastructureCheck, null, null);
 
         if (args.Length >= 2
             && args[0] == "--guide"
@@ -45,7 +45,7 @@ public sealed record DapLaunchOptions(
             }
 
             return new(
-                DapLaunchMode.Learner,
+                GuideMeLaunchMode.Learner,
                 args[1],
                 windowAutomationId,
                 v5DatabasePath);
@@ -54,7 +54,7 @@ public sealed record DapLaunchOptions(
         return Usage(texts);
     }
 
-    private static DapLaunchOptions? Usage(IUiTextProvider texts)
+    private static GuideMeLaunchOptions? Usage(IUiTextProvider texts)
     {
         System.Windows.MessageBox.Show(
             texts.Get("App.Usage"),

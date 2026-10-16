@@ -1,9 +1,9 @@
 using System.Globalization;
 using System.IO;
 using System.Text.Json;
-using DAP.Core.Localization;
+using GuideMe.Core.Localization;
 
-namespace DAP.App.Localization;
+namespace GuideMe.App.Localization;
 
 public sealed class JsonUiTextProvider : IUiTextProvider
 {

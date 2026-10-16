@@ -3,10 +3,10 @@ using System.Drawing;
 using System.IO;
 using System.Windows;
 using Microsoft.Win32;
-using DAP.Core.Localization;
+using GuideMe.Core.Localization;
 using Forms = System.Windows.Forms;
 
-namespace DAP.App;
+namespace GuideMe.App;
 
 /// <summary>
 /// Session-scoped notification-area control. All WinForms objects are created
