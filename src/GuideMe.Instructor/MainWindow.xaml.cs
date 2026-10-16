@@ -107,6 +107,10 @@ public partial class MainWindow : Window
             (e.Tag == "input" || e.Tag == "textarea" || e.Tag == "select") &&
             !string.IsNullOrEmpty(e.Value));
         _proposedField = fieldEvent;
+        var candidate = fieldEvent?.ContextCandidate;
+        var matchingObservations = string.IsNullOrWhiteSpace(candidate) ? 0 :
+            events.Count(e => e.ContextCandidate == candidate && e.Url == fieldEvent!.Url && e.FrameSelector == fieldEvent.FrameSelector);
+        var contextObservedRepeatedly = matchingObservations >= 2;
         reviewLines.Add("הגדרות מוצעות מתוך ההקלטה:");
         if (fieldEvent is not null)
         {
@@ -124,7 +128,10 @@ public partial class MainWindow : Window
         }
         else
             reviewLines.Add("לא זוהה ערך שדה מתאים להפקת value-equals.");
-        reviewLines.Add("הקשר יישומי טרם אומת; טיוטה זו אינה מוכנה לפרסום. טקסט הבועית ניתן לעריכה.");
+        reviewLines.Add(contextObservedRepeatedly
+            ? $"מועמד לזיהוי מסך: {candidate} (נצפה {matchingObservations} פעמים באותו מסמך; טרם נבדק מול מסכים אחרים)."
+            : "לא זוהה סימן מסך חוזר מספיק. נדרש אימות נוסף לפני פרסום.");
+        reviewLines.Add("טקסט הבועית ניתן לעריכה; הטיוטה אינה מוכנה לפרסום.");
 
         ReviewText.Text = string.Join(Environment.NewLine, reviewLines);
         CopyReviewButton.IsEnabled = true;
@@ -132,8 +139,8 @@ public partial class MainWindow : Window
         EndButton.IsEnabled = false;
         BubbleText.IsEnabled = true;
         ContextIdText.Text = "unresolved";
-        ContextKindText.Text = "unverified";
-        ContextValueText.Text = fieldEvent?.Url ?? "";
+        ContextKindText.Text = contextObservedRepeatedly ? "css-exists (candidate)" : "unverified";
+        ContextValueText.Text = contextObservedRepeatedly ? candidate ?? "" : fieldEvent?.Url ?? "";
         ContextIdText.IsEnabled = false;
         ContextKindText.IsEnabled = false;
         ContextValueText.IsEnabled = false;
