@@ -20,11 +20,11 @@ public partial class MainWindow : Window
             _capture.Start();
             _captureAvailable = true;
             StatusDetail.Text = "ערוץ הקלטה מקומי מוכן. חיבור תוסף Chrome עדיין לא הותקן.";
-            _capture.EventCaptured += _ => Dispatcher.BeginInvoke(() =>
+            _capture.EventCaptured += _ => Dispatcher.BeginInvoke(new Action(() =>
             {
                 if (_state == RecordingState.Recording)
                     StatusDetail.Text = "התקבל אירוע מהדפדפן בערוץ ההקלטה.";
-            });
+            }));
         }
         catch (Exception ex)
         {
