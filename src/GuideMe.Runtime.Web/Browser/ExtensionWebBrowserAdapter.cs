@@ -564,7 +564,14 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
         var interactableResponse = await SendCommandAsync(
             ContextualCommand(step, new { type = "isTargetInteractable", target = step.Target, framePath = step.Target.FrameContext?.Path }),
             cancellationToken);
-        return interactableResponse.GetProperty("result").GetProperty("interactable").GetBoolean();
+        if (!interactableResponse.TryGetProperty("result", out var interactableResult) ||
+            interactableResult.ValueKind != JsonValueKind.Object ||
+            !interactableResult.TryGetProperty("interactable", out var interactableValue) ||
+            (interactableValue.ValueKind != JsonValueKind.True &&
+             interactableValue.ValueKind != JsonValueKind.False))
+            return false;
+
+        return interactableValue.GetBoolean();
     }
     public async Task<bool> IsPrimaryValidationSatisfiedAsync(GuideStep step, CancellationToken cancellationToken = default)
     {
