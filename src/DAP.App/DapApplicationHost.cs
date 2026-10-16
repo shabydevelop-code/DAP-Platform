@@ -208,12 +208,9 @@ public static class DapApplicationHost
         };
 
         var web = new AdapterWebGuideRuntime(
-            new WebGuideStepRuntime(browser, 
-                ), browser);
+            new WebGuideStepRuntime(browser), browser);
         var bubbles = new WindowsBubblePresenter(texts);
-        var windows = new WindowsGuideRuntime(new WindowsTargetResolver(), bubbles,
-            
-            );
+        var windows = new WindowsGuideRuntime(new WindowsTargetResolver(), bubbles);
 
         AutomationElement ResolveWindow(DAP.Core.Guides.GuideStep step)
         {
@@ -525,7 +522,7 @@ public static class DapApplicationHost
             targetClosed.Cancel();
         };
         browserAdapter.TargetWindowActivationRequested += title => _ = Task.Run(() => ActivateChromeWindowAsync(title, runCancellation.Token));
-        var stepRuntime = new WebGuideStepRuntime(browserAdapter,  );
+        var stepRuntime = new WebGuideStepRuntime(browserAdapter);
         var guideRuntime = new AdapterWebGuideRuntime(stepRuntime, browserAdapter);
         StartupMark(startup, "Web extension adapter composition root created");
 
