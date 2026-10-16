@@ -1,4 +1,4 @@
--- GuideMe V5 experimental schema. Never run against an active GuideMe.db.
+-- GuideMe V5 schema definition. Use for provisioning a new empty V5 database only; never run against an existing production database.
 PRAGMA foreign_keys=ON;
 CREATE TABLE Guides(GuideId INTEGER PRIMARY KEY,GuideKey TEXT NOT NULL UNIQUE,GuideName TEXT NOT NULL);
 CREATE TABLE GuideApplicationContexts(GuideId INTEGER NOT NULL,ContextId TEXT NOT NULL,Runtime TEXT NOT NULL,PRIMARY KEY(GuideId,ContextId),FOREIGN KEY(GuideId) REFERENCES Guides(GuideId));
