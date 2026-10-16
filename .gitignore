@@ -2,7 +2,7 @@
 **/bin/
 **/obj/
 
-# Local TestCRM demo data
+# Local SampleApp demo data
 demos/Shared/data/*.db
 demos/Shared/data/*.db-shm
 demos/Shared/data/*.db-wal
