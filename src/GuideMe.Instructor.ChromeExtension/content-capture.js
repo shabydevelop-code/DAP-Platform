@@ -106,7 +106,7 @@
         try {
           const pending = chrome.runtime.sendMessage({
             type: "guideme-instructor-event",
-            event: { ...details, before, after: snapshot() }
+            event: { ...details, contextCandidate: details.contextCandidate && document.querySelectorAll(details.contextCandidate).length === 1 ? details.contextCandidate : null, before, after: snapshot() }
           });
           if (pending && typeof pending.catch === "function") {
             pending.catch(() => {
