@@ -11,6 +11,8 @@ public partial class MainWindow : Window
     private DateTimeOffset? _startedAt;
     private readonly BrowserCaptureServer _capture = new();
     private bool _captureAvailable;
+    private BrowserCaptureEvent? _proposedField;
+    private readonly System.Collections.Generic.List<string> _approvedDrafts = new();
 
     public MainWindow()
     {
@@ -104,6 +106,7 @@ public partial class MainWindow : Window
             (e.Kind == "blur" || e.Kind == "change") &&
             (e.Tag == "input" || e.Tag == "textarea" || e.Tag == "select") &&
             !string.IsNullOrEmpty(e.Value));
+        _proposedField = fieldEvent;
         reviewLines.Add("הגדרות מוצעות מתוך ההקלטה:");
         if (fieldEvent is not null)
         {
@@ -128,7 +131,11 @@ public partial class MainWindow : Window
         StartButton.IsEnabled = false;
         EndButton.IsEnabled = false;
         BubbleText.IsEnabled = true;
-        ApproveButton.IsEnabled = false; // Never pretend a step can be persisted without a validated browser capture.
+        ContextIdText.IsEnabled = true;
+        ContextKindText.IsEnabled = true;
+        ContextValueText.IsEnabled = true;
+        ApproveButton.IsEnabled = fieldEvent is not null &&
+            (!string.IsNullOrWhiteSpace(fieldEvent.ElementId) || !string.IsNullOrWhiteSpace(fieldEvent.Name));
     }
 
     private void CopyReview_Click(object sender, RoutedEventArgs e)
@@ -145,7 +152,47 @@ public partial class MainWindow : Window
 
     private void Approve_Click(object sender, RoutedEventArgs e)
     {
-        // Reserved for the future validated V5 authoring transaction.
-        MessageBox.Show("שמירה ל־V5 טרם מומשה.", "GuideMe Instructor");
+        if (_state != RecordingState.Review || _proposedField is null)
+            return;
+        if (string.IsNullOrWhiteSpace(ContextIdText.Text) ||
+            string.IsNullOrWhiteSpace(ContextKindText.Text) ||
+            string.IsNullOrWhiteSpace(ContextValueText.Text) ||
+            string.IsNullOrWhiteSpace(BubbleText.Text))
+        {
+            MessageBox.Show("יש להשלים הקשר יישומי וטקסט בועית לפני אישור הטיוטה.", "GuideMe Instructor");
+            return;
+        }
+        // Explicitly approve a session-only draft. No database mutation or claim of persistence.
+        var field = _proposedField;
+        var locator = !string.IsNullOrWhiteSpace(field.ElementId)
+            ? "[id='" + field.ElementId + "']"
+            : "[name='" + field.Name + "']";
+        _approvedDrafts.Add(string.Join(Environment.NewLine,
+            $"GuideKey: {GuideKey.Text}",
+            $"StepOrder: {_stepNumber}",
+            $"ContextId: {ContextIdText.Text}",
+            $"ContextKind: {ContextKindText.Text}",
+            $"ContextValue: {ContextValueText.Text}",
+            $"Locator: {locator}",
+            $"FrameContext: {field.FrameSelector}",
+            "SignalKind: value-equals",
+            $"ExpectedValue: {field.Value}",
+            "PolicyKind: AutomaticOnValidation (author-approved proposal)",
+            $"Bubble: {BubbleText.Text}"));
+        _stepNumber++;
+        _proposedField = null;
+        _state = RecordingState.Ready;
+        StateLabel.Text = $"מוכן לתחילת שלב {_stepNumber}";
+        StatusDetail.Text = "הטיוטה אושרה בזיכרון בלבד. לא נשמר דבר במסד הנתונים.";
+        ReviewText.Text = string.Join(Environment.NewLine + Environment.NewLine, _approvedDrafts);
+        CopyReviewButton.IsEnabled = true;
+        StartButton.IsEnabled = true;
+        EndButton.IsEnabled = false;
+        ApproveButton.IsEnabled = false;
+        BubbleText.IsEnabled = false;
+        ContextIdText.IsEnabled = false;
+        ContextKindText.IsEnabled = false;
+        ContextValueText.IsEnabled = false;
+        BubbleText.Clear();
     }
 }
