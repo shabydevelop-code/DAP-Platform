@@ -99,7 +99,30 @@ public partial class MainWindow : Window
         }
         if (events.Count > 10)
             reviewLines.Add($"מוצגות 10 פעולות מתוך {events.Count}.");
-        reviewLines.Add("תנאי השלמה: טרם נותח");
+        // Propose a field validation from captured behavior only, never from a reference guide.
+        var fieldEvent = events.LastOrDefault(e =>
+            (e.Kind == "blur" || e.Kind == "change") &&
+            (e.Tag == "input" || e.Tag == "textarea" || e.Tag == "select") &&
+            !string.IsNullOrEmpty(e.Value));
+        reviewLines.Add("הגדרות מוצעות מתוך ההקלטה:");
+        if (fieldEvent is not null)
+        {
+            string? locator = null;
+            if (!string.IsNullOrWhiteSpace(fieldEvent.ElementId))
+                locator = "[id='" + fieldEvent.ElementId.Replace("\\", "\\\\").Replace("'", "\\'") + "']";
+            else if (!string.IsNullOrWhiteSpace(fieldEvent.Name))
+                locator = "[name='" + fieldEvent.Name.Replace("\\", "\\\\").Replace("'", "\\'") + "']";
+            reviewLines.Add($"Locator: {locator ?? "לא זוהה — נדרש בחירת רכיב"}");
+            reviewLines.Add($"FrameContext: {(!string.IsNullOrWhiteSpace(fieldEvent.FrameSelector) ? fieldEvent.FrameSelector : "לא זוהה / מסמך ראשי")}");
+            reviewLines.Add("SignalKind: value-equals (הצעה)");
+            reviewLines.Add($"ExpectedValue: {fieldEvent.Value}");
+            reviewLines.Add("PolicyKind: AutomaticOnValidation (הצעה, לא נלמד מהאירוע)");
+            reviewLines.Add("הערה: ייחודיות ה-Locator ותנאי ההשלמה טרם אומתו.");
+        }
+        else
+            reviewLines.Add("לא זוהה ערך שדה מתאים להפקת value-equals.");
+        reviewLines.Add("יתר ההגדרות (הקשר יישומי, בועית, מזהי שלב): דורשות הגדרת עורך.");
+
         ReviewText.Text = string.Join(Environment.NewLine, reviewLines);
         CopyReviewButton.IsEnabled = true;
         StartButton.IsEnabled = false;
