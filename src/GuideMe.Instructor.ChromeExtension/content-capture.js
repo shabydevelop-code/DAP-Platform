@@ -4,12 +4,18 @@
   globalThis.__guideMeCaptureInstalled = true;
 
   let active = true;
+  const heartbeatTimer = setInterval(() => {
+    if (!extensionAvailable()) return;
+    try { chrome.runtime.sendMessage({ type: "guideme-instructor-heartbeat" }).catch(() => stopCapture()); }
+    catch { stopCapture(); }
+  }, 2000);
   const pendingTimers = new Set();
   const eventTypes = ["click", "change", "blur"];
 
   function stopCapture() {
     if (!active) return;
     active = false;
+    clearInterval(heartbeatTimer);
     for (const type of eventTypes) removeEventListener(type, report, true);
     for (const timer of pendingTimers) clearTimeout(timer);
     pendingTimers.clear();
