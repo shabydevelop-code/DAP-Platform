@@ -10,17 +10,10 @@ public enum DapLaunchMode
     Learner
 }
 
-public enum DapExecutionMode
-{
-    Manual,
-    Hybrid
-}
-
 public sealed record DapLaunchOptions(
     DapLaunchMode Mode,
     string? GuideId,
     string? WindowAutomationId,
-    DapExecutionMode ExecutionMode = DapExecutionMode.Manual,
     string? V5DatabasePath = null)
 {
     public static DapLaunchOptions? Parse(string[] args, IUiTextProvider texts)
@@ -37,24 +30,11 @@ public sealed record DapLaunchOptions(
             && !string.IsNullOrWhiteSpace(args[1]))
         {
             string? windowAutomationId = null;
-            var executionMode = DapExecutionMode.Manual;
-            var modeSpecified = false;
             string? v5DatabasePath = null;
 
             for (var i = 2; i < args.Length; i++)
             {
-                if (args[i] == "--mode" && i + 1 < args.Length && !modeSpecified)
-                {
-                    modeSpecified = true;
-                    executionMode = args[++i] switch
-                    {
-                        "manual" => DapExecutionMode.Manual,
-                        "hybrid" => DapExecutionMode.Hybrid,
-                        _ => (DapExecutionMode)(-1)
-                    };
-                    if (!Enum.IsDefined(executionMode)) return Usage(texts);
-                }
-                else if (args[i] == "--v5-db" && i + 1 < args.Length
+                if (args[i] == "--v5-db" && i + 1 < args.Length
                     && v5DatabasePath is null && !string.IsNullOrWhiteSpace(args[i + 1]))
                     v5DatabasePath = args[++i];
                 else if (args[i] == "--window-automation-id" && i + 1 < args.Length
@@ -68,7 +48,6 @@ public sealed record DapLaunchOptions(
                 DapLaunchMode.Learner,
                 args[1],
                 windowAutomationId,
-                executionMode,
                 v5DatabasePath);
         }
 
