@@ -1,4 +1,4 @@
-namespace DAP.Core.Targets;
+namespace GuideMe.Core.Targets;
 
 public enum TargetResolutionStatus
 {

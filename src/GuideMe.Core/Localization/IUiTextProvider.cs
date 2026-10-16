@@ -1,4 +1,4 @@
-namespace DAP.Core.Localization;
+namespace GuideMe.Core.Localization;
 
 public interface IUiTextProvider
 {

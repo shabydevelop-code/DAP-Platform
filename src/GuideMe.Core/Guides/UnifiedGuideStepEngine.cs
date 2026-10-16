@@ -1,4 +1,4 @@
-namespace DAP.Core.Guides;
+namespace GuideMe.Core.Guides;
 
 /// <summary>Platform-neutral active-step observation loop.</summary>
 public sealed class UnifiedGuideStepEngine
