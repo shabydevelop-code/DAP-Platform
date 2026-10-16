@@ -1,0 +1,846 @@
+using System.Diagnostics;
+using System.Text.RegularExpressions;
+using System.Windows.Automation;
+using GuideMe.Core.Targets;
+
+namespace GuideMe.Runtime.Windows.Targets;
+
+public sealed class WindowsTargetResolver
+{
+    public TargetResolution<AutomationElement> Resolve(AutomationElement root, TargetDescriptor descriptor)
+    {
+        ArgumentNullException.ThrowIfNull(root);
+        ArgumentNullException.ThrowIfNull(descriptor);
+
+        if (descriptor.Runtime != TargetRuntime.Windows)
+            throw new InvalidOperationException("WindowsTargetResolver can resolve only Windows targets.");
+
+        var stopwatch = Stopwatch.StartNew();
+        var process = Process.GetCurrentProcess();
+        var cpuStarted = process.TotalProcessorTime;
+
+        // An unanchored exact locator is the Guide's declaration that the locator itself is
+        // sufficient to identify the target. Use FindFirst so UIA can stop walking large
+        // descendant trees (for example, a screen containing a large DataGrid).
+        if (descriptor.Anchors.Count == 0 && IsUniqueExactLocator(descriptor.Locator))
+        {
+            var findStopwatch = Stopwatch.StartNew();
+            var findCpuStarted = process.TotalProcessorTime;
+            var candidate = FindFirst(root, descriptor.Locator);
+            findStopwatch.Stop();
+            var findCpu = process.TotalProcessorTime - findCpuStarted;
+            stopwatch.Stop();
+
+            if (stopwatch.ElapsedMilliseconds >= 100)
+            {
+                Console.Error.WriteLine(
+                    $"[GuideMe Windows resolver timing] locator={descriptor.Locator.Strategy}='{descriptor.Locator.Value}', " +
+                    $"fast-path=exact-unanchored, final={(candidate is null ? 0 : 1)}, " +
+                    $"findWall={findStopwatch.ElapsedMilliseconds} ms, findCpu={findCpu.TotalMilliseconds:F0} ms, " +
+                    $"elapsed={stopwatch.ElapsedMilliseconds} ms, cpu={(process.TotalProcessorTime - cpuStarted).TotalMilliseconds:F0} ms.");
+            }
+
+            return candidate is null
+                ? TargetResolution<AutomationElement>.NotFound()
+                : TargetResolution<AutomationElement>.Resolved(candidate);
+        }
+
+        // When a target is constrained by both an ancestor/context and a descendant,
+        // invert the search: locate the narrow ancestor scope first, then the identifying
+        // descendant, and walk upward to the primary target. This avoids enumerating every
+        // primary candidate and issuing one descendant UIA query per candidate.
+        if (TryResolveFromAnchors(root, descriptor, out var anchorFirstCandidates))
+        {
+            stopwatch.Stop();
+            if (stopwatch.ElapsedMilliseconds >= 100)
+            {
+                Console.Error.WriteLine(
+                    $"[GuideMe Windows resolver timing] locator={descriptor.Locator.Strategy}='{descriptor.Locator.Value}', " +
+                    $"fast-path=anchor-first, final={anchorFirstCandidates.Count}, " +
+                    $"elapsed={stopwatch.ElapsedMilliseconds} ms, cpu={(process.TotalProcessorTime - cpuStarted).TotalMilliseconds:F0} ms.");
+            }
+
+            // If the descriptor qualifies for anchor-first resolution, that strategy is
+            // authoritative for this attempt. A temporary miss means NotFound and should
+            // be retried by the runtime; do not fall through to the expensive broad scan.
+            return anchorFirstCandidates.Count switch
+            {
+                0 => TargetResolution<AutomationElement>.NotFound(),
+                1 => TargetResolution<AutomationElement>.Resolved(anchorFirstCandidates[0]),
+                _ => TargetResolution<AutomationElement>.Ambiguous(anchorFirstCandidates.Count)
+            };
+        }
+
+        // Self anchors describe properties of the target itself. Push native exact
+        // predicates into UIA instead of enumerating every primary match first.
+        // Keep all non-self anchors for the existing validation pass.
+        var nativeSelfAnchors = descriptor.Anchors
+            .Where(anchor => anchor.Relation == AnchorRelation.Self
+                && TryCreateNativeCondition(anchor.Locator, out _))
+            .ToArray();
+        if (nativeSelfAnchors.Length > 0
+            && TryCreateNativeCondition(descriptor.Locator, out var primaryCondition))
+        {
+            var conditions = new List<Condition> { primaryCondition };
+            foreach (var anchor in nativeSelfAnchors)
+            {
+                TryCreateNativeCondition(anchor.Locator, out var condition);
+                conditions.Add(condition);
+            }
+            var combined = new AndCondition(conditions.ToArray());
+            var matched = root.FindAll(TreeScope.Descendants, combined)
+                .Cast<AutomationElement>()
+                .Where(candidate => descriptor.Anchors
+                    .Where(anchor => !nativeSelfAnchors.Contains(anchor))
+                    .All(anchor => MatchesAnchor(candidate, anchor)))
+                .ToList();
+            stopwatch.Stop();
+            if (stopwatch.ElapsedMilliseconds >= 100)
+                Console.Error.WriteLine(
+                    $"[GuideMe Windows resolver timing] locator={descriptor.Locator.Strategy}='{descriptor.Locator.Value}', " +
+                    $"fast-path=native-self-anchors, final={matched.Count}, elapsed={stopwatch.ElapsedMilliseconds} ms.");
+            return matched.Count switch
+            {
+                0 => TargetResolution<AutomationElement>.NotFound(),
+                1 => TargetResolution<AutomationElement>.Resolved(matched[0]),
+                _ => TargetResolution<AutomationElement>.Ambiguous(matched.Count)
+            };
+        }
+
+        var primaryFindStopwatch = Stopwatch.StartNew();
+        var primaryFindCpuStarted = process.TotalProcessorTime;
+        var candidates = Find(root, descriptor.Locator).ToList();
+        primaryFindStopwatch.Stop();
+        var primaryFindCpu = process.TotalProcessorTime - primaryFindCpuStarted;
+        var primaryCandidateCount = candidates.Count;
+        var anchorDiagnostics = new List<string>(descriptor.Anchors.Count);
+
+        foreach (var anchor in descriptor.Anchors)
+        {
+            var before = candidates.Count;
+            var anchorStopwatch = Stopwatch.StartNew();
+            var anchorCpuStarted = process.TotalProcessorTime;
+            candidates = candidates.Where(candidate => MatchesAnchor(candidate, anchor)).ToList();
+            anchorStopwatch.Stop();
+            var anchorCpu = process.TotalProcessorTime - anchorCpuStarted;
+            anchorDiagnostics.Add(
+                $"{anchor.Relation}:{anchor.Locator.Strategy}='{anchor.Locator.Value}' {before}->{candidates.Count} " +
+                $"wall={anchorStopwatch.ElapsedMilliseconds}ms cpu={anchorCpu.TotalMilliseconds:F0}ms");
+        }
+
+        stopwatch.Stop();
+        if (stopwatch.ElapsedMilliseconds >= 100 || primaryCandidateCount >= 100)
+        {
+            var anchors = anchorDiagnostics.Count == 0
+                ? "none"
+                : string.Join(", ", anchorDiagnostics);
+            Console.Error.WriteLine(
+                $"[GuideMe Windows resolver timing] locator={descriptor.Locator.Strategy}='{descriptor.Locator.Value}', " +
+                $"primary={primaryCandidateCount}, primaryWall={primaryFindStopwatch.ElapsedMilliseconds} ms, " +
+                $"primaryCpu={primaryFindCpu.TotalMilliseconds:F0} ms, anchors=[{anchors}], final={candidates.Count}, " +
+                $"elapsed={stopwatch.ElapsedMilliseconds} ms, cpu={(process.TotalProcessorTime - cpuStarted).TotalMilliseconds:F0} ms.");
+        }
+
+        return candidates.Count switch
+        {
+            0 => TargetResolution<AutomationElement>.NotFound(),
+            1 => TargetResolution<AutomationElement>.Resolved(candidates[0]),
+            _ => TargetResolution<AutomationElement>.Ambiguous(candidates.Count)
+        };
+    }
+
+    private static bool TryResolveFromAnchors(
+        AutomationElement root,
+        TargetDescriptor descriptor,
+        out List<AutomationElement> candidates)
+    {
+        candidates = [];
+
+        var scopeAnchor = descriptor.Anchors.FirstOrDefault(anchor =>
+            anchor.Relation is AnchorRelation.Ancestor or AnchorRelation.Context
+            && IsNativeExactLocator(anchor.Locator));
+        var descendantAnchor = descriptor.Anchors.FirstOrDefault(anchor =>
+            anchor.Relation == AnchorRelation.Descendant
+            && IsExactRegexLocator(anchor.Locator));
+
+        if (scopeAnchor is null || descendantAnchor is null)
+            return false;
+
+        if (!TryCreateNativeCondition(descendantAnchor.Locator, out var descendantCondition))
+            return false;
+
+        // Resolve the declared scope first, then ask that provider for the first exact
+        // descendant match. Searching from the desktop/window root can miss descendants
+        // exposed lazily by virtualized controls, while a scope-local query lets the
+        // owning provider materialize its own subtree without enumerating every DataItem.
+        var scope = FindFirst(root, scopeAnchor.Locator);
+        if (scope is null)
+            return true;
+
+        // First use the provider's exact native condition. A broad primary-row
+        // enumeration is expensive and unnecessary when a uniquely named child
+        // is exposed directly by UI Automation.
+        var descendant = scope.FindFirst(TreeScope.Descendants, descendantCondition);
+        if (descendant is not null)
+        {
+            AddPrimaryAncestorCandidate(
+                descendant, scope, descriptor, scopeAnchor, descendantAnchor, candidates);
+            if (candidates.Count > 0)
+                return true;
+        }
+
+        // Some providers expose GridItemPattern on the matched cell even when its
+        // parent chain omits the DataItem in both UIA views. Ask the grid for that
+        // exact row rather than scanning every realized DataItem. Only accept an
+        // explicitly matching descendant within the returned row; otherwise use
+        // the existing exhaustive scoped search.
+        if (descendant is not null
+            && TryResolveGridItemRow(
+                scope, descendant, descendantCondition, descriptor,
+                scopeAnchor, descendantAnchor, candidates))
+        {
+            Console.Error.WriteLine(
+                "[GuideMe Windows resolver diagnostic] phase=grid-item-row, found=True.");
+            return true;
+        }
+
+        // A matching child can be exposed in a different UIA view than its row.
+        // Resolve against the realized primary elements using their native exact
+        // descendant condition. Do not infer ownership from row order or text.
+        // The previous fallback timed out before inspecting any row in large grids.
+        var rowsTimer = Stopwatch.StartNew();
+        var scopedPrimaryCandidates = Find(scope, descriptor.Locator).ToList();
+        Console.Error.WriteLine(
+            $"[GuideMe Windows resolver diagnostic] phase=primary-enumeration, rows={scopedPrimaryCandidates.Count}, elapsed={rowsTimer.ElapsedMilliseconds} ms.");
+        foreach (var candidate in scopedPrimaryCandidates)
+        {
+            try
+            {
+                if (candidate.FindFirst(TreeScope.Descendants, descendantCondition) is null)
+                    continue;
+                if (MatchesRemainingAnchors(candidate, descriptor.Anchors, scopeAnchor, descendantAnchor))
+                    candidates.Add(candidate);
+            }
+            catch (ElementNotAvailableException)
+            {
+                // Rows may be recycled while the user scrolls or sorts.
+            }
+            catch (InvalidOperationException)
+            {
+                // A provider can invalidate a row during a refresh.
+            }
+        }
+        Console.Error.WriteLine(
+            $"[GuideMe Windows resolver scoped-rows] rows={scopedPrimaryCandidates.Count}, final={candidates.Count}, elapsed={rowsTimer.ElapsedMilliseconds} ms.");
+        return true;
+
+    }
+
+    private static bool TryResolveGridItemRow(
+        AutomationElement scope,
+        AutomationElement descendant,
+        Condition descendantCondition,
+        TargetDescriptor descriptor,
+        Anchor scopeAnchor,
+        Anchor descendantAnchor,
+        ICollection<AutomationElement> candidates)
+    {
+        try
+        {
+            if (!scope.TryGetCurrentPattern(GridPattern.Pattern, out var rawGrid)
+                || rawGrid is not GridPattern grid)
+                return false;
+
+            // Only use a row coordinate reported by the provider itself.
+            foreach (var walker in new[] { TreeWalker.RawViewWalker, TreeWalker.ControlViewWalker })
+            {
+                for (AutomationElement? cell = descendant;
+                     cell is not null && !Automation.Compare(cell, scope);
+                     cell = walker.GetParent(cell))
+                {
+                    if (!cell.TryGetCurrentPattern(GridItemPattern.Pattern, out var rawItem)
+                        || rawItem is not GridItemPattern item)
+                        continue;
+
+                    var rowIndex = item.Current.Row;
+                    var columnCount = grid.Current.ColumnCount;
+                    if (rowIndex < 0 || rowIndex >= grid.Current.RowCount || columnCount <= 0)
+                        continue;
+
+                    // UIA grid coordinates are not visual row ordering guesses.
+                    // Locate the owning DataItem via a provider-returned cell.
+                    var gridCell = grid.GetItem(rowIndex, item.Current.Column);
+                    AddPrimaryAncestorCandidate(
+                        gridCell, scope, descriptor, scopeAnchor, descendantAnchor, candidates);
+                    if (candidates.Count > 0
+                        && candidates.All(candidate =>
+                            candidate.FindFirst(TreeScope.Descendants, descendantCondition) is not null))
+                        return true;
+
+                    candidates.Clear();
+                    // The provider might return a cell whose parent view differs;
+                    // never accept a row solely from a coordinate.
+                    return false;
+                }
+            }
+        }
+        catch (ElementNotAvailableException) { }
+        catch (InvalidOperationException) { }
+        catch (ArgumentOutOfRangeException) { }
+        return false;
+    }
+
+    private static bool TryResolveExistingRows(
+        AutomationElement scope,
+        Locator descendantLocator,
+        TargetDescriptor descriptor,
+        Anchor scopeAnchor,
+        Anchor descendantAnchor,
+        ICollection<AutomationElement> candidates)
+    {
+        const int maxRows = 50;
+        const int maxElapsedMilliseconds = 500;
+
+        var stopwatch = Stopwatch.StartNew();
+        var inspectedRows = 0;
+
+        try
+        {
+            var rowCondition = new PropertyCondition(
+                AutomationElement.ControlTypeProperty,
+                ControlType.DataItem);
+            var rows = scope.FindAll(TreeScope.Descendants, rowCondition);
+
+            foreach (AutomationElement row in rows)
+            {
+                if (inspectedRows >= maxRows || stopwatch.ElapsedMilliseconds >= maxElapsedMilliseconds)
+                    break;
+
+                inspectedRows++;
+
+                AutomationElement? match = null;
+                try
+                {
+                    foreach (AutomationElement element in row.FindAll(
+                                 TreeScope.Descendants,
+                                 Condition.TrueCondition))
+                    {
+                        if (MatchesLocator(element, descendantLocator))
+                        {
+                            match = element;
+                            break;
+                        }
+                    }
+                }
+                catch (ElementNotAvailableException)
+                {
+                    continue;
+                }
+                catch (InvalidOperationException)
+                {
+                    continue;
+                }
+
+                if (match is null)
+                    continue;
+
+                if (MatchesRemainingAnchors(
+                        row,
+                        descriptor.Anchors,
+                        scopeAnchor,
+                        descendantAnchor)
+                    && MatchesLocator(row, descriptor.Locator))
+                {
+                    candidates.Add(row);
+                }
+
+                stopwatch.Stop();
+                Console.Error.WriteLine(
+                    $"[GuideMe Windows resolver existing-rows] rows={rows.Count}, " +
+                    $"inspected={inspectedRows}, final={candidates.Count}, " +
+                    $"elapsed={stopwatch.ElapsedMilliseconds} ms.");
+                return true;
+            }
+
+            stopwatch.Stop();
+            Console.Error.WriteLine(
+                $"[GuideMe Windows resolver existing-rows] rows={rows.Count}, " +
+                $"inspected={inspectedRows}, final=0, " +
+                $"elapsed={stopwatch.ElapsedMilliseconds} ms.");
+        }
+        catch (ElementNotAvailableException)
+        {
+        }
+        catch (InvalidOperationException)
+        {
+        }
+
+        return false;
+    }
+
+    private static AutomationElement? FindDescendantFromCachedSnapshot(
+        AutomationElement scope,
+        Locator locator)
+    {
+        if (!TryCreateNativeCondition(locator, out var condition)
+            || condition is not PropertyCondition property)
+            return null;
+
+        var stopwatch = Stopwatch.StartNew();
+        var cache = new CacheRequest
+        {
+            AutomationElementMode = AutomationElementMode.Full,
+            TreeFilter = Automation.RawViewCondition,
+            TreeScope = TreeScope.Element
+        };
+        cache.Add(property.Property);
+        cache.Add(AutomationElement.ControlTypeProperty);
+
+        try
+        {
+            using (cache.Activate())
+            {
+                var elements = scope.FindAll(TreeScope.Descendants, Condition.TrueCondition);
+                foreach (AutomationElement element in elements)
+                {
+                    object actual;
+                    try
+                    {
+                        actual = element.GetCachedPropertyValue(property.Property, true);
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        continue;
+                    }
+
+                    if (!Equals(actual, property.Value))
+                        continue;
+
+                    stopwatch.Stop();
+                    Console.Error.WriteLine(
+                        $"[GuideMe Windows resolver cached-snapshot] elements={elements.Count}, " +
+                        $"matched=1, elapsed={stopwatch.ElapsedMilliseconds} ms.");
+                    return element;
+                }
+
+                stopwatch.Stop();
+                Console.Error.WriteLine(
+                    $"[GuideMe Windows resolver cached-snapshot] elements={elements.Count}, " +
+                    $"matched=0, elapsed={stopwatch.ElapsedMilliseconds} ms.");
+            }
+        }
+        catch (ElementNotAvailableException)
+        {
+        }
+        catch (InvalidOperationException)
+        {
+        }
+
+        return null;
+    }
+
+    private static void AddPrimaryAncestorCandidate(
+        AutomationElement descendant,
+        AutomationElement scope,
+        TargetDescriptor descriptor,
+        Anchor scopeAnchor,
+        Anchor descendantAnchor,
+        ICollection<AutomationElement> candidates)
+    {
+        // Different UIA providers expose Text/Custom cells in different views.
+        // Try both parent chains; never choose a row merely by its position.
+        foreach (var walker in new[] { TreeWalker.RawViewWalker, TreeWalker.ControlViewWalker })
+        {
+            for (var current = walker.GetParent(descendant);
+                 current is not null && !Automation.Compare(current, scope);
+                 current = walker.GetParent(current))
+            {
+                if (!MatchesLocator(current, descriptor.Locator))
+                    continue;
+
+                if (MatchesRemainingAnchors(current, descriptor.Anchors, scopeAnchor, descendantAnchor)
+                    && !candidates.Any(existing => Automation.Compare(existing, current)))
+                    candidates.Add(current);
+                break;
+            }
+            if (candidates.Count > 0)
+                return;
+        }
+    }
+
+    private static void TryResolveGridPattern(
+        AutomationElement scope,
+        Condition descendantCondition,
+        TargetDescriptor descriptor,
+        Anchor scopeAnchor,
+        Anchor descendantAnchor,
+        ICollection<AutomationElement> candidates)
+    {
+        if (!scope.TryGetCurrentPattern(GridPattern.Pattern, out var rawPattern)
+            || rawPattern is not GridPattern grid)
+            return;
+
+        var stopwatch = Stopwatch.StartNew();
+        var inspectedCells = 0;
+
+        try
+        {
+            var rows = grid.Current.RowCount;
+            var columns = grid.Current.ColumnCount;
+            var candidateColumns = ResolveCandidateColumns(scope, descriptor, columns);
+
+            for (var row = 0; row < rows; row++)
+            {
+                foreach (var column in candidateColumns)
+                {
+                    AutomationElement cell;
+                    try
+                    {
+                        cell = grid.GetItem(row, column);
+                    }
+                    catch (ArgumentOutOfRangeException)
+                    {
+                        continue;
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        continue;
+                    }
+
+                    inspectedCells++;
+
+                    AutomationElement? descendant = null;
+                    try
+                    {
+                        if (MatchesCondition(cell, descendantCondition))
+                        {
+                            descendant = cell;
+                        }
+                        else
+                        {
+                            descendant = cell.FindFirst(TreeScope.Descendants, descendantCondition);
+                        }
+                    }
+                    catch (ElementNotAvailableException)
+                    {
+                        continue;
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        continue;
+                    }
+
+                    if (descendant is null)
+                        continue;
+
+                    AddPrimaryAncestorCandidate(
+                        descendant,
+                        scope,
+                        descriptor,
+                        scopeAnchor,
+                        descendantAnchor,
+                        candidates);
+
+                    stopwatch.Stop();
+                    Console.Error.WriteLine(
+                        $"[GuideMe Windows resolver grid] rows={rows}, columns={columns}, " +
+                        $"candidateColumns={string.Join(",", candidateColumns)}, " +
+                        $"inspectedCells={inspectedCells}, final={candidates.Count}, " +
+                        $"elapsed={stopwatch.ElapsedMilliseconds} ms.");
+                    return;
+                }
+            }
+
+            stopwatch.Stop();
+            Console.Error.WriteLine(
+                $"[GuideMe Windows resolver grid] rows={rows}, columns={columns}, " +
+                $"candidateColumns={string.Join(",", candidateColumns)}, " +
+                $"inspectedCells={inspectedCells}, final=0, " +
+                $"elapsed={stopwatch.ElapsedMilliseconds} ms.");
+        }
+        catch (ElementNotAvailableException)
+        {
+        }
+        catch (InvalidOperationException)
+        {
+        }
+    }
+
+    private static IReadOnlyList<int> ResolveCandidateColumns(
+        AutomationElement scope,
+        TargetDescriptor descriptor,
+        int columnCount)
+    {
+        var columnHeaderAnchor = descriptor.Anchors.FirstOrDefault(anchor =>
+            anchor.Relation == AnchorRelation.ColumnHeader);
+        if (columnHeaderAnchor is null)
+            return Enumerable.Range(0, columnCount).ToArray();
+
+        if (!scope.TryGetCurrentPattern(TablePattern.Pattern, out var rawPattern)
+            || rawPattern is not TablePattern table)
+            return Enumerable.Range(0, columnCount).ToArray();
+
+        try
+        {
+            var headers = table.Current.GetColumnHeaders();
+            var matches = new List<int>();
+            for (var index = 0; index < headers.Length && index < columnCount; index++)
+            {
+                if (MatchesLocator(headers[index], columnHeaderAnchor.Locator))
+                    matches.Add(index);
+            }
+
+            if (matches.Count > 0)
+                return matches;
+        }
+        catch (ElementNotAvailableException)
+        {
+        }
+        catch (InvalidOperationException)
+        {
+        }
+
+        return Enumerable.Range(0, columnCount).ToArray();
+    }
+
+    private static AutomationElement? FindRawAncestor(AutomationElement candidate, Locator locator)
+    {
+        var walker = TreeWalker.RawViewWalker;
+        for (AutomationElement? current = candidate; current is not null; current = walker.GetParent(current))
+            if (MatchesLocator(current, locator))
+                return current;
+
+        return null;
+    }
+
+    private static bool MatchesRemainingAnchors(
+        AutomationElement candidate,
+        IReadOnlyList<Anchor> anchors,
+        Anchor scopeAnchor,
+        Anchor descendantAnchor) =>
+        anchors
+            .Where(anchor =>
+                !ReferenceEquals(anchor, scopeAnchor)
+                && !ReferenceEquals(anchor, descendantAnchor)
+                && anchor.Relation != AnchorRelation.ColumnHeader)
+            .All(anchor => MatchesAnchor(candidate, anchor));
+
+    private static bool HasRawAncestorOrSelf(AutomationElement candidate, AutomationElement ancestor)
+    {
+        var walker = TreeWalker.RawViewWalker;
+        for (AutomationElement? current = candidate; current is not null; current = walker.GetParent(current))
+            if (Automation.Compare(current, ancestor))
+                return true;
+        return false;
+    }
+
+    private static bool IsUniqueExactLocator(Locator locator)
+    {
+        var strategy = locator.Strategy.Trim();
+        return strategy.Equals("automation-id", StringComparison.OrdinalIgnoreCase)
+               || strategy.Equals("name", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsNativeExactLocator(Locator locator) =>
+        TryCreateNativeCondition(locator, out _);
+
+    private static bool IsExactRegexLocator(Locator locator) =>
+        locator.Strategy.Trim().Equals("name-regex", StringComparison.OrdinalIgnoreCase)
+        && TryGetExactRegexValue(locator.Value, out _);
+
+    private static AutomationElement? FindFirst(AutomationElement root, Locator locator)
+    {
+        if (!TryCreateNativeCondition(locator, out var condition))
+            return Find(root, locator).FirstOrDefault();
+
+        return root.FindFirst(TreeScope.Descendants, condition);
+    }
+
+    private static IEnumerable<AutomationElement> Find(AutomationElement root, Locator locator)
+    {
+        if (locator.Strategy.Trim().Equals("name-regex", StringComparison.OrdinalIgnoreCase))
+        {
+            if (TryCreateNativeCondition(locator, out var exactCondition))
+                return root.FindAll(TreeScope.Descendants, exactCondition).Cast<AutomationElement>();
+            var regex = new Regex(locator.Value, RegexOptions.CultureInvariant);
+            return root.FindAll(TreeScope.Descendants, Condition.TrueCondition)
+                .Cast<AutomationElement>()
+                .Where(element =>
+                {
+                    try
+                    {
+                        return regex.IsMatch(element.Current.Name ?? string.Empty);
+                    }
+                    catch (ElementNotAvailableException)
+                    {
+                        // Dynamic UIA trees can invalidate an element between
+                        // FindAll and reading Current.Name. Skip only that element.
+                        return false;
+                    }
+                })
+                .ToArray();
+        }
+
+        var condition = CreateCondition(locator);
+        return root.FindAll(TreeScope.Descendants, condition).Cast<AutomationElement>();
+    }
+
+    private static Condition CreateCondition(Locator locator)
+    {
+        if (TryCreateNativeCondition(locator, out var condition))
+            return condition;
+
+        throw new NotSupportedException(
+            $"Unsupported Windows locator strategy '{locator.Strategy}'.");
+    }
+
+    private static bool TryCreateNativeCondition(Locator locator, out Condition condition)
+    {
+        switch (locator.Strategy.Trim().ToLowerInvariant())
+        {
+            case "automation-id":
+                condition = new PropertyCondition(AutomationElement.AutomationIdProperty, locator.Value);
+                return true;
+            case "name":
+                condition = new PropertyCondition(AutomationElement.NameProperty, locator.Value);
+                return true;
+            case "control-type":
+                condition = new PropertyCondition(
+                    AutomationElement.ControlTypeProperty,
+                    ParseControlType(locator.Value));
+                return true;
+            case "name-regex" when TryGetExactRegexValue(locator.Value, out var exactName):
+                condition = new PropertyCondition(AutomationElement.NameProperty, exactName);
+                return true;
+            default:
+                condition = Condition.FalseCondition;
+                return false;
+        }
+    }
+
+    private static bool TryGetExactRegexValue(string pattern, out string value)
+    {
+        value = string.Empty;
+        if (pattern.Length < 2 || pattern[0] != '^' || pattern[^1] != '$')
+            return false;
+
+        var body = pattern[1..^1];
+        if (body.Length == 0)
+            return true;
+
+        for (var index = 0; index < body.Length; index++)
+        {
+            if (body[index] == '\\')
+            {
+                if (++index >= body.Length)
+                    return false;
+
+                continue;
+            }
+
+            if (".+*?()[]{}|^$".Contains(body[index]))
+                return false;
+        }
+
+        try
+        {
+            value = Regex.Unescape(body);
+            return true;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+    }
+
+    private static ControlType ParseControlType(string value) =>
+        value.Trim().ToLowerInvariant() switch
+        {
+            "button" => ControlType.Button,
+            "edit" or "textbox" => ControlType.Edit,
+            "combobox" => ControlType.ComboBox,
+            "dataitem" => ControlType.DataItem,
+            "window" => ControlType.Window,
+            _ => throw new NotSupportedException($"Unsupported Windows control type '{value}'.")
+        };
+
+    private static bool MatchesAnchors(AutomationElement candidate, IReadOnlyList<Anchor> anchors) =>
+        anchors.All(anchor => MatchesAnchor(candidate, anchor));
+
+    private static bool MatchesAnchor(AutomationElement candidate, Anchor anchor) =>
+        anchor.Relation switch
+        {
+            AnchorRelation.Self =>
+                MatchesLocator(candidate, anchor.Locator),
+            AnchorRelation.Ancestor or AnchorRelation.Context =>
+                HasInParentChain(candidate, anchor.Locator),
+            AnchorRelation.Descendant =>
+                HasDescendant(candidate, anchor.Locator),
+            AnchorRelation.Sibling =>
+                HasSibling(candidate, anchor.Locator),
+            AnchorRelation.Nearby =>
+                HasSibling(candidate, anchor.Locator) || HasInParentChain(candidate, anchor.Locator),
+            _ => false
+        };
+
+    private static bool HasDescendant(AutomationElement candidate, Locator locator)
+    {
+        if (TryCreateNativeCondition(locator, out var condition))
+            return candidate.FindFirst(TreeScope.Descendants, condition) is not null;
+
+        return candidate.FindAll(TreeScope.Descendants, Condition.TrueCondition)
+            .Cast<AutomationElement>()
+            .Any(element => MatchesLocator(element, locator));
+    }
+
+    private static bool HasInParentChain(AutomationElement candidate, Locator locator)
+    {
+        var walker = TreeWalker.ControlViewWalker;
+        for (var current = walker.GetParent(candidate); current is not null; current = walker.GetParent(current))
+            if (MatchesLocator(current, locator))
+                return true;
+        return false;
+    }
+
+    private static bool HasSibling(AutomationElement candidate, Locator locator)
+    {
+        var walker = TreeWalker.ControlViewWalker;
+        var parent = walker.GetParent(candidate);
+        if (parent is null)
+            return false;
+
+        foreach (AutomationElement sibling in parent.FindAll(TreeScope.Children, Condition.TrueCondition))
+            if (!Automation.Compare(candidate, sibling) && MatchesLocator(sibling, locator))
+                return true;
+
+        return false;
+    }
+
+    private static bool MatchesLocator(AutomationElement element, Locator locator)
+    {
+        if (locator.Strategy.Trim().Equals("name-regex", StringComparison.OrdinalIgnoreCase))
+            return Regex.IsMatch(element.Current.Name ?? string.Empty, locator.Value, RegexOptions.CultureInvariant);
+
+        return MatchesCondition(element, CreateCondition(locator));
+    }
+
+    private static bool MatchesCondition(AutomationElement element, Condition condition)
+    {
+        if (condition is not PropertyCondition property)
+            return false;
+
+        var actual = element.GetCurrentPropertyValue(property.Property, true);
+        // UIA returns a ControlType object for ControlTypeProperty, while
+        // PropertyCondition.Value exposes its numeric control type ID.
+        // Normalize both representations before comparing.
+        if (property.Property == AutomationElement.ControlTypeProperty)
+        {
+            var actualId = actual is ControlType actualType ? actualType.Id
+                : actual is int actualNumber ? actualNumber : (int?)null;
+            var expectedId = property.Value is ControlType expectedType ? expectedType.Id
+                : property.Value is int expectedNumber ? expectedNumber : (int?)null;
+            return actualId.HasValue && expectedId.HasValue && actualId.Value == expectedId.Value;
+        }
+        return Equals(actual, property.Value);
+    }
+}

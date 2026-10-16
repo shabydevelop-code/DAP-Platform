@@ -30,10 +30,10 @@ function Publish-Project([string]$Project, [string]$Destination) {
     if ($LASTEXITCODE -ne 0) { throw "Publish failed: $Project" }
 }
 
-Publish-Project "src\DAP.App\DAP.App.csproj" $Output
+Publish-Project "src\GuideMe.App\GuideMe.App.csproj" $Output
 $nativeHostDir = Join-Path $Output "NativeHost"
 New-Item -ItemType Directory -Force -Path $nativeHostDir | Out-Null
-Publish-Project "src\DAP.Runtime.Web.NativeHost\DAP.Runtime.Web.NativeHost.csproj" $nativeHostDir
+Publish-Project "src\GuideMe.Runtime.Web.NativeHost\GuideMe.Runtime.Web.NativeHost.csproj" $nativeHostDir
 
 $nativeExe = Join-Path $nativeHostDir "GuideMe.NativeHost.exe"
 $nativeConfig = Join-Path $nativeHostDir "GuideMe.NativeHost.runtimeconfig.json"
@@ -74,4 +74,4 @@ Write-Host ""
 Write-Host "Chrome extension: $extensionDestination"
 Write-Host "Load unpacked from Chrome extensions, copy its ID, and register with -ExtensionId."
 Write-Host "Customer production package created at $Output"
-Write-Host "GuideMe product: $Output\DAP.exe (legacy executable name)"
+Write-Host "GuideMe product: $Output\GuideMe.exe (legacy executable name)"

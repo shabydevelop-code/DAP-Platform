@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>GuideMe</AssemblyName>
+    <RootNamespace>GuideMe.App</RootNamespace>
+    <CopyRetryCount>0</CopyRetryCount>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <ApplicationIcon>Resources\GuideMe.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../GuideMe.Core/GuideMe.Core.csproj" />
+    <ProjectReference Include="../GuideMe.Data/GuideMe.Data.csproj" />
+    <ProjectReference Include="../GuideMe.Data.Sqlite/GuideMe.Data.Sqlite.csproj" />
+    <ProjectReference Include="../GuideMe.Runtime.Web/GuideMe.Runtime.Web.csproj" />
+    <ProjectReference Include="../GuideMe.Runtime.Windows/GuideMe.Runtime.Windows.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\GuideMe.Tray.ico" LogicalName="GuideMe.TrayIcon.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Localization\*.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+  <Target Name="CheckCurrentGuideMeSessionBeforeBuild" BeforeTargets="ResolveReferences" Condition="'$(DesignTimeBuild)' != 'true' and '$(IsCrossTargetingBuild)' != 'true'">
+    <Exec Command="powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\Check-GuideMeBuildLock.ps1&quot; -ExecutablePath &quot;$(MSBuildProjectDirectory)\bin\$(Configuration)\$(TargetFramework)\GuideMe.exe&quot;" />
+  </Target>
+  <Target Name="CheckLocalizationBeforeBuild" BeforeTargets="CoreCompile" Condition="'$(DesignTimeBuild)' != 'true' and '$(IsCrossTargetingBuild)' != 'true'">
+    <Exec Command="python &quot;$(MSBuildProjectDirectory)\..\..\scripts\check-localization.py&quot;" />
+  </Target>
+</Project>

@@ -2,25 +2,25 @@
   "use strict";
 
   // Do not return before registering the adapter endpoint. After an extension
-  // reload a tab may still contain an older __dapWebRuntime object while the
+  // reload a tab may still contain an older __guideMeWebRuntime object while the
   // new extension context needs to install its current message listener.
-  if (globalThis.__dapAdapterEndpointVersion === "0.4.7") {
+  if (globalThis.__guideMeAdapterEndpointVersion === "0.4.7") {
     // Re-injection / an already-live page must still wake the MV3 service
-    // worker so it can (re)establish Native Messaging after DAP starts.
+    // worker so it can (re)establish Native Messaging after GuideMe starts.
     try {
-      const ready = chrome.runtime.sendMessage({ type: "dap-runtime-ready" });
+      const ready = chrome.runtime.sendMessage({ type: "guideMe-runtime-ready" });
       ready?.catch?.(()=>{});
     } catch {}
     return;
   }
-  globalThis.__dapAdapterEndpointVersion = "0.4.7";
+  globalThis.__guideMeAdapterEndpointVersion = "0.4.7";
 
   // Register the adapter message endpoint before the legacy POC runtime is
   // initialized. Target resolution is looked up at message time, so an
   // initialization failure later in this script can no longer make the frame
-  // appear to have no DAP content script at all.
+  // appear to have no GuideMe content script at all.
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message?.type !== "dap-adapter-command") return;
+    if (message?.type !== "guideMe-adapter-command") return;
     try {
       const command = message.command || {};
       if (command.type === "ping") {
@@ -49,7 +49,7 @@
           sendResponse(response);
         };
         const handler = event => {
-          if (event.source !== frame.contentWindow || event.data?.type !== "dap-frame-identify-response" || event.data?.token !== token) return;
+          if (event.source !== frame.contentWindow || event.data?.type !== "guideMe-frame-identify-response" || event.data?.token !== token) return;
           const rect=frame.getBoundingClientRect();
           let frameUrl = null;
           try { frameUrl = frame.contentWindow.location.href; } catch {}
@@ -62,7 +62,7 @@
           }});
         };
         addEventListener("message", handler);
-        frame.contentWindow.postMessage({type:"dap-frame-identify",token}, "*");
+        frame.contentWindow.postMessage({type:"guideMe-frame-identify",token}, "*");
         timer=setTimeout(() => finish({ok:true,result:{status:"notFound",count:0}}), 1000);
         return true;
       }
@@ -160,10 +160,10 @@
       }
       if (command.type === "showCenteredStep") {
         showCenteredMessage({
-          elementId:"dap-guide-centered",
+          elementId:"guideMe-guide-centered",
           content:command.step?.bubble?.content||"",
           actionText:command.actionText||"",
-          actionDataKey:"dapGuideConfirm",
+          actionDataKey:"guideMeGuideConfirm",
           progressText:command.progressText||null,
           dragText:command.dragText||"",
           eventType:"centered-dismissed",
@@ -250,17 +250,17 @@
         arm();
         return true;
       }
-      sendResponse({ok:false,error:"Unsupported DAP adapter command '"+String(command.type||"")+"'."});
+      sendResponse({ok:false,error:"Unsupported GuideMe adapter command '"+String(command.type||"")+"'."});
     } catch (error) {
       sendResponse({ok:false,error:String(error?.message||error)});
     }
   });
 
   addEventListener("message", event => {
-    if (event.data?.type !== "dap-frame-identify" || !event.data?.token) return;
+    if (event.data?.type !== "guideMe-frame-identify" || !event.data?.token) return;
 
     event.source?.postMessage(
-      {type:"dap-frame-identify-response",token:event.data.token},
+      {type:"guideMe-frame-identify-response",token:event.data.token},
       {targetOrigin:"*"}
     );
 
@@ -269,7 +269,7 @@
     // can throw synchronously, so a Promise .catch() alone is insufficient.
     try {
       const pending = chrome.runtime.sendMessage({
-        type:"dap-frame-identified",
+        type:"guideMe-frame-identified",
         token:event.data.token
       });
       pending?.catch?.(()=>{});
@@ -426,11 +426,11 @@
     // A page can survive an extension reload while its old isolated-world
     // JavaScript state is discarded. Remove any DOM presentation by id as
     // well as the presentation owned by this content-script instance.
-    const stale=document.getElementById("dap-guide-bubble");
-    const proxy=document.getElementById("dap-guide-bubble-proxy");
-    proxy?.__dapCleanup?.();
+    const stale=document.getElementById("guideMe-guide-bubble");
+    const proxy=document.getElementById("guideMe-guide-bubble-proxy");
+    proxy?.__guideMeCleanup?.();
     proxy?.remove();
-    document.getElementById("dap-guide-centered")?.remove();
+    document.getElementById("guideMe-guide-centered")?.remove();
     if(bubbleState){
       bubbleState.cleanup?.();
       bubbleState=null;
@@ -446,7 +446,7 @@
     bubble.setAttribute("role","status");
 
     const handle=document.createElement("div");
-    handle.dataset.dapDragHandle="1";
+    handle.dataset.guideMeDragHandle="1";
     handle.setAttribute("aria-label",options.dragText);
     handle.title=options.dragText;
     handle.textContent="⠿";
@@ -503,7 +503,7 @@
       };
     };
     const beginDrag=e=>{
-      if(e.button!==0||!e.target.closest('[data-dap-drag-handle="1"]'))return;
+      if(e.button!==0||!e.target.closest('[data-guideMe-drag-handle="1"]'))return;
       const q=bubble.getBoundingClientRect();
       bubble.style.transform="none";
       bubble.style.left=q.left+"px";
@@ -538,7 +538,7 @@
       event.stopPropagation();
       bubble.remove();
       void chrome.runtime.sendMessage({
-        type:"dap-adapter-event",
+        type:"guideMe-adapter-event",
         payload:{type:options.eventType,stepId:options.stepId}
       }).catch(()=>{});
     },{once:true});
@@ -568,25 +568,25 @@
       }catch{}
     }
 
-    const existing=document.getElementById("dap-guide-bubble-proxy");
-    if(existing?.dataset.dapStepId===step.id){
-      existing.__dapTargetRect=targetRect;
+    const existing=document.getElementById("guideMe-guide-bubble-proxy");
+    if(existing?.dataset.guideMeStepId===step.id){
+      existing.__guideMeTargetRect=targetRect;
       if(presentation.visible===false)
         existing.style.setProperty("display","none","important");
       else
         existing.style.removeProperty("display");
-      existing.__dapPlace?.();
+      existing.__guideMePlace?.();
       return {status:"resolved",count:1};
     }
     existing?.remove();
 
     const bubble=document.createElement("div");
-    bubble.id="dap-guide-bubble-proxy";
-    bubble.dataset.dapStepId=step.id;
-    bubble.__dapTargetRect=targetRect;
+    bubble.id="guideMe-guide-bubble-proxy";
+    bubble.dataset.guideMeStepId=step.id;
+    bubble.__guideMeTargetRect=targetRect;
 
     const handle=document.createElement("div");
-    handle.dataset.dapDragHandle="1";
+    handle.dataset.guideMeDragHandle="1";
     handle.setAttribute("aria-label",presentation.dragText||"");
     handle.textContent="⠿";
     handle.title=presentation.dragText||"";
@@ -613,7 +613,7 @@
     }
 
     const pointer=document.createElement("div");
-    pointer.dataset.dapPointer="1";
+    pointer.dataset.guideMePointer="1";
     Object.assign(pointer.style,{position:"absolute",width:"0",height:"0",cursor:"default"});
     bubble.appendChild(pointer);
 
@@ -671,7 +671,7 @@
       // the pointer-owned position.
       if(drag)return;
 
-      const r=bubble.__dapTargetRect;
+      const r=bubble.__guideMeTargetRect;
       if(!r){
         bubble.style.visibility="hidden";
         return;
@@ -717,10 +717,10 @@
       bubble.dataset.actualPlacement=canPlaceBelow?"Bottom":"Top";
     };
 
-    bubble.__dapPlace=place;
+    bubble.__guideMePlace=place;
 
     bubble.addEventListener("pointerdown",e=>{
-      if(e.button!==0||!e.target.closest('[data-dap-drag-handle="1"]'))return;
+      if(e.button!==0||!e.target.closest('[data-guideMe-drag-handle="1"]'))return;
       const r=bubble.getBoundingClientRect();
       drag={id:e.pointerId,x:e.clientX,y:e.clientY,left:r.left,top:r.top};
       bubble.setPointerCapture(e.pointerId);
@@ -761,7 +761,7 @@
     addEventListener("resize",place);
     addEventListener("scroll",place,true);
 
-    bubble.__dapCleanup=()=>{
+    bubble.__guideMeCleanup=()=>{
       removeEventListener("resize",place);
       removeEventListener("scroll",place,true);
       document.documentElement.style.removeProperty("cursor");
@@ -777,8 +777,8 @@
     if(presentation.armId&&step?.validation)armValidationTarget(step,el,presentation.armId);
     // Mirror WebBubblePresenter: never allow a stale bubble from an older
     // extension context to coexist with the current Step presentation.
-    const existing=root.getElementById("dap-guide-bubble");
-    existing?.__dapCleanup?.();
+    const existing=root.getElementById("guideMe-guide-bubble");
+    existing?.__guideMeCleanup?.();
     existing?.remove();
     const ir=el.getBoundingClientRect();if(!(ir.width>0&&ir.height>0&&ir.bottom>0&&ir.right>0&&ir.top<innerHeight&&ir.left<innerWidth))el.scrollIntoView({behavior:"auto",block:"center",inline:"nearest"});
     // Initial input focus belongs to the production learner Runtime and is
@@ -792,15 +792,15 @@
     if(inputLike&&!el.disabled&&typeof el.focus==="function")el.focus({preventScroll:true});
     const previous={outline:el.style.outline,outlineOffset:el.style.outlineOffset,boxShadow:el.style.boxShadow};
     el.style.outline=theme.targetHighlightWidth+"px solid "+theme.targetHighlightColor;el.style.outlineOffset="0px";el.style.boxShadow=theme.targetHighlightShadow;
-    const b=root.createElement("div");b.id="dap-guide-bubble";b.dataset.dapStepId=step.id;b.dataset.placement=String(step.bubble?.placement||"Auto");b.__dapTarget=el;b.setAttribute("role","status");
-    const handle=root.createElement("div");handle.dataset.dapDragHandle="1";handle.setAttribute("aria-label",presentation.dragText||"");handle.textContent="⠿";handle.title=presentation.dragText||"";Object.assign(handle.style,{display:"block",width:"fit-content",marginLeft:"auto",marginRight:"auto",textAlign:"center",fontSize:"18px",lineHeight:"14px",opacity:".72",marginBottom:"6px",cursor:"grab",touchAction:"none"});
+    const b=root.createElement("div");b.id="guideMe-guide-bubble";b.dataset.guideMeStepId=step.id;b.dataset.placement=String(step.bubble?.placement||"Auto");b.__guideMeTarget=el;b.setAttribute("role","status");
+    const handle=root.createElement("div");handle.dataset.guideMeDragHandle="1";handle.setAttribute("aria-label",presentation.dragText||"");handle.textContent="⠿";handle.title=presentation.dragText||"";Object.assign(handle.style,{display:"block",width:"fit-content",marginLeft:"auto",marginRight:"auto",textAlign:"center",fontSize:"18px",lineHeight:"14px",opacity:".72",marginBottom:"6px",cursor:"grab",touchAction:"none"});
     const content=root.createElement("div");content.textContent=step.bubble?.content||"";content.style.cursor="default";b.append(handle);
     if(presentation.automaticStepLabel){
-      const badge=root.createElement("div");badge.dataset.dapAutomaticStep="true";badge.textContent=String(presentation.automaticStepLabel);Object.assign(badge.style,{display:"inline-block",fontSize:"12px",fontWeight:"700",padding:"2px 8px",marginBottom:"8px",border:"1px solid currentColor",borderRadius:"999px"});b.appendChild(badge);
+      const badge=root.createElement("div");badge.dataset.guideMeAutomaticStep="true";badge.textContent=String(presentation.automaticStepLabel);Object.assign(badge.style,{display:"inline-block",fontSize:"12px",fontWeight:"700",padding:"2px 8px",marginBottom:"8px",border:"1px solid currentColor",borderRadius:"999px"});b.appendChild(badge);
     }
     b.appendChild(content);
     if(stepNumber&&totalSteps){const p=root.createElement("div");p.textContent=presentation.progressText||"";Object.assign(p.style,{fontSize:theme.fontSize+"px",opacity:".78",marginTop:"8px",fontWeight:"600",cursor:"default"});b.appendChild(p);}
-    const pointer=root.createElement("div");pointer.dataset.dapPointer="1";Object.assign(pointer.style,{position:"absolute",width:"0",height:"0",cursor:"default"});b.appendChild(pointer);
+    const pointer=root.createElement("div");pointer.dataset.guideMePointer="1";Object.assign(pointer.style,{position:"absolute",width:"0",height:"0",cursor:"default"});b.appendChild(pointer);
     Object.assign(b.style,{position:"fixed",zIndex:"2147483646",maxWidth:theme.maxWidth+"px",padding:theme.padding,background:theme.backgroundColor,color:theme.textColor,border:theme.borderWidth+"px solid "+theme.borderColor,borderRadius:theme.borderRadius+"px",boxShadow:theme.boxShadow,fontFamily:theme.fontFamily,fontSize:theme.fontSize+"px",lineHeight:String(theme.lineHeight),direction:presentation.direction||"rtl",visibility:"hidden",touchAction:"none",userSelect:"none"});b.style.setProperty("cursor","default","important");if(presentation.visible===false)b.style.setProperty("display","none","important");root.body.appendChild(b);
     let manual=false,drag=null;const margin=8;
     const clamp=(x,y)=>{const q=b.getBoundingClientRect();return{x:Math.max(margin,Math.min(x,innerWidth-q.width-margin)),y:Math.max(margin,Math.min(y,innerHeight-q.height-margin))}};
@@ -818,7 +818,7 @@
       }
       return true;
     })();if(!targetVisible){b.style.visibility="hidden";return}if(manual){const q=b.getBoundingClientRect(),n=clamp(q.left,q.top);b.style.left=n.x+"px";b.style.top=n.y+"px";b.style.visibility="visible";return}const q=b.getBoundingClientRect(),gap=theme.pointerSize+8;const coords=x=>x==="Top"?[r.left+(r.width-q.width)/2,r.top-q.height-gap]:x==="Left"?[r.left-q.width-gap,r.top+(r.height-q.height)/2]:x==="Right"?[r.right+gap,r.top+(r.height-q.height)/2]:[r.left+(r.width-q.width)/2,r.bottom+gap];const preferred=String(step.bubble?.placement||"Auto");const sides=[preferred==="Auto"?"Bottom":preferred,"Top","Right","Left","Bottom"].filter((x,i,a)=>a.indexOf(x)===i);const candidates=sides.map(side=>{let[x,y]=coords(side);if(side==="Top"||side==="Bottom")x=Math.max(margin,Math.min(x,innerWidth-q.width-margin));else y=Math.max(margin,Math.min(y,innerHeight-q.height-margin));const inside=x>=margin&&y>=margin&&x+q.width<=innerWidth-margin&&y+q.height<=innerHeight-margin;const overlap=!(x+q.width<=r.left||x>=r.right||y+q.height<=r.top||y>=r.bottom);const overflow=Math.max(0,margin-x)+Math.max(0,margin-y)+Math.max(0,x+q.width-(innerWidth-margin))+Math.max(0,y+q.height-(innerHeight-margin));return{side,x,y,inside,overlap,overflow}});let chosen=candidates.find(x=>x.inside&&!x.overlap);if(!chosen){const safe=candidates.filter(x=>!x.overlap).sort((a,z)=>a.overflow-z.overflow);chosen=safe[0]}if(!chosen||!chosen.inside){b.dataset.actualPlacement="Overlay";b.style.pointerEvents="none";pointer.style.display="none";b.style.visibility="hidden";return}b.style.pointerEvents="";b.style.left=chosen.x+"px";b.style.top=chosen.y+"px";pointer.style.display="";pointerFor(chosen.side);b.style.visibility="visible";b.dataset.actualPlacement=chosen.side};
-    const down=e=>{if(e.button!==0||!e.target.closest('[data-dap-drag-handle="1"]'))return;const q=b.getBoundingClientRect();drag={id:e.pointerId,x:e.clientX,y:e.clientY,left:q.left,top:q.top};b.setPointerCapture(e.pointerId);b.style.setProperty("cursor","grabbing","important");handle.style.setProperty("cursor","grabbing","important");document.documentElement.style.setProperty("cursor","grabbing","important");document.body?.style.setProperty("cursor","grabbing","important");e.preventDefault();e.stopPropagation()};const move=e=>{if(!drag||e.pointerId!==drag.id)return;const n=clamp(drag.left+e.clientX-drag.x,drag.top+e.clientY-drag.y);b.style.left=n.x+"px";b.style.top=n.y+"px"};const up=e=>{if(!drag||e.pointerId!==drag.id)return;manual=true;drag=null;b.style.setProperty("cursor","default","important");handle.style.setProperty("cursor","grab","important");document.documentElement.style.removeProperty("cursor");document.body?.style.removeProperty("cursor");pointer.style.display="none";b.dataset.manualPosition="true";try{b.releasePointerCapture(e.pointerId)}catch{}e.preventDefault();e.stopPropagation()};
+    const down=e=>{if(e.button!==0||!e.target.closest('[data-guideMe-drag-handle="1"]'))return;const q=b.getBoundingClientRect();drag={id:e.pointerId,x:e.clientX,y:e.clientY,left:q.left,top:q.top};b.setPointerCapture(e.pointerId);b.style.setProperty("cursor","grabbing","important");handle.style.setProperty("cursor","grabbing","important");document.documentElement.style.setProperty("cursor","grabbing","important");document.body?.style.setProperty("cursor","grabbing","important");e.preventDefault();e.stopPropagation()};const move=e=>{if(!drag||e.pointerId!==drag.id)return;const n=clamp(drag.left+e.clientX-drag.x,drag.top+e.clientY-drag.y);b.style.left=n.x+"px";b.style.top=n.y+"px"};const up=e=>{if(!drag||e.pointerId!==drag.id)return;manual=true;drag=null;b.style.setProperty("cursor","default","important");handle.style.setProperty("cursor","grab","important");document.documentElement.style.removeProperty("cursor");document.body?.style.removeProperty("cursor");pointer.style.display="none";b.dataset.manualPosition="true";try{b.releasePointerCapture(e.pointerId)}catch{}e.preventDefault();e.stopPropagation()};
     b.addEventListener("pointerdown",down);b.addEventListener("pointermove",move);b.addEventListener("pointerup",up);b.addEventListener("pointercancel",up);const ro=new ResizeObserver(place);ro.observe(el);ro.observe(b);addEventListener("scroll",place,true);addEventListener("resize",place);place();
     bubbleState={bubble:b,step,element:el,stepNumber,totalSteps,armId:presentation.armId??null,progressText:presentation.progressText,dragText:presentation.dragText,direction:presentation.direction,stopText:presentation.stopText,hiddenPresentation:presentation.visible===false,cleanup:()=>{ro.disconnect();removeEventListener("scroll",place,true);removeEventListener("resize",place);document.documentElement.style.removeProperty("cursor");document.body?.style.removeProperty("cursor");b.remove();el.style.outline=previous.outline;el.style.outlineOffset=previous.outlineOffset;el.style.boxShadow=previous.boxShadow}};
     let topRect=null;
@@ -878,7 +878,7 @@
   function validationKind(step){return String(step?.validation?.kind??step?.validation?.Kind??"").toLowerCase();}
   function emitAdapterEvent(type,step,armId,extra={}){
     return chrome.runtime.sendMessage({
-      type:"dap-adapter-event",
+      type:"guideMe-adapter-event",
       payload:{
         type,
         stepId:step?.id??null,
@@ -898,19 +898,19 @@
         validationState?.armId === normalizedArmId)
       return;
 
-    element.__dapValidationArmId = normalizedArmId;
+    element.__guideMeValidationArmId = normalizedArmId;
     validationState = {step,element,armId:normalizedArmId};
 
     if (kind === "clicked") {
-      if (element.__dapValidationClickHandler)
-        element.removeEventListener("click", element.__dapValidationClickHandler, true);
+      if (element.__guideMeValidationClickHandler)
+        element.removeEventListener("click", element.__guideMeValidationClickHandler, true);
 
       const clickHandler = event => {
-        // Do not mutate DAP presentation synchronously in capture phase.
+        // Do not mutate GuideMe presentation synchronously in capture phase.
         // Application click handlers must observe the untouched DOM and own
         // their normal navigation/action. The .NET Runtime hides the bubble
         // only after validation/completion has been accepted.
-        const currentArmId = element.__dapValidationArmId;
+        const currentArmId = element.__guideMeValidationArmId;
         const tag = element.tagName?.toLowerCase();
         const type = (element.getAttribute?.("type") || "").toLowerCase();
         const form = element.form;
@@ -944,20 +944,20 @@
         }).catch(()=>{});
       };
 
-      element.__dapValidationClickHandler = clickHandler;
+      element.__guideMeValidationClickHandler = clickHandler;
       element.addEventListener("click", clickHandler, {capture:true});
       return;
     }
 
     if (!kind) return;
 
-    if (element.__dapValidationStepId !== step.id) {
-      if (element.__dapValidationCommitHandler)
-        element.removeEventListener(element.__dapValidationCommitEvent, element.__dapValidationCommitHandler, true);
-      if (element.__dapValidationInputHandler)
-        element.removeEventListener("input", element.__dapValidationInputHandler, true);
-      if (element.__dapValidationChangeHandler)
-        element.removeEventListener("change", element.__dapValidationChangeHandler, true);
+    if (element.__guideMeValidationStepId !== step.id) {
+      if (element.__guideMeValidationCommitHandler)
+        element.removeEventListener(element.__guideMeValidationCommitEvent, element.__guideMeValidationCommitHandler, true);
+      if (element.__guideMeValidationInputHandler)
+        element.removeEventListener("input", element.__guideMeValidationInputHandler, true);
+      if (element.__guideMeValidationChangeHandler)
+        element.removeEventListener("change", element.__guideMeValidationChangeHandler, true);
 
       const tag = element.tagName?.toLowerCase();
       const type = (element.getAttribute?.("type") || "").toLowerCase();
@@ -968,8 +968,8 @@
 
       if (isTextEditor) {
         const markChanged = () => { state.changed = true; };
-        element.__dapValidationInputHandler = markChanged;
-        element.__dapValidationChangeHandler = markChanged;
+        element.__guideMeValidationInputHandler = markChanged;
+        element.__guideMeValidationChangeHandler = markChanged;
         element.addEventListener("input", markChanged, {capture:true});
         element.addEventListener("change", markChanged, {capture:true});
       }
@@ -977,7 +977,7 @@
       const commit = event => {
         // Blur confirms an existing value too; .NET validation still gates advancement.
         state.changed = false;
-        const currentArmId = element.__dapValidationArmId;
+        const currentArmId = element.__guideMeValidationArmId;
         void emitAdapterEvent(
           "validation-commit",
           step,
@@ -986,9 +986,9 @@
         ).catch(()=>{});
       };
 
-      element.__dapValidationStepId = step.id;
-      element.__dapValidationCommitHandler = commit;
-      element.__dapValidationCommitEvent = eventName;
+      element.__guideMeValidationStepId = step.id;
+      element.__guideMeValidationCommitHandler = commit;
+      element.__guideMeValidationCommitEvent = eventName;
       element.addEventListener(eventName, commit, {capture:true});
     }
   }
@@ -1052,8 +1052,8 @@
 
   start();
 
-  const existingRuntime = globalThis.__dapWebRuntime;
-  globalThis.__dapWebRuntime = {
+  const existingRuntime = globalThis.__guideMeWebRuntime;
+  globalThis.__guideMeWebRuntime = {
     version: "0.4.7",
     resolveTarget,
     showBubble,
@@ -1065,13 +1065,13 @@
   };
 
   addEventListener("resize",reconcile,{passive:true}); addEventListener("scroll",reconcile,{passive:true,capture:true});
-  document.addEventListener("dap:web-runtime-command",e=>{const q=e.detail||{};try{let result;if(q.type==="showStep")result=showBubble(q.step,q.stepNumber,q.totalSteps);else if(q.type==="hide"){hideBubble();result={status:"hidden"};}else if(q.type==="resolve")result=resolveTarget(q.target);else throw new Error("Unknown DAP command");document.dispatchEvent(new CustomEvent("dap:web-runtime-result",{detail:{requestId:q.requestId,ok:true,result}}));}catch(error){document.dispatchEvent(new CustomEvent("dap:web-runtime-result",{detail:{requestId:q.requestId,ok:false,error:String(error?.message||error)}}));}});
-  document.dispatchEvent(new CustomEvent("dap:web-runtime-ready", {
-    detail: { version: globalThis.__dapWebRuntime.version }
+  document.addEventListener("guideme:web-runtime-command",e=>{const q=e.detail||{};try{let result;if(q.type==="showStep")result=showBubble(q.step,q.stepNumber,q.totalSteps);else if(q.type==="hide"){hideBubble();result={status:"hidden"};}else if(q.type==="resolve")result=resolveTarget(q.target);else throw new Error("Unknown GuideMe command");document.dispatchEvent(new CustomEvent("guideme:web-runtime-result",{detail:{requestId:q.requestId,ok:true,result}}));}catch(error){document.dispatchEvent(new CustomEvent("guideme:web-runtime-result",{detail:{requestId:q.requestId,ok:false,error:String(error?.message||error)}}));}});
+  document.dispatchEvent(new CustomEvent("guideme:web-runtime-ready", {
+    detail: { version: globalThis.__guideMeWebRuntime.version }
   }));
 
   try {
-    const ready = chrome.runtime.sendMessage({ type: "dap-runtime-ready" });
+    const ready = chrome.runtime.sendMessage({ type: "guideMe-runtime-ready" });
     ready?.catch?.(()=>{});
   } catch {
     // A page may momentarily retain an invalidated isolated world after

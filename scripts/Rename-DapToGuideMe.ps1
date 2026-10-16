@@ -16,11 +16,11 @@ foreach ($relative in $files) {
     $path = Join-Path $root ($relative.Replace('/', [IO.Path]::DirectorySeparatorChar))
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { continue }
     $old = [IO.File]::ReadAllText($path)
-    $new = $old.Replace('DAP', 'GuideMe').Replace('Dap', 'GuideMe')
-    $new = [regex]::Replace($new, '(?<![A-Za-z])dap(?=[A-Z._-])', 'guideMe')
-    $new = [regex]::Replace($new, '(?<![A-Za-z])dap\b', 'guideme')
+    $new = $old.Replace('GuideMe', 'GuideMe').Replace('GuideMe', 'GuideMe')
+    $new = [regex]::Replace($new, '(?<![A-Za-z])guideme(?=[A-Z._-])', 'guideMe')
+    $new = [regex]::Replace($new, '(?<![A-Za-z])guideme\b', 'guideme')
     # The repository URL/path is not renamed as part of this source migration.
-    $new = $new.Replace('GuideMe-Platform', 'DAP-Platform')
+    $new = $new.Replace('DAP-Platform', 'DAP-Platform')
     if ($new -cne $old) {
         [IO.File]::WriteAllText($path, $new, $utf8)
     }
@@ -28,18 +28,18 @@ foreach ($relative in $files) {
 
 # Rename project directories in a single coordinated pass.
 $dirs = @(Get-ChildItem (Join-Path $root 'src') -Directory |
-    Where-Object { $_.Name -like 'DAP.*' })
+    Where-Object { $_.Name -like 'GuideMe.*' })
 foreach ($dir in $dirs) {
-    $newName = $dir.Name.Replace('DAP.', 'GuideMe.')
+    $newName = $dir.Name.Replace('GuideMe.', 'GuideMe.')
     & git mv -- $dir.FullName (Join-Path $dir.Parent.FullName $newName)
     if ($LASTEXITCODE -ne 0) { throw "Failed to rename directory: $($dir.Name)" }
 }
 
 # Rename project files and legacy class files (including demo projects).
 $renameFiles = @(Get-ChildItem (Join-Path $root 'src'), (Join-Path $root 'demos') -Recurse -File |
-    Where-Object { $_.Name -match 'DAP|Dap' })
+    Where-Object { $_.Name -match 'GuideMe|GuideMe' })
 foreach ($file in $renameFiles) {
-    $newName = $file.Name.Replace('DAP', 'GuideMe').Replace('Dap', 'GuideMe')
+    $newName = $file.Name.Replace('GuideMe', 'GuideMe').Replace('GuideMe', 'GuideMe')
     & git mv -- $file.FullName (Join-Path $file.DirectoryName $newName)
     if ($LASTEXITCODE -ne 0) { throw "Failed to rename file: $($file.FullName)" }
 }

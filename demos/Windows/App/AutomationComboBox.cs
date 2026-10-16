@@ -2,7 +2,7 @@ using System.Windows.Automation.Peers;
 using System.Windows.Automation.Provider;
 using System.Windows.Controls;
 
-namespace DAP.SampleApp.Windows;
+namespace GuideMe.SampleApp.Windows;
 
 public sealed class AutomationComboBox : ComboBox
 {

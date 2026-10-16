@@ -5,8 +5,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
-$appProject = Join-Path $root 'src\DAP.App\DAP.App.csproj'
-$nativeHostProject = Join-Path $root 'src\DAP.Runtime.Web.NativeHost\DAP.Runtime.Web.NativeHost.csproj'
+$appProject = Join-Path $root 'src\GuideMe.App\GuideMe.App.csproj'
+$nativeHostProject = Join-Path $root 'src\GuideMe.Runtime.Web.NativeHost\GuideMe.Runtime.Web.NativeHost.csproj'
 $extensionSource = Join-Path $root 'src\GuideMe.Learner.ChromeExtension'
 $extensionDestination = Join-Path $Destination 'ChromeExtension'
 
@@ -24,7 +24,7 @@ if ($SkipExtensionSync -and [string]::Equals(
 # Do not terminate processes automatically: the operator should close them.
 if ([string]::Equals($destinationCanonical, $activeCanonical,
     [StringComparison]::OrdinalIgnoreCase)) {
-    $runningGuideMe = @(Get-Process -Name 'DAP', 'GuideMe.NativeHost' -ErrorAction SilentlyContinue |
+    $runningGuideMe = @(Get-Process -Name 'GuideMe', 'GuideMe.NativeHost' -ErrorAction SilentlyContinue |
         Where-Object {
             $executablePath = $_.Path
             if ([string]::IsNullOrWhiteSpace($executablePath)) {
@@ -92,7 +92,7 @@ if (-not $SkipExtensionSync) {
 
 }
 
-if (-not (Test-Path -LiteralPath (Join-Path $Destination 'DAP.exe') -PathType Leaf)) {
+if (-not (Test-Path -LiteralPath (Join-Path $Destination 'GuideMe.exe') -PathType Leaf)) {
     throw 'Published GuideMe executable is missing.'
 }
 if ($SkipExtensionSync) {

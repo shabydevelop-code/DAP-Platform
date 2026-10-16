@@ -1,11 +1,11 @@
-# DAP Platform
+# GuideMe Platform
 
 Digital Adoption Platform for guided learning across Web and Windows applications.
 
 ## Product scope
 
 - One .NET 8 Windows product with Learner and future Instructor/Editor capabilities.
-- Web learner runtime through the DAP browser Extension and Native Messaging.
+- Web learner runtime through the GuideMe browser Extension and Native Messaging.
 - Windows learner runtime through Microsoft UI Automation.
 - Web-only, Windows-only, and mixed Web–Windows–Web Guides are supported. Cross-runtime execution has been validated in the user's existing GuideMe workflows. Manual/Hybrid execution modes are optional.
 - Persisted Guide data as the learner execution source of truth.

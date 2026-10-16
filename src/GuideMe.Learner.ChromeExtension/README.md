@@ -7,11 +7,11 @@ The extension is not a Guide engine. Guide sequencing, validation decisions, com
 ## Production path
 
 ```text
-DAP.exe / AdapterWebGuideRuntime
+GuideMe.exe / AdapterWebGuideRuntime
     ↕
 ExtensionWebBrowserAdapter
     ↕ Named Pipe
-DAP.Runtime.Web.NativeHost
+GuideMe.Runtime.Web.NativeHost
     ↕ Chrome Native Messaging
 Manifest V3 service worker
     ↕

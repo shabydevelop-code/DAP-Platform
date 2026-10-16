@@ -2,9 +2,9 @@
 
 ## Product
 
-- DAP is a production-target .NET 8 Windows application.
+- GuideMe is a production-target .NET 8 Windows application.
 - One product supports Learner and future Instructor/Editor experiences.
-- Learner launch uses exactly `DAP.exe --guide <GuideKey>` as the required product entry contract. No `--learner` mode argument or compatibility alias is accepted. The runtime type is derived from the persisted Guide. Instructor/Editor launch remains undecided.
+- Learner launch uses exactly `GuideMe.exe --guide <GuideKey>` as the required product entry contract. No `--learner` mode argument or compatibility alias is accepted. The runtime type is derived from the persisted Guide. Instructor/Editor launch remains undecided.
 - The launcher supports Guides containing Web and Windows targets in one persisted workflow, including Web–Windows–Web transitions. Cross-runtime execution is an existing, user-verified capability, not a future feature.
 - Hebrew and English UI are supported with RTL/LTR direction.
 - Guide content language is independent of product UI language.
@@ -24,7 +24,7 @@
 
 ## Web
 
-- Production Web execution uses the DAP browser Extension and Native Messaging host.
+- Production Web execution uses the GuideMe browser Extension and Native Messaging host.
 - Production Web execution must not depend on Playwright, CDP, Python, customer source code, customer database access, or private customer APIs.
 - The Extension is an adapter; Guide sequencing/progression stays in .NET Runtime.
 - Support dynamic DOM changes, frames, navigation, asynchronous server behavior, and target re-resolution.
@@ -44,7 +44,7 @@
 - Core and Runtime remain independent of the concrete database provider.
 - SQLite is the first provider.
 - Additional providers must be possible without rewriting Guide/Runtime business logic.
-- DAP data and target-application business data remain separate.
+- GuideMe data and target-application business data remain separate.
 
 ## Instructor/Editor
 
@@ -67,7 +67,7 @@
 
 ## Product execution
 
-- Launch the Learner with `DAP.exe --guide <GuideKey>`, using the persisted Guide key rather than the database numeric ID.
+- Launch the Learner with `GuideMe.exe --guide <GuideKey>`, using the persisted Guide key rather than the database numeric ID.
 - The Learner observes and validates user actions; persisted automatic value injection is not a product capability.
 - Web, Windows and mixed Web–Windows–Web Guides are supported.
 

@@ -36,7 +36,7 @@ Web-only, Windows-only and mixed Web–Windows–Web Guides are supported. The p
 The example Web Guide `sampleapp-web-guide` uses context `crm` and a local Web URL host matcher. The Windows Guide `sampleapp-windows-guide` uses `crm-windows` with the demo window automation ID `SampleAppMainWindow`. These are persisted example values, not hard-coded product rules.
 
 ## Session and ownership
-DAP attaches to an already-running target application. It does not own the target's process lifetime. Guide completion removes learner UI and terminates the DAP learner; the target remains open. Browser Native Messaging infrastructure can persist independently of the learner session.
+GuideMe attaches to an already-running target application. It does not own the target's process lifetime. Guide completion removes learner UI and terminates the GuideMe learner; the target remains open. Browser Native Messaging infrastructure can persist independently of the learner session.
 
 ## Engineering boundaries
 Application discovery, target discovery, session cleanup, and Guide advancement are separate responsibilities. Capabilities beyond the verified context-switching flow must be checked against current code and live execution.

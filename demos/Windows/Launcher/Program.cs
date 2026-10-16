@@ -2,8 +2,8 @@ using System.Diagnostics;
 using System.Net.Http;
 
 var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".."));
-var serverProject = Path.Combine(root, "demos", "Shared", "Server", "DAP.SampleApp.Server.csproj");
-var windowsProject = Path.Combine(root, "demos", "Windows", "App", "DAP.SampleApp.Windows.csproj");
+var serverProject = Path.Combine(root, "demos", "Shared", "Server", "GuideMe.SampleApp.Server.csproj");
+var windowsProject = Path.Combine(root, "demos", "Windows", "App", "GuideMe.SampleApp.Windows.csproj");
 
 async Task BuildAsync(string project)
 {
@@ -62,8 +62,8 @@ Process? server = null;
 Process? windows = null;
 try
 {
-    var serverDll = Path.Combine(Path.GetDirectoryName(serverProject)!, "bin", "Debug", "net8.0", "DAP.SampleApp.Server.dll");
-    var windowsExe = Path.Combine(Path.GetDirectoryName(windowsProject)!, "bin", "Debug", "net8.0-windows", "DAP.SampleApp.Windows.exe");
+    var serverDll = Path.Combine(Path.GetDirectoryName(serverProject)!, "bin", "Debug", "net8.0", "GuideMe.SampleApp.Server.dll");
+    var windowsExe = Path.Combine(Path.GetDirectoryName(windowsProject)!, "bin", "Debug", "net8.0-windows", "GuideMe.SampleApp.Windows.exe");
     if (!reuseServer)
         server = args.Contains("--seed-grid-baseline", StringComparer.OrdinalIgnoreCase)
             ? Start("dotnet", Path.GetDirectoryName(serverDll)!, serverDll, "--urls", "http://localhost:5201", "--seed-grid-baseline")
@@ -89,8 +89,8 @@ try
         throw new TimeoutException("SampleApp server did not become ready within five seconds.");
 
     windows = Start(windowsExe, Path.GetDirectoryName(windowsExe)!);
-    Console.WriteLine("SampleApp Windows is running independently of DAP.");
-    Console.WriteLine("Start DAP.exe --guide sampleapp-windows-guide in another terminal.");
+    Console.WriteLine("SampleApp Windows is running independently of GuideMe.");
+    Console.WriteLine("Start GuideMe.exe --guide sampleapp-windows-guide in another terminal.");
     Console.WriteLine("Press Ctrl+C to stop the SampleApp host.");
 
     var serverExit = server?.WaitForExitAsync();

@@ -1,6 +1,6 @@
 using System.Windows;
 
-namespace DAP.SampleApp.Windows;
+namespace GuideMe.SampleApp.Windows;
 
 public partial class App : Application
 {

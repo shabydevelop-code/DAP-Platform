@@ -1,4 +1,4 @@
-# פקודות הרצה מאומתות — DAP / SampleApp
+# פקודות הרצה מאומתות — GuideMe / SampleApp
 
 > **כלל:** הפרמטר `--guide` מקבל את **Key** של המדריך, לא את השדה המספרי `Guides.Id`. אין להשתמש ב-`--guide 965`.
 
@@ -20,13 +20,13 @@ git pull --ff-only origin main
 
 ```powershell
 cd C:\yossi\ChatGpt\DAP-Platform
-dotnet run --project demos\Windows\Launcher\DAP.SampleApp.Windows.Host.csproj
+dotnet run --project demos\Windows\Launcher\GuideMe.SampleApp.Windows.Host.csproj
 ```
 
 בחלון PowerShell שני, הפעלת המדריך:
 
 ```powershell
-& "C:\GuideMe\DAP.exe" --guide sampleapp-windows-guide
+& "C:\GuideMe\GuideMe.exe" --guide sampleapp-windows-guide
 ```
 
 ## 3. מדריך Web
@@ -35,13 +35,13 @@ dotnet run --project demos\Windows\Launcher\DAP.SampleApp.Windows.Host.csproj
 
 ```powershell
 cd C:\yossi\ChatGpt\DAP-Platform
-dotnet run --project demos\Web\Launcher\DAP.SampleApp.Web.Host.csproj
+dotnet run --project demos\Web\Launcher\GuideMe.SampleApp.Web.Host.csproj
 ```
 
 בחלון PowerShell שני, הפעלת המדריך:
 
 ```powershell
-& "C:\GuideMe\DAP.exe" --guide sampleapp-web-guide
+& "C:\GuideMe\GuideMe.exe" --guide sampleapp-web-guide
 ```
 
 כאשר Web מופעלת ראשונה, היא מקימה את שרת הדוגמה. בהרצת Windows במקביל יש להוסיף `--use-existing-server` כדי למנוע התנגשות בפורט 5201.
@@ -54,20 +54,20 @@ dotnet run --project demos\Web\Launcher\DAP.SampleApp.Web.Host.csproj
 
 ```powershell
 cd C:\yossi\ChatGpt\DAP-Platform
-dotnet run --project demos\Web\Launcher\DAP.SampleApp.Web.Host.csproj
+dotnet run --project demos\Web\Launcher\GuideMe.SampleApp.Web.Host.csproj
 ```
 
 חלון שני — Windows, עם שימוש בשרת הקיים:
 
 ```powershell
 cd C:\yossi\ChatGpt\DAP-Platform
-dotnet run --project demos\Windows\Launcher\DAP.SampleApp.Windows.Host.csproj -- --use-existing-server
+dotnet run --project demos\Windows\Launcher\GuideMe.SampleApp.Windows.Host.csproj -- --use-existing-server
 ```
 
 חלון שלישי — הפעלת המדריך המשולב:
 
 ```powershell
-& "C:\GuideMe\DAP.exe" --guide sampleapp-mixed-smoke-guide
+& "C:\GuideMe\GuideMe.exe" --guide sampleapp-mixed-smoke-guide
 ```
 
 מפתח המדריך:

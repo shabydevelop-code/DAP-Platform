@@ -9,7 +9,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
-$project = Join-Path $root 'src\DAP.App\DAP.App.csproj'
+$project = Join-Path $root 'src\GuideMe.App\GuideMe.App.csproj'
 $db = [System.IO.Path]::GetFullPath($DatabasePath)
 
 if (-not (Test-Path -LiteralPath $db -PathType Leaf)) {
@@ -45,7 +45,7 @@ try {
     & dotnet run --no-build -c Release --project $project -- --guide $guide --v5-db $db
     if ($LASTEXITCODE -ne 0) {
         $learnerExitCode = $LASTEXITCODE
-        $logDir = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'DAP\Logs'
+        $logDir = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'GuideMe\Logs'
         $latestError = Get-ChildItem -LiteralPath $logDir -Filter 'session-error-*.log' -File -ErrorAction SilentlyContinue |
             Where-Object { $_.LastWriteTimeUtc -ge $runStartedUtc.AddSeconds(-2) } |
             Sort-Object LastWriteTimeUtc -Descending |
@@ -55,7 +55,7 @@ try {
             Get-Content -LiteralPath $latestError.FullName | Out-Host
         }
         else {
-            Write-Warning "No new DAP session-error log found in $logDir. Check for a popup, application startup failure, or non-exception exit."
+            Write-Warning "No new GuideMe session-error log found in $logDir. Check for a popup, application startup failure, or non-exception exit."
         }
         throw "V5 learner finished with exit code $learnerExitCode."
     }

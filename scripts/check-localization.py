@@ -1,4 +1,4 @@
-"""Lightweight localization check run automatically by the app build.
+﻿"""Lightweight localization check run automatically by the app build.
 
 Checks translation parity and obvious learner-facing literals; not a general
 static analyzer. Keep the patterns narrow to avoid false build failures.
@@ -9,7 +9,7 @@ import re
 import sys
 
 root = pathlib.Path(__file__).resolve().parents[1]
-catalog = root / "src/DAP.App/Localization"
+catalog = root / "src/GuideMe.App/Localization"
 he = json.loads((catalog / "he.json").read_text(encoding="utf-8"))
 en = json.loads((catalog / "en.json").read_text(encoding="utf-8"))
 errors = []
@@ -25,12 +25,12 @@ for key in sorted(set(he) | set(en)):
 
 # Only learner UI entry points, not logs, protocol identifiers, or demo apps.
 ui_sources = [
-    "src/DAP.App/DapApplicationHost.cs",
-    "src/DAP.App/GuideSessionTray.cs",
-    "src/DAP.App/DapLaunchOptions.cs",
-    "src/DAP.Runtime.Windows/Bubbles/WindowsBubblePresenter.cs",
-    "src/DAP.Runtime.Web/Browser/ExtensionWebBrowserAdapter.cs",
-    "src/DAP.Runtime.Web.Extension/content-runtime.js",
+    "src/GuideMe.App/GuideMeApplicationHost.cs",
+    "src/GuideMe.App/GuideSessionTray.cs",
+    "src/GuideMe.App/GuideMeLaunchOptions.cs",
+    "src/GuideMe.Runtime.Windows/Bubbles/WindowsBubblePresenter.cs",
+    "src/GuideMe.Runtime.Web/Browser/ExtensionWebBrowserAdapter.cs",
+    "src/GuideMe.Learner.ChromeExtension/content-runtime.js",
 ]
 key_pattern = re.compile(r'\b(?:texts|_texts)\??\.(?:Get|Format)\(\s*"([^"]+)"')
 # Direct quoted learner-facing UI values only; variable/DB-sourced text is fine.
@@ -71,3 +71,4 @@ if errors:
     print("\n".join(errors))
     sys.exit(1)
 print("Localization guard passed.")
+

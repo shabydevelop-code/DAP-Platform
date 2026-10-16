@@ -14,11 +14,11 @@ if ($ExtensionId -notmatch '^[a-p]{32}$') {
     throw "Invalid Chrome extension ID."
 }
 
-$manifestDir = Join-Path $env:LOCALAPPDATA "DAP\NativeMessaging"
+$manifestDir = Join-Path $env:LOCALAPPDATA "GuideMe\NativeMessaging"
 New-Item -ItemType Directory -Path $manifestDir -Force | Out-Null
-$manifestPath = Join-Path $manifestDir "com.dap.web_runtime.json"
+$manifestPath = Join-Path $manifestDir "com.guideme.web_runtime.json"
 $manifest = [ordered]@{
-    name = "com.dap.web_runtime"
+    name = "com.guideme.web_runtime"
     description = "GuideMe browser Native Messaging Host"
     path = $exe
     type = "stdio"
@@ -28,7 +28,7 @@ $manifest = [ordered]@{
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 [System.IO.File]::WriteAllText($manifestPath, ($manifest | ConvertTo-Json -Depth 5), $utf8NoBom)
 
-$registryPath = "HKCU:\Software\Google\Chrome\NativeMessagingHosts\com.dap.web_runtime"
+$registryPath = "HKCU:\Software\Google\Chrome\NativeMessagingHosts\com.guideme.web_runtime"
 New-Item -Path $registryPath -Force | Out-Null
 Set-Item -Path $registryPath -Value $manifestPath
 

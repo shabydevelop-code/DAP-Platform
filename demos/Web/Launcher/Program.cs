@@ -7,8 +7,8 @@ const string webUrl = "http://localhost:5200";
 const string backendUrl = "http://localhost:5201";
 
 var repoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".."));
-var backendProject = Path.Combine(repoRoot, "demos", "Shared", "Server", "DAP.SampleApp.Server.csproj");
-var webProject = Path.Combine(repoRoot, "demos", "Web", "App", "DAP.SampleApp.Web.csproj");
+var backendProject = Path.Combine(repoRoot, "demos", "Shared", "Server", "GuideMe.SampleApp.Server.csproj");
+var webProject = Path.Combine(repoRoot, "demos", "Web", "App", "GuideMe.SampleApp.Web.csproj");
 
 if (!File.Exists(backendProject))
     throw new FileNotFoundException("SampleApp Server project was not found.", backendProject);
@@ -147,7 +147,7 @@ try
         throw new TimeoutException("SampleApp Web did not become ready within 5 seconds.");
 
     // Open a normal Chrome window using the user's existing browser profile.
-    // A fresh isolated profile would not have the DAP extension installed.
+    // A fresh isolated profile would not have the GuideMe extension installed.
     if (!OperatingSystem.IsWindows())
         throw new PlatformNotSupportedException("SampleApp Web Host requires Windows to launch Chrome.");
 
@@ -187,7 +187,7 @@ try
 
     Console.WriteLine();
     Console.WriteLine($"SampleApp is running independently at {webUrl}");
-    Console.WriteLine("Leave this terminal open. Start DAP Learner from a separate terminal.");
+    Console.WriteLine("Leave this terminal open. Start GuideMe Learner from a separate terminal.");
     Console.WriteLine(useExistingServer
         ? "Close the SampleApp Chrome window or press Ctrl+C to stop this Web host; the shared server stays running."
         : "Close the SampleApp Chrome window or press Ctrl+C to stop the demo servers.");

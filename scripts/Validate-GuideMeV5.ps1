@@ -10,7 +10,7 @@ if (-not (Test-Path -LiteralPath $fullDatabasePath -PathType Leaf)) {
     throw "V5 database not found: $fullDatabasePath"
 }
 
-$project = Join-Path $repoRoot 'src\DAP.App\DAP.App.csproj'
+$project = Join-Path $repoRoot 'src\GuideMe.App\GuideMe.App.csproj'
 $guides = @(
     'sampleapp-web-guide',
     'sampleapp-windows-guide',

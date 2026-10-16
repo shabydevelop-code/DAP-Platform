@@ -1,0 +1,4 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><AssemblyName>GuideMe.NativeHost</AssemblyName><TargetFramework>net8.0</TargetFramework><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings></PropertyGroup>
+  <ItemGroup><ProjectReference Include="../GuideMe.Core/GuideMe.Core.csproj" /><ProjectReference Include="../GuideMe.Data.Sqlite/GuideMe.Data.Sqlite.csproj" /></ItemGroup>
+</Project>

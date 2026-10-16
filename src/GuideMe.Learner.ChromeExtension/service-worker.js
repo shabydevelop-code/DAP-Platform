@@ -1,4 +1,4 @@
-const HOST = "com.dap.web_runtime";
+const HOST = "com.guideme.web_runtime";
 const identifiedFrames = new Map();
 let port = null;
 const productionContextTabs = new Map();
@@ -27,7 +27,7 @@ function connect() {
   connected.onMessage.addListener(handleNativeMessage);
   connected.onDisconnect.addListener(() => {
     // Reading lastError acknowledges Chrome's expected native-messaging
-    // disconnect when DAP/the runner exits, preventing an unchecked
+    // disconnect when GuideMe/the runner exits, preventing an unchecked
     // runtime error warning. Connection cleanup remains identical.
     void chrome.runtime.lastError;
 
@@ -47,7 +47,7 @@ function waitForNativeResponse(nativePort, requestId, timeoutMs = 5000) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       nativePort.onMessage.removeListener(onMessage);
-      reject(new Error("DAP native response timed out."));
+      reject(new Error("GuideMe native response timed out."));
     }, timeoutMs);
 
     const onMessage = message => {
@@ -65,7 +65,7 @@ function ensureNativeConnection() {
   try { connect(); } catch {}
 }
 
-// MV3 workers can be suspended while DAP is not running. A normal browser
+// MV3 workers can be suspended while GuideMe is not running. A normal browser
 // navigation is therefore also a production transport wake-up signal. This is
 // transport lifecycle only; it does not identify the Guide target or advance a
 // Step.
@@ -76,13 +76,13 @@ chrome.runtime.onInstalled.addListener(ensureNativeConnection);
 // runtime-activation channel is available.
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message?.type === "dap-runtime-ready") {
+  if (message?.type === "guideMe-runtime-ready") {
     connect();
     sendResponse({ ok: true });
     return false;
   }
 
-  if (message?.type === "dap-frame-identified" && message.token) {
+  if (message?.type === "guideMe-frame-identified" && message.token) {
     identifiedFrames.set(message.token, {
       tabId: sender.tab?.id ?? null,
       frameId: sender.frameId ?? 0
@@ -91,7 +91,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return false;
   }
 
-  if (message?.type === "dap-adapter-event") {
+  if (message?.type === "guideMe-adapter-event") {
     const nativePort = connect();
     const requestId = crypto.randomUUID();
 
@@ -110,7 +110,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  if (message?.type === "dap-native") {
+  if (message?.type === "guideMe-native") {
     const nativePort = connect();
     const requestId = message.requestId || crypto.randomUUID();
 
@@ -130,7 +130,7 @@ function postAdapterResponse(requestId, response, tabId, frameId) {
     tabId,
     frameId,
     // A semantic response such as "inactive" or "notFound" is still ok=true,
-    // but it must not cause .NET to bind this DAP run to a browser profile
+    // but it must not cause .NET to bind this GuideMe run to a browser profile
     // that does not contain the persisted Application Context.
     contextMatched: tabId != null,
     response
@@ -151,7 +151,7 @@ async function ensureContentScript(tabId, frameId) {
   try {
     const ready = await chrome.tabs.sendMessage(
       tabId,
-      { type: "dap-adapter-command", command: { type: "ping" } },
+      { type: "guideMe-adapter-command", command: { type: "ping" } },
       { frameId }
     );
     // A successful ping from an older injected content script is not readiness.
@@ -170,11 +170,11 @@ async function ensureContentScript(tabId, frameId) {
 
   const ready = await chrome.tabs.sendMessage(
     tabId,
-    { type: "dap-adapter-command", command: { type: "ping" } },
+    { type: "guideMe-adapter-command", command: { type: "ping" } },
     { frameId }
   );
   if (!ready?.ok || ready.result?.version !== "0.4.7")
-    throw new Error("DAP content runtime is stale after injection; reload the unpacked extension in chrome://extensions.");
+    throw new Error("GuideMe content runtime is stale after injection; reload the unpacked extension in chrome://extensions.");
 }
 
 async function ensureTabFramesReady(tabId) {
@@ -193,7 +193,7 @@ async function ensureTabFramesReady(tabId) {
 }
 
 async function sendToFrame(tabId, frameId, requestId, command) {
-  const payload = { type: "dap-adapter-command", requestId, command };
+  const payload = { type: "guideMe-adapter-command", requestId, command };
 
   try {
     return await chrome.tabs.sendMessage(tabId, payload, { frameId });
@@ -242,9 +242,9 @@ function applicationContextMatcherMatches(tab, matcher) {
 
 async function resolveProductionContextTab(contextKey, context) {
   if (!contextKey || !context)
-    throw new Error("DAP Web command is missing its persisted Application Context.");
+    throw new Error("GuideMe Web command is missing its persisted Application Context.");
   if (closedProductionContexts.has(contextKey))
-    throw new Error("DAP_WEB_TARGET_CLOSED: The bound application tab was closed.");
+    throw new Error("GuideMe_WEB_TARGET_CLOSED: The bound application tab was closed.");
 
   const retainedTabId = productionContextTabs.get(contextKey);
   if (retainedTabId != null) {
@@ -254,14 +254,14 @@ async function resolveProductionContextTab(contextKey, context) {
     } catch {
       productionContextTabs.delete(contextKey);
       closedProductionContexts.add(contextKey);
-      throw new Error("DAP_WEB_TARGET_CLOSED: The bound application tab was closed.");
+      throw new Error("GuideMe_WEB_TARGET_CLOSED: The bound application tab was closed.");
     }
     productionContextTabs.delete(contextKey);
   }
 
   const matchers = Array.isArray(context.matchers) ? context.matchers : [];
   if (matchers.length === 0)
-    throw new Error("DAP Application Context '" + contextKey + "' has no matchers.");
+    throw new Error("GuideMe Application Context '" + contextKey + "' has no matchers.");
 
   const candidates = await productionCandidateTabs();
   const matches = candidates.filter(tab =>
@@ -272,8 +272,8 @@ async function resolveProductionContextTab(contextKey, context) {
   if (matches.length > 1) {
     const details = matches.map(tab => tab.id + ":" + (tab.url || "<no-url>")).join(", ");
     throw new Error(
-      "DAP Application Context '" + contextKey + "' is ambiguous: " + matches.length +
-      " browser tabs match its persisted matchers. DAP will not guess. matches=[" + details + "]"
+      "GuideMe Application Context '" + contextKey + "' is ambiguous: " + matches.length +
+      " browser tabs match its persisted matchers. GuideMe will not guess. matches=[" + details + "]"
     );
   }
 
@@ -356,13 +356,13 @@ async function resolveFramePath(tabId, framePath, requestId) {
 
       if (matches.length > 1) {
         throw new Error(
-          "DAP frame mapping is ambiguous for live iframe URL '" +
+          "GuideMe frame mapping is ambiguous for live iframe URL '" +
           frameUrl + "' under parent frame " + frameId + "."
         );
       }
     }
 
-    throw new Error("DAP could not map the resolved iframe element to a unique browser frame.");
+    throw new Error("GuideMe could not map the resolved iframe element to a unique browser frame.");
   }
 
   return { ok: true, frameId, offsetX, offsetY, frameRect: currentFrameRect };
@@ -391,7 +391,7 @@ async function handleNativeMessage(message) {
 
   const requestId = message.requestId;
 
-  // A native host can remain connected across independent DAP guide runs.
+  // A native host can remain connected across independent GuideMe guide runs.
   // Reset tab closure and focus state only when a new production runtime
   // identifies itself; never rebind a closed tab during the same run.
   if (!message.sessionId && message.runtimeInstanceId &&
@@ -448,9 +448,9 @@ async function handleNativeMessage(message) {
         (command.type === "activateContextWindow" || !activatedProductionSessions.has(String(message.sessionId || "production") + ":" + envelope.applicationContextKey))) {
       const tab = await chrome.tabs.get(tabId);
       if (tab.windowId == null)
-        throw new Error("Resolved DAP Web target has no browser window.");
+        throw new Error("Resolved GuideMe Web target has no browser window.");
       // Select the resolved tab without restoring, resizing or focusing the
-      // browser window. Native Windows activation is owned by the DAP host.
+      // browser window. Native Windows activation is owned by the GuideMe host.
       const activeTab = await chrome.tabs.update(tabId, { active: true });
       if (activeTab.title && port)
         port.postMessage({ type: "adapterEvent", payload: { type: "activate-target-window", title: activeTab.title, applicationContextKey: envelope.applicationContextKey } });
@@ -550,7 +550,7 @@ async function handleNativeMessage(message) {
       if (!targetRect) {
         postAdapterResponse(
           requestId,
-          { ok:false, error:"DAP could not derive top-level target geometry for bubble proxy." },
+          { ok:false, error:"GuideMe could not derive top-level target geometry for bubble proxy." },
           tabId,
           frameId
         );
