@@ -34,6 +34,23 @@ public static class DapApplicationHost
             return 2;
         StartupMark(startup, "launch options parsed");
 
+        if (options.Mode == DapLaunchMode.ValidateV5)
+        {
+            try
+            {
+                var plan = await GuideV5ExecutionCompiler.CompileAsync(
+                    Path.GetFullPath(options.V5DatabasePath!), options.GuideId!, cancellationToken);
+                Console.WriteLine($"V5 validation succeeded: {options.GuideId}; {plan.Steps.Count} steps; {plan.Contexts.Count} contexts.");
+                return 0;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                Console.Error.WriteLine($"V5 validation failed for '{options.GuideId}': {ex}");
+                return 7;
+            }
+        }
+
+
         // One active Guide execution per Windows logon session, across processes.
         // A named semaphore is used because an async run can resume on another thread.
         Semaphore? guideGate = null;
