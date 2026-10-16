@@ -1,12 +1,10 @@
 # פקודות הרצה מאומתות — DAP / SampleApp
 
-> עודכן: 16.10.2026. שלושת מסלולי המדריכים אומתו מתוך התקנת GuideMe V5 הפעילה.
->
 > **כלל:** הפרמטר `--guide` מקבל את **Key** של המדריך, לא את השדה המספרי `Guides.Id`. אין להשתמש ב-`--guide 965`.
 
-## 1. הכנה: עדכון ופרסום גרסת DAP
+## 1. הכנה: עדכון ופרסום GuideMe
 
-יש לסגור את DAP לפני פרסום לתיקיית הייצור. הפקודות מתוך PowerShell:
+יש לסגור את GuideMe ואת Native Host לפני פרסום לתיקיית ההתקנה. הפקודות מתוך PowerShell:
 
 ```powershell
 cd C:\yossi\ChatGpt\DAP-Platform
@@ -14,7 +12,7 @@ git pull --ff-only origin main
 .\scripts\Publish-GuideMe.ps1
 ```
 
-**סדר הרגרסיה המחייב:** עדכון → פרסום → הפעלת אפליקציות הדוגמה → הפעלת מדריך מתוך `C:\GuideMe` → רגרסיה.
+**סדר הרגרסיה:** עדכון → בנייה ופרסום → הפעלת אפליקציות הדוגמה → הפעלת מדריך מתוך `C:\GuideMe` → בדיקת תקינות.
 
 ## 2. מדריך Windows
 
@@ -72,12 +70,10 @@ dotnet run --project demos\Windows\Launcher\DAP.SampleApp.Windows.Host.csproj --
 & "C:\GuideMe\DAP.exe" --guide sampleapp-mixed-smoke-guide
 ```
 
-מפתח המדריך אומת במסד הנתונים:
+מפתח המדריך:
 
 ```text
-Id:   965
-Key:  sampleapp-mixed-smoke-guide
-Name: SampleApp Mixed Web-Windows-Web Smoke
+sampleapp-mixed-smoke-guide
 ```
 
 ## 5. כללי עבודה
@@ -85,6 +81,6 @@ Name: SampleApp Mixed Web-Windows-Web Smoke
 - אין להפעיל את המדריכים באמצעות `--learner-web`, `--learner-windows` או מזהי מדריכים מספריים.
 - הפקודות לעיל מפעילות את גרסת הייצור מתוך `C:\GuideMe`, לא עותק ישן מתיקיית `bin`.
 - לאחר שינוי בקוד יש לבצע Build ולפרסם מחדש ל-`C:\GuideMe`, כולל `NativeHost\GuideMe.NativeHost.exe` באמצעות סקריפט הפרסום.
-- מסד ברירת המחדל הוא `C:\ProgramData\GuideMe\Data\GuideMe-V5.db`; אין להשתמש במסד הישן `GuideMe.db` להרצת V5.
+- מסד ברירת המחדל הוא `C:\ProgramData\GuideMe\Data\GuideMe-V5.db`; זהו מסד הנתונים הפעיל היחיד.
 - אין להריץ רגרסיה דרך תיקיות בדיקות E2E; יש לבדוק את ה-Learner מול אפליקציות הדוגמה כמוצר.
 - עבודה ב-Git מתבצעת בענף `main` בלבד, ללא ענפים נפרדים.
