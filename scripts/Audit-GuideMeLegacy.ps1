@@ -27,12 +27,17 @@ $files = foreach ($area in $areas) {
 }
 
 $results = foreach ($file in $files) {
-    $relativePath = [System.IO.Path]::GetRelativePath($root, $file.FullName)
+    $rootPrefix = $root.TrimEnd([char]'\\', [char]'/') + [System.IO.Path]::DirectorySeparatorChar
+    $relativePath = if ($file.FullName.StartsWith($rootPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+        $file.FullName.Substring($rootPrefix.Length)
+    } else {
+        throw "File is outside repository root: $($file.FullName)"
+    }
     $lineNumber = 0
     foreach ($line in [System.IO.File]::ReadLines($file.FullName)) {
         $lineNumber++
         foreach ($token in $tokens) {
-            if ($line.Contains($token, [System.StringComparison]::Ordinal)) {
+            if ($line.IndexOf($token, [System.StringComparison]::Ordinal) -ge 0) {
                 $category = if ($relativePath -match '^(src)[\\/]') { 'ProductionSource' }
                     elseif ($relativePath -match '^(tests)[\\/]') { 'Tests' }
                     elseif ($relativePath -match '^(demos)[\\/]') { 'Demos' }
