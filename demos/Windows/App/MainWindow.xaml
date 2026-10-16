@@ -1,4 +1,4 @@
-<Window x:Class="DAP.TestCRM.Windows.MainWindow"
+<Window x:Class="DAP.SampleApp.Windows.MainWindow"
  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
  Title="יישום לדוגמה" Height="760" Width="1120" MinHeight="560" MinWidth="760" WindowState="Maximized"
