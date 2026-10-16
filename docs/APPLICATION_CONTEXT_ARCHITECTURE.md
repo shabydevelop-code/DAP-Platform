@@ -6,8 +6,8 @@ An Application Context identifies the target application instance for a Guide St
 ## Persisted model
 - `GuideApplicationContexts`: context key, owning Guide, runtime type.
 - `ApplicationContextMatchers`: ordered matcher kind and value for a context.
-- `GuideSteps.ApplicationContextKey`: reference to the Guide's context.
-- `TargetDescriptor.Runtime`: runtime of the Step target; must agree with its context.
+- `GuideSteps.ApplicationContextId`: foreign key to `(GuideId, ContextId)` in `GuideApplicationContexts`.
+- `GuideSteps.Runtime` and the context runtime must describe the same execution platform. Element definitions and locators are stored in `GuideElements`, `ElementLocators`, and `StepElementUsages`.
 
 The model permits multiple named contexts, but support for executing across them is runtime-specific.
 
