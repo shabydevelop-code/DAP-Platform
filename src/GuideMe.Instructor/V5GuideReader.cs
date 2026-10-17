@@ -82,7 +82,7 @@ WHERE s.GuideId=$guideId ORDER BY s.StepOrder";
         var elementFilter = stepId is not null && table is
             "GuideElements" or "ElementLocators" or "ElementAnchorRelations";
 
-        var sql = $"SELECT * FROM \\"{table}\\" WHERE GuideId=$guideId";
+        var sql = $"SELECT * FROM {table} WHERE GuideId=$guideId";
         if (stepFilter)
             sql += " AND StepId=$stepId";
         else if (elementFilter)
