@@ -36,53 +36,21 @@ public static class GuideV5ContextCaptureReader
             guideId = Convert.ToInt64(result);
         }
 
-        await using var probe = connection.CreateCommand();
-        probe.CommandText = "SELECT 1 FROM sqlite_master WHERE type='table' AND name='ApplicationContexts'";
-        var compact = await probe.ExecuteScalarAsync(cancellationToken) is not null;
-
         var contexts = new List<ApplicationContext>();
         await using (var command = connection.CreateCommand())
         {
-            command.CommandText = compact
-                ? "SELECT ContextId,Runtime,MatchersJson FROM ApplicationContexts WHERE GuideId=$guide ORDER BY ContextId"
-                : "SELECT ContextId,Runtime FROM GuideApplicationContexts WHERE GuideId=$guide ORDER BY ContextId";
+            command.CommandText = "SELECT ContextId,Runtime,MatchersJson FROM ApplicationContexts WHERE GuideId=$guide ORDER BY ContextId";
             command.Parameters.AddWithValue("$guide", guideId);
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
             while (await reader.ReadAsync(cancellationToken))
-                contexts.Add(new ApplicationContext(reader.GetString(0), reader.GetString(1), compact ? JsonSerializer.Deserialize<List<ContextMatcher>>(reader.GetString(2))
-                        ?? throw new InvalidOperationException("Invalid compact matchers JSON.")
-                        : Array.Empty<ContextMatcher>()));
-        }
-
-        var loadedContexts = new List<ApplicationContext>(contexts.Count);
-        foreach (var context in contexts)
-        {
-            if (compact)
-            {
-                loadedContexts.Add(context);
-                continue;
-            }
-            var matchers = new List<ContextMatcher>();
-            await using var command = connection.CreateCommand();
-            command.CommandText = """
-                SELECT MatcherOrder,Kind,Value FROM ApplicationContextMatchers
-                WHERE GuideId=$guide AND ContextId=$context ORDER BY MatcherOrder
-                """;
-            command.Parameters.AddWithValue("$guide", guideId);
-            command.Parameters.AddWithValue("$context", context.ContextId);
-            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-            while (await reader.ReadAsync(cancellationToken))
-                matchers.Add(new ContextMatcher(reader.GetInt32(0),
-                    reader.GetString(1), reader.GetString(2)));
-            loadedContexts.Add(context with { Matchers = matchers });
+                contexts.Add(new ApplicationContext(reader.GetString(0), reader.GetString(1), JsonSerializer.Deserialize<List<ContextMatcher>>(reader.GetString(2))
+                        ?? throw new InvalidOperationException("Invalid compact matchers JSON.")));
         }
 
         var captures = new List<Capture>();
         await using (var command = connection.CreateCommand())
         {
-            command.CommandText = compact
-                ? "SELECT StepId,RuleId,TargetUsageId,Property,Pattern,Timing FROM StepRules WHERE GuideId=$guide AND RuleType='Capture' ORDER BY StepId,RuleId"
-                : "SELECT StepId,CaptureId,TargetUsageId,Property,Pattern,Timing FROM StepCaptures WHERE GuideId=$guide ORDER BY StepId,CaptureId";
+            command.CommandText = "SELECT StepId,RuleId,TargetUsageId,Property,Pattern,Timing FROM StepRules WHERE GuideId=$guide AND RuleType='Capture' ORDER BY StepId,RuleId";
             command.Parameters.AddWithValue("$guide", guideId);
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
             while (await reader.ReadAsync(cancellationToken))
@@ -92,6 +60,6 @@ public static class GuideV5ContextCaptureReader
                     reader.IsDBNull(5) ? null : reader.GetString(5)));
         }
 
-        return new Definitions(guideId, loadedContexts, captures);
+        return new Definitions(guideId, contexts, captures);
     }
 }
