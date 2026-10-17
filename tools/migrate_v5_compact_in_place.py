@@ -39,6 +39,14 @@ def pack(items):
     return json.dumps(items, ensure_ascii=False, separators=(",", ":"))
 
 
+def normalize_element_runtime(value):
+    mapping = {"0": "Web", "1": "Windows", "Web": "Web", "Windows": "Windows", None: None}
+    normalized = mapping.get(str(value) if value is not None else None)
+    if normalized is None and value is not None:
+        raise RuntimeError(f"Unsupported element Runtime: {value!r}")
+    return normalized
+
+
 def migrate(db):
     tables = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     if not set(OLD).issubset(tables) or set(NEW).intersection(tables):
@@ -94,7 +102,7 @@ def migrate(db):
         if not locators[key]:
             raise RuntimeError(f"Missing locator for {key}")
         db.execute("INSERT INTO Elements VALUES (?,?,?,?,?)",
-                   (*key, r["Runtime"], pack(locators[key]), r["FrameContextJson"]))
+                   (*key, normalize_element_runtime(r["Runtime"]), pack(locators[key]), r["FrameContextJson"]))
     for r in rows(db, "ElementAnchorRelations"):
         db.execute("INSERT INTO ElementAnchors VALUES (?,?,?,?,?)",
                    (r["GuideId"], r["ElementId"], r["AnchorElementId"],
@@ -140,7 +148,7 @@ def migrate(db):
     for r in rows(db, "GuideElements"):
         x = db.execute("SELECT * FROM Elements WHERE GuideId=? AND ElementId=?",
                        (r["GuideId"], r["ElementId"])).fetchone()
-        assert x["Runtime"] == r["Runtime"] and x["FrameContextJson"] == r["FrameContextJson"]
+        assert x["Runtime"] == normalize_element_runtime(r["Runtime"]) and x["FrameContextJson"] == r["FrameContextJson"]
         assert json.loads(x["LocatorsJson"]) == locators[(r["GuideId"], r["ElementId"])]
     for r in rows(db, "GuideSteps"):
         x = db.execute("SELECT * FROM Steps WHERE GuideId=? AND StepId=?",
