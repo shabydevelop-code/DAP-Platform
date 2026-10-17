@@ -31,16 +31,10 @@ public static class GuideV5DefinitionReader
         await using var connection = new SqliteConnection(builder.ToString());
         await connection.OpenAsync(cancellationToken);
 
-        await using var probe = connection.CreateCommand();
-        probe.CommandText = "SELECT 1 FROM sqlite_master WHERE type='table' AND name='Steps'";
-        var compact = await probe.ExecuteScalarAsync(cancellationToken) is not null;
-
         var steps = new List<StepDefinition>();
         await using (var command = connection.CreateCommand())
         {
-            command.CommandText = compact
-                ? "SELECT s.GuideId,s.StepId,s.StepOrder,s.IsEnabled,s.BubbleContent,s.BubblePlacement,s.ApplicationContextId,s.ContextKind,s.ContextValue FROM Steps s JOIN Guides g ON g.GuideId=s.GuideId WHERE g.GuideKey=$guideKey ORDER BY s.StepOrder"
-                : "SELECT s.GuideId,s.StepId,s.StepOrder,s.IsEnabled,b.Content,b.Placement,s.ApplicationContextId,s.ContextKind,s.ContextValue FROM GuideSteps s JOIN Guides g ON g.GuideId=s.GuideId JOIN StepBubbles b ON b.GuideId=s.GuideId AND b.StepId=s.StepId WHERE g.GuideKey=$guideKey ORDER BY s.StepOrder";
+            command.CommandText = "SELECT s.GuideId,s.StepId,s.StepOrder,s.IsEnabled,s.BubbleContent,s.BubblePlacement,s.ApplicationContextId,s.ContextKind,s.ContextValue FROM Steps s JOIN Guides g ON g.GuideId=s.GuideId WHERE g.GuideKey=$guideKey ORDER BY s.StepOrder";
             command.Parameters.AddWithValue("$guideKey", guideKey);
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
             while (await reader.ReadAsync(cancellationToken))
@@ -64,9 +58,7 @@ public static class GuideV5DefinitionReader
         {
             var signals = new List<ObservedSignal>();
             await using var command = connection.CreateCommand();
-            command.CommandText = compact
-                ? "SELECT RuleId,RuleType,Kind,TargetUsageId,ExpectedValue,OptionsJson FROM StepRules WHERE GuideId=$guideId AND StepId=$stepId AND RuleType!='Capture' ORDER BY RuleType,RuleId"
-                : "SELECT SignalId,SignalRole,Kind,TargetUsageId,ExpectedValue,OptionsJson FROM StepObservedSignals WHERE GuideId=$guideId AND StepId=$stepId ORDER BY SignalRole,SignalId";
+            command.CommandText = "SELECT RuleId,RuleType,Kind,TargetUsageId,ExpectedValue,OptionsJson FROM StepRules WHERE GuideId=$guideId AND StepId=$stepId AND RuleType!='Capture' ORDER BY RuleType,RuleId";
             command.Parameters.AddWithValue("$guideId", step.GuideId);
             command.Parameters.AddWithValue("$stepId", step.StepId);
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
