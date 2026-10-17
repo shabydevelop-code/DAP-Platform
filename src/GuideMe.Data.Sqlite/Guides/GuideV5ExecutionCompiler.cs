@@ -6,8 +6,8 @@ using Microsoft.Data.Sqlite;
 namespace GuideMe.Data.Sqlite.Guides;
 
 /// <summary>
-/// Experimental compiler from V5 definitions to the existing platform-neutral
-/// execution contract. Not wired into production launch.
+/// Compiles V5 guide definitions into the platform-neutral execution contract
+/// used by the production learner.
 /// </summary>
 public static class GuideV5ExecutionCompiler
 {
@@ -19,6 +19,11 @@ public static class GuideV5ExecutionCompiler
     {
         var data = await GuideV5GuideReader.ReadAsync(databasePath, guideKey, cancellationToken);
         var uses = data.ElementCatalog.Usages.ToDictionary(x => (x.StepId, x.UsageId));
+        var primaryUsagesByStep = data.ElementCatalog.Usages
+            .Where(x => x.Purpose == "Primary")
+            .ToLookup(x => x.StepId, StringComparer.Ordinal);
+        var capturesByStep = data.ContextsAndCaptures.Captures
+            .ToLookup(x => x.StepId, StringComparer.Ordinal);
         TargetDescriptor Target(string stepId, string usageId)
         {
             if (!uses.TryGetValue((stepId, usageId), out var use)
@@ -94,8 +99,7 @@ public static class GuideV5ExecutionCompiler
             if (!stepDetails.TryGetValue((s.GuideId, s.StepId), out var details))
                 throw new InvalidOperationException($"Missing bubble for V5 step '{s.StepId}'.");
 
-            var primaryUses = data.ElementCatalog.Usages.Where(u =>
-                u.StepId == s.StepId && u.Purpose == "Primary").ToArray();
+            var primaryUses = primaryUsagesByStep[s.StepId].ToArray();
             if (primaryUses.Length > 1)
                 throw new InvalidOperationException($"Multiple primary targets at '{s.StepId}'.");
             var mainTarget = primaryUses.Length == 0 ? null : Target(s.StepId, primaryUses[0].UsageId);
@@ -115,7 +119,7 @@ public static class GuideV5ExecutionCompiler
                 .Select(x => new StepCompletionCondition(x.Kind,
                     Target(s.StepId, x.TargetUsageId ?? throw new InvalidOperationException(
                         $"Completion signal '{x.SignalId}' has no target.")), x.ExpectedValue)).ToArray();
-            var captures = data.ContextsAndCaptures.Captures.Where(x => x.StepId == s.StepId).ToArray();
+            var captures = capturesByStep[s.StepId].ToArray();
             if (captures.Length > 1)
                 throw new NotSupportedException($"Multiple captures at '{s.StepId}' are not supported by the current runtime.");
             StepCaptureDefinition? capture = null;
