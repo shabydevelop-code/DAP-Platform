@@ -36,7 +36,7 @@ public static class GuideV5GuideReader
 
             var primary = step.Signals.Count(signal =>
                 string.Equals(signal.Role, "PrimaryValidation", StringComparison.Ordinal));
-            if (string.Equals(step.AdvancePolicy, "AutomaticOnValidation", StringComparison.Ordinal)
+            if (!string.Equals(step.BubblePlacement, "Center", StringComparison.Ordinal)
                 && step.IsEnabled && primary != 1)
                 throw new InvalidOperationException(
                     $"Automatic V5 step '{step.StepId}' requires exactly one primary validation; found {primary}.");
