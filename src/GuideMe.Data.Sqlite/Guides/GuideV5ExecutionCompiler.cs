@@ -106,8 +106,9 @@ public static class GuideV5ExecutionCompiler
                 }
                 capture = new StepCaptureDefinition(t.Runtime, t.Locator, c.Property, c.Pattern, timing);
             }
-            if (!Enum.TryParse<StepAdvanceMode>(s.AdvancePolicy, out var policy))
-                throw new InvalidOperationException($"Invalid advance policy for '{s.StepId}'.");
+            var policy = placement == BubblePlacement.Center
+                ? StepAdvanceMode.Manual
+                : StepAdvanceMode.AutomaticOnValidation;
             steps.Add(new GuideStep(s.StepId, s.Order, mainTarget,
                 new BubbleDefinition(s.BubbleContent, placement), validation, policy,
                 context, capture, completion, s.IsEnabled, s.ApplicationContextId));
