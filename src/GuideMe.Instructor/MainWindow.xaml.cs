@@ -17,7 +17,8 @@ public partial class MainWindow : Window
     private BrowserCaptureEvent? _proposedField;
     private readonly System.Collections.Generic.List<string> _approvedDrafts = new();
 
-    private sealed record StepListItem(int Number, string Title, string Subtitle, string Review);
+    private sealed record StepListItem(int Number, string Title, string Subtitle, string Review, string? StepId = null);
+    private V5GuideReader.GuideInfo? _loadedGuide;
     private readonly System.Collections.Generic.List<StepListItem> _stepItems = new();
 
     private void RefreshStepList()
@@ -28,7 +29,9 @@ public partial class MainWindow : Window
             query.Length == 0 || item.Number.ToString().Contains(query, StringComparison.OrdinalIgnoreCase) ||
             item.Title.Contains(query, StringComparison.CurrentCultureIgnoreCase) ||
             item.Review.Contains(query, StringComparison.CurrentCultureIgnoreCase)).ToList();
-        StepCountLabel.Text = $"טיוטות מאושרות בהפעלה זו: {_stepItems.Count}";
+        StepCountLabel.Text = _loadedGuide is null
+            ? $"טיוטות מאושרות בהפעלה זו: {_stepItems.Count}"
+            : $"{_loadedGuide.Name} · {_stepItems.Count} שלבים";
         if (selectedNumber is not null)
             StepsList.SelectedItem = ((System.Collections.Generic.IEnumerable<StepListItem>)StepsList.ItemsSource)
                 .FirstOrDefault(item => item.Number == selectedNumber);
@@ -47,6 +50,72 @@ public partial class MainWindow : Window
         ReviewHeading.Text = $"שלב {selected.Number} — {selected.Title}";
         ReviewText.Text = selected.Review;
         CopyReviewButton.IsEnabled = true;
+        if (_loadedGuide is not null && selected.StepId is not null)
+            ShowLoadedStep(selected.StepId);
+    }
+
+    private void LoadExistingGuide_Click(object sender, RoutedEventArgs e)
+    {
+        if (_state != RecordingState.Ready)
+        {
+            MessageBox.Show("יש לסיים את ההקלטה או סקירת הטיוטה לפני טעינת מדריך.", "GuideMe Instructor");
+            return;
+        }
+        if (ExistingGuides.SelectedItem is not V5GuideReader.GuideInfo guide)
+            return;
+        try
+        {
+            var steps = V5GuideReader.ListSteps(guide.Id);
+            _loadedGuide = guide;
+            _stepItems.Clear();
+            foreach (var step in steps)
+            {
+                var title = string.IsNullOrWhiteSpace(step.Bubble) ? step.Id : step.Bubble.Trim().Replace("\r", " ").Replace("\n", " ");
+                if (title.Length > 58)
+                    title = title[..58] + "…";
+                _stepItems.Add(new StepListItem(step.Order, title,
+                    step.Enabled ? "פעיל · V5 · קריאה בלבד" : "לא פעיל · V5 · קריאה בלבד",
+                    $"StepId: {step.Id}\nStepOrder: {step.Order}\nBubble: {step.Bubble}", step.Id));
+            }
+            StepSearch.Clear();
+            GuideKey.Text = guide.Key;
+            GuideKey.IsEnabled = false;
+            DatabaseStatus.Text = $"נטענו {steps.Count} שלבים. קריאה בלבד.";
+            StateLabel.Text = "מדריך קיים — מצב עיון";
+            StatusDetail.Text = "אין עריכה או הקלטה לתוך מדריך קיים בשלב זה.";
+            StartButton.IsEnabled = false;
+            RefreshStepList();
+            if (_stepItems.Count > 0)
+                StepsList.SelectedItem = _stepItems[0];
+        }
+        catch (Exception ex)
+        {
+            DatabaseStatus.Text = "טעינת המדריך נכשלה: " + ex.Message;
+        }
+    }
+
+    private void ShowLoadedStep(string stepId)
+    {
+        if (_loadedGuide is null)
+            return;
+        try
+        {
+            var id = _loadedGuide.Id;
+            string Read(params string[] tables) =>
+                string.Join(Environment.NewLine, tables.Select(table =>
+                    $"=== {table} ==={Environment.NewLine}{V5GuideReader.ReadTable(id, table, stepId)}"));
+            GuideDetails.Text = Read("Guides", "GuideSteps", "GuideApplicationContexts", "ApplicationContextMatchers");
+            BubbleDetails.Text = Read("StepBubbles");
+            InteractionDetails.Text = Read("StepInteractions", "StepElementUsages");
+            ElementDetails.Text = Read("StepElementUsages", "GuideElements", "ElementLocators", "ElementAnchorRelations");
+            ValidationDetails.Text = Read("StepObservedSignals", "StepAdvancePolicies");
+            OutcomeDetails.Text = Read("StepExpectedOutcomes");
+            CaptureDetails.Text = Read("StepCaptures", "GuideVariables");
+        }
+        catch (Exception ex)
+        {
+            DatabaseStatus.Text = "קריאת פרטי השלב נכשלה: " + ex.Message;
+        }
     }
 
     public MainWindow()
@@ -69,6 +138,15 @@ public partial class MainWindow : Window
             StatusDetail.Text = "לא ניתן לפתוח את ערוץ ההקלטה המקומי: " + ex.Message;
             StartButton.IsEnabled = false;
         }
+        try
+        {
+            ExistingGuides.ItemsSource = V5GuideReader.ListGuides();
+            DatabaseStatus.Text = "מסד V5 נפתח לקריאה בלבד.";
+        }
+        catch (Exception ex)
+        {
+            DatabaseStatus.Text = "לא ניתן לקרוא את V5: " + ex.Message;
+        }
         RefreshStepList();
         _connectionTimer.Tick += (_, _) => RefreshConnection();
         _connectionTimer.Start();
@@ -80,7 +158,7 @@ public partial class MainWindow : Window
         var connected = _captureAvailable && _capture.IsConnected;
         if (_state == RecordingState.Ready)
         {
-            StartButton.IsEnabled = connected;
+            StartButton.IsEnabled = connected && _loadedGuide is null;
             StatusDetail.Text = connected ? "התוסף מחובר ומאומת. ניתן להתחיל שלב." : "התוסף אינו מחובר או שהחיבור פג. חבר מחדש את התוסף.";
         }
         else if (_state == RecordingState.Recording && !connected)
@@ -97,7 +175,7 @@ public partial class MainWindow : Window
 
     private void StartStep_Click(object sender, RoutedEventArgs e)
     {
-        if (!_captureAvailable || !_capture.IsConnected || _state != RecordingState.Ready || string.IsNullOrWhiteSpace(GuideKey.Text))
+        if (_loadedGuide is not null || !_captureAvailable || !_capture.IsConnected || _state != RecordingState.Ready || string.IsNullOrWhiteSpace(GuideKey.Text))
             return;
 
         _startedAt = DateTimeOffset.Now;
