@@ -13,7 +13,7 @@ public static class GuideV5DefinitionReader
 
     public sealed record StepDefinition(
         long GuideId, string StepId, int Order, bool IsEnabled,
-        string AdvancePolicy, string BubbleContent, string BubblePlacement,
+        string BubbleContent, string BubblePlacement,
         string? ApplicationContextId, string? ContextKind, string? ContextValue,
         IReadOnlyList<ObservedSignal> Signals);
 
@@ -35,12 +35,11 @@ public static class GuideV5DefinitionReader
         await using (var command = connection.CreateCommand())
         {
             command.CommandText = """
-                SELECT s.GuideId,s.StepId,s.StepOrder,s.IsEnabled,a.PolicyKind,
+                SELECT s.GuideId,s.StepId,s.StepOrder,s.IsEnabled,
                        b.Content,b.Placement,s.ApplicationContextId,s.ContextKind,s.ContextValue
                 FROM GuideSteps s
                 JOIN Guides g ON g.GuideId=s.GuideId
                 JOIN StepBubbles b ON b.GuideId=s.GuideId AND b.StepId=s.StepId
-                JOIN StepAdvancePolicies a ON a.GuideId=s.GuideId AND a.StepId=s.StepId
                 WHERE g.GuideKey=$guideKey
                 ORDER BY s.StepOrder;
                 """;
@@ -50,11 +49,11 @@ public static class GuideV5DefinitionReader
             {
                 steps.Add(new StepDefinition(
                     reader.GetInt64(0), reader.GetString(1), reader.GetInt32(2),
-                    reader.GetInt64(3) != 0, reader.GetString(4),
-                    reader.GetString(5), reader.GetString(6),
+                    reader.GetInt64(3) != 0,
+                    reader.GetString(4), reader.GetString(5),
+                    reader.IsDBNull(6) ? null : reader.GetString(6),
                     reader.IsDBNull(7) ? null : reader.GetString(7),
                     reader.IsDBNull(8) ? null : reader.GetString(8),
-                    reader.IsDBNull(9) ? null : reader.GetString(9),
                     Array.Empty<ObservedSignal>()));
             }
         }
