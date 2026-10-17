@@ -123,9 +123,9 @@ public partial class MainWindow : Window
             BubbleDetails.Text = Read("Steps");
             InteractionDetails.Text = Read("StepTargets");
             ElementDetails.Text = Read("StepTargets", "Elements", "ElementAnchors");
-            ValidationDetails.Text = Read("StepRules");
-            OutcomeDetails.Text = Read("StepRules");
-            CaptureDetails.Text = Read("StepRules");
+            ValidationDetails.Text = V5GuideReader.ReadTable(id, "StepRules", stepId, "PrimaryValidation");
+            OutcomeDetails.Text = V5GuideReader.ReadTable(id, "StepRules", stepId, "AdditionalCompletionCondition");
+            CaptureDetails.Text = V5GuideReader.ReadTable(id, "StepRules", stepId, "Capture");
         }
         catch (Exception ex)
         {
