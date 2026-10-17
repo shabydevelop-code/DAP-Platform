@@ -53,8 +53,11 @@ public static class GuideV5ElementReader
             while (await reader.ReadAsync(cancellationToken))
             {
                 var id = reader.GetString(0);
+                var runtime = reader.IsDBNull(1) ? null : reader.GetString(1);
+                if (runtime is not null and not ("Web" or "Windows"))
+                    throw new InvalidOperationException($"Invalid V5 element Runtime '{runtime}' for '{id}'. Expected Web or Windows.");
                 if (!elements.TryAdd(id, new ElementDefinition(
-                    id, reader.IsDBNull(1) ? null : reader.GetString(1),
+                    id, runtime,
                     reader.IsDBNull(2) ? null : reader.GetString(2),
                     ParseLocators(reader.GetString(3)),
                     Array.Empty<AnchorDefinition>())))
