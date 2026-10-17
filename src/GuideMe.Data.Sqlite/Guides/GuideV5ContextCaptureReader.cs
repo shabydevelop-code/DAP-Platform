@@ -2,12 +2,12 @@ using Microsoft.Data.Sqlite;
 
 namespace GuideMe.Data.Sqlite.Guides;
 
-/// <summary>Experimental V5 context and capture loader; read-only and independent of legacy schema.</summary>
+/// <summary>Loads application contexts, variable identities, and captures for the production learner.</summary>
 public static class GuideV5ContextCaptureReader
 {
-    public sealed record ContextMatcher(string MatcherId, int Order, string Kind, string Value);
+    public sealed record ContextMatcher(int Order, string Kind, string Value);
     public sealed record ApplicationContext(string ContextId, string Runtime, IReadOnlyList<ContextMatcher> Matchers);
-    public sealed record Variable(string VariableId, string DisplayName, string DataType);
+    public sealed record Variable(string VariableId);
     public sealed record Capture(string StepId, string CaptureId, string VariableId, string TargetUsageId,
         string Property, string? Pattern, string? Timing);
     public sealed record Definitions(long GuideId, IReadOnlyList<ApplicationContext> Contexts,
@@ -52,26 +52,26 @@ public static class GuideV5ContextCaptureReader
             var matchers = new List<ContextMatcher>();
             await using var command = connection.CreateCommand();
             command.CommandText = """
-                SELECT MatcherId,MatcherOrder,Kind,Value FROM ApplicationContextMatchers
+                SELECT MatcherOrder,Kind,Value FROM ApplicationContextMatchers
                 WHERE GuideId=$guide AND ContextId=$context ORDER BY MatcherOrder
                 """;
             command.Parameters.AddWithValue("$guide", guideId);
             command.Parameters.AddWithValue("$context", context.ContextId);
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
             while (await reader.ReadAsync(cancellationToken))
-                matchers.Add(new ContextMatcher(reader.GetString(0), reader.GetInt32(1),
-                    reader.GetString(2), reader.GetString(3)));
+                matchers.Add(new ContextMatcher(reader.GetInt32(0),
+                    reader.GetString(1), reader.GetString(2)));
             loadedContexts.Add(context with { Matchers = matchers });
         }
 
         var variables = new List<Variable>();
         await using (var command = connection.CreateCommand())
         {
-            command.CommandText = "SELECT VariableId,DisplayName,DataType FROM GuideVariables WHERE GuideId=$guide ORDER BY VariableId";
+            command.CommandText = "SELECT VariableId FROM GuideVariables WHERE GuideId=$guide ORDER BY VariableId";
             command.Parameters.AddWithValue("$guide", guideId);
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
             while (await reader.ReadAsync(cancellationToken))
-                variables.Add(new Variable(reader.GetString(0), reader.GetString(1), reader.GetString(2)));
+                variables.Add(new Variable(reader.GetString(0)));
         }
 
         var captures = new List<Capture>();
