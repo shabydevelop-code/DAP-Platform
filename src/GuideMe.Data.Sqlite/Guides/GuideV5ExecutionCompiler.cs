@@ -96,8 +96,6 @@ public static class GuideV5ExecutionCompiler
             if (captures.Length == 1)
             {
                 var c = captures[0];
-                if (c.VariableId != s.StepId)
-                    throw new NotSupportedException($"Capture '{c.CaptureId}' uses a V5 variable that cannot be mapped to the legacy step token.");
                 var t = Target(s.StepId, c.TargetUsageId);
                 StepCaptureTiming? timing = null;
                 if (c.Timing is not null)
