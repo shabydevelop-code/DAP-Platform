@@ -159,31 +159,47 @@
               </StackPanel>
             </Grid>
           </Border>
-          <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-            <StackPanel>
-              <DockPanel LastChildFill="True">
-                <Button x:Name="CopyReviewButton" DockPanel.Dock="Left" Content="העתק סקירה" IsEnabled="False" Click="CopyReview_Click" Padding="9,5" MinHeight="30"/>
-                <TextBlock x:Name="ReviewHeading" Text="סקירת השלב" Style="{StaticResource SectionTitle}" VerticalAlignment="Center"/>
-              </DockPanel>
-              <TextBox x:Name="ReviewText" Text="בחר שלב מהרשימה או הקלט שלב חדש."
-                       IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True"
-                       VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                       MinHeight="140" Padding="11" Margin="0,9,0,0" Background="#FFF8FAFC"/>
-              <Expander Header="פרטים טכניים — אבחון בלבד" Margin="0,12,0,0">
-                <StackPanel Margin="0,8,0,0">
+          <TabControl Grid.Row="2" x:Name="StepDetailsTabs" Margin="0,0,0,0" BorderBrush="{StaticResource Line}" Background="White"
+                      TabStripPlacement="Top">
+            <TabItem Header="סקירה">
+              <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Margin="10">
+                  <DockPanel LastChildFill="True">
+                    <Button x:Name="CopyReviewButton" DockPanel.Dock="Left" Content="העתק סקירה" IsEnabled="False" Click="CopyReview_Click" Padding="9,5" MinHeight="30"/>
+                    <TextBlock x:Name="ReviewHeading" Text="סקירת השלב" Style="{StaticResource SectionTitle}" VerticalAlignment="Center"/>
+                  </DockPanel>
+                  <TextBox x:Name="ReviewText" Text="בחר שלב מהרשימה או הקלט שלב חדש."
+                           IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True"
+                           VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                           MinHeight="140" Padding="11" Margin="0,9,0,0" Background="#FFF8FAFC"/>
+                  <TextBlock Text="הוראה למשתמש — טיוטת הקלטה" Style="{StaticResource SectionTitle}" Margin="0,16,0,5"/>
+                  <TextBox x:Name="BubbleText" Height="70" TextWrapping="Wrap" AcceptsReturn="True"
+                           VerticalScrollBarVisibility="Auto" VerticalContentAlignment="Top" IsEnabled="False"/>
+                </StackPanel>
+              </ScrollViewer>
+            </TabItem>
+              <TabItem Header="מדריך"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="12"><TextBlock Text="זהות המדריך, סדר השלבים, שיוך להקשרי אפליקציה וכללי זיהוי האפליקציה." TextWrapping="Wrap" Foreground="#FF475569" Margin="0,0,0,14"/><TextBlock Text="Guides · GuideSteps · GuideApplicationContexts · ApplicationContextMatchers" FontFamily="Consolas" FontSize="12" FlowDirection="LeftToRight" TextWrapping="Wrap"/><TextBlock Text="נתוני מדריך קיים יוצגו כאן לאחר חיבור קורא V5. אין כרגע טעינה ממסד הנתונים." TextWrapping="Wrap" Foreground="#FF9A3412" Margin="0,18,0,0"/></StackPanel></ScrollViewer></TabItem>
+              <TabItem Header="הוראות"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="12"><TextBlock Text="טקסט ההנחיה, מיקום הבועית והגדרות ההצגה שלה. עריכת טיוטת הקלטה זמינה כרגע בלשונית סקירה בלבד." TextWrapping="Wrap" Foreground="#FF475569" Margin="0,0,0,14"/><TextBlock Text="StepBubbles" FontFamily="Consolas" FontSize="12" FlowDirection="LeftToRight" TextWrapping="Wrap"/><TextBlock Text="נתוני מדריך קיים יוצגו כאן לאחר חיבור קורא V5. אין כרגע טעינה ממסד הנתונים." TextWrapping="Wrap" Foreground="#FF9A3412" Margin="0,18,0,0"/></StackPanel></ScrollViewer></TabItem>
+              <TabItem Header="פעולה"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="12"><TextBlock Text="הפעולה הנדרשת מהמשתמש והקשר שלה לרכיב יעד, בנפרד מטקסט ההוראה." TextWrapping="Wrap" Foreground="#FF475569" Margin="0,0,0,14"/><TextBlock Text="StepInteractions · StepElementUsages" FontFamily="Consolas" FontSize="12" FlowDirection="LeftToRight" TextWrapping="Wrap"/><TextBlock Text="נתוני מדריך קיים יוצגו כאן לאחר חיבור קורא V5. אין כרגע טעינה ממסד הנתונים." TextWrapping="Wrap" Foreground="#FF9A3412" Margin="0,18,0,0"/></StackPanel></ScrollViewer></TabItem>
+              <TabItem Header="רכיבים"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="12"><TextBlock Text="הגדרות רכיבים לשימוש חוזר, אסטרטגיות איתור, עוגנים, מסגרות ותפקיד הרכיב בשלב." TextWrapping="Wrap" Foreground="#FF475569" Margin="0,0,0,14"/><TextBlock Text="GuideElements · ElementLocators · ElementAnchorRelations · StepElementUsages" FontFamily="Consolas" FontSize="12" FlowDirection="LeftToRight" TextWrapping="Wrap"/><TextBlock Text="נתוני מדריך קיים יוצגו כאן לאחר חיבור קורא V5. אין כרגע טעינה ממסד הנתונים." TextWrapping="Wrap" Foreground="#FF9A3412" Margin="0,18,0,0"/></StackPanel></ScrollViewer></TabItem>
+              <TabItem Header="אימות ומעבר"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="12"><TextBlock Text="אותות האימות, ערכים צפויים ומדיניות המעבר לשלב הבא." TextWrapping="Wrap" Foreground="#FF475569" Margin="0,0,0,14"/><TextBlock Text="StepObservedSignals · StepAdvancePolicies" FontFamily="Consolas" FontSize="12" FlowDirection="LeftToRight" TextWrapping="Wrap"/><TextBlock Text="נתוני מדריך קיים יוצגו כאן לאחר חיבור קורא V5. אין כרגע טעינה ממסד הנתונים." TextWrapping="Wrap" Foreground="#FF9A3412" Margin="0,18,0,0"/></StackPanel></ScrollViewer></TabItem>
+              <TabItem Header="תוצאה"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="12"><TextBlock Text="התוצאה העסקית או התפעולית המצופה, בנפרד מאותות האימות הטכניים." TextWrapping="Wrap" Foreground="#FF475569" Margin="0,0,0,14"/><TextBlock Text="StepExpectedOutcomes" FontFamily="Consolas" FontSize="12" FlowDirection="LeftToRight" TextWrapping="Wrap"/><TextBlock Text="נתוני מדריך קיים יוצגו כאן לאחר חיבור קורא V5. אין כרגע טעינה ממסד הנתונים." TextWrapping="Wrap" Foreground="#FF9A3412" Margin="0,18,0,0"/></StackPanel></ScrollViewer></TabItem>
+              <TabItem Header="לכידות"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="12"><TextBlock Text="הגדרות משתנים ולכידת ערכים במהלך ביצוע המדריך." TextWrapping="Wrap" Foreground="#FF475569" Margin="0,0,0,14"/><TextBlock Text="GuideVariables · StepCaptures" FontFamily="Consolas" FontSize="12" FlowDirection="LeftToRight" TextWrapping="Wrap"/><TextBlock Text="נתוני מדריך קיים יוצגו כאן לאחר חיבור קורא V5. אין כרגע טעינה ממסד הנתונים." TextWrapping="Wrap" Foreground="#FF9A3412" Margin="0,18,0,0"/></StackPanel></ScrollViewer></TabItem>
+            <TabItem Header="אבחון">
+              <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="12">
+                  <TextBlock Text="הקשר מסך — אבחון בלבד" FontWeight="SemiBold" Margin="0,0,0,12"/>
                   <TextBlock Text="ContextId" FontSize="11"/>
                   <TextBox x:Name="ContextIdText" IsReadOnly="True" FlowDirection="LeftToRight" IsEnabled="False"/>
-                  <TextBlock Text="ContextKind" FontSize="11" Margin="0,7,0,0"/>
+                  <TextBlock Text="ContextKind" FontSize="11" Margin="0,9,0,0"/>
                   <TextBox x:Name="ContextKindText" IsReadOnly="True" FlowDirection="LeftToRight" IsEnabled="False"/>
-                  <TextBlock Text="ContextValue" FontSize="11" Margin="0,7,0,0"/>
+                  <TextBlock Text="ContextValue" FontSize="11" Margin="0,9,0,0"/>
                   <TextBox x:Name="ContextValueText" IsReadOnly="True" FlowDirection="LeftToRight" IsEnabled="False"/>
+                  <TextBlock Text="בהמשך: הצגת רשומות V5 גולמיות, מזהים וקשרים בין טבלאות, ללא עריכה ישירה." TextWrapping="Wrap" Foreground="#FF64748B" Margin="0,14,0,0"/>
                 </StackPanel>
-              </Expander>
-              <TextBlock Text="הוראה למשתמש" Style="{StaticResource SectionTitle}" Margin="0,16,0,5"/>
-              <TextBox x:Name="BubbleText" Height="70" TextWrapping="Wrap" AcceptsReturn="True"
-                       VerticalScrollBarVisibility="Auto" VerticalContentAlignment="Top" IsEnabled="False"/>
-            </StackPanel>
-          </ScrollViewer>
+              </ScrollViewer>
+            </TabItem>
+          </TabControl>
           <StackPanel Grid.Row="3" Margin="0,12,0,0">
             <Button x:Name="ApproveButton" Style="{StaticResource PrimaryButton}" Content="אשר טיוטת שלב" IsEnabled="False" Click="Approve_Click"/>
             <TextBlock Text="טיוטה זמנית בלבד · אין שמירה ל־V5" Style="{StaticResource Hint}" Margin="0,8,0,0"/>
