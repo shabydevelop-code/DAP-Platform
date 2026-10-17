@@ -72,13 +72,37 @@ WHERE s.GuideId=$guideId ORDER BY s.StepOrder";
             throw new ArgumentException("טבלה לא מוכרת.", nameof(table));
         using var connection = Open();
         using var command = connection.CreateCommand();
-        var stepFilter = stepId is not null && table is "GuideSteps" or "StepBubbles" or "StepInteractions"
-            or "StepElementUsages" or "StepCaptures" or "StepExpectedOutcomes"
-            or "StepAdvancePolicies" or "StepObservedSignals";
-        command.CommandText = $"SELECT * FROM \"{table}\" WHERE GuideId=$guideId" +
-                              (stepFilter ? " AND StepId=$stepId" : "");
-        command.Parameters.AddWithValue("$guideId", guideId);
+        var stepFilter = stepId is not null && table is
+            "GuideSteps" or "StepBubbles" or "StepInteractions" or "StepElementUsages"
+            or "StepCaptures" or "StepExpectedOutcomes" or "StepAdvancePolicies"
+            or "StepObservedSignals";
+
+        // Reusable elements belong to the guide, but a step view must only show
+        // elements directly used by this step and anchors required by those elements.
+        var elementFilter = stepId is not null && table is
+            "GuideElements" or "ElementLocators" or "ElementAnchorRelations";
+
+        var sql = $"SELECT * FROM \\"{table}\\" WHERE GuideId=$guideId";
         if (stepFilter)
+            sql += " AND StepId=$stepId";
+        else if (elementFilter)
+        {
+            const string used = @"SELECT u.ElementId FROM StepElementUsages u
+                WHERE u.GuideId=$guideId AND u.StepId=$stepId";
+            const string anchors = @"SELECT a.AnchorElementId FROM ElementAnchorRelations a
+                WHERE a.GuideId=$guideId AND a.ElementId IN (" + used + ")";
+            sql += table switch
+            {
+                "GuideElements" or "ElementLocators" =>
+                    $" AND ElementId IN ({used} UNION {anchors})",
+                "ElementAnchorRelations" =>
+                    $" AND ElementId IN ({used})",
+                _ => throw new InvalidOperationException("Unexpected element table.")
+            };
+        }
+        command.CommandText = sql;
+        command.Parameters.AddWithValue("$guideId", guideId);
+        if (stepFilter || elementFilter)
             command.Parameters.AddWithValue("$stepId", stepId!);
         using var reader = command.ExecuteReader();
         var output = new System.Text.StringBuilder();
