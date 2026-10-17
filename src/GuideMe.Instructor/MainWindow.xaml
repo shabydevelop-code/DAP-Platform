@@ -104,10 +104,21 @@
                    SelectionChanged="StepsList_SelectionChanged" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
             <ListBox.ItemTemplate>
               <DataTemplate>
-                <StackPanel Margin="4,8">
-                  <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap"/>
-                  <TextBlock Text="{Binding Subtitle}" FontSize="11" Foreground="#FF64748B" Margin="0,3,0,0"/>
-                </StackPanel>
+                <Grid Margin="4,8">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                  </Grid.ColumnDefinitions>
+                  <Border Grid.Column="0" Background="#FFE8F0FF" CornerRadius="6" Padding="7,4"
+                          Margin="0,0,8,0" VerticalAlignment="Top">
+                    <TextBlock Text="{Binding Number}" FontWeight="Bold" Foreground="#FF2458C6"
+                               MinWidth="22" TextAlignment="Center" FlowDirection="LeftToRight"/>
+                  </Border>
+                  <StackPanel Grid.Column="1">
+                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                    <TextBlock Text="{Binding Subtitle}" FontSize="11" Foreground="#FF64748B" Margin="0,3,0,0"/>
+                  </StackPanel>
+                </Grid>
               </DataTemplate>
             </ListBox.ItemTemplate>
           </ListBox>
