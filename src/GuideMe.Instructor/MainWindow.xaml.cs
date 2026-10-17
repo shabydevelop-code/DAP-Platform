@@ -72,7 +72,7 @@ public partial class MainWindow : Window
             var steps = V5GuideReader.ListSteps(guide.Id);
             _loadedGuide = guide;
             GuideDetails.Text = ReadGuideTables(guide.Id, "Guides", "ApplicationContexts");
-            GuideVariablesDetails.Text = "משתנים אינם מוגדרים כטבלה נפרדת בסכמת V5.";
+            GuideVariablesDetails.Text = V5GuideReader.ReadGuideCaptures(guide.Id);
             WorkspaceTabs.SelectedIndex = 0;
             CaptureReviewPanel.Visibility = Visibility.Collapsed;
             DraftBubbleHeading.Visibility = Visibility.Collapsed;
