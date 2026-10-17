@@ -23,7 +23,6 @@ public static class GuideV5GuideReader
             databasePath, guideKey, cancellationToken);
         if (additional.GuideId != catalog.GuideId)
             throw new InvalidOperationException("V5 context/capture guide identity mismatch.");
-        var variableIds = additional.Variables.Select(x => x.VariableId).ToHashSet(StringComparer.Ordinal);
         var usageIds = catalog.Usages.Select(x => (x.StepId, x.UsageId)).ToHashSet();
         var stepIds = new HashSet<string>(StringComparer.Ordinal);
 
@@ -61,10 +60,9 @@ public static class GuideV5GuideReader
         foreach (var capture in additional.Captures)
         {
             if (!stepIds.Contains(capture.StepId)
-                || !variableIds.Contains(capture.VariableId)
                 || !usageIds.Contains((capture.StepId, capture.TargetUsageId)))
                 throw new InvalidOperationException(
-                    $"V5 capture '{capture.CaptureId}' has an unresolved step, variable, or element usage.");
+                    $"V5 capture '{capture.CaptureId}' has an unresolved step or element usage.");
         }
 
         return new GuideDefinition(catalog.GuideId, steps, catalog, additional);
