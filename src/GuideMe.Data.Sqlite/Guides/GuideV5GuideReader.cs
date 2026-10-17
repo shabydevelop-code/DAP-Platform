@@ -1,10 +1,8 @@
-using Microsoft.Data.Sqlite;
-
 namespace GuideMe.Data.Sqlite.Guides;
 
 /// <summary>
-/// Read-only, experimental V5 aggregate. Validates references between step
-/// definitions, observation rules and reusable UI elements. Not a legacy adapter.
+/// Validates the production V5 learner definition and cross-references between
+/// steps, observation rules, captures, and reusable UI elements.
 /// </summary>
 public static class GuideV5GuideReader
 {
@@ -47,8 +45,7 @@ public static class GuideV5GuideReader
             foreach (var signal in step.Signals)
             {
                 if (signal.TargetUsageId is not null
-                    && !catalog.Usages.Any(usage =>
-                        usage.StepId == step.StepId && usage.UsageId == signal.TargetUsageId))
+                    && !usageIds.Contains((step.StepId, signal.TargetUsageId)))
                     throw new InvalidOperationException(
                         $"V5 step '{step.StepId}' signal '{signal.SignalId}' references missing usage '{signal.TargetUsageId}'.");
             }
