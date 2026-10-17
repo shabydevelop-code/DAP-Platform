@@ -63,10 +63,13 @@ FROM Steps WHERE GuideId=$guideId ORDER BY StepOrder";
         "ElementAnchors", "StepTargets", "StepRules"
     };
 
-    internal static string ReadTable(long guideId, string table, string? stepId = null)
+    internal static string ReadTable(long guideId, string table, string? stepId = null, string? ruleType = null)
     {
         if (!AllowedTables.Contains(table))
             throw new ArgumentException("טבלה לא מוכרת.", nameof(table));
+        if (ruleType is not null && (table != "StepRules" ||
+            ruleType is not ("PrimaryValidation" or "AdditionalCompletionCondition" or "Capture")))
+            throw new ArgumentException("סוג כלל לא מוכר.", nameof(ruleType));
         using var connection = Open();
         using var command = connection.CreateCommand();
         var stepFilter = stepId is not null && table is "Steps" or "StepTargets" or "StepRules";
@@ -87,8 +90,12 @@ FROM Steps WHERE GuideId=$guideId ORDER BY StepOrder";
                 _ => throw new InvalidOperationException("Unexpected element table.")
             };
         }
+        if (ruleType is not null)
+            sql += " AND RuleType=$ruleType";
         command.CommandText = sql;
         command.Parameters.AddWithValue("$guideId", guideId);
+        if (ruleType is not null)
+            command.Parameters.AddWithValue("$ruleType", ruleType);
         if (stepFilter || elementFilter)
             command.Parameters.AddWithValue("$stepId", stepId!);
         using var reader = command.ExecuteReader();
