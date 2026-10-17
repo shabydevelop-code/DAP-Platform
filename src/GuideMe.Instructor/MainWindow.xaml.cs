@@ -61,7 +61,7 @@ public partial class MainWindow : Window
     private static readonly string[] V5TableNames =
     {
         "Guides", "ApplicationContexts", "Steps", "Elements",
-        "ElementAnchors", "StepTargets", "StepRules"
+        "ElementAnchors", "StepTargets"
     };
 
     private void PopulateV5Tables(long guideId)
