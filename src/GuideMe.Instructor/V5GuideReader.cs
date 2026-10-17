@@ -56,6 +56,39 @@ FROM Steps WHERE GuideId=$guideId ORDER BY StepOrder";
         return steps;
     }
 
+    // Guide-wide capture definitions. Runtime values exist only in the active Learner session.
+    internal static string ReadGuideCaptures(long guideId)
+    {
+        using var connection = Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = @"SELECT s.StepOrder, r.StepId, r.RuleId, r.TargetUsageId,
+       r.Property, r.Pattern, r.Timing
+FROM StepRules r
+JOIN Steps s ON s.GuideId=r.GuideId AND s.StepId=r.StepId
+WHERE r.GuideId=$guideId AND r.RuleType='Capture'
+ORDER BY s.StepOrder, r.RuleId";
+        command.Parameters.AddWithValue("$guideId", guideId);
+        using var reader = command.ExecuteReader();
+        var output = new System.Text.StringBuilder();
+        while (reader.Read())
+        {
+            var stepId = reader.GetString(1);
+            output.AppendLine($"שלב {reader.GetInt32(0)} · {stepId}");
+            output.AppendLine($"כלל: {reader.GetString(2)}");
+            output.AppendLine($"רכיב יעד: {reader.GetString(3)}");
+            output.AppendLine($"מאפיין: {reader.GetString(4)}");
+            if (!reader.IsDBNull(5))
+                output.AppendLine($"תבנית: {reader.GetString(5)}");
+            if (!reader.IsDBNull(6))
+                output.AppendLine($"תזמון: {reader.GetString(6)}");
+            output.AppendLine($"הפניה משלב אחר: {{{{step:{stepId}:capture}}}}");
+            output.AppendLine();
+        }
+        if (output.Length == 0)
+            return "לא מוגדרים כללי לכידה במדריך זה.";
+        return output.ToString();
+    }
+
     // Explicit table allow-list from docs/schema/GuideMe-V5.sql; never interpolate user input.
     private static readonly HashSet<string> AllowedTables = new(StringComparer.Ordinal)
     {
