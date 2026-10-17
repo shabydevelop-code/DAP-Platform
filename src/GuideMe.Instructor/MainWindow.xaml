@@ -1,8 +1,10 @@
 <Window x:Class="GuideMe.Instructor.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="GuideMe Instructor" Height="800" Width="980" MinWidth="760" MinHeight="600"
-        WindowStartupLocation="CenterScreen" FlowDirection="RightToLeft"
+        Title="GuideMe Instructor" Height="620" Width="820" MinWidth="680" MinHeight="480"
+        WindowStartupLocation="CenterScreen" WindowStyle="SingleBorderWindow"
+        ResizeMode="CanResize" SizeToContent="Manual" ShowInTaskbar="True"
+        FlowDirection="LeftToRight"
         Background="#FFF3F6FA" FontFamily="Segoe UI" FontSize="14">
   <Window.Resources>
     <SolidColorBrush x:Key="Ink" Color="#FF18263B"/>
@@ -59,7 +61,7 @@
     </Style>
   </Window.Resources>
 
-  <Grid>
+  <Grid FlowDirection="RightToLeft">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto"/>
       <RowDefinition Height="*"/>
