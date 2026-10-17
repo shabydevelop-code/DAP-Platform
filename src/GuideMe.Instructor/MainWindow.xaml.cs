@@ -73,7 +73,8 @@ public partial class MainWindow : Window
             _loadedGuide = guide;
             GuideDetails.Text = V5GuideReader.ReadTable(guide.Id, "Guides");
             ContextsDetails.Text = V5GuideReader.ReadTable(guide.Id, "ApplicationContexts");
-            WorkspaceTabs.SelectedIndex = 0;
+            WorkspaceTabs.SelectedIndex = 1;
+            StepDetailsTabs.SelectedIndex = 0;
             CaptureReviewPanel.Visibility = Visibility.Collapsed;
             DraftBubbleHeading.Visibility = Visibility.Collapsed;
             BubbleText.Visibility = Visibility.Collapsed;
@@ -283,8 +284,10 @@ public partial class MainWindow : Window
         DraftBubbleHeading.Visibility = Visibility.Visible;
         BubbleText.Visibility = Visibility.Visible;
         CaptureReviewPanel.Visibility = Visibility.Visible;
-        WorkspaceTabs.SelectedIndex = 0;
-        WorkspaceTabs.SelectedIndex = 2; // Draft belongs to Steps.
+        WorkspaceTabs.SelectedIndex = 1;
+        StepDetailsTabs.SelectedIndex = 0;
+        WorkspaceTabs.SelectedIndex = 1;
+        StepDetailsTabs.SelectedIndex = 0; // Draft belongs to Steps.
         ContextIdText.Text = "unresolved";
         ContextKindText.Text = contextObservedRepeatedly ? "css-exists (candidate)" : "unverified";
         ContextValueText.Text = contextObservedRepeatedly ? candidate ?? "" : fieldEvent?.Url ?? "";
