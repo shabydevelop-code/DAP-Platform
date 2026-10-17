@@ -43,7 +43,7 @@ CREATE TABLE Steps (
 CREATE TABLE Elements (
     GuideId INTEGER NOT NULL,
     ElementId TEXT NOT NULL,
-    Runtime TEXT,
+    Runtime TEXT CHECK (Runtime IS NULL OR Runtime IN ('Web','Windows')),
     LocatorsJson TEXT NOT NULL
         CHECK (json_valid(LocatorsJson) AND json_type(LocatorsJson)='array'
             AND json_array_length(LocatorsJson)>0),
