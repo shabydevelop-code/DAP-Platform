@@ -45,9 +45,8 @@ internal static class V5GuideReader
     {
         using var connection = Open();
         using var command = connection.CreateCommand();
-        command.CommandText = @"SELECT s.StepId, s.StepOrder, s.IsEnabled, b.Content
-FROM GuideSteps s LEFT JOIN StepBubbles b ON b.GuideId=s.GuideId AND b.StepId=s.StepId
-WHERE s.GuideId=$guideId ORDER BY s.StepOrder";
+        command.CommandText = @"SELECT StepId, StepOrder, IsEnabled, BubbleContent
+FROM Steps WHERE GuideId=$guideId ORDER BY StepOrder";
         command.Parameters.AddWithValue("$guideId", guideId);
         using var reader = command.ExecuteReader();
         var steps = new List<StepInfo>();
@@ -60,10 +59,8 @@ WHERE s.GuideId=$guideId ORDER BY s.StepOrder";
     // Explicit table allow-list from docs/schema/GuideMe-V5.sql; never interpolate user input.
     private static readonly HashSet<string> AllowedTables = new(StringComparer.Ordinal)
     {
-        "Guides", "GuideApplicationContexts", "ApplicationContextMatchers", "GuideSteps",
-        "StepBubbles", "StepInteractions", "GuideElements", "ElementLocators",
-        "ElementAnchorRelations", "StepElementUsages", "GuideVariables", "StepCaptures",
-        "StepExpectedOutcomes", "StepAdvancePolicies", "StepObservedSignals"
+        "Guides", "ApplicationContexts", "Steps", "Elements",
+        "ElementAnchors", "StepTargets", "StepRules"
     };
 
     internal static string ReadTable(long guideId, string table, string? stepId = null)
@@ -72,31 +69,21 @@ WHERE s.GuideId=$guideId ORDER BY s.StepOrder";
             throw new ArgumentException("טבלה לא מוכרת.", nameof(table));
         using var connection = Open();
         using var command = connection.CreateCommand();
-        var stepFilter = stepId is not null && table is
-            "GuideSteps" or "StepBubbles" or "StepInteractions" or "StepElementUsages"
-            or "StepCaptures" or "StepExpectedOutcomes" or "StepAdvancePolicies"
-            or "StepObservedSignals";
-
-        // Reusable elements belong to the guide, but a step view must only show
-        // elements directly used by this step and anchors required by those elements.
-        var elementFilter = stepId is not null && table is
-            "GuideElements" or "ElementLocators" or "ElementAnchorRelations";
-
+        var stepFilter = stepId is not null && table is "Steps" or "StepTargets" or "StepRules";
+        var elementFilter = stepId is not null && table is "Elements" or "ElementAnchors";
         var sql = $"SELECT * FROM {table} WHERE GuideId=$guideId";
         if (stepFilter)
             sql += " AND StepId=$stepId";
         else if (elementFilter)
         {
-            const string used = @"SELECT u.ElementId FROM StepElementUsages u
+            const string used = @"SELECT u.ElementId FROM StepTargets u
                 WHERE u.GuideId=$guideId AND u.StepId=$stepId";
-            const string anchors = @"SELECT a.AnchorElementId FROM ElementAnchorRelations a
+            const string anchors = @"SELECT a.AnchorElementId FROM ElementAnchors a
                 WHERE a.GuideId=$guideId AND a.ElementId IN (" + used + ")";
             sql += table switch
             {
-                "GuideElements" or "ElementLocators" =>
-                    $" AND ElementId IN ({used} UNION {anchors})",
-                "ElementAnchorRelations" =>
-                    $" AND ElementId IN ({used})",
+                "Elements" => $" AND ElementId IN ({used} UNION {anchors})",
+                "ElementAnchors" => $" AND ElementId IN ({used})",
                 _ => throw new InvalidOperationException("Unexpected element table.")
             };
         }
