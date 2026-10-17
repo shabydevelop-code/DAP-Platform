@@ -1,5 +1,7 @@
 using System;
 using System.Windows;
+using System.Windows.Controls;
+using System.Linq;
 
 namespace GuideMe.Instructor;
 
@@ -14,6 +16,38 @@ public partial class MainWindow : Window
     private readonly System.Windows.Threading.DispatcherTimer _connectionTimer = new() { Interval = TimeSpan.FromSeconds(1) };
     private BrowserCaptureEvent? _proposedField;
     private readonly System.Collections.Generic.List<string> _approvedDrafts = new();
+
+    private sealed record StepListItem(int Number, string Title, string Subtitle, string Review);
+    private readonly System.Collections.Generic.List<StepListItem> _stepItems = new();
+
+    private void RefreshStepList()
+    {
+        var query = StepSearch.Text.Trim();
+        var selectedNumber = (StepsList.SelectedItem as StepListItem)?.Number;
+        StepsList.ItemsSource = _stepItems.Where(item =>
+            query.Length == 0 || item.Number.ToString().Contains(query, StringComparison.OrdinalIgnoreCase) ||
+            item.Title.Contains(query, StringComparison.CurrentCultureIgnoreCase) ||
+            item.Review.Contains(query, StringComparison.CurrentCultureIgnoreCase)).ToList();
+        StepCountLabel.Text = $"טיוטות מאושרות בהפעלה זו: {_stepItems.Count}";
+        if (selectedNumber is not null)
+            StepsList.SelectedItem = ((System.Collections.Generic.IEnumerable<StepListItem>)StepsList.ItemsSource)
+                .FirstOrDefault(item => item.Number == selectedNumber);
+    }
+
+    private void StepSearch_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (StepsList is not null && StepCountLabel is not null)
+            RefreshStepList();
+    }
+
+    private void StepsList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (StepsList.SelectedItem is not StepListItem selected || _state != RecordingState.Ready)
+            return;
+        ReviewHeading.Text = $"שלב {selected.Number} — {selected.Title}";
+        ReviewText.Text = selected.Review;
+        CopyReviewButton.IsEnabled = true;
+    }
 
     public MainWindow()
     {
@@ -35,6 +69,7 @@ public partial class MainWindow : Window
             StatusDetail.Text = "לא ניתן לפתוח את ערוץ ההקלטה המקומי: " + ex.Message;
             StartButton.IsEnabled = false;
         }
+        RefreshStepList();
         _connectionTimer.Tick += (_, _) => RefreshConnection();
         _connectionTimer.Start();
         Closed += (_, _) => { _connectionTimer.Stop(); _capture.Dispose(); };
@@ -197,6 +232,7 @@ public partial class MainWindow : Window
         var locator = !string.IsNullOrWhiteSpace(field.ElementId)
             ? "[id='" + field.ElementId + "']"
             : "[name='" + field.Name + "']";
+        var approvedNumber = _stepNumber;
         _approvedDrafts.Add(string.Join(Environment.NewLine,
             $"GuideKey: {GuideKey.Text}",
             $"StepOrder: {_stepNumber}",
@@ -209,12 +245,20 @@ public partial class MainWindow : Window
             $"ExpectedValue: {field.Value}",
             "PolicyKind: AutomaticOnValidation (author-approved proposal)",
             $"Bubble: {BubbleText.Text}"));
+        var approvedReview = _approvedDrafts[^1];
+        var title = BubbleText.Text.Trim().Replace("\r", " ").Replace("\n", " ");
+        if (title.Length > 58)
+            title = title[..58] + "…";
+        _stepItems.Add(new StepListItem(approvedNumber, title, "טיוטה מאושרת · לא נשמרה", approvedReview));
         _stepNumber++;
         _proposedField = null;
         _state = RecordingState.Ready;
         StateLabel.Text = $"מוכן לתחילת שלב {_stepNumber}";
         StatusDetail.Text = "טיוטה זמנית אושרה. ההקשר טרם אומת ולכן אינה מוכנה לפרסום. לא נשמר דבר במסד הנתונים.";
-        ReviewText.Text = string.Join(Environment.NewLine + Environment.NewLine, _approvedDrafts);
+        ReviewHeading.Text = "סקירת השלב";
+        ReviewText.Text = approvedReview;
+        RefreshStepList();
+        StepsList.SelectedItem = _stepItems[^1];
         CopyReviewButton.IsEnabled = true;
         StartButton.IsEnabled = _capture.IsConnected;
         EndButton.IsEnabled = false;
