@@ -2,16 +2,15 @@ using Microsoft.Data.Sqlite;
 
 namespace GuideMe.Data.Sqlite.Guides;
 
-/// <summary>Loads application contexts, variable identities, and captures for the production learner.</summary>
+/// <summary>Loads application contexts and captures for the production learner.</summary>
 public static class GuideV5ContextCaptureReader
 {
     public sealed record ContextMatcher(int Order, string Kind, string Value);
     public sealed record ApplicationContext(string ContextId, string Runtime, IReadOnlyList<ContextMatcher> Matchers);
-    public sealed record Variable(string VariableId);
-    public sealed record Capture(string StepId, string CaptureId, string VariableId, string TargetUsageId,
+    public sealed record Capture(string StepId, string CaptureId, string TargetUsageId,
         string Property, string? Pattern, string? Timing);
     public sealed record Definitions(long GuideId, IReadOnlyList<ApplicationContext> Contexts,
-        IReadOnlyList<Variable> Variables, IReadOnlyList<Capture> Captures);
+        IReadOnlyList<Capture> Captures);
 
     public static async Task<Definitions> ReadAsync(
         string databasePath, string guideKey, CancellationToken cancellationToken = default)
@@ -64,32 +63,22 @@ public static class GuideV5ContextCaptureReader
             loadedContexts.Add(context with { Matchers = matchers });
         }
 
-        var variables = new List<Variable>();
-        await using (var command = connection.CreateCommand())
-        {
-            command.CommandText = "SELECT VariableId FROM GuideVariables WHERE GuideId=$guide ORDER BY VariableId";
-            command.Parameters.AddWithValue("$guide", guideId);
-            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-            while (await reader.ReadAsync(cancellationToken))
-                variables.Add(new Variable(reader.GetString(0)));
-        }
-
         var captures = new List<Capture>();
         await using (var command = connection.CreateCommand())
         {
             command.CommandText = """
-                SELECT StepId,CaptureId,VariableId,TargetUsageId,Property,Pattern,Timing
+                SELECT StepId,CaptureId,TargetUsageId,Property,Pattern,Timing
                 FROM StepCaptures WHERE GuideId=$guide ORDER BY StepId,CaptureId
                 """;
             command.Parameters.AddWithValue("$guide", guideId);
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
             while (await reader.ReadAsync(cancellationToken))
                 captures.Add(new Capture(reader.GetString(0), reader.GetString(1),
-                    reader.GetString(2), reader.GetString(3), reader.GetString(4),
-                    reader.IsDBNull(5) ? null : reader.GetString(5),
-                    reader.IsDBNull(6) ? null : reader.GetString(6)));
+                    reader.GetString(2), reader.GetString(3),
+                    reader.IsDBNull(4) ? null : reader.GetString(4),
+                    reader.IsDBNull(5) ? null : reader.GetString(5)));
         }
 
-        return new Definitions(guideId, loadedContexts, variables, captures);
+        return new Definitions(guideId, loadedContexts, captures);
     }
 }
