@@ -2,7 +2,7 @@
 PRAGMA foreign_keys=ON;
 CREATE TABLE Guides(GuideId INTEGER PRIMARY KEY,GuideKey TEXT NOT NULL UNIQUE,GuideName TEXT NOT NULL);
 CREATE TABLE GuideApplicationContexts(GuideId INTEGER NOT NULL,ContextId TEXT NOT NULL,Runtime TEXT NOT NULL,PRIMARY KEY(GuideId,ContextId),FOREIGN KEY(GuideId) REFERENCES Guides(GuideId));
-CREATE TABLE ApplicationContextMatchers(GuideId INTEGER NOT NULL,ContextId TEXT NOT NULL,MatcherId TEXT NOT NULL,MatcherOrder INTEGER NOT NULL,Kind TEXT NOT NULL,Value TEXT NOT NULL,PRIMARY KEY(GuideId,ContextId,MatcherId),UNIQUE(GuideId,ContextId,MatcherOrder),FOREIGN KEY(GuideId,ContextId) REFERENCES GuideApplicationContexts(GuideId,ContextId));
+CREATE TABLE ApplicationContextMatchers(GuideId INTEGER NOT NULL,ContextId TEXT NOT NULL,MatcherOrder INTEGER NOT NULL,Kind TEXT NOT NULL,Value TEXT NOT NULL,PRIMARY KEY(GuideId,ContextId,MatcherOrder),FOREIGN KEY(GuideId,ContextId) REFERENCES GuideApplicationContexts(GuideId,ContextId));
 CREATE TABLE GuideSteps(GuideId INTEGER NOT NULL,StepId TEXT NOT NULL,StepOrder INTEGER NOT NULL,IsEnabled INTEGER NOT NULL CHECK(IsEnabled IN(0,1)),ApplicationContextId TEXT,ContextKind TEXT,ContextValue TEXT,PRIMARY KEY(GuideId,StepId),UNIQUE(GuideId,StepOrder),FOREIGN KEY(GuideId) REFERENCES Guides(GuideId),FOREIGN KEY(GuideId,ApplicationContextId) REFERENCES GuideApplicationContexts(GuideId,ContextId));
 CREATE TABLE StepBubbles(GuideId INTEGER NOT NULL,StepId TEXT NOT NULL,Content TEXT NOT NULL,Placement TEXT NOT NULL,PRIMARY KEY(GuideId,StepId),FOREIGN KEY(GuideId,StepId) REFERENCES GuideSteps(GuideId,StepId));
 CREATE TABLE GuideElements(GuideId INTEGER NOT NULL,ElementId TEXT NOT NULL,Runtime TEXT,FrameContextJson TEXT,PRIMARY KEY(GuideId,ElementId),FOREIGN KEY(GuideId) REFERENCES Guides(GuideId));
