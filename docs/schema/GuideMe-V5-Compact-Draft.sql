@@ -82,7 +82,7 @@ CREATE TABLE StepRules (
     RuleType TEXT NOT NULL CHECK (RuleType IN
         ('PrimaryValidation','AdditionalCompletionCondition','Capture')),
     RuleId TEXT NOT NULL,
-    Kind TEXT NOT NULL,
+    Kind TEXT,
     TargetUsageId TEXT,
     ExpectedValue TEXT,
     OptionsJson TEXT,
@@ -95,8 +95,8 @@ CREATE TABLE StepRules (
         REFERENCES StepTargets(GuideId, StepId, UsageId),
     CHECK (
         (RuleType='Capture' AND Property IS NOT NULL AND TargetUsageId IS NOT NULL
-            AND Kind='Capture' AND ExpectedValue IS NULL AND OptionsJson IS NULL)
+            AND Kind IS NULL AND ExpectedValue IS NULL AND OptionsJson IS NULL)
         OR
-        (RuleType!='Capture' AND Property IS NULL AND Pattern IS NULL AND Timing IS NULL)
+        (RuleType!='Capture' AND Kind IS NOT NULL AND Property IS NULL AND Pattern IS NULL AND Timing IS NULL)
     )
 );
