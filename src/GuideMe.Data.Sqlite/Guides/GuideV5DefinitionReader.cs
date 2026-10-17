@@ -8,7 +8,7 @@ namespace GuideMe.Data.Sqlite.Guides;
 public static class GuideV5DefinitionReader
 {
     public sealed record ObservedSignal(
-        string SignalId, int Order, string Role, string Kind,
+        string SignalId, string Role, string Kind,
         string? TargetUsageId, string? ExpectedValue, string? OptionsJson);
 
     public sealed record StepDefinition(
@@ -67,21 +67,21 @@ public static class GuideV5DefinitionReader
             var signals = new List<ObservedSignal>();
             await using var command = connection.CreateCommand();
             command.CommandText = """
-                SELECT SignalId,SignalOrder,SignalRole,Kind,TargetUsageId,ExpectedValue,OptionsJson
+                SELECT SignalId,SignalRole,Kind,TargetUsageId,ExpectedValue,OptionsJson
                 FROM StepObservedSignals
                 WHERE GuideId=$guideId AND StepId=$stepId
-                ORDER BY SignalOrder;
+                ORDER BY SignalRole, SignalId;
                 """;
             command.Parameters.AddWithValue("$guideId", step.GuideId);
             command.Parameters.AddWithValue("$stepId", step.StepId);
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
             while (await reader.ReadAsync(cancellationToken))
             {
-                signals.Add(new ObservedSignal(reader.GetString(0), reader.GetInt32(1),
-                    reader.GetString(2), reader.GetString(3),
+                signals.Add(new ObservedSignal(reader.GetString(0), reader.GetString(1),
+                    reader.GetString(2),
+                    reader.IsDBNull(3) ? null : reader.GetString(3),
                     reader.IsDBNull(4) ? null : reader.GetString(4),
-                    reader.IsDBNull(5) ? null : reader.GetString(5),
-                    reader.IsDBNull(6) ? null : reader.GetString(6)));
+                    reader.IsDBNull(5) ? null : reader.GetString(5)));
             }
             completed.Add(step with { Signals = signals });
         }
