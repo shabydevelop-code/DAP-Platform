@@ -71,8 +71,8 @@ public partial class MainWindow : Window
         {
             var steps = V5GuideReader.ListSteps(guide.Id);
             _loadedGuide = guide;
-            GuideDetails.Text = ReadGuideTables(guide.Id, "Guides", "GuideApplicationContexts", "ApplicationContextMatchers");
-            GuideVariablesDetails.Text = ReadGuideTables(guide.Id, "GuideVariables");
+            GuideDetails.Text = ReadGuideTables(guide.Id, "Guides", "ApplicationContexts");
+            GuideVariablesDetails.Text = "משתנים אינם מוגדרים כטבלה נפרדת בסכמת V5.";
             WorkspaceTabs.SelectedIndex = 0;
             CaptureReviewPanel.Visibility = Visibility.Collapsed;
             DraftBubbleHeading.Visibility = Visibility.Collapsed;
@@ -120,12 +120,12 @@ public partial class MainWindow : Window
                 string.Join(Environment.NewLine, tables.Select(table =>
                     $"=== {table} ==={Environment.NewLine}{V5GuideReader.ReadTable(id, table, stepId)}"));
 
-            BubbleDetails.Text = Read("StepBubbles");
-            InteractionDetails.Text = Read("StepInteractions", "StepElementUsages");
-            ElementDetails.Text = Read("StepElementUsages", "GuideElements", "ElementLocators", "ElementAnchorRelations");
-            ValidationDetails.Text = Read("StepObservedSignals", "StepAdvancePolicies");
-            OutcomeDetails.Text = Read("StepExpectedOutcomes");
-            CaptureDetails.Text = Read("StepCaptures");
+            BubbleDetails.Text = Read("Steps");
+            InteractionDetails.Text = Read("StepTargets");
+            ElementDetails.Text = Read("StepTargets", "Elements", "ElementAnchors");
+            ValidationDetails.Text = Read("StepRules");
+            OutcomeDetails.Text = Read("StepRules");
+            CaptureDetails.Text = Read("StepRules");
         }
         catch (Exception ex)
         {
