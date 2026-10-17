@@ -1,6 +1,7 @@
 using Microsoft.Data.Sqlite;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.IO;
 
 namespace GuideMe.Instructor;
@@ -95,6 +96,21 @@ ORDER BY s.StepOrder, r.RuleId";
         "Guides", "ApplicationContexts", "Steps", "Elements",
         "ElementAnchors", "StepTargets", "StepRules"
     };
+
+    // Table view for the selected guide. No mutations; preserves native column names and values.
+    internal static DataTable ReadGuideTable(long guideId, string table)
+    {
+        if (!AllowedTables.Contains(table))
+            throw new ArgumentException("טבלה לא מוכרת.", nameof(table));
+        using var connection = Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = $"SELECT * FROM {table} WHERE GuideId=$guideId";
+        command.Parameters.AddWithValue("$guideId", guideId);
+        using var reader = command.ExecuteReader();
+        var result = new DataTable(table);
+        result.Load(reader);
+        return result;
+    }
 
     internal static string ReadTable(long guideId, string table, string? stepId = null, string? ruleType = null)
     {
