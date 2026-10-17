@@ -216,17 +216,6 @@
               </TabItem>
             </TabControl>
           </TabItem>
-          <TabItem Header="נתוני V5">
-            <Grid Margin="10">
-              <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-              </Grid.RowDefinitions>
-              <TextBlock Grid.Row="0" Text="שש טבלאות לתצוגה · רשומות המדריך הנבחר · קריאה בלבד"
-                         Style="{StaticResource Hint}" Margin="0,0,0,10"/>
-              <TabControl Grid.Row="1" x:Name="V5TablesTabs" FlowDirection="LeftToRight"/>
-            </Grid>
-          </TabItem>
           </TabControl>
           <StackPanel Grid.Row="3" Margin="0,12,0,0">
             <Button x:Name="ApproveButton" Style="{StaticResource PrimaryButton}" Content="אשר טיוטת שלב" IsEnabled="False" Click="Approve_Click"/>
