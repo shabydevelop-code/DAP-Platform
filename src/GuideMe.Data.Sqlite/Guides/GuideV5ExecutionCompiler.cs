@@ -60,33 +60,39 @@ public static class GuideV5ExecutionCompiler
             DataSource = databasePath, Mode = SqliteOpenMode.ReadOnly
         }.ToString());
         await connection.OpenAsync(cancellationToken);
+        // Load step presentation and context once rather than issuing one query per step.
+        var stepDetails = new Dictionary<(long GuideId, string StepId),
+            (string Content, BubblePlacement Placement, string? ApplicationContextId,
+                StepContextDefinition? Context)>();
+        await using (var cmd = connection.CreateCommand())
+        {
+            cmd.CommandText = """
+                SELECT s.GuideId,s.StepId,b.Content,b.Placement,
+                       s.ApplicationContextId,s.ContextKind,s.ContextValue
+                FROM GuideSteps s
+                JOIN StepBubbles b ON b.GuideId=s.GuideId AND b.StepId=s.StepId
+                WHERE s.GuideId=$guideId
+                """;
+            cmd.Parameters.AddWithValue("$guideId", data.GuideId);
+            await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                var stepId = reader.GetString(1);
+                if (!Enum.TryParse<BubblePlacement>(reader.GetString(3), out var placement))
+                    throw new InvalidOperationException($"Invalid bubble placement for '{stepId}'.");
+                var context = reader.IsDBNull(5) ? null :
+                    new StepContextDefinition(reader.GetString(5), reader.GetString(6));
+                stepDetails.Add((reader.GetInt64(0), stepId),
+                    (reader.GetString(2), placement,
+                        reader.IsDBNull(4) ? null : reader.GetString(4), context));
+            }
+        }
+
         var steps = new List<GuideStep>();
         foreach (var s in data.Steps)
         {
-            string bubbleContent;
-            BubblePlacement placement;
-            string? appContext;
-            StepContextDefinition? context;
-            await using (var cmd = connection.CreateCommand())
-            {
-                cmd.CommandText = """
-                    SELECT b.Content,b.Placement,s.ApplicationContextId,s.ContextKind,s.ContextValue
-                    FROM GuideSteps s JOIN StepBubbles b
-                    ON b.GuideId=s.GuideId AND b.StepId=s.StepId
-                    WHERE s.GuideId=$g AND s.StepId=$s
-                    """;
-                cmd.Parameters.AddWithValue("$g", s.GuideId);
-                cmd.Parameters.AddWithValue("$s", s.StepId);
-                await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
-                if (!await reader.ReadAsync(cancellationToken))
-                    throw new InvalidOperationException($"Missing bubble for V5 step '{s.StepId}'.");
-                bubbleContent = reader.GetString(0);
-                if (!Enum.TryParse(reader.GetString(1), out placement))
-                    throw new InvalidOperationException($"Invalid bubble placement for '{s.StepId}'.");
-                appContext = reader.IsDBNull(2) ? null : reader.GetString(2);
-                context = reader.IsDBNull(3) ? null :
-                    new StepContextDefinition(reader.GetString(3), reader.GetString(4));
-            }
+            if (!stepDetails.TryGetValue((s.GuideId, s.StepId), out var details))
+                throw new InvalidOperationException($"Missing bubble for V5 step '{s.StepId}'.");
 
             var primaryUses = data.ElementCatalog.Usages.Where(u =>
                 u.StepId == s.StepId && u.Purpose == "Primary").ToArray();
@@ -131,8 +137,8 @@ public static class GuideV5ExecutionCompiler
             if (!Enum.TryParse<StepAdvanceMode>(s.AdvancePolicy, out var policy))
                 throw new InvalidOperationException($"Invalid advance policy for '{s.StepId}'.");
             steps.Add(new GuideStep(s.StepId, s.Order, mainTarget,
-                new BubbleDefinition(bubbleContent, placement), validation, policy,
-                context, capture, completion, s.IsEnabled, appContext));
+                new BubbleDefinition(details.Content, details.Placement), validation, policy,
+                details.Context, capture, completion, s.IsEnabled, details.ApplicationContextId));
         }
 
         var contexts = data.ContextsAndCaptures.Contexts.Select(c =>
