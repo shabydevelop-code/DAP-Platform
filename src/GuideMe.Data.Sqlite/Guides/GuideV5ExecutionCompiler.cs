@@ -106,7 +106,7 @@ public static class GuideV5ExecutionCompiler
                 }
                 capture = new StepCaptureDefinition(t.Runtime, t.Locator, c.Property, c.Pattern, timing);
             }
-            var policy = placement == BubblePlacement.Center
+            var policy = mainTarget is null
                 ? StepAdvanceMode.Manual
                 : StepAdvanceMode.AutomaticOnValidation;
             steps.Add(new GuideStep(s.StepId, s.Order, mainTarget,
