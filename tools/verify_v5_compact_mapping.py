@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Read-only V5 -> compact V5 feasibility proof; compact DB lives in memory only.
+"""V5 -> compact V5 mapping verification. Source is always read-only.
 
-Run: python tools/verify_v5_compact_mapping.py
-No backup, no database write, no timeout greater than five seconds.
+Default: in-memory destination. Optional --output creates a new disposable test fixture.
+Never overwrites an existing output file. No backup is created.
 """
+import argparse
 import json
 import sqlite3
 from collections import defaultdict
@@ -23,9 +24,18 @@ def compact_json(values):
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--output", type=Path, help="new disposable compact test database")
+    args = parser.parse_args()
+    if args.output is not None:
+        output = args.output.resolve()
+        if output.exists():
+            parser.error("Output already exists; refusing to overwrite it.")
+        if output == Path(SOURCE).resolve():
+            parser.error("Output must not be the production database.")
     src = sqlite3.connect(f"file:{SOURCE}?mode=ro", uri=True, timeout=5)
     src.row_factory = sqlite3.Row
-    dst = sqlite3.connect(":memory:", timeout=5)
+    dst = sqlite3.connect(str(output) if args.output is not None else ":memory:", timeout=5)
     dst.row_factory = sqlite3.Row
     try:
         src.execute("PRAGMA query_only=ON")
@@ -152,7 +162,7 @@ def main():
         assert not dst.execute("PRAGMA foreign_key_check").fetchall()
         assert dst.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
         print("PASS: full persisted-data equivalence and referential integrity")
-        print("PASS: source database unchanged; destination was in-memory only")
+        print("PASS: source database unchanged; destination:", str(output) if args.output is not None else "memory only")
     finally:
         dst.close()
         src.close()
