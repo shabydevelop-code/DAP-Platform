@@ -71,6 +71,9 @@ public partial class MainWindow : Window
         {
             var steps = V5GuideReader.ListSteps(guide.Id);
             _loadedGuide = guide;
+            GuideDetails.Text = ReadGuideTables(guide.Id, "Guides", "GuideApplicationContexts", "ApplicationContextMatchers");
+            GuideVariablesDetails.Text = ReadGuideTables(guide.Id, "GuideVariables");
+            WorkspaceTabs.SelectedIndex = 0;
             CaptureReviewPanel.Visibility = Visibility.Collapsed;
             DraftBubbleHeading.Visibility = Visibility.Collapsed;
             BubbleText.Visibility = Visibility.Collapsed;
@@ -102,6 +105,10 @@ public partial class MainWindow : Window
         }
     }
 
+    private static string ReadGuideTables(long guideId, params string[] tables) =>
+        string.Join(Environment.NewLine, tables.Select(table =>
+            $"=== {table} ==={Environment.NewLine}{V5GuideReader.ReadTable(guideId, table)}"));
+
     private void ShowLoadedStep(string stepId)
     {
         if (_loadedGuide is null)
@@ -112,13 +119,13 @@ public partial class MainWindow : Window
             string Read(params string[] tables) =>
                 string.Join(Environment.NewLine, tables.Select(table =>
                     $"=== {table} ==={Environment.NewLine}{V5GuideReader.ReadTable(id, table, stepId)}"));
-            GuideDetails.Text = Read("Guides", "GuideSteps", "GuideApplicationContexts", "ApplicationContextMatchers");
+
             BubbleDetails.Text = Read("StepBubbles");
             InteractionDetails.Text = Read("StepInteractions", "StepElementUsages");
             ElementDetails.Text = Read("StepElementUsages", "GuideElements", "ElementLocators", "ElementAnchorRelations");
             ValidationDetails.Text = Read("StepObservedSignals", "StepAdvancePolicies");
             OutcomeDetails.Text = Read("StepExpectedOutcomes");
-            CaptureDetails.Text = Read("StepCaptures", "GuideVariables");
+            CaptureDetails.Text = Read("StepCaptures");
         }
         catch (Exception ex)
         {
@@ -285,7 +292,8 @@ public partial class MainWindow : Window
         DraftBubbleHeading.Visibility = Visibility.Visible;
         BubbleText.Visibility = Visibility.Visible;
         CaptureReviewPanel.Visibility = Visibility.Visible;
-        StepDetailsTabs.SelectedIndex = 1; // Draft instruction belongs to Instructions.
+        WorkspaceTabs.SelectedIndex = 0;
+        StepDetailsTabs.SelectedIndex = 0; // Draft instruction belongs to Instructions.
         ContextIdText.Text = "unresolved";
         ContextKindText.Text = contextObservedRepeatedly ? "css-exists (candidate)" : "unverified";
         ContextValueText.Text = contextObservedRepeatedly ? candidate ?? "" : fieldEvent?.Url ?? "";
