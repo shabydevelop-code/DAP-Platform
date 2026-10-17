@@ -58,42 +58,6 @@ public partial class MainWindow : Window
             ShowLoadedStep(selected.StepId!);
     }
 
-    private static readonly string[] V5TableNames =
-    {
-        "Guides", "ApplicationContexts", "Steps", "Elements",
-        "ElementAnchors", "StepTargets"
-    };
-
-    private void PopulateV5Tables(long guideId)
-    {
-        V5TablesTabs.Items.Clear();
-        foreach (var table in V5TableNames)
-        {
-            var data = V5GuideReader.ReadGuideTable(guideId, table);
-            var grid = new DataGrid
-            {
-                ItemsSource = data.DefaultView,
-                IsReadOnly = true,
-                AutoGenerateColumns = true,
-                CanUserAddRows = false,
-                CanUserDeleteRows = false,
-                CanUserSortColumns = true,
-                SelectionUnit = DataGridSelectionUnit.CellOrRowHeader,
-                HeadersVisibility = DataGridHeadersVisibility.All,
-                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
-                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                FlowDirection = FlowDirection.LeftToRight
-            };
-            V5TablesTabs.Items.Add(new TabItem
-            {
-                Header = table,
-                Content = grid,
-                ToolTip = $"{data.Rows.Count} רשומות"
-            });
-        }
-        V5TablesTabs.SelectedIndex = 0;
-    }
-
     private void LoadExistingGuide_Click(object sender, RoutedEventArgs e)
     {
         if (_state != RecordingState.Ready)
@@ -109,7 +73,6 @@ public partial class MainWindow : Window
             _loadedGuide = guide;
             GuideDetails.Text = ReadGuideTables(guide.Id, "Guides", "ApplicationContexts");
             GuideVariablesDetails.Text = V5GuideReader.ReadGuideCaptures(guide.Id);
-            PopulateV5Tables(guide.Id);
             WorkspaceTabs.SelectedIndex = 0;
             CaptureReviewPanel.Visibility = Visibility.Collapsed;
             DraftBubbleHeading.Visibility = Visibility.Collapsed;
