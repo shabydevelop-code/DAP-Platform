@@ -3,16 +3,15 @@ using Microsoft.Data.Sqlite;
 namespace GuideMe.Data.Sqlite.Guides;
 
 /// <summary>
-/// Loads reusable V5 element definitions and their step usages without falling
-/// back to the legacy per-step locator columns. Experimental read-only API.
+/// Loads reusable V5 element definitions and step usages for the production learner.
 /// </summary>
 public static class GuideV5ElementReader
 {
-    public sealed record LocatorDefinition(string LocatorId, string Strategy, string Value);
-    public sealed record AnchorDefinition(string RelationId, string AnchorElementId, string Relation, int Order);
+    public sealed record LocatorDefinition(string Strategy, string Value);
+    public sealed record AnchorDefinition(string AnchorElementId, string Relation, int Order);
     public sealed record ElementDefinition(
-        string ElementId, string DisplayName, string? Runtime, string? FrameContextJson,
-        string DefinitionStatus, IReadOnlyList<LocatorDefinition> Locators,
+        string ElementId, string? Runtime, string? FrameContextJson,
+        IReadOnlyList<LocatorDefinition> Locators,
         IReadOnlyList<AnchorDefinition> Anchors);
     public sealed record ElementUsage(string StepId, string UsageId, string ElementId, string Purpose);
     public sealed record ElementCatalog(
@@ -48,7 +47,7 @@ public static class GuideV5ElementReader
         await using (var command = connection.CreateCommand())
         {
             command.CommandText = """
-                SELECT ElementId,DisplayName,Runtime,FrameContextJson,DefinitionStatus
+                SELECT ElementId,Runtime,FrameContextJson
                 FROM GuideElements WHERE GuideId=$guideId ORDER BY ElementId;
                 """;
             command.Parameters.AddWithValue("$guideId", guideId);
@@ -57,10 +56,8 @@ public static class GuideV5ElementReader
             {
                 var id = reader.GetString(0);
                 if (!elements.TryAdd(id, new ElementDefinition(
-                    id, reader.GetString(1),
+                    id, reader.IsDBNull(1) ? null : reader.GetString(1),
                     reader.IsDBNull(2) ? null : reader.GetString(2),
-                    reader.IsDBNull(3) ? null : reader.GetString(3),
-                    reader.GetString(4),
                     Array.Empty<LocatorDefinition>(),
                     Array.Empty<AnchorDefinition>())))
                     throw new InvalidOperationException($"Duplicate V5 element '{id}'.");
@@ -71,7 +68,7 @@ public static class GuideV5ElementReader
         await using (var command = connection.CreateCommand())
         {
             command.CommandText = """
-                SELECT ElementId,LocatorId,Strategy,Value
+                SELECT ElementId,Strategy,Value
                 FROM ElementLocators WHERE GuideId=$guideId ORDER BY ElementId,LocatorId;
                 """;
             command.Parameters.AddWithValue("$guideId", guideId);
@@ -83,7 +80,7 @@ public static class GuideV5ElementReader
                     throw new InvalidOperationException($"V5 locator refers to missing element '{id}'.");
                 if (!locators.TryGetValue(id, out var list))
                     locators[id] = list = new List<LocatorDefinition>();
-                list.Add(new LocatorDefinition(reader.GetString(1), reader.GetString(2), reader.GetString(3)));
+                list.Add(new LocatorDefinition(reader.GetString(1), reader.GetString(2)));
             }
         }
 
@@ -91,7 +88,7 @@ public static class GuideV5ElementReader
         await using (var command = connection.CreateCommand())
         {
             command.CommandText = """
-                SELECT ElementId,RelationId,AnchorElementId,Relation,AnchorOrder
+                SELECT ElementId,AnchorElementId,Relation,AnchorOrder
                 FROM ElementAnchorRelations WHERE GuideId=$guideId
                 ORDER BY ElementId,AnchorOrder;
                 """;
@@ -100,13 +97,13 @@ public static class GuideV5ElementReader
             while (await reader.ReadAsync(cancellationToken))
             {
                 var id = reader.GetString(0);
-                var anchorId = reader.GetString(2);
+                var anchorId = reader.GetString(1);
                 if (!elements.ContainsKey(id) || !elements.ContainsKey(anchorId))
                     throw new InvalidOperationException($"Invalid V5 anchor '{id}' -> '{anchorId}'.");
                 if (!anchors.TryGetValue(id, out var list))
                     anchors[id] = list = new List<AnchorDefinition>();
-                list.Add(new AnchorDefinition(reader.GetString(1), anchorId,
-                    reader.GetString(3), reader.GetInt32(4)));
+                list.Add(new AnchorDefinition(anchorId,
+                    reader.GetString(2), reader.GetInt32(3)));
             }
         }
 
