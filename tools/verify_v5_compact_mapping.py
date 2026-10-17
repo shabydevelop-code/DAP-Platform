@@ -11,7 +11,7 @@ from collections import defaultdict
 from pathlib import Path
 
 SOURCE = r"C:\ProgramData\GuideMe\Data\GuideMe-V5.db"
-SCHEMA = Path(__file__).resolve().parents[1] / "docs/schema/GuideMe-V5-Compact-Draft.sql"
+SCHEMA = Path(__file__).resolve().parents[1] / "docs/schema/GuideMe-V5.sql"
 
 
 def rows(conn, table, order=""):
