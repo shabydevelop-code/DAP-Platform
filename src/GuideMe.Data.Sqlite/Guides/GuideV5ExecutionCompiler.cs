@@ -1,7 +1,6 @@
 using System.Text.Json;
 using GuideMe.Core.Guides;
 using GuideMe.Core.Targets;
-using Microsoft.Data.Sqlite;
 
 namespace GuideMe.Data.Sqlite.Guides;
 
@@ -61,43 +60,14 @@ public static class GuideV5ExecutionCompiler
             return TargetDescriptor.Create(runtime, new Locator(main.Strategy, main.Value), anchors, frame);
         }
 
-        await using var connection = new SqliteConnection(new SqliteConnectionStringBuilder {
-            DataSource = databasePath, Mode = SqliteOpenMode.ReadOnly
-        }.ToString());
-        await connection.OpenAsync(cancellationToken);
-        // Load step presentation and context once rather than issuing one query per step.
-        var stepDetails = new Dictionary<(long GuideId, string StepId),
-            (string Content, BubblePlacement Placement, string? ApplicationContextId,
-                StepContextDefinition? Context)>();
-        await using (var cmd = connection.CreateCommand())
-        {
-            cmd.CommandText = """
-                SELECT s.GuideId,s.StepId,b.Content,b.Placement,
-                       s.ApplicationContextId,s.ContextKind,s.ContextValue
-                FROM GuideSteps s
-                JOIN StepBubbles b ON b.GuideId=s.GuideId AND b.StepId=s.StepId
-                WHERE s.GuideId=$guideId
-                """;
-            cmd.Parameters.AddWithValue("$guideId", data.GuideId);
-            await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
-            while (await reader.ReadAsync(cancellationToken))
-            {
-                var stepId = reader.GetString(1);
-                if (!Enum.TryParse<BubblePlacement>(reader.GetString(3), out var placement))
-                    throw new InvalidOperationException($"Invalid bubble placement for '{stepId}'.");
-                var context = reader.IsDBNull(5) ? null :
-                    new StepContextDefinition(reader.GetString(5), reader.GetString(6));
-                stepDetails.Add((reader.GetInt64(0), stepId),
-                    (reader.GetString(2), placement,
-                        reader.IsDBNull(4) ? null : reader.GetString(4), context));
-            }
-        }
-
         var steps = new List<GuideStep>();
         foreach (var s in data.Steps)
         {
-            if (!stepDetails.TryGetValue((s.GuideId, s.StepId), out var details))
-                throw new InvalidOperationException($"Missing bubble for V5 step '{s.StepId}'.");
+            if (!Enum.TryParse<BubblePlacement>(s.BubblePlacement, out var placement))
+                throw new InvalidOperationException($"Invalid bubble placement for '{s.StepId}'.");
+            StepContextDefinition? context = s.ContextKind is null ? null :
+                new StepContextDefinition(s.ContextKind, s.ContextValue
+                    ?? throw new InvalidOperationException($"Missing context value for '{s.StepId}'."));
 
             var primaryUses = primaryUsagesByStep[s.StepId].ToArray();
             if (primaryUses.Length > 1)
@@ -141,8 +111,8 @@ public static class GuideV5ExecutionCompiler
             if (!Enum.TryParse<StepAdvanceMode>(s.AdvancePolicy, out var policy))
                 throw new InvalidOperationException($"Invalid advance policy for '{s.StepId}'.");
             steps.Add(new GuideStep(s.StepId, s.Order, mainTarget,
-                new BubbleDefinition(details.Content, details.Placement), validation, policy,
-                details.Context, capture, completion, s.IsEnabled, details.ApplicationContextId));
+                new BubbleDefinition(s.BubbleContent, placement), validation, policy,
+                context, capture, completion, s.IsEnabled, s.ApplicationContextId));
         }
 
         var contexts = data.ContextsAndCaptures.Contexts.Select(c =>
