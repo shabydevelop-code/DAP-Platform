@@ -50,12 +50,12 @@ public partial class MainWindow : Window
         ReviewHeading.Text = $"שלב {selected.Number} — {selected.Title}";
         ReviewText.Text = selected.Review;
         CopyReviewButton.IsEnabled = true;
-        if (_loadedGuide is not null && selected.StepId is not null)
-        {
-            BubbleText.Text = selected.Bubble ?? string.Empty;
-            BubbleText.IsEnabled = false;
-            ShowLoadedStep(selected.StepId);
-        }
+        var existing = _loadedGuide is not null && selected.StepId is not null;
+        CaptureReviewPanel.Visibility = existing ? Visibility.Collapsed : Visibility.Visible;
+        DraftBubbleHeading.Visibility = existing ? Visibility.Collapsed : Visibility.Visible;
+        BubbleText.Visibility = existing ? Visibility.Collapsed : Visibility.Visible;
+        if (existing)
+            ShowLoadedStep(selected.StepId!);
     }
 
     private void LoadExistingGuide_Click(object sender, RoutedEventArgs e)
@@ -71,6 +71,10 @@ public partial class MainWindow : Window
         {
             var steps = V5GuideReader.ListSteps(guide.Id);
             _loadedGuide = guide;
+            CaptureReviewPanel.Visibility = Visibility.Collapsed;
+            DraftBubbleHeading.Visibility = Visibility.Collapsed;
+            BubbleText.Visibility = Visibility.Collapsed;
+            BubbleText.IsEnabled = false;
             _stepItems.Clear();
             foreach (var step in steps)
             {
@@ -278,6 +282,10 @@ public partial class MainWindow : Window
         StartButton.IsEnabled = false;
         EndButton.IsEnabled = false;
         BubbleText.IsEnabled = true;
+        DraftBubbleHeading.Visibility = Visibility.Visible;
+        BubbleText.Visibility = Visibility.Visible;
+        CaptureReviewPanel.Visibility = Visibility.Visible;
+        StepDetailsTabs.SelectedIndex = 1; // Draft instruction belongs to Instructions.
         ContextIdText.Text = "unresolved";
         ContextKindText.Text = contextObservedRepeatedly ? "css-exists (candidate)" : "unverified";
         ContextValueText.Text = contextObservedRepeatedly ? candidate ?? "" : fieldEvent?.Url ?? "";
@@ -339,6 +347,7 @@ public partial class MainWindow : Window
         StatusDetail.Text = "טיוטה זמנית אושרה. ההקשר טרם אומת ולכן אינה מוכנה לפרסום. לא נשמר דבר במסד הנתונים.";
         ReviewHeading.Text = "סקירת השלב";
         ReviewText.Text = approvedReview;
+        CaptureReviewPanel.Visibility = Visibility.Visible;
         RefreshStepList();
         StepsList.SelectedItem = _stepItems[^1];
         CopyReviewButton.IsEnabled = true;
