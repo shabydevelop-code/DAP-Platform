@@ -17,7 +17,7 @@ public partial class MainWindow : Window
     private BrowserCaptureEvent? _proposedField;
     private readonly System.Collections.Generic.List<string> _approvedDrafts = new();
 
-    private sealed record StepListItem(int Number, string Title, string Subtitle, string Review, string? StepId = null);
+    private sealed record StepListItem(int Number, string Title, string Subtitle, string Review, string? StepId = null, string? Bubble = null);
     private V5GuideReader.GuideInfo? _loadedGuide;
     private readonly System.Collections.Generic.List<StepListItem> _stepItems = new();
 
@@ -51,7 +51,11 @@ public partial class MainWindow : Window
         ReviewText.Text = selected.Review;
         CopyReviewButton.IsEnabled = true;
         if (_loadedGuide is not null && selected.StepId is not null)
+        {
+            BubbleText.Text = selected.Bubble ?? string.Empty;
+            BubbleText.IsEnabled = false;
             ShowLoadedStep(selected.StepId);
+        }
     }
 
     private void LoadExistingGuide_Click(object sender, RoutedEventArgs e)
@@ -75,7 +79,7 @@ public partial class MainWindow : Window
                     title = title[..58] + "…";
                 _stepItems.Add(new StepListItem(step.Order, title,
                     step.Enabled ? "פעיל · V5 · קריאה בלבד" : "לא פעיל · V5 · קריאה בלבד",
-                    $"StepId: {step.Id}\nStepOrder: {step.Order}\nBubble: {step.Bubble}", step.Id));
+                    $"StepId: {step.Id}\nStepOrder: {step.Order}\nBubble: {step.Bubble}", step.Id, step.Bubble));
             }
             StepSearch.Clear();
             GuideKey.Text = guide.Key;
