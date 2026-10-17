@@ -222,7 +222,7 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
               </Grid.RowDefinitions>
-              <TextBlock Grid.Row="0" Text="שבע טבלאות הסכמה · רשומות המדריך הנבחר · קריאה בלבד"
+              <TextBlock Grid.Row="0" Text="שש טבלאות לתצוגה · רשומות המדריך הנבחר · קריאה בלבד"
                          Style="{StaticResource Hint}" Margin="0,0,0,10"/>
               <TabControl Grid.Row="1" x:Name="V5TablesTabs" FlowDirection="LeftToRight"/>
             </Grid>
