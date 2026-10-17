@@ -3,8 +3,7 @@ using Microsoft.Data.Sqlite;
 namespace GuideMe.Data.Sqlite.Guides;
 
 /// <summary>
-/// Read-only inspection of the experimental V5 definition model.
-/// This does not activate V5 in the production learner.
+/// Reads the persisted step definitions required by the production execution compiler.
 /// </summary>
 public static class GuideV5DefinitionReader
 {
@@ -14,8 +13,7 @@ public static class GuideV5DefinitionReader
 
     public sealed record StepDefinition(
         long GuideId, string StepId, int Order, bool IsEnabled,
-        string Instruction, string? InteractionKind, bool InteractionConfirmed,
-        string? OutcomeKind, string? OutcomeStatus, string AdvancePolicy,
+        string AdvancePolicy,
         IReadOnlyList<ObservedSignal> Signals);
 
     public static async Task<IReadOnlyList<StepDefinition>> ReadStepsAsync(
@@ -36,14 +34,9 @@ public static class GuideV5DefinitionReader
         await using (var command = connection.CreateCommand())
         {
             command.CommandText = """
-                SELECT s.GuideId,s.StepId,s.StepOrder,s.IsEnabled,
-                       b.Content,i.InteractionKind,i.IsAuthorConfirmed,
-                       o.OutcomeKind,o.DefinitionStatus,a.PolicyKind
+                SELECT s.GuideId,s.StepId,s.StepOrder,s.IsEnabled,a.PolicyKind
                 FROM GuideSteps s
                 JOIN Guides g ON g.GuideId=s.GuideId
-                JOIN StepBubbles b ON b.GuideId=s.GuideId AND b.StepId=s.StepId
-                LEFT JOIN StepInteractions i ON i.GuideId=s.GuideId AND i.StepId=s.StepId
-                LEFT JOIN StepExpectedOutcomes o ON o.GuideId=s.GuideId AND o.StepId=s.StepId
                 JOIN StepAdvancePolicies a ON a.GuideId=s.GuideId AND a.StepId=s.StepId
                 WHERE g.GuideKey=$guideKey
                 ORDER BY s.StepOrder;
@@ -55,11 +48,7 @@ public static class GuideV5DefinitionReader
                 steps.Add(new StepDefinition(
                     reader.GetInt64(0), reader.GetString(1), reader.GetInt32(2),
                     reader.GetInt64(3) != 0, reader.GetString(4),
-                    reader.IsDBNull(5) ? null : reader.GetString(5),
-                    !reader.IsDBNull(6) && reader.GetInt64(6) != 0,
-                    reader.IsDBNull(7) ? null : reader.GetString(7),
-                    reader.IsDBNull(8) ? null : reader.GetString(8),
-                    reader.GetString(9), Array.Empty<ObservedSignal>()));
+                    Array.Empty<ObservedSignal>()));
             }
         }
 
