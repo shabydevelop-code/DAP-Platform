@@ -217,7 +217,7 @@
                   <StackPanel Margin="12">
                     <TextBlock Text="סכמת V5 הנוכחית אינה כוללת טבלת משתנים משותפים." TextWrapping="Wrap" Foreground="#FF475569" Margin="0,0,0,14"/>
                     <TextBlock Text="ללא טבלת משתנים נפרדת" FontFamily="Consolas" FontSize="12" FlowDirection="LeftToRight"/>
-                    <TextBox x:Name="ללא טבלת משתנים נפרדתDetails" Text="לא נטען מדריך." IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" FlowDirection="LeftToRight" FontFamily="Consolas" FontSize="12" Margin="0,12,0,0" MinHeight="130"/>
+                    <TextBox x:Name="GuideVariablesDetails" Text="לא נטען מדריך." IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" FlowDirection="LeftToRight" FontFamily="Consolas" FontSize="12" Margin="0,12,0,0" MinHeight="130"/>
                   </StackPanel>
                 </ScrollViewer>
               </TabItem>
