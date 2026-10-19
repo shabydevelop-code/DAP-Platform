@@ -255,6 +255,7 @@ public partial class MainWindow : Window
             DatabaseStatus.Text = "לא ניתן לקרוא את V5: " + ex.Message;
         }
         RefreshStepList();
+        RefreshConnection();
         _connectionTimer.Tick += (_, _) => RefreshConnection();
         _connectionTimer.Start();
         Closed += (_, _) => { _connectionTimer.Stop(); _capture.Dispose(); };
@@ -263,6 +264,10 @@ public partial class MainWindow : Window
     private void RefreshConnection()
     {
         var connected = _captureAvailable && _capture.IsConnected;
+        ConnectionExpander.Visibility = connected ? Visibility.Collapsed : Visibility.Visible;
+        ConnectionExpander.IsExpanded = !connected;
+        ConnectionIndicator.Visibility = connected ? Visibility.Visible : Visibility.Collapsed;
+        ConnectionIndicator.Text = connected ? "● התוסף מחובר" : "התוסף אינו מחובר";
         if (_state == RecordingState.Ready)
         {
             StartButton.IsEnabled = connected && _loadedGuide is null;
