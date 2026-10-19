@@ -86,7 +86,7 @@ ORDER BY s.StepOrder, r.RuleId";
             output.AppendLine();
         }
         if (output.Length == 0)
-            return "לא מוגדרים כללי לכידה במדריך זה.";
+            return "לא מוגדרים כללי לכידה בלומדה זו.";
         return output.ToString();
     }
 
