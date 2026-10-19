@@ -129,7 +129,7 @@
         <Grid>
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="0"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="0"/>
           </Grid.RowDefinitions>
@@ -145,6 +145,16 @@
             <TextBlock x:Name="CurrentGuideLabel" Text="לא נבחרה לומדה" Style="{StaticResource Hint}" Margin="0,6,0,0"/>
             <TextBlock x:Name="DatabaseStatus" Style="{StaticResource Hint}" Margin="0,3,0,0"/>
           </StackPanel>
+          <Expander Grid.Row="1" Header="חיבור לתוסף הדפדפן" HorizontalAlignment="Right" Margin="0,0,0,12" IsExpanded="False">
+            <Border Background="White" BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="12" MinWidth="340">
+              <StackPanel>
+                <TextBlock Text="קוד חיבור מקומי" Margin="0,0,0,5"/>
+                <TextBox x:Name="PairingToken" IsReadOnly="True" FlowDirection="LeftToRight"/>
+                <TextBox x:Name="GuideKey" Visibility="Collapsed"/>
+                <Button Content="העתק קוד חיבור" Click="CopyPairingToken_Click" Margin="0,8,0,0" HorizontalAlignment="Left"/>
+              </StackPanel>
+            </Border>
+          </Expander>
           <Border Grid.Row="2" x:Name="NewGuidePanel" Visibility="Collapsed" Background="White" BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="22">
             <StackPanel>
               <TextBlock Text="יצירת לומדה חדשה" Style="{StaticResource SectionTitle}"/>
@@ -165,7 +175,7 @@
             </TabItem>
             <TabItem Header="עריכת שלבים">
               <TabControl x:Name="StepDetailsTabs" Background="White" BorderBrush="{StaticResource Line}">
-            <TabItem Header="שלבים"><DockPanel LastChildFill="True"><StackPanel DockPanel.Dock="Top"><StackPanel Margin="0,0,0,12"><DockPanel LastChildFill="True"><Button DockPanel.Dock="Left" Content="העתק קוד חיבור" Click="CopyPairingToken_Click" Padding="9,5" MinHeight="30"/><TextBlock Text="הקלטת שלבים" Style="{StaticResource SectionTitle}"/></DockPanel><TextBlock Text="קוד חיבור מקומי" Margin="0,8,0,4"/><TextBox x:Name="PairingToken" IsReadOnly="True" FlowDirection="LeftToRight"/><TextBox x:Name="GuideKey" Visibility="Collapsed"/></StackPanel>          <Border Background="#FFF4F7FC" CornerRadius="8" Padding="12" Margin="0,0,0,12">
+            <TabItem Header="שלבים"><DockPanel LastChildFill="True"><StackPanel DockPanel.Dock="Top">          <Border Background="#FFF4F7FC" CornerRadius="8" Padding="12" Margin="0,0,0,12">
             <Grid>
               <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
               <StackPanel>
