@@ -30,8 +30,8 @@ public partial class MainWindow : Window
             item.Title.Contains(query, StringComparison.CurrentCultureIgnoreCase) ||
             item.Review.Contains(query, StringComparison.CurrentCultureIgnoreCase)).ToList();
         StepCountLabel.Text = _loadedGuide is null
-            ? $"טיוטות מאושרות בהפעלה זו: {_stepItems.Count}"
-            : $"{_loadedGuide.Name} · {_stepItems.Count} שלבים";
+            ? "לא נבחרה לומדה"
+            : _stepItems.Count == 0 ? "בלומדה זו עדיין אין שלבים" : $"{_loadedGuide.Name} · {_stepItems.Count} שלבים";
         if (selectedNumber is not null)
             StepsList.SelectedItem = ((System.Collections.Generic.IEnumerable<StepListItem>)StepsList.ItemsSource)
                 .FirstOrDefault(item => item.Number == selectedNumber);
@@ -80,7 +80,7 @@ public partial class MainWindow : Window
         }
         try
         {
-            var created = V5GuideWriter.CreateGuide(NewGuideKey.Text, NewGuideName.Text);
+            var created = V5GuideWriter.CreateGuide(NewGuideName.Text);
             ExistingGuides.ItemsSource = V5GuideReader.ListGuides();
             ExistingGuides.SelectedItem = ((System.Collections.Generic.IEnumerable<V5GuideReader.GuideInfo>)ExistingGuides.ItemsSource)
                 .FirstOrDefault(g => g.Id == created.Id);
@@ -113,7 +113,7 @@ public partial class MainWindow : Window
         {
             var steps = V5GuideReader.ListSteps(guide.Id);
             _loadedGuide = guide;
-            CurrentGuideLabel.Text = $"לומדה נוכחית: {guide.Name}";
+            CurrentGuideLabel.Text = $"פתוחה: {guide.Name}";
             NewGuidePanel.Visibility = Visibility.Collapsed;
             GuideDetails.Text = V5GuideReader.ReadTable(guide.Id, "Guides");
             ContextsDetails.Text = V5GuideReader.ReadTable(guide.Id, "ApplicationContexts");
