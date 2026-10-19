@@ -58,6 +58,20 @@ public partial class MainWindow : Window
             ShowLoadedStep(selected.StepId!);
     }
 
+    private void SetNewGuideMode(bool creating)
+    {
+        NewGuidePanel.Visibility = creating ? Visibility.Visible : Visibility.Collapsed;
+        WorkspaceTabs.Visibility = creating ? Visibility.Collapsed : Visibility.Visible;
+        StepsSidebar.Visibility = creating ? Visibility.Hidden : Visibility.Visible;
+        CurrentGuideLabel.Text = creating ? "יצירת לומדה חדשה" :
+            _loadedGuide is null ? "לא נבחרה לומדה" : $"פתוחה: {_loadedGuide.Name}";
+    }
+
+    private void CancelNewGuide_Click(object sender, RoutedEventArgs e)
+    {
+        SetNewGuideMode(false);
+    }
+
     private void NewGuide_Click(object sender, RoutedEventArgs e)
     {
         if (_state != RecordingState.Ready)
@@ -67,7 +81,8 @@ public partial class MainWindow : Window
         }
         WorkspaceTabs.SelectedIndex = 0;
         GuideSettingsTabs.SelectedIndex = 0;
-        NewGuidePanel.Visibility = Visibility.Visible;
+        NewGuideName.Clear();
+        SetNewGuideMode(true);
         NewGuideName.Focus();
     }
 
@@ -88,7 +103,7 @@ public partial class MainWindow : Window
             LoadExistingGuide_Click(sender, e);
             WorkspaceTabs.SelectedIndex = 0;
             GuideSettingsTabs.SelectedIndex = 0;
-            NewGuidePanel.Visibility = Visibility.Collapsed;
+            SetNewGuideMode(false);
             DatabaseStatus.Text = $"נוצרה לומדה חדשה (GuideId={created.Id}) ללא שלבים או הקשרי אפליקציה.";
             MessageBox.Show($"הלומדה '{created.Name}' נוצרה בהצלחה.\\nGuideId: {created.Id}\\nלא נוצרו שלבים או הקשרי אפליקציה.",
                 "GuideMe Instructor");
@@ -114,7 +129,7 @@ public partial class MainWindow : Window
             var steps = V5GuideReader.ListSteps(guide.Id);
             _loadedGuide = guide;
             CurrentGuideLabel.Text = $"פתוחה: {guide.Name}";
-            NewGuidePanel.Visibility = Visibility.Collapsed;
+            SetNewGuideMode(false);
             GuideDetails.Text = V5GuideReader.ReadTable(guide.Id, "Guides");
             ContextsDetails.Text = V5GuideReader.ReadTable(guide.Id, "ApplicationContexts");
             WorkspaceTabs.SelectedIndex = 0;
