@@ -58,6 +58,19 @@ public partial class MainWindow : Window
             ShowLoadedStep(selected.StepId!);
     }
 
+    private void NewGuide_Click(object sender, RoutedEventArgs e)
+    {
+        if (_state != RecordingState.Ready)
+        {
+            MessageBox.Show("יש לסיים את הקלטת השלב לפני יצירת לומדה.", "GuideMe Instructor");
+            return;
+        }
+        WorkspaceTabs.SelectedIndex = 0;
+        GuideSettingsTabs.SelectedIndex = 0;
+        NewGuidePanel.Visibility = Visibility.Visible;
+        NewGuideName.Focus();
+    }
+
     private void CreateGuide_Click(object sender, RoutedEventArgs e)
     {
         if (_state != RecordingState.Ready)
@@ -75,6 +88,7 @@ public partial class MainWindow : Window
             LoadExistingGuide_Click(sender, e);
             WorkspaceTabs.SelectedIndex = 0;
             GuideSettingsTabs.SelectedIndex = 0;
+            NewGuidePanel.Visibility = Visibility.Collapsed;
             DatabaseStatus.Text = $"נוצרה לומדה חדשה (GuideId={created.Id}) ללא שלבים או הקשרי אפליקציה.";
             MessageBox.Show($"הלומדה '{created.Name}' נוצרה בהצלחה.\\nGuideId: {created.Id}\\nלא נוצרו שלבים או הקשרי אפליקציה.",
                 "GuideMe Instructor");
@@ -99,10 +113,12 @@ public partial class MainWindow : Window
         {
             var steps = V5GuideReader.ListSteps(guide.Id);
             _loadedGuide = guide;
+            CurrentGuideLabel.Text = $"לומדה נוכחית: {guide.Name}";
+            NewGuidePanel.Visibility = Visibility.Collapsed;
             GuideDetails.Text = V5GuideReader.ReadTable(guide.Id, "Guides");
             ContextsDetails.Text = V5GuideReader.ReadTable(guide.Id, "ApplicationContexts");
-            WorkspaceTabs.SelectedIndex = 1;
-            StepDetailsTabs.SelectedIndex = 0;
+            WorkspaceTabs.SelectedIndex = 0;
+            GuideSettingsTabs.SelectedIndex = 0;
             CaptureReviewPanel.Visibility = Visibility.Collapsed;
             DraftBubbleHeading.Visibility = Visibility.Collapsed;
             BubbleText.Visibility = Visibility.Collapsed;
@@ -121,8 +137,8 @@ public partial class MainWindow : Window
             GuideKey.Text = guide.Key;
             GuideKey.IsEnabled = false;
             DatabaseStatus.Text = $"נטענו {steps.Count} שלבים. קריאה בלבד.";
-            StateLabel.Text = "מדריך קיים — מצב עיון";
-            StatusDetail.Text = "אין עריכה או הקלטה לתוך מדריך קיים בשלב זה.";
+            StateLabel.Text = "לומדה קיימת — מצב עיון";
+            StatusDetail.Text = "עריכת שלבים בלומדה קיימת עדיין אינה זמינה.";
             StartButton.IsEnabled = false;
             RefreshStepList();
             if (_stepItems.Count > 0)
