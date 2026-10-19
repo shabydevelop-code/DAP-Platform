@@ -74,7 +74,7 @@
         </Border>
         <StackPanel Margin="14,0,0,0" VerticalAlignment="Center">
           <TextBlock Text="GuideMe Instructor" FontSize="23" FontWeight="Bold" FlowDirection="LeftToRight" HorizontalAlignment="Right"/>
-          <TextBlock Text="סביבת יצירה והקלטת מדריכים" Style="{StaticResource Hint}" Margin="0,3,0,0"/>
+          <TextBlock Text="ניהול לומדות ויצירת שלבים" Style="{StaticResource Hint}" Margin="0,3,0,0"/>
         </StackPanel>
       </DockPanel>
     </Border>
@@ -90,13 +90,13 @@
         <Grid>
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="0"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
           </Grid.RowDefinitions>
           <StackPanel>
-            <TextBlock Text="שלבי המדריך" Style="{StaticResource SectionTitle}"/>
-            <TextBlock x:Name="StepCountLabel" Text="טרם נטען מדריך · 0 שלבים" Style="{StaticResource Hint}" Margin="0,5,0,0"/>
+            <TextBlock Text="שלבי הלומדה" Style="{StaticResource SectionTitle}"/>
+            <TextBlock x:Name="StepCountLabel" Text="טרם נטענה לומדה · 0 שלבים" Style="{StaticResource Hint}" Margin="0,5,0,0"/>
           </StackPanel>
           <TextBox Grid.Row="1" x:Name="StepSearch" Margin="0,14,0,10" Padding="9,8"
                    TextChanged="StepSearch_TextChanged" ToolTip="חיפוש לפי מספר או תוכן שלב"/>
@@ -123,9 +123,9 @@
             </ListBox.ItemTemplate>
           </ListBox>
           <StackPanel Grid.Row="3" Margin="0,12,0,0">
-            <TextBlock Text="מדריכים קיימים · V5 · קריאה בלבד" Style="{StaticResource Hint}"/>
+            <TextBlock Text="לומדות קיימות · V5 · קריאה בלבד" Style="{StaticResource Hint}"/>
             <ComboBox x:Name="ExistingGuides" Margin="0,8,0,0" DisplayMemberPath="Name" MinHeight="32"/>
-            <Button Content="טען מדריך נבחר" Click="LoadExistingGuide_Click" Margin="0,8,0,0" Padding="8,5" MinHeight="34"/>
+            <Button Content="פתח לומדה נבחרת" Click="LoadExistingGuide_Click" Margin="0,8,0,0" Padding="8,5" MinHeight="34"/>
             <TextBlock x:Name="DatabaseStatus" Style="{StaticResource Hint}" Margin="0,7,0,0"/>
           </StackPanel>
         </Grid>
@@ -139,27 +139,17 @@
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
           </Grid.RowDefinitions>
-          <StackPanel Grid.Row="0">
-            <DockPanel LastChildFill="True">
-              <Button DockPanel.Dock="Left" Content="העתק קוד חיבור" Click="CopyPairingToken_Click" Padding="9,5" MinHeight="30"/>
-              <StackPanel>
-                <TextBlock Text="מדריך והקלטה" Style="{StaticResource SectionTitle}"/>
-                <TextBlock Text="מזהה מדריך · חיבור לתוסף · יצירת שלבים" Style="{StaticResource Hint}"/>
-              </StackPanel>
-            </DockPanel>
-            <Grid Margin="0,12,0,0">
-              <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="10"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-              <StackPanel Grid.Column="0">
-                <TextBlock Text="מזהה מדריך" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                <TextBox x:Name="GuideKey" Text="sampleapp-web-instructor" FlowDirection="LeftToRight" Padding="8,6"/>
-              </StackPanel>
-              <StackPanel Grid.Column="2">
-                <TextBlock Text="קוד חיבור מקומי" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                <TextBox x:Name="PairingToken" IsReadOnly="True" FlowDirection="LeftToRight" Padding="8,6"/>
-              </StackPanel>
-            </Grid>
-          </StackPanel>
-          <Border Grid.Row="1" Background="#FFF4F7FC" CornerRadius="8" Padding="12" Margin="0,14,0,12">
+          <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,12"><Button Content="לומדה חדשה" Click="NewGuide_Click" Style="{StaticResource PrimaryButton}" Margin="0,0,10,0"/><TextBlock x:Name="CurrentGuideLabel" Text="לא נבחרה לומדה" VerticalAlignment="Center" FontWeight="SemiBold"/></StackPanel>
+          <TabControl Grid.Row="2" x:Name="WorkspaceTabs" BorderBrush="{StaticResource Line}" Background="White">
+            <TabItem Header="הגדרות לומדה">
+              <TabControl x:Name="GuideSettingsTabs" Background="White" BorderBrush="{StaticResource Line}">
+            <TabItem Header="לומדות"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="12"><StackPanel x:Name="NewGuidePanel" Visibility="Collapsed"><TextBlock Text="יצירת לומדה חדשה" Style="{StaticResource SectionTitle}"/><TextBlock Text="שם הלומדה" Margin="0,10,0,4"/><TextBox x:Name="NewGuideName" Text="SampleApp Web - Instructor"/><TextBlock Text="מפתח ייחודי" Margin="0,10,0,4"/><TextBox x:Name="NewGuideKey" Text="sampleapp-web-instructor" FlowDirection="LeftToRight"/><Button Content="צור לומדה" Click="CreateGuide_Click" Style="{StaticResource PrimaryButton}" Margin="0,12,0,14" HorizontalAlignment="Left"/></StackPanel><TextBlock Text="Guides · קריאה בלבד" FontFamily="Consolas" FontSize="12" FlowDirection="LeftToRight"/><TextBox x:Name="GuideDetails" Text="לא נטען מדריך." IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" FlowDirection="LeftToRight" FontFamily="Consolas" FontSize="12" Margin="0,12,0,0" MinHeight="130"/></StackPanel></ScrollViewer></TabItem>
+            <TabItem Header="הקשרי אפליקציה"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="12"><TextBlock Text="ApplicationContexts · קריאה בלבד" FontFamily="Consolas" FontSize="12" FlowDirection="LeftToRight"/><TextBox x:Name="ContextsDetails" Text="לא נטען מדריך." IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" FlowDirection="LeftToRight" FontFamily="Consolas" FontSize="12" Margin="0,12,0,0" MinHeight="130"/></StackPanel></ScrollViewer></TabItem>
+              </TabControl>
+            </TabItem>
+            <TabItem Header="עריכת שלבים">
+              <TabControl x:Name="StepDetailsTabs" Background="White" BorderBrush="{StaticResource Line}">
+            <TabItem Header="שלבים"><DockPanel LastChildFill="True"><StackPanel DockPanel.Dock="Top"><StackPanel Margin="0,0,0,12"><DockPanel LastChildFill="True"><Button DockPanel.Dock="Left" Content="העתק קוד חיבור" Click="CopyPairingToken_Click" Padding="9,5" MinHeight="30"/><TextBlock Text="הקלטת שלבים" Style="{StaticResource SectionTitle}"/></DockPanel><TextBlock Text="קוד חיבור מקומי" Margin="0,8,0,4"/><TextBox x:Name="PairingToken" IsReadOnly="True" FlowDirection="LeftToRight"/><TextBox x:Name="GuideKey" Visibility="Collapsed"/></StackPanel>          <Border Background="#FFF4F7FC" CornerRadius="8" Padding="12" Margin="0,0,0,12">
             <Grid>
               <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
               <StackPanel>
@@ -172,16 +162,7 @@
               </StackPanel>
             </Grid>
           </Border>
-          <TabControl Grid.Row="2" x:Name="WorkspaceTabs" BorderBrush="{StaticResource Line}" Background="White">
-            <TabItem Header="הגדרות מדריך">
-              <TabControl x:Name="GuideSettingsTabs" Background="White" BorderBrush="{StaticResource Line}">
-            <TabItem Header="מדריכים"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="12"><TextBlock Text="יצירת לומדה חדשה" Style="{StaticResource SectionTitle}"/><TextBlock Text="שם הלומדה" Margin="0,10,0,4"/><TextBox x:Name="NewGuideName" Text="SampleApp Web - Instructor"/><TextBlock Text="מפתח ייחודי" Margin="0,10,0,4"/><TextBox x:Name="NewGuideKey" Text="sampleapp-web-instructor" FlowDirection="LeftToRight"/><Button Content="צור לומדה" Click="CreateGuide_Click" Style="{StaticResource PrimaryButton}" Margin="0,12,0,14" HorizontalAlignment="Left"/><TextBlock Text="Guides · קריאה בלבד" FontFamily="Consolas" FontSize="12" FlowDirection="LeftToRight"/><TextBox x:Name="GuideDetails" Text="לא נטען מדריך." IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" FlowDirection="LeftToRight" FontFamily="Consolas" FontSize="12" Margin="0,12,0,0" MinHeight="130"/></StackPanel></ScrollViewer></TabItem>
-            <TabItem Header="הקשרי אפליקציה"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="12"><TextBlock Text="ApplicationContexts · קריאה בלבד" FontFamily="Consolas" FontSize="12" FlowDirection="LeftToRight"/><TextBox x:Name="ContextsDetails" Text="לא נטען מדריך." IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" FlowDirection="LeftToRight" FontFamily="Consolas" FontSize="12" Margin="0,12,0,0" MinHeight="130"/></StackPanel></ScrollViewer></TabItem>
-              </TabControl>
-            </TabItem>
-            <TabItem Header="עריכת שלבים">
-              <TabControl x:Name="StepDetailsTabs" Background="White" BorderBrush="{StaticResource Line}">
-            <TabItem Header="שלבים"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="12"><TextBlock Text="Steps · קריאה בלבד" FontFamily="Consolas" FontSize="12" FlowDirection="LeftToRight"/><TextBlock x:Name="DraftBubbleHeading" Text="הוראה למשתמש — טיוטת הקלטה" Style="{StaticResource SectionTitle}" Margin="0,10,0,5" Visibility="Collapsed"/><TextBox x:Name="BubbleText" Height="70" TextWrapping="Wrap" AcceptsReturn="True" IsEnabled="False" Visibility="Collapsed"/><TextBox x:Name="BubbleDetails" Text="לא נטען מדריך." IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" FlowDirection="LeftToRight" FontFamily="Consolas" FontSize="12" Margin="0,12,0,0" MinHeight="130"/>              <StackPanel x:Name="CaptureReviewPanel" Visibility="Collapsed" Margin="0,18,0,0">
+</StackPanel><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="12"><TextBlock Text="Steps · קריאה בלבד" FontFamily="Consolas" FontSize="12" FlowDirection="LeftToRight"/><TextBlock x:Name="DraftBubbleHeading" Text="הוראה למשתמש — טיוטת הקלטה" Style="{StaticResource SectionTitle}" Margin="0,10,0,5" Visibility="Collapsed"/><TextBox x:Name="BubbleText" Height="70" TextWrapping="Wrap" AcceptsReturn="True" IsEnabled="False" Visibility="Collapsed"/><TextBox x:Name="BubbleDetails" Text="לא נטען מדריך." IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" FlowDirection="LeftToRight" FontFamily="Consolas" FontSize="12" Margin="0,12,0,0" MinHeight="130"/>              <StackPanel x:Name="CaptureReviewPanel" Visibility="Collapsed" Margin="0,18,0,0">
                 <TextBlock Text="סקירת הקלטת שלב — טיוטה בלבד" Style="{StaticResource SectionTitle}" Margin="0,0,0,10"/>
                 <DockPanel LastChildFill="True">
                   <Button x:Name="CopyReviewButton" DockPanel.Dock="Left" Content="העתק סקירה" IsEnabled="False" Click="CopyReview_Click" Padding="9,5" MinHeight="30"/>
@@ -198,7 +179,7 @@
                 <TextBox x:Name="ContextKindText" IsReadOnly="True" FlowDirection="LeftToRight" IsEnabled="False"/>
                 <TextBlock Text="ContextValue" FontSize="11" Margin="0,9,0,0"/>
                 <TextBox x:Name="ContextValueText" IsReadOnly="True" FlowDirection="LeftToRight" IsEnabled="False"/>
-              </StackPanel></StackPanel></ScrollViewer></TabItem>
+              </StackPanel></StackPanel></ScrollViewer></DockPanel></TabItem>
             <TabItem Header="רכיבים"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="12"><TextBlock Text="Elements · קריאה בלבד" FontFamily="Consolas" FontSize="12" FlowDirection="LeftToRight"/><TextBox x:Name="ElementDetails" Text="לא נטען מדריך." IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" FlowDirection="LeftToRight" FontFamily="Consolas" FontSize="12" Margin="0,12,0,0" MinHeight="130"/></StackPanel></ScrollViewer></TabItem>
             <TabItem Header="עוגנים"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="12"><TextBlock Text="ElementAnchors · קריאה בלבד" FontFamily="Consolas" FontSize="12" FlowDirection="LeftToRight"/><TextBox x:Name="AnchorsDetails" Text="לא נטען מדריך." IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" FlowDirection="LeftToRight" FontFamily="Consolas" FontSize="12" Margin="0,12,0,0" MinHeight="130"/></StackPanel></ScrollViewer></TabItem>
             <TabItem Header="יעדי שלבים"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="12"><TextBlock Text="StepTargets · קריאה בלבד" FontFamily="Consolas" FontSize="12" FlowDirection="LeftToRight"/><TextBox x:Name="InteractionDetails" Text="לא נטען מדריך." IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" FlowDirection="LeftToRight" FontFamily="Consolas" FontSize="12" Margin="0,12,0,0" MinHeight="130"/></StackPanel></ScrollViewer></TabItem>
