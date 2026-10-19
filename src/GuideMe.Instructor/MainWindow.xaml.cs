@@ -264,8 +264,7 @@ public partial class MainWindow : Window
     private void RefreshConnection()
     {
         var connected = _captureAvailable && _capture.IsConnected;
-        ConnectionExpander.Visibility = connected ? Visibility.Collapsed : Visibility.Visible;
-        ConnectionExpander.IsExpanded = !connected;
+        ConnectionPanel.Visibility = connected ? Visibility.Collapsed : Visibility.Visible;
         ConnectionIndicator.Visibility = connected ? Visibility.Visible : Visibility.Collapsed;
         ConnectionIndicator.Text = connected ? "● התוסף מחובר" : "התוסף אינו מחובר";
         if (_state == RecordingState.Ready)
