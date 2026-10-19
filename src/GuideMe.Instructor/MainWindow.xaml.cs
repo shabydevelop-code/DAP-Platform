@@ -67,6 +67,12 @@ public partial class MainWindow : Window
             _loadedGuide is null ? "לא נבחרה לומדה" : $"פתוחה: {_loadedGuide.Name}";
     }
 
+    private void ClearNewGuide_Click(object sender, RoutedEventArgs e)
+    {
+        NewGuideName.Clear();
+        NewGuideName.Focus();
+    }
+
     private void CancelNewGuide_Click(object sender, RoutedEventArgs e)
     {
         SetNewGuideMode(false);
