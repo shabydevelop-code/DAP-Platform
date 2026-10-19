@@ -145,7 +145,9 @@
             <TextBlock x:Name="CurrentGuideLabel" Text="לא נבחרה לומדה" Style="{StaticResource Hint}" Margin="0,6,0,0"/>
             <TextBlock x:Name="DatabaseStatus" Style="{StaticResource Hint}" Margin="0,3,0,0"/>
           </StackPanel>
-          <Expander Grid.Row="1" Header="חיבור לתוסף הדפדפן" HorizontalAlignment="Right" Margin="0,0,0,12" IsExpanded="False">
+          <StackPanel Grid.Row="1" HorizontalAlignment="Right" FlowDirection="LeftToRight" Margin="0,0,0,12">
+            <TextBlock x:Name="ConnectionIndicator" Text="התוסף אינו מחובר" FlowDirection="RightToLeft" Foreground="#FF64748B" Visibility="Collapsed" HorizontalAlignment="Right"/>
+            <Expander x:Name="ConnectionExpander" Header="חיבור לתוסף הדפדפן" FlowDirection="RightToLeft" HorizontalAlignment="Right" IsExpanded="True">
             <Border Background="White" BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="12" MinWidth="340">
               <StackPanel>
                 <TextBlock Text="קוד חיבור מקומי" Margin="0,0,0,5"/>
@@ -154,7 +156,8 @@
                 <Button Content="העתק קוד חיבור" Click="CopyPairingToken_Click" Margin="0,8,0,0" HorizontalAlignment="Left"/>
               </StackPanel>
             </Border>
-          </Expander>
+            </Expander>
+          </StackPanel>
           <Border Grid.Row="2" x:Name="NewGuidePanel" Visibility="Collapsed" Background="White" BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="22">
             <StackPanel>
               <TextBlock Text="יצירת לומדה חדשה" Style="{StaticResource SectionTitle}"/>
