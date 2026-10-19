@@ -147,7 +147,7 @@
           </StackPanel>
           <StackPanel Grid.Row="1" HorizontalAlignment="Right" FlowDirection="LeftToRight" Margin="0,0,0,12">
             <TextBlock x:Name="ConnectionIndicator" Text="התוסף אינו מחובר" FlowDirection="RightToLeft" Foreground="#FF64748B" Visibility="Collapsed" HorizontalAlignment="Right"/>
-            <Expander x:Name="ConnectionExpander" Header="חיבור לתוסף הדפדפן" FlowDirection="RightToLeft" HorizontalAlignment="Right" IsExpanded="True">
+            <StackPanel x:Name="ConnectionPanel" FlowDirection="RightToLeft" HorizontalAlignment="Right"><TextBlock Text="חיבור לתוסף הדפדפן" FontWeight="SemiBold" Margin="0,0,0,6"/>
             <Border Background="White" BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="12" MinWidth="340">
               <StackPanel>
                 <TextBlock Text="קוד חיבור מקומי" Margin="0,0,0,5"/>
@@ -156,7 +156,7 @@
                 <Button Content="העתק קוד חיבור" Click="CopyPairingToken_Click" Margin="0,8,0,0" HorizontalAlignment="Left"/>
               </StackPanel>
             </Border>
-            </Expander>
+            </StackPanel>
           </StackPanel>
           <Border Grid.Row="2" x:Name="NewGuidePanel" Visibility="Collapsed" Background="White" BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="22">
             <StackPanel>
