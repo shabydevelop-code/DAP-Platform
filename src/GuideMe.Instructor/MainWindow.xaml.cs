@@ -58,6 +58,34 @@ public partial class MainWindow : Window
             ShowLoadedStep(selected.StepId!);
     }
 
+    private void CreateGuide_Click(object sender, RoutedEventArgs e)
+    {
+        if (_state != RecordingState.Ready)
+        {
+            MessageBox.Show("יש לסיים את ההקלטה לפני יצירת לומדה.", "GuideMe Instructor");
+            return;
+        }
+        try
+        {
+            var created = V5GuideWriter.CreateGuide(NewGuideKey.Text, NewGuideName.Text);
+            ExistingGuides.ItemsSource = V5GuideReader.ListGuides();
+            ExistingGuides.SelectedItem = ((System.Collections.Generic.IEnumerable<V5GuideReader.GuideInfo>)ExistingGuides.ItemsSource)
+                .FirstOrDefault(g => g.Id == created.Id);
+            _loadedGuide = null;
+            LoadExistingGuide_Click(sender, e);
+            WorkspaceTabs.SelectedIndex = 0;
+            GuideSettingsTabs.SelectedIndex = 0;
+            DatabaseStatus.Text = $"נוצרה לומדה חדשה (GuideId={created.Id}) ללא שלבים או הקשרי אפליקציה.";
+            MessageBox.Show($"הלומדה '{created.Name}' נוצרה בהצלחה.\\nGuideId: {created.Id}\\nלא נוצרו שלבים או הקשרי אפליקציה.",
+                "GuideMe Instructor");
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show("יצירת הלומדה נכשלה: " + ex.Message, "GuideMe Instructor",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
     private void LoadExistingGuide_Click(object sender, RoutedEventArgs e)
     {
         if (_state != RecordingState.Ready)
