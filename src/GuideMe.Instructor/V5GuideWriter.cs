@@ -7,6 +7,30 @@ namespace GuideMe.Instructor;
 // Explicitly scoped writer: creates only a Guides row; no schema changes or step data.
 internal static class V5GuideWriter
 {
+    internal static V5GuideReader.GuideInfo RenameGuide(long id, string name)
+    {
+        name = name.Trim();
+        if (name.Length == 0 || name.Length > 256)
+            throw new ArgumentException("שם הלומדה חייב להכיל בין 1 ל־256 תווים.");
+        using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = V5GuideReader.DatabasePath,
+            Mode = SqliteOpenMode.ReadWrite,
+            Pooling = false,
+            DefaultTimeout = 3
+        }.ToString());
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandTimeout = 3;
+        command.CommandText = "UPDATE Guides SET GuideName=$name WHERE GuideId=$id RETURNING GuideKey";
+        command.Parameters.AddWithValue("$name", name);
+        command.Parameters.AddWithValue("$id", id);
+        var key = command.ExecuteScalar() as string;
+        if (key is null)
+            throw new InvalidOperationException("הלומדה לא נמצאה.");
+        return new V5GuideReader.GuideInfo(id, key, name);
+    }
+
     internal static V5GuideReader.GuideInfo CreateGuide(string name)
     {
         name = name.Trim();
