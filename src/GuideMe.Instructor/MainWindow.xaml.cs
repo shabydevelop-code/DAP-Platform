@@ -85,7 +85,9 @@ public partial class MainWindow : Window
         StepSearch.Clear();
         StepsList.SelectedItem = null;
         GuideKey.Clear();
-        GuideDetails.Text = "לא נטענה לומדה.";
+        EditableGuideName.Clear();
+        EditableGuideName.IsEnabled = false;
+        SaveGuideButton.IsEnabled = false;
         ContextsDetails.Text = "לא נטענה לומדה.";
         BubbleDetails.Text = "לא נבחר שלב.";
         ElementDetails.Text = "לא נבחר שלב.";
@@ -156,6 +158,28 @@ public partial class MainWindow : Window
         }
     }
 
+    private void SaveGuide_Click(object sender, RoutedEventArgs e)
+    {
+        if (_loadedGuide is null)
+            return;
+        try
+        {
+            var updated = V5GuideWriter.RenameGuide(_loadedGuide.Id, EditableGuideName.Text);
+            _loadedGuide = updated;
+            ExistingGuides.ItemsSource = V5GuideReader.ListGuides();
+            ExistingGuides.SelectedItem = ((System.Collections.Generic.IEnumerable<V5GuideReader.GuideInfo>)ExistingGuides.ItemsSource)
+                .FirstOrDefault(g => g.Id == updated.Id);
+            CurrentGuideLabel.Text = $"פתוחה: {updated.Name}";
+            DatabaseStatus.Text = "שם הלומדה נשמר.";
+            RefreshStepList();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show("שמירת שם הלומדה נכשלה: " + ex.Message, "GuideMe Instructor",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
     private void LoadExistingGuide_Click(object sender, RoutedEventArgs e)
     {
         if (_state != RecordingState.Ready)
@@ -171,7 +195,9 @@ public partial class MainWindow : Window
             _loadedGuide = guide;
             CurrentGuideLabel.Text = $"פתוחה: {guide.Name}";
             SetNewGuideMode(false);
-            GuideDetails.Text = V5GuideReader.ReadTable(guide.Id, "Guides");
+            EditableGuideName.Text = guide.Name;
+            EditableGuideName.IsEnabled = true;
+            SaveGuideButton.IsEnabled = true;
             ContextsDetails.Text = V5GuideReader.ReadTable(guide.Id, "ApplicationContexts");
             WorkspaceTabs.SelectedIndex = 0;
             GuideSettingsTabs.SelectedIndex = 0;
