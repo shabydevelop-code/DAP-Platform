@@ -160,7 +160,7 @@ public partial class MainWindow : Window
     {
         if (_state != RecordingState.Ready)
         {
-            MessageBox.Show("יש לסיים את ההקלטה או סקירת הטיוטה לפני טעינת מדריך.", "GuideMe Instructor");
+            MessageBox.Show("יש לסיים את ההקלטה או סקירת הטיוטה לפני טעינת לומדה.", "GuideMe Instructor");
             return;
         }
         if (ExistingGuides.SelectedItem is not V5GuideReader.GuideInfo guide)
@@ -202,7 +202,7 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            DatabaseStatus.Text = "טעינת המדריך נכשלה: " + ex.Message;
+            DatabaseStatus.Text = "טעינת הלומדה נכשלה: " + ex.Message;
         }
     }
 
