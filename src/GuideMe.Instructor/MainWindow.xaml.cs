@@ -146,7 +146,7 @@ public partial class MainWindow : Window
             GuideSettingsTabs.SelectedIndex = 0;
             SetNewGuideMode(false);
             DatabaseStatus.Text = $"נוצרה לומדה חדשה (GuideId={created.Id}) ללא שלבים או הקשרי אפליקציה.";
-            MessageBox.Show($"הלומדה '{created.Name}' נוצרה בהצלחה.\\nGuideId: {created.Id}\\nלא נוצרו שלבים או הקשרי אפליקציה.",
+            MessageBox.Show($"הלומדה '{created.Name}' נוצרה בהצלחה.\nGuideId: {created.Id}\nלא נוצרו שלבים או הקשרי אפליקציה.",
                 "GuideMe Instructor");
         }
         catch (Exception ex)
