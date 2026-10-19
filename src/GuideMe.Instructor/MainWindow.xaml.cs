@@ -67,10 +67,45 @@ public partial class MainWindow : Window
             _loadedGuide is null ? "לא נבחרה לומדה" : $"פתוחה: {_loadedGuide.Name}";
     }
 
-    private void ClearNewGuide_Click(object sender, RoutedEventArgs e)
+    private void ClearWorkspace_Click(object sender, RoutedEventArgs e)
     {
-        NewGuideName.Clear();
-        NewGuideName.Focus();
+        if (_state != RecordingState.Ready)
+        {
+            MessageBox.Show("יש לסיים את ההקלטה או סקירת הטיוטה לפני ניקוי הלוח.", "GuideMe Instructor");
+            return;
+        }
+
+        _loadedGuide = null;
+        _stepItems.Clear();
+        _approvedDrafts.Clear();
+        _proposedField = null;
+        _stepNumber = 1;
+        _startedAt = null;
+        ExistingGuides.SelectedIndex = -1;
+        StepSearch.Clear();
+        StepsList.SelectedItem = null;
+        GuideKey.Clear();
+        GuideDetails.Text = "לא נטענה לומדה.";
+        ContextsDetails.Text = "לא נטענה לומדה.";
+        BubbleDetails.Text = "לא נבחר שלב.";
+        ElementDetails.Text = "לא נבחר שלב.";
+        AnchorsDetails.Text = "לא נבחר שלב.";
+        InteractionDetails.Text = "לא נבחר שלב.";
+        RulesDetails.Text = "לא נבחר שלב.";
+        ReviewText.Clear();
+        BubbleText.Clear();
+        CaptureReviewPanel.Visibility = Visibility.Collapsed;
+        DraftBubbleHeading.Visibility = Visibility.Collapsed;
+        BubbleText.Visibility = Visibility.Collapsed;
+        ApproveButton.IsEnabled = false;
+        CopyReviewButton.IsEnabled = false;
+        EndButton.IsEnabled = false;
+        StateLabel.Text = "מוכן לתחילת שלב 1";
+        SetNewGuideMode(false);
+        WorkspaceTabs.SelectedIndex = 0;
+        GuideSettingsTabs.SelectedIndex = 0;
+        DatabaseStatus.Text = "הלוח נוקה. לא נמחקו נתונים ממסד הנתונים.";
+        RefreshStepList();
     }
 
     private void CancelNewGuide_Click(object sender, RoutedEventArgs e)
