@@ -136,10 +136,11 @@
           <StackPanel Grid.Row="0" Margin="0,0,0,12">
             <TextBlock Text="לומדה נוכחית" FontWeight="SemiBold" Margin="0,0,0,6"/>
             <Grid>
-              <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+              <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
               <ComboBox Grid.Column="0" x:Name="ExistingGuides" DisplayMemberPath="Name" MinHeight="40" Margin="0,0,8,0"/>
               <Button Grid.Column="1" Content="פתח לומדה" Click="LoadExistingGuide_Click" Margin="0,0,8,0"/>
-              <Button Grid.Column="2" Content="לומדה חדשה" Click="NewGuide_Click" Style="{StaticResource PrimaryButton}"/>
+              <Button Grid.Column="2" Content="לומדה חדשה" Click="NewGuide_Click" Style="{StaticResource PrimaryButton}" Margin="0,0,8,0"/>
+              <Button Grid.Column="3" Content="נקה" Click="ClearWorkspace_Click"/>
             </Grid>
             <TextBlock x:Name="CurrentGuideLabel" Text="לא נבחרה לומדה" Style="{StaticResource Hint}" Margin="0,6,0,0"/>
             <TextBlock x:Name="DatabaseStatus" Style="{StaticResource Hint}" Margin="0,3,0,0"/>
@@ -151,7 +152,6 @@
               <TextBox x:Name="NewGuideName" Text="SampleApp Web - Instructor"/>
               <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
                 <Button Content="צור לומדה" Click="CreateGuide_Click" Style="{StaticResource PrimaryButton}" Margin="0,0,8,0"/>
-                <Button Content="נקה" Click="ClearNewGuide_Click" Margin="0,0,8,0"/>
                 <Button Content="ביטול" Click="CancelNewGuide_Click"/>
               </StackPanel>
             </StackPanel>
