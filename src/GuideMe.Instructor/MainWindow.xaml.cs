@@ -106,6 +106,7 @@ public partial class MainWindow : Window
         SetNewGuideMode(false);
         WorkspaceTabs.SelectedIndex = 0;
         GuideSettingsTabs.SelectedIndex = 0;
+        StartButton.IsEnabled = false;
         DatabaseStatus.Text = "הלוח נוקה. לא נמחקו נתונים ממסד הנתונים.";
         RefreshStepList();
     }
@@ -193,6 +194,9 @@ public partial class MainWindow : Window
         {
             var steps = V5GuideReader.ListSteps(guide.Id);
             _loadedGuide = guide;
+            _approvedDrafts.Clear();
+            _proposedField = null;
+            _stepNumber = steps.Count == 0 ? 1 : Math.Max(1, steps.Max(step => step.Order) + 1);
             CurrentGuideLabel.Text = $"פתוחה: {guide.Name}";
             SetNewGuideMode(false);
             EditableGuideName.Text = guide.Name;
@@ -212,17 +216,25 @@ public partial class MainWindow : Window
                 if (title.Length > 58)
                     title = title[..58] + "…";
                 _stepItems.Add(new StepListItem(step.Order, title,
-                    step.Enabled ? "פעיל · V5 · קריאה בלבד" : "לא פעיל · V5 · קריאה בלבד",
+                    step.Enabled ? "פעיל · שלב שמור" : "לא פעיל · שלב שמור",
                     $"StepId: {step.Id}\nStepOrder: {step.Order}\nBubble: {step.Bubble}", step.Id, step.Bubble));
             }
             StepSearch.Clear();
             GuideKey.Text = guide.Key;
             GuideKey.IsEnabled = false;
-            DatabaseStatus.Text = $"נטענו {steps.Count} שלבים. קריאה בלבד.";
-            StateLabel.Text = "לומדה קיימת — מצב עיון";
-            StatusDetail.Text = "עריכת שלבים בלומדה קיימת עדיין אינה זמינה.";
-            StartButton.IsEnabled = false;
+            DatabaseStatus.Text = $"נטענו {steps.Count} שלבים. ניתן להקליט טיוטות חדשות; שמירת שלבים למסד עדיין אינה נתמכת.";
+            StateLabel.Text = $"מוכן לתחילת שלב {_stepNumber}";
+            StatusDetail.Text = "ניתן להקליט שלב חדש. עריכת שלבים שמורים ושמירת טיוטות למסד עדיין אינן נתמכות.";
+            StartButton.IsEnabled = _captureAvailable && _capture.IsConnected;
             RefreshStepList();
+            if (_stepItems.Count == 0)
+            {
+                BubbleDetails.Text = "בלומדה זו עדיין אין שלבים.";
+                ElementDetails.Text = "לא נבחר שלב.";
+                AnchorsDetails.Text = "לא נבחר שלב.";
+                InteractionDetails.Text = "לא נבחר שלב.";
+                RulesDetails.Text = "לא נבחר שלב.";
+            }
             if (_stepItems.Count > 0)
                 StepsList.SelectedItem = _stepItems[0];
         }
@@ -295,7 +307,7 @@ public partial class MainWindow : Window
         ConnectionIndicator.Text = connected ? "● התוסף מחובר" : "התוסף אינו מחובר";
         if (_state == RecordingState.Ready)
         {
-            StartButton.IsEnabled = connected && _loadedGuide is null;
+            StartButton.IsEnabled = connected && _loadedGuide is not null && !string.IsNullOrWhiteSpace(GuideKey.Text);
             StatusDetail.Text = connected ? "התוסף מחובר ומאומת. ניתן להתחיל שלב." : "התוסף אינו מחובר. פתח את תוסף GuideMe Instructor בדפדפן.";
         }
         else if (_state == RecordingState.Recording && !connected)
@@ -312,7 +324,7 @@ public partial class MainWindow : Window
 
     private void StartStep_Click(object sender, RoutedEventArgs e)
     {
-        if (_loadedGuide is not null || !_captureAvailable || !_capture.IsConnected || _state != RecordingState.Ready || string.IsNullOrWhiteSpace(GuideKey.Text))
+        if (_loadedGuide is null || !_captureAvailable || !_capture.IsConnected || _state != RecordingState.Ready || string.IsNullOrWhiteSpace(GuideKey.Text))
             return;
 
         _startedAt = DateTimeOffset.Now;
@@ -483,7 +495,7 @@ public partial class MainWindow : Window
         RefreshStepList();
         StepsList.SelectedItem = _stepItems[^1];
         CopyReviewButton.IsEnabled = true;
-        StartButton.IsEnabled = _capture.IsConnected;
+        StartButton.IsEnabled = _loadedGuide is not null && _capture.IsConnected;
         EndButton.IsEnabled = false;
         ApproveButton.IsEnabled = false;
         BubbleText.IsEnabled = false;
