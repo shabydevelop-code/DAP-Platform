@@ -51,6 +51,8 @@ public partial class MainWindow
     private void ExistingGuideSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (ExistingGuides.SelectedItem is not V5GuideReader.GuideInfo guide) return;
+        LoadExistingGuide_Click(sender, e);
+        if (_loadedGuide?.Id != guide.Id) return;
         try
         {
             var contexts = V5GuideReader.ReadGuideTable(guide.Id, "ApplicationContexts");
