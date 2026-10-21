@@ -14,6 +14,10 @@ public partial class MainWindow
         _pendingNewGuideTarget = false;
         CreateNewGuideButton.IsEnabled = false;
         NewGuideTargetStatus.Text = "טרם נבחר חלון יעד";
+        SelectedRuntime.Clear();
+        SelectedContextId.Clear();
+        SelectedMatcherProperty.Clear();
+        SelectedMatcherValue.Clear();
     }
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     private static extern IntPtr GetForegroundWindow();
@@ -47,21 +51,6 @@ public partial class MainWindow
     private void ExistingGuideSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (ExistingGuides.SelectedItem is not V5GuideReader.GuideInfo guide) return;
-        if (_pendingNewGuideTarget && NewGuidePanel.Visibility == Visibility.Visible &&
-            string.Equals(guide.Name, NewGuideName.Text.Trim(), StringComparison.Ordinal))
-        {
-            try
-            {
-                V5GuideWriter.SaveApplicationContext(guide.Id, SelectedContextId.Text,
-                    SelectedRuntime.Text, SelectedMatcherProperty.Text, SelectedMatcherValue.Text);
-                _pendingNewGuideTarget = false;
-                TargetSelectionStatus.Text = "הקשר האפליקציה נשמר בלומדה החדשה.";
-            }
-            catch (Exception ex)
-            {
-                TargetSelectionStatus.Text = "שמירת ההקשר נכשלה: " + ex.Message;
-            }
-        }
         try
         {
             var contexts = V5GuideReader.ReadGuideTable(guide.Id, "ApplicationContexts");
