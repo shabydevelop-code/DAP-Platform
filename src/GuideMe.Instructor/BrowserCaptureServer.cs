@@ -21,6 +21,10 @@ internal sealed class BrowserCaptureServer : IDisposable
     private bool _recording;
     private DateTimeOffset _lastHeartbeat = DateTimeOffset.MinValue;
     private string? _activeWebUrl;
+    private string? _activeWebTitle;
+    private DateTimeOffset _activeWebReportedAt;
+    public string? ActiveWebTitle { get { lock (_sync) return _activeWebTitle; } }
+    public DateTimeOffset ActiveWebReportedAt { get { lock (_sync) return _activeWebReportedAt; } }
     public string? ActiveWebUrl { get { lock (_sync) return _activeWebUrl; } }
     public bool IsConnected { get { lock (_sync) return DateTimeOffset.UtcNow - _lastHeartbeat < TimeSpan.FromSeconds(5); } }
 
@@ -128,7 +132,14 @@ internal sealed class BrowserCaptureServer : IDisposable
                     ctx.Response.StatusCode = 400;
                     return;
                 }
-                lock (_sync) _activeWebUrl = uri.GetLeftPart(UriPartial.Authority);
+                var title = targetRoot.TryGetProperty("title", out var targetTitle) && targetTitle.ValueKind == JsonValueKind.String
+                    ? targetTitle.GetString() : null;
+                lock (_sync)
+                {
+                    _activeWebUrl = uri.GetLeftPart(UriPartial.Authority);
+                    _activeWebTitle = title;
+                    _activeWebReportedAt = DateTimeOffset.UtcNow;
+                }
                 ctx.Response.StatusCode = 204;
                 return;
             }
