@@ -5,7 +5,22 @@ async function heartbeat(token) {
   const response = await fetch(heartbeatEndpoint, { method: "POST", headers: { "X-GuideMe-Capture-Token": token } });
   return response.ok;
 }
+async function pairAutomatically(tabId) {
+  const response = await fetch("http://127.0.0.1:53921/pair", { method: "POST" });
+  if (!response.ok) throw new Error("Instructor is unavailable");
+  const { token } = await response.json();
+  if (!/^[a-f0-9]{32}$/i.test(token) || !(await heartbeat(token)))
+    throw new Error("Instructor rejected connection");
+  await chrome.storage.session.set({ instructorPairing: { token, tabId } });
+  return { ok: true };
+}
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message?.type === "guideme-instructor-auto-pair") {
+    if (!Number.isInteger(message.tabId)) { sendResponse({ ok: false, error: "Invalid tab" }); return false; }
+    pairAutomatically(message.tabId).then(sendResponse).catch(error => sendResponse({ ok: false, error: String(error.message || error) }));
+    return true;
+  }
   if (message?.type === "guideme-instructor-pair") {
     const token = String(message.token || "");
     if (!/^[a-f0-9]{32}$/i.test(token) || !Number.isInteger(message.tabId)) {
