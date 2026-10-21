@@ -107,4 +107,55 @@ public partial class MainWindow
             MessageBox.Show(ex.Message, "GuideMe Instructor");
         }
     }
+    private void CompareApplicationContexts_Click(object sender, RoutedEventArgs e)
+    {
+        if (_loadedGuide is null)
+        {
+            MessageBox.Show("יש לטעון לומדה לפני ההשוואה.", "GuideMe Instructor");
+            return;
+        }
+        try
+        {
+            var guides = V5GuideReader.ListGuides();
+            var originalKey = SelectedRuntime.Text == "Windows"
+                ? "sampleapp-windows-guide" : "sampleapp-web-guide";
+            var original = System.Linq.Enumerable.FirstOrDefault(guides,
+                g => string.Equals(g.Key, originalKey, StringComparison.Ordinal));
+            if (original is null)
+            {
+                MessageBox.Show("לומדת הדוגמה המקורית אינה נמצאת במסד הנתונים הפעיל.", "GuideMe Instructor");
+                return;
+            }
+            var current = V5GuideReader.ReadTable(_loadedGuide.Id, "ApplicationContexts");
+            var reference = V5GuideReader.ReadTable(original.Id, "ApplicationContexts");
+            var comparison = "לומדה נוכחית (" + _loadedGuide.Id + "):\n" + current +
+                "\nלומדת דוגמה מקורית (" + original.Id + "):\n" + reference +
+                "\nיש להשוות את Runtime, ContextId ו-MatchersJson. " +
+                "זיהוי UrlHost=localhost בלבד אינו מבדיל בין יישומים מקומיים שונים.";
+            var dialog = new Window
+            {
+                Title = "השוואת הקשרי אפליקציה",
+                Owner = this,
+                Width = 760,
+                Height = 520,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Content = new TextBox
+                {
+                    Text = comparison,
+                    IsReadOnly = true,
+                    AcceptsReturn = true,
+                    TextWrapping = TextWrapping.Wrap,
+                    VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                    HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+                    Margin = new Thickness(12)
+                }
+            };
+            dialog.ShowDialog();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show("השוואת ההקשרים נכשלה: " + ex.Message, "GuideMe Instructor");
+        }
+    }
+
 }
