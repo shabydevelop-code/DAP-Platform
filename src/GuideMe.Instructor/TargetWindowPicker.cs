@@ -10,7 +10,7 @@ using System.Windows.Threading;
 
 namespace GuideMe.Instructor;
 
-internal sealed record TargetWindowSelection(string Runtime, string Property, string Value, string Title);
+internal sealed record TargetWindowSelection(string Runtime, string Property, string Value, string Title, string? ProcessName = null);
 
 internal sealed class TargetWindowPicker : Window
 {
@@ -175,8 +175,8 @@ internal sealed class TargetWindowPicker : Window
                 catch (ElementNotAvailableException) { }
                 catch (System.Runtime.InteropServices.COMException) { }
                 _candidate = !string.IsNullOrWhiteSpace(automationId)
-                    ? new TargetWindowSelection("Windows", "AutomationId", automationId, title)
-                    : new TargetWindowSelection("Windows", "ProcessName", processName, title);
+                    ? new TargetWindowSelection("Windows", "AutomationId", automationId, title, processName)
+                    : new TargetWindowSelection("Windows", "ProcessName", processName, title, processName);
             }
             _confirm.IsEnabled = true;
             _status.Text = "חלון מזוהה: " + _candidate.Title;
