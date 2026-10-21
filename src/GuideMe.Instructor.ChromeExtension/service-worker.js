@@ -1,6 +1,12 @@
 // Instructor transport is separate from the production Native Messaging channel.
 const captureEndpoint = "http://127.0.0.1:53921/event";
 const heartbeatEndpoint = "http://127.0.0.1:53921/heartbeat";
+const targetEndpoint = "http://127.0.0.1:53921/target";
+async function reportActiveTarget(token, url) {
+  await fetch(targetEndpoint, { method: "POST", headers: {
+    "Content-Type": "application/json", "X-GuideMe-Capture-Token": token
+  }, body: JSON.stringify({ url }) });
+}
 async function heartbeat(token) {
   const response = await fetch(heartbeatEndpoint, { method: "POST", headers: { "X-GuideMe-Capture-Token": token } });
   return response.ok;
@@ -46,6 +52,7 @@ async function ensureConnection(preferredTabId = null, forceInject = false) {
     }
     // The desktop heartbeat proves transport availability, not that the active
     // website has capture listeners. Bind the selected tab and inject there.
+    await reportActiveTarget(pairing.token, tab.url);
     if (pairing.tabId !== tab.id || forceInject) {
       await chrome.scripting.executeScript({
         target: { tabId: tab.id, allFrames: true },
