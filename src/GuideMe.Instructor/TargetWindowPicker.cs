@@ -34,7 +34,6 @@ internal sealed class TargetWindowPicker : Window
     public TargetWindowPicker(BrowserCaptureServer capture)
     {
         _capture = capture;
-        _capture.ClearSelectedBrowserTarget();
         Title = "בחירת חלון יעד — GuideMe";
         Width = 430;
         Height = 205;
@@ -48,11 +47,11 @@ internal sealed class TargetWindowPicker : Window
 
         var panel = new StackPanel { Margin = new Thickness(18) };
         panel.Children.Add(new TextBlock {
-            Text = "בחר חלון יעד",
+            Text = "בחר אפליקציית יעד",
             FontSize = 18, FontWeight = FontWeights.SemiBold
         });
         panel.Children.Add(new TextBlock {
-            Text = "עבור לחלון היעד. באתר Web לחץ Alt+Shift+G לאישור הלשונית בתוסף. חזור לכאן ואשר. אין מגבלת זמן.",
+            Text = "עבור לאפליקציית היעד וחזור לכאן לאישור. זיהוי Web נעשה באמצעות כתובת האפליקציה, ללא בחירה ידנית של לשונית.",
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 8, 0, 12)
         });
@@ -65,7 +64,7 @@ internal sealed class TargetWindowPicker : Window
         panel.Children.Add(_status);
         var actions = new StackPanel { Orientation = Orientation.Horizontal };
         _confirm = new Button {
-            Content = "בחר חלון זה",
+            Content = "בחר אפליקציה זו",
             Padding = new Thickness(14, 7, 14, 7),
             IsEnabled = false,
             Margin = new Thickness(0, 0, 8, 0)
@@ -92,18 +91,20 @@ internal sealed class TargetWindowPicker : Window
 
     private void RefreshBrowserSelection()
     {
-        var selection = _capture.SelectedBrowserTarget;
-        if (selection is null)
+        // The browser tab is a transient capture surface, not application identity.
+        // The extension reports the active page; persist only its origin (host + port).
+        if (DateTimeOffset.UtcNow - _capture.ActiveWebReportedAt > TimeSpan.FromSeconds(30) ||
+            !Uri.TryCreate(_capture.ActiveWebUrl, UriKind.Absolute, out var uri))
         {
             _candidate = null;
             _confirm.IsEnabled = false;
-            _status.Text = "ממתין לאישור לשונית בדפדפן באמצעות Alt+Shift+G.";
+            _status.Text = "ממתין לזיהוי אפליקציית Web. עבור לאתר היעד וחזור.";
             return;
         }
-        _candidate = new TargetWindowSelection("Web", "UrlHost",
-            selection.Authority, selection.Title + " — " + selection.Authority);
+        _candidate = new TargetWindowSelection("Web", "UrlHost", uri.Authority,
+            "אפליקציית Web — " + uri.Authority);
         _confirm.IsEnabled = true;
-        _status.Text = "לשונית אושרה בתוסף: " + _candidate.Title;
+        _status.Text = "אפליקציה מזוהה: " + _candidate.Title;
     }
 
     private void RefreshCandidate()
