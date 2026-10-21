@@ -130,7 +130,19 @@ VALUES ($guideId, $contextId, $runtime, $matchers)";
             throw new ArgumentException("סוג אפליקציה לא נתמך.");
         if (string.IsNullOrWhiteSpace(contextId) || string.IsNullOrWhiteSpace(matcherValue))
             throw new ArgumentException("חסרים פרטי זיהוי אפליקציה.");
-        var matchers = JsonSerializer.Serialize(new[] { new { Property = matcherProperty, Value = matcherValue } });
+        contextId = contextId.Trim();
+        matcherValue = matcherValue.Trim();
+        if ((runtime == "Web" && matcherProperty != "UrlHost") ||
+            (runtime == "Windows" && matcherProperty != "ProcessName"))
+            throw new ArgumentException("מאפייני זיהוי האפליקציה אינם תקינים.");
+        if (runtime == "Web")
+        {
+            if (Uri.TryCreate(matcherValue, UriKind.Absolute, out var parsed))
+                matcherValue = parsed.Authority;
+            if (Uri.CheckHostName(matcherValue.Split(':')[0]) == UriHostNameType.Unknown)
+                throw new ArgumentException("כתובת אתר אינה תקינה.");
+        }
+        var matchers = JsonSerializer.Serialize(new[] { new { Order = 0, Kind = matcherProperty, Value = matcherValue } });
         using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
         {
             DataSource = V5GuideReader.DatabasePath,
