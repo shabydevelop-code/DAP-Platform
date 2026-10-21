@@ -21,29 +21,42 @@ async function pairAutomatically(tabId) {
 const autoConnectAlarm = "guideme-instructor-connect";
 let connecting = false;
 
-async function ensureConnection() {
+async function ensureConnection(preferredTabId = null, forceInject = false) {
   if (connecting) return;
   connecting = true;
   try {
     const { instructorPairing, instructorAutoDisabled } =
       await chrome.storage.session.get(["instructorPairing", "instructorAutoDisabled"]);
     if (instructorAutoDisabled) return;
-    if (instructorPairing && await heartbeat(instructorPairing.token)) return;
-    if (instructorPairing) await chrome.storage.session.remove("instructorPairing");
-    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+
+    const tab = preferredTabId === null
+      ? (await chrome.tabs.query({ active: true, lastFocusedWindow: true }))[0]
+      : await chrome.tabs.get(preferredTabId);
     if (!tab?.id || !/^https?:/.test(tab.url || "")) return;
-    await pairAutomatically(tab.id);
-    try {
+
+    let pairing = instructorPairing;
+    if (pairing && !(await heartbeat(pairing.token))) {
+      await chrome.storage.session.remove("instructorPairing");
+      pairing = null;
+    }
+    if (!pairing) {
+      await pairAutomatically(tab.id);
+      pairing = (await chrome.storage.session.get("instructorPairing")).instructorPairing;
+      forceInject = true;
+    }
+    // The desktop heartbeat proves transport availability, not that the active
+    // website has capture listeners. Bind the selected tab and inject there.
+    if (pairing.tabId !== tab.id || forceInject) {
       await chrome.scripting.executeScript({
         target: { tabId: tab.id, allFrames: true },
         files: ["content-capture.js"]
       });
-    } catch (error) {
-      await chrome.storage.session.remove("instructorPairing");
-      throw error;
+      await chrome.storage.session.set({
+        instructorPairing: { token: pairing.token, tabId: tab.id }
+      });
     }
   } catch {
-    // Instructor may not be running yet. Retry on the next alarm or tab event.
+    // Instructor may be unavailable or this tab may have navigated meanwhile.
   } finally {
     connecting = false;
   }
@@ -59,8 +72,20 @@ chrome.runtime.onStartup.addListener(initializeAutoConnect);
 chrome.alarms.onAlarm.addListener(alarm => {
   if (alarm.name === autoConnectAlarm) void ensureConnection();
 });
-chrome.tabs.onActivated.addListener(() => { void ensureConnection(); });
-// Runs on worker wake-up too, including after browser updates.
+chrome.tabs.onActivated.addListener(({ tabId }) => {
+  void ensureConnection(tabId);
+});
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status === "complete" && tab.active && /^https?:/.test(tab.url || "")) {
+    void ensureConnection(tabId, true);
+  }
+});
+chrome.tabs.onRemoved.addListener(async tabId => {
+  const { instructorPairing } = await chrome.storage.session.get("instructorPairing");
+  if (instructorPairing?.tabId === tabId)
+    await chrome.storage.session.remove("instructorPairing");
+});
+// MV3 service workers can restart between events.
 initializeAutoConnect();
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
