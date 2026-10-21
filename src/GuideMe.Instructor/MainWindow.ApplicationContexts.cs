@@ -170,12 +170,7 @@ public partial class MainWindow
             MessageBox.Show("יש לסיים הקלטה או סקירת שלב לפני מחיקת לומדה.", "GuideMe Instructor");
             return;
         }
-        var confirmation = MessageBox.Show(
-            "למחוק לצמיתות את הלומדה '" + guide.Name + "' (GuideId=" + guide.Id +
-            ") ואת כל ההקשרים, השלבים, הרכיבים והכללים שלה?\\nלא ניתן לבטל פעולה זו.",
-            "אישור מחיקת לומדה",
-            MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No);
-        if (confirmation != MessageBoxResult.Yes) return;
+        if (!ConfirmGuideDeletion(guide)) return;
         try
         {
             V5GuideWriter.DeleteGuide(guide.Id);
