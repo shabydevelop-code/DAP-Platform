@@ -53,12 +53,18 @@ public partial class MainWindow
         if (ExistingGuides.SelectedItem is not V5GuideReader.GuideInfo guide) return;
         LoadExistingGuide_Click(sender, e);
         if (_loadedGuide?.Id != guide.Id) return;
+        // Persisted identity is independent of whether its target is currently open.
+        SelectedRuntime.Text = "";
+        SelectedContextId.Text = "";
+        SelectedMatcherProperty.Text = "";
+        SelectedMatcherValue.Text = "";
         try
         {
             var contexts = V5GuideReader.ReadGuideTable(guide.Id, "ApplicationContexts");
             if (contexts.Rows.Count == 0)
             {
                 TargetSelectionStatus.Text = "לא הוגדר הקשר אפליקציה. יש לבחור חלון.";
+                RefreshConnection();
                 return;
             }
             foreach (System.Data.DataRow row in contexts.Rows)
@@ -66,31 +72,32 @@ public partial class MainWindow
                 using var doc = System.Text.Json.JsonDocument.Parse(row["MatchersJson"].ToString() ?? "[]");
                 foreach (var matcher in doc.RootElement.EnumerateArray())
                 {
-                    if (!matcher.TryGetProperty("Kind", out var property) ||
+                    var propertyName = matcher.TryGetProperty("Kind", out var kindProperty) ? "Kind" :
+                        matcher.TryGetProperty("Property", out _) ? "Property" : null;
+                    if (propertyName is null ||
                         !matcher.TryGetProperty("Value", out var value)) continue;
-                    var kind = property.GetString();
+                    var kind = matcher.GetProperty(propertyName).GetString();
                     var expected = value.GetString();
                     var runtime = row["Runtime"].ToString();
-                    bool match = false;
-                    if (runtime == "Web" && kind == "UrlHost" &&
-                        Uri.TryCreate(_capture.ActiveWebUrl, UriKind.Absolute, out var uri))
-                        match = string.Equals(uri.Authority, expected, StringComparison.OrdinalIgnoreCase);
-                    if (runtime == "Windows" && kind == "ProcessName" && expected is not null)
-                        match = System.Diagnostics.Process.GetProcessesByName(expected).Length > 0;
-                    if (!match) continue;
+                    if (string.IsNullOrWhiteSpace(expected) ||
+                        (runtime == "Web" && kind != "UrlHost") ||
+                        (runtime == "Windows" && kind != "ProcessName")) continue;
                     SelectedRuntime.Text = runtime;
                     SelectedContextId.Text = row["ContextId"].ToString();
                     SelectedMatcherProperty.Text = kind;
                     SelectedMatcherValue.Text = expected;
-                    TargetSelectionStatus.Text = "נמצא חלון תואם להקשר השמור.";
+                    TargetSelectionStatus.Text = "הקשר האפליקציה נטען. הזמינות נבדקת באופן שוטף.";
+                    RefreshConnection();
                     return;
                 }
             }
-            TargetSelectionStatus.Text = "לא נמצא חלון תואם. פתח את האפליקציה ובחר את החלון.";
+            TargetSelectionStatus.Text = "לא נמצא הקשר נתמך בלומדה. בחר חלון יעד.";
+            RefreshConnection();
         }
         catch (Exception ex)
         {
-            TargetSelectionStatus.Text = "איתור הקשר נכשל: " + ex.Message;
+            TargetSelectionStatus.Text = "טעינת הקשר נכשלה: " + ex.Message;
+            RefreshConnection();
         }
     }
 
