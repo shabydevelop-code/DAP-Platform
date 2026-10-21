@@ -316,6 +316,12 @@ public partial class MainWindow : Window
             TargetWindowPicker.IsWindowsTargetAvailable(
                 SelectedMatcherProperty.Text.Trim(), SelectedMatcherValue.Text.Trim());
 
+        if (ApplicationAvailability is not null)
+            ApplicationAvailability.Text = !targetSelected ? "לא נבחרה אפליקציה." :
+                runtime == "Web" ? (webTargetReady ? "זמינה כעת" : "אפליקציית האינטרנט אינה זמינה כעת") :
+                runtime == "Windows" ? (windowsTargetReady ? "זמינה כעת" : "אפליקציית Windows אינה זמינה כעת") :
+                "סוג אפליקציה לא מזוהה.";
+
         ConnectionPanel.Visibility = Visibility.Collapsed;
         ConnectionIndicator.Visibility = Visibility.Visible;
         ConnectionIndicator.Text = !targetSelected ? "ממתין לבחירת אפליקציית יעד" :
