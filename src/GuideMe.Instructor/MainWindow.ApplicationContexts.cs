@@ -121,9 +121,10 @@ public partial class MainWindow
         }
     }
 
-    private sealed record ContextOption(string Id, string Runtime, string Kind, string Value)
+    private sealed record ContextOption(string Id, string Runtime, string Kind, string Value, string? Name)
     {
-        public string DisplayTitle => Runtime == "Web" ? "אפליקציית אינטרנט" : "אפליקציית Windows";
+        public string DisplayTitle => !string.IsNullOrWhiteSpace(Name) ? Name :
+            Runtime == "Web" ? "אפליקציית אינטרנט" : "אפליקציית Windows";
         public string DisplayDetail => Kind == "UrlHost" ? Value :
             Kind == "AutomationId" ? "חלון מזוהה: " + Value :
             "תהליך מזוהה: " + Value;
@@ -150,7 +151,7 @@ public partial class MainWindow
                 if (string.IsNullOrWhiteSpace(expected) ||
                     (runtime == "Web" && kind != "UrlHost") ||
                     (runtime == "Windows" && kind is not ("AutomationId" or "ProcessName"))) continue;
-                choices.Add(new ContextOption(row["ContextId"].ToString() ?? "", runtime, kind, expected));
+                choices.Add(new ContextOption(row["ContextId"].ToString() ?? "", runtime, kind, expected, contexts.Columns.Contains("DisplayName") ? row["DisplayName"].ToString() : null));
                 break;
             }
         }
@@ -175,6 +176,8 @@ public partial class MainWindow
             SelectedMatcherProperty.Clear();
             SelectedMatcherValue.Clear();
             TargetSelectionStatus.Text = "לא נמצא הקשר נתמך בלומדה. בחר אפליקציית יעד.";
+            ApplicationTechnicalDetails.Text = "";
+            ApplicationAvailability.Text = "";
         }
         else
         {
@@ -182,7 +185,12 @@ public partial class MainWindow
             SelectedContextId.Text = choice.Id;
             SelectedMatcherProperty.Text = choice.Kind;
             SelectedMatcherValue.Text = choice.Value;
-            TargetSelectionStatus.Text = "הקשר האפליקציה נטען. הזמינות נבדקת באופן שוטף.";
+            TargetSelectionStatus.Text = "האפליקציה נבחרה.";
+            ApplicationTechnicalDetails.Text = "ContextId: " + choice.Id +
+                "\
+Runtime: " + choice.Runtime + "\
+Kind: " + choice.Kind + "\
+Value: " + choice.Value;
         }
         RefreshConnection();
     }
@@ -191,6 +199,78 @@ public partial class MainWindow
     {
         if (!_loadingContextChoices)
             ApplySelectedContext();
+    }
+
+    private void RenameApplication_Click(object sender, RoutedEventArgs e)
+    {
+        if (_loadedGuide is null || ApplicationContextChoices.SelectedItem is not ContextOption choice) return;
+        var nameInput = new TextBox { Text = choice.DisplayTitle, Margin = new Thickness(12) };
+        var dialog = new Window
+        {
+            Owner = this, Title = "שינוי שם אפליקציה", Width = 420, Height = 185,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            FlowDirection = FlowDirection.RightToLeft, ResizeMode = ResizeMode.NoResize
+        };
+        var panel = new StackPanel();
+        panel.Children.Add(nameInput);
+        var save = new Button { Content = "שמור שם", Margin = new Thickness(12) };
+        save.Click += (_, _) => { dialog.DialogResult = true; };
+        panel.Children.Add(save);
+        dialog.Content = panel;
+        if (dialog.ShowDialog() != true) return;
+        try
+        {
+            V5GuideWriter.RenameApplication(_loadedGuide.Id, choice.Id, nameInput.Text);
+            RefreshApplicationContextChoices(choice.Id);
+            TargetSelectionStatus.Text = "שם האפליקציה עודכן.";
+        }
+        catch (Exception ex) { MessageBox.Show(ex.Message, "GuideMe Instructor"); }
+    }
+
+    private void ReplaceApplication_Click(object sender, RoutedEventArgs e)
+    {
+        if (_loadedGuide is null || ApplicationContextChoices.SelectedItem is not ContextOption choice) return;
+        var picker = new TargetWindowPicker(_capture);
+        var target = picker.ShowDialog() == true ? picker.Selection : null;
+        if (target is null) return;
+        if (target.Runtime != choice.Runtime)
+        {
+            MessageBox.Show("לא ניתן להחליף סוג אפליקציה. כדי להשתמש בסוג אחר, הוסף אפליקציה חדשה.",
+                "GuideMe Instructor");
+            return;
+        }
+        try
+        {
+            V5GuideWriter.SaveApplicationContext(_loadedGuide.Id, choice.Id,
+                target.Runtime, target.Property, target.Value);
+            ContextsDetails.Text = V5GuideReader.ReadTable(_loadedGuide.Id, "ApplicationContexts");
+            RefreshApplicationContextChoices(choice.Id);
+            TargetSelectionStatus.Text = "יעד האפליקציה הוחלף. קישור השלבים נשמר.";
+        }
+        catch (Exception ex) { MessageBox.Show(ex.Message, "GuideMe Instructor"); }
+    }
+
+    private void RemoveApplication_Click(object sender, RoutedEventArgs e)
+    {
+        if (_loadedGuide is null || ApplicationContextChoices.SelectedItem is not ContextOption choice) return;
+        try
+        {
+            var stepCount = V5GuideWriter.CountApplicationSteps(_loadedGuide.Id, choice.Id);
+            if (stepCount > 0)
+            {
+                MessageBox.Show("לא ניתן להסיר: " + stepCount + " שלבים משויכים לאפליקציה.",
+                    "GuideMe Instructor");
+                return;
+            }
+            if (MessageBox.Show("להסיר את האפליקציה \"" + choice.DisplayTitle +
+                "\" מהלומדה? פעולה זו אינה ניתנת לביטול.", "GuideMe Instructor",
+                MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+            V5GuideWriter.DeleteApplication(_loadedGuide.Id, choice.Id);
+            ContextsDetails.Text = V5GuideReader.ReadTable(_loadedGuide.Id, "ApplicationContexts");
+            RefreshApplicationContextChoices();
+            TargetSelectionStatus.Text = "האפליקציה הוסרה.";
+        }
+        catch (Exception ex) { MessageBox.Show(ex.Message, "GuideMe Instructor"); }
     }
 
     private void ExistingGuideSelectionChanged(object sender, SelectionChangedEventArgs e)
