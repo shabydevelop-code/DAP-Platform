@@ -55,7 +55,6 @@ document.getElementById("disconnect").addEventListener("click", async () => {
   try {
     const response = await chrome.runtime.sendMessage({ type: "guideme-instructor-stop" });
     if (!response?.ok) throw new Error(response?.error || "Disconnect failed");
-    tokenInput.value = "";
     await refreshConnectionStatus();
   } catch (error) {
     status.textContent = String(error.message || error);
