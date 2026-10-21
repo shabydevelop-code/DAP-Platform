@@ -1,5 +1,6 @@
 using System;
 using System.Windows;
+using System.Windows.Controls;
 
 namespace GuideMe.Instructor;
 
@@ -45,6 +46,50 @@ public partial class MainWindow
         catch (Exception ex)
         {
             TargetSelectionStatus.Text = "בחירת חלון נכשלה: " + ex.Message;
+        }
+    }
+
+    private void ExistingGuideSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (ExistingGuides.SelectedItem is not V5GuideReader.GuideInfo guide) return;
+        try
+        {
+            var contexts = V5GuideReader.ReadGuideTable(guide.Id, "ApplicationContexts");
+            if (contexts.Rows.Count == 0)
+            {
+                TargetSelectionStatus.Text = "לא הוגדר הקשר אפליקציה. יש לבחור חלון.";
+                return;
+            }
+            foreach (System.Data.DataRow row in contexts.Rows)
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(row["MatchersJson"].ToString() ?? "[]");
+                foreach (var matcher in doc.RootElement.EnumerateArray())
+                {
+                    if (!matcher.TryGetProperty("Property", out var property) ||
+                        !matcher.TryGetProperty("Value", out var value)) continue;
+                    var kind = property.GetString();
+                    var expected = value.GetString();
+                    var runtime = row["Runtime"].ToString();
+                    bool match = false;
+                    if (runtime == "Web" && kind == "UrlHost" &&
+                        Uri.TryCreate(_capture.ActiveWebUrl, UriKind.Absolute, out var uri))
+                        match = string.Equals(uri.Host, expected, StringComparison.OrdinalIgnoreCase);
+                    if (runtime == "Windows" && kind == "ProcessName" && expected is not null)
+                        match = System.Diagnostics.Process.GetProcessesByName(expected).Length > 0;
+                    if (!match) continue;
+                    SelectedRuntime.Text = runtime;
+                    SelectedContextId.Text = row["ContextId"].ToString();
+                    SelectedMatcherProperty.Text = kind;
+                    SelectedMatcherValue.Text = expected;
+                    TargetSelectionStatus.Text = "נמצא חלון תואם להקשר השמור.";
+                    return;
+                }
+            }
+            TargetSelectionStatus.Text = "לא נמצא חלון תואם. פתח את האפליקציה ובחר את החלון.";
+        }
+        catch (Exception ex)
+        {
+            TargetSelectionStatus.Text = "איתור הקשר נכשל: " + ex.Message;
         }
     }
 
