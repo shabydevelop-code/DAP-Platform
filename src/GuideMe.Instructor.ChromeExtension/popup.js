@@ -27,7 +27,7 @@ async function refreshConnectionStatus() {
   }
 }
 
-document.getElementById("connect").addEventListener("click", async () => {
+async function connectAutomatically() {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab?.id || !/^https?:/.test(tab.url || "")) throw new Error("פתח אתר בלשונית הפעילה.");
@@ -49,7 +49,7 @@ document.getElementById("connect").addEventListener("click", async () => {
   } catch (error) {
     status.textContent = String(error.message || error);
   }
-});
+}
 
 document.getElementById("disconnect").addEventListener("click", async () => {
   try {
@@ -62,4 +62,7 @@ document.getElementById("disconnect").addEventListener("click", async () => {
   }
 });
 
-refreshConnectionStatus();
+refreshConnectionStatus().then(async () => {
+  const { instructorPairing } = await chrome.storage.session.get("instructorPairing");
+  if (!instructorPairing) await connectAutomatically();
+});
