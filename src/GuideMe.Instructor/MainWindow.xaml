@@ -147,15 +147,10 @@
           </StackPanel>
           <StackPanel Grid.Row="1" HorizontalAlignment="Left" FlowDirection="RightToLeft" Margin="0,0,0,12">
             <TextBlock x:Name="ConnectionIndicator" Text="התוסף אינו מחובר" FlowDirection="RightToLeft" Foreground="#FF64748B" Visibility="Collapsed" HorizontalAlignment="Right"/>
-            <StackPanel x:Name="ConnectionPanel" FlowDirection="RightToLeft" HorizontalAlignment="Right"><TextBlock Text="חיבור לתוסף הדפדפן" FontWeight="SemiBold" Margin="0,0,0,6"/>
-            <Border Background="White" BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="12" MinWidth="340">
-              <StackPanel>
-                <TextBlock Text="קוד חיבור מקומי" Margin="0,0,0,5"/>
-                <TextBox x:Name="PairingToken" IsReadOnly="True" FlowDirection="LeftToRight"/>
-                <TextBox x:Name="GuideKey" Visibility="Collapsed"/>
-                <Button Content="העתק קוד חיבור" Click="CopyPairingToken_Click" Margin="0,8,0,0" HorizontalAlignment="Left"/>
-              </StackPanel>
-            </Border>
+            <StackPanel x:Name="ConnectionPanel" FlowDirection="RightToLeft" HorizontalAlignment="Right">
+              <TextBlock Text="התוסף אינו מחובר. פתח את תוסף GuideMe Instructor בדפדפן כדי להתחבר."/>
+              <TextBox x:Name="PairingToken" Visibility="Collapsed" IsReadOnly="True"/>
+              <TextBox x:Name="GuideKey" Visibility="Collapsed"/>
             </StackPanel>
           </StackPanel>
           <Border Grid.Row="2" x:Name="NewGuidePanel" Visibility="Collapsed" Background="White" BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="22">
