@@ -259,7 +259,7 @@ public partial class MainWindow : Window
             _capture.Start();
             PairingToken.Text = _capture.SessionToken;
             _captureAvailable = true;
-            StatusDetail.Text = "ערוץ ההקלטה מוכן. חבר את התוסף באמצעות קוד החיבור.";
+            StatusDetail.Text = "ערוץ ההקלטה מוכן. פתח את תוסף GuideMe Instructor בדפדפן.";
             _capture.EventCaptured += _ => Dispatcher.BeginInvoke(new Action(() =>
             {
                 if (_state == RecordingState.Recording)
@@ -296,7 +296,7 @@ public partial class MainWindow : Window
         if (_state == RecordingState.Ready)
         {
             StartButton.IsEnabled = connected && _loadedGuide is null;
-            StatusDetail.Text = connected ? "התוסף מחובר ומאומת. ניתן להתחיל שלב." : "התוסף אינו מחובר או שהחיבור פג. חבר מחדש את התוסף.";
+            StatusDetail.Text = connected ? "התוסף מחובר ומאומת. ניתן להתחיל שלב." : "התוסף אינו מחובר. פתח את תוסף GuideMe Instructor בדפדפן.";
         }
         else if (_state == RecordingState.Recording && !connected)
         {
