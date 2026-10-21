@@ -20,6 +20,8 @@ internal sealed class BrowserCaptureServer : IDisposable
     private CancellationTokenSource? _shutdown;
     private bool _recording;
     private DateTimeOffset _lastHeartbeat = DateTimeOffset.MinValue;
+    private string? _activeWebUrl;
+    public string? ActiveWebUrl { get { lock (_sync) return _activeWebUrl; } }
     public bool IsConnected { get { lock (_sync) return DateTimeOffset.UtcNow - _lastHeartbeat < TimeSpan.FromSeconds(5); } }
 
     public const int Port = 53921;
@@ -107,6 +109,27 @@ internal sealed class BrowserCaptureServer : IDisposable
             {
                 lock (_sync) _lastHeartbeat = DateTimeOffset.UtcNow;
                 ctx.Response.StatusCode = 200;
+                return;
+            }
+            if (ctx.Request.HttpMethod == "POST" && ctx.Request.Url?.AbsolutePath == "/target")
+            {
+                if (ctx.Request.ContentLength64 < 0 || ctx.Request.ContentLength64 > 2048)
+                {
+                    ctx.Response.StatusCode = 413;
+                    return;
+                }
+                using var targetDocument = await JsonDocument.ParseAsync(ctx.Request.InputStream);
+                var targetRoot = targetDocument.RootElement;
+                if (!targetRoot.TryGetProperty("url", out var targetUrl) ||
+                    targetUrl.ValueKind != JsonValueKind.String ||
+                    !Uri.TryCreate(targetUrl.GetString(), UriKind.Absolute, out var uri) ||
+                    (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+                {
+                    ctx.Response.StatusCode = 400;
+                    return;
+                }
+                lock (_sync) _activeWebUrl = uri.GetLeftPart(UriPartial.Authority);
+                ctx.Response.StatusCode = 204;
                 return;
             }
             if (ctx.Request.HttpMethod == "GET" && ctx.Request.Url?.AbsolutePath == "/status")
