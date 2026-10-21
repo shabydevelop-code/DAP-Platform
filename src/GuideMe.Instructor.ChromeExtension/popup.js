@@ -1,5 +1,4 @@
 const status = document.getElementById("status");
-const tokenInput = document.getElementById("token");
 const pairingControls = document.getElementById("pairing-controls");
 const disconnectButton = document.getElementById("disconnect");
 
@@ -33,8 +32,7 @@ document.getElementById("connect").addEventListener("click", async () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab?.id || !/^https?:/.test(tab.url || "")) throw new Error("פתח אתר בלשונית הפעילה.");
     const response = await chrome.runtime.sendMessage({
-      type: "guideme-instructor-pair",
-      token: tokenInput.value.trim(),
+      type: "guideme-instructor-auto-pair",
       tabId: tab.id
     });
     if (!response?.ok) throw new Error(response?.error || "Pairing failed");
@@ -47,7 +45,6 @@ document.getElementById("connect").addEventListener("click", async () => {
       await chrome.runtime.sendMessage({ type: "guideme-instructor-stop" });
       throw error;
     }
-    tokenInput.value = "";
     await refreshConnectionStatus();
   } catch (error) {
     status.textContent = String(error.message || error);
