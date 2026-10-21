@@ -21,6 +21,9 @@ internal sealed class BrowserCaptureServer : IDisposable
     private bool _recording;
     private DateTimeOffset _lastHeartbeat = DateTimeOffset.MinValue;
     private string? _activeWebUrl;
+    private BrowserTargetSelection? _selectedBrowserTarget;
+    public BrowserTargetSelection? SelectedBrowserTarget { get { lock (_sync) return _selectedBrowserTarget; } }
+    public void ClearSelectedBrowserTarget() { lock (_sync) _selectedBrowserTarget = null; }
     private string? _activeWebTitle;
     private DateTimeOffset _activeWebReportedAt;
     public string? ActiveWebTitle { get { lock (_sync) return _activeWebTitle; } }
@@ -113,6 +116,34 @@ internal sealed class BrowserCaptureServer : IDisposable
             {
                 lock (_sync) _lastHeartbeat = DateTimeOffset.UtcNow;
                 ctx.Response.StatusCode = 200;
+                return;
+            }
+            if (ctx.Request.HttpMethod == "POST" && ctx.Request.Url?.AbsolutePath == "/select-target")
+            {
+                if (ctx.Request.ContentLength64 < 0 || ctx.Request.ContentLength64 > 2048)
+                {
+                    ctx.Response.StatusCode = 413;
+                    return;
+                }
+                using var selectionDocument = await JsonDocument.ParseAsync(ctx.Request.InputStream);
+                var selectionRoot = selectionDocument.RootElement;
+                if (!selectionRoot.TryGetProperty("url", out var selectionUrl) ||
+                    !Uri.TryCreate(selectionUrl.GetString(), UriKind.Absolute, out var selectedUri) ||
+                    selectedUri.Scheme is not ("http" or "https") ||
+                    !selectionRoot.TryGetProperty("tabId", out var tabIdElement) ||
+                    !tabIdElement.TryGetInt32(out var tabId) ||
+                    !selectionRoot.TryGetProperty("windowId", out var windowIdElement) ||
+                    !windowIdElement.TryGetInt32(out var windowId))
+                {
+                    ctx.Response.StatusCode = 400;
+                    return;
+                }
+                var selectionTitle = selectionRoot.TryGetProperty("title", out var titleElement) &&
+                    titleElement.ValueKind == JsonValueKind.String ? titleElement.GetString() ?? "" : "";
+                lock (_sync)
+                    _selectedBrowserTarget = new BrowserTargetSelection(
+                        selectedUri.Authority, selectionTitle, tabId, windowId, DateTimeOffset.UtcNow);
+                ctx.Response.StatusCode = 204;
                 return;
             }
             if (ctx.Request.HttpMethod == "POST" && ctx.Request.Url?.AbsolutePath == "/target")
@@ -215,3 +246,4 @@ internal sealed class BrowserCaptureServer : IDisposable
 }
 
 internal sealed record BrowserCaptureEvent(DateTimeOffset Timestamp, string Kind, string Url, string Tag, string Label, string ElementId, string Before, string After, string Value, string Name, string FrameSelector, string ContextCandidate);
+\ninternal sealed record BrowserTargetSelection(string Authority, string Title, int TabId, int WindowId, DateTimeOffset SelectedAt);\n
