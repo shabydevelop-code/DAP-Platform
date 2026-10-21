@@ -8,6 +8,19 @@ namespace GuideMe.Instructor;
 // Explicitly scoped writer: creates only a Guides row; no schema changes or step data.
 internal static class V5GuideWriter
 {
+    // A bare host:port (e.g. localhost:5200) must not be interpreted as a URI scheme.
+    private static string NormalizeWebAuthority(string value)
+    {
+        value = value.Trim();
+        var url = value.Contains("://", StringComparison.Ordinal) ? value : "http://" + value;
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps) ||
+            string.IsNullOrWhiteSpace(uri.Host) ||
+            Uri.CheckHostName(uri.Host) == UriHostNameType.Unknown)
+            throw new ArgumentException("כתובת אפליקציית Web אינה תקינה.");
+        return uri.Authority;
+    }
+
     internal static V5GuideReader.GuideInfo RenameGuide(long id, string name)
     {
         name = name.Trim();
@@ -88,8 +101,8 @@ VALUES ($key, $name) RETURNING GuideId";
             throw new FileNotFoundException("מסד הנתונים V5 לא נמצא.", V5GuideReader.DatabasePath);
 
         var key = "guide-" + Guid.NewGuid().ToString("N");
-        if (matcherProperty == "UrlHost" && Uri.TryCreate(matcherValue, UriKind.Absolute, out var parsed))
-            matcherValue = parsed.Authority;
+        if (matcherProperty == "UrlHost")
+            matcherValue = NormalizeWebAuthority(matcherValue);
         var matchers = JsonSerializer.Serialize(new[] { new { Order = 0, Kind = matcherProperty, Value = matcherValue } });
         using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
         {
@@ -136,12 +149,7 @@ VALUES ($guideId, $contextId, $runtime, $matchers)";
             (runtime == "Windows" && matcherProperty != "ProcessName"))
             throw new ArgumentException("מאפייני זיהוי האפליקציה אינם תקינים.");
         if (runtime == "Web")
-        {
-            if (Uri.TryCreate(matcherValue, UriKind.Absolute, out var parsed))
-                matcherValue = parsed.Authority;
-            if (Uri.CheckHostName(matcherValue.Split(':')[0]) == UriHostNameType.Unknown)
-                throw new ArgumentException("כתובת אתר אינה תקינה.");
-        }
+            matcherValue = NormalizeWebAuthority(matcherValue);
         var matchers = JsonSerializer.Serialize(new[] { new { Order = 0, Kind = matcherProperty, Value = matcherValue } });
         using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
         {
