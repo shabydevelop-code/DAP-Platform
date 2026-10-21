@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Automation;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -34,7 +35,7 @@ internal sealed class TargetWindowPicker : Window
     public TargetWindowPicker(BrowserCaptureServer capture)
     {
         _capture = capture;
-        Title = "בחירת חלון יעד — GuideMe";
+        Title = "בחירת אפליקציית יעד — GuideMe";
         Width = 430;
         Height = 205;
         MinWidth = 360;
@@ -144,7 +145,21 @@ internal sealed class TargetWindowPicker : Window
                 return;
             }
             else
-                _candidate = new TargetWindowSelection("Windows", "ProcessName", processName, title);
+            {
+                // Prefer an application-defined window AutomationId over a process name.
+                // A single process can own multiple distinct windows.
+                string? automationId = null;
+                try
+                {
+                    automationId = AutomationElement.FromHandle(_lastExternalWindow)
+                        ?.Current.AutomationId;
+                }
+                catch (ElementNotAvailableException) { }
+                catch (System.Runtime.InteropServices.COMException) { }
+                _candidate = !string.IsNullOrWhiteSpace(automationId)
+                    ? new TargetWindowSelection("Windows", "AutomationId", automationId, title)
+                    : new TargetWindowSelection("Windows", "ProcessName", processName, title);
+            }
             _confirm.IsEnabled = true;
             _status.Text = "חלון מזוהה: " + _candidate.Title;
         }
