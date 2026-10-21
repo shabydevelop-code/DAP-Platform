@@ -146,9 +146,9 @@
             <TextBlock x:Name="DatabaseStatus" Style="{StaticResource Hint}" Margin="0,3,0,0"/>
           </StackPanel>
           <StackPanel Grid.Row="1" HorizontalAlignment="Left" FlowDirection="RightToLeft" Margin="0,0,0,12">
-            <TextBlock x:Name="ConnectionIndicator" Text="התוסף אינו מחובר" FlowDirection="RightToLeft" Foreground="#FF64748B" Visibility="Collapsed" HorizontalAlignment="Right"/>
+            <TextBlock x:Name="ConnectionIndicator" Text="ממתין לבחירת אפליקציה" FlowDirection="RightToLeft" Foreground="#FF64748B" Visibility="Collapsed" HorizontalAlignment="Right"/>
             <StackPanel x:Name="ConnectionPanel" FlowDirection="RightToLeft" HorizontalAlignment="Right">
-              <TextBlock Text="התוסף אינו מחובר. פתח את תוסף GuideMe Instructor בדפדפן כדי להתחבר."/>
+              <TextBlock Text="בחר אפליקציית יעד. חיבור לתוסף נדרש רק להקלטת Web."/>
               <TextBox x:Name="PairingToken" Visibility="Collapsed" IsReadOnly="True"/>
               <TextBox x:Name="GuideKey" Visibility="Collapsed"/>
             </StackPanel>
