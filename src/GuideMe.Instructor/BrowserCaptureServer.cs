@@ -169,11 +169,7 @@ internal sealed class BrowserCaptureServer : IDisposable
     private static bool IsExtensionOrigin(string? origin)
     {
         if (string.IsNullOrWhiteSpace(origin)) return false;
-        return Uri.TryCreate(origin, UriKind.Absolute, out var uri)
-            && uri.Scheme == "chrome-extension"
-            && uri.Host.Length == 32
-            && uri.Host.All(c => c is >= 'a' and <= 'p')
-            && uri.AbsolutePath == "/";
+        return string.Equals(origin, "chrome-extension://icnbpbekaibdhbmlnccfcibmmboeckgp", StringComparison.Ordinal);
     }
 
     public void Dispose()
