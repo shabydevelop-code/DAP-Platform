@@ -1,6 +1,7 @@
 using Microsoft.Data.Sqlite;
 using System;
 using System.IO;
+using System.Text.Json;
 
 namespace GuideMe.Instructor;
 
@@ -67,5 +68,33 @@ VALUES ($key, $name) RETURNING GuideId";
         {
             throw new InvalidOperationException("מפתח הלומדה כבר קיים או שהנתונים אינם תקינים.", ex);
         }
+    }
+
+    // Contexts are independent guide entities; updates never overwrite steps.
+    internal static void SaveApplicationContext(long guideId, string contextId, string runtime, string matcherProperty, string matcherValue)
+    {
+        if (runtime is not ("Web" or "Windows"))
+            throw new ArgumentException("סוג אפליקציה לא נתמך.");
+        if (string.IsNullOrWhiteSpace(contextId) || string.IsNullOrWhiteSpace(matcherValue))
+            throw new ArgumentException("חסרים פרטי זיהוי אפליקציה.");
+        var matchers = JsonSerializer.Serialize(new[] { new { Property = matcherProperty, Value = matcherValue } });
+        using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = V5GuideReader.DatabasePath,
+            Mode = SqliteOpenMode.ReadWrite,
+            Pooling = false,
+            DefaultTimeout = 3
+        }.ToString());
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandTimeout = 3;
+        command.CommandText = @"INSERT INTO ApplicationContexts (GuideId, ContextId, Runtime, MatchersJson)
+VALUES ($guideId, $contextId, $runtime, $matchers)
+ON CONFLICT(GuideId, ContextId) DO UPDATE SET Runtime=excluded.Runtime, MatchersJson=excluded.MatchersJson";
+        command.Parameters.AddWithValue("$guideId", guideId);
+        command.Parameters.AddWithValue("$contextId", contextId);
+        command.Parameters.AddWithValue("$runtime", runtime);
+        command.Parameters.AddWithValue("$matchers", matchers);
+        command.ExecuteNonQuery();
     }
 }
