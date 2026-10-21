@@ -34,6 +34,7 @@ internal sealed class TargetWindowPicker : Window
     public TargetWindowPicker(BrowserCaptureServer capture)
     {
         _capture = capture;
+        _capture.ClearSelectedBrowserTarget();
         Title = "בחירת חלון יעד — GuideMe";
         Width = 430;
         Height = 205;
@@ -51,7 +52,7 @@ internal sealed class TargetWindowPicker : Window
             FontSize = 18, FontWeight = FontWeights.SemiBold
         });
         panel.Children.Add(new TextBlock {
-            Text = "עבור בין החלונות באמצעות Alt+Tab. אין מגבלת זמן. אשר את החלון הרצוי כאן.",
+            Text = "עבור לחלון היעד. באתר Web לחץ Alt+Shift+G לאישור הלשונית בתוסף. חזור לכאן ואשר. אין מגבלת זמן.",
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 8, 0, 12)
         });
@@ -89,6 +90,22 @@ internal sealed class TargetWindowPicker : Window
         Closed += (_, _) => _timer.Stop();
     }
 
+    private void RefreshBrowserSelection()
+    {
+        var selection = _capture.SelectedBrowserTarget;
+        if (selection is null)
+        {
+            _candidate = null;
+            _confirm.IsEnabled = false;
+            _status.Text = "ממתין לאישור לשונית בדפדפן באמצעות Alt+Shift+G.";
+            return;
+        }
+        _candidate = new TargetWindowSelection("Web", "UrlHost",
+            selection.Authority, selection.Title + " — " + selection.Authority);
+        _confirm.IsEnabled = true;
+        _status.Text = "לשונית אושרה בתוסף: " + _candidate.Title;
+    }
+
     private void RefreshCandidate()
     {
         try
@@ -99,7 +116,11 @@ internal sealed class TargetWindowPicker : Window
             // Returning to the picker (or Instructor) must not invalidate an
             // already verified target. Only a newly focused external window
             // can replace the selection.
-            if (pid == Environment.ProcessId) return;
+            if (pid == Environment.ProcessId)
+            {
+                RefreshBrowserSelection();
+                return;
+            }
             if (hwnd != _lastExternalWindow)
             {
                 _lastExternalWindow = hwnd;
@@ -118,18 +139,8 @@ internal sealed class TargetWindowPicker : Window
                 processName.Equals("firefox", StringComparison.OrdinalIgnoreCase);
             if (isBrowser)
             {
-                var reportedTitle = _capture.ActiveWebTitle;
-                var fresh = DateTimeOffset.UtcNow - _capture.ActiveWebReportedAt < TimeSpan.FromSeconds(5);
-                var titleMatches = !string.IsNullOrWhiteSpace(reportedTitle) &&
-                    title.Contains(reportedTitle, StringComparison.OrdinalIgnoreCase);
-                if (!fresh || !titleMatches || !Uri.TryCreate(_capture.ActiveWebUrl, UriKind.Absolute, out var uri))
-                {
-                    _candidate = null;
-                    _confirm.IsEnabled = false;
-                    _status.Text = "דפדפן: " + title + " — אין התאמה מאומתת ללשונית הפעילה. עבור ללשונית היעד ונסה שוב.";
-                    return;
-                }
-                _candidate = new TargetWindowSelection("Web", "UrlHost", uri.Authority, title + " — " + uri.Authority);
+                RefreshBrowserSelection();
+                return;
             }
             else
                 _candidate = new TargetWindowSelection("Windows", "ProcessName", processName, title);
