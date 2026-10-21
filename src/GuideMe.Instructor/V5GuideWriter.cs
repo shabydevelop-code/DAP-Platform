@@ -88,7 +88,9 @@ VALUES ($key, $name) RETURNING GuideId";
             throw new FileNotFoundException("מסד הנתונים V5 לא נמצא.", V5GuideReader.DatabasePath);
 
         var key = "guide-" + Guid.NewGuid().ToString("N");
-        var matchers = JsonSerializer.Serialize(new[] { new { Property = matcherProperty, Value = matcherValue } });
+        if (matcherProperty == "UrlHost" && Uri.TryCreate(matcherValue, UriKind.Absolute, out var parsed))
+            matcherValue = parsed.Authority;
+        var matchers = JsonSerializer.Serialize(new[] { new { Order = 0, Kind = matcherProperty, Value = matcherValue } });
         using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
         {
             DataSource = V5GuideReader.DatabasePath,
