@@ -74,28 +74,35 @@ function initializeAutoConnect() {
   void ensureConnection();
 }
 
+async function selectInstructorTarget(tab) {
+  if (!tab?.id || !Number.isInteger(tab.windowId) || !/^https?:/.test(tab.url || ""))
+    throw new Error("יש לפתוח לשונית אתר פעילה.");
+  let { instructorPairing } = await chrome.storage.session.get("instructorPairing");
+  if (!instructorPairing || !(await heartbeat(instructorPairing.token))) {
+    await pairAutomatically(tab.id);
+    instructorPairing = (await chrome.storage.session.get("instructorPairing")).instructorPairing;
+  }
+  const response = await fetch("http://127.0.0.1:53921/select-target", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-GuideMe-Capture-Token": instructorPairing.token
+    },
+    body: JSON.stringify({
+      url: tab.url, title: tab.title || "", tabId: tab.id, windowId: tab.windowId
+    })
+  });
+  if (!response.ok) throw new Error("Instructor rejected target: " + response.status);
+  return { ok: true, url: tab.url };
+}
+
 chrome.commands.onCommand.addListener(async command => {
   if (command !== "select-instructor-target") return;
   try {
     const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-    if (!tab?.id || !Number.isInteger(tab.windowId) || !/^https?:/.test(tab.url || "")) return;
-    let { instructorPairing } = await chrome.storage.session.get("instructorPairing");
-    if (!instructorPairing || !(await heartbeat(instructorPairing.token))) {
-      await pairAutomatically(tab.id);
-      instructorPairing = (await chrome.storage.session.get("instructorPairing")).instructorPairing;
-    }
-    await fetch("http://127.0.0.1:53921/select-target", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-GuideMe-Capture-Token": instructorPairing.token
-      },
-      body: JSON.stringify({
-        url: tab.url, title: tab.title || "", tabId: tab.id, windowId: tab.windowId
-      })
-    });
-  } catch {
-    // The Instructor may be closed or the browser tab may be unavailable.
+    await selectInstructorTarget(tab);
+  } catch (error) {
+    console.warn("GuideMe target selection failed", error);
   }
 });
 
@@ -124,6 +131,13 @@ chrome.tabs.onRemoved.addListener(async tabId => {
 initializeAutoConnect();
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message?.type === "guideme-instructor-select-target") {
+    chrome.tabs.query({ active: true, currentWindow: true })
+      .then(([tab]) => selectInstructorTarget(tab))
+      .then(sendResponse)
+      .catch(error => sendResponse({ ok: false, error: String(error.message || error) }));
+    return true;
+  }
   if (message?.type === "guideme-instructor-auto-pair") {
     if (!Number.isInteger(message.tabId)) { sendResponse({ ok: false, error: "Invalid tab" }); return false; }
     chrome.storage.session.remove("instructorAutoDisabled").then(() => pairAutomatically(message.tabId)).then(sendResponse).catch(error => sendResponse({ ok: false, error: String(error.message || error) }));
