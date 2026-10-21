@@ -14,7 +14,6 @@ public partial class MainWindow
 
     private async void SelectApplicationWindow_Click(object sender, RoutedEventArgs e)
     {
-        if (_loadedGuide is null) return;
         TargetSelectionStatus.Text = "עבור לחלון היעד. הזיהוי יתבצע בעוד שלוש שניות.";
         await System.Threading.Tasks.Task.Delay(3000);
         try
@@ -42,6 +41,7 @@ public partial class MainWindow
                 if (string.IsNullOrWhiteSpace(SelectedContextId.Text)) SelectedContextId.Text = "windows-main";
             }
             TargetSelectionStatus.Text = "החלון זוהה. בדוק ושמור את ההקשר.";
+            NewGuideTargetStatus.Text = $"נבחר: {SelectedRuntime.Text} — {SelectedMatcherValue.Text}";
         }
         catch (Exception ex)
         {
