@@ -15,6 +15,7 @@ CREATE TABLE ApplicationContexts (
     GuideId INTEGER NOT NULL,
     ContextId TEXT NOT NULL,
     Runtime TEXT NOT NULL CHECK (Runtime IN ('Web','Windows')),
+    DisplayName TEXT,
     MatchersJson TEXT NOT NULL DEFAULT '[]'
         CHECK (json_valid(MatchersJson) AND json_type(MatchersJson)='array'),
     PRIMARY KEY (GuideId, ContextId),
