@@ -52,9 +52,17 @@ public partial class MainWindow
                 using var matchers = System.Text.Json.JsonDocument.Parse(row["MatchersJson"].ToString() ?? "[]");
                 foreach (var matcher in matchers.RootElement.EnumerateArray())
                 {
-                    if (!matcher.TryGetProperty("Value", out var value) ||
-                        !string.Equals(value.GetString(), selected.Value, StringComparison.OrdinalIgnoreCase))
-                        continue;
+                    if (!matcher.TryGetProperty("Value", out var value)) continue;
+                    var matches = string.Equals(value.GetString(), selected.Value, StringComparison.OrdinalIgnoreCase);
+                    // Upgrade a previously recorded process-only Windows target
+                    // instead of creating a duplicate context for the same app.
+                    if (!matches && selected.Runtime == "Windows" &&
+                        selected.Property == "AutomationId" &&
+                        matcher.TryGetProperty("Kind", out var kind) &&
+                        kind.GetString() == "ProcessName")
+                        matches = string.Equals(value.GetString(), selected.ProcessName,
+                            StringComparison.OrdinalIgnoreCase);
+                    if (!matches) continue;
                     contextId = id;
                     goto ContextResolved;
                 }
