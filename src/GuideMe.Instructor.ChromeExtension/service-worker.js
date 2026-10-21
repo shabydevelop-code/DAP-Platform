@@ -15,10 +15,58 @@ async function pairAutomatically(tabId) {
   return { ok: true };
 }
 
+
+// Auto-connect independently of the extension popup. Chrome MV3 workers are
+// event-driven, so an alarm also discovers an Instructor started after Chrome.
+const autoConnectAlarm = "guideme-instructor-connect";
+let connecting = false;
+
+async function ensureConnection() {
+  if (connecting) return;
+  connecting = true;
+  try {
+    const { instructorPairing, instructorAutoDisabled } =
+      await chrome.storage.session.get(["instructorPairing", "instructorAutoDisabled"]);
+    if (instructorAutoDisabled) return;
+    if (instructorPairing && await heartbeat(instructorPairing.token)) return;
+    if (instructorPairing) await chrome.storage.session.remove("instructorPairing");
+    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    if (!tab?.id || !/^https?:/.test(tab.url || "")) return;
+    await pairAutomatically(tab.id);
+    try {
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id, allFrames: true },
+        files: ["content-capture.js"]
+      });
+    } catch (error) {
+      await chrome.storage.session.remove("instructorPairing");
+      throw error;
+    }
+  } catch {
+    // Instructor may not be running yet. Retry on the next alarm or tab event.
+  } finally {
+    connecting = false;
+  }
+}
+
+function initializeAutoConnect() {
+  chrome.alarms.create(autoConnectAlarm, { periodInMinutes: 0.5 });
+  void ensureConnection();
+}
+
+chrome.runtime.onInstalled.addListener(initializeAutoConnect);
+chrome.runtime.onStartup.addListener(initializeAutoConnect);
+chrome.alarms.onAlarm.addListener(alarm => {
+  if (alarm.name === autoConnectAlarm) void ensureConnection();
+});
+chrome.tabs.onActivated.addListener(() => { void ensureConnection(); });
+// Runs on worker wake-up too, including after browser updates.
+initializeAutoConnect();
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === "guideme-instructor-auto-pair") {
     if (!Number.isInteger(message.tabId)) { sendResponse({ ok: false, error: "Invalid tab" }); return false; }
-    pairAutomatically(message.tabId).then(sendResponse).catch(error => sendResponse({ ok: false, error: String(error.message || error) }));
+    chrome.storage.session.remove("instructorAutoDisabled").then(() => pairAutomatically(message.tabId)).then(sendResponse).catch(error => sendResponse({ ok: false, error: String(error.message || error) }));
     return true;
   }
   if (message?.type === "guideme-instructor-pair") {
@@ -36,8 +84,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
   if (message?.type === "guideme-instructor-stop") {
-    chrome.storage.session.remove("instructorPairing")
-      .then(() => sendResponse({ ok: true }));
+    chrome.storage.session.set({ instructorAutoDisabled: true })
+      .then(() => chrome.storage.session.remove("instructorPairing"))
+      .then(() => sendResponse({ ok: true }))
+      .catch(error => sendResponse({ ok: false, error: String(error) }));
     return true;
   }
   if (message?.type === "guideme-instructor-heartbeat") {
