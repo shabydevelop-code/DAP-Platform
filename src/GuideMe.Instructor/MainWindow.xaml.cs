@@ -313,8 +313,8 @@ public partial class MainWindow : Window
             string.Equals(activeUri.Authority, SelectedMatcherValue.Text.Trim(),
                 StringComparison.OrdinalIgnoreCase);
         var windowsTargetReady = targetSelected && runtime == "Windows" &&
-            SelectedMatcherProperty.Text == "ProcessName" &&
-            System.Diagnostics.Process.GetProcessesByName(SelectedMatcherValue.Text.Trim()).Length > 0;
+            TargetWindowPicker.IsWindowsTargetAvailable(
+                SelectedMatcherProperty.Text.Trim(), SelectedMatcherValue.Text.Trim());
 
         ConnectionPanel.Visibility = Visibility.Collapsed;
         ConnectionIndicator.Visibility = Visibility.Visible;
