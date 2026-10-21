@@ -35,13 +35,60 @@ public partial class MainWindow
             TargetSelectionStatus.Text = "בחירת האפליקציה בוטלה.";
             return;
         }
+        // A guide may contain Web and Windows contexts. Never reuse the current
+        // context ID for a different application or runtime.
+        var creating = NewGuidePanel.Visibility == Visibility.Visible;
+        var contextId = selected.Runtime == "Web" ? "web-main" : "windows-main";
+        if (!creating && _loadedGuide is not null)
+        {
+            var existing = V5GuideReader.ReadGuideTable(_loadedGuide.Id, "ApplicationContexts");
+            var usedIds = new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (System.Data.DataRow row in existing.Rows)
+            {
+                var id = row["ContextId"].ToString() ?? "";
+                usedIds.Add(id);
+                if (!string.Equals(row["Runtime"].ToString(), selected.Runtime, StringComparison.Ordinal))
+                    continue;
+                using var matchers = System.Text.Json.JsonDocument.Parse(row["MatchersJson"].ToString() ?? "[]");
+                foreach (var matcher in matchers.RootElement.EnumerateArray())
+                {
+                    if (!matcher.TryGetProperty("Value", out var value) ||
+                        !string.Equals(value.GetString(), selected.Value, StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    contextId = id;
+                    goto ContextResolved;
+                }
+            }
+            // A blank legacy matcher can be repaired when the user explicitly
+            // selects a target of the same runtime.
+            foreach (System.Data.DataRow row in existing.Rows)
+            {
+                if (!string.Equals(row["Runtime"].ToString(), selected.Runtime, StringComparison.Ordinal))
+                    continue;
+                using var matchers = System.Text.Json.JsonDocument.Parse(row["MatchersJson"].ToString() ?? "[]");
+                foreach (var matcher in matchers.RootElement.EnumerateArray())
+                {
+                    if (matcher.TryGetProperty("Value", out var value) &&
+                        string.IsNullOrWhiteSpace(value.GetString()))
+                    {
+                        contextId = row["ContextId"].ToString() ?? contextId;
+                        goto ContextResolved;
+                    }
+                }
+            }
+            if (usedIds.Contains(contextId))
+            {
+                var baseId = contextId;
+                var suffix = 2;
+                while (usedIds.Contains(baseId + "-" + suffix)) suffix++;
+                contextId = baseId + "-" + suffix;
+            }
+        }
+    ContextResolved:
         SelectedRuntime.Text = selected.Runtime;
+        SelectedContextId.Text = contextId;
         SelectedMatcherProperty.Text = selected.Property;
         SelectedMatcherValue.Text = selected.Value;
-        if (string.IsNullOrWhiteSpace(SelectedContextId.Text) ||
-            (selected.Runtime == "Windows" && SelectedContextId.Text == "web-main") ||
-            (selected.Runtime == "Web" && SelectedContextId.Text == "windows-main"))
-            SelectedContextId.Text = selected.Runtime == "Web" ? "web-main" : "windows-main";
         TargetSelectionStatus.Text = "נבחרה אפליקציית יעד: " + selected.Title;
         NewGuideTargetStatus.Text = "נבחר: " + selected.Title;
         _pendingNewGuideTarget = NewGuidePanel.Visibility == Visibility.Visible;
