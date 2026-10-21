@@ -306,16 +306,37 @@ public partial class MainWindow : Window
 
     private void RefreshConnection()
     {
-        var connected = _captureAvailable && _capture.IsConnected;
-        ConnectionPanel.Visibility = connected ? Visibility.Collapsed : Visibility.Visible;
-        ConnectionIndicator.Visibility = connected ? Visibility.Visible : Visibility.Collapsed;
-        ConnectionIndicator.Text = connected ? "● התוסף מחובר" : "התוסף אינו מחובר";
+        var transportReady = _captureAvailable && _capture.IsConnected;
+        var runtime = SelectedRuntime.Text.Trim();
+        var targetSelected = _loadedGuide is not null &&
+            !string.IsNullOrWhiteSpace(SelectedMatcherValue.Text);
+        var webTargetReady = targetSelected && runtime == "Web" && transportReady &&
+            Uri.TryCreate(_capture.ActiveWebUrl, UriKind.Absolute, out var activeUri) &&
+            string.Equals(activeUri.Authority, SelectedMatcherValue.Text.Trim(),
+                StringComparison.OrdinalIgnoreCase);
+        var windowsTargetReady = targetSelected && runtime == "Windows" &&
+            SelectedMatcherProperty.Text == "ProcessName" &&
+            System.Diagnostics.Process.GetProcessesByName(SelectedMatcherValue.Text.Trim()).Length > 0;
+
+        ConnectionPanel.Visibility = Visibility.Collapsed;
+        ConnectionIndicator.Visibility = Visibility.Visible;
+        ConnectionIndicator.Text = !targetSelected ? "ממתין לבחירת אפליקציית יעד" :
+            runtime == "Windows"
+                ? (windowsTargetReady ? "אפליקציית Windows זוהתה — הקלטה טרם נתמכת" : "אפליקציית Windows אינה זמינה")
+                : runtime == "Web"
+                    ? (webTargetReady ? "אפליקציית Web זוהתה — ערוץ הלכידה פעיל" :
+                        transportReady ? "ערוץ Web פעיל — הלשונית אינה תואמת ליעד" : "אפליקציית Web — ערוץ הלכידה אינו מחובר")
+                    : "לא הוגדר סוג אפליקציית יעד";
         if (_state == RecordingState.Ready)
         {
-            StartButton.IsEnabled = connected && _loadedGuide is not null && !string.IsNullOrWhiteSpace(GuideKey.Text);
-            StatusDetail.Text = connected ? "התוסף מחובר ומאומת. ניתן להתחיל שלב." : "התוסף אינו מחובר. פתח את תוסף GuideMe Instructor בדפדפן.";
+            // Windows capture must not be enabled until a Windows adapter exists.
+            StartButton.IsEnabled = webTargetReady && !string.IsNullOrWhiteSpace(GuideKey.Text);
+            StatusDetail.Text = !targetSelected ? "בחר יעד או טען לומדה כדי להתחיל." :
+                runtime == "Windows" ? "זיהוי Windows זמין; הקלטת שלבים מחייבת מתאם Windows ייעודי." :
+                webTargetReady ? "היעד והערוץ מאומתים. ניתן להתחיל שלב." :
+                "בחר את לשונית ה-Web המתאימה וודא שערוץ הלכידה פעיל.";
         }
-        else if (_state == RecordingState.Recording && !connected)
+        else if (_state == RecordingState.Recording && !webTargetReady)
         {
             _capture.EndStep();
             _state = RecordingState.Ready;
@@ -323,13 +344,13 @@ public partial class MainWindow : Window
             EndButton.IsEnabled = false;
             StartButton.IsEnabled = false;
             StateLabel.Text = $"הקלטת שלב {_stepNumber} הופסקה";
-            StatusDetail.Text = "החיבור לתוסף אבד. ההקלטה הופסקה ללא אישור טיוטה; חבר מחדש ונסה שוב.";
+            StatusDetail.Text = "החיבור ליעד Web אבד. ההקלטה הופסקה ללא אישור טיוטה.";
         }
     }
 
     private void StartStep_Click(object sender, RoutedEventArgs e)
     {
-        if (_loadedGuide is null || !_captureAvailable || !_capture.IsConnected || _state != RecordingState.Ready || string.IsNullOrWhiteSpace(GuideKey.Text))
+        if (_loadedGuide is null || !StartButton.IsEnabled || _state != RecordingState.Ready || string.IsNullOrWhiteSpace(GuideKey.Text))
             return;
 
         _startedAt = DateTimeOffset.Now;
