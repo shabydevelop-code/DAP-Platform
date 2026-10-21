@@ -139,7 +139,12 @@ public partial class MainWindow : Window
         }
         try
         {
-            var created = V5GuideWriter.CreateGuide(NewGuideName.Text);
+            if (!_pendingNewGuideTarget || !CreateNewGuideButton.IsEnabled)
+                throw new InvalidOperationException("יש לבחור חלון יעד לפני יצירת הלומדה.");
+            var created = V5GuideWriter.CreateGuideWithContext(
+                NewGuideName.Text, SelectedContextId.Text, SelectedRuntime.Text,
+                SelectedMatcherProperty.Text, SelectedMatcherValue.Text);
+            _pendingNewGuideTarget = false;
             ExistingGuides.ItemsSource = V5GuideReader.ListGuides();
             ExistingGuides.SelectedItem = ((System.Collections.Generic.IEnumerable<V5GuideReader.GuideInfo>)ExistingGuides.ItemsSource)
                 .FirstOrDefault(g => g.Id == created.Id);
@@ -148,8 +153,8 @@ public partial class MainWindow : Window
             WorkspaceTabs.SelectedIndex = 0;
             GuideSettingsTabs.SelectedIndex = 0;
             SetNewGuideMode(false);
-            DatabaseStatus.Text = $"נוצרה לומדה חדשה (GuideId={created.Id}) ללא שלבים או הקשרי אפליקציה.";
-            MessageBox.Show($"הלומדה '{created.Name}' נוצרה בהצלחה.\nGuideId: {created.Id}\nלא נוצרו שלבים או הקשרי אפליקציה.",
+            DatabaseStatus.Text = $"נוצרה לומדה חדשה (GuideId={created.Id}) עם הקשר אפליקציה שמור וללא שלבים.";
+            MessageBox.Show($"הלומדה '{created.Name}' נוצרה בהצלחה.\nGuideId: {created.Id}\nהקשר האפליקציה נשמר. עדיין לא נוצרו שלבים.",
                 "GuideMe Instructor");
         }
         catch (Exception ex)
