@@ -123,7 +123,7 @@ internal sealed class TargetWindowPicker : Window
                     _status.Text = "דפדפן: " + title + " — אין התאמה מאומתת ללשונית הפעילה. עבור ללשונית היעד ונסה שוב.";
                     return;
                 }
-                _candidate = new TargetWindowSelection("Web", "UrlHost", uri.Host, title + " — " + uri.Host);
+                _candidate = new TargetWindowSelection("Web", "UrlHost", uri.Authority, title + " — " + uri.Authority);
             }
             else
                 _candidate = new TargetWindowSelection("Windows", "ProcessName", processName, title);
