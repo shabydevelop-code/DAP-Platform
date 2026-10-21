@@ -6,6 +6,7 @@ namespace GuideMe.Instructor;
 
 public partial class MainWindow
 {
+    private bool _pendingNewGuideTarget;
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     private static extern IntPtr GetForegroundWindow();
 
@@ -42,6 +43,7 @@ public partial class MainWindow
             }
             TargetSelectionStatus.Text = "החלון זוהה. בדוק ושמור את ההקשר.";
             NewGuideTargetStatus.Text = $"נבחר: {SelectedRuntime.Text} — {SelectedMatcherValue.Text}";
+            _pendingNewGuideTarget = NewGuidePanel.Visibility == Visibility.Visible;
         }
         catch (Exception ex)
         {
@@ -52,6 +54,21 @@ public partial class MainWindow
     private void ExistingGuideSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (ExistingGuides.SelectedItem is not V5GuideReader.GuideInfo guide) return;
+        if (_pendingNewGuideTarget && NewGuidePanel.Visibility == Visibility.Visible &&
+            string.Equals(guide.Name, NewGuideName.Text.Trim(), StringComparison.Ordinal))
+        {
+            try
+            {
+                V5GuideWriter.SaveApplicationContext(guide.Id, SelectedContextId.Text,
+                    SelectedRuntime.Text, SelectedMatcherProperty.Text, SelectedMatcherValue.Text);
+                _pendingNewGuideTarget = false;
+                TargetSelectionStatus.Text = "הקשר האפליקציה נשמר בלומדה החדשה.";
+            }
+            catch (Exception ex)
+            {
+                TargetSelectionStatus.Text = "שמירת ההקשר נכשלה: " + ex.Message;
+            }
+        }
         try
         {
             var contexts = V5GuideReader.ReadGuideTable(guide.Id, "ApplicationContexts");
