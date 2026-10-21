@@ -95,7 +95,7 @@ VALUES ($key, $name) RETURNING GuideId";
             throw new ArgumentException("יש לבחור חלון יעד תקין לפני יצירת הלומדה.");
         if (runtime is not ("Web" or "Windows") ||
             (runtime == "Web" && matcherProperty != "UrlHost") ||
-            (runtime == "Windows" && matcherProperty != "ProcessName"))
+            (runtime == "Windows" && matcherProperty is not ("ProcessName" or "AutomationId")))
             throw new ArgumentException("מאפייני זיהוי האפליקציה אינם תקינים.");
         if (!File.Exists(V5GuideReader.DatabasePath))
             throw new FileNotFoundException("מסד הנתונים V5 לא נמצא.", V5GuideReader.DatabasePath);
