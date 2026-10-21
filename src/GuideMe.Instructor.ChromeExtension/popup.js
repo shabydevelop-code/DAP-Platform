@@ -51,6 +51,21 @@ async function connectAutomatically() {
   }
 }
 
+document.getElementById("select-target").addEventListener("click", async () => {
+  const button = document.getElementById("select-target");
+  button.disabled = true;
+  status.textContent = "מזהה לשונית...";
+  try {
+    const response = await chrome.runtime.sendMessage({ type: "guideme-instructor-select-target" });
+    if (!response?.ok) throw new Error(response?.error || "בחירת הלשונית נכשלה.");
+    status.textContent = "הלשונית נבחרה: " + response.url + ". חזור לחלונית ה־Instructor ואשר.";
+  } catch (error) {
+    status.textContent = "בחירת הלשונית נכשלה: " + String(error.message || error);
+  } finally {
+    button.disabled = false;
+  }
+});
+
 document.getElementById("disconnect").addEventListener("click", async () => {
   try {
     const response = await chrome.runtime.sendMessage({ type: "guideme-instructor-stop" });
