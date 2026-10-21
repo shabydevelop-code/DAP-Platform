@@ -187,10 +187,7 @@ public partial class MainWindow
             SelectedMatcherValue.Text = choice.Value;
             TargetSelectionStatus.Text = "האפליקציה נבחרה.";
             ApplicationTechnicalDetails.Text = "ContextId: " + choice.Id +
-                "\
-Runtime: " + choice.Runtime + "\
-Kind: " + choice.Kind + "\
-Value: " + choice.Value;
+                "\nRuntime: " + choice.Runtime + "\nKind: " + choice.Kind + "\nValue: " + choice.Value;
         }
         RefreshConnection();
     }
