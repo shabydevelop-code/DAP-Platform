@@ -100,6 +100,7 @@ public partial class MainWindow
                 V5GuideWriter.SaveApplicationContext(_loadedGuide.Id, SelectedContextId.Text,
                     selected.Runtime, selected.Property, selected.Value);
                 ContextsDetails.Text = V5GuideReader.ReadTable(_loadedGuide.Id, "ApplicationContexts");
+                RefreshApplicationContextChoices(contextId);
                 TargetSelectionStatus.Text = "היעד זוהה והקשר האפליקציה נשמר אוטומטית.";
                 RefreshConnection();
             }
@@ -112,55 +113,83 @@ public partial class MainWindow
         }
     }
 
+    private sealed record ContextOption(string Id, string Runtime, string Kind, string Value)
+    {
+        public string Display => Runtime + " — " + Id + " — " + Kind + ": " + Value;
+    }
+
+    private bool _loadingContextChoices;
+
+    private void RefreshApplicationContextChoices(string? preferredId = null)
+    {
+        if (_loadedGuide is null) return;
+        var choices = new System.Collections.Generic.List<ContextOption>();
+        var contexts = V5GuideReader.ReadGuideTable(_loadedGuide.Id, "ApplicationContexts");
+        foreach (System.Data.DataRow row in contexts.Rows)
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(row["MatchersJson"].ToString() ?? "[]");
+            foreach (var matcher in doc.RootElement.EnumerateArray())
+            {
+                var propertyName = matcher.TryGetProperty("Kind", out _) ? "Kind" :
+                    matcher.TryGetProperty("Property", out _) ? "Property" : null;
+                if (propertyName is null || !matcher.TryGetProperty("Value", out var value)) continue;
+                var kind = matcher.GetProperty(propertyName).GetString() ?? "";
+                var expected = value.GetString() ?? "";
+                var runtime = row["Runtime"].ToString() ?? "";
+                if (string.IsNullOrWhiteSpace(expected) ||
+                    (runtime == "Web" && kind != "UrlHost") ||
+                    (runtime == "Windows" && kind is not ("AutomationId" or "ProcessName"))) continue;
+                choices.Add(new ContextOption(row["ContextId"].ToString() ?? "", runtime, kind, expected));
+                break;
+            }
+        }
+        _loadingContextChoices = true;
+        try
+        {
+            ApplicationContextChoices.ItemsSource = choices;
+            ApplicationContextChoices.SelectedItem = choices.Find(c => c.Id == preferredId) ??
+                choices.Find(c => c.Runtime == "Web") ?? (choices.Count > 0 ? choices[0] : null);
+        }
+        finally { _loadingContextChoices = false; }
+        ApplySelectedContext();
+    }
+
+    private void ApplySelectedContext()
+    {
+        if (ApplicationContextChoices.SelectedItem is not ContextOption choice)
+        {
+            SelectedRuntime.Clear();
+            SelectedContextId.Clear();
+            SelectedMatcherProperty.Clear();
+            SelectedMatcherValue.Clear();
+            TargetSelectionStatus.Text = "לא נמצא הקשר נתמך בלומדה. בחר אפליקציית יעד.";
+        }
+        else
+        {
+            SelectedRuntime.Text = choice.Runtime;
+            SelectedContextId.Text = choice.Id;
+            SelectedMatcherProperty.Text = choice.Kind;
+            SelectedMatcherValue.Text = choice.Value;
+            TargetSelectionStatus.Text = "הקשר האפליקציה נטען. הזמינות נבדקת באופן שוטף.";
+        }
+        RefreshConnection();
+    }
+
+    private void ApplicationContextChoices_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_loadingContextChoices)
+            ApplySelectedContext();
+    }
+
     private void ExistingGuideSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (ExistingGuides.SelectedItem is not V5GuideReader.GuideInfo guide) return;
         LoadExistingGuide_Click(sender, e);
         if (_loadedGuide?.Id != guide.Id) return;
-        // Persisted identity is independent of whether its target is currently open.
-        SelectedRuntime.Text = "";
-        SelectedContextId.Text = "";
-        SelectedMatcherProperty.Text = "";
-        SelectedMatcherValue.Text = "";
-        try
-        {
-            var contexts = V5GuideReader.ReadGuideTable(guide.Id, "ApplicationContexts");
-            if (contexts.Rows.Count == 0)
-            {
-                TargetSelectionStatus.Text = "לא הוגדר הקשר אפליקציה. יש לבחור חלון.";
-                RefreshConnection();
-                return;
-            }
-            foreach (System.Data.DataRow row in contexts.Rows)
-            {
-                using var doc = System.Text.Json.JsonDocument.Parse(row["MatchersJson"].ToString() ?? "[]");
-                foreach (var matcher in doc.RootElement.EnumerateArray())
-                {
-                    var propertyName = matcher.TryGetProperty("Kind", out var kindProperty) ? "Kind" :
-                        matcher.TryGetProperty("Property", out _) ? "Property" : null;
-                    if (propertyName is null ||
-                        !matcher.TryGetProperty("Value", out var value)) continue;
-                    var kind = matcher.GetProperty(propertyName).GetString();
-                    var expected = value.GetString();
-                    var runtime = row["Runtime"].ToString();
-                    if (string.IsNullOrWhiteSpace(expected) ||
-                        (runtime == "Web" && kind != "UrlHost") ||
-                        (runtime == "Windows" && kind != "ProcessName")) continue;
-                    SelectedRuntime.Text = runtime;
-                    SelectedContextId.Text = row["ContextId"].ToString();
-                    SelectedMatcherProperty.Text = kind;
-                    SelectedMatcherValue.Text = expected;
-                    TargetSelectionStatus.Text = "הקשר האפליקציה נטען. הזמינות נבדקת באופן שוטף.";
-                    RefreshConnection();
-                    return;
-                }
-            }
-            TargetSelectionStatus.Text = "לא נמצא הקשר נתמך בלומדה. בחר חלון יעד.";
-            RefreshConnection();
-        }
+        try { RefreshApplicationContextChoices(); }
         catch (Exception ex)
         {
-            TargetSelectionStatus.Text = "טעינת הקשר נכשלה: " + ex.Message;
+            TargetSelectionStatus.Text = "טעינת הקשרים נכשלה: " + ex.Message;
             RefreshConnection();
         }
     }
