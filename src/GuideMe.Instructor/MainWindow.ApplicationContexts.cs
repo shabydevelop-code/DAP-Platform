@@ -158,4 +158,36 @@ public partial class MainWindow
         }
     }
 
+    private void DeleteGuide_Click(object sender, RoutedEventArgs e)
+    {
+        if (ExistingGuides.SelectedItem is not V5GuideReader.GuideInfo guide)
+        {
+            MessageBox.Show("בחר לומדה למחיקה.", "GuideMe Instructor");
+            return;
+        }
+        if (_state != RecordingState.Ready)
+        {
+            MessageBox.Show("יש לסיים הקלטה או סקירת שלב לפני מחיקת לומדה.", "GuideMe Instructor");
+            return;
+        }
+        var confirmation = MessageBox.Show(
+            "למחוק לצמיתות את הלומדה '" + guide.Name + "' (GuideId=" + guide.Id +
+            ") ואת כל ההקשרים, השלבים, הרכיבים והכללים שלה?\\nלא ניתן לבטל פעולה זו.",
+            "אישור מחיקת לומדה",
+            MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No);
+        if (confirmation != MessageBoxResult.Yes) return;
+        try
+        {
+            V5GuideWriter.DeleteGuide(guide.Id);
+            ClearWorkspace_Click(sender, e);
+            ExistingGuides.ItemsSource = V5GuideReader.ListGuides();
+            DatabaseStatus.Text = "הלומדה וכל מרכיביה נמחקו ממסד הנתונים.";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show("מחיקת הלומדה נכשלה: " + ex.Message,
+                "GuideMe Instructor", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
 }
