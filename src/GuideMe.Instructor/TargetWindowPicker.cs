@@ -90,6 +90,24 @@ internal sealed class TargetWindowPicker : Window
         Closed += (_, _) => _timer.Stop();
     }
 
+    internal static bool IsWindowsTargetAvailable(string matcherKind, string matcherValue)
+    {
+        if (string.IsNullOrWhiteSpace(matcherValue)) return false;
+        try
+        {
+            if (matcherKind == "ProcessName")
+                return Process.GetProcessesByName(matcherValue).Length > 0;
+            if (matcherKind == "AutomationId")
+                return AutomationElement.RootElement.FindFirst(
+                    TreeScope.Children,
+                    new PropertyCondition(AutomationElement.AutomationIdProperty, matcherValue)) is not null;
+        }
+        catch (ElementNotAvailableException) { }
+        catch (System.Runtime.InteropServices.COMException) { }
+        catch (InvalidOperationException) { }
+        return false;
+    }
+
     private void RefreshBrowserSelection()
     {
         // The browser tab is a transient capture surface, not application identity.
