@@ -238,6 +238,22 @@ public partial class MainWindow
         }
         try
         {
+            var contexts = V5GuideReader.ReadGuideTable(_loadedGuide.Id, "ApplicationContexts");
+            foreach (System.Data.DataRow row in contexts.Rows)
+            {
+                if (row["ContextId"].ToString() == choice.Id ||
+                    row["Runtime"].ToString() != target.Runtime) continue;
+                using var doc = System.Text.Json.JsonDocument.Parse(row["MatchersJson"].ToString() ?? "[]");
+                foreach (var matcher in doc.RootElement.EnumerateArray())
+                    if (matcher.TryGetProperty("Value", out var value) &&
+                        string.Equals(value.GetString(), target.Value, StringComparison.OrdinalIgnoreCase))
+                        throw new InvalidOperationException("האפליקציה שנבחרה כבר קיימת בלומדה.");
+            }
+            var stepCount = V5GuideWriter.CountApplicationSteps(_loadedGuide.Id, choice.Id);
+            if (stepCount > 0 && MessageBox.Show(
+                "לאפליקציה משויכים " + stepCount + " שלבים. החלפת היעד תשנה את האפליקציה שאליה הם מפנים. להמשיך?",
+                "החלפת יעד", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+                return;
             V5GuideWriter.SaveApplicationContext(_loadedGuide.Id, choice.Id,
                 target.Runtime, target.Property, target.Value);
             ContextsDetails.Text = V5GuideReader.ReadTable(_loadedGuide.Id, "ApplicationContexts");
