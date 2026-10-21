@@ -148,8 +148,6 @@ public partial class MainWindow : Window
             ExistingGuides.ItemsSource = V5GuideReader.ListGuides();
             ExistingGuides.SelectedItem = ((System.Collections.Generic.IEnumerable<V5GuideReader.GuideInfo>)ExistingGuides.ItemsSource)
                 .FirstOrDefault(g => g.Id == created.Id);
-            _loadedGuide = null;
-            LoadExistingGuide_Click(sender, e);
             WorkspaceTabs.SelectedIndex = 0;
             GuideSettingsTabs.SelectedIndex = 0;
             SetNewGuideMode(false);
