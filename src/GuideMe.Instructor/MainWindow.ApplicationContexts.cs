@@ -123,7 +123,10 @@ public partial class MainWindow
 
     private sealed record ContextOption(string Id, string Runtime, string Kind, string Value)
     {
-        public string Display => Runtime + " — " + Id + " — " + Kind + ": " + Value;
+        public string DisplayTitle => Runtime == "Web" ? "אפליקציית אינטרנט" : "אפליקציית Windows";
+        public string DisplayDetail => Kind == "UrlHost" ? Value :
+            Kind == "AutomationId" ? "חלון מזוהה: " + Value :
+            "תהליך מזוהה: " + Value;
     }
 
     private bool _loadingContextChoices;
@@ -151,6 +154,7 @@ public partial class MainWindow
                 break;
             }
         }
+        NoApplicationsMessage.Visibility = choices.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         _loadingContextChoices = true;
         try
         {
