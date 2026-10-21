@@ -21,43 +21,27 @@ public partial class MainWindow
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     private static extern uint GetWindowThreadProcessId(IntPtr window, out uint processId);
 
-    private async void SelectApplicationWindow_Click(object sender, RoutedEventArgs e)
+    private void SelectApplicationWindow_Click(object sender, RoutedEventArgs e)
     {
-        TargetSelectionStatus.Text = "עבור לחלון היעד. הזיהוי יתבצע בעוד שלוש שניות.";
-        await System.Threading.Tasks.Task.Delay(3000);
-        try
+        var picker = new TargetWindowPicker(_capture);
+        TargetSelectionStatus.Text = "מצב בחירת חלון פעיל. ניתן לעבור בין אפליקציות ללא הגבלת זמן.";
+        var selected = picker.ShowDialog() == true ? picker.Selection : null;
+        if (selected is null)
         {
-            var window = GetForegroundWindow();
-            GetWindowThreadProcessId(window, out var pid);
-            using var process = System.Diagnostics.Process.GetProcessById((int)pid);
-            var name = process.ProcessName;
-            if (name.Equals("GuideMe.Instructor", StringComparison.OrdinalIgnoreCase))
-                throw new InvalidOperationException("יש לבחור חלון יעד שאינו Instructor.");
-            if (name is "chrome" or "msedge" or "firefox")
-            {
-                if (!Uri.TryCreate(_capture.ActiveWebUrl, UriKind.Absolute, out var uri))
-                    throw new InvalidOperationException("לא התקבלה כתובת אתר מהתוסף.");
-                SelectedRuntime.Text = "Web";
-                SelectedMatcherProperty.Text = "UrlHost";
-                SelectedMatcherValue.Text = uri.Host;
-                if (string.IsNullOrWhiteSpace(SelectedContextId.Text)) SelectedContextId.Text = "web-main";
-            }
-            else
-            {
-                SelectedRuntime.Text = "Windows";
-                SelectedMatcherProperty.Text = "ProcessName";
-                SelectedMatcherValue.Text = name;
-                if (string.IsNullOrWhiteSpace(SelectedContextId.Text)) SelectedContextId.Text = "windows-main";
-            }
-            TargetSelectionStatus.Text = "החלון זוהה. בדוק ושמור את ההקשר.";
-            NewGuideTargetStatus.Text = $"נבחר: {SelectedRuntime.Text} — {SelectedMatcherValue.Text}";
-            _pendingNewGuideTarget = NewGuidePanel.Visibility == Visibility.Visible;
-            if (_pendingNewGuideTarget) CreateNewGuideButton.IsEnabled = true;
+            TargetSelectionStatus.Text = "בחירת החלון בוטלה.";
+            return;
         }
-        catch (Exception ex)
-        {
-            TargetSelectionStatus.Text = "בחירת חלון נכשלה: " + ex.Message;
-        }
+        SelectedRuntime.Text = selected.Runtime;
+        SelectedMatcherProperty.Text = selected.Property;
+        SelectedMatcherValue.Text = selected.Value;
+        if (string.IsNullOrWhiteSpace(SelectedContextId.Text) ||
+            (selected.Runtime == "Windows" && SelectedContextId.Text == "web-main") ||
+            (selected.Runtime == "Web" && SelectedContextId.Text == "windows-main"))
+            SelectedContextId.Text = selected.Runtime == "Web" ? "web-main" : "windows-main";
+        TargetSelectionStatus.Text = "נבחר חלון יעד: " + selected.Title;
+        NewGuideTargetStatus.Text = "נבחר: " + selected.Title;
+        _pendingNewGuideTarget = NewGuidePanel.Visibility == Visibility.Visible;
+        if (_pendingNewGuideTarget) CreateNewGuideButton.IsEnabled = true;
     }
 
     private void ExistingGuideSelectionChanged(object sender, SelectionChangedEventArgs e)
