@@ -112,11 +112,15 @@ internal sealed class TargetWindowPicker : Window
                 processName.Equals("firefox", StringComparison.OrdinalIgnoreCase);
             if (isBrowser)
             {
-                if (!Uri.TryCreate(_capture.ActiveWebUrl, UriKind.Absolute, out var uri))
+                var reportedTitle = _capture.ActiveWebTitle;
+                var fresh = DateTimeOffset.UtcNow - _capture.ActiveWebReportedAt < TimeSpan.FromSeconds(5);
+                var titleMatches = !string.IsNullOrWhiteSpace(reportedTitle) &&
+                    title.Contains(reportedTitle, StringComparison.OrdinalIgnoreCase);
+                if (!fresh || !titleMatches || !Uri.TryCreate(_capture.ActiveWebUrl, UriKind.Absolute, out var uri))
                 {
                     _candidate = null;
                     _confirm.IsEnabled = false;
-                    _status.Text = "דפדפן: " + title + " — ממתין לזיהוי לשונית מהתוסף.";
+                    _status.Text = "דפדפן: " + title + " — אין התאמה מאומתת ללשונית הפעילה. עבור ללשונית היעד ונסה שוב.";
                     return;
                 }
                 _candidate = new TargetWindowSelection("Web", "UrlHost", uri.Host, title + " — " + uri.Host);
