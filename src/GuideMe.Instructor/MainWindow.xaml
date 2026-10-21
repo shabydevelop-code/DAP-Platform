@@ -153,7 +153,7 @@
               <TextBox x:Name="GuideKey" Visibility="Collapsed"/>
             </StackPanel>
           </StackPanel>
-          <Border Grid.Row="2" x:Name="NewGuidePanel" Visibility="Collapsed" Background="White" BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="22">
+          <Border Grid.Row="2" x:Name="NewGuidePanel" IsVisibleChanged="NewGuidePanel_VisibilityChanged" Visibility="Collapsed" Background="White" BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="22">
             <StackPanel>
               <TextBlock Text="יצירת לומדה חדשה" Style="{StaticResource SectionTitle}"/>
               <TextBlock Text="שם הלומדה" Margin="0,18,0,6"/>
