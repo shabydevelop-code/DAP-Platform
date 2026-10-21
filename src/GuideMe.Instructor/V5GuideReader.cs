@@ -10,7 +10,10 @@ namespace GuideMe.Instructor;
 internal static class V5GuideReader
 {
     internal const string DatabasePath = @"C:\ProgramData\GuideMe\Data\GuideMe-V5.db";
-    internal sealed record GuideInfo(long Id, string Key, string Name);
+    internal sealed record GuideInfo(long Id, string Key, string Name)
+    {
+        public string DisplayName => $"{Id} — {Name}";
+    }
     internal sealed record StepInfo(string Id, int Order, bool Enabled, string? Bubble);
 
     private static SqliteConnection Open()
