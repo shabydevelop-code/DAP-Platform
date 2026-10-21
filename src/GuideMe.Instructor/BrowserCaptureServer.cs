@@ -74,6 +74,28 @@ internal sealed class BrowserCaptureServer : IDisposable
                 ctx.Response.StatusCode = 403;
                 return;
             }
+            // Bootstrap is available only to an extension origin and only during
+            // an explicit, short-lived pairing window opened in Instructor.
+            if (ctx.Request.HttpMethod == "OPTIONS" && ctx.Request.Url?.AbsolutePath == "/pair")
+            {
+                var origin = ctx.Request.Headers["Origin"];
+                if (!IsExtensionOrigin(origin)) { ctx.Response.StatusCode = 403; return; }
+                ctx.Response.Headers["Access-Control-Allow-Origin"] = origin!;
+                ctx.Response.Headers["Access-Control-Allow-Methods"] = "POST";
+                ctx.Response.Headers["Access-Control-Allow-Headers"] = "Content-Type";
+                ctx.Response.StatusCode = 204;
+                return;
+            }
+            if (ctx.Request.HttpMethod == "POST" && ctx.Request.Url?.AbsolutePath == "/pair")
+            {
+                var origin = ctx.Request.Headers["Origin"];
+                if (!IsExtensionOrigin(origin)) { ctx.Response.StatusCode = 403; return; }
+                ctx.Response.Headers["Access-Control-Allow-Origin"] = origin!;
+                ctx.Response.ContentType = "application/json";
+                var bytes = System.Text.Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { token = _token }));
+                await ctx.Response.OutputStream.WriteAsync(bytes);
+                return;
+            }
             // The session token is not exposed to websites. A future extension
             // bridge must obtain it from the Instructor's explicit pairing flow.
             if (!string.Equals(ctx.Request.Headers["X-GuideMe-Capture-Token"], _token, StringComparison.Ordinal))
@@ -142,6 +164,16 @@ internal sealed class BrowserCaptureServer : IDisposable
         catch (JsonException) { ctx.Response.StatusCode = 400; }
         catch (Exception) { ctx.Response.StatusCode = 500; }
         finally { ctx.Response.Close(); }
+    }
+
+    private static bool IsExtensionOrigin(string? origin)
+    {
+        if (string.IsNullOrWhiteSpace(origin)) return false;
+        return Uri.TryCreate(origin, UriKind.Absolute, out var uri)
+            && uri.Scheme == "chrome-extension"
+            && uri.Host.Length == 32
+            && uri.Host.All(c => c is >= 'a' and <= 'p')
+            && uri.AbsolutePath == "/";
     }
 
     public void Dispose()
