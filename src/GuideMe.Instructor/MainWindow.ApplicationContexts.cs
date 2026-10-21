@@ -7,6 +7,14 @@ namespace GuideMe.Instructor;
 public partial class MainWindow
 {
     private bool _pendingNewGuideTarget;
+
+    private void NewGuidePanel_VisibilityChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (NewGuidePanel?.Visibility != Visibility.Visible || CreateNewGuideButton is null) return;
+        _pendingNewGuideTarget = false;
+        CreateNewGuideButton.IsEnabled = false;
+        NewGuideTargetStatus.Text = "טרם נבחר חלון יעד";
+    }
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     private static extern IntPtr GetForegroundWindow();
 
@@ -44,6 +52,7 @@ public partial class MainWindow
             TargetSelectionStatus.Text = "החלון זוהה. בדוק ושמור את ההקשר.";
             NewGuideTargetStatus.Text = $"נבחר: {SelectedRuntime.Text} — {SelectedMatcherValue.Text}";
             _pendingNewGuideTarget = NewGuidePanel.Visibility == Visibility.Visible;
+            if (_pendingNewGuideTarget) CreateNewGuideButton.IsEnabled = true;
         }
         catch (Exception ex)
         {
