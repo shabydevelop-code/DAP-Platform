@@ -246,4 +246,5 @@ internal sealed class BrowserCaptureServer : IDisposable
 }
 
 internal sealed record BrowserCaptureEvent(DateTimeOffset Timestamp, string Kind, string Url, string Tag, string Label, string ElementId, string Before, string After, string Value, string Name, string FrameSelector, string ContextCandidate);
-\ninternal sealed record BrowserTargetSelection(string Authority, string Title, int TabId, int WindowId, DateTimeOffset SelectedAt);\n
+
+internal sealed record BrowserTargetSelection(string Authority, string Title, int TabId, int WindowId, DateTimeOffset SelectedAt);
