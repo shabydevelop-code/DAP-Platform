@@ -70,6 +70,57 @@ VALUES ($key, $name) RETURNING GuideId";
         }
     }
 
+    internal static V5GuideReader.GuideInfo CreateGuideWithContext(
+        string name, string contextId, string runtime, string matcherProperty, string matcherValue)
+    {
+        name = name.Trim();
+        contextId = contextId.Trim();
+        matcherValue = matcherValue.Trim();
+        if (name.Length is < 1 or > 256)
+            throw new ArgumentException("שם הלומדה חייב להכיל בין 1 ל־256 תווים.");
+        if (string.IsNullOrWhiteSpace(contextId) || string.IsNullOrWhiteSpace(matcherValue))
+            throw new ArgumentException("יש לבחור חלון יעד תקין לפני יצירת הלומדה.");
+        if (runtime is not ("Web" or "Windows") ||
+            (runtime == "Web" && matcherProperty != "UrlHost") ||
+            (runtime == "Windows" && matcherProperty != "ProcessName"))
+            throw new ArgumentException("מאפייני זיהוי האפליקציה אינם תקינים.");
+        if (!File.Exists(V5GuideReader.DatabasePath))
+            throw new FileNotFoundException("מסד הנתונים V5 לא נמצא.", V5GuideReader.DatabasePath);
+
+        var key = "guide-" + Guid.NewGuid().ToString("N");
+        var matchers = JsonSerializer.Serialize(new[] { new { Property = matcherProperty, Value = matcherValue } });
+        using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = V5GuideReader.DatabasePath,
+            Mode = SqliteOpenMode.ReadWrite,
+            Pooling = false,
+            DefaultTimeout = 3
+        }.ToString());
+        connection.Open();
+        using var transaction = connection.BeginTransaction();
+        using var insertGuide = connection.CreateCommand();
+        insertGuide.Transaction = transaction;
+        insertGuide.CommandTimeout = 3;
+        insertGuide.CommandText = "INSERT INTO Guides (GuideKey, GuideName) VALUES ($key, $name) RETURNING GuideId";
+        insertGuide.Parameters.AddWithValue("$key", key);
+        insertGuide.Parameters.AddWithValue("$name", name);
+        var id = Convert.ToInt64(insertGuide.ExecuteScalar());
+
+        using var insertContext = connection.CreateCommand();
+        insertContext.Transaction = transaction;
+        insertContext.CommandTimeout = 3;
+        insertContext.CommandText = @"INSERT INTO ApplicationContexts (GuideId, ContextId, Runtime, MatchersJson)
+VALUES ($guideId, $contextId, $runtime, $matchers)";
+        insertContext.Parameters.AddWithValue("$guideId", id);
+        insertContext.Parameters.AddWithValue("$contextId", contextId);
+        insertContext.Parameters.AddWithValue("$runtime", runtime);
+        insertContext.Parameters.AddWithValue("$matchers", matchers);
+        if (insertContext.ExecuteNonQuery() != 1)
+            throw new InvalidOperationException("שמירת הקשר האפליקציה נכשלה.");
+        transaction.Commit();
+        return new V5GuideReader.GuideInfo(id, key, name);
+    }
+
     // Contexts are independent guide entities; updates never overwrite steps.
     internal static void SaveApplicationContext(long guideId, string contextId, string runtime, string matcherProperty, string matcherValue)
     {
