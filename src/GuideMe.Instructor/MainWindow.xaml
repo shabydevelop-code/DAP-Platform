@@ -204,6 +204,18 @@
                              Text="עדיין לא הוגדרו אפליקציות ללומדה."
                              Style="{StaticResource Hint}" Margin="0,5,0,10"
                              Visibility="Collapsed" HorizontalAlignment="Right"/>
+                  <WrapPanel HorizontalAlignment="Right" Margin="0,3,0,6">
+                    <Button Content="שנה שם" Click="RenameApplication_Click" Margin="0,0,8,0"/>
+                    <Button Content="החלף יעד" Click="ReplaceApplication_Click" Margin="0,0,8,0"/>
+                    <Button Content="הסר אפליקציה" Click="RemoveApplication_Click"/>
+                  </WrapPanel>
+                  <TextBlock x:Name="ApplicationAvailability" Text="בחר אפליקציה כדי לבדוק זמינות."
+                             Style="{StaticResource Hint}" HorizontalAlignment="Right" Margin="0,4,0,6"/>
+                  <Expander Header="פרטי זיהוי" Margin="0,2,0,8">
+                    <StackPanel Margin="8" FlowDirection="RightToLeft">
+                      <TextBlock x:Name="ApplicationTechnicalDetails" TextWrapping="Wrap" FlowDirection="LeftToRight"/>
+                    </StackPanel>
+                  </Expander>
                   <Button Content="+ הוסף אפליקציה" Click="SelectApplicationWindow_Click"
                           HorizontalAlignment="Right" Margin="0,8,0,10"/>
                   <TextBlock x:Name="TargetSelectionStatus" Text="בחר אפליקציה להצגת המצב."
