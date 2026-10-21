@@ -5,20 +5,47 @@ namespace GuideMe.Instructor;
 
 public partial class MainWindow
 {
-    private void SelectApplicationWindow_Click(object sender, RoutedEventArgs e)
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr window, out uint processId);
+
+    private async void SelectApplicationWindow_Click(object sender, RoutedEventArgs e)
     {
         if (_loadedGuide is null) return;
-        var url = _capture.ActiveWebUrl;
-        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        TargetSelectionStatus.Text = "עבור לחלון היעד. הזיהוי יתבצע בעוד שלוש שניות.";
+        await System.Threading.Tasks.Task.Delay(3000);
+        try
         {
-            TargetSelectionStatus.Text = "פתח את לשונית האתר וודא שהתוסף מחובר.";
-            return;
+            var window = GetForegroundWindow();
+            GetWindowThreadProcessId(window, out var pid);
+            using var process = System.Diagnostics.Process.GetProcessById((int)pid);
+            var name = process.ProcessName;
+            if (name.Equals("GuideMe.Instructor", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("יש לבחור חלון יעד שאינו Instructor.");
+            if (name is "chrome" or "msedge" or "firefox")
+            {
+                if (!Uri.TryCreate(_capture.ActiveWebUrl, UriKind.Absolute, out var uri))
+                    throw new InvalidOperationException("לא התקבלה כתובת אתר מהתוסף.");
+                SelectedRuntime.Text = "Web";
+                SelectedMatcherProperty.Text = "UrlHost";
+                SelectedMatcherValue.Text = uri.Host;
+                if (string.IsNullOrWhiteSpace(SelectedContextId.Text)) SelectedContextId.Text = "web-main";
+            }
+            else
+            {
+                SelectedRuntime.Text = "Windows";
+                SelectedMatcherProperty.Text = "ProcessName";
+                SelectedMatcherValue.Text = name;
+                if (string.IsNullOrWhiteSpace(SelectedContextId.Text)) SelectedContextId.Text = "windows-main";
+            }
+            TargetSelectionStatus.Text = "החלון זוהה. בדוק ושמור את ההקשר.";
         }
-        SelectedRuntime.Text = "Web";
-        SelectedContextId.Text = "web-main";
-        SelectedMatcherProperty.Text = "UrlHost";
-        SelectedMatcherValue.Text = uri.Host;
-        TargetSelectionStatus.Text = "זוהה אתר. ניתן לשמור את ההקשר.";
+        catch (Exception ex)
+        {
+            TargetSelectionStatus.Text = "בחירת חלון נכשלה: " + ex.Message;
+        }
     }
 
     private void SaveApplicationContext_Click(object sender, RoutedEventArgs e)
