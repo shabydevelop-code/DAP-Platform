@@ -74,6 +74,31 @@ function initializeAutoConnect() {
   void ensureConnection();
 }
 
+chrome.commands.onCommand.addListener(async command => {
+  if (command !== "select-instructor-target") return;
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    if (!tab?.id || !Number.isInteger(tab.windowId) || !/^https?:/.test(tab.url || "")) return;
+    let { instructorPairing } = await chrome.storage.session.get("instructorPairing");
+    if (!instructorPairing || !(await heartbeat(instructorPairing.token))) {
+      await pairAutomatically(tab.id);
+      instructorPairing = (await chrome.storage.session.get("instructorPairing")).instructorPairing;
+    }
+    await fetch("http://127.0.0.1:53921/select-target", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-GuideMe-Capture-Token": instructorPairing.token
+      },
+      body: JSON.stringify({
+        url: tab.url, title: tab.title || "", tabId: tab.id, windowId: tab.windowId
+      })
+    });
+  } catch {
+    // The Instructor may be closed or the browser tab may be unavailable.
+  }
+});
+
 chrome.runtime.onInstalled.addListener(initializeAutoConnect);
 chrome.runtime.onStartup.addListener(initializeAutoConnect);
 chrome.alarms.onAlarm.addListener(alarm => {
