@@ -46,6 +46,23 @@ public partial class MainWindow
         NewGuideTargetStatus.Text = "נבחר: " + selected.Title;
         _pendingNewGuideTarget = NewGuidePanel.Visibility == Visibility.Visible;
         if (_pendingNewGuideTarget) CreateNewGuideButton.IsEnabled = true;
+        if (!_pendingNewGuideTarget && _loadedGuide is not null)
+        {
+            try
+            {
+                V5GuideWriter.SaveApplicationContext(_loadedGuide.Id, SelectedContextId.Text,
+                    selected.Runtime, selected.Property, selected.Value);
+                ContextsDetails.Text = V5GuideReader.ReadTable(_loadedGuide.Id, "ApplicationContexts");
+                TargetSelectionStatus.Text = "היעד זוהה והקשר האפליקציה נשמר אוטומטית.";
+                RefreshConnection();
+            }
+            catch (Exception ex)
+            {
+                TargetSelectionStatus.Text = "שמירת ההקשר נכשלה: " + ex.Message;
+                MessageBox.Show(TargetSelectionStatus.Text, "GuideMe Instructor",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
     }
 
     private void ExistingGuideSelectionChanged(object sender, SelectionChangedEventArgs e)
