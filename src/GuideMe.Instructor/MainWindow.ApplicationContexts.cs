@@ -28,11 +28,11 @@ public partial class MainWindow
     private void SelectApplicationWindow_Click(object sender, RoutedEventArgs e)
     {
         var picker = new TargetWindowPicker(_capture);
-        TargetSelectionStatus.Text = "מצב בחירת חלון פעיל. ניתן לעבור בין אפליקציות ללא הגבלת זמן.";
+        TargetSelectionStatus.Text = "בחירת אפליקציית יעד. ניתן לעבור בין אפליקציות ללא הגבלת זמן.";
         var selected = picker.ShowDialog() == true ? picker.Selection : null;
         if (selected is null)
         {
-            TargetSelectionStatus.Text = "בחירת החלון בוטלה.";
+            TargetSelectionStatus.Text = "בחירת האפליקציה בוטלה.";
             return;
         }
         SelectedRuntime.Text = selected.Runtime;
@@ -42,7 +42,7 @@ public partial class MainWindow
             (selected.Runtime == "Windows" && SelectedContextId.Text == "web-main") ||
             (selected.Runtime == "Web" && SelectedContextId.Text == "windows-main"))
             SelectedContextId.Text = selected.Runtime == "Web" ? "web-main" : "windows-main";
-        TargetSelectionStatus.Text = "נבחר חלון יעד: " + selected.Title;
+        TargetSelectionStatus.Text = "נבחרה אפליקציית יעד: " + selected.Title;
         NewGuideTargetStatus.Text = "נבחר: " + selected.Title;
         _pendingNewGuideTarget = NewGuidePanel.Visibility == Visibility.Visible;
         if (_pendingNewGuideTarget) CreateNewGuideButton.IsEnabled = true;
