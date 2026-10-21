@@ -64,7 +64,7 @@ public partial class MainWindow
                 using var doc = System.Text.Json.JsonDocument.Parse(row["MatchersJson"].ToString() ?? "[]");
                 foreach (var matcher in doc.RootElement.EnumerateArray())
                 {
-                    if (!matcher.TryGetProperty("Property", out var property) ||
+                    if (!matcher.TryGetProperty("Kind", out var property) ||
                         !matcher.TryGetProperty("Value", out var value)) continue;
                     var kind = property.GetString();
                     var expected = value.GetString();
@@ -72,7 +72,7 @@ public partial class MainWindow
                     bool match = false;
                     if (runtime == "Web" && kind == "UrlHost" &&
                         Uri.TryCreate(_capture.ActiveWebUrl, UriKind.Absolute, out var uri))
-                        match = string.Equals(uri.Host, expected, StringComparison.OrdinalIgnoreCase);
+                        match = string.Equals(uri.Authority, expected, StringComparison.OrdinalIgnoreCase);
                     if (runtime == "Windows" && kind == "ProcessName" && expected is not null)
                         match = System.Diagnostics.Process.GetProcessesByName(expected).Length > 0;
                     if (!match) continue;
