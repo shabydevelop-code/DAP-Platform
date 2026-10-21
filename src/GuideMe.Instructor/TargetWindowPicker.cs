@@ -94,12 +94,18 @@ internal sealed class TargetWindowPicker : Window
         try
         {
             var hwnd = GetForegroundWindow();
-            if (hwnd != IntPtr.Zero)
+            if (hwnd == IntPtr.Zero) return;
+            GetWindowThreadProcessId(hwnd, out var pid);
+            // Returning to the picker (or Instructor) must not invalidate an
+            // already verified target. Only a newly focused external window
+            // can replace the selection.
+            if (pid == Environment.ProcessId) return;
+            if (hwnd != _lastExternalWindow)
             {
-                GetWindowThreadProcessId(hwnd, out var pid);
-                if (pid != Environment.ProcessId) _lastExternalWindow = hwnd;
+                _lastExternalWindow = hwnd;
+                _candidate = null;
+                _confirm.IsEnabled = false;
             }
-            if (_lastExternalWindow == IntPtr.Zero) return;
             GetWindowThreadProcessId(_lastExternalWindow, out var targetPid);
             using var process = Process.GetProcessById((int)targetPid);
             var processName = process.ProcessName;
