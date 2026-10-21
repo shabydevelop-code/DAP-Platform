@@ -150,4 +150,39 @@ ON CONFLICT(GuideId, ContextId) DO UPDATE SET Runtime=excluded.Runtime, Matchers
         command.Parameters.AddWithValue("$matchers", matchers);
         command.ExecuteNonQuery();
     }
+    internal static void DeleteGuide(long guideId)
+    {
+        using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = V5GuideReader.DatabasePath,
+            Mode = SqliteOpenMode.ReadWrite,
+            Pooling = false,
+            DefaultTimeout = 3
+        }.ToString());
+        connection.Open();
+        using (var pragma = connection.CreateCommand())
+        {
+            pragma.CommandText = "PRAGMA foreign_keys=ON";
+            pragma.ExecuteNonQuery();
+        }
+        using var transaction = connection.BeginTransaction();
+        // The V5 schema does not define ON DELETE CASCADE. Remove dependent
+        // entities in foreign-key order, atomically, without touching other guides.
+        foreach (var table in new[] {
+            "StepRules", "StepTargets", "ElementAnchors", "Elements",
+            "Steps", "ApplicationContexts", "Guides"
+        })
+        {
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandTimeout = 3;
+            command.CommandText = "DELETE FROM " + table + " WHERE GuideId=$id";
+            command.Parameters.AddWithValue("$id", guideId);
+            var deleted = command.ExecuteNonQuery();
+            if (table == "Guides" && deleted != 1)
+                throw new InvalidOperationException("הלומדה לא נמצאה או כבר נמחקה.");
+        }
+        transaction.Commit();
+    }
+
 }
