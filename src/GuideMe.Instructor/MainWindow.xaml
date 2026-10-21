@@ -170,7 +170,62 @@
             <TabItem Header="הגדרות לומדה">
               <TabControl x:Name="GuideSettingsTabs" Background="White" BorderBrush="{StaticResource Line}">
             <TabItem Header="לומדות"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="12" FlowDirection="RightToLeft"><TextBlock Text="שם הלומדה" FontWeight="SemiBold" Margin="0,0,0,6"/><TextBox x:Name="EditableGuideName" FlowDirection="RightToLeft" TextAlignment="Left" IsEnabled="False"/><Button x:Name="SaveGuideButton" Content="שמור שינויים" Click="SaveGuide_Click" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Right" Margin="0,12,0,0" IsEnabled="False"/></StackPanel></ScrollViewer></TabItem>
-            <TabItem Header="הקשרי אפליקציה"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="12"><TextBlock Text="הקשרי אפליקציה · נתונים שמורים" FontFamily="Consolas" FontSize="12" FlowDirection="LeftToRight"/><Button Content="בחר אפליקציה" Click="SelectApplicationWindow_Click" Margin="0,10,0,0"/><Button Content="השווה להקשר המקורי" Click="CompareApplicationContexts_Click" Margin="0,6,0,0"/><ComboBox x:Name="ApplicationContextChoices" SelectionChanged="ApplicationContextChoices_SelectionChanged" DisplayMemberPath="Display" Margin="0,8,0,8" ToolTip="הקשר אפליקציה פעיל"/> <TextBlock x:Name="TargetSelectionStatus" Text="טרם נבחר חלון" TextWrapping="Wrap"/><TextBox x:Name="SelectedRuntime" IsReadOnly="True"/><TextBox x:Name="SelectedContextId"/><TextBox x:Name="SelectedMatcherProperty" IsReadOnly="True"/><TextBox x:Name="SelectedMatcherValue"/><TextBox x:Name="ContextsDetails" Text="לא נטענה לומדה." IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" FlowDirection="LeftToRight" FontFamily="Consolas" FontSize="12" Margin="0,12,0,0" MinHeight="130"/></StackPanel></ScrollViewer></TabItem>
+            <TabItem Header="אפליקציות הלומדה">
+              <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="12" FlowDirection="RightToLeft">
+                  <TextBlock Text="אפליקציות הלומדה" FontWeight="SemiBold" FontSize="19" HorizontalAlignment="Right"/>
+                  <TextBlock Text="האפליקציות שבהן הלומדה פועלת. בחר אפליקציה כדי לראות את מצבה." Style="{StaticResource Hint}" Margin="0,6,0,14" HorizontalAlignment="Right"/>
+                  <ListBox x:Name="ApplicationContextChoices"
+                           SelectionChanged="ApplicationContextChoices_SelectionChanged"
+                           BorderThickness="0" Background="Transparent"
+                           HorizontalContentAlignment="Stretch" MinHeight="60">
+                    <ListBox.ItemContainerStyle>
+                      <Style TargetType="ListBoxItem">
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                        <Setter Property="Margin" Value="0,0,0,8"/>
+                        <Setter Property="Padding" Value="0"/>
+                      </Style>
+                    </ListBox.ItemContainerStyle>
+                    <ListBox.ItemTemplate>
+                      <DataTemplate>
+                        <Border BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="8"
+                                Padding="13" Background="White">
+                          <StackPanel>
+                            <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold"
+                                       HorizontalAlignment="Right" FontSize="15"/>
+                            <TextBlock Text="{Binding DisplayDetail}" Foreground="{StaticResource Muted}"
+                                       TextWrapping="Wrap" HorizontalAlignment="Right" Margin="0,5,0,0"/>
+                          </StackPanel>
+                        </Border>
+                      </DataTemplate>
+                    </ListBox.ItemTemplate>
+                  </ListBox>
+                  <TextBlock x:Name="NoApplicationsMessage"
+                             Text="עדיין לא הוגדרו אפליקציות ללומדה."
+                             Style="{StaticResource Hint}" Margin="0,5,0,10"
+                             Visibility="Collapsed" HorizontalAlignment="Right"/>
+                  <Button Content="+ הוסף אפליקציה" Click="SelectApplicationWindow_Click"
+                          HorizontalAlignment="Right" Margin="0,8,0,10"/>
+                  <TextBlock x:Name="TargetSelectionStatus" Text="בחר אפליקציה להצגת המצב."
+                             TextWrapping="Wrap" HorizontalAlignment="Right" Margin="0,4,0,8"/>
+                  <Expander Header="כלי פיתוח — השוואה למקור" Margin="0,16,0,0"
+                            HorizontalAlignment="Stretch">
+                    <StackPanel Margin="6,8">
+                      <TextBlock Text="השוואה זמנית לבדיקות פיתוח בלבד." Style="{StaticResource Hint}"/>
+                      <Button Content="השווה להקשר המקורי" Click="CompareApplicationContexts_Click"
+                              HorizontalAlignment="Right" Margin="0,8,0,0"/>
+                    </StackPanel>
+                  </Expander>
+                  <StackPanel Visibility="Collapsed">
+                    <TextBox x:Name="SelectedRuntime" IsReadOnly="True"/>
+                    <TextBox x:Name="SelectedContextId"/>
+                    <TextBox x:Name="SelectedMatcherProperty" IsReadOnly="True"/>
+                    <TextBox x:Name="SelectedMatcherValue"/>
+                    <TextBox x:Name="ContextsDetails" IsReadOnly="True"/>
+                  </StackPanel>
+                </StackPanel>
+              </ScrollViewer>
+            </TabItem>
               </TabControl>
             </TabItem>
             <TabItem Header="עריכת שלבים">
