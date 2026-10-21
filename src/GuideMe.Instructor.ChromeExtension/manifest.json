@@ -7,13 +7,20 @@
     "storage",
     "tabs",
     "scripting",
-    "alarms"
+    "alarms",
+    "commands"
   ],
   "host_permissions": [
     "http://*/*",
     "https://*/*",
     "http://127.0.0.1:53921/*"
   ],
+  "commands": {
+    "select-instructor-target": {
+      "suggested_key": { "default": "Alt+Shift+G" },
+      "description": "בחר את הלשונית הפעילה כיעד ב-GuideMe Instructor"
+    }
+  },
   "background": {
     "service_worker": "service-worker.js"
   },
