@@ -2,3 +2,12 @@
 .capture-controls{display:flex;align-items:center;gap:11px;flex-wrap:wrap;padding:20px 27px}.capture-target{font-size:12px;color:#74869b;max-width:400px;overflow-wrap:anywhere}.capture-results{margin:0 27px 24px;padding:18px;border:1px solid #e0e8f3;border-radius:12px;background:#f8fbff}.capture-results h3{font-size:15px;margin:0}.capture-results pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:380px;overflow:auto;direction:ltr;text-align:left;font-size:11px;color:#39536f}.btn:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}
 
 .guide-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.guide-actions .danger{border:1px solid #f1cbd3}.guide-actions .danger:hover{background:#ffe5e9}
+
+/* Recording belongs to the selected step, never to the global dashboard. */
+.step-capture{border-top:1px solid #e7edf5;padding:20px 27px 24px;background:#fcfdff}
+.step-capture-heading h3{font-size:15px;margin:0;color:#213b55}
+.step-capture-heading p{margin-top:6px}
+.step-capture .capture-controls{padding:16px 0 10px}
+.step-capture>.capture-target{display:block;margin:0 0 4px}
+.step-capture .capture-results{margin:14px 0 0}
+.connection-status{white-space:nowrap}
