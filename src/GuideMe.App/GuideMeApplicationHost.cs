@@ -345,6 +345,13 @@ public static class GuideMeApplicationHost
         var bubbles = new WindowsBubblePresenter(texts);
         using var userStopped = new CancellationTokenSource();
         using var indicator = new GuideSessionIndicator(texts, () => userStopped.Cancel());
+        // Presentation is removed as soon as the target exits; runtime cleanup
+        // (including UI Automation subscriptions) may finish later.
+        using var targetClosedPresentation = targetClosed.Token.Register(() =>
+        {
+            indicator.Hide();
+            _ = bubbles.HideAsync();
+        });
         using var stopRegistration = userStopped.Token.Register(() => runCancellation.Cancel());
         var runtime = new WindowsGuideRuntime(resolver, bubbles);
 
@@ -519,6 +526,7 @@ public static class GuideMeApplicationHost
         browserAdapter.TargetTabClosed += () =>
         {
             Console.Error.WriteLine("[GuideMe diagnostic] TargetTabClosed received; cancelling Web guide.");
+            indicator.Hide();
             targetClosed.Cancel();
         };
         browserAdapter.TargetWindowActivationRequested += title => _ = Task.Run(() => ActivateChromeWindowAsync(title, runCancellation.Token));
