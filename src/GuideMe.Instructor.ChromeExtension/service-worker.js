@@ -1,7 +1,7 @@
 // Instructor transport is separate from the production Native Messaging channel.
-const captureEndpoint = "http://127.0.0.1:53921/event";
-const heartbeatEndpoint = "http://127.0.0.1:53921/heartbeat";
-const targetEndpoint = "http://127.0.0.1:53921/target";
+const captureEndpoint = "http://127.0.0.1:53922/capture/event";
+const heartbeatEndpoint = "http://127.0.0.1:53922/capture/heartbeat";
+const targetEndpoint = "http://127.0.0.1:53922/capture/target";
 async function reportActiveTarget(token, url, title) {
   await fetch(targetEndpoint, { method: "POST", headers: {
     "Content-Type": "application/json", "X-GuideMe-Capture-Token": token
@@ -12,7 +12,7 @@ async function heartbeat(token) {
   return response.ok;
 }
 async function pairAutomatically(tabId) {
-  const response = await fetch("http://127.0.0.1:53921/pair", { method: "POST" });
+  const response = await fetch("http://127.0.0.1:53922/capture/pair", { method: "POST" });
   if (!response.ok) throw new Error("Instructor is unavailable");
   const { token } = await response.json();
   if (!/^[a-f0-9]{32}$/i.test(token) || !(await heartbeat(token)))
@@ -38,7 +38,7 @@ async function ensureConnection(preferredTabId = null, forceInject = false) {
     const tab = preferredTabId === null
       ? (await chrome.tabs.query({ active: true, lastFocusedWindow: true }))[0]
       : await chrome.tabs.get(preferredTabId);
-    if (!tab?.id || !/^https?:/.test(tab.url || "")) return;
+    if (!tab?.id || !/^https?:/.test(tab.url || "") || (tab.url || "").startsWith("http://127.0.0.1:53922/")) return;
 
     let pairing = instructorPairing;
     if (pairing && !(await heartbeat(pairing.token))) {
@@ -75,14 +75,14 @@ function initializeAutoConnect() {
 }
 
 async function selectInstructorTarget(tab) {
-  if (!tab?.id || !Number.isInteger(tab.windowId) || !/^https?:/.test(tab.url || ""))
+  if (!tab?.id || !Number.isInteger(tab.windowId) || !/^https?:/.test(tab.url || "") || (tab.url || "").startsWith("http://127.0.0.1:53922/"))
     throw new Error("יש לפתוח לשונית אתר פעילה.");
   let { instructorPairing } = await chrome.storage.session.get("instructorPairing");
   if (!instructorPairing || !(await heartbeat(instructorPairing.token))) {
     await pairAutomatically(tab.id);
     instructorPairing = (await chrome.storage.session.get("instructorPairing")).instructorPairing;
   }
-  const response = await fetch("http://127.0.0.1:53921/select-target", {
+  const response = await fetch("http://127.0.0.1:53922/capture/select-target", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
