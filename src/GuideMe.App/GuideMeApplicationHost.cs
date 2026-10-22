@@ -190,6 +190,14 @@ public static class GuideMeApplicationHost
         using var stopped = new CancellationTokenSource();
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, stopped.Token);
         using var indicator = new GuideSessionIndicator(texts, () => stopped.Cancel());
+        var bubbles = new WindowsBubblePresenter(texts);
+        using var stopPresentation = stopped.Token.Register(() =>
+        {
+            indicator.Hide();
+            _ = bubbles.HideAsync();
+        });
+        IntPtr watchedWindowsHandle = IntPtr.Zero;
+        Task? windowsWatch = null;
         browser.StopRequested += () => stopped.Cancel();
         browser.TargetTabClosed += () => stopped.Cancel();
         TaskCompletionSource<bool>? pendingWebActivation = null;
@@ -207,7 +215,6 @@ public static class GuideMeApplicationHost
         };
 
         var web = new AdapterWebGuideRuntime(new WebGuideStepRuntime(browser), browser);
-        var bubbles = new WindowsBubblePresenter(texts);
         var windows = new WindowsGuideRuntime(new WindowsTargetResolver(), bubbles);
 
         AutomationElement ResolveWindow(GuideMe.Core.Guides.GuideStep step)
@@ -245,6 +252,15 @@ public static class GuideMeApplicationHost
                     if (runtime == GuideMe.Core.Targets.TargetRuntime.Windows)
                     {
                         var targetWindow = ResolveWindow(step);
+                        watchedWindowsHandle = new IntPtr(targetWindow.Current.NativeWindowHandle);
+                        if (watchedWindowsHandle == IntPtr.Zero || !IsWindow(watchedWindowsHandle))
+                        {
+                            stopped.Cancel();
+                            token.ThrowIfCancellationRequested();
+                        }
+                        // Watch the native window independently of UI Automation.
+                        // A closing UIA provider may throw before a step can finish.
+                        windowsWatch ??= MonitorWindowsTargetAsync(watchedWindowsHandle, stopped, linked.Token);
                         // UIA focus is the effective fallback for a Windows transition.
                         // Apply it immediately instead of waiting through five seconds of
                         // repeated foreground requests (which flash the taskbar).
@@ -288,8 +304,21 @@ public static class GuideMeApplicationHost
         {
             Console.Error.WriteLine("[GuideMe diagnostic] Mixed guide stopped.");
         }
+        catch (Exception ex) when (watchedWindowsHandle != IntPtr.Zero && !IsWindow(watchedWindowsHandle))
+        {
+            // UI Automation may fail during shutdown before the native-window
+            // monitor observes the closure. This is normal target termination.
+            Console.Error.WriteLine($"[GuideMe diagnostic] Mixed Windows target closed during UI automation: {ex}");
+            stopped.Cancel();
+        }
         finally
         {
+            stopped.Cancel();
+            if (windowsWatch is not null)
+            {
+                try { await windowsWatch; }
+                catch (OperationCanceledException) when (linked.IsCancellationRequested) { }
+            }
             await bubbles.HideAsync();
             if (!linked.IsCancellationRequested)
                 await browser.HideBubbleAsync(CancellationToken.None);
