@@ -32,7 +32,7 @@ public sealed class WindowsApplicationContextResolver
             catch (System.ComponentModel.Win32Exception) { }
         }
         if (matches.Count != 1)
-            throw new WindowsApplicationContextMatchException($"Application context '{context.Key}' matched {matches.Count} windows; expected exactly one.");
+            throw new WindowsApplicationContextMatchException($"Application context '{context.Key}' matched {matches.Count} windows; expected exactly one.", matches.Count);
         return matches[0];
     }
 
@@ -52,5 +52,10 @@ public sealed class WindowsApplicationContextResolver
 
 public sealed class WindowsApplicationContextMatchException : InvalidOperationException
 {
-    public WindowsApplicationContextMatchException(string message) : base(message) { }
+    public WindowsApplicationContextMatchException(string message, int? matchCount = null) : base(message)
+    {
+        MatchCount = matchCount;
+    }
+
+    public int? MatchCount { get; }
 }
