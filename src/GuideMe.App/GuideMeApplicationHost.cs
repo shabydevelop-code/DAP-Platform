@@ -199,7 +199,16 @@ public static class GuideMeApplicationHost
         IntPtr watchedWindowsHandle = IntPtr.Zero;
         Task? windowsWatch = null;
         browser.StopRequested += () => stopped.Cancel();
-        browser.TargetTabClosed += () => stopped.Cancel();
+        // Losing an inactive Web tab must not terminate a Windows step.
+        // On the next Web step the runtime can resolve/reconnect its context.
+        var activeMixedRuntime = GuideMe.Core.Targets.TargetRuntime.Web;
+        browser.TargetTabClosed += () =>
+        {
+            if (activeMixedRuntime == GuideMe.Core.Targets.TargetRuntime.Web)
+                stopped.Cancel();
+            else
+                Console.Error.WriteLine("[GuideMe diagnostic] Inactive Web tab closed during Windows step; keeping mixed session active.");
+        };
         TaskCompletionSource<bool>? pendingWebActivation = null;
         browser.TargetWindowActivationRequested += title =>
         {
@@ -275,6 +284,7 @@ public static class GuideMeApplicationHost
                 GuideMe.Core.Targets.TargetRuntime.Web, linked.Token, applicationContexts,
                 async (step, runtime, token) =>
                 {
+                    activeMixedRuntime = runtime;
                     if (runtime == GuideMe.Core.Targets.TargetRuntime.Windows)
                     {
                         var targetWindow = await WaitForWindowsContextAsync(step, token);
