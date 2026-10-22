@@ -10,7 +10,7 @@ internal sealed class InstructorCaptureBridge
 {
     internal const string ExtensionOrigin = "chrome-extension://icnbpbekaibdhbmlnccfcibmmboeckgp";
     private readonly object _gate = new();
-    private readonly string _token = Convert.ToHexString(RandomNumberGenerator.GetBytes(24)).ToLowerInvariant();
+    private readonly string _token = Convert.ToHexString(RandomNumberGenerator.GetBytes(16)).ToLowerInvariant();
     private DateTimeOffset _pairUntil;
     private DateTimeOffset _lastHeartbeat;
     private bool _recording;
