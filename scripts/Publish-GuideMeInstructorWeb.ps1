@@ -7,6 +7,7 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $project = Join-Path $root 'src\GuideMe.Instructor.Web\GuideMe.Instructor.Web.csproj'
 $source = Join-Path $root 'src\GuideMe.Instructor.ChromeExtension'
+$hostProject = Join-Path $root 'src\GuideMe.Instructor.NativeHost\GuideMe.Instructor.NativeHost.csproj'
 
 if (-not (Test-Path $project) -or -not (Test-Path $source)) {
     throw 'GuideMe Instructor Web sources are missing.'
@@ -45,6 +46,36 @@ finally {
         Remove-Item -LiteralPath $staging -Recurse -Force
     }
 }
+
+# Dedicated Instructor Native Host. Never overwrite Learner Native Messaging registration.
+$hostDestination = Join-Path $Destination 'NativeHost'
+dotnet publish $hostProject -c Release -r win-x64 --self-contained false -o $hostDestination
+if ($LASTEXITCODE -ne 0) { throw "Instructor Native Host publish failed ($LASTEXITCODE)." }
+$hostExe = Join-Path $hostDestination 'GuideMe.Instructor.NativeHost.exe'
+if (-not (Test-Path -LiteralPath $hostExe)) { throw "Instructor Native Host not found: $hostExe" }
+$extensionManifest = Get-Content -LiteralPath (Join-Path $source 'manifest.json') -Raw | ConvertFrom-Json
+$keyBytes = [Convert]::FromBase64String($extensionManifest.key)
+$sha256 = [System.Security.Cryptography.SHA256]::Create()
+try { $hash = $sha256.ComputeHash($keyBytes) } finally { $sha256.Dispose() }
+$extensionId = -join ($hash | Select-Object -First 16 | ForEach-Object {
+    [char]([int][char]'a' + ($_ -shr 4)), [char]([int][char]'a' + ($_ -band 15))
+})
+$manifestDir = Join-Path $env:LOCALAPPDATA 'GuideMe\NativeMessaging'
+New-Item -ItemType Directory -Path $manifestDir -Force | Out-Null
+$hostManifestPath = Join-Path $manifestDir 'com.guideme.instructor.json'
+$hostManifest = [ordered]@{
+    name = 'com.guideme.instructor'
+    description = 'GuideMe Instructor Native Messaging Host'
+    path = $hostExe
+    type = 'stdio'
+    allowed_origins = @("chrome-extension://$extensionId/")
+}
+[IO.File]::WriteAllText($hostManifestPath, ($hostManifest | ConvertTo-Json -Depth 4),
+    [Text.UTF8Encoding]::new($false))
+$registryPath = 'HKCU:\Software\Google\Chrome\NativeMessagingHosts\com.guideme.instructor'
+New-Item -Path $registryPath -Force | Out-Null
+Set-Item -Path $registryPath -Value $hostManifestPath
+Write-Host "PASS: Instructor Native Messaging registered for Chrome extension $extensionId"
 
 New-Item -ItemType Directory -Path $ExtensionDestination -Force | Out-Null
 # These obsolete popup files are no longer part of the headless extension.

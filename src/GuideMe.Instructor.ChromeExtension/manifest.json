@@ -1,18 +1,17 @@
 {
   "manifest_version": 3,
   "name": "GuideMe Instructor",
-  "version": "0.3.5",
+  "version": "0.4.0",
   "description": "Headless background capture for GuideMe Web Instructor.",
   "permissions": [
-    "storage",
     "tabs",
     "scripting",
-    "alarms"
+    "alarms",
+    "nativeMessaging"
   ],
   "host_permissions": [
     "http://*/*",
-    "https://*/*",
-    "http://127.0.0.1:53922/*"
+    "https://*/*"
   ],
   "background": {
     "service_worker": "service-worker.js"

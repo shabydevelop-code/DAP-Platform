@@ -192,7 +192,7 @@ async function refreshCaptureStatus() {
   try {
     const state = await api('/capture/status');
     $('capture-status').textContent = state.recording ? 'מקליט' :
-      state.connected ? 'תוסף מחובר' : state.pairingOpen ? 'ממתין לחיבור' : 'תוסף לא מחובר';
+      state.connected ? 'תוסף מחובר' : 'תוסף לא מחובר';
     $('capture-target').textContent = state.tabId && state.guideId === current?.guide?.id &&
       state.contextId === $('capture-context').value
       ? 'לשונית מזוהה: ' + (state.targetTitle || state.targetUrl) :

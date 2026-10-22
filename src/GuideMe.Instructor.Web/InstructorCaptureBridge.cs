@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using System.Text.Json;
 
 namespace GuideMe.Instructor.Web;
@@ -6,10 +5,8 @@ namespace GuideMe.Instructor.Web;
 // Recording state belongs to the Web Instructor host, not to the extension UI.
 internal sealed class InstructorCaptureBridge
 {
-    internal const string ExtensionOrigin = "chrome-extension://icnbpbekaibdhbmlnccfcibmmboeckgp";
     private readonly object _gate = new();
-    private readonly string _token = Convert.ToHexString(RandomNumberGenerator.GetBytes(16)).ToLowerInvariant();
-    private DateTimeOffset _pairUntil, _lastHeartbeat;
+    private DateTimeOffset _lastHeartbeat;
     private bool _recording;
     private readonly List<JsonElement> _events = new();
     private List<CaptureTab> _tabs = new();
@@ -17,22 +14,6 @@ internal sealed class InstructorCaptureBridge
     private string? _selectedContext, _targetUrl, _targetTitle;
     private long? _guideId;
 
-    public bool Verify(string? value) => value is not null &&
-        CryptographicOperations.FixedTimeEquals(
-            System.Text.Encoding.UTF8.GetBytes(value),
-            System.Text.Encoding.UTF8.GetBytes(_token));
-
-    public void OpenPairing() { lock (_gate) _pairUntil = DateTimeOffset.UtcNow.AddSeconds(30); }
-    public string? Pair()
-    {
-        lock (_gate)
-        {
-            if (DateTimeOffset.UtcNow >= _pairUntil) return null;
-            _pairUntil = DateTimeOffset.MinValue;
-            _lastHeartbeat = DateTimeOffset.UtcNow;
-            return _token;
-        }
-    }
     public object Heartbeat(CaptureTab[] tabs)
     {
         if (tabs.Length > 100) throw new ArgumentException("Too many browser tabs.");
@@ -56,7 +37,7 @@ internal sealed class InstructorCaptureBridge
         lock (_gate)
             return new {
                 connected = DateTimeOffset.UtcNow - _lastHeartbeat < TimeSpan.FromSeconds(10),
-                pairingOpen = DateTimeOffset.UtcNow < _pairUntil, recording = _recording,
+                pairingOpen = false, recording = _recording,
                 guideId = _guideId, contextId = _selectedContext,
                 targetUrl = _targetUrl, targetTitle = _targetTitle,
                 tabId = _selectedTab, tabs = _tabs,
