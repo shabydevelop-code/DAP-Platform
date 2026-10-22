@@ -199,16 +199,10 @@ public static class GuideMeApplicationHost
         IntPtr watchedWindowsHandle = IntPtr.Zero;
         Task? windowsWatch = null;
         browser.StopRequested += () => stopped.Cancel();
-        // Losing an inactive Web tab must not terminate a Windows step.
-        // On the next Web step the runtime can resolve/reconnect its context.
-        var activeMixedRuntime = GuideMe.Core.Targets.TargetRuntime.Web;
+        // A mixed guide owns its session independently of individual Web tabs.
+        // Web context transitions wait for a missing tab to become available.
         browser.TargetTabClosed += () =>
-        {
-            if (activeMixedRuntime == GuideMe.Core.Targets.TargetRuntime.Web)
-                stopped.Cancel();
-            else
-                Console.Error.WriteLine("[GuideMe diagnostic] Inactive Web tab closed during Windows step; keeping mixed session active.");
-        };
+            Console.Error.WriteLine("[GuideMe diagnostic] Mixed Web tab closed; retaining the guide session.");
         TaskCompletionSource<bool>? pendingWebActivation = null;
         browser.TargetWindowActivationRequested += title =>
         {
@@ -284,7 +278,6 @@ public static class GuideMeApplicationHost
                 GuideMe.Core.Targets.TargetRuntime.Web, linked.Token, applicationContexts,
                 async (step, runtime, token) =>
                 {
-                    activeMixedRuntime = runtime;
                     if (runtime == GuideMe.Core.Targets.TargetRuntime.Windows)
                     {
                         var targetWindow = await WaitForWindowsContextAsync(step, token);
@@ -323,16 +316,31 @@ public static class GuideMeApplicationHost
 
                     // The extension resolves the exact persisted Web context and selects
                     // its tab. The host then requests foreground activation of that window.
-                    var activation = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-                    pendingWebActivation = activation;
-                    try
+                    var waitingLogged = false;
+                    while (true)
                     {
-                        await browser.ActivateContextWindowAsync(step, token);
-                        await activation.Task.WaitAsync(TimeSpan.FromSeconds(5), token);
-                    }
-                    finally
-                    {
-                        pendingWebActivation = null;
+                        token.ThrowIfCancellationRequested();
+                        var activation = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                        pendingWebActivation = activation;
+                        try
+                        {
+                            if (await browser.TryActivateContextWindowAsync(step, token))
+                            {
+                                await activation.Task.WaitAsync(TimeSpan.FromSeconds(5), token);
+                                break;
+                            }
+                        }
+                        finally
+                        {
+                            pendingWebActivation = null;
+                        }
+                        if (!waitingLogged)
+                        {
+                            Console.Error.WriteLine(
+                                $"[GuideMe diagnostic] Waiting for Web application context '{step.ApplicationContextKey}' to reopen.");
+                            waitingLogged = true;
+                        }
+                        await Task.Delay(250, token);
                     }
                 });
         }
