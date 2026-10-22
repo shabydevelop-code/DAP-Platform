@@ -10,20 +10,14 @@
 </head>
 <body>
 <div class="shell">
-  <aside class="sidebar">
-    <div class="logo"><div class="logo-symbol">✦</div><div><strong>GuideMe</strong><small>INSTRUCTOR</small></div></div>
-    <div class="side-label">סביבת העבודה</div>
-    <button class="nav-item active" id="nav-guides">▤ <span>הלומדות שלי</span></button>
-    <div class="sidebar-bottom"><span class="connected"></span><div><strong>ממשק מקומי</strong><small>נתוני V5 במחשב זה בלבד</small></div></div>
-  </aside>
   <main>
-    <header class="topbar"><div class="breadcrumbs">סביבת עבודה <span>/</span> <b id="breadcrumb">כל הלומדות</b></div><div class="top-actions"><span id="capture-status" class="pill connection-status">תוסף: בודק חיבור</span><span class="pill">Instructor Web</span><div class="avatar">G</div></div></header>
+    <header class="topbar"><div class="brand-heading"><strong>GuideMe <span>Instructor</span></strong><span class="brand-separator">/</span><b id="breadcrumb">כל הלומדות</b></div><div class="top-actions"><span id="capture-status" class="pill connection-status">תוסף: בודק חיבור</span></div></header>
     <div class="content">
       <div class="heading"><div><div class="eyebrow">ניהול תוכן והדרכה</div><h1 id="page-title">הלומדות שלי</h1><p id="page-subtitle">כל המדריכים, האפליקציות והשלבים במקום אחד.</p></div><button id="new-guide" class="btn primary">＋ יצירת לומדה</button></div>
       <div id="notice" class="notice hidden" role="status"></div>
       <section id="list-view">
-        <div class="metrics"><div class="metric"><small>לומדות</small><strong id="total-guides">—</strong><span>במסד הנתונים</span></div><div class="metric"><small>סביבת עבודה</small><strong>V5</strong><span>נתונים קיימים ללא המרה</span></div><div class="metric"><small>אחסון</small><strong>מקומי</strong><span>ללא שירות ענן</span></div></div>
-        <div class="panel"><div class="panel-header"><div><h2>ספריית לומדות</h2><p>בחר לומדה כדי לצפות בשלבים ולנהל אפליקציות.</p></div><input id="guide-search" class="search" placeholder="חיפוש לפי שם או מזהה..."></div><div id="guides-table" class="table-area"></div></div>
+        
+        <div class="panel"><div class="panel-header"><div><h2>ספריית לומדות <span class="guide-count" id="total-guides">—</span></h2><p>בחר לומדה כדי לצפות בשלבים ולנהל אפליקציות.</p></div><input id="guide-search" class="search" placeholder="חיפוש לפי שם או מזהה..."></div><div id="guides-table" class="table-area"></div></div>
       </section>
       <section id="detail-view" class="hidden">
         <div class="detail-top"><button class="back" id="back">← חזרה לכל הלומדות</button><span id="guide-key" class="code-label"></span></div>
@@ -32,7 +26,6 @@
         <div class="panel" id="steps-panel"><div class="panel-header"><div><h2>שלבים</h2><p>בחירת שלב, עריכת תוכן והצגת רכיבי יעד וכללים.</p></div><input id="step-search" class="search" placeholder="חיפוש שלב..."></div><div class="steps-layout"><div id="step-list" class="step-list"></div><div id="step-inspector" class="inspector"><div class="empty-inspector">בחר שלב להצגת הפרטים שלו</div></div></div></div>
         <div class="panel hidden" id="contexts-panel"><div class="panel-header"><div><h2>אפליקציות הלומדה</h2><p>הקשרים מזוהים בנפרד ל־Web ול־Windows.</p></div><button id="add-context" class="btn primary">＋ הוספת אפליקציה</button></div><div id="contexts-list" class="context-cards"></div></div>
       </section>
-      <footer>GuideMe Instructor · סביבת עריכה מקומית · ממשק Web</footer>
     </div>
   </main>
 </div>
