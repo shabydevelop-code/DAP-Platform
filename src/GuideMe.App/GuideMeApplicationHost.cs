@@ -192,7 +192,8 @@ public static class GuideMeApplicationHost
         WindowsBubblePresenter? visibleWindowsBubbles = null;
         using var indicator = new GuideSessionIndicator(options.GuideId!, texts,
             () => stopped.Cancel(), () => visibleWindowsBubbles?.IsBubbleVisible == true ||
-                (browser.IsBubblePresented && IsChromeForeground()));
+                (browser.IsBubblePresented && IsChromeForeground()),
+            showDelay: TimeSpan.FromMilliseconds(1600));
         browser.StopRequested += () => stopped.Cancel();
         browser.TargetTabClosed += () => stopped.Cancel();
         TaskCompletionSource<bool>? pendingWebActivation = null;
@@ -530,7 +531,8 @@ public static class GuideMeApplicationHost
         using var webUserStopped = new CancellationTokenSource();
         using var indicator = new GuideSessionIndicator(options.GuideId!, texts,
             () => { webUserStopped.Cancel(); runCancellation.Cancel(); },
-            () => browserAdapter.IsBubblePresented && IsChromeForeground());
+            () => browserAdapter.IsBubblePresented && IsChromeForeground(),
+            showDelay: TimeSpan.FromMilliseconds(1600));
         browserAdapter.StopRequested += () => { webUserStopped.Cancel(); runCancellation.Cancel(); };
         browserAdapter.TargetTabClosed += () =>
         {
