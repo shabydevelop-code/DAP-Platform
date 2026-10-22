@@ -1,198 +1,106 @@
-// Instructor transport is separate from the production Native Messaging channel.
-const captureEndpoint = "http://127.0.0.1:53922/capture/event";
-const heartbeatEndpoint = "http://127.0.0.1:53922/capture/heartbeat";
-const targetEndpoint = "http://127.0.0.1:53922/capture/target";
-async function reportActiveTarget(token, url, title, tabId) {
-  await fetch(targetEndpoint, { method: "POST", headers: {
-    "Content-Type": "application/json", "X-GuideMe-Capture-Token": token
-  }, body: JSON.stringify({ url, title, tabId }) });
-}
-async function heartbeat(token) {
-  const response = await fetch(heartbeatEndpoint, { method: "POST", headers: { "X-GuideMe-Capture-Token": token } });
-  return response.ok;
-}
-async function pairAutomatically(tabId) {
-  const response = await fetch("http://127.0.0.1:53922/capture/pair", { method: "POST" });
-  if (!response.ok) throw new Error("Instructor is unavailable");
-  const { token } = await response.json();
-  if (!/^[a-f0-9]{32}$/i.test(token) || !(await heartbeat(token)))
-    throw new Error("Instructor rejected connection");
-  await chrome.storage.session.set({ instructorPairing: { token, tabId } });
-  return { ok: true };
-}
+// Headless Instructor-only transport. No popup, shortcut or manual target selection.
+// Authoring permissions are opened in the Web Instructor for a short pairing window.
+const base = "http://127.0.0.1:53922/capture";
+const alarmName = "guideme-instructor-sync";
+let syncing = false;
+let selectedTabId = null;
 
-
-// Auto-connect independently of the extension popup. Chrome MV3 workers are
-// event-driven, so an alarm also discovers an Instructor started after Chrome.
-const autoConnectAlarm = "guideme-instructor-connect";
-let connecting = false;
-
-async function ensureConnection(preferredTabId = null, forceInject = false) {
-  if (connecting) return;
-  connecting = true;
-  try {
-    const { instructorPairing, instructorAutoDisabled } =
-      await chrome.storage.session.get(["instructorPairing", "instructorAutoDisabled"]);
-    if (instructorAutoDisabled) return;
-
-    const tab = preferredTabId === null
-      ? (await chrome.tabs.query({ active: true, lastFocusedWindow: true }))[0]
-      : await chrome.tabs.get(preferredTabId);
-    if (!tab?.id || !/^https?:/.test(tab.url || "") || (tab.url || "").startsWith("http://127.0.0.1:53922/")) return;
-
-    let pairing = instructorPairing;
-    if (pairing && !(await heartbeat(pairing.token))) {
-      await chrome.storage.session.remove("instructorPairing");
-      pairing = null;
-    }
-    if (!pairing) {
-      await pairAutomatically(tab.id);
-      pairing = (await chrome.storage.session.get("instructorPairing")).instructorPairing;
-      forceInject = true;
-    }
-    // The desktop heartbeat proves transport availability, not that the active
-    // website has capture listeners. Bind the selected tab and inject there.
-    await reportActiveTarget(pairing.token, tab.url, tab.title || "", tab.id);
-    if (pairing.tabId !== tab.id || forceInject) {
-      await chrome.scripting.executeScript({
-        target: { tabId: tab.id, allFrames: true },
-        files: ["content-capture.js"]
-      });
-      await chrome.storage.session.set({
-        instructorPairing: { token: pairing.token, tabId: tab.id }
-      });
-    }
-  } catch {
-    // Instructor may be unavailable or this tab may have navigated meanwhile.
-  } finally {
-    connecting = false;
-  }
-}
-
-function initializeAutoConnect() {
-  chrome.alarms.create(autoConnectAlarm, { periodInMinutes: 0.5 });
-  void ensureConnection();
-}
-
-async function selectInstructorTarget(tab) {
-  if (!tab?.id || !Number.isInteger(tab.windowId) || !/^https?:/.test(tab.url || "") || (tab.url || "").startsWith("http://127.0.0.1:53922/"))
-    throw new Error("יש לפתוח לשונית אתר פעילה.");
-  let { instructorPairing } = await chrome.storage.session.get("instructorPairing");
-  if (!instructorPairing || !(await heartbeat(instructorPairing.token))) {
-    await pairAutomatically(tab.id);
-    instructorPairing = (await chrome.storage.session.get("instructorPairing")).instructorPairing;
-  }
-  const response = await fetch("http://127.0.0.1:53922/capture/select-target", {
+async function post(path, token, value) {
+  const response = await fetch(base + path, {
     method: "POST",
     headers: {
-      "Content-Type": "application/json",
-      "X-GuideMe-Capture-Token": instructorPairing.token
+      ...(value === undefined ? {} : { "Content-Type": "application/json" }),
+      ...(token ? { "X-GuideMe-Capture-Token": token } : {})
     },
-    body: JSON.stringify({
-      url: tab.url, title: tab.title || "", tabId: tab.id, windowId: tab.windowId
-    })
+    ...(value === undefined ? {} : { body: JSON.stringify(value) })
   });
-  if (!response.ok) throw new Error("Instructor rejected target: " + response.status);
-  await chrome.scripting.executeScript({
-    target: { tabId: tab.id, allFrames: true },
-    files: ["content-capture.js"]
-  });
-  await chrome.storage.session.set({ instructorPairing: { token: instructorPairing.token, tabId: tab.id } });
-  return { ok: true, url: tab.url };
+  if (!response.ok) throw new Error("Instructor endpoint " + path + ": " + response.status);
+  return response.status === 204 ? null : response.json();
 }
-
-chrome.commands.onCommand.addListener(async command => {
-  if (command !== "select-instructor-target") return;
+async function getPairing() {
+  const result = await chrome.storage.session.get("instructorPairing");
+  return result.instructorPairing?.token ?? null;
+}
+function allowedTab(tab) {
+  return Number.isInteger(tab?.id) &&
+    /^https?:\/\//i.test(tab.url || "") &&
+    !(tab.url || "").startsWith("http://127.0.0.1:53922/");
+}
+async function listTabs() {
+  const tabs = await chrome.tabs.query({});
+  return tabs.filter(allowedTab).slice(0, 100).map(t => ({
+    tabId: t.id, url: t.url, title: String(t.title || "").slice(0, 200)
+  }));
+}
+async function inject(tabId) {
   try {
-    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-    await selectInstructorTarget(tab);
-  } catch (error) {
-    console.warn("GuideMe target selection failed", error);
-  }
-});
-
-chrome.runtime.onInstalled.addListener(initializeAutoConnect);
-chrome.runtime.onStartup.addListener(initializeAutoConnect);
-chrome.alarms.onAlarm.addListener(alarm => {
-  if (alarm.name === autoConnectAlarm) void ensureConnection();
-});
-chrome.windows.onFocusChanged.addListener(windowId => {
-  if (windowId !== chrome.windows.WINDOW_ID_NONE) void ensureConnection();
-});
-chrome.tabs.onActivated.addListener(({ tabId }) => {
-  void ensureConnection(tabId);
-});
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  if (changeInfo.status === "complete" && tab.active && /^https?:/.test(tab.url || "")) {
-    void ensureConnection(tabId, true);
-  }
-});
-chrome.tabs.onRemoved.addListener(async tabId => {
-  const { instructorPairing } = await chrome.storage.session.get("instructorPairing");
-  if (instructorPairing?.tabId === tabId)
-    await chrome.storage.session.remove("instructorPairing");
-});
-// MV3 service workers can restart between events.
-initializeAutoConnect();
-
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message?.type === "guideme-instructor-select-target") {
-    chrome.tabs.query({ active: true, currentWindow: true })
-      .then(([tab]) => selectInstructorTarget(tab))
-      .then(sendResponse)
-      .catch(error => sendResponse({ ok: false, error: String(error.message || error) }));
-    return true;
-  }
-  if (message?.type === "guideme-instructor-auto-pair") {
-    if (!Number.isInteger(message.tabId)) { sendResponse({ ok: false, error: "Invalid tab" }); return false; }
-    chrome.storage.session.remove("instructorAutoDisabled").then(() => pairAutomatically(message.tabId)).then(sendResponse).catch(error => sendResponse({ ok: false, error: String(error.message || error) }));
-    return true;
-  }
-  if (message?.type === "guideme-instructor-pair") {
-    const token = String(message.token || "");
-    if (!/^[a-f0-9]{32}$/i.test(token) || !Number.isInteger(message.tabId)) {
-      sendResponse({ ok: false, error: "Invalid pairing request" });
-      return false;
-    }
-    heartbeat(token).then(async ok => {
-        if (!ok) throw new Error("Instructor rejected pairing");
-        await chrome.storage.session.set({ instructorPairing: { token, tabId: message.tabId } });
-        sendResponse({ ok: true });
-      })
-      .catch(error => sendResponse({ ok: false, error: String(error) }));
-    return true;
-  }
-  if (message?.type === "guideme-instructor-stop") {
-    chrome.storage.session.set({ instructorAutoDisabled: true })
-      .then(() => chrome.storage.session.remove("instructorPairing"))
-      .then(() => sendResponse({ ok: true }))
-      .catch(error => sendResponse({ ok: false, error: String(error) }));
-    return true;
-  }
-  if (message?.type === "guideme-instructor-heartbeat") {
-    chrome.storage.session.get("instructorPairing").then(async state => {
-      const pairing = state.instructorPairing;
-      if (!pairing || pairing.tabId !== sender.tab?.id) return;
-      const ok = await heartbeat(pairing.token);
-      if (!ok) await chrome.storage.session.remove("instructorPairing");
-    }).catch(() => {});
-    return false;
-  }
-  if (message?.type !== "guideme-instructor-event") return false;
-  if (!sender.tab?.id || !sender.url?.startsWith("http")) return false;
-  chrome.storage.session.get("instructorPairing").then(async state => {
-    const pairing = state.instructorPairing;
-    if (!pairing || pairing.tabId !== sender.tab.id) return;
-    const event = message.event;
-    if (!event || !["click", "change", "blur"].includes(event.kind) || typeof event.url !== "string") return;
-    await fetch(captureEndpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-GuideMe-Capture-Token": pairing.token
-      },
-      body: JSON.stringify(event)
+    await chrome.scripting.executeScript({
+      target: { tabId, allFrames: true },
+      files: ["content-capture.js"]
     });
+  } catch (error) {
+    console.warn("GuideMe Instructor could not attach to selected tab", error);
+  }
+}
+async function sync() {
+  if (syncing) return;
+  syncing = true;
+  try {
+    let token = await getPairing();
+    if (!token) {
+      try {
+        const paired = await post("/pair", null);
+        if (!/^[a-f0-9]{32}$/.test(paired.token)) return;
+        token = paired.token;
+        await chrome.storage.session.set({ instructorPairing: { token } });
+      } catch { return; } // Pairing window is closed; do not access websites.
+    }
+    let result;
+    try {
+      result = await post("/heartbeat", token, await listTabs());
+    } catch {
+      await chrome.storage.session.remove("instructorPairing");
+      selectedTabId = null;
+      return;
+    }
+    const nextTabId = result.selectedTabId ?? null;
+    if (nextTabId !== selectedTabId && nextTabId !== null)
+      await inject(nextTabId);
+    selectedTabId = nextTabId;
+  } finally {
+    syncing = false;
+  }
+}
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.alarms.create(alarmName, { periodInMinutes: 0.5 });
+  void sync();
+});
+chrome.runtime.onStartup.addListener(() => {
+  chrome.alarms.create(alarmName, { periodInMinutes: 0.5 });
+  void sync();
+});
+chrome.alarms.onAlarm.addListener(a => { if (a.name === alarmName) void sync(); });
+chrome.tabs.onCreated.addListener(() => void sync());
+chrome.tabs.onActivated.addListener(() => void sync());
+chrome.tabs.onRemoved.addListener(id => {
+  if (selectedTabId === id) selectedTabId = null;
+  void sync();
+});
+chrome.tabs.onUpdated.addListener((id, change) => {
+  if (change.status === "complete") {
+    if (selectedTabId === id) void inject(id);
+    void sync();
+  }
+});
+chrome.windows.onFocusChanged.addListener(() => void sync());
+chrome.runtime.onMessage.addListener((message, sender) => {
+  if (message?.type !== "guideme-instructor-event" || sender.tab?.id !== selectedTabId) return false;
+  const event = message.event;
+  if (!event || !["click", "change", "blur"].includes(event.kind)) return false;
+  void getPairing().then(token => {
+    if (token) return post("/event", token, { tabId: sender.tab.id, event });
   }).catch(() => {});
   return false;
 });
+chrome.alarms.create(alarmName, { periodInMinutes: 0.5 });
+void sync();
