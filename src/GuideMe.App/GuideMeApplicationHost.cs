@@ -189,7 +189,9 @@ public static class GuideMeApplicationHost
         browser.ConfigureApplicationContexts(applicationContexts);
         using var stopped = new CancellationTokenSource();
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, stopped.Token);
-        using var tray = new GuideSessionTray(options.GuideId!, texts, () => stopped.Cancel());
+        WindowsBubblePresenter? visibleWindowsBubbles = null;
+        using var indicator = new GuideSessionIndicator(options.GuideId!, texts,
+            () => stopped.Cancel(), () => visibleWindowsBubbles?.IsBubbleVisible == true);
         browser.StopRequested += () => stopped.Cancel();
         browser.TargetTabClosed += () => stopped.Cancel();
         TaskCompletionSource<bool>? pendingWebActivation = null;
@@ -209,6 +211,7 @@ public static class GuideMeApplicationHost
         var web = new AdapterWebGuideRuntime(
             new WebGuideStepRuntime(browser), browser);
         var bubbles = new WindowsBubblePresenter(texts);
+        visibleWindowsBubbles = bubbles;
         var windows = new WindowsGuideRuntime(new WindowsTargetResolver(), bubbles);
 
         AutomationElement ResolveWindow(GuideMe.Core.Guides.GuideStep step)
@@ -345,7 +348,8 @@ public static class GuideMeApplicationHost
         var resolver = new WindowsTargetResolver();
         var bubbles = new WindowsBubblePresenter(texts);
         using var userStopped = new CancellationTokenSource();
-        using var tray = new GuideSessionTray(options.GuideId!, texts, () => userStopped.Cancel());
+        using var indicator = new GuideSessionIndicator(options.GuideId!, texts,
+            () => userStopped.Cancel(), () => bubbles.IsBubbleVisible);
         using var stopRegistration = userStopped.Token.Register(() => runCancellation.Cancel());
         var runtime = new WindowsGuideRuntime(resolver, bubbles);
 
@@ -513,7 +517,8 @@ public static class GuideMeApplicationHost
         using var targetClosed = new CancellationTokenSource();
         using var runCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, targetClosed.Token);
         using var webUserStopped = new CancellationTokenSource();
-        using var tray = new GuideSessionTray(options.GuideId!, texts, () => { webUserStopped.Cancel(); runCancellation.Cancel(); });
+        using var indicator = new GuideSessionIndicator(options.GuideId!, texts,
+            () => { webUserStopped.Cancel(); runCancellation.Cancel(); });
         browserAdapter.StopRequested += () => { webUserStopped.Cancel(); runCancellation.Cancel(); };
         browserAdapter.TargetTabClosed += () =>
         {
