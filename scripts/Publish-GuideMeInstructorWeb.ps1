@@ -36,6 +36,14 @@ foreach ($file in $files) {
     $b = (Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash
     if ($a -ne $b) { throw "Instructor extension sync verification failed: $($file.Name)" }
 }
+# Materialize dedicated Instructor icons before Chrome reload.
+& (Join-Path $PSScriptRoot 'Generate-GuideMeInstructorIcons.ps1') -Destination $ExtensionDestination
+foreach ($size in @(16, 48, 128)) {
+    $icon = Join-Path $ExtensionDestination "icon$size.png"
+    if (-not (Test-Path -LiteralPath $icon) -or (Get-Item -LiteralPath $icon).Length -eq 0) {
+        throw "Missing generated Instructor icon: $icon"
+    }
+}
 Write-Host "PASS: Instructor Web published to $Destination"
 Write-Host "PASS: $($files.Count) Instructor extension files synchronized to $ExtensionDestination"
 Write-Host 'Reload the unpacked GuideMe Instructor extension at chrome://extensions.'
