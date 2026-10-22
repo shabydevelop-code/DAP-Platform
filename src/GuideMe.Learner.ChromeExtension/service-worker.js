@@ -406,6 +406,11 @@ async function handleNativeMessage(message) {
     const envelope = { ...(message.command || {}) };
     const contextual = envelope.type === "contextualCommand";
     const command = contextual ? { ...(envelope.command || {}) } : envelope;
+    // A mixed guide explicitly entering a Web context may rebind a newly
+    // opened tab after the previously bound tab was closed during Windows.
+    // Other commands retain the existing closed-target protection.
+    if (contextual && command.type === "activateContextWindow")
+      closedProductionContexts.delete(envelope.applicationContextKey);
     const tabId = message.tabId ?? (contextual
       ? await resolveProductionContextTab(envelope.applicationContextKey, envelope.applicationContext)
       : null);
