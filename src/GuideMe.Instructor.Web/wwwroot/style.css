@@ -21,3 +21,18 @@
 .field textarea{width:100%;border:1px solid #dce5ef;border-radius:9px;padding:12px;background:#fff;outline:none;color:#1b334d;font:inherit;resize:vertical;min-height:110px;direction:rtl;text-align:right}
 .field textarea:focus{border-color:#3678e8;box-shadow:0 0 0 3px #3678e815}
 .connection-status.disconnected{color:#8b5866;background:#fff5f5}
+
+/* Instructor has one primary workflow: no persistent sidebar or technical dashboard. */
+.shell{display:block;min-height:100vh}
+.shell main{width:100%;min-width:0}
+.topbar{padding-inline:clamp(18px,4vw,60px)}
+.brand-heading{display:flex;align-items:center;gap:12px;min-width:0;font-size:13px;color:#465a72}
+.brand-heading strong{color:#172b41;font-size:16px;white-space:nowrap}
+.brand-heading strong span{font-weight:500;color:#4472a8}
+.brand-heading b{font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brand-separator{color:#a5b1c0}
+.top-actions{gap:12px}
+.content{width:100%;max-width:1450px;margin-inline:auto}
+.guide-count{display:inline-block;vertical-align:middle;border-radius:8px;background:#eef4fd;color:#366fc8;padding:3px 9px;font-size:12px;font-weight:750;margin-inline-start:7px}
+@media(max-width:1050px){.shell{display:block}}
+@media(max-width:700px){.topbar{padding-inline:16px}.brand-heading{gap:7px}.brand-heading strong{font-size:13px}.top-actions{gap:5px}.connection-status{font-size:11px;padding:7px 9px}}
