@@ -4,77 +4,56 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$root = Split-Path -Parent $PSScriptRoot
-$learnerIcons = Join-Path $root 'src\GuideMe.Learner.ChromeExtension'
 New-Item -ItemType Directory -Path $Destination -Force | Out-Null
 Add-Type -AssemblyName System.Drawing
 
+# The Instructor needs a distinct silhouette at Chrome's 16px toolbar size.
+# A solid blue disc + a large white/gold pencil distinguish it from Learner's
+# thin monochrome bulb. All shapes are vector drawn at a normalized 128px size.
 foreach ($size in @(16, 48, 128)) {
-    $inputPath = Join-Path $learnerIcons "icon$size.png"
-    if (-not (Test-Path -LiteralPath $inputPath)) {
-        throw "GuideMe Learner base icon is missing: $inputPath"
-    }
-
-    $base = [System.Drawing.Image]::FromFile($inputPath)
     $bitmap = [System.Drawing.Bitmap]::new($size, $size, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
-    $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
-    $gold = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(255, 235, 169, 41))
-    $navy = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(255, 31, 47, 67))
-    $white = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::White)
+    $g = [System.Drawing.Graphics]::FromImage($bitmap)
+    $blue = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(255, 29, 99, 200))
+    $gold = [System.Drawing.Pen]::new([System.Drawing.Color]::FromArgb(255, 255, 191, 55), 19)
+    $white = [System.Drawing.Pen]::new([System.Drawing.Color]::White, 10)
+    $outline = [System.Drawing.Pen]::new([System.Drawing.Color]::FromArgb(255, 14, 60, 131), 27)
+    $tip = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::White)
     try {
-        $graphics.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
-        $graphics.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
-        $graphics.Clear([System.Drawing.Color]::Transparent)
-        $graphics.DrawImage($base, 0, 0, $size, $size)
+        $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
+        $g.CompositingQuality = [System.Drawing.Drawing2D.CompositingQuality]::HighQuality
+        $g.Clear([System.Drawing.Color]::Transparent)
+        $g.ScaleTransform($size / 128.0, $size / 128.0)
+        # A large solid disk is clearly identifiable even at 16x16.
+        $g.FillEllipse($blue, 3, 3, 122, 122)
 
-        # Design on a normalized 128x128 canvas, so all icon sizes share one form.
-        $graphics.ScaleTransform($size / 128.0, $size / 128.0)
-        # A white silhouette preserves contrast on light and dark Chrome toolbars.
-        $outline = [System.Drawing.PointF[]]@(
-            ([System.Drawing.PointF]::new(67, 106)),
-            ([System.Drawing.PointF]::new(72, 81)),
-            ([System.Drawing.PointF]::new(99, 50)),
-            ([System.Drawing.PointF]::new(114, 63)),
-            ([System.Drawing.PointF]::new(88, 94)),
-            ([System.Drawing.PointF]::new(67, 106))
-        )
-        $graphics.FillPolygon($white, $outline)
-        $body = [System.Drawing.PointF[]]@(
-            ([System.Drawing.PointF]::new(77, 83)),
-            ([System.Drawing.PointF]::new(99, 57)),
-            ([System.Drawing.PointF]::new(109, 66)),
-            ([System.Drawing.PointF]::new(86, 92))
-        )
-        $graphics.FillPolygon($gold, $body)
-        $tip = [System.Drawing.PointF[]]@(
-            ([System.Drawing.PointF]::new(75, 86)),
-            ([System.Drawing.PointF]::new(86, 95)),
-            ([System.Drawing.PointF]::new(69, 103))
-        )
-        $graphics.FillPolygon($white, $tip)
-        $lead = [System.Drawing.PointF[]]@(
-            ([System.Drawing.PointF]::new(69, 103)),
-            ([System.Drawing.PointF]::new(73, 94)),
-            ([System.Drawing.PointF]::new(79, 100))
-        )
-        $graphics.FillPolygon($navy, $lead)
-        $graphics.FillPolygon($navy, [System.Drawing.PointF[]]@(
-            ([System.Drawing.PointF]::new(101, 54)),
-            ([System.Drawing.PointF]::new(107, 47)),
-            ([System.Drawing.PointF]::new(119, 58)),
-            ([System.Drawing.PointF]::new(113, 65))
+        # Lightbulb identity, deliberately secondary to the pencil.
+        $g.DrawEllipse($white, 28, 19, 70, 71)
+        $g.DrawLine($white, 44, 93, 81, 93)
+        $g.DrawLine($white, 47, 105, 76, 105)
+
+        # Oversized diagonal pencil; outline keeps it legible over the bulb.
+        $g.DrawLine($outline, 48, 109, 107, 46)
+        $g.DrawLine($gold, 48, 109, 107, 46)
+        $g.FillPolygon($tip, [System.Drawing.PointF[]]@(
+            [System.Drawing.PointF]::new(40, 118),
+            [System.Drawing.PointF]::new(45, 94),
+            [System.Drawing.PointF]::new(62, 110)
         ))
+        $g.DrawLine($white, 104, 43, 111, 50)
         $path = Join-Path $Destination "icon$size.png"
         $bitmap.Save($path, [System.Drawing.Imaging.ImageFormat]::Png)
-        if (-not (Test-Path -LiteralPath $path)) { throw "Icon generation failed: $path" }
+        if (-not (Test-Path -LiteralPath $path) -or (Get-Item -LiteralPath $path).Length -eq 0) {
+            throw "Instructor icon generation failed: $path"
+        }
     }
     finally {
-        $graphics.Dispose()
+        $g.Dispose()
         $bitmap.Dispose()
-        $base.Dispose()
+        $blue.Dispose()
         $gold.Dispose()
-        $navy.Dispose()
         $white.Dispose()
+        $outline.Dispose()
+        $tip.Dispose()
     }
 }
-Write-Host 'PASS: GuideMe Instructor icons generated (16, 48, 128).'
+Write-Host 'PASS: distinct Instructor toolbar icons generated (16, 48, 128).'
