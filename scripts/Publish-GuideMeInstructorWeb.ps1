@@ -18,6 +18,12 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 New-Item -ItemType Directory -Path $ExtensionDestination -Force | Out-Null
+# These obsolete popup files are no longer part of the headless extension.
+foreach ($obsolete in @('popup.html', 'popup.js')) {
+    $oldPath = Join-Path $ExtensionDestination $obsolete
+    if (Test-Path -LiteralPath $oldPath) { Remove-Item -LiteralPath $oldPath -Force }
+}
+
 $files = Get-ChildItem $source -File | Where-Object {
     $_.Extension -in @('.js', '.json', '.html', '.css', '.png', '.md')
 }
