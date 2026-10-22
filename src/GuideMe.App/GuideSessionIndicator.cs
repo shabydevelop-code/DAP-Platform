@@ -96,6 +96,20 @@ internal sealed class GuideSessionIndicator : IDisposable
         _window.Top = area.Bottom - _window.ActualHeight - 20;
     }
 
+    // A target may close while guide execution is still unwinding. Hide the
+    // indicator immediately without waiting for the owning session to dispose.
+    public void Hide()
+    {
+        if (_disposed) return;
+        if (_window.Dispatcher.CheckAccess())
+            _window.Hide();
+        else
+            _ = _window.Dispatcher.BeginInvoke(() =>
+            {
+                if (!_disposed) _window.Hide();
+            });
+    }
+
     public void Dispose()
     {
         if (_disposed) return;
