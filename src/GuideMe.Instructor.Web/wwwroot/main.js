@@ -180,7 +180,6 @@ $('rename-guide').onclick=renameGuide;
 $('delete-guide').onclick=deleteGuide;
 $('add-context').onclick=addContext;
 $('back').onclick=showList;
-$('nav-guides').onclick=showList;
 $('close-dialog').onclick=$('cancel-dialog').onclick=()=>$('editor-dialog').close();
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>selectTab(b.dataset.tab));
 function editStep(step) {
