@@ -16,9 +16,6 @@ namespace GuideMe.Runtime.Web.Browser;
 /// </summary>
 public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
 {
-    private volatile bool _bubblePresented;
-    public bool IsBubblePresented => _bubblePresented;
-
     private static readonly string PipeName = "guideMe-web-runtime-v1-" + System.Diagnostics.Process.GetCurrentProcess().SessionId;
     private static readonly TimeSpan CommandTimeout = TimeSpan.FromSeconds(5);
 
@@ -683,7 +680,6 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
         var count = result.TryGetProperty("count", out var n) ? n.GetInt32() : 0;
         if (stepNumber == 1)
             Console.Error.WriteLine($"[GuideMe first bubble diagnostic] step={step.Id}, context={step.ApplicationContextKey}, visible={visible}, status={status}, count={count}.");
-        _bubblePresented = visible && status == "resolved";
         return new(status switch
         {
             "resolved" => WebTargetResolutionStatus.Resolved,
@@ -693,7 +689,6 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
     }
     public async Task HideBubbleAsync(CancellationToken cancellationToken = default)
     {
-        _bubblePresented = false;
         await SendCommandAsync(ActiveContextualCommand(new { type = "hideBubble" }), cancellationToken);
     }
     public async Task WaitForCenteredStepDismissalAsync(
@@ -702,7 +697,6 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
         int totalSteps,
         CancellationToken cancellationToken = default)
     {
-        _bubblePresented = true;
         _centeredDismissal = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         try
         {
@@ -722,7 +716,6 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
         finally
         {
             _centeredDismissal = null;
-            _bubblePresented = false;
         }
     }
     public async Task<string?> CaptureAsync(GuideStep step, CancellationToken cancellationToken = default)
