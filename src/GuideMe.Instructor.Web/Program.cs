@@ -72,20 +72,29 @@ app.Map("/window-session", async context =>
     }
 
     using var socket = await context.WebSockets.AcceptWebSocketAsync();
+    // Kestrel waits for upgraded WebSocket requests during graceful shutdown.
+    // RequestAborted alone is not cancelled until the browser disconnects,
+    // which can leave PowerShell stuck indefinitely at "Shutting down".
+    using var closing = CancellationTokenSource.CreateLinkedTokenSource(
+        context.RequestAborted, app.Lifetime.ApplicationStopping);
     windowLifetime.Connected();
     try
     {
         var buffer = new byte[128];
-        while (socket.State == WebSocketState.Open &&
-               !context.RequestAborted.IsCancellationRequested)
+        while (socket.State == WebSocketState.Open && !closing.IsCancellationRequested)
         {
-            var message = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), context.RequestAborted);
+            var message = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), closing.Token);
             if (message.MessageType == WebSocketMessageType.Close) break;
         }
     }
-    catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested) { }
+    catch (OperationCanceledException) when (closing.IsCancellationRequested) { }
     catch (WebSocketException) { }
-    finally { windowLifetime.Disconnected(); }
+    finally
+    {
+        if (app.Lifetime.ApplicationStopping.IsCancellationRequested)
+            socket.Abort();
+        windowLifetime.Disconnected();
+    }
 });
 
 app.MapGet("/api/capture/status", () => Results.Ok(capture.Status()));
