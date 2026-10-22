@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>GuideMe.Instructor.Web</AssemblyName>
+    <RootNamespace>GuideMe.Instructor.Web</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.11" />
+    <Compile Include="..\GuideMe.Instructor\V5GuideReader.cs" Link="Data\V5GuideReader.cs" />
+    <Compile Include="..\GuideMe.Instructor\V5GuideWriter.cs" Link="Data\V5GuideWriter.cs" />
+  </ItemGroup>
+</Project>
