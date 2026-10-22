@@ -16,6 +16,18 @@ if (-not (Test-Path $project) -or -not (Test-Path $source)) {
 # Publish only the target platform, without bundling the .NET runtime.
 # Build in a fresh staging directory so stale cross-platform native assets from
 # older publishes cannot survive in the delivered runtimes directory.
+# A running Instructor can keep the old UI served from memory or lock
+# deployment binaries. Stop it explicitly before replacing production files.
+$installedExe = [IO.Path]::GetFullPath((Join-Path $Destination 'GuideMe.Instructor.Web.exe'))
+$running = @(Get-CimInstance Win32_Process -Filter "Name = 'GuideMe.Instructor.Web.exe'" |
+    Where-Object { $_.ExecutablePath -and
+        [string]::Equals($_.ExecutablePath, $installedExe,
+            [StringComparison]::OrdinalIgnoreCase) })
+if ($running.Count -gt 0) {
+    $pids = ($running | ForEach-Object { $_.ProcessId }) -join ', '
+    throw "Instructor Web is still running from the production folder (PID: $pids). Close it before publishing."
+}
+
 $staging = Join-Path ([System.IO.Path]::GetTempPath()) ("GuideMe-Instructor-publish-" + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $staging -Force | Out-Null
 try {
@@ -26,6 +38,21 @@ try {
 
     if (-not (Test-Path -LiteralPath (Join-Path $staging 'GuideMe.Instructor.Web.exe'))) {
         throw 'Instructor Web executable missing from staged publish. Existing deployment was not modified.'
+    }
+
+    # Guard against accidentally shipping the obsolete standalone recorder UI.
+    $stagedHtml = Join-Path $staging 'wwwroot\index.html'
+    $stagedJs = Join-Path $staging 'wwwroot\main.js'
+    if (-not (Test-Path -LiteralPath $stagedHtml) -or
+        -not (Test-Path -LiteralPath $stagedJs)) {
+        throw 'Instructor Web UI files are missing from publish output.'
+    }
+    $htmlContent = [IO.File]::ReadAllText($stagedHtml)
+    $jsContent = [IO.File]::ReadAllText($stagedJs)
+    if ($htmlContent.Contains('capture-panel') -or
+        $htmlContent.Contains('capture-pair') -or
+        $jsContent.Contains("capture-pair")) {
+        throw 'Publish blocked: obsolete global recording controls are still present in Web UI.'
     }
 
     New-Item -ItemType Directory -Path $Destination -Force | Out-Null
@@ -39,6 +66,15 @@ try {
     }
     foreach ($entry in Get-ChildItem -LiteralPath $staging -Force) {
         Copy-Item -LiteralPath $entry.FullName -Destination (Join-Path $Destination $entry.Name) -Recurse -Force
+    }
+
+    foreach ($asset in @('index.html', 'main.js', 'style.css')) {
+        $from = Join-Path $staging "wwwroot\$asset"
+        $to = Join-Path $Destination "wwwroot\$asset"
+        if ((Get-FileHash -LiteralPath $from -Algorithm SHA256).Hash -ne
+            (Get-FileHash -LiteralPath $to -Algorithm SHA256).Hash) {
+            throw "Instructor Web UI sync verification failed: $asset"
+        }
     }
 }
 finally {
