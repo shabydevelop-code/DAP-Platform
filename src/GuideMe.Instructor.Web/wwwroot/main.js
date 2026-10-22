@@ -1,6 +1,25 @@
 "use strict";
 const token = document.querySelector('meta[name="guideme-session"]').content;
 const $ = id => document.getElementById(id);
+ // Keep one live session per open Instructor page. The server terminates
+ // after the last window closes; reloads are tolerated by a short grace period.
+ let windowSocket;
+ function connectWindowSession() {
+   if (windowSocket && (windowSocket.readyState === WebSocket.OPEN ||
+       windowSocket.readyState === WebSocket.CONNECTING)) return;
+   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+   const url = protocol + '//' + location.host +
+     '/window-session?token=' + encodeURIComponent(token);
+   windowSocket = new WebSocket(url);
+   windowSocket.addEventListener('close', () => {
+     // Do not intentionally disconnect on navigation or page hiding;
+     // the browser closes the connection when the page is actually destroyed.
+     if (document.visibilityState !== 'hidden')
+       setTimeout(connectWindowSession, 900);
+   });
+ }
+ connectWindowSession();
+
 let guides = [], current = null, selectedStep = null;
 const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 async function api(path, options = {}) {
