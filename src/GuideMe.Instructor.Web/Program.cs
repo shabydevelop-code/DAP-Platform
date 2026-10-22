@@ -1,4 +1,6 @@
 using System.Data;
+using System.Net.WebSockets;
+using System.Diagnostics;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -10,6 +12,7 @@ using GuideMe.Instructor.Web;
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.UseKestrel(options => options.Listen(IPAddress.Loopback, 53922));
 var app = builder.Build();
+app.UseWebSockets();
 // Resolve assets from the executable in both dotnet run and published deployment.
 // The current working directory is not necessarily the application's directory.
 var webRoot = Path.Combine(AppContext.BaseDirectory, "wwwroot");
@@ -20,6 +23,7 @@ if (!File.Exists(Path.Combine(webRoot, "index.html")))
 var sessionToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
 var capture = new InstructorCaptureBridge();
 var nativePipe = new InstructorNativePipe(capture);
+var windowLifetime = new InstructorWindowLifetime(app.Lifetime);
 const string localOrigin = "http://127.0.0.1:53922";
 
 app.Use(async (context, next) =>
@@ -33,7 +37,7 @@ app.Use(async (context, next) =>
     context.Response.Headers.CacheControl = "no-store";
     context.Response.Headers["X-Content-Type-Options"] = "nosniff";
     context.Response.Headers["Content-Security-Policy"] =
-        "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'";
+        "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self' ws://127.0.0.1:53922; img-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'";
     if (context.Request.Path.StartsWithSegments("/api"))
     {
         var origin = context.Request.Headers.Origin.ToString();
@@ -53,6 +57,35 @@ app.Use(async (context, next) =>
         }
     }
     await next();
+});
+
+// A live WebSocket belongs to the Instructor UI window. The server stops only
+// after the last UI connection closes; a short grace period allows reloads.
+app.Map("/window-session", async context =>
+{
+    if (!string.Equals(context.Request.Headers.Origin.ToString(), localOrigin, StringComparison.Ordinal) ||
+        !context.WebSockets.IsWebSocketRequest ||
+        !string.Equals(context.Request.Query["token"].ToString(), sessionToken, StringComparison.Ordinal))
+    {
+        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+        return;
+    }
+
+    using var socket = await context.WebSockets.AcceptWebSocketAsync();
+    windowLifetime.Connected();
+    try
+    {
+        var buffer = new byte[128];
+        while (socket.State == WebSocketState.Open &&
+               !context.RequestAborted.IsCancellationRequested)
+        {
+            var message = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), context.RequestAborted);
+            if (message.MessageType == WebSocketMessageType.Close) break;
+        }
+    }
+    catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested) { }
+    catch (WebSocketException) { }
+    finally { windowLifetime.Disconnected(); }
 });
 
 app.MapGet("/api/capture/status", () => Results.Ok(capture.Status()));
@@ -146,8 +179,20 @@ app.Lifetime.ApplicationStarted.Register(() =>
 {
     try
     {
-        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(localOrigin)
-        { UseShellExecute = true });
+        // Chrome --app opens a dedicated window in the existing browser profile:
+        // the Instructor extension remains installed and ordinary tabs unaffected.
+        var chrome = InstructorWindowLifetime.FindChromeExecutable();
+        var start = chrome is null
+            ? new ProcessStartInfo(localOrigin) { UseShellExecute = true }
+            : new ProcessStartInfo(chrome)
+              {
+                  UseShellExecute = false,
+                  ArgumentList = { "--app=" + localOrigin }
+              };
+        Process.Start(start);
+        Console.WriteLine(chrome is null
+            ? "Chrome not found; opened default browser. Closing the UI ends Instructor."
+            : "Instructor opened in a dedicated Chrome app window.");
     }
     catch (Exception ex) { Console.Error.WriteLine($"Open {localOrigin} manually: {ex.Message}"); }
 });
