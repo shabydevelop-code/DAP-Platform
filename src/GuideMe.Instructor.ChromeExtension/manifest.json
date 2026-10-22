@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "GuideMe Instructor",
-  "version": "0.2.0",
-  "description": "Capture extension for local GuideMe Web Instructor (separate from Learner).",
+  "version": "0.3.0",
+  "description": "Headless background capture for GuideMe Web Instructor.",
   "permissions": [
     "storage",
     "tabs",
@@ -14,19 +14,8 @@
     "https://*/*",
     "http://127.0.0.1:53922/*"
   ],
-  "commands": {
-    "select-instructor-target": {
-      "suggested_key": {
-        "default": "Alt+Shift+G"
-      },
-      "description": "בחר את הלשונית הפעילה כיעד ב-GuideMe Instructor"
-    }
-  },
   "background": {
     "service_worker": "service-worker.js"
-  },
-  "action": {
-    "default_popup": "popup.html"
   },
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAipvltgkOTgUKDH2EoPHyrq47xEG9TUKIKpT9WPuXUDGrAd1evu3FsF4bSK93QXivNQmVZdZ1xOO94X42DohfIf4efA2uHC2QsVTx997AanF0HVG2JnyLdMVEcUTEjipaIeFZYx7PEbpn5CNgWKB1md9rNbcAqJm3v53XX5gGgOvD/HxGEMz6xIAAb1fqPd8nFdcWQ4YegAlzjm1/gHbljqtHEeclHATbsdyzv5C+fYjRsVTn3phv0LawKMHEUFKFBBlH3wVL31iGVN9KfnopGqdW0bZbALBoRLnFdPO3jELT9LqvNiBHyCWF3U+xCfkMOqkAMb0BMZozU+aHfgdE0wIDAQAB"
 }
