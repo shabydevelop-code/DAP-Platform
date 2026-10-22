@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "GuideMe Instructor",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Headless background capture for GuideMe Web Instructor.",
   "permissions": [
     "storage",
@@ -17,5 +17,17 @@
   "background": {
     "service_worker": "service-worker.js"
   },
-  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAipvltgkOTgUKDH2EoPHyrq47xEG9TUKIKpT9WPuXUDGrAd1evu3FsF4bSK93QXivNQmVZdZ1xOO94X42DohfIf4efA2uHC2QsVTx997AanF0HVG2JnyLdMVEcUTEjipaIeFZYx7PEbpn5CNgWKB1md9rNbcAqJm3v53XX5gGgOvD/HxGEMz6xIAAb1fqPd8nFdcWQ4YegAlzjm1/gHbljqtHEeclHATbsdyzv5C+fYjRsVTn3phv0LawKMHEUFKFBBlH3wVL31iGVN9KfnopGqdW0bZbALBoRLnFdPO3jELT9LqvNiBHyCWF3U+xCfkMOqkAMb0BMZozU+aHfgdE0wIDAQAB"
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAipvltgkOTgUKDH2EoPHyrq47xEG9TUKIKpT9WPuXUDGrAd1evu3FsF4bSK93QXivNQmVZdZ1xOO94X42DohfIf4efA2uHC2QsVTx997AanF0HVG2JnyLdMVEcUTEjipaIeFZYx7PEbpn5CNgWKB1md9rNbcAqJm3v53XX5gGgOvD/HxGEMz6xIAAb1fqPd8nFdcWQ4YegAlzjm1/gHbljqtHEeclHATbsdyzv5C+fYjRsVTn3phv0LawKMHEUFKFBBlH3wVL31iGVN9KfnopGqdW0bZbALBoRLnFdPO3jELT9LqvNiBHyCWF3U+xCfkMOqkAMb0BMZozU+aHfgdE0wIDAQAB",
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
+  "action": {
+    "default_icon": {
+      "16": "icon16.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    }
+  }
 }
