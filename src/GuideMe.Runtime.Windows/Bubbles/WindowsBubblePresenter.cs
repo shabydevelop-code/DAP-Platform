@@ -19,7 +19,6 @@ public sealed class WindowsBubblePresenter
 
     private readonly IUiTextProvider _texts;
     private Window? _window;
-    public bool IsBubbleVisible => _window?.IsVisible == true;
     private Window? _highlightWindow;
     private Border? _highlightBorder;
     private Border? _bubble;
