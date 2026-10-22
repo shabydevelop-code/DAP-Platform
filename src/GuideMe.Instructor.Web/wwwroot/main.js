@@ -22,7 +22,7 @@ function notify(message, error = false) {
 function clearNotice() { $('notice').classList.add('hidden'); }
 async function guarded(action) { try { await action(); } catch(e) { notify(e.message || String(e), true); } }
 function showList() {
-  current = null; selectedStep = null;
+  current = null; selectedStep = null; updateCaptureContexts();
   $('list-view').classList.remove('hidden'); $('detail-view').classList.add('hidden');
   $('page-title').textContent = 'הלומדות שלי'; $('page-subtitle').textContent = 'כל המדריכים, האפליקציות והשלבים במקום אחד.';
   $('breadcrumb').textContent = 'כל הלומדות'; clearNotice();
@@ -51,7 +51,7 @@ async function openGuide(id) {
   $('detail-name').textContent = g.name; $('detail-description').textContent = 'לומדה #' + g.id + ' · ' + current.steps.length + ' שלבים';
   $('guide-key').textContent = g.key;
   $('steps-count').textContent = current.steps.length; $('contexts-count').textContent = current.contexts.length;
-  selectTab('steps'); renderSteps(); renderContexts(); clearNotice();
+  selectTab('steps'); renderSteps(); renderContexts(); updateCaptureContexts(); clearNotice();
 }
 function selectTab(tab) {
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active',t.dataset.tab===tab));
@@ -71,6 +71,8 @@ function renderSteps() {
     document.querySelectorAll('[data-step]').forEach(x => x.classList.toggle('active', x===b));
     const data = await api('/guides/' + current.guide.id + '/step/' + encodeURIComponent(selectedStep));
     const step = current.steps.find(x=>x.id===selectedStep);
+    const stepContext = data.step?.[0]?.ApplicationContextId;
+    if (stepContext && current.contexts.some(c=>c.ContextId===stepContext && c.Runtime==='Web')) $('capture-context').value=stepContext;
     const sections = [['שלב',data.step],['רכיבי יעד',data.targets],['כללי התקדמות ולכידה',data.rules]];
     $('step-inspector').innerHTML = '<h2>שלב ' + step.order + '</h2><p style="margin-bottom:19px">' + esc(step.bubble||step.id) + '</p><div class="detail-grid">' +
       sections.map(([title,rows]) => '<div class="detail-block"><small>' + title + '</small><pre>' + esc(JSON.stringify(rows,null,2)) + '</pre></div>').join('') + '</div>';
@@ -150,13 +152,37 @@ $('back').onclick=showList;
 $('nav-guides').onclick=showList;
 $('close-dialog').onclick=$('cancel-dialog').onclick=()=>$('editor-dialog').close();
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>selectTab(b.dataset.tab));
+function updateCaptureContexts() {
+  const select = $('capture-context');
+  const previous = select.value;
+  const contexts = (current?.contexts || []).filter(c => c.Runtime === 'Web');
+  select.replaceChildren(new Option(current ? 'בחר אפליקציית Web מהלומדה' : 'פתח לומדה כדי להקליט', ''));
+  for (const context of contexts) select.add(new Option(context.DisplayName || context.ContextId, context.ContextId));
+  if (contexts.some(c=>c.ContextId===previous)) select.value = previous;
+  else if (contexts.length===1) select.value=contexts[0].ContextId;
+  $('capture-tab').classList.add('hidden');
+  $('capture-select').disabled = !current || !select.value;
+  $('capture-start').disabled = true;
+}
+$('capture-context').onchange = () => {
+  $('capture-select').disabled = !current || !$('capture-context').value;
+  $('capture-start').disabled = true;
+  $('capture-tab').classList.add('hidden');
+};
 async function refreshCaptureStatus() {
   try {
     const state = await api('/capture/status');
-    const title = $('capture-status');
-    title.textContent = state.recording ? 'מקליט' : state.connected ? 'מחובר' : state.pairingOpen ? 'ממתין לתוסף' : 'לא מחובר';
-    $('capture-target').textContent = state.targetUrl ? ('יעד: ' + state.targetUrl + (state.targetTitle ? ' · ' + state.targetTitle : '')) : 'טרם נבחרה לשונית יעד בתוסף';
-    $('capture-start').disabled = !state.connected || !state.tabId || state.recording;
+    $('capture-status').textContent = state.recording ? 'מקליט' :
+      state.connected ? 'תוסף מחובר' : state.pairingOpen ? 'ממתין לחיבור' : 'תוסף לא מחובר';
+    $('capture-target').textContent = state.tabId && state.guideId === current?.guide?.id &&
+      state.contextId === $('capture-context').value
+      ? 'לשונית מזוהה: ' + (state.targetTitle || state.targetUrl) :
+        'בחר אפליקציה מתוך הלומדה ולחץ ״זהה אפליקציה״';
+    $('capture-select').disabled = !state.connected || !current || !$('capture-context').value || state.recording;
+    $('capture-start').disabled = !state.connected || !(
+      state.tabId && state.guideId === current?.guide?.id &&
+      state.contextId === $('capture-context').value);
+    if (state.recording) $('capture-start').disabled = true;
     $('capture-stop').disabled = !state.recording;
     $('capture-pair').disabled = state.recording;
   } catch {
@@ -166,31 +192,55 @@ async function refreshCaptureStatus() {
   }
 }
 $('capture-pair').onclick = () => guarded(async () => {
-  await api('/capture/pair', { method: 'POST', body: '{}' });
-  notify('אפשרות החיבור פתוחה ל־30 שניות. עבור ללשונית היעד ולחץ על תוסף GuideMe Instructor, ואז על ״בחר לשונית זו כיעד״.');
+  await api('/capture/pair', { method:'POST', body:'{}' });
+  notify('החיבור אושר ל־30 שניות. התוסף יתחבר ברקע; אין צורך לפתוח אותו. אם טרם התחבר, עבור ללשונית אתר וחזור ל־Instructor.');
   await refreshCaptureStatus();
 });
-$('capture-start').onclick = () => guarded(async () => {
-  await api('/capture/start', { method: 'POST', body: '{}' });
+async function selectCaptureTab(tabId = null) {
+  if (!current || !$('capture-context').value) throw new Error('בחר לומדה ואפליקציית Web.');
+  const state = await api('/capture/select', { method:'POST', body: JSON.stringify({
+    guideId: current.guide.id, contextId:$('capture-context').value, tabId
+  }) });
+  if (state.status === 'notFound') {
+    $('capture-tab').classList.add('hidden');
+    notify('האפליקציה אינה פתוחה או אינה תואמת להגדרת הזיהוי. פתח את האתר ונסה שוב.',true);
+  } else if (state.status === 'multiple') {
+    const picker = $('capture-tab');
+    picker.replaceChildren(new Option('נמצאו כמה לשוניות — בחר יעד', ''));
+    for (const tab of state.tabs)
+      picker.add(new Option((tab.title || tab.url) + ' · ' + tab.tabId, String(tab.tabId)));
+    picker.classList.remove('hidden');
+    notify('נמצאו כמה לשוניות מתאימות. בחר את הלשונית הרצויה ברשימה.');
+  } else {
+    $('capture-tab').classList.add('hidden');
+    notify('נבחרה אפליקציית היעד. אפשר להתחיל בהקלטה.');
+  }
+  await refreshCaptureStatus();
+}
+$('capture-select').onclick=()=>guarded(()=>selectCaptureTab());
+$('capture-tab').onchange=()=>guarded(async()=>{
+  const id=Number($('capture-tab').value);
+  if (id) await selectCaptureTab(id);
+});
+$('capture-start').onclick=()=>guarded(async()=>{
+  if (!current) throw new Error('יש לפתוח לומדה.');
+  await api('/capture/start', { method:'POST', body:JSON.stringify({
+    guideId:current.guide.id, contextId:$('capture-context').value
+  })});
   $('capture-results').classList.add('hidden');
-  notify('הקלטת Web פעילה. בצע פעולה בלשונית שנבחרה, ולאחר מכן עצור את ההקלטה.');
+  notify('הקלטת Web פעילה עבור האפליקציה שנבחרה. בצע פעולה באתר ולאחר מכן עצור את ההקלטה.');
   await refreshCaptureStatus();
 });
-$('capture-stop').onclick = () => guarded(async () => {
-  const result = await api('/capture/stop', { method: 'POST', body: '{}' });
-  const events = result.events || [];
-  const box = $('capture-results');
-  box.classList.remove('hidden');
-  box.replaceChildren();
-  const heading = document.createElement('h3');
-  heading.textContent = 'אירועים שנקלטו: ' + events.length;
-  const info = document.createElement('p');
-  info.textContent = 'זוהי טיוטת סקירה בלבד. אין עדיין שמירה של שלבים למסד הנתונים.';
-  const pre = document.createElement('pre');
-  pre.textContent = JSON.stringify(events, null, 2);
-  box.append(heading, info, pre);
+$('capture-stop').onclick=()=>guarded(async()=>{
+  const result = await api('/capture/stop',{method:'POST',body:'{}'});
+  const events=result.events || [];
+  const box=$('capture-results');box.classList.remove('hidden');box.replaceChildren();
+  const heading=document.createElement('h3');heading.textContent='אירועים שנקלטו: '+events.length;
+  const note=document.createElement('p');note.textContent='סקירה בלבד; לא בוצע שינוי בשלב קיים או בנתוני V5.';
+  const pre=document.createElement('pre');pre.textContent=JSON.stringify(events,null,2);
+  box.append(heading,note,pre);
   await refreshCaptureStatus();
 });
 void refreshCaptureStatus();
-setInterval(() => { if (!document.hidden) void refreshCaptureStatus(); }, 3000);
+setInterval(()=>{if(!document.hidden) void refreshCaptureStatus()},3000);
 guarded(loadGuides);
