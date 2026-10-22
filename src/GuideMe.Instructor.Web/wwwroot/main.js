@@ -14,8 +14,7 @@ const $ = id => document.getElementById(id);
    windowSocket.addEventListener('close', () => {
      // Do not intentionally disconnect on navigation or page hiding;
      // the browser closes the connection when the page is actually destroyed.
-     if (document.visibilityState !== 'hidden')
-       setTimeout(connectWindowSession, 900);
+     setTimeout(connectWindowSession, 900);
    });
  }
  connectWindowSession();
