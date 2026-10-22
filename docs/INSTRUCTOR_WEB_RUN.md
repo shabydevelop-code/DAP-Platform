@@ -78,3 +78,7 @@ dotnet build src\GuideMe.Instructor.Web\GuideMe.Instructor.Web.csproj
 בעת `Publish-GuideMeInstructorWeb.ps1`, הסקריפט `Generate-GuideMeInstructorIcons.ps1` יוצר את `icon16.png`, `icon48.png` ו-`icon128.png` בתיקיית התוסף המפורסמת. הוא משתמש בנורת GuideMe הקיימת של Learner ומוסיף עיפרון זהוב. אין שינוי בקובצי האייקון של Learner.
 
 **חשוב:** להתקין/לטעון את Instructor מתיקיית `C:\GuideMe\InstructorChromeExtension` לאחר פרסום, ולא ישירות מתיקיית המקור, משום שקובצי PNG נגזרים בזמן הפרסום. אחרי פרסום נדרש Reload ב-`chrome://extensions`.
+
+## מחיקת לומדה קיימת
+
+במסך פרטי לומדה קיים כפתור **מחיקת לומדה**. כדי לאשר מחיקה יש להקליד את שם הלומדה במלואו. ה־API מאמת את השם מול הנתון העדכני במסד הנתונים, ורק אז מפעיל את `V5GuideWriter.DeleteGuide` הקיים מה־Instructor הישן. הפעולה מתבצעת בטרנזקציה אחת ומוחקת את ישויות הלומדה בטבלאות V5 לפי סדר מפתחות זרים. היא אינה משנה לומדות אחרות. המחיקה בלתי הפיכה; יש לבדוק תחילה עם לומדת ניסוי בלבד, ולא עם לומדות Web/Windows המאומתות.
