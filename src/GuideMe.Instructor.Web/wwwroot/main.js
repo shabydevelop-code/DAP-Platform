@@ -120,6 +120,24 @@ function renameGuide() {
     const id=current.guide.id;await loadGuides();await openGuide(id);notify('שם הלומדה עודכן.');
   });
 }
+function deleteGuide() {
+  if (!current) return;
+  const guide = { ...current.guide };
+  // Typing the exact name is required before the destructive request is sent.
+  modal('מחיקת לומדה', [
+    {name:'name', label:'הקלד את שם הלומדה לאישור מחיקה', value:'', max:256,
+      help:'פעולה בלתי הפיכה: הלומדה וכל שלביה, רכיביה וכללי ההתקדמות שלה יימחקו. שם לאישור: ' + guide.name}
+  ], async values => {
+    if (values.name !== guide.name)
+      throw new Error('שם הלומדה אינו תואם. המחיקה לא בוצעה.');
+    await api('/guides/' + guide.id, {
+      method:'DELETE', body:JSON.stringify({name: values.name})
+    });
+    showList();
+    await loadGuides();
+    notify('הלומדה "' + guide.name + '" נמחקה.');
+  }, 'מחיקה לצמיתות');
+}
 function addContext() {
   modal('הוספת אפליקציה',contextFields(),async v=>{
     await api('/guides/'+current.guide.id+'/contexts',{method:'POST',body:JSON.stringify(contextPayload(v))});
@@ -147,6 +165,7 @@ $('guide-search').addEventListener('input',renderGuides);
 $('step-search').addEventListener('input',()=>{if(current)renderSteps()});
 $('new-guide').onclick=newGuide;
 $('rename-guide').onclick=renameGuide;
+$('delete-guide').onclick=deleteGuide;
 $('add-context').onclick=addContext;
 $('back').onclick=showList;
 $('nav-guides').onclick=showList;
