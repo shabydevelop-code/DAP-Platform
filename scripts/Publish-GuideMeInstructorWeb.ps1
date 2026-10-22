@@ -64,8 +64,16 @@ try {
     if (Test-Path -LiteralPath $oldRuntimes) {
         Remove-Item -LiteralPath $oldRuntimes -Recurse -Force
     }
-    foreach ($entry in Get-ChildItem -LiteralPath $staging -Force) {
-        Copy-Item -LiteralPath $entry.FullName -Destination (Join-Path $Destination $entry.Name) -Recurse -Force
+    # Copy each file to its exact relative destination. Copying an existing
+    # directory with Copy-Item -Recurse can nest wwwroot inside wwwroot,
+    # leaving the old index.html in place.
+    $stageRoot = [IO.Path]::GetFullPath($staging).TrimEnd('\') + '\'
+    foreach ($file in Get-ChildItem -LiteralPath $staging -Recurse -File -Force) {
+        $relativePath = $file.FullName.Substring($stageRoot.Length)
+        $targetPath = Join-Path $Destination $relativePath
+        $targetDirectory = Split-Path -Parent $targetPath
+        New-Item -ItemType Directory -Path $targetDirectory -Force | Out-Null
+        Copy-Item -LiteralPath $file.FullName -Destination $targetPath -Force
     }
 
     foreach ($asset in @('index.html', 'main.js', 'style.css')) {
