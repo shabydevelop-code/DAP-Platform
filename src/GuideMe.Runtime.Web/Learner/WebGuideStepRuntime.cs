@@ -6,6 +6,13 @@ namespace GuideMe.Runtime.Web.Learner;
 /// <summary>
 /// Browser-independent active-step policy. Browser mechanics are delegated to the Web adapter; shared step policy lives in Core.
 /// </summary>
+public enum WebGuidePresentationPhase
+{
+    Transitioning,
+    WaitingForTarget,
+    BubbleVisible
+}
+
 public sealed class WebGuideStepRuntime
 {
     private static readonly object ReferenceDiagnosticGate = new();
@@ -22,6 +29,7 @@ public sealed class WebGuideStepRuntime
     }
 
     private readonly IWebBrowserAdapter _browser;
+    private readonly Action<WebGuidePresentationPhase>? _onPresentationPhase;
     private readonly TimeSpan _reconcileInterval;
     private readonly TimeSpan _stableReconcileInterval;
     private readonly TimeSpan _presentationSettleInterval;
@@ -29,9 +37,11 @@ public sealed class WebGuideStepRuntime
     public WebGuideStepRuntime(
         IWebBrowserAdapter browser,
         TimeSpan? reconcileInterval = null,
-        TimeSpan? presentationSettleInterval = null)
+        TimeSpan? presentationSettleInterval = null,
+        Action<WebGuidePresentationPhase>? onPresentationPhase = null)
     {
         _browser = browser ?? throw new ArgumentNullException(nameof(browser));
+        _onPresentationPhase = onPresentationPhase;
         _reconcileInterval = reconcileInterval ?? TimeSpan.FromMilliseconds(100);
         _stableReconcileInterval = TimeSpan.FromMilliseconds(500);
         _presentationSettleInterval = presentationSettleInterval ?? TimeSpan.FromMilliseconds(250);
@@ -46,12 +56,16 @@ public sealed class WebGuideStepRuntime
         {
 
             if (showPresentation)
+            {
+                _onPresentationPhase?.Invoke(WebGuidePresentationPhase.BubbleVisible);
                 await _browser.WaitForCenteredStepDismissalAsync(step, stepNumber, totalSteps, cancellationToken);
+            }
             else
                 onReady?.Invoke();
             return;
         }
 
+        _onPresentationPhase?.Invoke(WebGuidePresentationPhase.Transitioning);
         var diagnoseReference = step.Id.StartsWith("reference-", StringComparison.Ordinal);
         if (diagnoseReference) ReferenceDiagnostic($"[GuideMe reference diagnostic] Starting Web Step {stepNumber}/{totalSteps} '{step.Id}'.");
         var automatic = GuideStepExecutionPolicy.IsAutomaticValidationStep(step);
@@ -149,6 +163,7 @@ public sealed class WebGuideStepRuntime
             if (sharedEngine.ObserveContext(activeState, contextActive)
                 == GuideStepReconciliationResult.WaitingForContext)
             {
+                _onPresentationPhase?.Invoke(WebGuidePresentationPhase.WaitingForTarget);
                 await _browser.HideBubbleAsync(cancellationToken);
                 return await GuideActiveStepState.WaitAsync(
                     GuideStepReconciliationResult.WaitingForContext, _reconcileInterval, cancellationToken);
@@ -162,6 +177,7 @@ public sealed class WebGuideStepRuntime
                     presentationStable)
                     == GuideStepReconciliationResult.WaitingForTarget)
                 {
+                    _onPresentationPhase?.Invoke(WebGuidePresentationPhase.Transitioning);
                     return await GuideActiveStepState.WaitAsync(
                         GuideStepReconciliationResult.WaitingForTarget, _reconcileInterval, cancellationToken);
                 }
@@ -208,6 +224,11 @@ public sealed class WebGuideStepRuntime
             }
 
             if (diagnoseReference) ReferenceDiagnostic($"[GuideMe reference diagnostic] Step '{step.Id}' bubble resolution: {presentation.Status}.");
+            _onPresentationPhase?.Invoke(presentation.Status == WebTargetResolutionStatus.Resolved && showPresentation
+                ? WebGuidePresentationPhase.BubbleVisible
+                : presentation.Status == WebTargetResolutionStatus.Resolved
+                    ? WebGuidePresentationPhase.Transitioning
+                    : WebGuidePresentationPhase.WaitingForTarget);
             if (sharedEngine.ObserveReadiness(
                 activeState, contextActive: true,
                 targetAvailable: presentation.Status == WebTargetResolutionStatus.Resolved, targetVisible: true)
