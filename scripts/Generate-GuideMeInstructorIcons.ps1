@@ -4,56 +4,79 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$root = Split-Path -Parent $PSScriptRoot
+$learnerIcons = Join-Path $root 'src\GuideMe.Learner.ChromeExtension'
 New-Item -ItemType Directory -Path $Destination -Force | Out-Null
 Add-Type -AssemblyName System.Drawing
 
-# The Instructor needs a distinct silhouette at Chrome's 16px toolbar size.
-# A solid blue disc + a large white/gold pencil distinguish it from Learner's
-# thin monochrome bulb. All shapes are vector drawn at a normalized 128px size.
+# Keep the Learner lamp artwork itself, pixel-for-pixel, as the Instructor
+# foundation. Only draw a large, clearly legible pencil to its lower-right.
 foreach ($size in @(16, 48, 128)) {
+    $sourcePath = Join-Path $learnerIcons "icon$size.png"
+    if (-not (Test-Path -LiteralPath $sourcePath)) {
+        throw "Missing original GuideMe lamp: $sourcePath"
+    }
+    $base = [System.Drawing.Image]::FromFile($sourcePath)
     $bitmap = [System.Drawing.Bitmap]::new($size, $size, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
     $g = [System.Drawing.Graphics]::FromImage($bitmap)
-    $blue = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(255, 29, 99, 200))
-    $gold = [System.Drawing.Pen]::new([System.Drawing.Color]::FromArgb(255, 255, 191, 55), 19)
-    $white = [System.Drawing.Pen]::new([System.Drawing.Color]::White, 10)
-    $outline = [System.Drawing.Pen]::new([System.Drawing.Color]::FromArgb(255, 14, 60, 131), 27)
+    $halo = [System.Drawing.Pen]::new([System.Drawing.Color]::White, 5)
+    $border = [System.Drawing.Pen]::new([System.Drawing.Color]::FromArgb(255, 30, 38, 48), 3)
+    $gold = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(255, 235, 168, 42))
     $tip = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::White)
+    $lead = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(255, 30, 38, 48))
     try {
         $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
-        $g.CompositingQuality = [System.Drawing.Drawing2D.CompositingQuality]::HighQuality
+        $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
         $g.Clear([System.Drawing.Color]::Transparent)
+        # This is the unchanged production Learner bulb: no recoloring or redrawing.
+        $g.DrawImage($base, 0, 0, $size, $size)
         $g.ScaleTransform($size / 128.0, $size / 128.0)
-        # A large solid disk is clearly identifiable even at 16x16.
-        $g.FillEllipse($blue, 3, 3, 122, 122)
 
-        # Lightbulb identity, deliberately secondary to the pencil.
-        $g.DrawEllipse($white, 28, 19, 70, 71)
-        $g.DrawLine($white, 44, 93, 81, 93)
-        $g.DrawLine($white, 47, 105, 76, 105)
+        # The pencil remains large enough to be readable at 16x16, but has a
+        # separate silhouette next to the bulb instead of covering its centre.
+        $body = [System.Drawing.PointF[]]@(
+            [System.Drawing.PointF]::new(98, 42),
+            [System.Drawing.PointF]::new(118, 52),
+            [System.Drawing.PointF]::new(96, 97),
+            [System.Drawing.PointF]::new(76, 87)
+        )
+        $g.DrawPolygon($halo, $body)
+        $g.FillPolygon($gold, $body)
+        $g.DrawPolygon($border, $body)
 
-        # Oversized diagonal pencil; outline keeps it legible over the bulb.
-        $g.DrawLine($outline, 48, 109, 107, 46)
-        $g.DrawLine($gold, 48, 109, 107, 46)
-        $g.FillPolygon($tip, [System.Drawing.PointF[]]@(
-            [System.Drawing.PointF]::new(40, 118),
-            [System.Drawing.PointF]::new(45, 94),
-            [System.Drawing.PointF]::new(62, 110)
-        ))
-        $g.DrawLine($white, 104, 43, 111, 50)
-        $path = Join-Path $Destination "icon$size.png"
-        $bitmap.Save($path, [System.Drawing.Imaging.ImageFormat]::Png)
-        if (-not (Test-Path -LiteralPath $path) -or (Get-Item -LiteralPath $path).Length -eq 0) {
-            throw "Instructor icon generation failed: $path"
+        $point = [System.Drawing.PointF[]]@(
+            [System.Drawing.PointF]::new(76, 87),
+            [System.Drawing.PointF]::new(96, 97),
+            [System.Drawing.PointF]::new(70, 111)
+        )
+        $g.DrawPolygon($halo, $point)
+        $g.FillPolygon($tip, $point)
+        $g.DrawPolygon($border, $point)
+
+        $leadPoint = [System.Drawing.PointF[]]@(
+            [System.Drawing.PointF]::new(70, 111),
+            [System.Drawing.PointF]::new(77, 101),
+            [System.Drawing.PointF]::new(81, 105)
+        )
+        $g.FillPolygon($lead, $leadPoint)
+        $g.DrawLine($border, 98, 42, 118, 52)
+
+        $destinationPath = Join-Path $Destination "icon$size.png"
+        $bitmap.Save($destinationPath, [System.Drawing.Imaging.ImageFormat]::Png)
+        if (-not (Test-Path -LiteralPath $destinationPath) -or
+            (Get-Item -LiteralPath $destinationPath).Length -eq 0) {
+            throw "Instructor icon generation failed: $destinationPath"
         }
     }
     finally {
         $g.Dispose()
         $bitmap.Dispose()
-        $blue.Dispose()
+        $base.Dispose()
+        $halo.Dispose()
+        $border.Dispose()
         $gold.Dispose()
-        $white.Dispose()
-        $outline.Dispose()
         $tip.Dispose()
+        $lead.Dispose()
     }
 }
-Write-Host 'PASS: distinct Instructor toolbar icons generated (16, 48, 128).'
+Write-Host 'PASS: original GuideMe lamp + separate pencil generated for Instructor (16, 48, 128).'
