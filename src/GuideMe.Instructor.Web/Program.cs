@@ -87,25 +87,29 @@ app.MapPost("/capture/pair", () =>
     var token = capture.Pair();
     return token is null ? Results.StatusCode(403) : Results.Ok(new { token });
 });
-app.MapPost("/capture/heartbeat", () => { capture.Heartbeat(); return Results.Ok(); });
-app.MapPost("/capture/target", (CaptureTarget body) =>
-{
-    capture.SetTarget(body.Url, body.Title ?? "", body.TabId);
-    return Results.NoContent();
-});
-app.MapPost("/capture/select-target", (CaptureTarget body) =>
-{
-    capture.SetTarget(body.Url, body.Title ?? "", body.TabId);
-    return Results.NoContent();
-});
-app.MapPost("/capture/event", (JsonElement body) =>
+app.MapPost("/capture/heartbeat", (CaptureTab[] tabs) => Results.Ok(capture.Heartbeat(tabs)));
+app.MapPost("/capture/event", (CaptureEvent body) =>
 {
     capture.Receive(body);
     return Results.NoContent();
 });
 app.MapPost("/api/capture/pair", () => { capture.OpenPairing(); return Results.Ok(capture.Status()); });
 app.MapGet("/api/capture/status", () => Results.Ok(capture.Status()));
-app.MapPost("/api/capture/start", () => { capture.Begin(); return Results.Ok(capture.Status()); });
+app.MapPost("/api/capture/select", (CaptureSelection body) =>
+{
+    var guide = V5GuideReader.ListGuides().FirstOrDefault(g => g.Id == body.GuideId);
+    if (guide is null) return Results.NotFound();
+    var rows = V5GuideReader.ReadGuideTable(body.GuideId, "ApplicationContexts");
+    var row = rows.Rows.Cast<DataRow>().FirstOrDefault(x =>
+        string.Equals(x["ContextId"].ToString(), body.ContextId, StringComparison.Ordinal));
+    if (row is null || row["Runtime"].ToString() != "Web") return Results.BadRequest();
+    return Results.Ok(capture.Select(body.GuideId, body.ContextId, row["MatchersJson"].ToString()!, body.TabId));
+});
+app.MapPost("/api/capture/start", (CaptureStart body) =>
+{
+    capture.Begin(body.GuideId, body.ContextId);
+    return Results.Ok(capture.Status());
+});
 app.MapPost("/api/capture/stop", () => Results.Ok(new { events = capture.End() }));
 
 app.MapGet("/api/guides", () => Results.Ok(V5GuideReader.ListGuides()));
@@ -185,4 +189,3 @@ internal sealed record RenameGuide(string Name);
 internal sealed record SaveContext(string ContextId, string Runtime,
     string MatcherProperty, string MatcherValue);
 
-internal sealed record CaptureTarget(string Url, string? Title, int? TabId);
