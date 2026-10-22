@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using GuideMe.Core.Localization;
 
@@ -65,6 +66,23 @@ internal sealed class GuideSessionIndicator : IDisposable
             Topmost = true,
             SizeToContent = SizeToContent.WidthAndHeight,
             WindowStartupLocation = WindowStartupLocation.Manual
+        };
+        // Dragging the caption or background moves the indicator. The Exit
+        // button handles its mouse input independently and still stops the guide.
+        panel.MouseLeftButtonDown += (_, e) =>
+        {
+            if (e.LeftButton != MouseButtonState.Pressed || e.Handled) return;
+            if (e.OriginalSource is DependencyObject origin)
+            {
+                for (DependencyObject? node = origin; node is not null;)
+                {
+                    if (ReferenceEquals(node, stopButton)) return;
+                    if (ReferenceEquals(node, panel)) break;
+                    node = VisualTreeHelper.GetParent(node);
+                }
+            }
+            try { _window.DragMove(); }
+            catch (InvalidOperationException) { /* Mouse was released before drag began. */ }
         };
         _window.Loaded += (_, _) => Reposition();
         _window.Show();
