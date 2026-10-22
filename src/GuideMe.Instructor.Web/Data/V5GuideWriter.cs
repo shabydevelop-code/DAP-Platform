@@ -296,4 +296,33 @@ WHERE GuideId=$guideId AND ContextId=$contextId";
         transaction.Commit();
     }
 
+
+    // Edit only fields already represented by the V5 Steps entity.
+    // Never recreate a step or overwrite its targets, rules or captures.
+    internal static void UpdateStep(long guideId, string stepId, string? bubble, bool enabled)
+    {
+        if (string.IsNullOrWhiteSpace(stepId))
+            throw new ArgumentException("מזהה השלב חסר.");
+        if (bubble is { Length: > 4000 })
+            throw new ArgumentException("טקסט הבועית ארוך מדי.");
+        using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = V5GuideReader.DatabasePath,
+            Mode = SqliteOpenMode.ReadWrite,
+            Pooling = false,
+            DefaultTimeout = 3
+        }.ToString());
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandTimeout = 3;
+        command.CommandText = @"UPDATE Steps
+SET BubbleContent=$bubble, IsEnabled=$enabled
+WHERE GuideId=$guideId AND StepId=$stepId";
+        command.Parameters.AddWithValue("$bubble", (object?)bubble ?? DBNull.Value);
+        command.Parameters.AddWithValue("$enabled", enabled ? 1 : 0);
+        command.Parameters.AddWithValue("$guideId", guideId);
+        command.Parameters.AddWithValue("$stepId", stepId);
+        if (command.ExecuteNonQuery() != 1)
+            throw new InvalidOperationException("השלב לא נמצא.");
+    }
 }
