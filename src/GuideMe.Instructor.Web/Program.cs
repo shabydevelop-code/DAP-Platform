@@ -3,14 +3,20 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Text.Json;
 using Microsoft.Extensions.FileProviders;
+using Microsoft.AspNetCore.Mvc;
 using GuideMe.Instructor;
 using GuideMe.Instructor.Web;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.UseKestrel(options => options.Listen(IPAddress.Loopback, 53922));
 var app = builder.Build();
-var sourceAssets = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "wwwroot"));
-var webRoot = Directory.Exists(sourceAssets) ? sourceAssets : Path.Combine(AppContext.BaseDirectory, "wwwroot");
+// Resolve assets from the executable in both dotnet run and published deployment.
+// The current working directory is not necessarily the application's directory.
+var webRoot = Path.Combine(AppContext.BaseDirectory, "wwwroot");
+if (!File.Exists(Path.Combine(webRoot, "index.html")))
+    webRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "wwwroot"));
+if (!File.Exists(Path.Combine(webRoot, "index.html")))
+    throw new FileNotFoundException("GuideMe Instructor Web UI assets are missing. Re-publish the application.", Path.Combine(webRoot, "index.html"));
 var sessionToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
 var capture = new InstructorCaptureBridge();
 const string localOrigin = "http://127.0.0.1:53922";
@@ -150,7 +156,7 @@ app.MapPut("/api/guides/{id:long}/contexts/{contextId}/name",
 });
 // Reuse the WPF Instructor's transactional V5 deletion implementation.
 // An exact-name confirmation prevents accidental deletion of a different guide.
-app.MapDelete("/api/guides/{id:long}", (long id, DeleteGuideConfirmation request) =>
+app.MapDelete("/api/guides/{id:long}", (long id, [FromBody] DeleteGuideConfirmation request) =>
 {
     var guide = V5GuideReader.ListGuides().FirstOrDefault(g => g.Id == id);
     if (guide is null) return Results.NotFound();
