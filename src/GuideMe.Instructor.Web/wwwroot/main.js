@@ -150,4 +150,47 @@ $('back').onclick=showList;
 $('nav-guides').onclick=showList;
 $('close-dialog').onclick=$('cancel-dialog').onclick=()=>$('editor-dialog').close();
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>selectTab(b.dataset.tab));
+async function refreshCaptureStatus() {
+  try {
+    const state = await api('/capture/status');
+    const title = $('capture-status');
+    title.textContent = state.recording ? 'מקליט' : state.connected ? 'מחובר' : state.pairingOpen ? 'ממתין לתוסף' : 'לא מחובר';
+    $('capture-target').textContent = state.targetUrl ? ('יעד: ' + state.targetUrl + (state.targetTitle ? ' · ' + state.targetTitle : '')) : 'טרם נבחרה לשונית יעד בתוסף';
+    $('capture-start').disabled = !state.connected || !state.tabId || state.recording;
+    $('capture-stop').disabled = !state.recording;
+    $('capture-pair').disabled = state.recording;
+  } catch {
+    $('capture-status').textContent = 'החיבור לשרת אינו זמין';
+    $('capture-start').disabled = true;
+    $('capture-stop').disabled = true;
+  }
+}
+$('capture-pair').onclick = () => guarded(async () => {
+  await api('/capture/pair', { method: 'POST', body: '{}' });
+  notify('אפשרות החיבור פתוחה ל־30 שניות. עבור ללשונית היעד ולחץ על תוסף GuideMe Instructor, ואז על ״בחר לשונית זו כיעד״.');
+  await refreshCaptureStatus();
+});
+$('capture-start').onclick = () => guarded(async () => {
+  await api('/capture/start', { method: 'POST', body: '{}' });
+  $('capture-results').classList.add('hidden');
+  notify('הקלטת Web פעילה. בצע פעולה בלשונית שנבחרה, ולאחר מכן עצור את ההקלטה.');
+  await refreshCaptureStatus();
+});
+$('capture-stop').onclick = () => guarded(async () => {
+  const result = await api('/capture/stop', { method: 'POST', body: '{}' });
+  const events = result.events || [];
+  const box = $('capture-results');
+  box.classList.remove('hidden');
+  box.replaceChildren();
+  const heading = document.createElement('h3');
+  heading.textContent = 'אירועים שנקלטו: ' + events.length;
+  const info = document.createElement('p');
+  info.textContent = 'זוהי טיוטת סקירה בלבד. אין עדיין שמירה של שלבים למסד הנתונים.';
+  const pre = document.createElement('pre');
+  pre.textContent = JSON.stringify(events, null, 2);
+  box.append(heading, info, pre);
+  await refreshCaptureStatus();
+});
+void refreshCaptureStatus();
+setInterval(() => { if (!document.hidden) void refreshCaptureStatus(); }, 3000);
 guarded(loadGuides);
