@@ -226,6 +226,32 @@ public static class GuideMeApplicationHost
             return new WindowsApplicationContextResolver().Resolve(context);
         }
 
+        async Task<AutomationElement> WaitForWindowsContextAsync(
+            GuideMe.Core.Guides.GuideStep step, CancellationToken token)
+        {
+            var waitingLogged = false;
+            while (true)
+            {
+                token.ThrowIfCancellationRequested();
+                try
+                {
+                    return ResolveWindow(step);
+                }
+                catch (WindowsApplicationContextMatchException ex) when (ex.MatchCount == 0)
+                {
+                    // A Windows application that has not yet been opened is a
+                    // missing target, not an invalid guide or a session failure.
+                    if (!waitingLogged)
+                    {
+                        Console.Error.WriteLine(
+                            $"[GuideMe diagnostic] Waiting for Windows application context '{step.ApplicationContextKey}'.");
+                        waitingLogged = true;
+                    }
+                    await Task.Delay(250, token);
+                }
+            }
+        }
+
         var windowsAdapter = new GuideMe.Core.Guides.DelegateGuideStepAdapter(
             GuideMe.Core.Targets.TargetRuntime.Windows, "Windows",
             async (step, index, total, plan, token) =>
@@ -251,7 +277,7 @@ public static class GuideMeApplicationHost
                 {
                     if (runtime == GuideMe.Core.Targets.TargetRuntime.Windows)
                     {
-                        var targetWindow = ResolveWindow(step);
+                        var targetWindow = await WaitForWindowsContextAsync(step, token);
                         watchedWindowsHandle = new IntPtr(targetWindow.Current.NativeWindowHandle);
                         if (watchedWindowsHandle == IntPtr.Zero || !IsWindow(watchedWindowsHandle))
                         {
