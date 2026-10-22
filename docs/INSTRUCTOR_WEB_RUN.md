@@ -25,8 +25,8 @@ dotnet run --project src\GuideMe.Instructor.Web\GuideMe.Instructor.Web.csproj
 ## גבולות הגרסה
 
 - עריכת פרטי השלבים ושמירת הקלטה כשלב V5 עדיין לא הועברו. הקלטת Web ראשונית קיימת לסקירה בלבד.
-- ה־WPF הישן נשאר זמין כדי למנוע אובדן יכולות במהלך המעבר.
-- התוסף הישן של Instructor ומנגנון BrowserCaptureServer טרם חוברו ל־Web Host החדש.
+- פרויקט WPF הישן הוסר; רכיבי V5 נמצאים כעת בתוך פרויקט Web Instructor.
+- התוסף משתמש ב־Native Messaging ייעודי ומעביר את האירועים דרך Named Pipe אל Web Instructor.
 - אין לטעון שה־Web Instructor מחליף כבר את כלל היכולות של WPF; זוהי גרסת ניהול ראשונית.
 - אין לפתוח פורט לרשת. השרת מאזין רק ב־127.0.0.1 ומחייב אסימון סשן לקריאות API; פעולות שינוי דורשות JSON ובדיקת מקור. נדרשות בדיקות אבטחה לפני ייצור.
 - לא בוצע Build על Windows מתוך סביבת העריכה. יש להריץ ולוודא מקומית.
@@ -36,48 +36,39 @@ dotnet run --project src\GuideMe.Instructor.Web\GuideMe.Instructor.Web.csproj
 השלב הבא הוא להעביר לכידת Web ו־Windows לחוזי Host מקומיים ומצבי הקלטה, תוך שמירה על הפרדה מלאה מתוסף Learner. לאחר מכן עריכת שלבים מלאה ובדיקות יצירה־הרצה מול Learner.
 
 
-## תוסף Instructor ללא ממשק משתמש (0.3.0)
+## תוסף Instructor ללא ממשק משתמש — Native Messaging
 
-התוסף לא כולל Popup או כפתור בחירת לשונית. הוא פועל ברקע, בנפרד מתוסף Learner, בפורט `53922` בלבד.
+ה־Instructor משתמש ב־Native Messaging נפרד מה־Learner:
+- Host בשם `com.guideme.instructor` מפורסם תחת `C:\\GuideMe\\InstructorWeb\\NativeHost`.
+- רישום Chrome נכתב ל־`HKCU\\Software\\Google\\Chrome\\NativeMessagingHosts\\com.guideme.instructor`.
+- קובץ ה־Manifest נוצר תחת `%LOCALAPPDATA%\\GuideMe\\NativeMessaging`.
+- ה־Host מתקשר עם Web Instructor דרך Named Pipe המוגבל למשתמש הנוכחי ול־Windows Session.
+- התוסף אינו פונה אל HTTP ואינו מבקש קוד צימוד. פורט `53922` משמש לממשק הניהול המקומי בלבד.
+- מנגנון ה־Learner וה־Host שלו אינם משתנים.
 
-### עדכון והפעלה
+### פרסום והפעלה
 
 ```powershell
-cd C:\yossi\ChatGpt\DAP-Platform
+cd C:\\yossi\\ChatGpt\\DAP-Platform
 git pull --ff-only origin main
-dotnet build src\GuideMe.Instructor.Web\GuideMe.Instructor.Web.csproj
-.\scripts\Publish-GuideMeInstructorWeb.ps1
-& "C:\GuideMe\InstructorWeb\GuideMe.Instructor.Web.exe"
+.\\scripts\\Publish-GuideMeInstructorWeb.ps1
+& "C:\\GuideMe\\InstructorWeb\\GuideMe.Instructor.Web.exe"
 ```
 
-בדפדפן: `chrome://extensions` → תוסף GuideMe Instructor → Reload. ודא שמקור התוסף הוא `C:\GuideMe\InstructorChromeExtension`. אם עדיין נטען ממקור ישן, הסר את הטעינה הישנה והתקן `Load unpacked` מהתיקייה המפורסמת.
+בדפדפן: `chrome://extensions` → GuideMe Instructor → Reload. מקור התוסף חייב להיות `C:\\GuideMe\\InstructorChromeExtension`. גרסת התוסף `0.4.0`.
 
-### הקלטה בלומדה קיימת
+### בדיקת הקלטה
 
-1. פתח Web Instructor ב-`http://127.0.0.1:53922`.
-2. לחץ **חבר תוסף ברקע**. החיבור מתאפשר לחלון הרשאה של 30 שניות; התוסף מתעורר דרך אירועי Chrome או בדיקת הרקע התקופתית. אין לפתוח את חלון התוסף.
-3. פתח לומדה קיימת, או צור לומדה חדשה.
-4. בחר אפליקציית **Web** המשויכת ללומדה. בלחיצה על שלב קיים משויך, אפליקציית Web שלו תיבחר אוטומטית כשמידע זה זמין.
-5. לחץ **זהה אפליקציה**. אם אין לשונית מתאימה, פתח אותה ובצע זיהוי שוב. אם יש כמה לשוניות מתאימות, בחר אחת מהרשימה בתוך Instructor.
-6. לחץ **התחל הקלטה**; בצע פעולה בלשונית; לחץ **עצור הקלטה**. תוצג טיוטת אירועים לקריאה בלבד.
+1. פתח את Web Instructor בכתובת `http://127.0.0.1:53922`.
+2. ודא שהסטטוס הוא **תוסף מחובר**. ההתחברות מתבצעת אוטומטית ללא צימוד.
+3. פתח לומדה, בחר את הקשר אפליקציית Web ולחץ **זהה אפליקציה**.
+4. לחץ **התחל הקלטה**, בצע פעולה באתר ולחץ **עצור הקלטה**.
 
-בחירת היעד מתבססת על `ApplicationContexts.MatchersJson` השמור בלומדה. לא מתבצעת יצירה, שינוי או מחיקה של שלבים קיימים.
+הקלטת Web מציגה אירועים בזיכרון בלבד; שמירה כשלבי V5 עדיין לא מומשה. הקלטת Windows עדיין לא חוברה. יש לבצע Build ורגרסיה מקומית ב־Windows.
 
-### גבולות
+## אייקון Instructor
 
-- אין כרגע שמירת אירועים כשלבי V5; ההקלטה היא טיוטה בזיכרון בלבד.
-- הקלטת Windows טרם חוברה ל־Host החדש.
-- תוסף ללא חלון אינו אומר ללא הרשאות: ה־Web Instructor דורש אישור חיבור בתחילת הסשן.
-- אם התוסף אינו מגיב מיד, החלף מיקוד ללשונית אתר וחזור ל־Instructor. תוסף MV3 עלול להמתין לאירוע Chrome או להתעוררות תקופתית.
-- יש לבצע בנייה ורגרסיה מקומית ב־Windows. לא אומתה הרצה בפועל במחשב המשתמש.
-
-## אייקון Instructor (גרסה 0.3.1)
-
-תוסף Instructor כולל הגדרת `action` ללא `default_popup`, כדי שקליק שמאלי לא יפתח חלון תוסף. תפריט ניהול Chrome עדיין נגיש בקליק ימני.
-
-בעת `Publish-GuideMeInstructorWeb.ps1`, הסקריפט `Generate-GuideMeInstructorIcons.ps1` יוצר את `icon16.png`, `icon48.png` ו-`icon128.png` בתיקיית התוסף המפורסמת. הוא משתמש בנורת GuideMe הקיימת של Learner ומוסיף עיפרון זהוב. אין שינוי בקובצי האייקון של Learner.
-
-**חשוב:** להתקין/לטעון את Instructor מתיקיית `C:\GuideMe\InstructorChromeExtension` לאחר פרסום, ולא ישירות מתיקיית המקור, משום שקובצי PNG נגזרים בזמן הפרסום. אחרי פרסום נדרש Reload ב-`chrome://extensions`.
+הפרסום משתמש בקובץ האייקון המקורי שנמסר על ידי המשתמש (`src/GuideMe.Instructor.ChromeExtension/instructor-source.png`), ללא ציור חדש. נוצרות גרסאות 16, 48 ו־128 פיקסלים.
 
 ## מחיקת לומדה קיימת
 
