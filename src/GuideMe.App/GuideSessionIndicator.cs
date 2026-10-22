@@ -39,7 +39,7 @@ internal sealed class GuideSessionIndicator : IDisposable
         };
         var caption = new TextBlock
         {
-            Text = texts.IsRightToLeft ? "למידה פעילה" : "Guide active",
+            Text = texts.Get("Learner.ActiveStatus"),
             Foreground = Brushes.White,
             FontSize = 13,
             FontWeight = FontWeights.SemiBold,
@@ -59,7 +59,7 @@ internal sealed class GuideSessionIndicator : IDisposable
         };
         _window = new Window
         {
-            Title = "GuideMe — Active learning",
+            Title = "GuideMe",
             Content = panel,
             WindowStyle = WindowStyle.None,
             ResizeMode = ResizeMode.NoResize,
