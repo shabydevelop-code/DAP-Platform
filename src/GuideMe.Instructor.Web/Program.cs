@@ -148,6 +148,18 @@ app.MapPut("/api/guides/{id:long}/contexts/{contextId}/name",
     V5GuideWriter.RenameApplication(id, contextId, body.Name);
     return Results.NoContent();
 });
+// Reuse the WPF Instructor's transactional V5 deletion implementation.
+// An exact-name confirmation prevents accidental deletion of a different guide.
+app.MapDelete("/api/guides/{id:long}", (long id, DeleteGuideConfirmation request) =>
+{
+    var guide = V5GuideReader.ListGuides().FirstOrDefault(g => g.Id == id);
+    if (guide is null) return Results.NotFound();
+    if (!string.Equals(request.Name, guide.Name, StringComparison.Ordinal))
+        return Results.BadRequest(new { message = "שם הלומדה שהוזן אינו תואם." });
+    V5GuideWriter.DeleteGuide(id);
+    return Results.NoContent();
+});
+
 app.MapDelete("/api/guides/{id:long}/contexts/{contextId}",
     (long id, string contextId) =>
 {
@@ -189,3 +201,5 @@ internal sealed record RenameGuide(string Name);
 internal sealed record SaveContext(string ContextId, string Runtime,
     string MatcherProperty, string MatcherValue);
 
+
+internal sealed record DeleteGuideConfirmation(string Name);
