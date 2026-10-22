@@ -2,10 +2,10 @@
 const captureEndpoint = "http://127.0.0.1:53922/capture/event";
 const heartbeatEndpoint = "http://127.0.0.1:53922/capture/heartbeat";
 const targetEndpoint = "http://127.0.0.1:53922/capture/target";
-async function reportActiveTarget(token, url, title) {
+async function reportActiveTarget(token, url, title, tabId) {
   await fetch(targetEndpoint, { method: "POST", headers: {
     "Content-Type": "application/json", "X-GuideMe-Capture-Token": token
-  }, body: JSON.stringify({ url, title }) });
+  }, body: JSON.stringify({ url, title, tabId }) });
 }
 async function heartbeat(token) {
   const response = await fetch(heartbeatEndpoint, { method: "POST", headers: { "X-GuideMe-Capture-Token": token } });
@@ -52,7 +52,7 @@ async function ensureConnection(preferredTabId = null, forceInject = false) {
     }
     // The desktop heartbeat proves transport availability, not that the active
     // website has capture listeners. Bind the selected tab and inject there.
-    await reportActiveTarget(pairing.token, tab.url, tab.title || "");
+    await reportActiveTarget(pairing.token, tab.url, tab.title || "", tab.id);
     if (pairing.tabId !== tab.id || forceInject) {
       await chrome.scripting.executeScript({
         target: { tabId: tab.id, allFrames: true },
@@ -93,6 +93,11 @@ async function selectInstructorTarget(tab) {
     })
   });
   if (!response.ok) throw new Error("Instructor rejected target: " + response.status);
+  await chrome.scripting.executeScript({
+    target: { tabId: tab.id, allFrames: true },
+    files: ["content-capture.js"]
+  });
+  await chrome.storage.session.set({ instructorPairing: { token: instructorPairing.token, tabId: tab.id } });
   return { ok: true, url: tab.url };
 }
 
