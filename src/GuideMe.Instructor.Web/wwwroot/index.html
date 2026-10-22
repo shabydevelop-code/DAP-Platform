@@ -21,6 +21,16 @@
     <div class="content">
       <div class="heading"><div><div class="eyebrow">ניהול תוכן והדרכה</div><h1 id="page-title">הלומדות שלי</h1><p id="page-subtitle">כל המדריכים, האפליקציות והשלבים במקום אחד.</p></div><button id="new-guide" class="btn primary">＋ יצירת לומדה</button></div>
       <div id="notice" class="notice hidden" role="status"></div>
+      <section class="panel capture-panel" aria-label="הקלטת פעולות Web">
+        <div class="panel-header"><div><h2>הקלטת פעולות Web</h2><p>תוסף Instructor נפרד · קליטת אירועים לסקירה לפני שמירה</p></div><span id="capture-status" class="chip">לא מחובר</span></div>
+        <div class="capture-controls">
+          <button id="capture-pair" class="btn secondary">אפשר חיבור לתוסף</button>
+          <button id="capture-start" class="btn primary" disabled>התחל הקלטה</button>
+          <button id="capture-stop" class="btn secondary" disabled>עצור הקלטה</button>
+          <span id="capture-target" class="capture-target">טרם נבחרה לשונית יעד בתוסף</span>
+        </div>
+        <div id="capture-results" class="capture-results hidden"></div>
+      </section>
       <section id="list-view">
         <div class="metrics"><div class="metric"><small>לומדות</small><strong id="total-guides">—</strong><span>במסד הנתונים</span></div><div class="metric"><small>סביבת עבודה</small><strong>V5</strong><span>נתונים קיימים ללא המרה</span></div><div class="metric"><small>אחסון</small><strong>מקומי</strong><span>ללא שירות ענן</span></div></div>
         <div class="panel"><div class="panel-header"><div><h2>ספריית לומדות</h2><p>בחר לומדה כדי לצפות בשלבים ולנהל אפליקציות.</p></div><input id="guide-search" class="search" placeholder="חיפוש לפי שם או מזהה..."></div><div id="guides-table" class="table-area"></div></div>
