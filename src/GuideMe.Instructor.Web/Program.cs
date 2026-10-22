@@ -2,11 +2,14 @@ using System.Data;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text.Json;
+using Microsoft.Extensions.FileProviders;
 using GuideMe.Instructor;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.UseKestrel(options => options.Listen(IPAddress.Loopback, 53922));
 var app = builder.Build();
+var sourceAssets = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "wwwroot"));
+var webRoot = Directory.Exists(sourceAssets) ? sourceAssets : Path.Combine(AppContext.BaseDirectory, "wwwroot");
 var sessionToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
 const string localOrigin = "http://127.0.0.1:53922";
 
@@ -89,11 +92,11 @@ app.MapDelete("/api/guides/{id:long}/contexts/{contextId}",
 // The token is emitted only into this same-origin document, not the API.
 app.MapGet("/", () =>
 {
-    var html = File.ReadAllText(Path.Combine(app.Environment.ContentRootPath, "wwwroot", "index.html"));
+    var html = File.ReadAllText(Path.Combine(webRoot, "index.html"));
     return Results.Content(html.Replace("__SESSION_TOKEN__", sessionToken, StringComparison.Ordinal),
         "text/html; charset=utf-8");
 });
-app.UseStaticFiles();
+app.UseStaticFiles(new StaticFileOptions { FileProvider = new PhysicalFileProvider(webRoot) });
 
 app.Lifetime.ApplicationStarted.Register(() =>
 {
