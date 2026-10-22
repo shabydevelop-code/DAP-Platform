@@ -70,3 +70,11 @@ dotnet build src\GuideMe.Instructor.Web\GuideMe.Instructor.Web.csproj
 - תוסף ללא חלון אינו אומר ללא הרשאות: ה־Web Instructor דורש אישור חיבור בתחילת הסשן.
 - אם התוסף אינו מגיב מיד, החלף מיקוד ללשונית אתר וחזור ל־Instructor. תוסף MV3 עלול להמתין לאירוע Chrome או להתעוררות תקופתית.
 - יש לבצע בנייה ורגרסיה מקומית ב־Windows. לא אומתה הרצה בפועל במחשב המשתמש.
+
+## אייקון Instructor (גרסה 0.3.1)
+
+תוסף Instructor כולל הגדרת `action` ללא `default_popup`, כדי שקליק שמאלי לא יפתח חלון תוסף. תפריט ניהול Chrome עדיין נגיש בקליק ימני.
+
+בעת `Publish-GuideMeInstructorWeb.ps1`, הסקריפט `Generate-GuideMeInstructorIcons.ps1` יוצר את `icon16.png`, `icon48.png` ו-`icon128.png` בתיקיית התוסף המפורסמת. הוא משתמש בנורת GuideMe הקיימת של Learner ומוסיף עיפרון זהוב. אין שינוי בקובצי האייקון של Learner.
+
+**חשוב:** להתקין/לטעון את Instructor מתיקיית `C:\GuideMe\InstructorChromeExtension` לאחר פרסום, ולא ישירות מתיקיית המקור, משום שקובצי PNG נגזרים בזמן הפרסום. אחרי פרסום נדרש Reload ב-`chrome://extensions`.
