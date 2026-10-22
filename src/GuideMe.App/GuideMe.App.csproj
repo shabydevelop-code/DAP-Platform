@@ -3,7 +3,6 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
-    <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>GuideMe</AssemblyName>
@@ -18,9 +17,6 @@
     <ProjectReference Include="../GuideMe.Data.Sqlite/GuideMe.Data.Sqlite.csproj" />
     <ProjectReference Include="../GuideMe.Runtime.Web/GuideMe.Runtime.Web.csproj" />
     <ProjectReference Include="../GuideMe.Runtime.Windows/GuideMe.Runtime.Windows.csproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="Resources\GuideMe.Tray.ico" LogicalName="GuideMe.TrayIcon.ico" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Localization\*.json">
