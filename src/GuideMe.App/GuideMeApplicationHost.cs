@@ -191,7 +191,8 @@ public static class GuideMeApplicationHost
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, stopped.Token);
         WindowsBubblePresenter? visibleWindowsBubbles = null;
         using var indicator = new GuideSessionIndicator(options.GuideId!, texts,
-            () => stopped.Cancel(), () => visibleWindowsBubbles?.IsBubbleVisible == true);
+            () => stopped.Cancel(), () => visibleWindowsBubbles?.IsBubbleVisible == true ||
+                (browser.IsBubblePresented && IsChromeForeground()));
         browser.StopRequested += () => stopped.Cancel();
         browser.TargetTabClosed += () => stopped.Cancel();
         TaskCompletionSource<bool>? pendingWebActivation = null;
@@ -402,6 +403,16 @@ public static class GuideMeApplicationHost
     [DllImport("user32.dll")]
     private static extern IntPtr GetForegroundWindow();
 
+    private static bool IsChromeForeground()
+    {
+        var hwnd = GetForegroundWindow();
+        if (hwnd == IntPtr.Zero) return false;
+        var className = new StringBuilder(128);
+        return GetClassName(hwnd, className, className.Capacity) > 0 &&
+            className.ToString() == "Chrome_WidgetWin_1";
+    }
+
+
     [DllImport("user32.dll")]
     private static extern bool IsIconic(IntPtr window);
 
@@ -518,7 +529,8 @@ public static class GuideMeApplicationHost
         using var runCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, targetClosed.Token);
         using var webUserStopped = new CancellationTokenSource();
         using var indicator = new GuideSessionIndicator(options.GuideId!, texts,
-            () => { webUserStopped.Cancel(); runCancellation.Cancel(); });
+            () => { webUserStopped.Cancel(); runCancellation.Cancel(); },
+            () => browserAdapter.IsBubblePresented && IsChromeForeground());
         browserAdapter.StopRequested += () => { webUserStopped.Cancel(); runCancellation.Cancel(); };
         browserAdapter.TargetTabClosed += () =>
         {
