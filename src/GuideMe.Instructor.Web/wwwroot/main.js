@@ -23,6 +23,7 @@ function clearNotice() { $('notice').classList.add('hidden'); }
 async function guarded(action) { try { await action(); } catch(e) { notify(e.message || String(e), true); } }
 function showList() {
   current = null; selectedStep = null; updateCaptureContexts();
+  $('step-capture').classList.add('hidden');
   $('list-view').classList.remove('hidden'); $('detail-view').classList.add('hidden');
   $('page-title').textContent = 'הלומדות שלי'; $('page-subtitle').textContent = 'כל המדריכים, האפליקציות והשלבים במקום אחד.';
   $('breadcrumb').textContent = 'כל הלומדות'; clearNotice();
@@ -59,7 +60,7 @@ function selectTab(tab) {
   $('contexts-panel').classList.toggle('hidden',tab!=='contexts');
 }
 function renderSteps() {
-  selectedStep = null; $('step-inspector').innerHTML = '<div class="empty-inspector">בחר שלב להצגת הפרטים שלו</div>';
+  selectedStep = null; $('step-capture').classList.add('hidden'); $('step-inspector').innerHTML = '<div class="empty-inspector">בחר שלב להצגת הפרטים שלו</div>';
   const search = $('step-search').value.trim().toLowerCase();
   const steps = (current?.steps || []).filter(s => String(s.order).includes(search) || s.id.toLowerCase().includes(search) || (s.bubble || '').toLowerCase().includes(search));
   $('step-list').innerHTML = steps.length ? steps.map(s =>
@@ -72,7 +73,15 @@ function renderSteps() {
     const data = await api('/guides/' + current.guide.id + '/step/' + encodeURIComponent(selectedStep));
     const step = current.steps.find(x=>x.id===selectedStep);
     const stepContext = data.step?.[0]?.ApplicationContextId;
-    if (stepContext && current.contexts.some(c=>c.ContextId===stepContext && c.Runtime==='Web')) $('capture-context').value=stepContext;
+    const webContext = current.contexts.find(c => c.ContextId === stepContext && c.Runtime === 'Web');
+    $('capture-context').value = webContext?.ContextId || '';
+    $('capture-tab').classList.add('hidden');
+    $('capture-results').classList.add('hidden');
+    $('step-capture').classList.toggle('hidden', !webContext);
+    $('capture-step-label').textContent = webContext
+      ? 'שלב ' + step.order + ' · ' + (webContext.DisplayName || webContext.ContextId) + ' · תצוגה מקדימה בלבד'
+      : 'הקלטת Web אינה זמינה עבור שלב ללא אפליקציית Web משויכת.';
+    await refreshCaptureStatus();
     const sections = [['שלב',data.step],['רכיבי יעד',data.targets],['כללי התקדמות ולכידה',data.rules]];
     $('step-inspector').innerHTML = '<h2>שלב ' + step.order + '</h2><p style="margin-bottom:19px">' + esc(step.bubble||step.id) + '</p><div class="detail-grid">' +
       sections.map(([title,rows]) => '<div class="detail-block"><small>' + title + '</small><pre>' + esc(JSON.stringify(rows,null,2)) + '</pre></div>').join('') + '</div>';
@@ -173,21 +182,15 @@ $('close-dialog').onclick=$('cancel-dialog').onclick=()=>$('editor-dialog').clos
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>selectTab(b.dataset.tab));
 function updateCaptureContexts() {
   const select = $('capture-context');
-  const previous = select.value;
-  const contexts = (current?.contexts || []).filter(c => c.Runtime === 'Web');
-  select.replaceChildren(new Option(current ? 'בחר אפליקציית Web מהלומדה' : 'פתח לומדה כדי להקליט', ''));
-  for (const context of contexts) select.add(new Option(context.DisplayName || context.ContextId, context.ContextId));
-  if (contexts.some(c=>c.ContextId===previous)) select.value = previous;
-  else if (contexts.length===1) select.value=contexts[0].ContextId;
+  select.replaceChildren(new Option('ללא יעד', ''));
+  for (const context of (current?.contexts || []).filter(c => c.Runtime === 'Web'))
+    select.add(new Option(context.DisplayName || context.ContextId, context.ContextId));
+  select.value = '';
   $('capture-tab').classList.add('hidden');
-  $('capture-select').disabled = !current || !select.value;
+  $('capture-results').classList.add('hidden');
+  $('capture-select').disabled = true;
   $('capture-start').disabled = true;
 }
-$('capture-context').onchange = () => {
-  $('capture-select').disabled = !current || !$('capture-context').value;
-  $('capture-start').disabled = true;
-  $('capture-tab').classList.add('hidden');
-};
 async function refreshCaptureStatus() {
   try {
     const state = await api('/capture/status');
@@ -197,25 +200,20 @@ async function refreshCaptureStatus() {
       state.contextId === $('capture-context').value
       ? 'לשונית מזוהה: ' + (state.targetTitle || state.targetUrl) :
         'בחר אפליקציה מתוך הלומדה ולחץ ״זהה אפליקציה״';
-    $('capture-select').disabled = !state.connected || !current || !$('capture-context').value || state.recording;
-    $('capture-start').disabled = !state.connected || !(
+    $('capture-select').disabled = !state.connected || !current || !selectedStep || !$('capture-context').value || state.recording;
+    $('capture-start').disabled = !selectedStep || !state.connected || !(
       state.tabId && state.guideId === current?.guide?.id &&
       state.contextId === $('capture-context').value);
     if (state.recording) $('capture-start').disabled = true;
     $('capture-stop').disabled = !state.recording;
-    $('capture-pair').disabled = state.recording;
   } catch {
     $('capture-status').textContent = 'החיבור לשרת אינו זמין';
     $('capture-start').disabled = true;
     $('capture-stop').disabled = true;
   }
 }
-$('capture-pair').onclick = () => guarded(async () => {
-  notify('החיבור לתוסף מתבצע אוטומטית באמצעות Native Messaging. אם אינו מחובר, בדוק שהתוסף הותקן ונטען מחדש.');
-  await refreshCaptureStatus();
-});
 async function selectCaptureTab(tabId = null) {
-  if (!current || !$('capture-context').value) throw new Error('בחר לומדה ואפליקציית Web.');
+  if (!current || !selectedStep || !$('capture-context').value) throw new Error('בחר שלב המשויך לאפליקציית Web.');
   const state = await api('/capture/select', { method:'POST', body: JSON.stringify({
     guideId: current.guide.id, contextId:$('capture-context').value, tabId
   }) });
@@ -241,7 +239,7 @@ $('capture-tab').onchange=()=>guarded(async()=>{
   if (id) await selectCaptureTab(id);
 });
 $('capture-start').onclick=()=>guarded(async()=>{
-  if (!current) throw new Error('יש לפתוח לומדה.');
+  if (!current || !selectedStep || !$('capture-context').value) throw new Error('יש לבחור שלב Web.');
   await api('/capture/start', { method:'POST', body:JSON.stringify({
     guideId:current.guide.id, contextId:$('capture-context').value
   })});
@@ -254,7 +252,7 @@ $('capture-stop').onclick=()=>guarded(async()=>{
   const events=result.events || [];
   const box=$('capture-results');box.classList.remove('hidden');box.replaceChildren();
   const heading=document.createElement('h3');heading.textContent='אירועים שנקלטו: '+events.length;
-  const note=document.createElement('p');note.textContent='סקירה בלבד; לא בוצע שינוי בשלב קיים או בנתוני V5.';
+  const note=document.createElement('p');note.textContent='סקירה בלבד לשלב ' + selectedStep + '; לא בוצע שינוי בנתוני V5.';
   const pre=document.createElement('pre');pre.textContent=JSON.stringify(events,null,2);
   box.append(heading,note,pre);
   await refreshCaptureStatus();
