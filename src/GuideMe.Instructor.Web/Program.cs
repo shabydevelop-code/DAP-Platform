@@ -24,7 +24,8 @@ app.Use(async (context, next) =>
         "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'";
     if (context.Request.Path.StartsWithSegments("/api"))
     {
-        if (!string.Equals(context.Request.Headers.Origin.ToString(), localOrigin, StringComparison.Ordinal) ||
+        var origin = context.Request.Headers.Origin.ToString();
+        if ((!string.IsNullOrEmpty(origin) && !string.Equals(origin, localOrigin, StringComparison.Ordinal)) ||
             !CryptographicOperations.FixedTimeEquals(
                 System.Text.Encoding.UTF8.GetBytes(context.Request.Headers["X-GuideMe-Session"].ToString()),
                 System.Text.Encoding.UTF8.GetBytes(sessionToken)))
