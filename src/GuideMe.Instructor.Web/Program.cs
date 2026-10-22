@@ -9,6 +9,15 @@ using Microsoft.AspNetCore.Mvc;
 using GuideMe.Instructor.Web.Data;
 using GuideMe.Instructor.Web;
 
+// Enforce a single server before Kestrel and the native pipe are created.
+using var instanceMutex = InstructorSingleInstance.TryAcquire();
+if (instanceMutex is null)
+{
+    if (!InstructorSingleInstance.ActivateExisting())
+        Console.WriteLine("Instructor is already running in this Windows session. Activate its existing window.");
+    return;
+}
+
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.UseKestrel(options => options.Listen(IPAddress.Loopback, 53922));
 var app = builder.Build();
