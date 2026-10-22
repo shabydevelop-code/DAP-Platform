@@ -103,6 +103,7 @@ function modal(title, fields, submit, buttonText='שמירה') {
   $('dialog-fields').innerHTML='<div class="fields">' + fields.map(f=>{
     const label='<label for="field-'+f.name+'">'+esc(f.label)+'</label>';
     const field=f.choices?'<select id="field-'+f.name+'" name="'+f.name+'">'+f.choices.map(v=>'<option value="'+esc(v.value)+'" '+(v.value===f.value?'selected':'')+'>'+esc(v.text)+'</option>').join('')+'</select>'
+    :f.multiline?'<textarea id="field-'+f.name+'" name="'+f.name+'" maxlength="'+(f.max||4000)+'" rows="5">'+esc(f.value||'')+'</textarea>'
     :'<input id="field-'+f.name+'" name="'+f.name+'" value="'+esc(f.value||'')+'" maxlength="'+(f.max||256)+'" required>';
     return '<div class="field">'+label+field+(f.help?'<div class="field-help">'+esc(f.help)+'</div>':'')+'</div>';
   }).join('')+'</div>';
@@ -187,7 +188,7 @@ function editStep(step) {
   const guideId = current.guide.id;
   const stepId = step.id;
   modal('עריכת שלב ' + step.order, [
-    {name:'bubble', label:'טקסט הבועית', value:step.bubble || '', max:4000,
+    {name:'bubble', label:'טקסט הבועית', value:step.bubble || '', max:4000, multiline:true,
      help:'השינוי ישפיע על תוכן הבועית בלבד. רכיבי יעד וכללי התקדמות אינם משתנים.'},
     {name:'enabled', label:'מצב השלב', value: step.enabled ? 'true' : 'false',
      choices:[{value:'true',text:'פעיל'},{value:'false',text:'מושבת'}]}
