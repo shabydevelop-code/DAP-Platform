@@ -16,12 +16,15 @@ internal sealed class GuideSessionIndicator : IDisposable
     private readonly DispatcherTimer _timer;
     private readonly Func<bool> _bubbleVisible;
     private bool _disposed;
+    private readonly TimeSpan _showDelay;
+    private DateTimeOffset? _noBubbleSince;
 
     public GuideSessionIndicator(string guideId, IUiTextProvider texts, Action stop,
-        Func<bool>? bubbleVisible = null)
+        Func<bool>? bubbleVisible = null, TimeSpan? showDelay = null)
     {
         ArgumentNullException.ThrowIfNull(stop);
         _bubbleVisible = bubbleVisible ?? (() => false);
+        _showDelay = showDelay ?? TimeSpan.Zero;
         var rtl = texts.IsRightToLeft ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
 
         var stopButton = new Button
@@ -94,13 +97,20 @@ internal sealed class GuideSessionIndicator : IDisposable
         bool visible;
         try { visible = !_bubbleVisible(); }
         catch { visible = true; }
+        if (!visible)
+        {
+            _noBubbleSince = null;
+            if (_window.IsVisible) _window.Hide();
+            return;
+        }
+
+        _noBubbleSince ??= DateTimeOffset.UtcNow;
+        if (DateTimeOffset.UtcNow - _noBubbleSince < _showDelay) return;
         if (visible)
         {
             if (!_window.IsVisible) _window.Show();
             Reposition();
         }
-        else if (_window.IsVisible)
-            _window.Hide();
     }
 
     public void Dispose()
