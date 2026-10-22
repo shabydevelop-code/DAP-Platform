@@ -1,34 +1,27 @@
-using System.Net;
 using System.Security.Cryptography;
 using System.Text.Json;
 
 namespace GuideMe.Instructor.Web;
 
-// Ephemeral, same-user capture session. Nothing is written to the V5 database
-// until an author explicitly accepts and saves a draft (not yet implemented).
+// Recording state belongs to the Web Instructor host, not to the extension UI.
 internal sealed class InstructorCaptureBridge
 {
     internal const string ExtensionOrigin = "chrome-extension://icnbpbekaibdhbmlnccfcibmmboeckgp";
     private readonly object _gate = new();
     private readonly string _token = Convert.ToHexString(RandomNumberGenerator.GetBytes(16)).ToLowerInvariant();
-    private DateTimeOffset _pairUntil;
-    private DateTimeOffset _lastHeartbeat;
+    private DateTimeOffset _pairUntil, _lastHeartbeat;
     private bool _recording;
-    private string? _targetUrl, _targetTitle;
-    private int? _tabId;
     private readonly List<JsonElement> _events = new();
+    private List<CaptureTab> _tabs = new();
+    private int? _selectedTab;
+    private string? _selectedContext, _targetUrl, _targetTitle;
+    private long? _guideId;
 
-    public bool PairingOpen { get { lock (_gate) return DateTimeOffset.UtcNow < _pairUntil; } }
-    public bool Connected { get { lock (_gate) return DateTimeOffset.UtcNow - _lastHeartbeat < TimeSpan.FromSeconds(5); } }
-    public bool Recording { get { lock (_gate) return _recording; } }
-    public object Status()
-    {
-        lock (_gate)
-            return new { connected = DateTimeOffset.UtcNow - _lastHeartbeat < TimeSpan.FromSeconds(5),
-                pairingOpen = DateTimeOffset.UtcNow < _pairUntil, recording = _recording,
-                targetUrl = _targetUrl, targetTitle = _targetTitle, tabId = _tabId,
-                eventsCount = _events.Count };
-    }
+    public bool Verify(string? value) => value is not null &&
+        CryptographicOperations.FixedTimeEquals(
+            System.Text.Encoding.UTF8.GetBytes(value),
+            System.Text.Encoding.UTF8.GetBytes(_token));
+
     public void OpenPairing() { lock (_gate) _pairUntil = DateTimeOffset.UtcNow.AddSeconds(30); }
     public string? Pair()
     {
@@ -40,30 +33,85 @@ internal sealed class InstructorCaptureBridge
             return _token;
         }
     }
-    public bool Verify(string? token)
+    public object Heartbeat(CaptureTab[] tabs)
     {
-        if (token is null) return false;
-        var received = System.Text.Encoding.UTF8.GetBytes(token);
-        var expected = System.Text.Encoding.UTF8.GetBytes(_token);
-        return CryptographicOperations.FixedTimeEquals(received, expected);
-    }
-    public void Heartbeat() { lock (_gate) _lastHeartbeat = DateTimeOffset.UtcNow; }
-    public void SetTarget(string url, string title, int? tabId)
-    {
-        var uri = ParseTarget(url);
+        if (tabs.Length > 100) throw new ArgumentException("Too many browser tabs.");
+        var accepted = tabs.Where(t => t.TabId > 0 && t.Url.Length <= 4096 &&
+            Uri.TryCreate(t.Url, UriKind.Absolute, out var uri) &&
+            uri.Scheme is ("http" or "https") && t.Title.Length <= 200).ToList();
         lock (_gate)
         {
-            _targetUrl = uri.GetLeftPart(UriPartial.Authority);
-            _targetTitle = title[..Math.Min(title.Length, 200)];
-            _tabId = tabId;
+            _lastHeartbeat = DateTimeOffset.UtcNow;
+            _tabs = accepted;
+            if (_selectedTab is not null && !_tabs.Any(t => t.TabId == _selectedTab))
+            {
+                _selectedTab = null;
+                _recording = false;
+            }
+            return new { selectedTabId = _selectedTab, recording = _recording };
         }
     }
-    public void Begin()
+    public object Status()
+    {
+        lock (_gate)
+            return new {
+                connected = DateTimeOffset.UtcNow - _lastHeartbeat < TimeSpan.FromSeconds(10),
+                pairingOpen = DateTimeOffset.UtcNow < _pairUntil, recording = _recording,
+                guideId = _guideId, contextId = _selectedContext,
+                targetUrl = _targetUrl, targetTitle = _targetTitle,
+                tabId = _selectedTab, tabs = _tabs,
+                eventsCount = _events.Count
+            };
+    }
+
+    public object Select(long guideId, string contextId, string matchersJson, int? explicitTabId)
+    {
+        using var parsed = JsonDocument.Parse(matchersJson);
+        var matchers = parsed.RootElement.EnumerateArray().Select(item => (
+            Kind: item.GetProperty("Kind").GetString() ?? "",
+            Value: item.GetProperty("Value").GetString() ?? "")).ToArray();
+        if (matchers.Length == 0) throw new ArgumentException("No Web application matchers.");
+        lock (_gate)
+        {
+            if (DateTimeOffset.UtcNow - _lastHeartbeat > TimeSpan.FromSeconds(10))
+                throw new InvalidOperationException("תוסף Instructor אינו מחובר.");
+            var matching = _tabs.Where(tab => matchers.All(m => Match(tab, m.Kind, m.Value))).ToArray();
+            if (matching.Length != 1 && explicitTabId is null)
+                return new { status = matching.Length == 0 ? "notFound" : "multiple", tabs = matching };
+            if (explicitTabId is not null && matching.All(t => t.TabId != explicitTabId))
+                throw new ArgumentException("Selected tab does not match the saved application context.");
+            var target = explicitTabId is null ? matching[0] : matching.Single(t => t.TabId == explicitTabId);
+            _recording = false;
+            _events.Clear();
+            _guideId = guideId;
+            _selectedContext = contextId;
+            _selectedTab = target.TabId;
+            _targetTitle = target.Title;
+            _targetUrl = new Uri(target.Url).GetLeftPart(UriPartial.Authority);
+            return new { status = "selected", tabs = new[] { target } };
+        }
+    }
+    private static bool Match(CaptureTab tab, string kind, string value)
+    {
+        return kind.ToLowerInvariant() switch
+        {
+            "urlhost" => Uri.TryCreate(tab.Url, UriKind.Absolute, out var u) &&
+                string.Equals(u.Authority, value, StringComparison.OrdinalIgnoreCase),
+            "urlequals" => string.Equals(tab.Url, value, StringComparison.OrdinalIgnoreCase),
+            "urlcontains" => tab.Url.Contains(value, StringComparison.OrdinalIgnoreCase),
+            "titlecontains" => tab.Title.Contains(value, StringComparison.OrdinalIgnoreCase),
+            _ => false
+        };
+    }
+    public void Begin(long guideId, string contextId)
     {
         lock (_gate)
         {
-            if (DateTimeOffset.UtcNow - _lastHeartbeat >= TimeSpan.FromSeconds(5) || _tabId is null)
-                throw new InvalidOperationException("יש לחבר את התוסף ולבחור לשונית יעד לפני ההקלטה.");
+            if (_guideId != guideId || _selectedContext != contextId ||
+                _selectedTab is null || !_tabs.Any(t => t.TabId == _selectedTab))
+                throw new InvalidOperationException("יש לבחור תחילה אפליקציית Web זמינה.");
+            if (DateTimeOffset.UtcNow - _lastHeartbeat >= TimeSpan.FromSeconds(10))
+                throw new InvalidOperationException("תוסף Instructor אינו מחובר.");
             _events.Clear();
             _recording = true;
         }
@@ -72,24 +120,22 @@ internal sealed class InstructorCaptureBridge
     {
         lock (_gate) { _recording = false; return _events.ToArray(); }
     }
-    public void Receive(JsonElement value)
+    public void Receive(CaptureEvent data)
     {
-        if (!value.TryGetProperty("kind", out var k) || k.GetString() is not ("click" or "change" or "blur"))
+        if (data.TabId <= 0 || data.Event.ValueKind != JsonValueKind.Object ||
+            !data.Event.TryGetProperty("kind", out var k) || k.GetString() is not ("click" or "change" or "blur") ||
+            !data.Event.TryGetProperty("url", out var u) || u.ValueKind != JsonValueKind.String)
             throw new ArgumentException("Invalid capture event.");
-        if (!value.TryGetProperty("url", out var u) || u.ValueKind != JsonValueKind.String)
-            throw new ArgumentException("Capture URL missing.");
-        var uri = ParseTarget(u.GetString()!);
         lock (_gate)
         {
-            if (!_recording || _targetUrl is null || uri.GetLeftPart(UriPartial.Authority) != _targetUrl) return;
-            if (_events.Count < 200) _events.Add(value.Clone());
+            if (!_recording || _selectedTab != data.TabId || _targetUrl is null ||
+                !Uri.TryCreate(u.GetString(), UriKind.Absolute, out var uri) ||
+                uri.GetLeftPart(UriPartial.Authority) != _targetUrl) return;
+            if (_events.Count < 200) _events.Add(data.Event.Clone());
         }
     }
-    private static Uri ParseTarget(string url)
-    {
-        if (url.Length > 4096 || !Uri.TryCreate(url, UriKind.Absolute, out var uri) ||
-            uri.Scheme is not ("http" or "https"))
-            throw new ArgumentException("Invalid target URL.");
-        return uri;
-    }
 }
+internal sealed record CaptureTab(int TabId, string Url, string Title);
+internal sealed record CaptureEvent(int TabId, JsonElement Event);
+internal sealed record CaptureSelection(long GuideId, string ContextId, int? TabId);
+internal sealed record CaptureStart(long GuideId, string ContextId);
