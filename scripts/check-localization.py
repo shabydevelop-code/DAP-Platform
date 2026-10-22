@@ -26,7 +26,7 @@ for key in sorted(set(he) | set(en)):
 # Only learner UI entry points, not logs, protocol identifiers, or demo apps.
 ui_sources = [
     "src/GuideMe.App/GuideMeApplicationHost.cs",
-    "src/GuideMe.App/GuideSessionTray.cs",
+    "src/GuideMe.App/GuideSessionIndicator.cs",
     "src/GuideMe.App/GuideMeLaunchOptions.cs",
     "src/GuideMe.Runtime.Windows/Bubbles/WindowsBubblePresenter.cs",
     "src/GuideMe.Runtime.Web/Browser/ExtensionWebBrowserAdapter.cs",
