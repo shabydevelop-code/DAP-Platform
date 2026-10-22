@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using Microsoft.Extensions.FileProviders;
 using GuideMe.Instructor;
+using GuideMe.Instructor.Web;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.UseKestrel(options => options.Listen(IPAddress.Loopback, 53922));
@@ -11,6 +12,7 @@ var app = builder.Build();
 var sourceAssets = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "wwwroot"));
 var webRoot = Directory.Exists(sourceAssets) ? sourceAssets : Path.Combine(AppContext.BaseDirectory, "wwwroot");
 var sessionToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
+var capture = new InstructorCaptureBridge();
 const string localOrigin = "http://127.0.0.1:53922";
 
 app.Use(async (context, next) =>
@@ -25,6 +27,40 @@ app.Use(async (context, next) =>
     context.Response.Headers["X-Content-Type-Options"] = "nosniff";
     context.Response.Headers["Content-Security-Policy"] =
         "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'";
+    if (context.Request.Path.StartsWithSegments("/capture"))
+    {
+        var origin = context.Request.Headers.Origin.ToString();
+        if (origin != InstructorCaptureBridge.ExtensionOrigin)
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            return;
+        }
+        context.Response.Headers["Access-Control-Allow-Origin"] = InstructorCaptureBridge.ExtensionOrigin;
+        context.Response.Headers["Vary"] = "Origin";
+        if (HttpMethods.IsOptions(context.Request.Method))
+        {
+            context.Response.Headers["Access-Control-Allow-Methods"] = "POST, OPTIONS";
+            context.Response.Headers["Access-Control-Allow-Headers"] = "Content-Type, X-GuideMe-Capture-Token";
+            context.Response.StatusCode = StatusCodes.Status204NoContent;
+            return;
+        }
+        if (!HttpMethods.IsPost(context.Request.Method))
+        {
+            context.Response.StatusCode = StatusCodes.Status405MethodNotAllowed;
+            return;
+        }
+        if (context.Request.ContentLength is > 16384)
+        {
+            context.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
+            return;
+        }
+        if (context.Request.Path != "/capture/pair" &&
+            !capture.Verify(context.Request.Headers["X-GuideMe-Capture-Token"].ToString()))
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            return;
+        }
+    }
     if (context.Request.Path.StartsWithSegments("/api"))
     {
         var origin = context.Request.Headers.Origin.ToString();
@@ -45,6 +81,32 @@ app.Use(async (context, next) =>
     }
     await next();
 });
+
+app.MapPost("/capture/pair", () =>
+{
+    var token = capture.Pair();
+    return token is null ? Results.StatusCode(403) : Results.Ok(new { token });
+});
+app.MapPost("/capture/heartbeat", () => { capture.Heartbeat(); return Results.Ok(); });
+app.MapPost("/capture/target", (CaptureTarget body) =>
+{
+    capture.SetTarget(body.Url, body.Title ?? "", body.TabId);
+    return Results.NoContent();
+});
+app.MapPost("/capture/select-target", (CaptureTarget body) =>
+{
+    capture.SetTarget(body.Url, body.Title ?? "", body.TabId);
+    return Results.NoContent();
+});
+app.MapPost("/capture/event", (JsonElement body) =>
+{
+    capture.Receive(body);
+    return Results.NoContent();
+});
+app.MapPost("/api/capture/pair", () => { capture.OpenPairing(); return Results.Ok(capture.Status()); });
+app.MapGet("/api/capture/status", () => Results.Ok(capture.Status()));
+app.MapPost("/api/capture/start", () => { capture.Begin(); return Results.Ok(capture.Status()); });
+app.MapPost("/api/capture/stop", () => Results.Ok(new { events = capture.End() }));
 
 app.MapGet("/api/guides", () => Results.Ok(V5GuideReader.ListGuides()));
 app.MapGet("/api/guides/{id:long}", (long id) =>
@@ -122,3 +184,5 @@ internal sealed record NewGuide(string Name, string ContextId, string Runtime,
 internal sealed record RenameGuide(string Name);
 internal sealed record SaveContext(string ContextId, string Runtime,
     string MatcherProperty, string MatcherValue);
+
+internal sealed record CaptureTarget(string Url, string? Title, int? TabId);
