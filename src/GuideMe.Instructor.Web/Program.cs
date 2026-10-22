@@ -1,0 +1,120 @@
+using System.Data;
+using System.Net;
+using System.Security.Cryptography;
+using System.Text.Json;
+using GuideMe.Instructor;
+
+var builder = WebApplication.CreateBuilder(args);
+builder.WebHost.UseKestrel(options => options.Listen(IPAddress.Loopback, 53922));
+var app = builder.Build();
+var sessionToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
+const string localOrigin = "http://127.0.0.1:53922";
+
+app.Use(async (context, next) =>
+{
+    if (!string.Equals(context.Request.Host.Value, "127.0.0.1:53922", StringComparison.Ordinal) ||
+        context.Connection.RemoteIpAddress is not { } client || !IPAddress.IsLoopback(client))
+    {
+        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+        return;
+    }
+    context.Response.Headers.CacheControl = "no-store";
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["Content-Security-Policy"] =
+        "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'";
+    if (context.Request.Path.StartsWithSegments("/api"))
+    {
+        if (!string.Equals(context.Request.Headers.Origin.ToString(), localOrigin, StringComparison.Ordinal) ||
+            !CryptographicOperations.FixedTimeEquals(
+                System.Text.Encoding.UTF8.GetBytes(context.Request.Headers["X-GuideMe-Session"].ToString()),
+                System.Text.Encoding.UTF8.GetBytes(sessionToken)))
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            return;
+        }
+        if (!HttpMethods.IsGet(context.Request.Method) &&
+            !string.Equals(context.Request.ContentType?.Split(';')[0], "application/json", StringComparison.OrdinalIgnoreCase))
+        {
+            context.Response.StatusCode = StatusCodes.Status415UnsupportedMediaType;
+            return;
+        }
+    }
+    await next();
+});
+
+app.MapGet("/api/guides", () => Results.Ok(V5GuideReader.ListGuides()));
+app.MapGet("/api/guides/{id:long}", (long id) =>
+{
+    var guide = V5GuideReader.ListGuides().FirstOrDefault(g => g.Id == id);
+    return guide is null ? Results.NotFound() : Results.Ok(new
+    {
+        guide, steps = V5GuideReader.ListSteps(id),
+        contexts = TableRows(V5GuideReader.ReadGuideTable(id, "ApplicationContexts"))
+    });
+});
+app.MapGet("/api/guides/{id:long}/step/{stepId}", (long id, string stepId) =>
+{
+    if (V5GuideReader.ListSteps(id).All(s => s.Id != stepId)) return Results.NotFound();
+    return Results.Ok(new
+    {
+        step = TableRows(V5GuideReader.ReadGuideTable(id, "Steps")).Where(r => Equals(r["StepId"], stepId)),
+        targets = TableRows(V5GuideReader.ReadGuideTable(id, "StepTargets")).Where(r => Equals(r["StepId"], stepId)),
+        rules = TableRows(V5GuideReader.ReadGuideTable(id, "StepRules")).Where(r => Equals(r["StepId"], stepId))
+    });
+});
+app.MapPost("/api/guides", (NewGuide body) =>
+    Results.Ok(V5GuideWriter.CreateGuideWithContext(body.Name, body.ContextId,
+        body.Runtime, body.MatcherProperty, body.MatcherValue)));
+app.MapPut("/api/guides/{id:long}/name", (long id, RenameGuide body) =>
+    Results.Ok(V5GuideWriter.RenameGuide(id, body.Name)));
+app.MapPost("/api/guides/{id:long}/contexts", (long id, SaveContext body) =>
+{
+    V5GuideWriter.SaveApplicationContext(id, body.ContextId, body.Runtime, body.MatcherProperty, body.MatcherValue);
+    return Results.NoContent();
+});
+app.MapPut("/api/guides/{id:long}/contexts/{contextId}/name",
+    (long id, string contextId, RenameGuide body) =>
+{
+    V5GuideWriter.RenameApplication(id, contextId, body.Name);
+    return Results.NoContent();
+});
+app.MapDelete("/api/guides/{id:long}/contexts/{contextId}",
+    (long id, string contextId) =>
+{
+    V5GuideWriter.DeleteApplication(id, contextId);
+    return Results.NoContent();
+});
+
+// The token is emitted only into this same-origin document, not the API.
+app.MapGet("/", () =>
+{
+    var html = File.ReadAllText(Path.Combine(app.Environment.ContentRootPath, "wwwroot", "index.html"));
+    return Results.Content(html.Replace("__SESSION_TOKEN__", sessionToken, StringComparison.Ordinal),
+        "text/html; charset=utf-8");
+});
+app.UseStaticFiles();
+
+app.Lifetime.ApplicationStarted.Register(() =>
+{
+    try
+    {
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(localOrigin)
+        { UseShellExecute = true });
+    }
+    catch (Exception ex) { Console.Error.WriteLine($"Open {localOrigin} manually: {ex.Message}"); }
+});
+Console.WriteLine($"GuideMe Instructor Web: {localOrigin}");
+app.Run();
+
+static List<Dictionary<string, object?>> TableRows(DataTable table) =>
+    table.Rows.Cast<DataRow>()
+        .Select(row => table.Columns.Cast<DataColumn>()
+            .ToDictionary(col => col.ColumnName,
+                col => row.IsNull(col) ? null : row[col], StringComparer.Ordinal))
+        .ToList();
+
+internal sealed record NewGuide(string Name, string ContextId, string Runtime,
+    string MatcherProperty, string MatcherValue);
+internal sealed record RenameGuide(string Name);
+internal sealed record SaveContext(string ContextId, string Runtime,
+    string MatcherProperty, string MatcherValue);
