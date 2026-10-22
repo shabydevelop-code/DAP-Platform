@@ -29,18 +29,7 @@
         <div class="detail-top"><button class="back" id="back">← חזרה לכל הלומדות</button><span id="guide-key" class="code-label"></span></div>
         <div class="panel guide-card"><div class="guide-top"><div><div class="eyebrow">לומדה נבחרת</div><h2 id="detail-name"></h2><p id="detail-description"></p></div><div class="guide-actions"><button class="btn secondary" id="rename-guide">שינוי שם</button><button class="btn danger" id="delete-guide">מחיקת לומדה</button></div></div></div>
         <div class="tabs"><button class="tab active" data-tab="steps">שלבי הלומדה <span id="steps-count">0</span></button><button class="tab" data-tab="contexts">אפליקציות <span id="contexts-count">0</span></button></div>
-        <div class="panel" id="steps-panel"><div class="panel-header"><div><h2>שלבים</h2><p>סקירת שלבים קיימים והגדרותיהם.</p></div><input id="step-search" class="search" placeholder="חיפוש שלב..."></div><div class="steps-layout"><div id="step-list" class="step-list"></div><div id="step-inspector" class="inspector"><div class="empty-inspector">בחר שלב להצגת הפרטים שלו</div></div></div><section id="step-capture" class="step-capture hidden" aria-label="הקלטת פעולה בשלב">
- <div class="step-capture-heading"><h3>הקלטת פעולה לשלב הנבחר</h3><p id="capture-step-label">בחר שלב להקלטה.</p></div>
- <div class="capture-controls">
-  <select id="capture-context" class="hidden" aria-label="אפליקציית השלב"><option value="">לא נבחר יעד</option></select>
-  <button id="capture-select" class="btn secondary" disabled>זהה אפליקציה</button>
-  <select id="capture-tab" class="search hidden" aria-label="בחירת לשונית מתאימה"></select>
-  <button id="capture-start" class="btn primary" disabled>התחל הקלטה</button>
-  <button id="capture-stop" class="btn secondary" disabled>עצור הקלטה</button>
- </div>
- <div id="capture-target" class="capture-target">זיהוי האפליקציה המשויכת לשלב.</div>
- <div id="capture-results" class="capture-results hidden"></div>
-</section></div>
+        <div class="panel" id="steps-panel"><div class="panel-header"><div><h2>שלבים</h2><p>בחירת שלב, עריכת תוכן והצגת רכיבי יעד וכללים.</p></div><input id="step-search" class="search" placeholder="חיפוש שלב..."></div><div class="steps-layout"><div id="step-list" class="step-list"></div><div id="step-inspector" class="inspector"><div class="empty-inspector">בחר שלב להצגת הפרטים שלו</div></div></div></div>
         <div class="panel hidden" id="contexts-panel"><div class="panel-header"><div><h2>אפליקציות הלומדה</h2><p>הקשרים מזוהים בנפרד ל־Web ול־Windows.</p></div><button id="add-context" class="btn primary">＋ הוספת אפליקציה</button></div><div id="contexts-list" class="context-cards"></div></div>
       </section>
       <footer>GuideMe Instructor · סביבת עריכה מקומית · ממשק Web</footer>
