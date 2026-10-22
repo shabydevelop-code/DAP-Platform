@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "GuideMe Instructor",
-  "version": "0.1.0",
-  "description": "Authoring capture extension for GuideMe Instructor. Separate from GuideMe Learner.",
+  "version": "0.2.0",
+  "description": "Capture extension for local GuideMe Web Instructor (separate from Learner).",
   "permissions": [
     "storage",
     "tabs",
@@ -12,11 +12,13 @@
   "host_permissions": [
     "http://*/*",
     "https://*/*",
-    "http://127.0.0.1:53921/*"
+    "http://127.0.0.1:53922/*"
   ],
   "commands": {
     "select-instructor-target": {
-      "suggested_key": { "default": "Alt+Shift+G" },
+      "suggested_key": {
+        "default": "Alt+Shift+G"
+      },
       "description": "בחר את הלשונית הפעילה כיעד ב-GuideMe Instructor"
     }
   },
