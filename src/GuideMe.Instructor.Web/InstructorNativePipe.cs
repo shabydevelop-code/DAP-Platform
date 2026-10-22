@@ -48,9 +48,9 @@ internal sealed class InstructorNativePipe
             var type = root.GetProperty("type").GetString();
             object? result = type switch
             {
-                "heartbeat" => _capture.Heartbeat(root.GetProperty("tabs").Deserialize<CaptureTab[]>() ??
+                "heartbeat" => _capture.Heartbeat(root.GetProperty("tabs").Deserialize<CaptureTab[]>(new JsonSerializerOptions(JsonSerializerDefaults.Web)) ??
                     Array.Empty<CaptureTab>()),
-                "event" => ReceiveEvent(root.GetProperty("payload").Deserialize<CaptureEvent>()),
+                "event" => ReceiveEvent(root.GetProperty("payload").Deserialize<CaptureEvent>(new JsonSerializerOptions(JsonSerializerDefaults.Web))),
                 _ => throw new InvalidOperationException("Unknown Instructor native request.")
             };
             response = new { requestId, ok = true, result };
