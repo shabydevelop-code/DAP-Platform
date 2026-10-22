@@ -189,7 +189,7 @@ public static class GuideMeApplicationHost
         browser.ConfigureApplicationContexts(applicationContexts);
         using var stopped = new CancellationTokenSource();
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, stopped.Token);
-        using var indicator = new GuideSessionIndicator(options.GuideId!, texts, () => stopped.Cancel());
+        using var indicator = new GuideSessionIndicator(texts, () => stopped.Cancel());
         browser.StopRequested += () => stopped.Cancel();
         browser.TargetTabClosed += () => stopped.Cancel();
         TaskCompletionSource<bool>? pendingWebActivation = null;
@@ -344,7 +344,7 @@ public static class GuideMeApplicationHost
         var resolver = new WindowsTargetResolver();
         var bubbles = new WindowsBubblePresenter(texts);
         using var userStopped = new CancellationTokenSource();
-        using var indicator = new GuideSessionIndicator(options.GuideId!, texts, () => userStopped.Cancel());
+        using var indicator = new GuideSessionIndicator(texts, () => userStopped.Cancel());
         using var stopRegistration = userStopped.Token.Register(() => runCancellation.Cancel());
         var runtime = new WindowsGuideRuntime(resolver, bubbles);
 
@@ -513,7 +513,7 @@ public static class GuideMeApplicationHost
         using var targetClosed = new CancellationTokenSource();
         using var runCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, targetClosed.Token);
         using var webUserStopped = new CancellationTokenSource();
-        using var indicator = new GuideSessionIndicator(options.GuideId!, texts,
+        using var indicator = new GuideSessionIndicator(texts,
             () => { webUserStopped.Cancel(); runCancellation.Cancel(); });
         browserAdapter.StopRequested += () => { webUserStopped.Cancel(); runCancellation.Cancel(); };
         browserAdapter.TargetTabClosed += () =>
