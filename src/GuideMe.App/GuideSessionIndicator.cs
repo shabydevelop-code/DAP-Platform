@@ -1,7 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using System.Windows.Threading;
 using GuideMe.Core.Localization;
 
 namespace GuideMe.App;
@@ -13,15 +12,11 @@ namespace GuideMe.App;
 internal sealed class GuideSessionIndicator : IDisposable
 {
     private readonly Window _window;
-    private readonly DispatcherTimer _timer;
-    private readonly Func<bool> _bubbleVisible;
     private bool _disposed;
 
-    public GuideSessionIndicator(string guideId, IUiTextProvider texts, Action stop,
-        Func<bool>? bubbleVisible = null)
+    public GuideSessionIndicator(string guideId, IUiTextProvider texts, Action stop)
     {
         ArgumentNullException.ThrowIfNull(stop);
-        _bubbleVisible = bubbleVisible ?? (() => false);
         var rtl = texts.IsRightToLeft ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
 
         var stopButton = new Button
@@ -72,13 +67,8 @@ internal sealed class GuideSessionIndicator : IDisposable
             WindowStartupLocation = WindowStartupLocation.Manual
         };
         _window.Loaded += (_, _) => Reposition();
-        _timer = new DispatcherTimer(DispatcherPriority.Background)
-        {
-            Interval = TimeSpan.FromMilliseconds(400)
-        };
-        _timer.Tick += (_, _) => RefreshVisibility();
-        _timer.Start();
-        RefreshVisibility();
+        _window.Show();
+        Reposition();
     }
 
     private void Reposition()
@@ -88,26 +78,10 @@ internal sealed class GuideSessionIndicator : IDisposable
         _window.Top = area.Bottom - _window.ActualHeight - 20;
     }
 
-    private void RefreshVisibility()
-    {
-        if (_disposed) return;
-        bool show;
-        try { show = !_bubbleVisible(); }
-        catch { show = false; } // Unknown state must not create a false waiting signal.
-        if (show)
-        {
-            if (!_window.IsVisible) _window.Show();
-            Reposition();
-        }
-        else if (_window.IsVisible)
-            _window.Hide();
-    }
-
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
-        _timer.Stop();
         _window.Close();
     }
 }
