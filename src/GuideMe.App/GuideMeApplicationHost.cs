@@ -18,11 +18,6 @@ namespace GuideMe.App;
 
 public static class GuideMeApplicationHost
 {
-    private sealed class WebPresentationState
-    {
-        public volatile WebGuidePresentationPhase Phase = WebGuidePresentationPhase.Transitioning;
-    }
-
     private static void StartupMark(Stopwatch timer, string stage)
         => Console.Error.WriteLine($"[GuideMe startup] {timer.Elapsed.TotalMilliseconds:F0} ms - {stage}");
 
@@ -194,14 +189,7 @@ public static class GuideMeApplicationHost
         browser.ConfigureApplicationContexts(applicationContexts);
         using var stopped = new CancellationTokenSource();
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, stopped.Token);
-        var webPresentation = new WebPresentationState();
-        var currentRuntime = GuideMe.Core.Targets.TargetRuntime.Web;
-        WindowsBubblePresenter? visibleWindowsBubbles = null;
-        using var indicator = new GuideSessionIndicator(options.GuideId!, texts,
-            () => stopped.Cancel(), () => currentRuntime == GuideMe.Core.Targets.TargetRuntime.Web
-                ? !(webPresentation.Phase == WebGuidePresentationPhase.WaitingForTarget ||
-                    (webPresentation.Phase == WebGuidePresentationPhase.BubbleVisible && !IsChromeForeground()))
-                : visibleWindowsBubbles?.IsBubbleVisible == true);
+        using var indicator = new GuideSessionIndicator(options.GuideId!, texts, () => stopped.Cancel());
         browser.StopRequested += () => stopped.Cancel();
         browser.TargetTabClosed += () => stopped.Cancel();
         TaskCompletionSource<bool>? pendingWebActivation = null;
@@ -218,11 +206,8 @@ public static class GuideMeApplicationHost
                 }, TaskScheduler.Default);
         };
 
-        var web = new AdapterWebGuideRuntime(
-            new WebGuideStepRuntime(browser, onPresentationPhase: phase => webPresentation.Phase = phase),
-            browser, phase => webPresentation.Phase = phase);
+        var web = new AdapterWebGuideRuntime(new WebGuideStepRuntime(browser), browser);
         var bubbles = new WindowsBubblePresenter(texts);
-        visibleWindowsBubbles = bubbles;
         var windows = new WindowsGuideRuntime(new WindowsTargetResolver(), bubbles);
 
         AutomationElement ResolveWindow(GuideMe.Core.Guides.GuideStep step)
@@ -257,8 +242,6 @@ public static class GuideMeApplicationHost
                 GuideMe.Core.Targets.TargetRuntime.Web, linked.Token, applicationContexts,
                 async (step, runtime, token) =>
                 {
-                    currentRuntime = runtime;
-                    webPresentation.Phase = WebGuidePresentationPhase.Transitioning;
                     if (runtime == GuideMe.Core.Targets.TargetRuntime.Windows)
                     {
                         var targetWindow = ResolveWindow(step);
@@ -361,8 +344,7 @@ public static class GuideMeApplicationHost
         var resolver = new WindowsTargetResolver();
         var bubbles = new WindowsBubblePresenter(texts);
         using var userStopped = new CancellationTokenSource();
-        using var indicator = new GuideSessionIndicator(options.GuideId!, texts,
-            () => userStopped.Cancel(), () => bubbles.IsBubbleVisible);
+        using var indicator = new GuideSessionIndicator(options.GuideId!, texts, () => userStopped.Cancel());
         using var stopRegistration = userStopped.Token.Register(() => runCancellation.Cancel());
         var runtime = new WindowsGuideRuntime(resolver, bubbles);
 
@@ -414,15 +396,6 @@ public static class GuideMeApplicationHost
 
     [DllImport("user32.dll")]
     private static extern IntPtr GetForegroundWindow();
-
-    private static bool IsChromeForeground()
-    {
-        var hwnd = GetForegroundWindow();
-        if (hwnd == IntPtr.Zero) return false;
-        var className = new StringBuilder(128);
-        return GetClassName(hwnd, className, className.Capacity) > 0 &&
-            className.ToString() == "Chrome_WidgetWin_1";
-    }
 
 
     [DllImport("user32.dll")]
@@ -540,11 +513,8 @@ public static class GuideMeApplicationHost
         using var targetClosed = new CancellationTokenSource();
         using var runCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, targetClosed.Token);
         using var webUserStopped = new CancellationTokenSource();
-        var webPresentation = new WebPresentationState();
         using var indicator = new GuideSessionIndicator(options.GuideId!, texts,
-            () => { webUserStopped.Cancel(); runCancellation.Cancel(); },
-            () => !(webPresentation.Phase == WebGuidePresentationPhase.WaitingForTarget ||
-                (webPresentation.Phase == WebGuidePresentationPhase.BubbleVisible && !IsChromeForeground())));
+            () => { webUserStopped.Cancel(); runCancellation.Cancel(); });
         browserAdapter.StopRequested += () => { webUserStopped.Cancel(); runCancellation.Cancel(); };
         browserAdapter.TargetTabClosed += () =>
         {
@@ -552,10 +522,8 @@ public static class GuideMeApplicationHost
             targetClosed.Cancel();
         };
         browserAdapter.TargetWindowActivationRequested += title => _ = Task.Run(() => ActivateChromeWindowAsync(title, runCancellation.Token));
-        var stepRuntime = new WebGuideStepRuntime(browserAdapter,
-            onPresentationPhase: phase => webPresentation.Phase = phase);
-        var guideRuntime = new AdapterWebGuideRuntime(stepRuntime, browserAdapter,
-            phase => webPresentation.Phase = phase);
+        var stepRuntime = new WebGuideStepRuntime(browserAdapter);
+        var guideRuntime = new AdapterWebGuideRuntime(stepRuntime, browserAdapter);
         StartupMark(startup, "Web extension adapter composition root created");
 
         try
