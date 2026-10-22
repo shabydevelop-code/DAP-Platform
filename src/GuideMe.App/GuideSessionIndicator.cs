@@ -14,7 +14,7 @@ internal sealed class GuideSessionIndicator : IDisposable
     private readonly Window _window;
     private bool _disposed;
 
-    public GuideSessionIndicator(string guideId, IUiTextProvider texts, Action stop)
+    public GuideSessionIndicator(IUiTextProvider texts, Action stop)
     {
         ArgumentNullException.ThrowIfNull(stop);
         var rtl = texts.IsRightToLeft ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
