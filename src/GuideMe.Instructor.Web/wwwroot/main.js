@@ -211,8 +211,7 @@ async function refreshCaptureStatus() {
   }
 }
 $('capture-pair').onclick = () => guarded(async () => {
-  await api('/capture/pair', { method:'POST', body:'{}' });
-  notify('החיבור אושר ל־30 שניות. התוסף יתחבר ברקע; אין צורך לפתוח אותו. אם טרם התחבר, עבור ללשונית אתר וחזור ל־Instructor.');
+  notify('החיבור לתוסף מתבצע אוטומטית באמצעות Native Messaging. אם אינו מחובר, בדוק שהתוסף הותקן ונטען מחדש.');
   await refreshCaptureStatus();
 });
 async function selectCaptureTab(tabId = null) {
