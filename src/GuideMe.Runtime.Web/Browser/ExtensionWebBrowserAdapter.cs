@@ -146,12 +146,21 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
     /// <summary>Resolve and select the persisted Web application context on a runtime transition.</summary>
     public async Task ActivateContextWindowAsync(GuideStep step, CancellationToken cancellationToken = default)
     {
+        if (!await TryActivateContextWindowAsync(step, cancellationToken))
+            throw new InvalidOperationException($"Web application context for Step '{step.Id}' was not resolved.");
+    }
+
+    /// <summary>False means that no matching application tab exists yet; ambiguity and transport errors still throw.</summary>
+    public async Task<bool> TryActivateContextWindowAsync(GuideStep step, CancellationToken cancellationToken = default)
+    {
         if (ApplicationContextFor(step) is null)
             throw new InvalidOperationException($"Web Step '{step.Id}' requires a persisted Web application context for activation.");
         var response = await SendCommandAsync(
             ContextualCommand(step, new { type = "activateContextWindow" }), cancellationToken);
-        if (response.GetProperty("result").GetProperty("status").GetString() != "activated")
-            throw new InvalidOperationException($"Web application context for Step '{step.Id}' was not resolved.");
+        var status = response.GetProperty("result").GetProperty("status").GetString();
+        if (status == "activated") return true;
+        if (status == "notFound") return false;
+        throw new InvalidOperationException($"Unexpected Web application context activation status '{status}' for Step '{step.Id}'.");
     }
 
     public Task ArmValidationAsync(GuideStep step, CancellationToken cancellationToken = default)
