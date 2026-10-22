@@ -12,9 +12,38 @@ if (-not (Test-Path $project) -or -not (Test-Path $source)) {
     throw 'GuideMe Instructor Web sources are missing.'
 }
 
-dotnet publish $project -c Release -o $Destination
-if ($LASTEXITCODE -ne 0) {
-    throw "Instructor Web publish failed (exit $LASTEXITCODE). Extension was not modified."
+# Publish only the target platform, without bundling the .NET runtime.
+# Build in a fresh staging directory so stale cross-platform native assets from
+# older publishes cannot survive in the delivered runtimes directory.
+$staging = Join-Path ([System.IO.Path]::GetTempPath()) ("GuideMe-Instructor-publish-" + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $staging -Force | Out-Null
+try {
+    dotnet publish $project -c Release -r win-x64 --self-contained false -o $staging
+    if ($LASTEXITCODE -ne 0) {
+        throw "Instructor Web win-x64 publish failed (exit $LASTEXITCODE). Existing deployment was not modified."
+    }
+
+    if (-not (Test-Path -LiteralPath (Join-Path $staging 'GuideMe.Instructor.Web.exe'))) {
+        throw 'Instructor Web executable missing from staged publish. Existing deployment was not modified.'
+    }
+
+    New-Item -ItemType Directory -Path $Destination -Force | Out-Null
+
+    # Only the dependency folder is replaced in full. Other deployment files
+    # (including local configuration) are left intact.
+    $oldRuntimes = Join-Path $Destination 'runtimes'
+    $newRuntimes = Join-Path $staging 'runtimes'
+    if (Test-Path -LiteralPath $oldRuntimes) {
+        Remove-Item -LiteralPath $oldRuntimes -Recurse -Force
+    }
+    foreach ($entry in Get-ChildItem -LiteralPath $staging -Force) {
+        Copy-Item -LiteralPath $entry.FullName -Destination (Join-Path $Destination $entry.Name) -Recurse -Force
+    }
+}
+finally {
+    if (Test-Path -LiteralPath $staging) {
+        Remove-Item -LiteralPath $staging -Recurse -Force
+    }
 }
 
 New-Item -ItemType Directory -Path $ExtensionDestination -Force | Out-Null
@@ -44,7 +73,8 @@ foreach ($size in @(16, 48, 128)) {
         throw "Missing generated Instructor icon: $icon"
     }
 }
-Write-Host "PASS: Instructor Web published to $Destination"
+Write-Host "PASS: Instructor Web published for win-x64 (framework-dependent) to $Destination"
+Write-Host 'PASS: runtimes directory contains only dependencies from the fresh win-x64 publish.'
 Write-Host "PASS: $($files.Count) Instructor extension files synchronized to $ExtensionDestination"
 Write-Host 'Reload the unpacked GuideMe Instructor extension at chrome://extensions.'
 Write-Host "Start Web Instructor: & `"$Destination\GuideMe.Instructor.Web.exe`""
