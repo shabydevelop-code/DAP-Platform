@@ -4,7 +4,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.AspNetCore.Mvc;
-using GuideMe.Instructor;
+using GuideMe.Instructor.Web.Data;
 using GuideMe.Instructor.Web;
 
 var builder = WebApplication.CreateBuilder(args);

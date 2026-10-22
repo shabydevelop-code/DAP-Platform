@@ -3,7 +3,7 @@ using System;
 using System.IO;
 using System.Text.Json;
 
-namespace GuideMe.Instructor;
+namespace GuideMe.Instructor.Web.Data;
 
 // Explicitly scoped writer: creates only a Guides row; no schema changes or step data.
 internal static class V5GuideWriter

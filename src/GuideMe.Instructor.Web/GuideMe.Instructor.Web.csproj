@@ -8,7 +8,5 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.11" />
-    <Compile Include="..\GuideMe.Instructor\V5GuideReader.cs" Link="Data\V5GuideReader.cs" />
-    <Compile Include="..\GuideMe.Instructor\V5GuideWriter.cs" Link="Data\V5GuideWriter.cs" />
   </ItemGroup>
 </Project>

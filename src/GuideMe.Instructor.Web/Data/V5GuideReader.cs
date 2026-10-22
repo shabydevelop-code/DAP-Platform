@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.IO;
 
-namespace GuideMe.Instructor;
+namespace GuideMe.Instructor.Web.Data;
 
 // Read-only V5 browser. It does not create, migrate, or write any database.
 internal static class V5GuideReader
