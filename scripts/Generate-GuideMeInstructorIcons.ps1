@@ -16,11 +16,11 @@ foreach ($size in @(16, 48, 128)) {
     }
 
     $base = [System.Drawing.Image]::FromFile($inputPath)
-    $bitmap = New-Object System.Drawing.Bitmap($size, $size, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
+    $bitmap = [System.Drawing.Bitmap]::new($size, $size, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
     $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
-    $gold = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(255, 235, 169, 41))
-    $navy = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(255, 31, 47, 67))
-    $white = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::White)
+    $gold = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(255, 235, 169, 41))
+    $navy = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(255, 31, 47, 67))
+    $white = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::White)
     try {
         $graphics.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
         $graphics.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
