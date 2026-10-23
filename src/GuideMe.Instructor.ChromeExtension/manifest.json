@@ -13,6 +13,12 @@
     "http://*/*",
     "https://*/*"
   ],
+  "commands": {
+    "pick-highlighted": {
+      "suggested_key": { "default": "Ctrl+Shift+Space" },
+      "description": "בחר את הרכיב המודגש ב-Instructor"
+    }
+  },
   "background": {
     "service_worker": "service-worker.js"
   },
