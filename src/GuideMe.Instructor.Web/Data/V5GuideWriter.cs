@@ -420,7 +420,7 @@ WHERE GuideId=$guideId AND ContextId=$contextId";
             throw new ArgumentException("מזהה הרכיב אינו תקין.");
         if (framePath.Count > 12 || framePath.Any(p => string.IsNullOrWhiteSpace(p) || p.Length > 400))
             throw new ArgumentException("נתיב מסגרות אינו תקין.");
-        if (condition is not ("clicked" or "target-disappeared"))
+        if (condition is not ("clicked" or "target-disappeared" or "value-not-empty"))
             throw new ArgumentException("תנאי ההתקדמות אינו נתמך.");
 
         using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
@@ -507,6 +507,40 @@ WHERE GuideId=$guideId AND StepId=$stepId AND BubblePlacement='Center'";
             position.Parameters.AddWithValue("$stepId", stepId);
             position.ExecuteNonQuery();
         }
+        transaction.Commit();
+    }
+
+    internal static void UpdateWebPrimaryValidation(long guideId, string stepId,
+        string kind, string? expectedValue)
+    {
+        if (kind is not ("clicked" or "target-disappeared" or "value-not-empty" or "value-equals"))
+            throw new ArgumentException("סוג תנאי ההתקדמות אינו נתמך.");
+        if (kind == "value-equals" && string.IsNullOrWhiteSpace(expectedValue))
+            throw new ArgumentException("יש להזין ערך צפוי.");
+        if (expectedValue?.Length > 500)
+            throw new ArgumentException("הערך הצפוי ארוך מדי.");
+        using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = V5GuideReader.DatabasePath, Mode = SqliteOpenMode.ReadWrite,
+            Pooling = false, DefaultTimeout = 3
+        }.ToString());
+        connection.Open();
+        using var transaction = connection.BeginTransaction();
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandTimeout = 3;
+        command.CommandText = @"UPDATE StepRules SET Kind=$kind, ExpectedValue=$expected
+WHERE GuideId=$guideId AND StepId=$stepId AND RuleType='PrimaryValidation'
+AND EXISTS (SELECT 1 FROM Steps s JOIN ApplicationContexts c
+ ON s.GuideId=c.GuideId AND s.ApplicationContextId=c.ContextId
+ WHERE s.GuideId=$guideId AND s.StepId=$stepId AND c.Runtime='Web')";
+        command.Parameters.AddWithValue("$guideId", guideId);
+        command.Parameters.AddWithValue("$stepId", stepId);
+        command.Parameters.AddWithValue("$kind", kind);
+        command.Parameters.AddWithValue("$expected",
+            kind == "value-equals" ? (object?)expectedValue : DBNull.Value);
+        if (command.ExecuteNonQuery() != 1)
+            throw new InvalidOperationException("לא נמצא תנאי התקדמות יחיד לעריכה בשלב Web.");
         transaction.Commit();
     }
 
