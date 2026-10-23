@@ -66,3 +66,6 @@
 .step-friendly-card code{display:inline-block;max-width:100%;overflow-wrap:anywhere;direction:ltr;text-align:left;unicode-bidi:isolate;font-size:12px;background:#f4f7fc;padding:3px 7px;border-radius:5px}
 .step-muted{color:#657d96}
 @media(max-width:740px){.step-friendly-grid{grid-template-columns:1fr}}
+
+#target-save-feedback{margin:12px 0 0;font-size:13px;direction:rtl;text-align:right;overflow-wrap:anywhere}
+#target-save-feedback.save-error{color:#b42332}
