@@ -85,10 +85,10 @@ async function sync() {
     const pickTabId = result.pickTabId ?? null;
     if (pickTabId !== null && pickerArmedTabId !== pickTabId) {
       await inject(pickTabId);
-      await chrome.tabs.sendMessage(pickTabId, { type: "guideme-instructor-pick-start" }).catch(() => {});
+      await chrome.tabs.sendMessage(pickTabId, { type: "guideme-instructor-pick-start" }, {frameId:0}).catch(() => {});
     }
     if (pickTabId === null && pickerArmedTabId !== null)
-      await chrome.tabs.sendMessage(pickerArmedTabId, { type: "guideme-instructor-pick-stop" }).catch(() => {});
+      await chrome.tabs.sendMessage(pickerArmedTabId, { type: "guideme-instructor-pick-stop" }, {frameId:0}).catch(() => {});
     pickerArmedTabId = pickTabId;
   } catch (error) {
     console.warn("Instructor sync:", error.message);
