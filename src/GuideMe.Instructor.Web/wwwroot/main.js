@@ -162,8 +162,8 @@ async function refreshPicker() {
     '<p class="target-selector">'+esc(candidate.selector)+'</p>'+
     '<label for="target-condition">תנאי התקדמות</label>'+
     '<select id="target-condition">'+
-    '<option value="click">המשתמש לוחץ על הרכיב</option>'+
-    '<option value="css-exists">הרכיב קיים במסך</option>'+
+    '<option value="clicked">המשתמש לוחץ על הרכיב</option>'+
+    '<option value="target-disappeared">הרכיב נעלם בעקבות הפעולה</option>'+
     '</select><div class="target-actions">'+
     '<button id="save-web-target" class="btn primary">אישור ושמירת רכיב</button>'+
     '<button id="cancel-web-target" class="btn secondary">ביטול</button></div>';
@@ -353,10 +353,8 @@ function newStep() {
        }))}] : []),
     {name:'bubble',label:'טקסט הבועית',value:'',multiline:true,max:4000,
      help:'שלב חדש ייווצר כשלב ידני. בהמשך ניתן יהיה להגדיר רכיב יעד ותנאי התקדמות.'},
-    {name:'placement',label:'מיקום הבועית',value:'Auto',choices:[
-      {value:'Auto',text:'אוטומטי'},{value:'Center',text:'מרכז'},
-      {value:'Top',text:'למעלה'},{value:'Bottom',text:'למטה'},
-      {value:'Right',text:'ימין'},{value:'Left',text:'שמאל'}
+    {name:'placement',label:'מיקום בועית מידע ידנית',value:'Center',choices:[
+      {value:'Center',text:'מרכז — עד לבחירת רכיב יעד'}
     ]}
   ],async v=>{
     const created=await api('/guides/' + guideId + '/steps', {
