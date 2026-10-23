@@ -158,6 +158,12 @@ chrome.runtime.onMessage.addListener((message, sender) => {
   void request("event", { payload: { tabId: sender.tab.id, event } }).catch(() => {});
   return false;
 });
+chrome.commands.onCommand.addListener(command => {
+  if (command !== "pick-highlighted" || pickerArmedTabId === null) return;
+  const tabId = pickerArmedTabId;
+  void Promise.all(pickerFrames.map(frameId => chrome.tabs.sendMessage(tabId,
+    {type:"guideme-instructor-pick-confirm"},{frameId}).catch(()=>{})));
+});
 chrome.alarms.create(alarmName, { periodInMinutes: 0.5 });
 connect();
 void sync();
