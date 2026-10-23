@@ -142,6 +142,10 @@ chrome.tabs.onUpdated.addListener((id, change) => {
 });
 chrome.windows.onFocusChanged.addListener(() => void sync());
 chrome.runtime.onMessage.addListener((message, sender) => {
+  if (message?.type === "guideme-instructor-pick-error" && sender.tab?.id === selectedTabId) {
+    void request("picker-error", {tabId:sender.tab.id,reason:String(message.reason || "בחירת הרכיב נכשלה").slice(0,320)}).catch(()=>{});
+    return false;
+  }
   if (message?.type === 'guideme-instructor-pick-cancelled' && sender.tab?.id === selectedTabId) {
     void request('picker-cancelled', {tabId:sender.tab.id}).catch(() => {});
     pickerArmedTabId = null;
