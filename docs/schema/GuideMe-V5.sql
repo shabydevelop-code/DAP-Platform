@@ -49,6 +49,7 @@ CREATE TABLE Elements (
         CHECK (json_valid(LocatorsJson) AND json_type(LocatorsJson)='array'
             AND json_array_length(LocatorsJson)>0),
     FrameContextJson TEXT,
+    DisplayName TEXT,
     PRIMARY KEY (GuideId, ElementId),
     FOREIGN KEY (GuideId) REFERENCES Guides(GuideId)
 );
