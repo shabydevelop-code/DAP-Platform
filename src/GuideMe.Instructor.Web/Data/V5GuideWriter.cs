@@ -200,37 +200,6 @@ VALUES ($guideId, $contextId, $runtime, $matchers)";
         return new V5GuideReader.GuideInfo(guideId, key, name);
     }
 
-    internal static void AssignStepApplication(long guideId, string stepId, string contextId)
-    {
-        using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
-        {
-            DataSource = V5GuideReader.DatabasePath, Mode = SqliteOpenMode.ReadWrite,
-            Pooling = false, DefaultTimeout = 3
-        }.ToString());
-        connection.Open();
-        using var transaction = connection.BeginTransaction();
-        using var check = connection.CreateCommand();
-        check.Transaction = transaction;
-        check.CommandTimeout = 3;
-        check.CommandText = "SELECT Runtime FROM ApplicationContexts WHERE GuideId=$id AND ContextId=$context";
-        check.Parameters.AddWithValue("$id", guideId);
-        check.Parameters.AddWithValue("$context", contextId);
-        var runtime = check.ExecuteScalar() as string;
-        if (runtime is null) throw new InvalidOperationException("האפליקציה אינה שייכת ללומדה.");
-        using var step = connection.CreateCommand();
-        step.Transaction = transaction;
-        step.CommandTimeout = 3;
-        step.CommandText = @"UPDATE Steps SET ApplicationContextId=$context, Runtime=$runtime
-WHERE GuideId=$id AND StepId=$stepId";
-        step.Parameters.AddWithValue("$context", contextId);
-        step.Parameters.AddWithValue("$runtime", runtime);
-        step.Parameters.AddWithValue("$id", guideId);
-        step.Parameters.AddWithValue("$stepId", stepId);
-        if (step.ExecuteNonQuery() != 1)
-            throw new InvalidOperationException("השלב אינו קיים.");
-        transaction.Commit();
-    }
-
     // Contexts are independent guide entities; updates never overwrite steps.
     internal static void SaveApplicationContext(long guideId, string contextId, string runtime, string matcherProperty, string matcherValue)
     {
@@ -394,7 +363,7 @@ WHERE GuideId=$guideId AND ContextId=$contextId";
 
     // Edit only fields already represented by the V5 Steps entity.
     // Never recreate a step or overwrite its targets, rules or captures.
-    internal static void UpdateStep(long guideId, string stepId, string? bubble, bool enabled)
+    internal static void UpdateStep(long guideId, string stepId, string? bubble, bool enabled, string? contextId)
     {
         if (string.IsNullOrWhiteSpace(stepId))
             throw new ArgumentException("מזהה השלב חסר.");
@@ -411,10 +380,16 @@ WHERE GuideId=$guideId AND ContextId=$contextId";
         using var command = connection.CreateCommand();
         command.CommandTimeout = 3;
         command.CommandText = @"UPDATE Steps
-SET BubbleContent=$bubble, IsEnabled=$enabled
-WHERE GuideId=$guideId AND StepId=$stepId";
+SET BubbleContent=$bubble, IsEnabled=$enabled,
+    ApplicationContextId=COALESCE($contextId, ApplicationContextId),
+    Runtime=COALESCE((SELECT Runtime FROM ApplicationContexts
+                      WHERE GuideId=$guideId AND ContextId=$contextId), Runtime)
+WHERE GuideId=$guideId AND StepId=$stepId
+  AND ($contextId IS NULL OR EXISTS (SELECT 1 FROM ApplicationContexts
+                 WHERE GuideId=$guideId AND ContextId=$contextId))";
         command.Parameters.AddWithValue("$bubble", (object?)bubble ?? DBNull.Value);
         command.Parameters.AddWithValue("$enabled", enabled ? 1 : 0);
+        command.Parameters.AddWithValue("$contextId", string.IsNullOrWhiteSpace(contextId) ? DBNull.Value : contextId);
         command.Parameters.AddWithValue("$guideId", guideId);
         command.Parameters.AddWithValue("$stepId", stepId);
         if (command.ExecuteNonQuery() != 1)
