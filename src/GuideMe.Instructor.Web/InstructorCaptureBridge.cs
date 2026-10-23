@@ -14,6 +14,7 @@ internal sealed class InstructorCaptureBridge
     private string? _selectedContext, _targetUrl, _targetTitle;
     private long? _guideId;
     private bool _picking;
+    private int _pickerSession;
     private bool _pickReady;
     private string? _pickerError;
     private JsonElement? _pickedElement;
@@ -33,7 +34,7 @@ internal sealed class InstructorCaptureBridge
                 _selectedTab = null;
                 _recording = false;
             }
-            return new { selectedTabId = _selectedTab, recording = _recording, pickTabId = _picking ? _selectedTab : null };
+            return new { selectedTabId = _selectedTab, recording = _recording, pickTabId = _picking ? _selectedTab : null, pickerSession = _pickerSession };
         }
     }
     public bool IsConnected
@@ -111,6 +112,7 @@ internal sealed class InstructorCaptureBridge
             if (!IsSelected(guideId, contextId))
                 throw new InvalidOperationException("בחר תחילה לשונית Web מתאימה.");
             _picking = true;
+            _pickerSession++;
             _pickerError = null;
             _pickReady = false;
             _pickedElement = null;
