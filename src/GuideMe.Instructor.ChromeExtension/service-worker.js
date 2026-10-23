@@ -85,7 +85,8 @@ async function sync() {
     const pickTabId = result.pickTabId ?? null;
     if (pickTabId !== null && pickerArmedTabId !== pickTabId) {
       await inject(pickTabId);
-      await chrome.tabs.sendMessage(pickTabId, { type: "guideme-instructor-pick-start" }, {frameId:0}).catch(() => {});
+      const armed = await chrome.tabs.sendMessage(pickTabId, { type: "guideme-instructor-pick-start" }, {frameId:0}).then(() => true, () => false);
+      if (armed) await request("picker-armed", { tabId: pickTabId });
     }
     if (pickTabId === null && pickerArmedTabId !== null)
       await chrome.tabs.sendMessage(pickerArmedTabId, { type: "guideme-instructor-pick-stop" }, {frameId:0}).catch(() => {});
