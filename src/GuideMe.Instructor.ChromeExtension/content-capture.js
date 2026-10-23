@@ -81,26 +81,42 @@
       return false;
     }
   }
-  function pickClick(event) {
+  function pickHover(event) {
     if (!pickActive || !event.isTrusted) return;
+    const element = event.target instanceof Element ? event.target : null;
+    if (!element) return;
+    const target = element.closest('button,a,input,select,textarea,[role="button"]') || element;
+    if (target === highlighted) return;
+    if (highlighted) highlighted.style.outline = '';
+    highlighted = target;
+    highlighted.style.outline = '3px solid #3678e8';
+  }
+  function pickKey(event) {
+    if (!pickActive || !event.isTrusted) return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      pickActive = false;
+      if (highlighted) highlighted.style.outline = '';
+      highlighted = null;
+      try { chrome.runtime.sendMessage({type:'guideme-instructor-pick-cancelled'}).catch(()=>{}); } catch {}
+      return;
+    }
+    if (!(event.ctrlKey && event.shiftKey && event.code === 'Space')) return;
     event.preventDefault();
     event.stopImmediatePropagation();
-    const target = event.target instanceof Element ? event.target : null;
-    if (!target) return;
+    if (!highlighted || !highlighted.isConnected) return;
+    const target = highlighted;
     const selector = selectorFor(target);
     if (!selector) return;
     pickActive = false;
-    target.style.outline = "3px solid #3678e8";
-    highlighted = target;
-    setTimeout(() => {
-      if (highlighted === target) { target.style.outline = ""; highlighted = null; }
-    }, 1500);
+    target.style.outline = '';
+    highlighted = null;
     const candidate = {
       selector, url:location.href, tag:target.tagName.toLowerCase(),
-      label:String(target.getAttribute("aria-label") || target.textContent || "").trim().slice(0,100)
+      label:String(target.getAttribute('aria-label') || target.getAttribute('name') || target.textContent || '').trim().slice(0,100)
     };
-    try { chrome.runtime.sendMessage({type:"guideme-instructor-picked", event:candidate}).catch(() => {}); }
-    catch {}
+    try { chrome.runtime.sendMessage({type:'guideme-instructor-picked', event:candidate}).catch(()=>{}); } catch {}
   }
   chrome.runtime.onMessage.addListener(pickMessages);
   addEventListener("mousemove", pickHover, true);
