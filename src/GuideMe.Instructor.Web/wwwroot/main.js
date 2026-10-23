@@ -93,20 +93,38 @@ function renderSteps() {
     const step = current.steps.find(x=>x.id===selectedStep);
     const contextId = data.step?.[0]?.ApplicationContextId;
     const context = current.contexts.find(c => c.ContextId === contextId);
-    const sections = [['רכיבי יעד', data.targets], ['כללי התקדמות ולכידה', data.rules]];
+    const target = data.targets.find(x => x.Purpose === 'Primary') || data.targets[0];
+    const element = (data.elements || []).find(x => x.ElementId === target?.ElementId);
+    const rule = data.rules.find(x => x.RuleType === 'PrimaryValidation');
+    const locators = parseJson(element?.LocatorsJson, []);
+    const frames = parseJson(element?.FrameContextJson, []);
+    const conditionText = rule ? validationLabel(rule.Kind) : 'לא הוגדר תנאי';
+    const locatorText = locators[0]?.Value || '';
+    const appText = context ? appLabel(context) : 'לא משויך';
+
     $('step-inspector').innerHTML =
-      '<div class="step-editor-head"><div><h2>שלב ' + step.order + '</h2><p>' + esc(step.id) +
-      ' · ' + esc(context ? appLabel(context) : (contextId || 'ללא אפליקציה')) +
-      ' · ' + esc(context?.Runtime || 'לא משויך') + '</p></div>' +
-      '<button class="btn secondary small" id="edit-step">עריכת שלב</button></div>' +
-      '<div class="step-summary"><strong>תוכן הבועית</strong><p>' + esc(step.bubble || 'לא הוגדר תוכן') +
-      '</p><span class="chip ' + (step.enabled ? '' : 'win') + '">' + (step.enabled ? 'פעיל' : 'מושבת') +
-      '</span></div>' +
-      '<div class="detail-grid">' +
-      sections.map(([title, rows]) =>
-        '<div class="detail-block"><small>' + title +
-        '</small><pre>' + esc(JSON.stringify(rows, null, 2)) + '</pre></div>').join('') + '</div>';
+      '<div class="step-editor-head"><div><h2>שלב ' + step.order + '</h2>' +
+      '<p>אפליקציה: ' + esc(appText) + '</p></div>' +
+      '<button class="btn secondary small" id="edit-step">עריכת תוכן השלב</button></div>' +
+      '<div class="step-summary"><strong>הנחיה למשתמש</strong><p>' +
+      esc(step.bubble || 'לא הוגדרה הנחיה') + '</p>' +
+      '<span class="chip">' + (step.enabled ? 'פעיל' : 'מושבת') + '</span></div>' +
+      '<div class="step-friendly-grid">' +
+      '<section class="step-friendly-card"><h3>רכיב במסך</h3>' +
+      (target ? '<p>נבחר רכיב באפליקציה' +
+        (frames.length ? ' בתוך ' + frames.length + ' מסגרות' : '') + '.</p>' +
+        '<p class="step-muted">זיהוי: <code dir="ltr">' + esc(locatorText || 'לא ידוע') + '</code></p>' :
+        '<p>עדיין לא נבחר רכיב לשלב הזה.</p>') +
+      '</section>' +
+      '<section class="step-friendly-card"><h3>מתי ממשיכים לשלב הבא?</h3>' +
+      '<p>' + esc(conditionText) + '</p>' +
+      (rule?.ExpectedValue ? '<p>ערך צפוי: <strong>' + esc(rule.ExpectedValue) + '</strong></p>' : '') +
+      (context?.Runtime === 'Web' && rule ?
+        '<button class="btn secondary small" id="edit-validation">עריכת תנאי ההתקדמות</button>' : '') +
+      '</section></div>';
     $('edit-step').onclick = () => editStep(step, contextId);
+    const conditionEditor = $('edit-validation');
+    if (conditionEditor) conditionEditor.onclick = () => editValidation(step, rule);
     if (context?.Runtime === 'Web' && !data.targets.length && !data.rules.length) {
       const section = document.createElement('section');
       section.className = 'target-editor';
@@ -121,6 +139,38 @@ function renderSteps() {
     }
 
   })));
+}
+function parseJson(value, fallback) {
+  try { return value ? JSON.parse(value) : fallback; } catch { return fallback; }
+}
+const validationChoices = [
+  {value:'clicked',text:'לחיצה על הרכיב'},
+  {value:'value-not-empty',text:'הוזן ערך בשדה'},
+  {value:'value-equals',text:'השדה מכיל ערך מסוים'},
+  {value:'target-disappeared',text:'הרכיב נעלם מהמסך'}
+];
+function validationLabel(kind) {
+  return validationChoices.find(x=>x.value===kind)?.text ||
+    'תנאי מתקדם שהוגדר במערכת';
+}
+function editValidation(step, rule) {
+  const kind = validationChoices.some(x=>x.value===rule.Kind) ? rule.Kind : 'clicked';
+  modal('עריכת תנאי התקדמות — שלב ' + step.order, [
+    {name:'kind',label:'מתי המערכת תעבור לשלב הבא?',value:kind,choices:validationChoices},
+    {name:'expectedValue',label:'ערך צפוי (רק עבור ״השדה מכיל ערך מסוים״)',
+      value:rule.ExpectedValue || '',max:500,
+      help:'הזנת ערך נדרשת רק כאשר בוחרים התאמה לערך מסוים. אין להשתמש כאן בסיסמאות או במידע אישי.'}
+  ],async values=>{
+    await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+'/validation',
+      {method:'PUT',body:JSON.stringify({kind:values.kind,
+        expectedValue:values.kind === 'value-equals' ? values.expectedValue : null})});
+    const guideId=current.guide.id, stepId=step.id;
+    await openGuide(guideId);
+    document.querySelectorAll('[data-step]').forEach(b=>{
+      if(b.dataset.step===stepId)b.click();
+    });
+    notify('תנאי ההתקדמות עודכן.');
+  });
 }
 let pickingFor = null;
 async function beginWebPicker(guideId, stepId, contextId) {
