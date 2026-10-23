@@ -510,6 +510,46 @@ WHERE GuideId=$guideId AND StepId=$stepId AND BubblePlacement='Center'";
         transaction.Commit();
     }
 
+    internal static void ReplaceWebTarget(long guideId, string stepId, string selector,
+        IReadOnlyList<string> framePath)
+    {
+        if (string.IsNullOrWhiteSpace(selector) || selector.Length > 400 ||
+            selector.IndexOf((char)0) >= 0 ||
+            framePath.Count > 12 ||
+            framePath.Any(f => string.IsNullOrWhiteSpace(f) || f.Length > 400))
+            throw new ArgumentException("מזהה הרכיב או נתיב המסגרות אינו תקין.");
+        using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = V5GuideReader.DatabasePath, Mode = SqliteOpenMode.ReadWrite,
+            Pooling = false, DefaultTimeout = 3
+        }.ToString());
+        connection.Open();
+        using var transaction = connection.BeginTransaction();
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandTimeout = 3;
+        command.CommandText = @"SELECT t.ElementId FROM StepTargets t
+JOIN Steps s ON s.GuideId=t.GuideId AND s.StepId=t.StepId
+JOIN ApplicationContexts c ON c.GuideId=s.GuideId AND c.ContextId=s.ApplicationContextId
+WHERE t.GuideId=$guideId AND t.StepId=$stepId AND t.Purpose='Primary'
+AND c.Runtime='Web'";
+        command.Parameters.AddWithValue("$guideId", guideId);
+        command.Parameters.AddWithValue("$stepId", stepId);
+        var elementId = command.ExecuteScalar()?.ToString();
+        if (string.IsNullOrEmpty(elementId))
+            throw new InvalidOperationException("לא נמצא רכיב Web ראשי לשלב זה.");
+        command.Parameters.AddWithValue("$elementId", elementId);
+        command.Parameters.AddWithValue("$locators", JsonSerializer.Serialize(
+            new[] { new { Strategy="css", Value=selector } }));
+        command.Parameters.AddWithValue("$frame", framePath.Count == 0 ? DBNull.Value :
+            JsonSerializer.Serialize(framePath.Select(f => new { Strategy="css", Value=f })));
+        command.CommandText = @"UPDATE Elements SET LocatorsJson=$locators, FrameContextJson=$frame
+WHERE GuideId=$guideId AND ElementId=$elementId AND Runtime='Web'";
+        if (command.ExecuteNonQuery() != 1)
+            throw new InvalidOperationException("עדכון הרכיב נכשל.");
+        transaction.Commit();
+    }
+
     internal static void UpdateWebPrimaryValidation(long guideId, string stepId,
         string kind, string? expectedValue)
     {
