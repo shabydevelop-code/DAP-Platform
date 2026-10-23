@@ -418,7 +418,7 @@ WHERE GuideId=$guideId AND ContextId=$contextId";
         if (string.IsNullOrWhiteSpace(selector) || selector.Length > 400 ||
             selector.Contains('\\0'))
             throw new ArgumentException("מזהה הרכיב אינו תקין.");
-        if (condition is not ("click" or "css-exists"))
+        if (condition is not ("clicked" or "target-disappeared"))
             throw new ArgumentException("תנאי ההתקדמות אינו נתמך.");
 
         using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
@@ -491,6 +491,16 @@ VALUES ($guideId, $stepId, 'PrimaryValidation', 'primary', $condition, 'primary'
             rule.Parameters.AddWithValue("$stepId", stepId);
             rule.Parameters.AddWithValue("$condition", condition);
             rule.ExecuteNonQuery();
+        }
+        using (var position = connection.CreateCommand())
+        {
+            position.Transaction = transaction;
+            position.CommandTimeout = 3;
+            position.CommandText = @"UPDATE Steps SET BubblePlacement='Auto'
+WHERE GuideId=$guideId AND StepId=$stepId AND BubblePlacement='Center'";
+            position.Parameters.AddWithValue("$guideId", guideId);
+            position.Parameters.AddWithValue("$stepId", stepId);
+            position.ExecuteNonQuery();
         }
         transaction.Commit();
     }
