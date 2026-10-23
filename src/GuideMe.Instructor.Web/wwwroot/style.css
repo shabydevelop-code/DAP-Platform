@@ -69,3 +69,12 @@
 
 #target-save-feedback{margin:12px 0 0;font-size:13px;direction:rtl;text-align:right;overflow-wrap:anywhere}
 #target-save-feedback.save-error{color:#b42332}
+
+/* Keep the target confirmation inside the editor at narrow widths. */
+.steps-layout{grid-template-columns:310px minmax(0,1fr)}
+.inspector,.step-friendly-grid,.step-friendly-card,.target-editor,#pick-result{min-width:0}
+.inspector{overflow-x:hidden}
+.target-technical{color:#71849b;font-size:12px;overflow-wrap:anywhere}
+.target-technical code{direction:ltr;unicode-bidi:isolate;display:inline-block;max-width:100%;overflow-wrap:anywhere;white-space:normal;font:12px Consolas,monospace}
+@media(max-width:1050px){.steps-layout{grid-template-columns:230px minmax(0,1fr)}}
+@media(max-width:700px){.steps-layout{grid-template-columns:minmax(0,1fr)}}
