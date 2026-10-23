@@ -13,6 +13,8 @@ internal sealed class InstructorCaptureBridge
     private int? _selectedTab;
     private string? _selectedContext, _targetUrl, _targetTitle;
     private long? _guideId;
+    private bool _picking;
+    private JsonElement? _pickedElement;
 
     public object Heartbeat(CaptureTab[] tabs)
     {
@@ -29,7 +31,7 @@ internal sealed class InstructorCaptureBridge
                 _selectedTab = null;
                 _recording = false;
             }
-            return new { selectedTabId = _selectedTab, recording = _recording };
+            return new { selectedTabId = _selectedTab, recording = _recording, pickTabId = _picking ? _selectedTab : null };
         }
     }
     public bool IsConnected
@@ -53,7 +55,7 @@ internal sealed class InstructorCaptureBridge
                 guideId = _guideId, contextId = _selectedContext,
                 targetUrl = _targetUrl, targetTitle = _targetTitle,
                 tabId = _selectedTab, tabs = _tabs,
-                eventsCount = _events.Count
+                eventsCount = _events.Count, picking = _picking, picked = _pickedElement
             };
     }
 
@@ -75,6 +77,8 @@ internal sealed class InstructorCaptureBridge
                 throw new ArgumentException("Selected tab does not match the saved application context.");
             var target = explicitTabId is null ? matching[0] : matching.Single(t => t.TabId == explicitTabId);
             _recording = false;
+            _picking = false;
+            _pickedElement = null;
             _events.Clear();
             _guideId = guideId;
             _selectedContext = contextId;
@@ -96,6 +100,52 @@ internal sealed class InstructorCaptureBridge
             _ => false
         };
     }
+    public object StartPicking(long guideId, string contextId)
+    {
+        lock (_gate)
+        {
+            if (!IsSelected(guideId, contextId))
+                throw new InvalidOperationException("בחר תחילה לשונית Web מתאימה.");
+            _picking = true;
+            _pickedElement = null;
+            return new { tabId = _selectedTab, targetTitle = _targetTitle };
+        }
+    }
+
+    private bool IsSelected(long guideId, string contextId) =>
+        _guideId == guideId && _selectedContext == contextId &&
+        _selectedTab is not null && _tabs.Any(t => t.TabId == _selectedTab) &&
+        DateTimeOffset.UtcNow - _lastHeartbeat < TimeSpan.FromSeconds(10);
+
+    public object CancelPicking()
+    {
+        lock (_gate)
+        {
+            _picking = false;
+            _pickedElement = null;
+            return new { cancelled = true };
+        }
+    }
+
+    public object Picked(CaptureEvent data)
+    {
+        lock (_gate)
+        {
+            if (!_picking || _selectedTab != data.TabId ||
+                data.Event.ValueKind != JsonValueKind.Object ||
+                !data.Event.TryGetProperty("selector", out var selector) ||
+                selector.ValueKind != JsonValueKind.String ||
+                selector.GetString() is not { Length: > 0 and <= 400 } ||
+                !data.Event.TryGetProperty("url", out var url) ||
+                !Uri.TryCreate(url.GetString(), UriKind.Absolute, out var uri) ||
+                uri.GetLeftPart(UriPartial.Authority) != _targetUrl)
+                return new { accepted = false };
+            _pickedElement = data.Event.Clone();
+            _picking = false;
+            return new { accepted = true };
+        }
+    }
+
     public void Begin(long guideId, string contextId)
     {
         lock (_gate)
