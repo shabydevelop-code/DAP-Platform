@@ -67,7 +67,7 @@ git pull --ff-only origin main
 
 ## אייקון Instructor
 
-הפרסום משתמש בקובץ האייקון המקורי שנמסר על ידי המשתמש (`src/GuideMe.Instructor.ChromeExtension/instructor-source.png`), ללא ציור חדש. נוצרות גרסאות 16, 48 ו־128 פיקסלים.
+הפרסום משתמש בקובץ האייקון המקורי שנמסר על ידי המשתמש (`src/GuideMe.Instructor.ChromeExtension/instructor-source.png`), ללא ציור חדש. נוצרות גרסאות 16, 48 ו־128 פיקסלים. קובץ `icon48.png` שהופק מאותו מקור מועתק גם אל `C:\\GuideMe\\InstructorWeb\\wwwroot\\favicon.png` ומוגדר כ־Favicon של ממשק Web Instructor. סקריפט הפרסום מוודא התאמה מלאה של הקבצים באמצעות SHA256. Chrome עשוי להחזיק מטמון אייקונים גם לאחר רענון, ולכן נדרשת פתיחה מחדש של חלון Instructor לבדיקת האייקון בשורת המשימות.
 
 ## מחיקת לומדה קיימת
 
