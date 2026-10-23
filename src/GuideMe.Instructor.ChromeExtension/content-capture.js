@@ -7,8 +7,6 @@
   let pickActive = false;
   let highlighted = null;
   let overlay = null;
-  let label = null;
-  let inspectorBanner = null;
   let hoverPoll = null;
   let pickerNonce = null;
   const pendingTimers = new Set();
@@ -26,8 +24,6 @@
     clearInterval(hoverPoll);
     hoverPoll = null;
     clearHighlight();
-    inspectorBanner?.remove();
-    inspectorBanner = null;
     for (const timer of pendingTimers) clearTimeout(timer);
     pendingTimers.clear();
     globalThis.__guideMeCaptureInstalled = false;
@@ -95,40 +91,42 @@
 
   function clearHighlight() {
     overlay?.remove();
-    label?.remove();
     overlay = null;
-    label = null;
     highlighted = null;
   }
 
-  function showHighlight(target) {
-    clearHighlight();
-    highlighted = target;
-    const rect = target.getBoundingClientRect();
-    if (!rect.width || !rect.height) {
-      if (inspectorBanner) inspectorBanner.textContent = 'GuideMe Instructor · רכיב ללא שטח גלוי: ' + target.tagName.toLowerCase();
+  function positionHighlight() {
+    if (!highlighted || !overlay) return;
+    const rect = highlighted.getBoundingClientRect();
+    const top = Math.max(0, rect.top);
+    const left = Math.max(0, rect.left);
+    const bottom = Math.min(innerHeight, rect.bottom);
+    const right = Math.min(innerWidth, rect.right);
+    if (bottom <= top || right <= left) {
+      overlay.style.display = 'none';
       return;
     }
-    overlay = document.createElement('div');
+    overlay.style.display = 'block';
     Object.assign(overlay.style, {
-      position:'fixed', top:rect.top+'px',left:rect.left+'px',
-      width:rect.width+'px',height:rect.height+'px',
-      border:'3px solid #3678e8',background:'rgba(54,120,232,.10)',
-      borderRadius:'3px',boxSizing:'border-box',
-      pointerEvents:'none',zIndex:'2147483646'
+      top: top + 'px', left: left + 'px',
+      width: (right - left) + 'px', height: (bottom - top) + 'px'
     });
-    label = document.createElement('div');
-    const caption = target.getAttribute('aria-label') ||
-      target.getAttribute('name') || target.id || target.tagName.toLowerCase();
-    label.textContent = target.tagName.toLowerCase()+' · '+String(caption).slice(0,50);
-    Object.assign(label.style,{
-      position:'fixed',top:Math.max(0,rect.top-27)+'px',
-      left:Math.max(0,rect.left)+'px',maxWidth:'240px',
-      padding:'4px 7px',background:'#17385f',color:'#fff',
-      borderRadius:'4px',font:'12px Arial,sans-serif',
-      direction:'ltr',pointerEvents:'none',zIndex:'2147483647'
-    });
-    document.documentElement.append(overlay,label);
+  }
+
+  function showHighlight(target) {
+    if (target !== highlighted) {
+      clearHighlight();
+      highlighted = target;
+      overlay = document.createElement('div');
+      Object.assign(overlay.style, {
+        position:'fixed',border:'2px solid #3678e8',
+        background:'transparent',pointerEvents:'none',
+        zIndex:'2147483646',boxSizing:'border-box',
+        borderRadius:'2px'
+      });
+      document.documentElement.appendChild(overlay);
+    }
+    positionHighlight();
   }
 
   // Relay a selected element through its parent frames. The parent determines
@@ -162,18 +160,6 @@
     if (message?.type === "guideme-instructor-pick-start") {
       pickActive = true;
       pickerNonce = message.nonce;
-      if (!inspectorBanner) {
-        inspectorBanner = document.createElement('div');
-        inspectorBanner.textContent = 'GuideMe Instructor · העבר עכבר מעל רכיב · Ctrl+Shift+Space לבחירה · Esc לביטול';
-        Object.assign(inspectorBanner.style, {
-          position:'fixed',top:'12px',left:'50%',transform:'translateX(-50%)',
-          maxWidth:'90vw',background:'#153c66',color:'white',borderRadius:'8px',
-          padding:'10px 16px',font:'bold 13px Arial,sans-serif',
-          direction:'rtl',textAlign:'center',pointerEvents:'none',
-          zIndex:'2147483647',boxShadow:'0 6px 20px rgba(0,0,0,.25)'
-        });
-        document.documentElement.appendChild(inspectorBanner);
-      }
       if (!hoverPoll) hoverPoll = setInterval(inspectHoveredElement, 120);
       inspectHoveredElement();
       sendResponse({armed: true, url: location.href});
@@ -185,26 +171,23 @@
       clearInterval(hoverPoll);
       hoverPoll = null;
       clearHighlight();
-      inspectorBanner?.remove();
-      inspectorBanner = null;
       sendResponse({armed: false});
       return false;
     }
   }
   function inspectHoveredElement() {
     if (!pickActive) return;
-    // Browser CSS :hover is independent of delegated JavaScript mouse events.
-    // This also works when an application stops event propagation.
-    const hoveredNodes = document.querySelectorAll(':hover');
-    let element = hoveredNodes.length ? hoveredNodes[hoveredNodes.length - 1] : null;
-    if (element === inspectorBanner || element === overlay || element === label) return;
-    if (!(element instanceof Element)) return;
-    const target = element.closest('button,a,input,select,textarea,[role="button"],[role="textbox"],[role="link"]') || element;
-    if (inspectorBanner) {
-      inspectorBanner.textContent = 'GuideMe Instructor · מזוהה: ' +
-        target.tagName.toLowerCase() + ' · Ctrl+Shift+Space לבחירה · Esc לביטול';
+    const hovered = document.querySelectorAll(':hover');
+    const element = hovered.length ? hovered[hovered.length - 1] : null;
+    if (!(element instanceof Element) || element === overlay) return;
+    // The child iframe owns its own highlight. Never paint its entire viewport.
+    if (['HTML','BODY','IFRAME','FRAME','HEADER','MAIN'].includes(element.tagName)) {
+      clearHighlight();
+      return;
     }
+    const target = element.closest('button,a,input,select,textarea,[role="button"],[role="textbox"],[role="link"]') || element;
     if (target !== highlighted) showHighlight(target);
+    else positionHighlight();
   }
   function pickHover(event) {
     if (!pickActive || !event.isTrusted) return;
@@ -219,8 +202,6 @@
       clearInterval(hoverPoll);
       hoverPoll = null;
       clearHighlight();
-      inspectorBanner?.remove();
-      inspectorBanner = null;
       highlighted = null;
       try { chrome.runtime.sendMessage({type:'guideme-instructor-pick-cancelled'}).catch(()=>{}); } catch {}
       return;
@@ -236,8 +217,6 @@
     clearInterval(hoverPoll);
     hoverPoll = null;
     clearHighlight();
-    inspectorBanner?.remove();
-    inspectorBanner = null;
     const candidate = {
       selector, url:location.href, tag:target.tagName.toLowerCase(),
       label:String(target.getAttribute('aria-label') || target.getAttribute('name') || target.textContent || '').trim().slice(0,100)
