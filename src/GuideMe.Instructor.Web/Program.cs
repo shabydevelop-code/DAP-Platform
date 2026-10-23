@@ -158,12 +158,6 @@ app.MapPut("/api/guides/{id:long}/steps/{stepId}", (long id, string stepId, Edit
 });
 app.MapPost("/api/guides", (CreateGuideRequest body) =>
     Results.Ok(V5GuideWriter.CreateGuideWithApplications(body.Name, body.Applications)));
-app.MapPut("/api/guides/{id:long}/steps/{stepId}/application",
-    (long id, string stepId, AssignApplicationRequest body) =>
-{
-    V5GuideWriter.AssignStepApplication(id, stepId, body.ContextId);
-    return Results.NoContent();
-});
 app.MapPut("/api/guides/{id:long}/name", (long id, RenameGuide body) =>
     Results.Ok(V5GuideWriter.RenameGuide(id, body.Name)));
 app.MapPost("/api/guides/{id:long}/contexts", (long id, SaveContext body) =>
@@ -240,7 +234,6 @@ static List<Dictionary<string, object?>> TableRows(DataTable table) =>
 
 internal sealed record CreateGuideRequest(string Name,
     List<V5GuideWriter.SelectedApplication> Applications);
-internal sealed record AssignApplicationRequest(string ContextId);
 internal sealed record RenameGuide(string Name);
 internal sealed record SaveContext(string ContextId, string Runtime,
     string MatcherProperty, string MatcherValue);
