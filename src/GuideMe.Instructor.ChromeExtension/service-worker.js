@@ -4,6 +4,7 @@ const nativeHost = "com.guideme.instructor";
 const alarmName = "guideme-instructor-sync";
 let port = null;
 let selectedTabId = null;
+let pickerArmedTabId = null;
 let pending = new Map();
 let serial = 0;
 let connecting = false;
@@ -81,6 +82,14 @@ async function sync() {
     const next = result.selectedTabId ?? null;
     if (next !== null && next !== selectedTabId) await inject(next);
     selectedTabId = next;
+    const pickTabId = result.pickTabId ?? null;
+    if (pickTabId !== null && pickerArmedTabId !== pickTabId) {
+      await inject(pickTabId);
+      await chrome.tabs.sendMessage(pickTabId, { type: "guideme-instructor-pick-start" }).catch(() => {});
+    }
+    if (pickTabId === null && pickerArmedTabId !== null)
+      await chrome.tabs.sendMessage(pickerArmedTabId, { type: "guideme-instructor-pick-stop" }).catch(() => {});
+    pickerArmedTabId = pickTabId;
   } catch (error) {
     console.warn("Instructor sync:", error.message);
   } finally { syncing = false; }
@@ -99,6 +108,10 @@ chrome.tabs.onUpdated.addListener((id, change) => {
 });
 chrome.windows.onFocusChanged.addListener(() => void sync());
 chrome.runtime.onMessage.addListener((message, sender) => {
+  if (message?.type === "guideme-instructor-picked" && sender.tab?.id === selectedTabId) {
+    void request("picked", { payload: { tabId: sender.tab.id, event: message.event } }).catch(() => {});
+    return false;
+  }
   if (message?.type !== "guideme-instructor-event" || sender.tab?.id !== selectedTabId) return false;
   const event = message.event;
   if (!event || !["click", "change", "blur"].includes(event.kind)) return false;
