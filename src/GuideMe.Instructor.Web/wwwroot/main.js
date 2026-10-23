@@ -82,7 +82,7 @@ function renderSteps() {
   const steps = (current?.steps || []).filter(s => String(s.order).includes(search) || s.id.toLowerCase().includes(search) || (s.bubble || '').toLowerCase().includes(search));
   $('step-list').innerHTML = steps.length ? steps.map(s =>
     '<button class="step-row" data-step="' + esc(s.id) + '"><span class="step-num">' + s.order + '</span><span class="step-body"><strong>' +
-    esc(s.bubble || s.id) + '</strong><small>' + (s.enabled ? 'שלב פעיל' : 'שלב מושבת') + ' · ' + esc(s.id) + '</small></span></button>').join('')
+    esc(s.bubble || 'שלב ' + s.order) + '</strong><small>' + (s.enabled ? 'שלב פעיל' : 'שלב מושבת') + '</small></span></button>').join('')
     : '<div class="empty">אין שלבים להצגה</div>';
   document.querySelectorAll('[data-step]').forEach(b => b.addEventListener('click',() => guarded(async () => {
     selectedStep = b.dataset.step;
@@ -137,8 +137,7 @@ function renderSteps() {
       section.className = 'target-editor';
       section.innerHTML =
         (!target && !rule
-          ? '<h3>בחירת רכיב ותנאי התקדמות</h3>' +
-            '<p>העבר את העכבר מעל הרכיב באתר ולחץ Ctrl+Shift+Space לאישור. Esc לביטול.</p>' +
+          ? '<h3>בחירת רכיב</h3>' +
             '<button id="pick-web-element" class="btn primary">הפעלת ממפה רכיבים</button>'
           : '') +
         '<div id="pick-result" class="hidden" aria-live="polite"></div>';
@@ -250,7 +249,7 @@ async function refreshPicker() {
       box.textContent = 'ממתין לאישור הפעלת הממפה בלשונית שנבחרה. אם לא מופיעה מסגרת בחלון היעד, ניתן לבטל ולנסות שוב.';
       return;
     }
-    box.textContent = state.pickReady ? 'ממפה הרכיבים פעיל באפליקציה: ' + (state.targetTitle || state.targetUrl || state.tabId) + '. העבר את העכבר מעל הרכיב הרצוי ולחץ Ctrl+Shift+Space לבחירה, או Esc לביטול.' : 'מפעיל בחירת רכיב בלשונית…';
+    box.textContent = state.pickReady ? 'ממפה פעיל: העבר עכבר מעל רכיב ולחץ Ctrl+Shift+Space לבחירה (Esc לביטול).' : 'מפעיל בחירת רכיב…';
     return;
   }
   const candidate = state.picked;
