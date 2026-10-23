@@ -5,6 +5,7 @@ const alarmName = "guideme-instructor-sync";
 let port = null;
 let selectedTabId = null;
 let pickerArmedTabId = null;
+let pickerFrames = [];
 let pending = new Map();
 let serial = 0;
 let connecting = false;
@@ -65,12 +66,16 @@ async function listTabs() {
   }));
 }
 async function inject(tabId) {
-  // The current Inspector supports main-frame DOM only.
-  // Let errors propagate: a connected Native Host does not prove the
-  // content script can execute inside the selected tab.
-  await chrome.scripting.executeScript({
-    target: { tabId, frameIds: [0] }, files: ["content-capture.js"]
+  return chrome.scripting.executeScript({
+    target:{tabId,allFrames:true},files:["content-capture.js"]
   });
+}
+async function stopPicker(tabId) {
+  const frames = pickerFrames;
+  pickerFrames = [];
+  pickerArmedTabId = null;
+  await Promise.all(frames.map(frameId => chrome.tabs.sendMessage(tabId,
+    {type:"guideme-instructor-pick-stop"},{frameId}).catch(()=>{})));
 }
 async function reportPickerError(tabId, error) {
   const reason = String(error?.message || error || "Unknown Chrome error").slice(0, 320);
@@ -90,21 +95,25 @@ async function sync() {
     const pickTabId = result.pickTabId ?? null;
     if (pickTabId !== null && pickerArmedTabId !== pickTabId) {
       try {
-        await inject(pickTabId);
-        const answer = await chrome.tabs.sendMessage(
-          pickTabId, { type: "guideme-instructor-pick-start" }, {frameId: 0}
-        );
-        if (answer?.armed !== true)
-          throw new Error("The target page did not acknowledge Inspector activation");
-        const ack = await request("picker-armed", {tabId: pickTabId});
+        const injected = await inject(pickTabId);
+        const frames = [...new Set(injected.map(item=>item.frameId))];
+        const nonce = crypto.randomUUID();
+        const results = await Promise.all(frames.map(async frameId => {
+          try {
+            const reply = await chrome.tabs.sendMessage(pickTabId,
+              {type:"guideme-instructor-pick-start",nonce},{frameId});
+            return reply?.armed === true ? frameId : null;
+          } catch { return null; }
+        }));
+        const armed = results.filter(id=>id!==null);
+        if (!armed.includes(0)) throw new Error("Inspector could not activate in top frame");
+        pickerFrames = armed;
+        const ack = await request("picker-armed",{tabId:pickTabId});
         if (ack?.accepted === true) pickerArmedTabId = pickTabId;
-      } catch (error) {
-        await reportPickerError(pickTabId, error);
-      }
+      } catch (error) { await reportPickerError(pickTabId,error); }
     }
     if (pickTabId === null && pickerArmedTabId !== null)
-      await chrome.tabs.sendMessage(pickerArmedTabId, { type: "guideme-instructor-pick-stop" }, {frameId:0}).catch(() => {});
-    if (pickTabId === null) pickerArmedTabId = null;
+      await stopPicker(pickerArmedTabId);
   } catch (error) {
     console.warn("Instructor sync:", error.message);
   } finally { syncing = false; }
@@ -117,7 +126,7 @@ chrome.tabs.onActivated.addListener(() => void sync());
 chrome.tabs.onRemoved.addListener(id => { if (id === selectedTabId) selectedTabId = null; void sync(); });
 chrome.tabs.onUpdated.addListener((id, change) => {
   if (change.status === "complete") {
-    if (selectedTabId === id) pickerArmedTabId = null;
+    if (selectedTabId === id) { pickerArmedTabId = null; pickerFrames = []; }
     void sync();
   }
 });
@@ -128,8 +137,8 @@ chrome.runtime.onMessage.addListener((message, sender) => {
     pickerArmedTabId = null;
     return false;
   }
-  if (message?.type === "guideme-instructor-picked" && sender.tab?.id === selectedTabId) {
-    void request("picked", { payload: { tabId: sender.tab.id, event: message.event } }).catch(() => {});
+  if (message?.type === "guideme-instructor-picked" && sender.tab?.id === selectedTabId && sender.frameId === 0) {
+    void request("picked", { payload: { tabId: sender.tab.id, event: message.event } }).then(() => stopPicker(sender.tab.id)).catch(() => {});
     return false;
   }
   if (message?.type !== "guideme-instructor-event" || sender.tab?.id !== selectedTabId) return false;
