@@ -15,6 +15,7 @@ internal sealed class InstructorCaptureBridge
     private long? _guideId;
     private bool _picking;
     private bool _pickReady;
+    private string? _pickerError;
     private JsonElement? _pickedElement;
 
     public object Heartbeat(CaptureTab[] tabs)
@@ -56,7 +57,7 @@ internal sealed class InstructorCaptureBridge
                 guideId = _guideId, contextId = _selectedContext,
                 targetUrl = _targetUrl, targetTitle = _targetTitle,
                 tabId = _selectedTab, tabs = _tabs,
-                eventsCount = _events.Count, picking = _picking, pickReady = _pickReady, picked = _pickedElement
+                eventsCount = _events.Count, picking = _picking, pickReady = _pickReady, pickerError = _pickerError, picked = _pickedElement
             };
     }
 
@@ -80,6 +81,7 @@ internal sealed class InstructorCaptureBridge
             _recording = false;
             _picking = false;
             _pickReady = false;
+            _pickerError = null;
             _pickedElement = null;
             _events.Clear();
             _guideId = guideId;
@@ -109,6 +111,7 @@ internal sealed class InstructorCaptureBridge
             if (!IsSelected(guideId, contextId))
                 throw new InvalidOperationException("בחר תחילה לשונית Web מתאימה.");
             _picking = true;
+            _pickerError = null;
             _pickReady = false;
             _pickedElement = null;
             return new { tabId = _selectedTab, targetTitle = _targetTitle };
@@ -131,12 +134,23 @@ internal sealed class InstructorCaptureBridge
         }
     }
 
+    public object PickerFailed(int tabId, string reason)
+    {
+        lock (_gate)
+        {
+            if (!_picking || _selectedTab != tabId) return new { accepted = false };
+            _pickerError = reason.Length > 320 ? reason[..320] : reason;
+            return new { accepted = true };
+        }
+    }
+
     public object PickerArmed(int tabId)
     {
         lock (_gate)
         {
             if (!_picking || _selectedTab != tabId) return new { accepted = false };
             _pickReady = true;
+            _pickerError = null;
             return new { accepted = true };
         }
     }
