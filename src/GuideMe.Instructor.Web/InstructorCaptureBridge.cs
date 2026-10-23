@@ -32,6 +32,18 @@ internal sealed class InstructorCaptureBridge
             return new { selectedTabId = _selectedTab, recording = _recording };
         }
     }
+    public bool IsConnected
+    {
+        get { lock (_gate) return DateTimeOffset.UtcNow - _lastHeartbeat < TimeSpan.FromSeconds(10); }
+    }
+
+    public CaptureTab[] GetOpenTabs()
+    {
+        lock (_gate)
+            return DateTimeOffset.UtcNow - _lastHeartbeat < TimeSpan.FromSeconds(10)
+                ? _tabs.ToArray() : Array.Empty<CaptureTab>();
+    }
+
     public object Status()
     {
         lock (_gate)
