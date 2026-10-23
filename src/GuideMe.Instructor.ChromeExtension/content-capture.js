@@ -157,6 +157,11 @@
       sendResponse({armed: true, url: location.href});
       return false;
     }
+    if (message?.type === "guideme-instructor-pick-confirm") {
+      confirmHighlightedSelection();
+      sendResponse({handled: true});
+      return false;
+    }
     if (message?.type === "guideme-instructor-pick-stop") {
       pickActive = false;
       pickerNonce = null;
@@ -200,21 +205,31 @@
     if (!(event.ctrlKey && event.shiftKey && event.code === 'Space')) return;
     event.preventDefault();
     event.stopImmediatePropagation();
+    confirmHighlightedSelection();
+  }
+  function confirmHighlightedSelection() {
+    if (!pickActive) return;
+    // Refresh the hovered element even when the page has not received focus.
+    inspectHoveredElement();
     if (!highlighted || !highlighted.isConnected) return;
     const target = highlighted;
     const selector = selectorFor(target);
-    if (!selector) return;
+    if (!selector) {
+      try { chrome.runtime.sendMessage({type:"guideme-instructor-pick-error",reason:"לא ניתן ליצור מזהה CSS ייחודי לרכיב המסומן."}).catch(()=>{}); } catch {}
+      return;
+    }
     pickActive = false;
     clearInterval(hoverPoll);
     hoverPoll = null;
     clearHighlight();
     const candidate = {
       selector, url:location.href, tag:target.tagName.toLowerCase(),
-      label:String(target.getAttribute('aria-label') || target.getAttribute('name') || target.textContent || '').trim().slice(0,100)
+      label:String(target.getAttribute("aria-label") || target.getAttribute("name") || target.textContent || "").trim().slice(0,100),
+      framePath: []
     };
-    candidate.framePath = [];
     emitSelection(candidate);
   }
+
   chrome.runtime.onMessage.addListener(pickMessages);
   addEventListener("pointermove", pickHover, true);
   addEventListener("mousemove", pickHover, true);
