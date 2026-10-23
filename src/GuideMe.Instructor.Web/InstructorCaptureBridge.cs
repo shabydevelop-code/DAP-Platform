@@ -14,6 +14,7 @@ internal sealed class InstructorCaptureBridge
     private string? _selectedContext, _targetUrl, _targetTitle;
     private long? _guideId;
     private bool _picking;
+    private bool _pickReady;
     private JsonElement? _pickedElement;
 
     public object Heartbeat(CaptureTab[] tabs)
@@ -55,7 +56,7 @@ internal sealed class InstructorCaptureBridge
                 guideId = _guideId, contextId = _selectedContext,
                 targetUrl = _targetUrl, targetTitle = _targetTitle,
                 tabId = _selectedTab, tabs = _tabs,
-                eventsCount = _events.Count, picking = _picking, picked = _pickedElement
+                eventsCount = _events.Count, picking = _picking, pickReady = _pickReady, picked = _pickedElement
             };
     }
 
@@ -78,6 +79,7 @@ internal sealed class InstructorCaptureBridge
             var target = explicitTabId is null ? matching[0] : matching.Single(t => t.TabId == explicitTabId);
             _recording = false;
             _picking = false;
+            _pickReady = false;
             _pickedElement = null;
             _events.Clear();
             _guideId = guideId;
@@ -107,6 +109,7 @@ internal sealed class InstructorCaptureBridge
             if (!IsSelected(guideId, contextId))
                 throw new InvalidOperationException("בחר תחילה לשונית Web מתאימה.");
             _picking = true;
+            _pickReady = false;
             _pickedElement = null;
             return new { tabId = _selectedTab, targetTitle = _targetTitle };
         }
@@ -125,6 +128,16 @@ internal sealed class InstructorCaptureBridge
                 !_pickedElement.Value.TryGetProperty("selector", out var selector))
                 throw new InvalidOperationException("בחר ואשר תחילה רכיב מתוך האפליקציה.");
             return selector.GetString() ?? throw new InvalidOperationException("מזהה הרכיב חסר.");
+        }
+    }
+
+    public object PickerArmed(int tabId)
+    {
+        lock (_gate)
+        {
+            if (!_picking || _selectedTab != tabId) return new { accepted = false };
+            _pickReady = true;
+            return new { accepted = true };
         }
     }
 
@@ -153,6 +166,7 @@ internal sealed class InstructorCaptureBridge
                 return new { accepted = false };
             _pickedElement = data.Event.Clone();
             _picking = false;
+            _pickReady = false;
             return new { accepted = true };
         }
     }
