@@ -131,17 +131,20 @@ function renderSteps() {
       beginWebPicker(current.guide.id, step.id, contextId, true));
     const conditionEditor = $('edit-validation');
     if (conditionEditor) conditionEditor.onclick = () => editValidation(step, rule);
-    if (context?.Runtime === 'Web' && !data.targets.length && !data.rules.length) {
+    if (context?.Runtime === 'Web') {
       const section = document.createElement('section');
       section.className = 'target-editor';
       section.innerHTML =
-        '<h3>ממפה רכיבים ותנאי התקדמות</h3>' +
-        '<p>העבר את העכבר מעל הרכיב הרצוי באתר ולחץ Ctrl+Shift+Space לאישור. Esc לביטול.</p>' +
-        '<button id="pick-web-element" class="btn primary">הפעלת ממפה רכיבים</button>' +
-        '<div id="pick-result" class="hidden"></div>';
+        (!target && !rule
+          ? '<h3>בחירת רכיב ותנאי התקדמות</h3>' +
+            '<p>העבר את העכבר מעל הרכיב באתר ולחץ Ctrl+Shift+Space לאישור. Esc לביטול.</p>' +
+            '<button id="pick-web-element" class="btn primary">הפעלת ממפה רכיבים</button>'
+          : '') +
+        '<div id="pick-result" class="hidden" aria-live="polite"></div>';
       $('step-inspector').append(section);
-      $('pick-web-element').onclick = () => guarded(() =>
-        beginWebPicker(current.guide.id, step.id, contextId));
+      if (!target && !rule)
+        $('pick-web-element').onclick = () => guarded(() =>
+          beginWebPicker(current.guide.id, step.id, contextId));
     }
 
   })));
@@ -189,7 +192,10 @@ function editValidation(step, rule) {
 }
 let pickingFor = null;
 async function beginWebPicker(guideId, stepId, contextId, replacing=false) {
-  if (pickingFor) await api('/target-picker/cancel',{method:'POST',body:'{}'});
+  if (pickingFor) {
+    await api('/target-picker/cancel',{method:'POST',body:'{}'});
+    pickingFor = null;
+  }
   const selected = await api('/capture/select', {method:'POST',
     body:JSON.stringify({guideId,contextId})});
   if (selected.status === 'notFound')
@@ -209,6 +215,7 @@ async function beginWebPicker(guideId, stepId, contextId, replacing=false) {
   await api('/target-picker/start',{method:'POST',body:JSON.stringify({guideId,contextId})});
   pickingFor = {guideId,stepId,contextId,replacing,startedAt:Date.now()};
   const box = $('pick-result');
+  if (!box) throw new Error('אזור אישור הרכיב חסר בממשק. פתח מחדש את השלב.');
   if (box) { box.dataset.pickedSelector=''; box.classList.remove('hidden'); box.textContent = 'מתחבר ללשונית ומפעיל בחירת רכיב…'; }
   await refreshPicker();
 }
@@ -261,7 +268,7 @@ async function refreshPicker() {
     await openGuide(pickedFor.guideId);
     const item = [...document.querySelectorAll('[data-step]')].find(x=>x.dataset.step===pickedFor.stepId);
     item?.click();
-    notify('רכיב היעד וכלל ההתקדמות נשמרו ב־V5.');
+    notify(pickedFor.replacing ? 'רכיב היעד הוחלף. תנאי ההתקדמות נשמר ללא שינוי.' : 'רכיב היעד ותנאי ההתקדמות נשמרו.');
   });
   $('cancel-web-target').onclick = () => guarded(async () => {
     await api('/target-picker/cancel',{method:'POST',body:'{}'});
