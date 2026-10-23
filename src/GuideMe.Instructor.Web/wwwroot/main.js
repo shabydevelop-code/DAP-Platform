@@ -157,6 +157,10 @@ async function refreshPicker() {
   const box = $('pick-result');
   if (!box) return;
   if (!state.picked) {
+    if (state.pickerError) {
+      box.textContent = 'לא ניתן להפעיל את ממפה הרכיבים בלשונית שנבחרה: ' + state.pickerError;
+      return;
+    }
     if (!state.picking) {
       pickingFor = null;
       box.textContent = 'איתור הרכיב בוטל. ניתן להפעיל שוב את הממפה.';
