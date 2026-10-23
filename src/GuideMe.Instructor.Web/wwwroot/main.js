@@ -225,7 +225,10 @@ async function refreshPicker() {
     pickingFor = null;
     return;
   }
+  const requestSession = pickingFor;
   const state = await api('/capture/status');
+  if (!pickingFor || pickingFor !== requestSession ||
+      current?.guide?.id !== requestSession.guideId || selectedStep !== requestSession.stepId) return;
   const box = $('pick-result');
   if (!box) return;
   if (!state.picked) {
