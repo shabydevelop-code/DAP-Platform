@@ -143,7 +143,7 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/web-target",
     if (row is null) return Results.NotFound();
     var contextId = row["ApplicationContextId"].ToString() ?? "";
     var selected = capture.GetApprovedTarget(id, contextId);
-    V5GuideWriter.SaveWebTarget(id, stepId, selected.Selector, selected.FramePath, request.Condition);
+    V5GuideWriter.SaveWebTarget(id, stepId, selected.Selector, selected.FramePath, request.Condition, selected.DisplayName);
     capture.CancelPicking();
     return Results.NoContent();
 });
@@ -155,7 +155,7 @@ app.MapPut("/api/guides/{id:long}/steps/{stepId}/web-target", (long id, string s
         string.Equals(r["StepId"].ToString(), stepId, StringComparison.Ordinal));
     if (row is null) return Results.NotFound();
     var selected = capture.GetApprovedTarget(id, row["ApplicationContextId"].ToString() ?? "");
-    V5GuideWriter.ReplaceWebTarget(id, stepId, selected.Selector, selected.FramePath);
+    V5GuideWriter.ReplaceWebTarget(id, stepId, selected.Selector, selected.FramePath, selected.DisplayName);
     capture.CancelPicking();
     return Results.NoContent();
 });
