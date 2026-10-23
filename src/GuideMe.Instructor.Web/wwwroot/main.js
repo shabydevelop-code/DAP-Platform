@@ -158,7 +158,7 @@ function editValidation(step, rule) {
   modal('עריכת תנאי התקדמות — שלב ' + step.order, [
     {name:'kind',label:'מתי המערכת תעבור לשלב הבא?',value:kind,choices:validationChoices},
     {name:'expectedValue',label:'ערך צפוי (רק עבור ״השדה מכיל ערך מסוים״)',
-      value:rule.ExpectedValue || '',max:500,
+      value:rule.ExpectedValue || '',max:500,optional:true,
       help:'הזנת ערך נדרשת רק כאשר בוחרים התאמה לערך מסוים. אין להשתמש כאן בסיסמאות או במידע אישי.'}
   ],async values=>{
     await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+'/validation',
@@ -232,7 +232,7 @@ async function refreshPicker() {
     '<label for="target-condition">תנאי התקדמות</label>'+
     '<select id="target-condition">'+
     '<option value="clicked">המשתמש לוחץ על הרכיב</option>'+
-    '<option value="target-disappeared">הרכיב נעלם בעקבות הפעולה</option>'+
+    '<option value="value-not-empty">הוזן ערך בשדה</option>'+\n    '<option value="target-disappeared">הרכיב נעלם בעקבות הפעולה</option>'+
     '</select><div class="target-actions">'+
     '<button id="save-web-target" class="btn primary">אישור ושמירת רכיב</button>'+
     '<button id="cancel-web-target" class="btn secondary">ביטול</button></div>';
@@ -269,7 +269,7 @@ function modal(title, fields, submit, buttonText='שמירה') {
     const label='<label for="field-'+f.name+'">'+esc(f.label)+'</label>';
     const field=f.choices?'<select id="field-'+f.name+'" name="'+f.name+'">'+f.choices.map(v=>'<option value="'+esc(v.value)+'" '+(v.value===f.value?'selected':'')+'>'+esc(v.text)+'</option>').join('')+'</select>'
     :f.multiline?'<textarea id="field-'+f.name+'" name="'+f.name+'" maxlength="'+(f.max||4000)+'" rows="5">'+esc(f.value||'')+'</textarea>'
-    :'<input id="field-'+f.name+'" name="'+f.name+'" value="'+esc(f.value||'')+'" maxlength="'+(f.max||256)+'" required>';
+    :'<input id="field-'+f.name+'" name="'+f.name+'" value="'+esc(f.value||'')+'" maxlength="'+(f.max||256)+'" '+(f.optional?'':'required')+'>';
     return '<div class="field">'+label+field+(f.help?'<div class="field-help">'+esc(f.help)+'</div>':'')+'</div>';
   }).join('')+'</div>';
   $('submit-dialog').textContent=buttonText;
