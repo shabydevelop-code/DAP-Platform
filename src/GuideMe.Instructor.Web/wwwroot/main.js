@@ -115,6 +115,8 @@ function renderSteps() {
         (frames.length ? ' בתוך ' + frames.length + ' מסגרות' : '') + '.</p>' +
         '<p class="step-muted">זיהוי: <code dir="ltr">' + esc(locatorText || 'לא ידוע') + '</code></p>' :
         '<p>עדיין לא נבחר רכיב לשלב הזה.</p>') +
+      (context?.Runtime === 'Web' && target ?
+        '<button class="btn secondary small" id="replace-web-target">בחירת רכיב אחר</button>' : '') +
       '</section>' +
       '<section class="step-friendly-card"><h3>מתי ממשיכים לשלב הבא?</h3>' +
       '<p>' + esc(conditionText) + '</p>' +
@@ -123,6 +125,9 @@ function renderSteps() {
         '<button class="btn secondary small" id="edit-validation">עריכת תנאי ההתקדמות</button>' : '') +
       '</section></div>';
     $('edit-step').onclick = () => editStep(step, contextId);
+    const targetReplace = $('replace-web-target');
+    if (targetReplace) targetReplace.onclick = () => guarded(() =>
+      beginWebPicker(current.guide.id, step.id, contextId, true));
     const conditionEditor = $('edit-validation');
     if (conditionEditor) conditionEditor.onclick = () => editValidation(step, rule);
     if (context?.Runtime === 'Web' && !data.targets.length && !data.rules.length) {
@@ -173,7 +178,7 @@ function editValidation(step, rule) {
   });
 }
 let pickingFor = null;
-async function beginWebPicker(guideId, stepId, contextId) {
+async function beginWebPicker(guideId, stepId, contextId, replacing=false) {
   if (pickingFor) await api('/target-picker/cancel',{method:'POST',body:'{}'});
   const selected = await api('/capture/select', {method:'POST',
     body:JSON.stringify({guideId,contextId})});
@@ -192,7 +197,7 @@ async function beginWebPicker(guideId, stepId, contextId) {
       body:JSON.stringify({guideId,contextId,tabId})});
   }
   await api('/target-picker/start',{method:'POST',body:JSON.stringify({guideId,contextId})});
-  pickingFor = {guideId,stepId,contextId,startedAt:Date.now()};
+  pickingFor = {guideId,stepId,contextId,replacing,startedAt:Date.now()};
   const box = $('pick-result');
   if (box) { box.dataset.pickedSelector=''; box.classList.remove('hidden'); box.textContent = 'מתחבר ללשונית ומפעיל בחירת רכיב…'; }
   await refreshPicker();
@@ -229,18 +234,19 @@ async function refreshPicker() {
   box.innerHTML = '<p><strong>הרכיב שנבחר:</strong> '+esc(candidate.label || candidate.tag || 'רכיב')+'</p>'+
     (candidate.framePath?.length ? '<p><strong>נתיב מסגרות:</strong> '+candidate.framePath.map(esc).join(' → ')+'</p>' : '')+
     '<p class="target-selector">'+esc(candidate.selector)+'</p>'+
-    '<label for="target-condition">תנאי התקדמות</label>'+
-    '<select id="target-condition">'+
+    (pickingFor.replacing ? '' : '<label for="target-condition">תנאי התקדמות</label>')+
+    (pickingFor.replacing ? '' : '<select id="target-condition">'+
     '<option value="clicked">המשתמש לוחץ על הרכיב</option>'+
     '<option value="value-not-empty">הוזן ערך בשדה</option>'+
     '<option value="target-disappeared">הרכיב נעלם בעקבות הפעולה</option>'+
-    '</select><div class="target-actions">'+
+    '</select>')+'<div class="target-actions">'+
     '<button id="save-web-target" class="btn primary">אישור ושמירת רכיב</button>'+
     '<button id="cancel-web-target" class="btn secondary">ביטול</button></div>';
   $('save-web-target').onclick = () => guarded(async () => {
     const pickedFor = pickingFor;
     await api('/guides/'+pickedFor.guideId+'/steps/'+encodeURIComponent(pickedFor.stepId)+'/web-target',
-      {method:'POST',body:JSON.stringify({condition:$('target-condition').value})});
+      pickedFor.replacing ? {method:'PUT'} :
+        {method:'POST',body:JSON.stringify({condition:$('target-condition').value})});
     pickingFor = null;
     await openGuide(pickedFor.guideId);
     const item = [...document.querySelectorAll('[data-step]')].find(x=>x.dataset.step===pickedFor.stepId);
