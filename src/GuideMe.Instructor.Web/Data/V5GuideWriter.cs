@@ -208,7 +208,7 @@ VALUES ($guideId, $contextId, $runtime, $matchers)";
         content = content.Trim();
         if (content.Length is < 1 or > 4000)
             throw new ArgumentException("תוכן הבועית חייב להכיל בין 1 ל־4000 תווים.");
-        if (placement is not ("Auto" or "Top" or "Bottom" or "Left" or "Right" or "Center"))
+        if (placement != "Center")
             throw new ArgumentException("מיקום הבועית אינו תקין.");
         if (string.IsNullOrWhiteSpace(contextId))
             throw new ArgumentException("יש לבחור אפליקציה לשלב.");
@@ -416,7 +416,7 @@ WHERE GuideId=$guideId AND ContextId=$contextId";
         string condition)
     {
         if (string.IsNullOrWhiteSpace(selector) || selector.Length > 400 ||
-            selector.Contains('\\0'))
+            selector.IndexOf((char)0) >= 0)
             throw new ArgumentException("מזהה הרכיב אינו תקין.");
         if (condition is not ("clicked" or "target-disappeared"))
             throw new ArgumentException("תנאי ההתקדמות אינו נתמך.");
