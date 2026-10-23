@@ -8,6 +8,7 @@
   let highlighted = null;
   let overlay = null;
   let label = null;
+  let inspectorBanner = null;
   const pendingTimers = new Set();
   const eventTypes = ["click", "change", "blur"];
 
@@ -19,6 +20,8 @@
     removeEventListener("keydown", pickKey, true);
     chrome.runtime.onMessage.removeListener(pickMessages);
     clearHighlight();
+    inspectorBanner?.remove();
+    inspectorBanner = null;
     for (const timer of pendingTimers) clearTimeout(timer);
     pendingTimers.clear();
     globalThis.__guideMeCaptureInstalled = false;
@@ -107,12 +110,26 @@
   function pickMessages(message, _sender, sendResponse) {
     if (message?.type === "guideme-instructor-pick-start") {
       pickActive = true;
+      if (!inspectorBanner) {
+        inspectorBanner = document.createElement('div');
+        inspectorBanner.textContent = 'GuideMe Instructor · העבר עכבר מעל רכיב · Ctrl+Shift+Space לבחירה · Esc לביטול';
+        Object.assign(inspectorBanner.style, {
+          position:'fixed',top:'12px',left:'50%',transform:'translateX(-50%)',
+          maxWidth:'90vw',background:'#153c66',color:'white',borderRadius:'8px',
+          padding:'10px 16px',font:'bold 13px Arial,sans-serif',
+          direction:'rtl',textAlign:'center',pointerEvents:'none',
+          zIndex:'2147483647',boxShadow:'0 6px 20px rgba(0,0,0,.25)'
+        });
+        document.documentElement.appendChild(inspectorBanner);
+      }
       sendResponse({armed: true, url: location.href});
       return false;
     }
     if (message?.type === "guideme-instructor-pick-stop") {
       pickActive = false;
       clearHighlight();
+      inspectorBanner?.remove();
+      inspectorBanner = null;
       sendResponse({armed: false});
       return false;
     }
@@ -132,6 +149,8 @@
       event.stopImmediatePropagation();
       pickActive = false;
       clearHighlight();
+      inspectorBanner?.remove();
+      inspectorBanner = null;
       highlighted = null;
       try { chrome.runtime.sendMessage({type:'guideme-instructor-pick-cancelled'}).catch(()=>{}); } catch {}
       return;
@@ -145,6 +164,8 @@
     if (!selector) return;
     pickActive = false;
     clearHighlight();
+    inspectorBanner?.remove();
+    inspectorBanner = null;
     const candidate = {
       selector, url:location.href, tag:target.tagName.toLowerCase(),
       label:String(target.getAttribute('aria-label') || target.getAttribute('name') || target.textContent || '').trim().slice(0,100)
