@@ -81,9 +81,12 @@ function renderSteps() {
   const search = $('step-search').value.trim().toLowerCase();
   const steps = (current?.steps || []).filter(s => String(s.order).includes(search) || s.id.toLowerCase().includes(search) || (s.bubble || '').toLowerCase().includes(search));
   $('step-list').innerHTML = steps.length ? steps.map(s =>
-    '<button class="step-row" data-step="' + esc(s.id) + '"><span class="step-num">' + s.order + '</span><span class="step-body"><strong>' +
-    esc(s.bubble || 'שלב ' + s.order) + '</strong><small>' + (s.enabled ? 'שלב פעיל' : 'שלב מושבת') + '</small></span></button>').join('')
+    '<div class="step-row" role="button" tabindex="0" data-step="' + esc(s.id) + '"><span class="step-num">' + s.order + '</span><span class="step-body"><strong>' +
+    esc(s.bubble || 'שלב ' + s.order) + '</strong><small>' + (s.enabled ? 'שלב פעיל' : 'שלב מושבת') + '</small></span></div>').join('')
     : '<div class="empty">אין שלבים להצגה</div>';
+  document.querySelectorAll('[data-step]').forEach(b => b.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); b.click(); }
+  }));
   document.querySelectorAll('[data-step]').forEach(b => b.addEventListener('click',() => guarded(async () => {
     selectedStep = b.dataset.step;
     document.querySelectorAll('[data-step]').forEach(x => x.classList.toggle('active', x===b));
