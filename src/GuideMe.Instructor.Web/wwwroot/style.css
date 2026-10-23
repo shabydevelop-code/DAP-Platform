@@ -78,3 +78,8 @@
 .target-technical code{direction:ltr;unicode-bidi:isolate;display:inline-block;max-width:100%;overflow-wrap:anywhere;white-space:normal;font:12px Consolas,monospace}
 @media(max-width:1050px){.steps-layout{grid-template-columns:230px minmax(0,1fr)}}
 @media(max-width:700px){.steps-layout{grid-template-columns:minmax(0,1fr)}}
+
+/* Instructor is an editor: users must be able to highlight and copy its text. */
+body,main,.content,.inspector,.step-summary,.step-friendly-card,.target-editor,#pick-result,dialog,p,span,strong,small,code{user-select:text;-webkit-user-select:text}
+button,.btn{user-select:none;-webkit-user-select:none}
+input,textarea{user-select:text;-webkit-user-select:text}
