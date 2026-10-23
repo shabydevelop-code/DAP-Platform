@@ -114,8 +114,8 @@ function renderSteps() {
       '<section class="step-friendly-card"><h3>רכיב במסך</h3>' +
       (target ? '<p>נבחר רכיב באפליקציה' +
         (frames.length ? ' בתוך ' + frames.length + ' מסגרות' : '') + '.</p>' +
-        (locatorText ? '<p class="step-muted">רכיב שנבחר: <code dir="ltr">' +
-          esc(friendlyName) + '</code></p>' : '') :
+        (locatorText ? '<p>רכיב שנבחר: <strong>' + esc(friendlyName) + '</strong></p>' +
+          '<p class="target-technical">מזהה רכיב: <code dir="ltr">' + esc(locatorText) + '</code></p>' : '') :
         '<p>עדיין לא נבחר רכיב לשלב הזה.</p>') +
       (context?.Runtime === 'Web' && target ?
         '<button class="btn secondary small" id="replace-web-target">בחירת רכיב אחר</button>' : '') +
@@ -254,7 +254,7 @@ async function refreshPicker() {
   box.dataset.pickedSelector = candidate.selector;
   box.innerHTML = '<p><strong>הרכיב שנבחר:</strong> '+esc(candidate.label || candidate.tag || 'רכיב')+'</p>'+
     (candidate.framePath?.length ? '<p><strong>נתיב מסגרות:</strong> '+candidate.framePath.map(esc).join(' → ')+'</p>' : '')+
-    '<p class="target-selector">'+esc(candidate.selector)+'</p>'+
+    '<p class="target-technical">מזהה רכיב: <code dir="ltr">'+esc(candidate.selector)+'</code></p>'+
     (pickingFor.replacing ? '' : '<label for="target-condition">תנאי התקדמות</label>')+
     (pickingFor.replacing ? '' : '<select id="target-condition">'+
     '<option value="clicked" '+(['input','textarea','select'].includes(candidate.tag)?'':'selected')+'>המשתמש לוחץ על הרכיב</option>'+
