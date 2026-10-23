@@ -5,6 +5,7 @@ const alarmName = "guideme-instructor-sync";
 let port = null;
 let selectedTabId = null;
 let pickerArmedTabId = null;
+let pickerArmedSession = null;
 let pickerFrames = [];
 let pending = new Map();
 let serial = 0;
@@ -45,6 +46,9 @@ function connect() {
       if (port !== candidate) return;
       port = null;
       selectedTabId = null;
+      pickerArmedTabId = null;
+      pickerArmedSession = null;
+      pickerFrames = [];
       for (const entry of pending.values()) {
         clearTimeout(entry.timeout);
         entry.reject(new Error(chrome.runtime.lastError?.message || "Native Host closed"));
@@ -74,6 +78,7 @@ async function stopPicker(tabId) {
   const frames = pickerFrames;
   pickerFrames = [];
   pickerArmedTabId = null;
+  pickerArmedSession = null;
   await Promise.all(frames.map(frameId => chrome.tabs.sendMessage(tabId,
     {type:"guideme-instructor-pick-stop"},{frameId}).catch(()=>{})));
 }
@@ -93,8 +98,10 @@ async function sync() {
     const next = result.selectedTabId ?? null;
     selectedTabId = next;
     const pickTabId = result.pickTabId ?? null;
-    if (pickTabId !== null && pickerArmedTabId !== pickTabId) {
+    const pickerSession = result.pickerSession ?? null;
+    if (pickTabId !== null && (pickerArmedTabId !== pickTabId || pickerArmedSession !== pickerSession)) {
       try {
+        if (pickerArmedTabId !== null) await stopPicker(pickerArmedTabId);
         const injected = await inject(pickTabId);
         const frames = [...new Set(injected.map(item=>item.frameId))];
         const nonce = crypto.randomUUID();
@@ -109,7 +116,10 @@ async function sync() {
         if (!armed.includes(0)) throw new Error("Inspector could not activate in top frame");
         pickerFrames = armed;
         const ack = await request("picker-armed",{tabId:pickTabId});
-        if (ack?.accepted === true) pickerArmedTabId = pickTabId;
+        if (ack?.accepted === true) {
+          pickerArmedTabId = pickTabId;
+          pickerArmedSession = pickerSession;
+        }
       } catch (error) { await reportPickerError(pickTabId,error); }
     }
     if (pickTabId === null && pickerArmedTabId !== null)
@@ -126,7 +136,7 @@ chrome.tabs.onActivated.addListener(() => void sync());
 chrome.tabs.onRemoved.addListener(id => { if (id === selectedTabId) selectedTabId = null; void sync(); });
 chrome.tabs.onUpdated.addListener((id, change) => {
   if (change.status === "complete") {
-    if (selectedTabId === id) { pickerArmedTabId = null; pickerFrames = []; }
+    if (selectedTabId === id) { pickerArmedTabId = null; pickerArmedSession = null; pickerFrames = []; }
     void sync();
   }
 });
@@ -135,6 +145,7 @@ chrome.runtime.onMessage.addListener((message, sender) => {
   if (message?.type === 'guideme-instructor-pick-cancelled' && sender.tab?.id === selectedTabId) {
     void request('picker-cancelled', {tabId:sender.tab.id}).catch(() => {});
     pickerArmedTabId = null;
+    pickerArmedSession = null;
     return false;
   }
   if (message?.type === "guideme-instructor-picked" && sender.tab?.id === selectedTabId && sender.frameId === 0) {
