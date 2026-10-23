@@ -144,7 +144,7 @@ async function beginWebPicker(guideId, stepId, contextId) {
   await api('/target-picker/start',{method:'POST',body:JSON.stringify({guideId,contextId})});
   pickingFor = {guideId,stepId,contextId};
   const box = $('pick-result');
-  if (box) { box.dataset.pickedSelector=''; box.classList.remove('hidden'); box.textContent = 'לחץ על הרכיב הרצוי באתר. הלחיצה משמשת לבחירה בלבד.'; }
+  if (box) { box.dataset.pickedSelector=''; box.classList.remove('hidden'); box.textContent = 'מתחבר ללשונית ומפעיל בחירת רכיב…'; }
   await refreshPicker();
 }
 async function refreshPicker() {
@@ -156,7 +156,10 @@ async function refreshPicker() {
   const state = await api('/capture/status');
   const box = $('pick-result');
   if (!box) return;
-  if (!state.picked) return;
+  if (!state.picked) {
+    box.textContent = state.pickReady ? 'הבחירה פעילה. לחץ על הרכיב הרצוי באתר; הלחיצה לא תבצע את הפעולה.' : 'מפעיל בחירת רכיב בלשונית…';
+    return;
+  }
   const candidate = state.picked;
   if (box.dataset.pickedSelector === candidate.selector) return;
   box.dataset.pickedSelector = candidate.selector;
