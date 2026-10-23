@@ -107,8 +107,83 @@ function renderSteps() {
         '<div class="detail-block"><small>' + title +
         '</small><pre>' + esc(JSON.stringify(rows, null, 2)) + '</pre></div>').join('') + '</div>';
     $('edit-step').onclick = () => editStep(step, contextId);
+    if (context?.Runtime === 'Web' && !data.targets.length && !data.rules.length) {
+      const section = document.createElement('section');
+      section.className = 'target-editor';
+      section.innerHTML =
+        '<h3>רכיב יעד ותנאי התקדמות</h3>' +
+        '<p>בחר רכיב ישירות באתר. הזיהוי יוצג לבדיקה לפני שמירה.</p>' +
+        '<button id="pick-web-element" class="btn primary">בחירת רכיב באתר</button>' +
+        '<div id="pick-result" class="hidden"></div>';
+      $('step-inspector').append(section);
+      $('pick-web-element').onclick = () => guarded(() =>
+        beginWebPicker(current.guide.id, step.id, contextId));
+    }
+
   })));
 }
+let pickingFor = null;
+async function beginWebPicker(guideId, stepId, contextId) {
+  if (pickingFor) await api('/target-picker/cancel',{method:'POST',body:'{}'});
+  const selected = await api('/capture/select', {method:'POST',
+    body:JSON.stringify({guideId,contextId})});
+  if (selected.status === 'notFound')
+    throw new Error('לא נמצאה לשונית מתאימה. פתח את האפליקציה באתר ונסה שוב.');
+  let tabId = null;
+  if (selected.status === 'multiple') {
+    const tabs = selected.tabs || [];
+    const choices = tabs.map((t,i) => (i+1)+'. '+(t.title || t.url)).join('\\n');
+    const answer = prompt('נמצאו כמה לשוניות מתאימות. הקלד את מספר הלשונית:\\n'+choices);
+    if (answer === null) return;
+    const i = Number(answer)-1;
+    if (!Number.isInteger(i) || !tabs[i]) throw new Error('בחירת לשונית אינה תקינה.');
+    tabId = tabs[i].tabId;
+    await api('/capture/select',{method:'POST',
+      body:JSON.stringify({guideId,contextId,tabId})});
+  }
+  await api('/target-picker/start',{method:'POST',body:JSON.stringify({guideId,contextId})});
+  pickingFor = {guideId,stepId,contextId};
+  const box = $('pick-result');
+  if (box) { box.classList.remove('hidden'); box.textContent = 'לחץ על הרכיב הרצוי באתר. הלחיצה משמשת לבחירה בלבד.'; }
+  await refreshPicker();
+}
+async function refreshPicker() {
+  if (!pickingFor) return;
+  if (current?.guide?.id !== pickingFor.guideId || selectedStep !== pickingFor.stepId) {
+    pickingFor = null;
+    return;
+  }
+  const state = await api('/capture/status');
+  const box = $('pick-result');
+  if (!box) return;
+  if (!state.picked) return;
+  const candidate = state.picked;
+  box.innerHTML = '<p><strong>הרכיב שנבחר:</strong> '+esc(candidate.label || candidate.tag || 'רכיב')+'</p>'+
+    '<p class="target-selector">'+esc(candidate.selector)+'</p>'+
+    '<label for="target-condition">תנאי התקדמות</label>'+
+    '<select id="target-condition">'+
+    '<option value="click">המשתמש לוחץ על הרכיב</option>'+
+    '<option value="css-exists">הרכיב קיים במסך</option>'+
+    '</select><div class="target-actions">'+
+    '<button id="save-web-target" class="btn primary">אישור ושמירת רכיב</button>'+
+    '<button id="cancel-web-target" class="btn secondary">ביטול</button></div>';
+  $('save-web-target').onclick = () => guarded(async () => {
+    const pickedFor = pickingFor;
+    await api('/guides/'+pickedFor.guideId+'/steps/'+encodeURIComponent(pickedFor.stepId)+'/web-target',
+      {method:'POST',body:JSON.stringify({condition:$('target-condition').value})});
+    pickingFor = null;
+    await openGuide(pickedFor.guideId);
+    const item = [...document.querySelectorAll('[data-step]')].find(x=>x.dataset.step===pickedFor.stepId);
+    item?.click();
+    notify('רכיב היעד וכלל ההתקדמות נשמרו ב־V5.');
+  });
+  $('cancel-web-target').onclick = () => guarded(async () => {
+    await api('/target-picker/cancel',{method:'POST',body:'{}'});
+    pickingFor = null;
+    box.textContent = 'הבחירה בוטלה.';
+  });
+}
+setInterval(() => { if (pickingFor) void guarded(refreshPicker); }, 1500);
 function appLabel(c) { if(c.DisplayName) return c.DisplayName; try { const m=JSON.parse(c.MatchersJson || '[]')[0]; return m?.Value ? c.Runtime + ' · ' + m.Value : c.ContextId; } catch { return c.ContextId; } }
 function matcher(c) { try { return JSON.parse(c.MatchersJson || '[]').map(m=>m.Kind+': '+m.Value).join(', '); }catch{return '—';} }
 function renderContexts() {
