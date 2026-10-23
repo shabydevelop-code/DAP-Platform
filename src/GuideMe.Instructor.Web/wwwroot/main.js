@@ -242,8 +242,12 @@ async function refreshPicker() {
       box.textContent = 'איתור הרכיב בוטל. ניתן להפעיל שוב את הממפה.';
       return;
     }
+    if (!state.connected) {
+      box.textContent = 'אין כרגע תקשורת עם תוסף Instructor. בדוק שהוא פעיל ב־Chrome.';
+      return;
+    }
     if (!state.pickReady && Date.now() - pickingFor.startedAt >= 5000) {
-      box.textContent = 'התוסף לא הצליח להפעיל בחירת רכיב. בצע Reload לתוסף GuideMe Instructor ב־chrome://extensions, רענן את אתר היעד ונסה שוב.';
+      box.textContent = 'ממתין לאישור הפעלת הממפה בלשונית שנבחרה. אם לא מופיעה מסגרת בחלון היעד, ניתן לבטל ולנסות שוב.';
       return;
     }
     box.textContent = state.pickReady ? 'ממפה הרכיבים פעיל באפליקציה: ' + (state.targetTitle || state.targetUrl || state.tabId) + '. העבר את העכבר מעל הרכיב הרצוי ולחץ Ctrl+Shift+Space לבחירה, או Esc לביטול.' : 'מפעיל בחירת רכיב בלשונית…';
