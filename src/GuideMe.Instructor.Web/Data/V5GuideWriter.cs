@@ -200,6 +200,56 @@ VALUES ($guideId, $contextId, $runtime, $matchers)";
         return new V5GuideReader.GuideInfo(guideId, key, name);
     }
 
+    // A target-free step is intentionally manual in the production V5 compiler.
+    // Its application context is selected from this guide's saved contexts.
+    internal static string CreateManualStep(long guideId, string contextId, string content,
+        string placement)
+    {
+        content = content.Trim();
+        if (content.Length is < 1 or > 4000)
+            throw new ArgumentException("תוכן הבועית חייב להכיל בין 1 ל־4000 תווים.");
+        if (placement is not ("Auto" or "Top" or "Bottom" or "Left" or "Right" or "TopLeft" or "TopRight" or "BottomLeft" or "BottomRight"))
+            throw new ArgumentException("מיקום הבועית אינו תקין.");
+        if (string.IsNullOrWhiteSpace(contextId))
+            throw new ArgumentException("יש לבחור אפליקציה לשלב.");
+
+        using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = V5GuideReader.DatabasePath,
+            Mode = SqliteOpenMode.ReadWrite, Pooling = false, DefaultTimeout = 3
+        }.ToString());
+        connection.Open();
+        using var transaction = connection.BeginTransaction();
+        using (var check = connection.CreateCommand())
+        {
+            check.Transaction = transaction;
+            check.CommandTimeout = 3;
+            check.CommandText = @"SELECT COUNT(*) FROM ApplicationContexts
+WHERE GuideId=$guideId AND ContextId=$contextId";
+            check.Parameters.AddWithValue("$guideId", guideId);
+            check.Parameters.AddWithValue("$contextId", contextId);
+            if (Convert.ToInt64(check.ExecuteScalar()) != 1)
+                throw new InvalidOperationException("האפליקציה אינה משויכת ללומדה.");
+        }
+        var stepId = "step-" + Guid.NewGuid().ToString("N");
+        using var insert = connection.CreateCommand();
+        insert.Transaction = transaction;
+        insert.CommandTimeout = 3;
+        insert.CommandText = @"INSERT INTO Steps
+(GuideId, StepId, StepOrder, IsEnabled, ApplicationContextId, BubbleContent, BubblePlacement)
+SELECT $guideId, $stepId, COALESCE(MAX(StepOrder), 0) + 1,
+1, $contextId, $content, $placement FROM Steps WHERE GuideId=$guideId";
+        insert.Parameters.AddWithValue("$guideId", guideId);
+        insert.Parameters.AddWithValue("$stepId", stepId);
+        insert.Parameters.AddWithValue("$contextId", contextId);
+        insert.Parameters.AddWithValue("$content", content);
+        insert.Parameters.AddWithValue("$placement", placement);
+        if (insert.ExecuteNonQuery() != 1)
+            throw new InvalidOperationException("יצירת השלב נכשלה.");
+        transaction.Commit();
+        return stepId;
+    }
+
     // Contexts are independent guide entities; updates never overwrite steps.
     internal static void SaveApplicationContext(long guideId, string contextId, string runtime, string matcherProperty, string matcherValue)
     {
@@ -381,9 +431,7 @@ WHERE GuideId=$guideId AND ContextId=$contextId";
         command.CommandTimeout = 3;
         command.CommandText = @"UPDATE Steps
 SET BubbleContent=$bubble, IsEnabled=$enabled,
-    ApplicationContextId=COALESCE($contextId, ApplicationContextId),
-    Runtime=COALESCE((SELECT Runtime FROM ApplicationContexts
-                      WHERE GuideId=$guideId AND ContextId=$contextId), Runtime)
+    ApplicationContextId=COALESCE($contextId, ApplicationContextId)
 WHERE GuideId=$guideId AND StepId=$stepId
   AND ($contextId IS NULL OR EXISTS (SELECT 1 FROM ApplicationContexts
                  WHERE GuideId=$guideId AND ContextId=$contextId))";
