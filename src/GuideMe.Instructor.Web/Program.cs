@@ -286,4 +286,5 @@ internal sealed record NewManualStep(string ContextId, string Bubble, string Pla
 
 internal sealed record PickStart(long GuideId, string ContextId);
 internal sealed record SaveWebTargetRequest(string Condition);
-\ninternal sealed record EditWebValidation(string Kind, string? ExpectedValue);\n
+
+internal sealed record EditWebValidation(string Kind, string? ExpectedValue);
