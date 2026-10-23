@@ -170,7 +170,7 @@ async function refreshPicker() {
       box.textContent = 'התוסף לא הצליח להפעיל בחירת רכיב. בצע Reload לתוסף GuideMe Instructor ב־chrome://extensions, רענן את אתר היעד ונסה שוב.';
       return;
     }
-    box.textContent = state.pickReady ? 'הממפה פעיל באתר. העבר עכבר מעל הרכיב הרצוי ולחץ Ctrl+Shift+Space לבחירה, או Esc לביטול.' : 'מפעיל בחירת רכיב בלשונית…';
+    box.textContent = state.pickReady ? 'הממפה הופעל בלשונית: ' + (state.targetTitle || state.targetUrl || state.tabId) + '. חפש באנר GuideMe בראש דף היעד; אם אינו מופיע, זו אינה הלשונית שנבחרה. העבר עכבר ובחר באמצעות Ctrl+Shift+Space.' : 'מפעיל בחירת רכיב בלשונית…';
     return;
   }
   const candidate = state.picked;
