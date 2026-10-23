@@ -411,9 +411,27 @@ WHERE GuideId=$guideId AND ContextId=$contextId";
     }
 
 
+    private static void EnsureElementDisplayNameColumn(SqliteConnection connection)
+    {
+        using var check = connection.CreateCommand();
+        check.CommandTimeout = 3;
+        check.CommandText = "PRAGMA table_info(Elements)";
+        using (var reader = check.ExecuteReader())
+            while (reader.Read())
+                if (string.Equals(reader.GetString(1), "DisplayName", StringComparison.OrdinalIgnoreCase))
+                    return;
+        using var migration = connection.CreateCommand();
+        migration.CommandTimeout = 3;
+        migration.CommandText = "ALTER TABLE Elements ADD COLUMN DisplayName TEXT";
+        migration.ExecuteNonQuery();
+    }
+
+    private static string? CleanDisplayName(string? name) =>
+        string.IsNullOrWhiteSpace(name) ? null : name.Trim()[..Math.Min(name.Trim().Length, 120)];
+
     // Author-confirmed Web target: do not replace existing target/rules silently.
     internal static void SaveWebTarget(long guideId, string stepId, string selector,
-        IReadOnlyList<string> framePath, string condition)
+        IReadOnlyList<string> framePath, string condition, string? displayName)
     {
         if (string.IsNullOrWhiteSpace(selector) || selector.Length > 400 ||
             selector.IndexOf((char)0) >= 0)
@@ -429,6 +447,7 @@ WHERE GuideId=$guideId AND ContextId=$contextId";
             Pooling = false, DefaultTimeout = 3
         }.ToString());
         connection.Open();
+        EnsureElementDisplayNameColumn(connection);
         using (var fk = connection.CreateCommand())
         {
             fk.CommandText = "PRAGMA foreign_keys=ON";
@@ -465,12 +484,13 @@ WHERE GuideId=$guideId AND StepId=$stepId";
             element.Transaction = transaction;
             element.CommandTimeout = 3;
             element.CommandText = @"INSERT INTO Elements
-(GuideId, ElementId, Runtime, LocatorsJson, FrameContextJson)
-VALUES ($guideId, $elementId, 'Web', $locators, $frameJson)";
+(GuideId, ElementId, Runtime, LocatorsJson, FrameContextJson, DisplayName)
+VALUES ($guideId, $elementId, 'Web', $locators, $frameJson, $displayName)";
             element.Parameters.AddWithValue("$guideId", guideId);
             element.Parameters.AddWithValue("$elementId", elementId);
             element.Parameters.AddWithValue("$locators", locators);
             element.Parameters.AddWithValue("$frameJson", (object?)frameJson ?? DBNull.Value);
+            element.Parameters.AddWithValue("$displayName", (object?)CleanDisplayName(displayName) ?? DBNull.Value);
             element.ExecuteNonQuery();
         }
         using (var target = connection.CreateCommand())
@@ -511,7 +531,7 @@ WHERE GuideId=$guideId AND StepId=$stepId AND BubblePlacement='Center'";
     }
 
     internal static void ReplaceWebTarget(long guideId, string stepId, string selector,
-        IReadOnlyList<string> framePath)
+        IReadOnlyList<string> framePath, string? displayName)
     {
         if (string.IsNullOrWhiteSpace(selector) || selector.Length > 400 ||
             selector.IndexOf((char)0) >= 0 ||
@@ -524,6 +544,7 @@ WHERE GuideId=$guideId AND StepId=$stepId AND BubblePlacement='Center'";
             Pooling = false, DefaultTimeout = 3
         }.ToString());
         connection.Open();
+        EnsureElementDisplayNameColumn(connection);
         using var transaction = connection.BeginTransaction();
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
@@ -541,9 +562,10 @@ AND c.Runtime='Web'";
         command.Parameters.AddWithValue("$elementId", elementId);
         command.Parameters.AddWithValue("$locators", JsonSerializer.Serialize(
             new[] { new { Strategy="css", Value=selector } }));
+        command.Parameters.AddWithValue("$displayName", (object?)CleanDisplayName(displayName) ?? DBNull.Value);
         command.Parameters.AddWithValue("$frame", framePath.Count == 0 ? DBNull.Value :
             JsonSerializer.Serialize(framePath.Select(f => new { Strategy="css", Value=f })));
-        command.CommandText = @"UPDATE Elements SET LocatorsJson=$locators, FrameContextJson=$frame
+        command.CommandText = @"UPDATE Elements SET LocatorsJson=$locators, FrameContextJson=$frame, DisplayName=$displayName
 WHERE GuideId=$guideId AND ElementId=$elementId AND Runtime='Web'";
         if (command.ExecuteNonQuery() != 1)
             throw new InvalidOperationException("עדכון הרכיב נכשל.");
