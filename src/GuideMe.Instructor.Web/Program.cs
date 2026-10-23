@@ -153,7 +153,7 @@ app.MapGet("/api/guides/{id:long}/step/{stepId}", (long id, string stepId) =>
 });
 app.MapPut("/api/guides/{id:long}/steps/{stepId}", (long id, string stepId, EditStep body) =>
 {
-    V5GuideWriter.UpdateStep(id, stepId, body.Bubble, body.Enabled);
+    V5GuideWriter.UpdateStep(id, stepId, body.Bubble, body.Enabled, body.ContextId);
     return Results.NoContent();
 });
 app.MapPost("/api/guides", (CreateGuideRequest body) =>
@@ -247,4 +247,4 @@ internal sealed record SaveContext(string ContextId, string Runtime,
 
 
 internal sealed record DeleteGuideConfirmation(string Name);
-internal sealed record EditStep(string? Bubble, bool Enabled);
+internal sealed record EditStep(string? Bubble, bool Enabled, string? ContextId);
