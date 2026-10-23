@@ -111,9 +111,9 @@ function renderSteps() {
       const section = document.createElement('section');
       section.className = 'target-editor';
       section.innerHTML =
-        '<h3>רכיב יעד ותנאי התקדמות</h3>' +
-        '<p>בחר רכיב ישירות באתר. הזיהוי יוצג לבדיקה לפני שמירה.</p>' +
-        '<button id="pick-web-element" class="btn primary">בחירת רכיב באתר</button>' +
+        '<h3>ממפה רכיבים ותנאי התקדמות</h3>' +
+        '<p>העבר את העכבר מעל הרכיב הרצוי באתר ולחץ Ctrl+Shift+Space לאישור. Esc לביטול.</p>' +
+        '<button id="pick-web-element" class="btn primary">הפעלת ממפה רכיבים</button>' +
         '<div id="pick-result" class="hidden"></div>';
       $('step-inspector').append(section);
       $('pick-web-element').onclick = () => guarded(() =>
@@ -157,11 +157,16 @@ async function refreshPicker() {
   const box = $('pick-result');
   if (!box) return;
   if (!state.picked) {
+    if (!state.picking) {
+      pickingFor = null;
+      box.textContent = 'איתור הרכיב בוטל. ניתן להפעיל שוב את הממפה.';
+      return;
+    }
     if (!state.pickReady && Date.now() - pickingFor.startedAt >= 5000) {
       box.textContent = 'התוסף לא הצליח להפעיל בחירת רכיב. בצע Reload לתוסף GuideMe Instructor ב־chrome://extensions, רענן את אתר היעד ונסה שוב.';
       return;
     }
-    box.textContent = state.pickReady ? 'הבחירה פעילה. לחץ על הרכיב הרצוי באתר; הלחיצה לא תבצע את הפעולה.' : 'מפעיל בחירת רכיב בלשונית…';
+    box.textContent = state.pickReady ? 'הממפה פעיל באתר. העבר עכבר מעל הרכיב הרצוי ולחץ Ctrl+Shift+Space לבחירה, או Esc לביטול.' : 'מפעיל בחירת רכיב בלשונית…';
     return;
   }
   const candidate = state.picked;
