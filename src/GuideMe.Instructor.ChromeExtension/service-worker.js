@@ -84,11 +84,16 @@ async function sync() {
     selectedTabId = next;
     const pickTabId = result.pickTabId ?? null;
     if (pickTabId !== null && pickerArmedTabId !== pickTabId) {
-      await inject(pickTabId);
-      const armed = await chrome.tabs.sendMessage(pickTabId, { type: "guideme-instructor-pick-start" }, {frameId:0}).then(() => true, () => false);
-      if (armed) {
-        await request("picker-armed", { tabId: pickTabId });
-        pickerArmedTabId = pickTabId;
+      // The content script is injected only when needed; explicit acknowledgement
+      // proves the click interceptor is installed before telling the author to click.
+      if (next === pickTabId && selectedTabId === next)
+        await inject(pickTabId);
+      const answer = await chrome.tabs.sendMessage(
+        pickTabId, { type: "guideme-instructor-pick-start" }, {frameId:0}
+      ).catch(error => { console.warn("Instructor picker:", error.message); return null; });
+      if (answer?.armed === true) {
+        const ack = await request("picker-armed", { tabId: pickTabId });
+        if (ack?.accepted === true) pickerArmedTabId = pickTabId;
       }
     }
     if (pickTabId === null && pickerArmedTabId !== null)
