@@ -141,11 +141,14 @@ internal sealed class InstructorCaptureBridge
         }
     }
 
+    public object PickerCancelled(int tabId) => CancelPicking();
+
     public object CancelPicking()
     {
         lock (_gate)
         {
             _picking = false;
+            _pickReady = false;
             _pickedElement = null;
             return new { cancelled = true };
         }
