@@ -6,18 +6,12 @@
   let active = true;
   let pickActive = false;
   let highlighted = null;
-  const heartbeatTimer = setInterval(() => {
-    if (!extensionAvailable()) return;
-    try { chrome.runtime.sendMessage({ type: "guideme-instructor-heartbeat" }).catch(() => stopCapture()); }
-    catch { stopCapture(); }
-  }, 2000);
   const pendingTimers = new Set();
   const eventTypes = ["click", "change", "blur"];
 
   function stopCapture() {
     if (!active) return;
     active = false;
-    clearInterval(heartbeatTimer);
     for (const type of eventTypes) removeEventListener(type, report, true);
     removeEventListener("click", pickClick, true);
     chrome.runtime.onMessage.removeListener(pickMessages);
@@ -72,12 +66,18 @@
     return selector && document.querySelectorAll(selector).length === 1 ? selector : null;
   }
 
-  function pickMessages(message) {
-    if (message?.type === "guideme-instructor-pick-start") { pickActive = true; return; }
+  function pickMessages(message, _sender, sendResponse) {
+    if (message?.type === "guideme-instructor-pick-start") {
+      pickActive = true;
+      sendResponse({armed: true, url: location.href});
+      return false;
+    }
     if (message?.type === "guideme-instructor-pick-stop") {
       pickActive = false;
       if (highlighted) highlighted.style.outline = "";
       highlighted = null;
+      sendResponse({armed: false});
+      return false;
     }
   }
   function pickClick(event) {
