@@ -104,7 +104,7 @@ function renderSteps() {
       sections.map(([title, rows]) =>
         '<div class="detail-block"><small>' + title +
         '</small><pre>' + esc(JSON.stringify(rows, null, 2)) + '</pre></div>').join('') + '</div>';
-    $('edit-step').onclick = () => editStep(step);
+    $('edit-step').onclick = () => editStep(step, contextId);
   })));
 }
 function matcher(c) { try { return JSON.parse(c.MatchersJson || '[]').map(m=>m.Kind+': '+m.Value).join(', '); }catch{return '—';} }
@@ -138,11 +138,65 @@ function contextFields(c=null) {
     runtimeField(c?.Runtime||'Web'),{name:'matcherValue',label:'ערך זיהוי',value:raw.Value||'',help:'Web: localhost:5200 · Windows: שם התהליך ללא exe'}];
 }
 function contextPayload(v) {return {contextId:v.contextId.trim(),runtime:v.runtime,matcherProperty:v.runtime==='Web'?'UrlHost':'ProcessName',matcherValue:v.matcherValue.trim()};}
-function newGuide() {
-  modal('יצירת לומדה חדשה',[{name:'name',label:'שם הלומדה'},...contextFields()],async v=>{
-    const g=await api('/guides',{method:'POST',body:JSON.stringify({name:v.name.trim(),...contextPayload(v)})});
-    await loadGuides(); await openGuide(g.id); notify('הלומדה נוצרה בהצלחה.');
-  },'יצירת לומדה');
+async function newGuide() {
+  const discovery = await api('/discovery');
+  const unique = new Map();
+  for (const tab of (discovery.web || [])) {
+    try {
+      const url = new URL(tab.url);
+      if (url.protocol !== 'http:' && url.protocol !== 'https:') continue;
+      if (url.host === location.host) continue;
+      const key = 'Web:' + url.host;
+      if (!unique.has(key))
+        unique.set(key, {runtime:'Web', title:tab.title || url.host,
+          matcherProperty:'UrlHost', matcherValue:url.host});
+    } catch {}
+  }
+  for (const win of (discovery.windows || [])) {
+    if (!win.processName) continue;
+    const key = 'Windows:' + win.processName.toLowerCase();
+    if (!unique.has(key))
+      unique.set(key, {runtime:'Windows',title:win.title || win.processName,
+        matcherProperty:'ProcessName',matcherValue:win.processName});
+  }
+  const apps = [...unique.values()];
+  $('dialog-title').textContent = 'יצירת לומדה חדשה';
+  $('submit-dialog').textContent = 'יצירת לומדה';
+  $('dialog-fields').innerHTML =
+    '<div class="fields"><div class="field"><label for="guide-new-name">שם הלומדה</label>' +
+    '<input id="guide-new-name" name="name" maxlength="256" required autocomplete="off"></div>' +
+    '<div class="field"><label>אפליקציות משתתפות</label>' +
+    '<p>בחר אפליקציה אחת או יותר מבין האפליקציות הפתוחות. הזיהוי יישמר אוטומטית.</p>' +
+    (apps.length ? '<div class="application-picker">' + apps.map((app, i) =>
+       '<label class="application-option"><input type="checkbox" name="app" value="' + i + '">' +
+       '<span><strong>' + esc(app.title) + '</strong><small>' +
+       esc(app.runtime + ' · ' + app.matcherValue) + '</small></span></label>').join('') + '</div>' :
+       '<p>לא אותרו אפליקציות. פתח אתר ב־Chrome או תוכנת Windows ולאחר מכן לחץ רענון.</p>') +
+    '<button type="button" class="btn secondary small" id="refresh-applications">רענון אפליקציות</button>' +
+    (!discovery.webConnected ? '<p>תוסף Instructor אינו מחובר — רשימת אתרי Web אינה זמינה.</p>' : '') +
+    '</div></div>';
+  $('refresh-applications').onclick = () => guarded(newGuide);
+  $('editor-form').onsubmit = event => {
+    event.preventDefault();
+    guarded(async () => {
+      const name = $('guide-new-name').value.trim();
+      const selected = [...document.querySelectorAll('input[name="app"]:checked')]
+        .map(el => apps[Number(el.value)]);
+      if (!selected.length) throw new Error('יש לבחור לפחות אפליקציה אחת.');
+      const applications = selected.map((app, index) => ({
+        contextId:'app-' + (index + 1), runtime:app.runtime,
+        matcherProperty:app.matcherProperty,matcherValue:app.matcherValue
+      }));
+      const guide = await api('/guides', {method:'POST',
+        body:JSON.stringify({name,applications})});
+      $('editor-dialog').close();
+      await loadGuides();
+      await openGuide(guide.id);
+      notify('הלומדה נוצרה עם ' + applications.length + ' אפליקציות.');
+    });
+  };
+  $('editor-dialog').showModal();
+  $('guide-new-name').focus();
 }
 function renameGuide() {
   modal('שינוי שם הלומדה',[{name:'name',label:'שם הלומדה',value:current.guide.name}],async v=>{
@@ -193,18 +247,25 @@ async function deleteContext(c) {
 }
 $('guide-search').addEventListener('input',renderGuides);
 $('step-search').addEventListener('input',()=>{if(current)renderSteps()});
-$('new-guide').onclick=newGuide;
+$('new-guide').onclick=()=>guarded(newGuide);
 $('rename-guide').onclick=renameGuide;
 $('delete-guide').onclick=deleteGuide;
 $('add-context').onclick=addContext;
 $('back').onclick=showList;
 $('close-dialog').onclick=$('cancel-dialog').onclick=()=>$('editor-dialog').close();
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>selectTab(b.dataset.tab));
-function editStep(step) {
+function editStep(step, assignedContextId) {
   if (!current || !step) return;
   const guideId = current.guide.id;
   const stepId = step.id;
+  const contexts = current.contexts;
+  const selectedContext = contexts.some(c => c.ContextId === assignedContextId)
+    ? assignedContextId : contexts[0]?.ContextId;
   modal('עריכת שלב ' + step.order, [
+    ...(contexts.length > 1 ? [{name:'contextId',label:'אפליקציית השלב',
+       value:selectedContext,choices:contexts.map(c => ({
+         value:c.ContextId, text:(c.DisplayName || c.ContextId) + ' · ' + c.Runtime
+       }))}] : []),
     {name:'bubble', label:'טקסט הבועית', value:step.bubble || '', max:4000, multiline:true,
      help:'השינוי ישפיע על תוכן הבועית בלבד. רכיבי יעד וכללי התקדמות אינם משתנים.'},
     {name:'enabled', label:'מצב השלב', value: step.enabled ? 'true' : 'false',
@@ -213,6 +274,11 @@ function editStep(step) {
     await api('/guides/' + guideId + '/steps/' + encodeURIComponent(stepId), {
       method:'PUT', body:JSON.stringify({bubble:values.bubble, enabled:values.enabled === 'true'})
     });
+    if (selectedContext && selectedContext !== assignedContextId || values.contextId && values.contextId !== assignedContextId) {
+      await api('/guides/' + guideId + '/steps/' + encodeURIComponent(stepId) + '/application', {
+        method:'PUT', body:JSON.stringify({contextId:values.contextId || selectedContext})
+      });
+    }
     await openGuide(guideId);
     const row = [...document.querySelectorAll('[data-step]')].find(b=>b.dataset.step===stepId);
     if (row) row.click();
