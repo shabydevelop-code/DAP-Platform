@@ -142,8 +142,8 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/web-target",
         string.Equals(r["StepId"].ToString(), stepId, StringComparison.Ordinal));
     if (row is null) return Results.NotFound();
     var contextId = row["ApplicationContextId"].ToString() ?? "";
-    var selector = capture.GetApprovedSelector(id, contextId);
-    V5GuideWriter.SaveWebTarget(id, stepId, selector, request.Condition);
+    var selected = capture.GetApprovedTarget(id, contextId);
+    V5GuideWriter.SaveWebTarget(id, stepId, selected.Selector, selected.FramePath, request.Condition);
     capture.CancelPicking();
     return Results.NoContent();
 });
