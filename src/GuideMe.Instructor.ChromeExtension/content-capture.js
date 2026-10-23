@@ -170,6 +170,8 @@
       event.preventDefault();
       event.stopImmediatePropagation();
       pickActive = false;
+      clearInterval(hoverPoll);
+      hoverPoll = null;
       clearHighlight();
       inspectorBanner?.remove();
       inspectorBanner = null;
@@ -185,6 +187,8 @@
     const selector = selectorFor(target);
     if (!selector) return;
     pickActive = false;
+    clearInterval(hoverPoll);
+    hoverPoll = null;
     clearHighlight();
     inspectorBanner?.remove();
     inspectorBanner = null;
