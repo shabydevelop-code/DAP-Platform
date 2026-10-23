@@ -9,6 +9,7 @@
   let overlay = null;
   let label = null;
   let inspectorBanner = null;
+  let hoverPoll = null;
   const pendingTimers = new Set();
   const eventTypes = ["click", "change", "blur"];
 
@@ -20,6 +21,8 @@
     removeEventListener("mousemove", pickHover, true);
     removeEventListener("keydown", pickKey, true);
     chrome.runtime.onMessage.removeListener(pickMessages);
+    clearInterval(hoverPoll);
+    hoverPoll = null;
     clearHighlight();
     inspectorBanner?.remove();
     inspectorBanner = null;
@@ -126,11 +129,15 @@
         });
         document.documentElement.appendChild(inspectorBanner);
       }
+      if (!hoverPoll) hoverPoll = setInterval(inspectHoveredElement, 120);
+      inspectHoveredElement();
       sendResponse({armed: true, url: location.href});
       return false;
     }
     if (message?.type === "guideme-instructor-pick-stop") {
       pickActive = false;
+      clearInterval(hoverPoll);
+      hoverPoll = null;
       clearHighlight();
       inspectorBanner?.remove();
       inspectorBanner = null;
@@ -138,20 +145,24 @@
       return false;
     }
   }
-  function pickHover(event) {
-    if (!pickActive || !event.isTrusted) return;
-    // Query under the cursor, rather than trusting event.target: delegated
-    // handlers, nested labels and injected overlays can change event targets.
-    const element = document.elementFromPoint(event.clientX, event.clientY);
+  function inspectHoveredElement() {
+    if (!pickActive) return;
+    // Browser CSS :hover is independent of delegated JavaScript mouse events.
+    // This also works when an application stops event propagation.
+    const hoveredNodes = document.querySelectorAll(':hover');
+    let element = hoveredNodes.length ? hoveredNodes[hoveredNodes.length - 1] : null;
+    if (element === inspectorBanner || element === overlay || element === label) return;
     if (!(element instanceof Element)) return;
     const target = element.closest('button,a,input,select,textarea,[role="button"],[role="textbox"],[role="link"]') || element;
     if (inspectorBanner) {
-      inspectorBanner.dataset.hoverSeen = 'true';
       inspectorBanner.textContent = 'GuideMe Instructor · מזוהה: ' +
         target.tagName.toLowerCase() + ' · Ctrl+Shift+Space לבחירה · Esc לביטול';
     }
-    if (target === highlighted) return;
-    showHighlight(target);
+    if (target !== highlighted) showHighlight(target);
+  }
+  function pickHover(event) {
+    if (!pickActive || !event.isTrusted) return;
+    inspectHoveredElement();
   }
   function pickKey(event) {
     if (!pickActive || !event.isTrusted) return;
