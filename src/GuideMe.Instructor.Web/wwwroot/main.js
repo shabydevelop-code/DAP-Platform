@@ -142,7 +142,7 @@ async function beginWebPicker(guideId, stepId, contextId) {
       body:JSON.stringify({guideId,contextId,tabId})});
   }
   await api('/target-picker/start',{method:'POST',body:JSON.stringify({guideId,contextId})});
-  pickingFor = {guideId,stepId,contextId};
+  pickingFor = {guideId,stepId,contextId,startedAt:Date.now()};
   const box = $('pick-result');
   if (box) { box.dataset.pickedSelector=''; box.classList.remove('hidden'); box.textContent = 'מתחבר ללשונית ומפעיל בחירת רכיב…'; }
   await refreshPicker();
@@ -157,6 +157,10 @@ async function refreshPicker() {
   const box = $('pick-result');
   if (!box) return;
   if (!state.picked) {
+    if (!state.pickReady && Date.now() - pickingFor.startedAt >= 5000) {
+      box.textContent = 'התוסף לא הצליח להפעיל בחירת רכיב. בצע Reload לתוסף GuideMe Instructor ב־chrome://extensions, רענן את אתר היעד ונסה שוב.';
+      return;
+    }
     box.textContent = state.pickReady ? 'הבחירה פעילה. לחץ על הרכיב הרצוי באתר; הלחיצה לא תבצע את הפעולה.' : 'מפעיל בחירת רכיב בלשונית…';
     return;
   }
