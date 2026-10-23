@@ -413,11 +413,13 @@ WHERE GuideId=$guideId AND ContextId=$contextId";
 
     // Author-confirmed Web target: do not replace existing target/rules silently.
     internal static void SaveWebTarget(long guideId, string stepId, string selector,
-        string condition)
+        IReadOnlyList<string> framePath, string condition)
     {
         if (string.IsNullOrWhiteSpace(selector) || selector.Length > 400 ||
             selector.IndexOf((char)0) >= 0)
             throw new ArgumentException("מזהה הרכיב אינו תקין.");
+        if (framePath.Count > 12 || framePath.Any(p => string.IsNullOrWhiteSpace(p) || p.Length > 400))
+            throw new ArgumentException("נתיב מסגרות אינו תקין.");
         if (condition is not ("clicked" or "target-disappeared"))
             throw new ArgumentException("תנאי ההתקדמות אינו נתמך.");
 
@@ -456,16 +458,19 @@ WHERE GuideId=$guideId AND StepId=$stepId";
         }
         var elementId = "element-" + Guid.NewGuid().ToString("N");
         var locators = JsonSerializer.Serialize(new[] { new { Strategy = "css", Value = selector } });
+        string? frameJson = framePath.Count == 0 ? null : JsonSerializer.Serialize(
+            framePath.Select(p => new { Strategy = "css", Value = p }).ToArray());
         using (var element = connection.CreateCommand())
         {
             element.Transaction = transaction;
             element.CommandTimeout = 3;
             element.CommandText = @"INSERT INTO Elements
-(GuideId, ElementId, Runtime, LocatorsJson)
-VALUES ($guideId, $elementId, 'Web', $locators)";
+(GuideId, ElementId, Runtime, LocatorsJson, FrameContextJson)
+VALUES ($guideId, $elementId, 'Web', $locators, $frameJson)";
             element.Parameters.AddWithValue("$guideId", guideId);
             element.Parameters.AddWithValue("$elementId", elementId);
             element.Parameters.AddWithValue("$locators", locators);
+            element.Parameters.AddWithValue("$frameJson", (object?)frameJson ?? DBNull.Value);
             element.ExecuteNonQuery();
         }
         using (var target = connection.CreateCommand())
