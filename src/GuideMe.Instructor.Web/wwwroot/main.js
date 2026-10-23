@@ -144,7 +144,7 @@ async function beginWebPicker(guideId, stepId, contextId) {
   await api('/target-picker/start',{method:'POST',body:JSON.stringify({guideId,contextId})});
   pickingFor = {guideId,stepId,contextId};
   const box = $('pick-result');
-  if (box) { box.classList.remove('hidden'); box.textContent = 'לחץ על הרכיב הרצוי באתר. הלחיצה משמשת לבחירה בלבד.'; }
+  if (box) { box.dataset.pickedSelector=''; box.classList.remove('hidden'); box.textContent = 'לחץ על הרכיב הרצוי באתר. הלחיצה משמשת לבחירה בלבד.'; }
   await refreshPicker();
 }
 async function refreshPicker() {
@@ -158,6 +158,8 @@ async function refreshPicker() {
   if (!box) return;
   if (!state.picked) return;
   const candidate = state.picked;
+  if (box.dataset.pickedSelector === candidate.selector) return;
+  box.dataset.pickedSelector = candidate.selector;
   box.innerHTML = '<p><strong>הרכיב שנבחר:</strong> '+esc(candidate.label || candidate.tag || 'רכיב')+'</p>'+
     '<p class="target-selector">'+esc(candidate.selector)+'</p>'+
     '<label for="target-condition">תנאי התקדמות</label>'+
