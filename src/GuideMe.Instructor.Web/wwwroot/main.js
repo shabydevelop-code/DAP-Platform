@@ -177,6 +177,7 @@ async function refreshPicker() {
   if (box.dataset.pickedSelector === candidate.selector) return;
   box.dataset.pickedSelector = candidate.selector;
   box.innerHTML = '<p><strong>הרכיב שנבחר:</strong> '+esc(candidate.label || candidate.tag || 'רכיב')+'</p>'+
+    (candidate.framePath?.length ? '<p><strong>נתיב מסגרות:</strong> '+candidate.framePath.map(esc).join(' → ')+'</p>' : '')+
     '<p class="target-selector">'+esc(candidate.selector)+'</p>'+
     '<label for="target-condition">תנאי התקדמות</label>'+
     '<select id="target-condition">'+
