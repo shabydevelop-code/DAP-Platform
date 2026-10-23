@@ -117,6 +117,17 @@ internal sealed class InstructorCaptureBridge
         _selectedTab is not null && _tabs.Any(t => t.TabId == _selectedTab) &&
         DateTimeOffset.UtcNow - _lastHeartbeat < TimeSpan.FromSeconds(10);
 
+    public string GetApprovedSelector(long guideId, string contextId)
+    {
+        lock (_gate)
+        {
+            if (!IsSelected(guideId, contextId) || _pickedElement is null ||
+                !_pickedElement.Value.TryGetProperty("selector", out var selector))
+                throw new InvalidOperationException("בחר ואשר תחילה רכיב מתוך האפליקציה.");
+            return selector.GetString() ?? throw new InvalidOperationException("מזהה הרכיב חסר.");
+        }
+    }
+
     public object CancelPicking()
     {
         lock (_gate)
