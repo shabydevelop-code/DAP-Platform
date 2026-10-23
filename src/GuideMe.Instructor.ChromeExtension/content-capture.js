@@ -112,8 +112,7 @@
     }
     if (message?.type === "guideme-instructor-pick-stop") {
       pickActive = false;
-      if (highlighted) highlighted.style.outline = "";
-      highlighted = null;
+      clearHighlight();
       sendResponse({armed: false});
       return false;
     }
