@@ -13,7 +13,8 @@
     if (!active) return;
     active = false;
     for (const type of eventTypes) removeEventListener(type, report, true);
-    removeEventListener("click", pickClick, true);
+    removeEventListener("mousemove", pickHover, true);
+    removeEventListener("keydown", pickKey, true);
     chrome.runtime.onMessage.removeListener(pickMessages);
     if (highlighted) highlighted.style.outline = "";
     for (const timer of pendingTimers) clearTimeout(timer);
@@ -102,7 +103,8 @@
     catch {}
   }
   chrome.runtime.onMessage.addListener(pickMessages);
-  addEventListener("click", pickClick, true);
+  addEventListener("mousemove", pickHover, true);
+  addEventListener("keydown", pickKey, true);
 
   // Structural snapshot only: never collect input values or page text wholesale.
   function snapshot() {
