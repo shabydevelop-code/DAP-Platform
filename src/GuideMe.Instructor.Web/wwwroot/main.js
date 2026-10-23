@@ -100,6 +100,7 @@ function renderSteps() {
     const frames = parseJson(element?.FrameContextJson, []);
     const conditionText = rule ? validationLabel(rule.Kind) : 'לא הוגדר תנאי';
     const locatorText = locators[0]?.Value || '';
+    const friendlyName = element?.DisplayName || (locatorText === 'a' ? 'קישור' : locatorText);
     const appText = context ? appLabel(context) : 'לא משויך';
 
     $('step-inspector').innerHTML =
@@ -114,7 +115,7 @@ function renderSteps() {
       (target ? '<p>נבחר רכיב באפליקציה' +
         (frames.length ? ' בתוך ' + frames.length + ' מסגרות' : '') + '.</p>' +
         (locatorText ? '<p class="step-muted">רכיב שנבחר: <code dir="ltr">' +
-          esc(locatorText) + '</code></p>' : '') :
+          esc(friendlyName) + '</code></p>' : '') :
         '<p>עדיין לא נבחר רכיב לשלב הזה.</p>') +
       (context?.Runtime === 'Web' && target ?
         '<button class="btn secondary small" id="replace-web-target">בחירת רכיב אחר</button>' : '') +
