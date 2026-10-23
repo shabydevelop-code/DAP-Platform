@@ -10,6 +10,7 @@
   let label = null;
   let inspectorBanner = null;
   let hoverPoll = null;
+  let pickerNonce = null;
   const pendingTimers = new Set();
   const eventTypes = ["click", "change", "blur"];
 
@@ -21,6 +22,7 @@
     removeEventListener("mousemove", pickHover, true);
     removeEventListener("keydown", pickKey, true);
     chrome.runtime.onMessage.removeListener(pickMessages);
+    removeEventListener("message", frameSelection, false);
     clearInterval(hoverPoll);
     hoverPoll = null;
     clearHighlight();
@@ -114,9 +116,37 @@
     document.documentElement.append(overlay,label);
   }
 
+  // Relay a selected element through its parent frames. The parent determines
+  // the iframe locator from event.source, so cross-origin children work without
+  // DOM access across origins. The top frame delivers the complete path.
+  const bridgeType = 'guideme-instructor-frame-selection-v1';
+  function frameSelection(event) {
+    if (!pickActive || !pickerNonce || event.data?.type !== bridgeType ||
+        event.data.nonce !== pickerNonce) return;
+    const childFrame = [...document.querySelectorAll('iframe,frame')]
+      .find(frame => frame.contentWindow === event.source);
+    if (!childFrame) return;
+    const selector = selectorFor(childFrame);
+    if (!selector) return;
+    const payload = event.data.payload;
+    if (!payload || !Array.isArray(payload.framePath) ||
+        payload.framePath.length >= 12 || typeof payload.selector !== 'string') return;
+    const next = {...payload, framePath:[selector,...payload.framePath]};
+    emitSelection(next);
+  }
+  function emitSelection(payload) {
+    if (window === window.top) {
+      try { chrome.runtime.sendMessage({type:'guideme-instructor-picked',event:payload}).catch(()=>{}); } catch {}
+    } else {
+      try { window.parent.postMessage({type:bridgeType, nonce:pickerNonce, payload}, '*'); } catch {}
+    }
+  }
+  addEventListener('message', frameSelection, false);
+
   function pickMessages(message, _sender, sendResponse) {
     if (message?.type === "guideme-instructor-pick-start") {
       pickActive = true;
+      pickerNonce = message.nonce;
       if (!inspectorBanner) {
         inspectorBanner = document.createElement('div');
         inspectorBanner.textContent = 'GuideMe Instructor · העבר עכבר מעל רכיב · Ctrl+Shift+Space לבחירה · Esc לביטול';
@@ -136,6 +166,7 @@
     }
     if (message?.type === "guideme-instructor-pick-stop") {
       pickActive = false;
+      pickerNonce = null;
       clearInterval(hoverPoll);
       hoverPoll = null;
       clearHighlight();
@@ -196,7 +227,8 @@
       selector, url:location.href, tag:target.tagName.toLowerCase(),
       label:String(target.getAttribute('aria-label') || target.getAttribute('name') || target.textContent || '').trim().slice(0,100)
     };
-    try { chrome.runtime.sendMessage({type:'guideme-instructor-picked', event:candidate}).catch(()=>{}); } catch {}
+    candidate.framePath = [];
+    emitSelection(candidate);
   }
   chrome.runtime.onMessage.addListener(pickMessages);
   addEventListener("pointermove", pickHover, true);
