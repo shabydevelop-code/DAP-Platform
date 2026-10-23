@@ -117,6 +117,11 @@ chrome.tabs.onUpdated.addListener((id, change) => {
 });
 chrome.windows.onFocusChanged.addListener(() => void sync());
 chrome.runtime.onMessage.addListener((message, sender) => {
+  if (message?.type === 'guideme-instructor-pick-cancelled' && sender.tab?.id === selectedTabId) {
+    void request('picker-cancelled', {tabId:sender.tab.id}).catch(() => {});
+    pickerArmedTabId = null;
+    return false;
+  }
   if (message?.type === "guideme-instructor-picked" && sender.tab?.id === selectedTabId) {
     void request("picked", { payload: { tabId: sender.tab.id, event: message.event } }).catch(() => {});
     return false;
