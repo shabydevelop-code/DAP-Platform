@@ -131,6 +131,23 @@ app.MapPost("/api/capture/start", (CaptureStart body) =>
 });
 app.MapPost("/api/capture/stop", () => Results.Ok(new { events = capture.End() }));
 
+app.MapPost("/api/target-picker/start", (PickStart request) =>
+    Results.Ok(capture.StartPicking(request.GuideId, request.ContextId)));
+app.MapPost("/api/target-picker/cancel", () => Results.Ok(capture.CancelPicking()));
+app.MapPost("/api/guides/{id:long}/steps/{stepId}/web-target",
+    (long id, string stepId, SaveWebTargetRequest request) =>
+{
+    var rows = V5GuideReader.ReadGuideTable(id, "Steps");
+    var row = rows.Rows.Cast<DataRow>().FirstOrDefault(r =>
+        string.Equals(r["StepId"].ToString(), stepId, StringComparison.Ordinal));
+    if (row is null) return Results.NotFound();
+    var contextId = row["ApplicationContextId"].ToString() ?? "";
+    var selector = capture.GetApprovedSelector(id, contextId);
+    V5GuideWriter.SaveWebTarget(id, stepId, selector, request.Condition);
+    capture.CancelPicking();
+    return Results.NoContent();
+});
+
 app.MapGet("/api/guides", () => Results.Ok(V5GuideReader.ListGuides()));
 app.MapGet("/api/guides/{id:long}", (long id) =>
 {
@@ -246,3 +263,6 @@ internal sealed record DeleteGuideConfirmation(string Name);
 internal sealed record EditStep(string? Bubble, bool Enabled, string? ContextId);
 
 internal sealed record NewManualStep(string ContextId, string Bubble, string Placement);
+
+internal sealed record PickStart(long GuideId, string ContextId);
+internal sealed record SaveWebTargetRequest(string Condition);
