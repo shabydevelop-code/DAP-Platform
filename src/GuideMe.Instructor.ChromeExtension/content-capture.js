@@ -16,6 +16,7 @@
     if (!active) return;
     active = false;
     for (const type of eventTypes) removeEventListener(type, report, true);
+    removeEventListener("pointermove", pickHover, true);
     removeEventListener("mousemove", pickHover, true);
     removeEventListener("keydown", pickKey, true);
     chrome.runtime.onMessage.removeListener(pickMessages);
@@ -136,9 +137,16 @@
   }
   function pickHover(event) {
     if (!pickActive || !event.isTrusted) return;
-    const element = event.target instanceof Element ? event.target : null;
-    if (!element) return;
-    const target = element.closest('button,a,input,select,textarea,[role="button"]') || element;
+    // Query under the cursor, rather than trusting event.target: delegated
+    // handlers, nested labels and injected overlays can change event targets.
+    const element = document.elementFromPoint(event.clientX, event.clientY);
+    if (!(element instanceof Element)) return;
+    const target = element.closest('button,a,input,select,textarea,[role="button"],[role="textbox"],[role="link"]') || element;
+    if (inspectorBanner) {
+      inspectorBanner.dataset.hoverSeen = 'true';
+      inspectorBanner.textContent = 'GuideMe Instructor · מזוהה: ' +
+        target.tagName.toLowerCase() + ' · Ctrl+Shift+Space לבחירה · Esc לביטול';
+    }
     if (target === highlighted) return;
     showHighlight(target);
   }
@@ -173,6 +181,7 @@
     try { chrome.runtime.sendMessage({type:'guideme-instructor-picked', event:candidate}).catch(()=>{}); } catch {}
   }
   chrome.runtime.onMessage.addListener(pickMessages);
+  addEventListener("pointermove", pickHover, true);
   addEventListener("mousemove", pickHover, true);
   addEventListener("keydown", pickKey, true);
 
