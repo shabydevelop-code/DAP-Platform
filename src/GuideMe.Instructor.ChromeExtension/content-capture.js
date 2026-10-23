@@ -52,15 +52,29 @@
   }
 
   function selectorFor(element) {
-    if (element.id) {
+    const tag = element.tagName.toLowerCase();
+    const unique = selector => {
+      try { return document.querySelector(selector) === element &&
+        document.querySelectorAll(selector).length === 1; } catch { return false; }
+    };
+    const stable = value => value && value.length <= 120 &&
+      !/^[a-f0-9]{16,}$/i.test(value);
+    if (stable(element.id)) {
       const selector = '#' + CSS.escape(element.id);
-      if (document.querySelectorAll(selector).length === 1) return selector;
+      if (unique(selector)) return selector;
+    }
+    for (const attr of ['data-testid', 'data-test', 'data-qa', 'name', 'aria-label', 'placeholder']) {
+      const value = element.getAttribute(attr);
+      if (!stable(value)) continue;
+      const escaped = CSS.escape(value);
+      const selector = tag + '[' + attr + '="' + escaped + '"]';
+      if (unique(selector)) return selector;
     }
     const parts = [];
     let node = element;
     for (let depth = 0; node && node.nodeType === 1 && depth < 7; depth++, node = node.parentElement) {
       let part = node.tagName.toLowerCase();
-      if (node.id) {
+      if (node.id && stable(node.id)) {
         part += '#' + CSS.escape(node.id);
         parts.unshift(part);
         break;
@@ -68,14 +82,15 @@
       const parent = node.parentElement;
       if (parent) {
         const siblings = [...parent.children].filter(el => el.tagName === node.tagName);
-        if (siblings.length > 1) part += ':nth-of-type(' + ([...parent.children].filter(el => el.tagName === node.tagName).indexOf(node) + 1) + ')';
+        if (siblings.length > 1)
+          part += ':nth-of-type(' + (siblings.indexOf(node) + 1) + ')';
       }
       parts.unshift(part);
       const candidate = parts.join(' > ');
-      if (document.querySelectorAll(candidate).length === 1) return candidate;
+      if (unique(candidate)) return candidate;
     }
     const selector = parts.join(' > ');
-    return selector && document.querySelectorAll(selector).length === 1 ? selector : null;
+    return unique(selector) ? selector : null;
   }
 
   function clearHighlight() {
