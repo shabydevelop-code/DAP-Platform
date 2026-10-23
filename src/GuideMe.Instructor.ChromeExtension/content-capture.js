@@ -6,6 +6,8 @@
   let active = true;
   let pickActive = false;
   let highlighted = null;
+  let overlay = null;
+  let label = null;
   const pendingTimers = new Set();
   const eventTypes = ["click", "change", "blur"];
 
@@ -16,7 +18,7 @@
     removeEventListener("mousemove", pickHover, true);
     removeEventListener("keydown", pickKey, true);
     chrome.runtime.onMessage.removeListener(pickMessages);
-    if (highlighted) highlighted.style.outline = "";
+    clearHighlight();
     for (const timer of pendingTimers) clearTimeout(timer);
     pendingTimers.clear();
     globalThis.__guideMeCaptureInstalled = false;
@@ -67,6 +69,41 @@
     return selector && document.querySelectorAll(selector).length === 1 ? selector : null;
   }
 
+  function clearHighlight() {
+    overlay?.remove();
+    label?.remove();
+    overlay = null;
+    label = null;
+    highlighted = null;
+  }
+
+  function showHighlight(target) {
+    clearHighlight();
+    highlighted = target;
+    const rect = target.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    overlay = document.createElement('div');
+    Object.assign(overlay.style, {
+      position:'fixed', top:rect.top+'px',left:rect.left+'px',
+      width:rect.width+'px',height:rect.height+'px',
+      border:'3px solid #3678e8',background:'rgba(54,120,232,.10)',
+      borderRadius:'3px',boxSizing:'border-box',
+      pointerEvents:'none',zIndex:'2147483646'
+    });
+    label = document.createElement('div');
+    const caption = target.getAttribute('aria-label') ||
+      target.getAttribute('name') || target.id || target.tagName.toLowerCase();
+    label.textContent = target.tagName.toLowerCase()+' · '+String(caption).slice(0,50);
+    Object.assign(label.style,{
+      position:'fixed',top:Math.max(0,rect.top-27)+'px',
+      left:Math.max(0,rect.left)+'px',maxWidth:'240px',
+      padding:'4px 7px',background:'#17385f',color:'#fff',
+      borderRadius:'4px',font:'12px Arial,sans-serif',
+      direction:'ltr',pointerEvents:'none',zIndex:'2147483647'
+    });
+    document.documentElement.append(overlay,label);
+  }
+
   function pickMessages(message, _sender, sendResponse) {
     if (message?.type === "guideme-instructor-pick-start") {
       pickActive = true;
@@ -87,9 +124,7 @@
     if (!element) return;
     const target = element.closest('button,a,input,select,textarea,[role="button"]') || element;
     if (target === highlighted) return;
-    if (highlighted) highlighted.style.outline = '';
-    highlighted = target;
-    highlighted.style.outline = '3px solid #3678e8';
+    showHighlight(target);
   }
   function pickKey(event) {
     if (!pickActive || !event.isTrusted) return;
@@ -97,7 +132,7 @@
       event.preventDefault();
       event.stopImmediatePropagation();
       pickActive = false;
-      if (highlighted) highlighted.style.outline = '';
+      clearHighlight();
       highlighted = null;
       try { chrome.runtime.sendMessage({type:'guideme-instructor-pick-cancelled'}).catch(()=>{}); } catch {}
       return;
@@ -110,8 +145,7 @@
     const selector = selectorFor(target);
     if (!selector) return;
     pickActive = false;
-    target.style.outline = '';
-    highlighted = null;
+    clearHighlight();
     const candidate = {
       selector, url:location.href, tag:target.tagName.toLowerCase(),
       label:String(target.getAttribute('aria-label') || target.getAttribute('name') || target.textContent || '').trim().slice(0,100)
