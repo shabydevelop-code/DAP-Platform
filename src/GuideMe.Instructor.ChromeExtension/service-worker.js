@@ -65,11 +65,17 @@ async function listTabs() {
   }));
 }
 async function inject(tabId) {
-  try {
-    await chrome.scripting.executeScript({
-      target: { tabId, allFrames: true }, files: ["content-capture.js"]
-    });
-  } catch (error) { console.warn("Instructor injection failed:", error); }
+  // The current Inspector supports main-frame DOM only.
+  // Let errors propagate: a connected Native Host does not prove the
+  // content script can execute inside the selected tab.
+  await chrome.scripting.executeScript({
+    target: { tabId, frameIds: [0] }, files: ["content-capture.js"]
+  });
+}
+async function reportPickerError(tabId, error) {
+  const reason = String(error?.message || error || "Unknown Chrome error").slice(0, 320);
+  console.warn("GuideMe Instructor picker:", reason);
+  await request("picker-error", {tabId, reason}).catch(() => {});
 }
 let syncing = false;
 async function sync() {
@@ -80,20 +86,20 @@ async function sync() {
     if (!port) return;
     const result = await request("heartbeat", { tabs: await listTabs() });
     const next = result.selectedTabId ?? null;
-    if (next !== null && next !== selectedTabId) await inject(next);
     selectedTabId = next;
     const pickTabId = result.pickTabId ?? null;
     if (pickTabId !== null && pickerArmedTabId !== pickTabId) {
-      // The content script is injected only when needed; explicit acknowledgement
-      // proves the click interceptor is installed before telling the author to click.
-      if (next === pickTabId && selectedTabId === next)
+      try {
         await inject(pickTabId);
-      const answer = await chrome.tabs.sendMessage(
-        pickTabId, { type: "guideme-instructor-pick-start" }, {frameId:0}
-      ).catch(error => { console.warn("Instructor picker:", error.message); return null; });
-      if (answer?.armed === true) {
-        const ack = await request("picker-armed", { tabId: pickTabId });
+        const answer = await chrome.tabs.sendMessage(
+          pickTabId, { type: "guideme-instructor-pick-start" }, {frameId: 0}
+        );
+        if (answer?.armed !== true)
+          throw new Error("The target page did not acknowledge Inspector activation");
+        const ack = await request("picker-armed", {tabId: pickTabId});
         if (ack?.accepted === true) pickerArmedTabId = pickTabId;
+      } catch (error) {
+        await reportPickerError(pickTabId, error);
       }
     }
     if (pickTabId === null && pickerArmedTabId !== null)
@@ -111,7 +117,7 @@ chrome.tabs.onActivated.addListener(() => void sync());
 chrome.tabs.onRemoved.addListener(id => { if (id === selectedTabId) selectedTabId = null; void sync(); });
 chrome.tabs.onUpdated.addListener((id, change) => {
   if (change.status === "complete") {
-    if (selectedTabId === id) void inject(id);
+    if (selectedTabId === id) pickerArmedTabId = null;
     void sync();
   }
 });
