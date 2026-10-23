@@ -36,3 +36,12 @@
 .guide-count{display:inline-block;vertical-align:middle;border-radius:8px;background:#eef4fd;color:#366fc8;padding:3px 9px;font-size:12px;font-weight:750;margin-inline-start:7px}
 @media(max-width:1050px){.shell{display:block}}
 @media(max-width:700px){.topbar{padding-inline:16px}.brand-heading{gap:7px}.brand-heading strong{font-size:13px}.top-actions{gap:5px}.connection-status{font-size:11px;padding:7px 9px}}
+
+/* Application selection is based on detected targets, not technical identifiers. */
+.application-picker{display:grid;gap:7px;max-height:240px;overflow:auto;margin:10px 0;padding:2px}
+.application-option{display:flex!important;gap:11px;align-items:center;border:1px solid #e0e8f1;border-radius:10px;padding:10px 12px;cursor:pointer;margin:0!important}
+.application-option:has(input:checked){background:#edf5ff;border-color:#80b0f2}
+.application-option input{width:17px!important;height:17px;flex:none}
+.application-option span{display:block;min-width:0}
+.application-option strong{display:block;font-size:12px;color:#253b52;overflow-wrap:anywhere}
+.application-option small{display:block;color:#71849a;font-size:11px;direction:auto;margin-top:3px;overflow-wrap:anywhere}
