@@ -259,17 +259,44 @@ async function refreshPicker() {
     '</select>')+'<div class="target-actions">'+
     '<button id="save-web-target" class="btn primary">אישור ושמירת רכיב</button>'+
     '<button id="cancel-web-target" class="btn secondary">ביטול</button></div>';
-  $('save-web-target').onclick = () => guarded(async () => {
+  $('save-web-target').onclick = async () => {
+    const saveButton = $('save-web-target');
+    const cancelButton = $('cancel-web-target');
     const pickedFor = pickingFor;
-    await api('/guides/'+pickedFor.guideId+'/steps/'+encodeURIComponent(pickedFor.stepId)+'/web-target',
-      pickedFor.replacing ? {method:'PUT'} :
-        {method:'POST',body:JSON.stringify({condition:$('target-condition').value})});
-    pickingFor = null;
-    await openGuide(pickedFor.guideId);
-    const item = [...document.querySelectorAll('[data-step]')].find(x=>x.dataset.step===pickedFor.stepId);
-    item?.click();
-    notify(pickedFor.replacing ? 'רכיב היעד הוחלף. תנאי ההתקדמות נשמר ללא שינוי.' : 'רכיב היעד ותנאי ההתקדמות נשמרו.');
-  });
+    if (!pickedFor || saveButton.disabled) return;
+    saveButton.disabled = true;
+    cancelButton.disabled = true;
+    const originalLabel = saveButton.textContent;
+    saveButton.textContent = 'שומר רכיב...';
+    let result = $('target-save-feedback');
+    if (!result) {
+      result = document.createElement('p');
+      result.id = 'target-save-feedback';
+      result.setAttribute('role', 'status');
+      box.appendChild(result);
+    }
+    result.textContent = '';
+    try {
+      await api('/guides/'+pickedFor.guideId+'/steps/'+encodeURIComponent(pickedFor.stepId)+'/web-target',
+        pickedFor.replacing ? {method:'PUT'} :
+          {method:'POST',body:JSON.stringify({condition:$('target-condition').value})});
+      pickingFor = null;
+      result.textContent = 'הרכיב נשמר בהצלחה.';
+      await openGuide(pickedFor.guideId);
+      const item = [...document.querySelectorAll('[data-step]')]
+        .find(x => x.dataset.step === pickedFor.stepId);
+      if (item) await item.click();
+      notify(pickedFor.replacing
+        ? 'הרכיב הוחלף בהצלחה. תנאי ההתקדמות נשאר ללא שינוי.'
+        : 'רכיב היעד ותנאי ההתקדמות נשמרו.');
+    } catch (error) {
+      result.textContent = 'השמירה נכשלה: ' + (error.message || String(error));
+      result.classList.add('save-error');
+      saveButton.disabled = false;
+      cancelButton.disabled = false;
+      saveButton.textContent = originalLabel;
+    }
+  };
   $('cancel-web-target').onclick = () => guarded(async () => {
     await api('/target-picker/cancel',{method:'POST',body:'{}'});
     pickingFor = null;
