@@ -195,7 +195,7 @@ async function newGuide() {
       notify('הלומדה נוצרה עם ' + applications.length + ' אפליקציות.');
     });
   };
-  $('editor-dialog').showModal();
+  if (!$('editor-dialog').open) $('editor-dialog').showModal();
   $('guide-new-name').focus();
 }
 function renameGuide() {
@@ -274,7 +274,7 @@ function editStep(step, assignedContextId) {
     await api('/guides/' + guideId + '/steps/' + encodeURIComponent(stepId), {
       method:'PUT', body:JSON.stringify({bubble:values.bubble, enabled:values.enabled === 'true'})
     });
-    if (selectedContext && selectedContext !== assignedContextId || values.contextId && values.contextId !== assignedContextId) {
+    if ((values.contextId || selectedContext) && (values.contextId || selectedContext) !== assignedContextId) {
       await api('/guides/' + guideId + '/steps/' + encodeURIComponent(stepId) + '/application', {
         method:'PUT', body:JSON.stringify({contextId:values.contextId || selectedContext})
       });
