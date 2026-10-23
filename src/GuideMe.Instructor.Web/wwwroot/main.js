@@ -281,7 +281,7 @@ async function refreshPicker() {
     result.textContent = '';
     try {
       await api('/guides/'+pickedFor.guideId+'/steps/'+encodeURIComponent(pickedFor.stepId)+'/web-target',
-        pickedFor.replacing ? {method:'PUT'} :
+        pickedFor.replacing ? {method:'PUT',body:'{}'} :
           {method:'POST',body:JSON.stringify({condition:$('target-condition').value})});
       pickingFor = null;
       result.textContent = 'הרכיב נשמר בהצלחה.';
