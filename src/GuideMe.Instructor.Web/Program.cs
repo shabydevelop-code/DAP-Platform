@@ -148,6 +148,18 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/web-target",
     return Results.NoContent();
 });
 
+app.MapPut("/api/guides/{id:long}/steps/{stepId}/web-target", (long id, string stepId) =>
+{
+    var rows = V5GuideReader.ReadGuideTable(id, "Steps");
+    var row = rows.Rows.Cast<DataRow>().FirstOrDefault(r =>
+        string.Equals(r["StepId"].ToString(), stepId, StringComparison.Ordinal));
+    if (row is null) return Results.NotFound();
+    var selected = capture.GetApprovedTarget(id, row["ApplicationContextId"].ToString() ?? "");
+    V5GuideWriter.ReplaceWebTarget(id, stepId, selected.Selector, selected.FramePath);
+    capture.CancelPicking();
+    return Results.NoContent();
+});
+
 app.MapPut("/api/guides/{id:long}/steps/{stepId}/validation",
     (long id, string stepId, EditWebValidation request) =>
 {
