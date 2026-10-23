@@ -176,6 +176,15 @@ function editValidation(step, rule) {
     });
     notify('תנאי ההתקדמות עודכן.');
   });
+  const kindControl = $('field-kind');
+  const valueContainer = $('field-expectedValue')?.closest('.field');
+  const updateValueVisibility = () => {
+    if (valueContainer) valueContainer.classList.toggle('hidden',kindControl?.value !== 'value-equals');
+    const valueInput = $('field-expectedValue');
+    if (valueInput) valueInput.required = kindControl?.value === 'value-equals';
+  };
+  kindControl?.addEventListener('change', updateValueVisibility);
+  updateValueVisibility();
 }
 let pickingFor = null;
 async function beginWebPicker(guideId, stepId, contextId, replacing=false) {
@@ -236,8 +245,8 @@ async function refreshPicker() {
     '<p class="target-selector">'+esc(candidate.selector)+'</p>'+
     (pickingFor.replacing ? '' : '<label for="target-condition">תנאי התקדמות</label>')+
     (pickingFor.replacing ? '' : '<select id="target-condition">'+
-    '<option value="clicked">המשתמש לוחץ על הרכיב</option>'+
-    '<option value="value-not-empty">הוזן ערך בשדה</option>'+
+    '<option value="clicked" '+(['input','textarea','select'].includes(candidate.tag)?'':'selected')+'>המשתמש לוחץ על הרכיב</option>'+
+    '<option value="value-not-empty" '+(['input','textarea','select'].includes(candidate.tag)?'selected':'')+'>הוזן ערך בשדה</option>'+
     '<option value="target-disappeared">הרכיב נעלם בעקבות הפעולה</option>'+
     '</select>')+'<div class="target-actions">'+
     '<button id="save-web-target" class="btn primary">אישור ושמירת רכיב</button>'+
