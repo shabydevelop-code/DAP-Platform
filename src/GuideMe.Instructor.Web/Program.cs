@@ -148,6 +148,13 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/web-target",
     return Results.NoContent();
 });
 
+app.MapPut("/api/guides/{id:long}/steps/{stepId}/validation",
+    (long id, string stepId, EditWebValidation request) =>
+{
+    V5GuideWriter.UpdateWebPrimaryValidation(id, stepId, request.Kind, request.ExpectedValue);
+    return Results.NoContent();
+});
+
 app.MapGet("/api/guides", () => Results.Ok(V5GuideReader.ListGuides()));
 app.MapGet("/api/guides/{id:long}", (long id) =>
 {
@@ -165,6 +172,7 @@ app.MapGet("/api/guides/{id:long}/step/{stepId}", (long id, string stepId) =>
     {
         step = TableRows(V5GuideReader.ReadGuideTable(id, "Steps")).Where(r => Equals(r["StepId"], stepId)),
         targets = TableRows(V5GuideReader.ReadGuideTable(id, "StepTargets")).Where(r => Equals(r["StepId"], stepId)),
+        elements = TableRows(V5GuideReader.ReadGuideTable(id, "Elements")),
         rules = TableRows(V5GuideReader.ReadGuideTable(id, "StepRules")).Where(r => Equals(r["StepId"], stepId))
     });
 });
@@ -266,3 +274,4 @@ internal sealed record NewManualStep(string ContextId, string Bubble, string Pla
 
 internal sealed record PickStart(long GuideId, string ContextId);
 internal sealed record SaveWebTargetRequest(string Condition);
+\ninternal sealed record EditWebValidation(string Kind, string? ExpectedValue);\n
