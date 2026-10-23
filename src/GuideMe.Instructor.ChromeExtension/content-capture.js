@@ -136,7 +136,7 @@
   }
   function emitSelection(payload) {
     if (window === window.top) {
-      try { chrome.runtime.sendMessage({type:'guideme-instructor-picked',event:payload}).catch(()=>{}); } catch {}
+      try { chrome.runtime.sendMessage({type:'guideme-instructor-picked',event:{...payload,url:location.href}}).catch(()=>{}); } catch {}
     } else {
       try { window.parent.postMessage({type:bridgeType, nonce:pickerNonce, payload}, '*'); } catch {}
     }
