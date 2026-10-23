@@ -4,6 +4,8 @@
   globalThis.__guideMeCaptureInstalled = true;
 
   let active = true;
+  let pickActive = false;
+  let highlighted = null;
   const heartbeatTimer = setInterval(() => {
     if (!extensionAvailable()) return;
     try { chrome.runtime.sendMessage({ type: "guideme-instructor-heartbeat" }).catch(() => stopCapture()); }
@@ -17,6 +19,9 @@
     active = false;
     clearInterval(heartbeatTimer);
     for (const type of eventTypes) removeEventListener(type, report, true);
+    removeEventListener("click", pickClick, true);
+    chrome.runtime.onMessage.removeListener(pickMessages);
+    if (highlighted) highlighted.style.outline = "";
     for (const timer of pendingTimers) clearTimeout(timer);
     pendingTimers.clear();
     globalThis.__guideMeCaptureInstalled = false;
@@ -39,6 +44,65 @@
       return false;
     }
   }
+
+  function selectorFor(element) {
+    if (element.id) {
+      const selector = '#' + CSS.escape(element.id);
+      if (document.querySelectorAll(selector).length === 1) return selector;
+    }
+    const parts = [];
+    let node = element;
+    for (let depth = 0; node && node.nodeType === 1 && depth < 7; depth++, node = node.parentElement) {
+      let part = node.tagName.toLowerCase();
+      if (node.id) {
+        part += '#' + CSS.escape(node.id);
+        parts.unshift(part);
+        break;
+      }
+      const parent = node.parentElement;
+      if (parent) {
+        const siblings = [...parent.children].filter(el => el.tagName === node.tagName);
+        if (siblings.length > 1) part += ':nth-of-type(' + ([...parent.children].filter(el => el.tagName === node.tagName).indexOf(node) + 1) + ')';
+      }
+      parts.unshift(part);
+      const candidate = parts.join(' > ');
+      if (document.querySelectorAll(candidate).length === 1) return candidate;
+    }
+    const selector = parts.join(' > ');
+    return selector && document.querySelectorAll(selector).length === 1 ? selector : null;
+  }
+
+  function pickMessages(message) {
+    if (message?.type === "guideme-instructor-pick-start") { pickActive = true; return; }
+    if (message?.type === "guideme-instructor-pick-stop") {
+      pickActive = false;
+      if (highlighted) highlighted.style.outline = "";
+      highlighted = null;
+    }
+  }
+  function pickClick(event) {
+    if (!pickActive || !event.isTrusted) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    const target = event.target instanceof Element ? event.target : null;
+    if (!target) return;
+    const selector = selectorFor(target);
+    if (!selector) return;
+    pickActive = false;
+    target.style.outline = "3px solid #3678e8";
+    highlighted = target;
+    setTimeout(() => {
+      if (highlighted === target) { target.style.outline = ""; highlighted = null; }
+    }, 1500);
+    const candidate = {
+      selector, url:location.href, tag:target.tagName.toLowerCase(),
+      label:String(target.getAttribute("aria-label") || target.textContent || "").trim().slice(0,100)
+    };
+    try { chrome.runtime.sendMessage({type:"guideme-instructor-picked", event:candidate}).catch(() => {}); }
+    catch {}
+  }
+  chrome.runtime.onMessage.addListener(pickMessages);
+  addEventListener("click", pickClick, true);
 
   // Structural snapshot only: never collect input values or page text wholesale.
   function snapshot() {
@@ -89,7 +153,7 @@
 
   function report(event) {
     try {
-      if (!event.isTrusted || !extensionAvailable()) return;
+      if (pickActive || !event.isTrusted || !extensionAvailable()) return;
       const element = event.target instanceof Element ? event.target : null;
       if (!element) return;
       const target = element.closest("button,a,input,select,textarea,[role='button']") || element;
