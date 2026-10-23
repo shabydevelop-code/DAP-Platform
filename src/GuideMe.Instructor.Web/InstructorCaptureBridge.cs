@@ -123,7 +123,7 @@ internal sealed class InstructorCaptureBridge
         _selectedTab is not null && _tabs.Any(t => t.TabId == _selectedTab) &&
         DateTimeOffset.UtcNow - _lastHeartbeat < TimeSpan.FromSeconds(10);
 
-    public (string Selector, string[] FramePath) GetApprovedTarget(long guideId, string contextId)
+    public (string Selector, string[] FramePath, string? DisplayName) GetApprovedTarget(long guideId, string contextId)
     {
         lock (_gate)
         {
@@ -141,7 +141,7 @@ internal sealed class InstructorCaptureBridge
             }
             if (path.Any(p => p.Length is < 1 or > 400))
                 throw new InvalidOperationException("מזהה מסגרת אינו תקין.");
-            return (selector.GetString() ?? "", path);
+            return (selector.GetString() ?? "", path, _pickedElement.Value.TryGetProperty("label", out var label) && label.ValueKind == JsonValueKind.String ? label.GetString() : null);
         }
     }
 
