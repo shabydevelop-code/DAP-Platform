@@ -208,7 +208,7 @@ VALUES ($guideId, $contextId, $runtime, $matchers)";
         content = content.Trim();
         if (content.Length is < 1 or > 4000)
             throw new ArgumentException("תוכן הבועית חייב להכיל בין 1 ל־4000 תווים.");
-        if (placement is not ("Auto" or "Top" or "Bottom" or "Left" or "Right" or "TopLeft" or "TopRight" or "BottomLeft" or "BottomRight"))
+        if (placement is not ("Auto" or "Top" or "Bottom" or "Left" or "Right" or "Center"))
             throw new ArgumentException("מיקום הבועית אינו תקין.");
         if (string.IsNullOrWhiteSpace(contextId))
             throw new ArgumentException("יש לבחור אפליקציה לשלב.");
