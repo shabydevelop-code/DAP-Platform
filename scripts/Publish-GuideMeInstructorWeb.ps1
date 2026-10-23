@@ -148,6 +148,16 @@ foreach ($size in @(16, 48, 128)) {
         throw "Missing generated Instructor icon: $icon"
     }
 }
+# Use the identical Instructor extension artwork as the Web favicon.
+# Generate from the existing source (never redraw or substitute the icon).
+$faviconSource = Join-Path $ExtensionDestination 'icon48.png'
+$faviconTarget = Join-Path $Destination 'wwwroot\favicon.png'
+Copy-Item -LiteralPath $faviconSource -Destination $faviconTarget -Force
+if ((Get-FileHash -LiteralPath $faviconSource -Algorithm SHA256).Hash -ne
+    (Get-FileHash -LiteralPath $faviconTarget -Algorithm SHA256).Hash) {
+    throw 'Instructor Web favicon verification failed.'
+}
+Write-Host 'PASS: Instructor Web favicon matches the original Instructor Chrome extension icon.'
 Write-Host "PASS: Instructor Web published for win-x64 (framework-dependent) to $Destination"
 Write-Host 'PASS: runtimes directory contains only dependencies from the fresh win-x64 publish.'
 Write-Host "PASS: $($files.Count) Instructor extension files synchronized to $ExtensionDestination"
