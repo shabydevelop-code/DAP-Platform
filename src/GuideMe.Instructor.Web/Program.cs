@@ -151,6 +151,9 @@ app.MapGet("/api/guides/{id:long}/step/{stepId}", (long id, string stepId) =>
         rules = TableRows(V5GuideReader.ReadGuideTable(id, "StepRules")).Where(r => Equals(r["StepId"], stepId))
     });
 });
+app.MapPost("/api/guides/{id:long}/steps", (long id, NewManualStep request) =>
+    Results.Ok(new { stepId = V5GuideWriter.CreateManualStep(id,
+        request.ContextId, request.Bubble, request.Placement) }));
 app.MapPut("/api/guides/{id:long}/steps/{stepId}", (long id, string stepId, EditStep body) =>
 {
     V5GuideWriter.UpdateStep(id, stepId, body.Bubble, body.Enabled, body.ContextId);
@@ -241,3 +244,5 @@ internal sealed record SaveContext(string ContextId, string Runtime,
 
 internal sealed record DeleteGuideConfirmation(string Name);
 internal sealed record EditStep(string? Bubble, bool Enabled, string? ContextId);
+
+internal sealed record NewManualStep(string ContextId, string Bubble, string Placement);
