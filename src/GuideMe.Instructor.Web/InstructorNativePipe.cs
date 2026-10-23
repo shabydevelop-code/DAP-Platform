@@ -52,6 +52,7 @@ internal sealed class InstructorNativePipe
                     Array.Empty<CaptureTab>()),
                 "event" => ReceiveEvent(root.GetProperty("payload").Deserialize<CaptureEvent>(new JsonSerializerOptions(JsonSerializerDefaults.Web))),
                 "picker-armed" => _capture.PickerArmed(root.GetProperty("tabId").GetInt32()),
+                "picker-error" => _capture.PickerFailed(root.GetProperty("tabId").GetInt32(), root.GetProperty("reason").GetString() ?? "Unknown picker error"),
                 "picker-cancelled" => _capture.PickerCancelled(root.GetProperty("tabId").GetInt32()),
                 "picked" => _capture.Picked(root.GetProperty("payload").Deserialize<CaptureEvent>(new JsonSerializerOptions(JsonSerializerDefaults.Web)) ?? throw new ArgumentException("Missing picked element.")),
                 _ => throw new InvalidOperationException("Unknown Instructor native request.")
