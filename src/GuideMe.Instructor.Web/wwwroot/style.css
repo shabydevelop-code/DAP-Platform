@@ -49,3 +49,12 @@
 .steps-toolbar{display:flex;align-items:center;gap:11px;flex-wrap:wrap}
 .steps-toolbar .search{width:min(255px,45vw)}
 @media(max-width:700px){.steps-toolbar{width:100%}.steps-toolbar .search{flex:1;min-width:120px}}
+
+.target-editor{border-top:1px solid #e3ebf6;margin-top:20px;padding-top:18px;direction:rtl;text-align:right}
+.target-editor h3{font-size:15px;margin:0 0 8px}
+.target-editor>p{margin-bottom:15px}
+#pick-result{padding:13px 0;overflow-wrap:anywhere}
+#pick-result label{font-size:12px;display:block;font-weight:700;margin:15px 0 8px}
+#pick-result select{width:100%;padding:10px 12px;border-radius:8px;border:1px solid #d7e4f3;background:white;direction:rtl}
+.target-selector{direction:ltr;text-align:left;font-family:Consolas,monospace;color:#375777;background:#f3f7fc;border-radius:8px;padding:10px;white-space:pre-wrap}
+.target-actions{display:flex;gap:9px;margin-top:13px;flex-wrap:wrap}
