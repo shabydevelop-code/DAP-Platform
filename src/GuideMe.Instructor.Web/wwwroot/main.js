@@ -113,8 +113,8 @@ function renderSteps() {
       '<section class="step-friendly-card"><h3>רכיב במסך</h3>' +
       (target ? '<p>נבחר רכיב באפליקציה' +
         (frames.length ? ' בתוך ' + frames.length + ' מסגרות' : '') + '.</p>' +
-        '<details class="step-advanced"><summary>פרטי זיהוי מתקדמים</summary>' +
-        '<code dir="ltr">' + esc(locatorText || 'לא ידוע') + '</code></details>' :
+        (locatorText ? '<p class="step-muted">רכיב שנבחר: <code dir="ltr">' +
+          esc(locatorText) + '</code></p>' : '') :
         '<p>עדיין לא נבחר רכיב לשלב הזה.</p>') +
       (context?.Runtime === 'Web' && target ?
         '<button class="btn secondary small" id="replace-web-target">בחירת רכיב אחר</button>' : '') +
