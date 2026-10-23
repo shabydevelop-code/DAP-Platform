@@ -123,14 +123,25 @@ internal sealed class InstructorCaptureBridge
         _selectedTab is not null && _tabs.Any(t => t.TabId == _selectedTab) &&
         DateTimeOffset.UtcNow - _lastHeartbeat < TimeSpan.FromSeconds(10);
 
-    public string GetApprovedSelector(long guideId, string contextId)
+    public (string Selector, string[] FramePath) GetApprovedTarget(long guideId, string contextId)
     {
         lock (_gate)
         {
             if (!IsSelected(guideId, contextId) || _pickedElement is null ||
-                !_pickedElement.Value.TryGetProperty("selector", out var selector))
+                !_pickedElement.Value.TryGetProperty("selector", out var selector) ||
+                selector.ValueKind != JsonValueKind.String)
                 throw new InvalidOperationException("בחר ואשר תחילה רכיב מתוך האפליקציה.");
-            return selector.GetString() ?? throw new InvalidOperationException("מזהה הרכיב חסר.");
+            var path = Array.Empty<string>();
+            if (_pickedElement.Value.TryGetProperty("framePath", out var frames))
+            {
+                if (frames.ValueKind != JsonValueKind.Array || frames.GetArrayLength() > 12)
+                    throw new InvalidOperationException("נתיב מסגרות אינו תקין.");
+                path = frames.EnumerateArray().Select(frame =>
+                    frame.ValueKind == JsonValueKind.String ? frame.GetString() ?? "" : "").ToArray();
+            }
+            if (path.Any(p => p.Length is < 1 or > 400))
+                throw new InvalidOperationException("מזהה מסגרת אינו תקין.");
+            return (selector.GetString() ?? "", path);
         }
     }
 
@@ -177,6 +188,10 @@ internal sealed class InstructorCaptureBridge
                 !data.Event.TryGetProperty("selector", out var selector) ||
                 selector.ValueKind != JsonValueKind.String ||
                 selector.GetString() is not { Length: > 0 and <= 400 } ||
+                (data.Event.TryGetProperty("framePath", out var frames) &&
+                 (frames.ValueKind != JsonValueKind.Array || frames.GetArrayLength() > 12 ||
+                  frames.EnumerateArray().Any(f => f.ValueKind != JsonValueKind.String ||
+                      f.GetString() is not { Length: > 0 and <= 400 }))) ||
                 !data.Event.TryGetProperty("url", out var url) ||
                 !Uri.TryCreate(url.GetString(), UriKind.Absolute, out var uri) ||
                 uri.GetLeftPart(UriPartial.Authority) != _targetUrl)
