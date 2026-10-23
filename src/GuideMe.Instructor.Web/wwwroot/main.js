@@ -272,13 +272,9 @@ function editStep(step, assignedContextId) {
      choices:[{value:'true',text:'פעיל'},{value:'false',text:'מושבת'}]}
   ], async values => {
     await api('/guides/' + guideId + '/steps/' + encodeURIComponent(stepId), {
-      method:'PUT', body:JSON.stringify({bubble:values.bubble, enabled:values.enabled === 'true'})
+      method:'PUT', body:JSON.stringify({bubble:values.bubble, enabled:values.enabled === 'true',
+        contextId:values.contextId || selectedContext || null})
     });
-    if ((values.contextId || selectedContext) && (values.contextId || selectedContext) !== assignedContextId) {
-      await api('/guides/' + guideId + '/steps/' + encodeURIComponent(stepId) + '/application', {
-        method:'PUT', body:JSON.stringify({contextId:values.contextId || selectedContext})
-      });
-    }
     await openGuide(guideId);
     const row = [...document.querySelectorAll('[data-step]')].find(b=>b.dataset.step===stepId);
     if (row) row.click();
