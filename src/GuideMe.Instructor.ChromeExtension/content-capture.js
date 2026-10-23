@@ -85,7 +85,10 @@
     clearHighlight();
     highlighted = target;
     const rect = target.getBoundingClientRect();
-    if (!rect.width || !rect.height) return;
+    if (!rect.width || !rect.height) {
+      if (inspectorBanner) inspectorBanner.textContent = 'GuideMe Instructor · רכיב ללא שטח גלוי: ' + target.tagName.toLowerCase();
+      return;
+    }
     overlay = document.createElement('div');
     Object.assign(overlay.style, {
       position:'fixed', top:rect.top+'px',left:rect.left+'px',
