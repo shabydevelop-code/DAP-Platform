@@ -94,7 +94,7 @@ function renderSteps() {
     const sections = [['רכיבי יעד', data.targets], ['כללי התקדמות ולכידה', data.rules]];
     $('step-inspector').innerHTML =
       '<div class="step-editor-head"><div><h2>שלב ' + step.order + '</h2><p>' + esc(step.id) +
-      ' · ' + esc(context?.DisplayName || contextId || 'ללא אפליקציה') +
+      ' · ' + esc(context ? appLabel(context) : (contextId || 'ללא אפליקציה')) +
       ' · ' + esc(context?.Runtime || 'לא משויך') + '</p></div>' +
       '<button class="btn secondary small" id="edit-step">עריכת שלב</button></div>' +
       '<div class="step-summary"><strong>תוכן הבועית</strong><p>' + esc(step.bubble || 'לא הוגדר תוכן') +
@@ -107,10 +107,11 @@ function renderSteps() {
     $('edit-step').onclick = () => editStep(step, contextId);
   })));
 }
+function appLabel(c) { if(c.DisplayName) return c.DisplayName; try { const m=JSON.parse(c.MatchersJson || '[]')[0]; return m?.Value ? c.Runtime + ' · ' + m.Value : c.ContextId; } catch { return c.ContextId; } }
 function matcher(c) { try { return JSON.parse(c.MatchersJson || '[]').map(m=>m.Kind+': '+m.Value).join(', '); }catch{return '—';} }
 function renderContexts() {
   $('contexts-list').innerHTML = current.contexts.length ? current.contexts.map((c,i) =>
-    '<div class="context-card"><div><span class="chip ' + (c.Runtime === 'Windows'?'win':'') + '">' + esc(c.Runtime) + '</span> <span class="context-name">' + esc(c.DisplayName || c.ContextId) + '</span><div class="context-meta">' + esc(matcher(c)) + '</div></div><div class="context-actions"><button class="btn secondary small" data-context-rename="' + i + '">שינוי שם</button><button class="btn secondary small" data-context-edit="' + i + '">החלפת יעד</button><button class="btn danger small" data-context-delete="' + i + '">הסרה</button></div></div>').join('')
+    '<div class="context-card"><div><span class="chip ' + (c.Runtime === 'Windows'?'win':'') + '">' + esc(c.Runtime) + '</span> <span class="context-name">' + esc(appLabel(c)) + '</span><div class="context-meta">' + esc(matcher(c)) + '</div></div><div class="context-actions"><button class="btn secondary small" data-context-rename="' + i + '">שינוי שם</button><button class="btn secondary small" data-context-edit="' + i + '">החלפת יעד</button><button class="btn danger small" data-context-delete="' + i + '">הסרה</button></div></div>').join('')
     : '<div class="empty">טרם נוספו אפליקציות ללומדה.</div>';
   document.querySelectorAll('[data-context-rename]').forEach(b=>b.onclick=()=>renameContext(current.contexts[Number(b.dataset.contextRename)]));
   document.querySelectorAll('[data-context-edit]').forEach(b=>b.onclick=()=>editContext(current.contexts[Number(b.dataset.contextEdit)]));
@@ -264,7 +265,7 @@ function editStep(step, assignedContextId) {
   modal('עריכת שלב ' + step.order, [
     ...(contexts.length > 1 ? [{name:'contextId',label:'אפליקציית השלב',
        value:selectedContext,choices:contexts.map(c => ({
-         value:c.ContextId, text:(c.DisplayName || c.ContextId) + ' · ' + c.Runtime
+         value:c.ContextId, text:(appLabel(c)) + ' · ' + c.Runtime
        }))}] : []),
     {name:'bubble', label:'טקסט הבועית', value:step.bubble || '', max:4000, multiline:true,
      help:'השינוי ישפיע על תוכן הבועית בלבד. רכיבי יעד וכללי התקדמות אינם משתנים.'},
