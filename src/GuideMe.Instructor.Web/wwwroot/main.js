@@ -88,6 +88,8 @@ function renderSteps() {
     selectedStep = b.dataset.step;
     document.querySelectorAll('[data-step]').forEach(x => x.classList.toggle('active', x===b));
     const data = await api('/guides/' + current.guide.id + '/step/' + encodeURIComponent(selectedStep));
+    current.stepContexts ??= {};
+    current.stepContexts[selectedStep] = data.step?.[0]?.ApplicationContextId || null;
     const step = current.steps.find(x=>x.id===selectedStep);
     const contextId = data.step?.[0]?.ApplicationContextId;
     const context = current.contexts.find(c => c.ContextId === contextId);
@@ -130,7 +132,7 @@ function modal(title, fields, submit, buttonText='שמירה') {
   const form=$('editor-form');
   form.onsubmit=e=>{e.preventDefault();const values=Object.fromEntries(new FormData(form).entries());guarded(async()=>{await submit(values);$('editor-dialog').close();});};
   $('editor-dialog').showModal();
-  form.querySelector('input,select')?.focus();
+  form.querySelector('input,textarea,select')?.focus();
 }
 const runtimeField=(value='Web')=>({name:'runtime',label:'סוג אפליקציה',value,choices:[{value:'Web',text:'Web — דפדפן'},{value:'Windows',text:'Windows — יישום מקומי'}]});
 function contextFields(c=null) {
@@ -252,9 +254,47 @@ $('new-guide').onclick=()=>guarded(newGuide);
 $('rename-guide').onclick=renameGuide;
 $('delete-guide').onclick=deleteGuide;
 $('add-context').onclick=addContext;
+$('new-step').onclick=newStep;
 $('back').onclick=showList;
 $('close-dialog').onclick=$('cancel-dialog').onclick=()=>$('editor-dialog').close();
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>selectTab(b.dataset.tab));
+function newStep() {
+  if (!current) return;
+  const guideId = current.guide.id;
+  const contexts = current.contexts;
+  if (!contexts.length) {
+    selectTab('contexts');
+    notify('יש להוסיף אפליקציה ללומדה לפני יצירת שלב.', true);
+    return;
+  }
+  const last = current.steps[current.steps.length - 1];
+  const previousContext = last ? (current.stepContexts?.[last.id] || null) : null;
+  const defaultContext = contexts.find(c => c.ContextId === previousContext)?.ContextId ||
+    contexts[0].ContextId;
+  modal('הוספת שלב', [
+    ...(contexts.length > 1 ? [{name:'contextId',label:'אפליקציית השלב',
+       value:defaultContext,choices:contexts.map(c => ({
+         value:c.ContextId, text:appLabel(c)
+       }))}] : []),
+    {name:'bubble',label:'טקסט הבועית',value:'',multiline:true,max:4000,
+     help:'שלב חדש ייווצר כשלב ידני. בהמשך ניתן יהיה להגדיר רכיב יעד ותנאי התקדמות.'},
+    {name:'placement',label:'מיקום הבועית',value:'Auto',choices:[
+      {value:'Auto',text:'אוטומטי'},{value:'Center',text:'מרכז'},
+      {value:'Top',text:'למעלה'},{value:'Bottom',text:'למטה'},
+      {value:'Right',text:'ימין'},{value:'Left',text:'שמאל'}
+    ]}
+  ],async v=>{
+    const created=await api('/guides/' + guideId + '/steps', {
+      method:'POST',body:JSON.stringify({contextId:v.contextId || defaultContext,
+        bubble:v.bubble,placement:v.placement})
+    });
+    await openGuide(guideId);
+    const row=[...document.querySelectorAll('[data-step]')]
+       .find(x=>x.dataset.step===created.stepId);
+    row?.click();
+    notify('השלב נוצר. כרגע התקדמותו ידנית עד שיוגדרו רכיב יעד ותנאי התקדמות.');
+  },'יצירת שלב');
+}
 function editStep(step, assignedContextId) {
   if (!current || !step) return;
   const guideId = current.guide.id;
