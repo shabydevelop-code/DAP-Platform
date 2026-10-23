@@ -6,7 +6,7 @@
   let active = true;
   let pickActive = false;
   let highlighted = null;
-  let overlay = null;
+  let previousOutline = null;
   let hoverPoll = null;
   let pickerNonce = null;
   const pendingTimers = new Set();
@@ -89,44 +89,36 @@
     return unique(selector) ? selector : null;
   }
 
+  // Outline is painted by the browser on the actual element's border box.
+  // Unlike a separate positioned overlay it cannot drift when a frame scrolls,
+  // has borders, or applies zoom/transforms. Outline does not affect layout.
   function clearHighlight() {
-    overlay?.remove();
-    overlay = null;
-    highlighted = null;
-  }
-
-  function positionHighlight() {
-    if (!highlighted || !overlay) return;
-    const rect = highlighted.getBoundingClientRect();
-    const top = Math.max(0, rect.top);
-    const left = Math.max(0, rect.left);
-    const bottom = Math.min(innerHeight, rect.bottom);
-    const right = Math.min(innerWidth, rect.right);
-    if (bottom <= top || right <= left) {
-      overlay.style.display = 'none';
-      return;
+    if (highlighted && previousOutline) {
+      for (const property of ['outline', 'outline-offset']) {
+        const old = previousOutline[property];
+        if (old.value)
+          highlighted.style.setProperty(property, old.value, old.priority);
+        else
+          highlighted.style.removeProperty(property);
+      }
     }
-    overlay.style.display = 'block';
-    Object.assign(overlay.style, {
-      top: top + 'px', left: left + 'px',
-      width: (right - left) + 'px', height: (bottom - top) + 'px'
-    });
+    highlighted = null;
+    previousOutline = null;
   }
 
   function showHighlight(target) {
-    if (target !== highlighted) {
-      clearHighlight();
-      highlighted = target;
-      overlay = document.createElement('div');
-      Object.assign(overlay.style, {
-        position:'fixed',border:'2px solid #3678e8',
-        background:'transparent',pointerEvents:'none',
-        zIndex:'2147483646',boxSizing:'border-box',
-        borderRadius:'2px'
-      });
-      document.documentElement.appendChild(overlay);
+    if (target === highlighted) return;
+    clearHighlight();
+    highlighted = target;
+    previousOutline = {};
+    for (const property of ['outline', 'outline-offset']) {
+      previousOutline[property] = {
+        value: target.style.getPropertyValue(property),
+        priority: target.style.getPropertyPriority(property)
+      };
     }
-    positionHighlight();
+    target.style.setProperty('outline', '2px solid #3678e8', 'important');
+    target.style.setProperty('outline-offset', '0px', 'important');
   }
 
   // Relay a selected element through its parent frames. The parent determines
@@ -179,7 +171,7 @@
     if (!pickActive) return;
     const hovered = document.querySelectorAll(':hover');
     const element = hovered.length ? hovered[hovered.length - 1] : null;
-    if (!(element instanceof Element) || element === overlay) return;
+    if (!(element instanceof Element)) return;
     // The child iframe owns its own highlight. Never paint its entire viewport.
     if (['HTML','BODY','IFRAME','FRAME','HEADER','MAIN'].includes(element.tagName)) {
       clearHighlight();
@@ -187,7 +179,6 @@
     }
     const target = element.closest('button,a,input,select,textarea,[role="button"],[role="textbox"],[role="link"]') || element;
     if (target !== highlighted) showHighlight(target);
-    else positionHighlight();
   }
   function pickHover(event) {
     if (!pickActive || !event.isTrusted) return;
