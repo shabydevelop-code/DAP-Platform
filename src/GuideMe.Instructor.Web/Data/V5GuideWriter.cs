@@ -411,6 +411,90 @@ WHERE GuideId=$guideId AND ContextId=$contextId";
     }
 
 
+    // Author-confirmed Web target: do not replace existing target/rules silently.
+    internal static void SaveWebTarget(long guideId, string stepId, string selector,
+        string condition)
+    {
+        if (string.IsNullOrWhiteSpace(selector) || selector.Length > 400 ||
+            selector.Contains('\\0'))
+            throw new ArgumentException("מזהה הרכיב אינו תקין.");
+        if (condition is not ("click" or "css-exists"))
+            throw new ArgumentException("תנאי ההתקדמות אינו נתמך.");
+
+        using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = V5GuideReader.DatabasePath, Mode = SqliteOpenMode.ReadWrite,
+            Pooling = false, DefaultTimeout = 3
+        }.ToString());
+        connection.Open();
+        using (var fk = connection.CreateCommand())
+        {
+            fk.CommandText = "PRAGMA foreign_keys=ON";
+            fk.ExecuteNonQuery();
+        }
+        using var transaction = connection.BeginTransaction();
+        using (var check = connection.CreateCommand())
+        {
+            check.Transaction = transaction;
+            check.CommandTimeout = 3;
+            check.CommandText = @"SELECT COUNT(*) FROM Steps s
+JOIN ApplicationContexts c ON c.GuideId=s.GuideId
+ AND c.ContextId=s.ApplicationContextId
+WHERE s.GuideId=$guideId AND s.StepId=$stepId AND c.Runtime='Web'";
+            check.Parameters.AddWithValue("$guideId", guideId);
+            check.Parameters.AddWithValue("$stepId", stepId);
+            if (Convert.ToInt64(check.ExecuteScalar()) != 1)
+                throw new InvalidOperationException("השלב אינו משויך לאפליקציית Web.");
+            check.CommandText = @"SELECT COUNT(*) FROM StepTargets
+WHERE GuideId=$guideId AND StepId=$stepId";
+            if (Convert.ToInt64(check.ExecuteScalar()) != 0)
+                throw new InvalidOperationException("כבר קיים רכיב יעד בשלב. אין מחליפים אותו ללא עריכה ייעודית.");
+            check.CommandText = @"SELECT COUNT(*) FROM StepRules
+WHERE GuideId=$guideId AND StepId=$stepId";
+            if (Convert.ToInt64(check.ExecuteScalar()) != 0)
+                throw new InvalidOperationException("כבר קיימים כללי התקדמות בשלב.");
+        }
+        var elementId = "element-" + Guid.NewGuid().ToString("N");
+        var locators = JsonSerializer.Serialize(new[] { new { Strategy = "css", Value = selector } });
+        using (var element = connection.CreateCommand())
+        {
+            element.Transaction = transaction;
+            element.CommandTimeout = 3;
+            element.CommandText = @"INSERT INTO Elements
+(GuideId, ElementId, Runtime, LocatorsJson)
+VALUES ($guideId, $elementId, 'Web', $locators)";
+            element.Parameters.AddWithValue("$guideId", guideId);
+            element.Parameters.AddWithValue("$elementId", elementId);
+            element.Parameters.AddWithValue("$locators", locators);
+            element.ExecuteNonQuery();
+        }
+        using (var target = connection.CreateCommand())
+        {
+            target.Transaction = transaction;
+            target.CommandTimeout = 3;
+            target.CommandText = @"INSERT INTO StepTargets
+(GuideId, StepId, UsageId, ElementId, Purpose)
+VALUES ($guideId, $stepId, 'primary', $elementId, 'Primary')";
+            target.Parameters.AddWithValue("$guideId", guideId);
+            target.Parameters.AddWithValue("$stepId", stepId);
+            target.Parameters.AddWithValue("$elementId", elementId);
+            target.ExecuteNonQuery();
+        }
+        using (var rule = connection.CreateCommand())
+        {
+            rule.Transaction = transaction;
+            rule.CommandTimeout = 3;
+            rule.CommandText = @"INSERT INTO StepRules
+(GuideId, StepId, RuleType, RuleId, Kind, TargetUsageId)
+VALUES ($guideId, $stepId, 'PrimaryValidation', 'primary', $condition, 'primary')";
+            rule.Parameters.AddWithValue("$guideId", guideId);
+            rule.Parameters.AddWithValue("$stepId", stepId);
+            rule.Parameters.AddWithValue("$condition", condition);
+            rule.ExecuteNonQuery();
+        }
+        transaction.Commit();
+    }
+
     // Edit only fields already represented by the V5 Steps entity.
     // Never recreate a step or overwrite its targets, rules or captures.
     internal static void UpdateStep(long guideId, string stepId, string? bubble, bool enabled, string? contextId)
