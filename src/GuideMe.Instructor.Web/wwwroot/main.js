@@ -232,7 +232,8 @@ async function refreshPicker() {
     '<label for="target-condition">תנאי התקדמות</label>'+
     '<select id="target-condition">'+
     '<option value="clicked">המשתמש לוחץ על הרכיב</option>'+
-    '<option value="value-not-empty">הוזן ערך בשדה</option>'+\n    '<option value="target-disappeared">הרכיב נעלם בעקבות הפעולה</option>'+
+    '<option value="value-not-empty">הוזן ערך בשדה</option>'+
+    '<option value="target-disappeared">הרכיב נעלם בעקבות הפעולה</option>'+
     '</select><div class="target-actions">'+
     '<button id="save-web-target" class="btn primary">אישור ושמירת רכיב</button>'+
     '<button id="cancel-web-target" class="btn secondary">ביטול</button></div>';
