@@ -266,6 +266,25 @@ app.MapPut("/api/guides/{id:long}/steps/{stepId}/validation",
     return Results.NoContent();
 });
 
+// The common test action needs Chrome transport only when an enabled Web step
+// will execute. Windows-only guides never depend on a browser extension.
+app.MapGet("/api/guides/{id:long}/test-requirements", (long id, string? startStepId) =>
+{
+    if (V5GuideReader.ListGuides().All(g => g.Id != id)) return Results.NotFound();
+    var steps = V5GuideReader.ReadGuideTable(id, "Steps").Rows.Cast<DataRow>()
+        .OrderBy(r => Convert.ToInt32(r["StepOrder"])).ToArray();
+    var start = startStepId is null ? 0 :
+        Array.FindIndex(steps, s => string.Equals(s["StepId"].ToString(), startStepId, StringComparison.Ordinal));
+    if (start < 0) return Results.BadRequest(new { message = "שלב ההתחלה אינו קיים." });
+    var webContexts = V5GuideReader.ReadGuideTable(id, "ApplicationContexts")
+        .Rows.Cast<DataRow>().Where(r => r["Runtime"].ToString() == "Web")
+        .Select(r => r["ContextId"].ToString()).ToHashSet(StringComparer.Ordinal);
+    var requiresChromeExtension = steps.Skip(start).Any(s =>
+        Convert.ToInt64(s["IsEnabled"]) == 1 &&
+        webContexts.Contains(s["ApplicationContextId"].ToString()));
+    return Results.Ok(new { requiresChromeExtension });
+});
+
 // Test the persisted guide with the production Learner, optionally starting
 // at an editor-selected step. No preceding application actions are replayed.
 app.MapPost("/api/guides/{id:long}/test", (long id, string? startStepId) =>
