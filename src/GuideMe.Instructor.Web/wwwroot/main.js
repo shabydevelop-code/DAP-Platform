@@ -367,13 +367,6 @@ $('editor-dialog').addEventListener('close', () => {
   if (modalReturnFocus?.isConnected && !modalReturnFocus.closest('[hidden],.hidden')) modalReturnFocus.focus();
   modalReturnFocus = null;
 });
-const runtimeField=(value='Web')=>({name:'runtime',label:'סוג אפליקציה',value,choices:[{value:'Web',text:'Web — דפדפן'},{value:'Windows',text:'Windows — יישום מקומי'}]});
-function contextFields(c=null) {
-  let raw={};try{raw=JSON.parse(c?.MatchersJson || '[]')[0] || {}}catch{}
-  return [{name:'contextId',label:'מזהה אפליקציה',value:c?.ContextId||'',help:'מזהה יציב, לדוגמה web-main או windows-main'},
-    runtimeField(c?.Runtime||'Web'),{name:'matcherValue',label:'ערך זיהוי',value:raw.Value||'',help:'Web: localhost:5200 · Windows: שם התהליך ללא exe'}];
-}
-function contextPayload(v) {return {contextId:v.contextId.trim(),runtime:v.runtime,matcherProperty:v.runtime==='Web'?'UrlHost':'ProcessName',matcherValue:v.matcherValue.trim()};}
 async function discoverApplications() {
   const discovery = await api('/discovery');
   const unique = new Map();
