@@ -67,7 +67,7 @@ async function api(path, options = {}) {
   }
   if (!response.ok) {
     let body = await response.text();
-    try { const err = JSON.parse(body); body = err.detail || err.title || body; } catch {}
+    try { const err = JSON.parse(body); body = err.message || err.detail || err.title || body; } catch {}
     throw new Error(body || 'שגיאה בתקשורת עם השרת המקומי (' + response.status + ')');
   }
   return response.status === 204 ? null : response.json();
