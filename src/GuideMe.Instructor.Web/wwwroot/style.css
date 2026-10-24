@@ -175,3 +175,9 @@ p,.panel-header p,.step-body small,.empty,.empty-inspector{color:#52657a}
 #editor-dialog .fields{gap:12px;padding-top:16px}
 #editor-dialog .dialog-head{padding-top:17px;padding-bottom:17px}
 #editor-dialog .dialog-actions{padding-top:12px;padding-bottom:16px}
+
+/* Global persistence status: visible without scrolling or changing panels. */
+.save-status { white-space: nowrap; }
+.save-status[data-state="dirty"] { border-color: #b7791f; color: #854d0e; }
+.save-status[data-state="saving"] { border-color: #64748b; }
+.save-status[data-state="error"] { border-color: #b91c1c; color: #b91c1c; }
