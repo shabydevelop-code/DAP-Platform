@@ -248,7 +248,7 @@ function renderSteps() {
         (locatorText ? '<p>רכיב שנבחר: <strong>' + esc(friendlyName) + '</strong></p>' +
           '<p class="target-technical">מזהה רכיב: <code dir="ltr">' + esc(locatorText) + '</code></p>' : '') :
         '<p>עדיין לא נבחר רכיב לשלב הזה.</p>') +
-      (context?.Runtime === 'Web' && target ?
+      ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') && target ?
         '<button class="btn secondary small" id="replace-web-target">בחירת רכיב אחר</button>' : '') +
       '</section>' +
       '<section class="step-friendly-card"><h3>מתי ממשיכים לשלב הבא?</h3>' +
@@ -296,7 +296,8 @@ function renderSteps() {
     });
     const targetReplace = $('replace-web-target');
     if (targetReplace) targetReplace.onclick = () => guarded(() =>
-      beginWebPicker(current.guide.id, step.id, contextId, true));
+      context?.Runtime === 'Windows' ? $('pick-windows-element').click() :
+        beginWebPicker(current.guide.id, step.id, contextId, true));
     const conditionEditor = $('edit-validation');
     if (conditionEditor) conditionEditor.onclick = () => editValidation(step, rule);
     if (context?.Runtime === 'Windows') {
@@ -304,7 +305,7 @@ function renderSteps() {
       section.className = 'target-editor';
       section.innerHTML = '<h3>בחירת רכיב</h3>' +
         '<button id="pick-windows-element" class="btn primary">הפעלת ממפה רכיבים</button>' +
-        '<div id="windows-pick-result" aria-live="polite"></div>';
+        '<div id="pick-result" class="hidden" aria-live="polite"></div>';
       $('step-inspector').append(section);
       const matchers = parseJson(context.MatchersJson, []);
       const resolveWindow = async () => {
@@ -325,7 +326,8 @@ function renderSteps() {
       };
       $('pick-windows-element').onclick = () => guarded(async () => {
         const pid = await resolveWindow();
-        const result = $('windows-pick-result');
+        const result = $('pick-result');
+        result.classList.remove('hidden');
         result.textContent = 'ממפה הרכיבים פעיל. עבור לאפליקציית היעד, העבר את העכבר מעל הרכיב ולחץ Ctrl+Shift+Space לבחירה.';
         await api('/windows/picker/start', {method:'POST',body:JSON.stringify({processId:pid})});
         const guideId = current.guide.id, stepId = step.id;
@@ -338,12 +340,22 @@ function renderSteps() {
           if (status.error) { result.textContent = status.error; return; }
           if (status.picked && status.selection) {
             const info = status.selection;
-            result.innerHTML = '<p>רכיב שנבחר: <strong>' + esc(info.name || '(ללא שם)') +
-              '</strong> · <code dir="ltr">' + esc(info.controlType) + '</code></p>' +
-              (info.locators?.length ? '<p>מזהים: ' + info.locators.map(x =>
-                '<code dir="ltr">' + esc(x.strategy) + ': ' + esc(x.value) + '</code>').join(' · ') + '</p>' : '') +
-              (info.error ? '<p role="alert">' + esc(info.error) + '</p>' : '') +
-              '<p>הרכיב זוהה. שמירה בלומדה תחובר בשלב הבא.</p>';
+            const candidate = {
+              selector: info.locators?.[0]?.value || '',
+              label: info.name || info.controlType,
+              tag: info.controlType === 'ControlType.Edit' ? 'input' : 'button',
+              locators: info.locators || []
+            };
+            pickingFor = {guideId,stepId,contextId,runtime:'Windows',processId:pid,
+              replacing:!!target,completion:false,startedAt:Date.now()};
+            renderPickedTarget(candidate, result);
+            if (info.error) {
+              const warning = document.createElement('p');
+              warning.setAttribute('role','alert');
+              warning.textContent = info.error;
+              result.prepend(warning);
+              $('save-web-target').disabled = true;
+            }
             return;
           }
           if (!status.picking) { result.textContent = 'בחירת הרכיב הופסקה.'; return; }
@@ -474,7 +486,12 @@ async function refreshPicker() {
     box.textContent = state.pickReady ? 'ממפה פעיל: העבר עכבר מעל רכיב ולחץ Ctrl+Shift+Space לבחירה (Esc לביטול).' : 'מפעיל בחירת רכיב…';
     return;
   }
-  const candidate = state.picked;
+  renderPickedTarget(state.picked, box);
+}
+function renderPickedTarget(candidate, box) {
+  if (!pickingFor) return;
+  if (box.dataset.pickedSelector === candidate.selector) return;
+  box.dataset.pickedSelector = candidate.selector;
   if (box.dataset.pickedSelector === candidate.selector) return;
   box.dataset.pickedSelector = candidate.selector;
   box.innerHTML = '<p><strong>הרכיב שנבחר:</strong> '+esc(candidate.label || candidate.tag || 'רכיב')+'</p>'+
@@ -504,378 +521,3 @@ async function refreshPicker() {
     '<div class="target-actions">'+
     '<button id="save-web-target" class="btn primary">אישור ושמירת רכיב</button>'+
     '<button id="cancel-web-target" class="btn secondary">ביטול</button></div>';
-  if (pickingFor.completion) {
-    const condition = $('target-condition');
-    const updateFields = () => $('attribute-condition-fields').classList.toggle('hidden',
-      condition.value !== 'attribute-equals');
-    condition.addEventListener('change', updateFields);
-    updateFields();
-  }
-  $('save-web-target').onclick = async () => {
-    const saveButton = $('save-web-target');
-    const cancelButton = $('cancel-web-target');
-    const pickedFor = pickingFor;
-    if (!pickedFor || saveButton.disabled) return;
-    saveButton.disabled = true;
-    cancelButton.disabled = true;
-    const originalLabel = saveButton.textContent;
-    saveButton.textContent = 'שומר רכיב...';
-    let result = $('target-save-feedback');
-    if (!result) {
-      result = document.createElement('p');
-      result.id = 'target-save-feedback';
-      result.setAttribute('role', 'status');
-      box.appendChild(result);
-    }
-    result.textContent = '';
-    try {
-      const gridChoice = $('grid-row-choice')?.value;
-      const gridChoiceIndex = gridChoice === undefined || gridChoice === '' ? null : Number(gridChoice);
-      if (pickedFor.completion) {
-        await api('/guides/'+pickedFor.guideId+'/steps/'+encodeURIComponent(pickedFor.stepId)+'/completion-target',
-          {method:'POST',body:JSON.stringify({kind:$('target-condition').value,
-            stateAttributeIndex:$('target-condition').value === 'attribute-equals' && (candidate.stateAttributes || []).length
-              ? Number($('completion-state-choice').value) : null})});
-      } else {
-        await api('/guides/'+pickedFor.guideId+'/steps/'+encodeURIComponent(pickedFor.stepId)+'/web-target',
-          pickedFor.replacing ? {method:'PUT',body:JSON.stringify({gridChoice:gridChoiceIndex})} :
-            {method:'POST',body:JSON.stringify({condition:$('target-condition').value,gridChoice:gridChoiceIndex})});
-      }
-      pickingFor = null;
-      result.textContent = 'הרכיב נשמר בהצלחה.';
-      await openGuide(pickedFor.guideId);
-      const item = [...document.querySelectorAll('[data-step]')]
-        .find(x => x.dataset.step === pickedFor.stepId);
-      if (item) await item.click();
-      notify(pickedFor.replacing
-        ? 'הרכיב הוחלף בהצלחה. תנאי ההתקדמות נשאר ללא שינוי.'
-        : pickedFor.completion ? 'תנאי ההשלמה נשמר.' : 'רכיב היעד ותנאי ההתקדמות נשמרו.');
-    } catch (error) {
-      result.textContent = 'השמירה נכשלה: ' + (error.message || String(error));
-      result.classList.add('save-error');
-      saveButton.disabled = false;
-      cancelButton.disabled = false;
-      saveButton.textContent = originalLabel;
-    }
-  };
-  $('cancel-web-target').onclick = () => guarded(async () => {
-    await api('/target-picker/cancel',{method:'POST',body:'{}'});
-    pickingFor = null;
-    markClean();
-    box.textContent = 'הבחירה בוטלה.';
-  });
-}
-setInterval(() => { if (pickingFor) void guarded(refreshPicker); }, 1500);
-function appLabel(c) { if(c.DisplayName) return c.DisplayName; try { const m=JSON.parse(c.MatchersJson || '[]')[0]; return m?.Value ? c.Runtime + ' · ' + m.Value : c.ContextId; } catch { return c.ContextId; } }
-function matcher(c) { try { return JSON.parse(c.MatchersJson || '[]').map(m=>m.Kind+': '+m.Value).join(', '); }catch{return '—';} }
-function renderContexts() {
-  $('contexts-list').innerHTML = current.contexts.length ? current.contexts.map((c,i) =>
-    '<div class="context-card"><div><span class="chip ' + (c.Runtime === 'Windows'?'win':'') + '">' + esc(c.Runtime) + '</span> <span class="context-name">' + esc(appLabel(c)) + '</span><div class="context-meta">' + esc(matcher(c)) + '</div></div><div class="context-actions"><button class="btn secondary small" data-context-rename="' + i + '">שינוי שם</button><button class="btn secondary small" data-context-edit="' + i + '">החלפת יעד</button><button class="btn danger small" data-context-delete="' + i + '">הסרה</button></div></div>').join('')
-    : '<div class="empty">טרם נוספו אפליקציות ללומדה.</div>';
-  document.querySelectorAll('[data-context-rename]').forEach(b=>b.onclick=()=>renameContext(current.contexts[Number(b.dataset.contextRename)]));
-  document.querySelectorAll('[data-context-edit]').forEach(b=>b.onclick=()=>editContext(current.contexts[Number(b.dataset.contextEdit)]));
-  document.querySelectorAll('[data-context-delete]').forEach(b=>b.onclick=()=>guarded(()=>deleteContext(current.contexts[Number(b.dataset.contextDelete)])));
-}
-function modal(title, fields, submit, buttonText='שמירה') {
-  modalReturnFocus = document.activeElement;
-  $('dialog-title').textContent=title;
-  $('dialog-fields').innerHTML='<div class="fields">' + fields.map(f=>{
-    const label='<label for="field-'+f.name+'">'+esc(f.label)+'</label>';
-    const helpId='help-'+f.name;
-    const helpAttr=f.help?' aria-describedby="'+helpId+'"':'';
-    const field=f.choices?'<select id="field-'+f.name+'" name="'+f.name+'"'+helpAttr+'>'+f.choices.map(v=>'<option value="'+esc(v.value)+'" '+(v.value===f.value?'selected':'')+'>'+esc(v.text)+'</option>').join('')+'</select>'
-    :f.multiline?'<textarea id="field-'+f.name+'" name="'+f.name+'"'+helpAttr+' maxlength="'+(f.max||4000)+'" rows="3">'+esc(f.value||'')+'</textarea>'
-    :'<input id="field-'+f.name+'" name="'+f.name+'"'+helpAttr+' value="'+esc(f.value||'')+'" maxlength="'+(f.max||256)+'" '+(f.optional?'':'required')+'>';
-    return '<div class="field">'+label+field+(f.help?'<div class="field-help" id="'+helpId+'">'+esc(f.help)+'</div>':'')+'</div>';
-  }).join('')+'</div>';
-  $('submit-dialog').textContent=buttonText;
-  const form=$('editor-form');
-  form.onsubmit=e=>{e.preventDefault();const values=Object.fromEntries(new FormData(form).entries());guarded(async()=>{await submit(values);$('editor-dialog').close();});};
-  const baseline = new URLSearchParams(new FormData(form)).toString();
-  const onChange = () => {
-    if (new URLSearchParams(new FormData(form)).toString() !== baseline) markDirty();
-    else markClean();
-  };
-  form.oninput = onChange;
-  form.onchange = onChange;
-  $('editor-dialog').showModal();
-  form.querySelector('input,textarea,select')?.focus();
-}
-$('editor-dialog').addEventListener('close', () => {
-  if (modalReturnFocus?.isConnected && !modalReturnFocus.closest('[hidden],.hidden')) modalReturnFocus.focus();
-  modalReturnFocus = null;
-  if (pendingChanges) markClean();
-});
-async function discoverApplications() {
-  const discovery = await api('/discovery');
-  const unique = new Map();
-  for (const tab of (discovery.web || [])) {
-    try {
-      const url = new URL(tab.url);
-      if (url.protocol !== 'http:' && url.protocol !== 'https:') continue;
-      if (url.host === location.host) continue;
-      const key = 'Web:' + url.host;
-      if (!unique.has(key))
-        unique.set(key, {runtime:'Web', title:tab.title || url.host,
-          matcherProperty:'UrlHost', matcherValue:url.host});
-    } catch {}
-  }
-  for (const win of (discovery.windows || [])) {
-    if (!win.processName) continue;
-    const key = 'Windows:' + win.processName.toLowerCase();
-    if (!unique.has(key))
-      unique.set(key, {runtime:'Windows',title:win.title || win.processName,
-        matcherProperty:'ProcessName',matcherValue:win.processName});
-  }
-  const apps = [...unique.values()];
-  return { discovery, apps };
-}
-function applicationChoices(apps, selectedValues = []) {
-  return apps.length ? '<div class="application-picker">' + apps.map((app, i) =>
-    '<label class="application-option"><input type="checkbox" name="app" value="' + i + '"' +
-    (selectedValues.includes(i) ? ' checked' : '') + '>' +
-    '<span><strong>' + esc(app.title) + '</strong><small>' +
-    esc(app.runtime + ' · ' + app.matcherValue) + '</small></span></label>').join('') + '</div>' :
-    '<p>לא אותרו אפליקציות. פתח אתר ב־Chrome או תוכנת Windows ולאחר מכן לחץ רענון.</p>';
-}
-async function newGuide() {
-  const { discovery, apps } = await discoverApplications();
-  $('dialog-title').textContent = 'יצירת לומדה חדשה';
-  $('submit-dialog').textContent = 'יצירת לומדה';
-  $('dialog-fields').innerHTML =
-    '<div class="fields"><div class="field"><label for="guide-new-name">שם הלומדה</label>' +
-    '<input id="guide-new-name" name="name" maxlength="256" required autocomplete="off"></div>' +
-    '<div class="field"><label>אפליקציות משתתפות</label>' +
-    '<p>בחר אפליקציה אחת או יותר מבין האפליקציות הפתוחות. הזיהוי יישמר אוטומטית.</p>' +
-    applicationChoices(apps) +
-    '<button type="button" class="btn secondary small" id="refresh-applications">רענון אפליקציות</button>' +
-    (!discovery.webConnected ? '<p>תוסף Instructor אינו מחובר — רשימת אתרי Web אינה זמינה.</p>' : '') +
-    '</div></div>';
-  $('refresh-applications').onclick = () => guarded(newGuide);
-  $('editor-form').onsubmit = event => {
-    event.preventDefault();
-    guarded(async () => {
-      const name = $('guide-new-name').value.trim();
-      const selected = [...document.querySelectorAll('input[name="app"]:checked')]
-        .map(el => apps[Number(el.value)]);
-      if (!selected.length) throw new Error('יש לבחור לפחות אפליקציה אחת.');
-      const applications = selected.map((app, index) => ({
-        contextId:'app-' + (index + 1), runtime:app.runtime,
-        matcherProperty:app.matcherProperty,matcherValue:app.matcherValue
-      }));
-      const guide = await api('/guides', {method:'POST',
-        body:JSON.stringify({name,applications})});
-      $('editor-dialog').close();
-      await loadGuides();
-      await openGuide(guide.id);
-      notify('הלומדה נוצרה עם ' + applications.length + ' אפליקציות.');
-    });
-  };
-  if (!$('editor-dialog').open) $('editor-dialog').showModal();
-  $('guide-new-name').focus();
-}
-function renameGuide() {
-  modal('שינוי שם הלומדה',[{name:'name',label:'שם הלומדה',value:current.guide.name}],async v=>{
-    await api('/guides/'+current.guide.id+'/name',{method:'PUT',body:JSON.stringify({name:v.name})});
-    const id=current.guide.id;await loadGuides();await openGuide(id);notify('שם הלומדה עודכן.');
-  });
-}
-function deleteGuide() {
-  if (!current) return;
-  const guide = { ...current.guide };
-  // Typing the exact name is required before the destructive request is sent.
-  modal('מחיקת לומדה', [
-    {name:'name', label:'הקלד את שם הלומדה לאישור מחיקה', value:'', max:256,
-      help:'פעולה בלתי הפיכה: הלומדה וכל שלביה, רכיביה וכללי ההתקדמות שלה יימחקו. שם לאישור: ' + guide.name}
-  ], async values => {
-    if (values.name !== guide.name)
-      throw new Error('שם הלומדה אינו תואם. המחיקה לא בוצעה.');
-    await api('/guides/' + guide.id, {
-      method:'DELETE', body:JSON.stringify({name: values.name})
-    });
-    showList();
-    await loadGuides();
-    notify('הלומדה "' + guide.name + '" נמחקה.');
-  }, 'מחיקה לצמיתות');
-}
-async function chooseContextApplication(existing = null) {
-  const guideId = current.guide.id;
-  const { discovery, apps: discovered } = await discoverApplications();
-  const apps = discovered.filter(app => existing ||
-    !current.contexts.some(c => {
-      let matcher; try { matcher = JSON.parse(c.MatchersJson || '[]')[0]; } catch {}
-      return c.Runtime === app.runtime && matcher?.Value?.toLowerCase() === app.matcherValue.toLowerCase();
-    }));
-  $('dialog-title').textContent = existing ? 'החלפת יעד אפליקציה' : 'הוספת אפליקציה';
-  $('submit-dialog').textContent = existing ? 'החלפת יעד' : 'הוספת אפליקציה';
-  $('dialog-fields').innerHTML =
-    '<div class="fields"><div class="field"><label>בחר אפליקציה פתוחה</label>' +
-    '<p>הזיהוי יישמר אוטומטית. אין צורך להזין פרטים טכניים.</p>' +
-    applicationChoices(apps) +
-    '<button type="button" class="btn secondary small" id="refresh-applications">רענון אפליקציות</button>' +
-    (!discovery.webConnected ? '<p>תוסף Instructor אינו מחובר — רשימת אתרי Web אינה זמינה.</p>' : '') +
-    (existing ? '<p>מיפויי השלבים הקיימים לא ישונו. לאחר ההחלפה יש לוודא שהם מתאימים לאפליקציה החדשה.</p>' : '') +
-    '</div></div>';
-  $('refresh-applications').onclick = () => guarded(() => chooseContextApplication(existing));
-  $('editor-form').onsubmit = event => {
-    event.preventDefault();
-    guarded(async () => {
-      const indexes = [...document.querySelectorAll('input[name="app"]:checked')].map(el => Number(el.value));
-      if (indexes.length !== 1) throw new Error('יש לבחור אפליקציה אחת.');
-      const app = apps[indexes[0]];
-      if (!app) throw new Error('האפליקציה שנבחרה אינה זמינה.');
-      if (existing && !confirm('להחליף את יעד האפליקציה? מיפויי השלבים הקיימים יישמרו ללא שינוי וייתכן שיידרש למפות אותם מחדש.')) return;
-      const used = new Set(current.contexts.map(c => c.ContextId));
-      let contextId = existing?.ContextId;
-      if (!contextId) {
-        let index = 1;
-        while (used.has('app-' + index)) index++;
-        contextId = 'app-' + index;
-      }
-      await api('/guides/' + guideId + '/contexts', {
-        method:'POST', body:JSON.stringify({
-          contextId, runtime:app.runtime,
-          matcherProperty:app.matcherProperty, matcherValue:app.matcherValue
-        })
-      });
-      $('editor-dialog').close();
-      await openGuide(guideId);
-      selectTab('contexts');
-      notify(existing ? 'יעד האפליקציה עודכן. יש לבדוק את מיפויי השלבים.' : 'האפליקציה נוספה.');
-    });
-  };
-  if (!$('editor-dialog').open) $('editor-dialog').showModal();
-}
-function addContext() { return guarded(() => chooseContextApplication()); }
-function renameContext(c) {
-  modal('שינוי שם אפליקציה',[{name:'name',label:'שם תצוגה',value:c.DisplayName||c.ContextId,max:100}],async v=>{
-    await api('/guides/'+current.guide.id+'/contexts/'+encodeURIComponent(c.ContextId)+'/name',{method:'PUT',body:JSON.stringify({name:v.name})});
-    const id=current.guide.id;await openGuide(id);selectTab('contexts');notify('שם האפליקציה עודכן.');
-  });
-}
-function editContext(c) { return guarded(() => chooseContextApplication(c)); }
-async function deleteContext(c) {
-  if(!confirm('להסיר את האפליקציה "'+(c.DisplayName||c.ContextId)+'"? ההסרה תתאפשר רק אם אין שלבים שתלויים בה.'))return;
-  await api('/guides/'+current.guide.id+'/contexts/'+encodeURIComponent(c.ContextId),{method:'DELETE',body:'{}'});
-  const id=current.guide.id;await openGuide(id);selectTab('contexts');notify('האפליקציה הוסרה.');
-}
-$('guide-search').addEventListener('input',renderGuides);
-$('step-search').addEventListener('input',()=>{if(current)renderSteps()});
-$('new-guide').onclick=()=>guarded(newGuide);
-// The Learner extension must acknowledge a real Native Host ping before
-// launching GuideMe.exe. A missing content script means Instructor needs a
-// reload after the extension was installed or updated.
-function verifyLearnerTransport() {
-  return new Promise((resolve, reject) => {
-    const requestId = crypto.randomUUID();
-    let settled = false;
-    const finish = error => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timeout);
-      document.removeEventListener('guideme:instructor-test-pong', onPong);
-      if (error) reject(new Error(error)); else resolve();
-    };
-    const onPong = event => {
-      if (event.detail?.requestId !== requestId) return;
-      finish(event.detail.ok ? null :
-        'תוסף ה־Learner לא הצליח לתקשר עם Native Host: ' + (event.detail.error || 'שגיאה לא ידועה'));
-    };
-    document.addEventListener('guideme:instructor-test-pong', onPong);
-    const timeout = setTimeout(() => finish(
-      'לא התקבל אישור מתוסף ה־Learner. ודא שהתוסף GuideMe פעיל ב־Chrome ורענן את חלון ה־Instructor (Ctrl+R) לאחר עדכון התוסף.'
-    ), 6000);
-    document.dispatchEvent(new CustomEvent('guideme:instructor-test-ping', { detail: { requestId } }));
-  });
-}
-$('test-guide').onclick=()=>guarded(async()=>{
-  if (!current || !confirmDiscard()) return;
-  const button=$('test-guide');
-  button.disabled=true;
-  try {
-    await verifyLearnerTransport();
-    await api('/guides/'+current.guide.id+'/test',{method:'POST',body:'{}'});
-    notify('ה־Learner הופעל לבדיקת הלומדה מתחילתה. יש להכין את אפליקציית היעד למצב ההתחלתי.');
-  } finally { button.disabled=false; }
-});
-$('rename-guide').onclick=renameGuide;
-$('delete-guide').onclick=deleteGuide;
-$('add-context').onclick=addContext;
-$('new-step').onclick=newStep;
-$('back').onclick=showList;
-$('close-dialog').onclick=$('cancel-dialog').onclick=()=>{
-  if (confirmDiscard()) $('editor-dialog').close();
-};
-$('editor-dialog').addEventListener('cancel', e => {
-  if (!confirmDiscard()) e.preventDefault();
-});
-document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>selectTab(b.dataset.tab));
-function newStep() {
-  if (!current) return;
-  const guideId = current.guide.id;
-  const contexts = current.contexts;
-  if (!contexts.length) {
-    selectTab('contexts');
-    notify('יש להוסיף אפליקציה ללומדה לפני יצירת שלב.', true);
-    return;
-  }
-  const last = current.steps[current.steps.length - 1];
-  const previousContext = last ? (current.stepContexts?.[last.id] || null) : null;
-  const defaultContext = contexts.find(c => c.ContextId === previousContext)?.ContextId ||
-    contexts[0].ContextId;
-  modal('הוספת שלב', [
-    {name:'contextId',label:'אפליקציית יעד',value:defaultContext,
-     choices:contexts.map(c => ({value:c.ContextId,text:appLabel(c)}))},
-    {name:'bubble',label:'מה להציג ללומד?',value:'',multiline:true,max:4000,
-     help:'לאחר יצירת השלב ניתן לבחור רכיב יעד ולהגדיר תנאי התקדמות.'}
-  ],async v=>{
-    const created=await api('/guides/' + guideId + '/steps', {
-      method:'POST',body:JSON.stringify({contextId:v.contextId || defaultContext,
-        bubble:v.bubble,placement:"Center"})
-    });
-    await openGuide(guideId);
-    const row=[...document.querySelectorAll('[data-step]')]
-       .find(x=>x.dataset.step===created.stepId);
-    row?.click();
-    notify('השלב נוצר. כרגע התקדמותו ידנית עד שיוגדרו רכיב יעד ותנאי התקדמות.');
-  },'יצירת שלב');
-}
-function editStep(step, assignedContextId) {
-  if (!current || !step) return;
-  const guideId = current.guide.id;
-  const stepId = step.id;
-  const contexts = current.contexts;
-  const selectedContext = contexts.some(c => c.ContextId === assignedContextId)
-    ? assignedContextId : contexts[0]?.ContextId;
-  modal('עריכת שלב ' + step.order, [
-    {name:'contextId',label:'אפליקציית יעד',value:selectedContext,
-     choices:contexts.map(c => ({value:c.ContextId,text:appLabel(c)}))},
-    {name:'bubble', label:'טקסט הבועית', value:step.bubble || '', max:4000, multiline:true,
-     help:'השינוי ישפיע על תוכן הבועית בלבד. רכיבי יעד וכללי התקדמות אינם משתנים.'},
-    {name:'enabled', label:'מצב השלב', value: step.enabled ? 'true' : 'false',
-     choices:[{value:'true',text:'פעיל'},{value:'false',text:'מושבת'}]}
-  ], async values => {
-    await api('/guides/' + guideId + '/steps/' + encodeURIComponent(stepId), {
-      method:'PUT', body:JSON.stringify({bubble:values.bubble, enabled:values.enabled === 'true',
-        contextId:values.contextId || selectedContext || null})
-    });
-    await openGuide(guideId);
-    const row = [...document.querySelectorAll('[data-step]')].find(b=>b.dataset.step===stepId);
-    if (row) row.click();
-    notify('פרטי השלב נשמרו.');
-  });
-}
-// Connection is automatic. No standalone pairing or recording controls.
-async function refreshExtensionStatus() {
-  try {
-    const state = await api('/capture/status');
-    $('capture-status').textContent = state.connected ? 'תוסף מחובר' : 'תוסף לא מחובר';
-    $('capture-status').classList.toggle('disconnected', !state.connected);
-  } catch {
-    $('capture-status').textContent = 'התוסף אינו זמין';
-    $('capture-status').classList.add('disconnected');
-  }
-}
-void refreshExtensionStatus();
-setInterval(() => { if (!document.hidden) void refreshExtensionStatus(); }, 3000);
-guarded(loadGuides);
