@@ -352,6 +352,11 @@ async function refreshPicker() {
   box.innerHTML = '<p><strong>הרכיב שנבחר:</strong> '+esc(candidate.label || candidate.tag || 'רכיב')+'</p>'+
     (candidate.framePath?.length ? '<p><strong>נתיב מסגרות:</strong> '+candidate.framePath.map(esc).join(' → ')+'</p>' : '')+
     '<p class="target-technical">מזהה רכיב: <code dir="ltr">'+esc(candidate.selector)+'</code></p>'+
+    (!pickingFor.completion && candidate.gridChoices?.length ?
+      '<label for="grid-row-choice">זיהוי שורה לפי תוכן בעמודה</label>'+
+      '<select id="grid-row-choice"><option value="">בחירת הרכיב הרגילה (לפי מיקום)</option>'+
+      candidate.gridChoices.map((choice,i)=>'<option value="'+i+'">'+esc(choice.header)+': '+esc(choice.value)+'</option>').join('')+
+      '</select><p>בחירה לפי ערך תישאר תקפה גם לאחר מיון הטבלה. אם הערך אינו ייחודי, הוא לא יוצע.</p>' : '')+
     (pickingFor.replacing ? '' : '<label for="target-condition">' + (pickingFor.completion ? 'חוק השלמה' : 'תנאי התקדמות') + '</label>')+
     (pickingFor.replacing ? '' : '<select id="target-condition">'+
     (pickingFor.completion ? '<option value="target-appeared">הופיע</option><option value="target-vanished">נעלם</option>' :
@@ -379,13 +384,15 @@ async function refreshPicker() {
     }
     result.textContent = '';
     try {
+      const gridChoice = $('grid-row-choice')?.value;
+      const gridChoiceIndex = gridChoice === undefined || gridChoice === '' ? null : Number(gridChoice);
       if (pickedFor.completion) {
         await api('/guides/'+pickedFor.guideId+'/steps/'+encodeURIComponent(pickedFor.stepId)+'/completion-target',
           {method:'POST',body:JSON.stringify({kind:$('target-condition').value})});
       } else {
         await api('/guides/'+pickedFor.guideId+'/steps/'+encodeURIComponent(pickedFor.stepId)+'/web-target',
-          pickedFor.replacing ? {method:'PUT',body:'{}'} :
-            {method:'POST',body:JSON.stringify({condition:$('target-condition').value})});
+          pickedFor.replacing ? {method:'PUT',body:JSON.stringify({gridChoice:gridChoiceIndex})} :
+            {method:'POST',body:JSON.stringify({condition:$('target-condition').value,gridChoice:gridChoiceIndex})});
       }
       pickingFor = null;
       result.textContent = 'הרכיב נשמר בהצלחה.';
