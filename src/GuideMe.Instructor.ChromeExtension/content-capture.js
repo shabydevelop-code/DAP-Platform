@@ -263,12 +263,12 @@
         const rows = [...table.querySelectorAll('tbody tr')];
         const headers = [...table.querySelectorAll('thead th')];
         [...row.cells].forEach((cell, index) => {
-          const value = cell.textContent.replace(/\\s+/g, ' ').trim();
-          if (!value || value.length > 120 || /[\\r\\n]/.test(value)) return;
+          const value = cell.textContent.replace(/\s+/g, ' ').trim();
+          if (!value || value.length > 120 || /[\r\n]/.test(value)) return;
           const matches = rows.filter(other =>
-            other.cells[index]?.textContent.replace(/\\s+/g, ' ').trim() === value);
+            other.cells[index]?.textContent.replace(/\s+/g, ' ').trim() === value);
           if (matches.length !== 1 || matches[0] !== row) return;
-          const header = headers[index]?.textContent.replace(/\\s+/g, ' ').trim().slice(0, 60) || 'עמודה ' + (index + 1);
+          const header = headers[index]?.textContent.replace(/\s+/g, ' ').trim().slice(0, 60) || 'עמודה ' + (index + 1);
           const rowSelector = tableSelector + ' tbody tr:cell-text(' + (index + 1) + ',' + JSON.stringify(value) + ')';
           if (rowSelector.length <= 400) gridChoices.push({header, value, selector:rowSelector});
         });
