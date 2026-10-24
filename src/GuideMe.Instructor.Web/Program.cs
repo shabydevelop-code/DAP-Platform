@@ -120,7 +120,8 @@ app.Lifetime.ApplicationStopping.Register(windowsPicker.Dispose);
 app.MapPost("/api/windows/picker/start", (WindowsInspectRequest request) =>
 {
     // Resolve the selected application before creating the non-activating overlay.
-    var activated = InstructorTargetActivation.Activate(request.ProcessId);
+    using var targetProcess = Process.GetProcessById(request.ProcessId);
+    var activated = GuideMe.Runtime.Windows.Targets.WindowsWindowActivation.Activate(targetProcess.MainWindowHandle);
     var status = windowsPicker.Start(request.ProcessId);
     return Results.Ok(new { status.Picking, status.Picked, status.Selection,
         status.Error, Activated = activated });
