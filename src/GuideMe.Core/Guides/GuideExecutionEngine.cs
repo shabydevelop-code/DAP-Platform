@@ -175,6 +175,9 @@ public sealed class GuideExecutionEngine
             throw new InvalidOperationException($"Missing default runtime adapter '{defaultRuntime}'.");
 
         var plan = new GuideRunPlan(steps);
+        // Step.Order is the persisted guide position. A start-step run contains
+        // only a suffix of the guide, so its count is not the display total.
+        var displayTotal = plan.Steps.Count == 0 ? 0 : Math.Max(plan.Steps.Count, plan.Steps.Max(step => step.Order));
         TargetRuntime? previousRuntime = null;
         for (var index = 0; index < plan.Steps.Count; index++)
         {
@@ -205,16 +208,16 @@ public sealed class GuideExecutionEngine
                 await onRuntimeTransition(step, runtime, cancellationToken);
             previousRuntime = runtime;
 
-            Console.Error.WriteLine($"[GuideMe {adapter.DiagnosticName} guide] starting Step {step.Order}/{plan.Steps.Count} '{step.Id}'.");
+            Console.Error.WriteLine($"[GuideMe {adapter.DiagnosticName} guide] starting Step {step.Order}/{displayTotal} '{step.Id}'.");
             if (GuideStepExecutionPolicy.Classify(step) == GuideStepPresentationKind.CenteredInformation)
-                await adapter.ShowCenteredInformationAsync(step, plan.Steps.Count, cancellationToken);
+                await adapter.ShowCenteredInformationAsync(step, displayTotal, cancellationToken);
             else
             {
                 if (GuideRunPlan.ShouldCapture(step, runtime, StepCaptureTiming.BeforeAction))
                     await adapter.CaptureAsync(step, plan, cancellationToken);
-                await adapter.ExecuteAsync(step, index, plan.Steps.Count, plan, cancellationToken);
+                await adapter.ExecuteAsync(step, index, displayTotal, plan, cancellationToken);
             }
-            Console.Error.WriteLine($"[GuideMe {adapter.DiagnosticName} guide] completed Step {step.Order}/{plan.Steps.Count} '{step.Id}'.");
+            Console.Error.WriteLine($"[GuideMe {adapter.DiagnosticName} guide] completed Step {step.Order}/{displayTotal} '{step.Id}'.");
         }
         Console.Error.WriteLine("[GuideMe guide] Guide finished.");
     }
@@ -230,18 +233,21 @@ public sealed class GuideExecutionEngine
         var diagnosticName = adapter.DiagnosticName;
 
         var plan = new GuideRunPlan(steps);
+        // Step.Order is the persisted guide position. A start-step run contains
+        // only a suffix of the guide, so its count is not the display total.
+        var displayTotal = plan.Steps.Count == 0 ? 0 : Math.Max(plan.Steps.Count, plan.Steps.Max(step => step.Order));
         await plan.ExecuteAsync(
             runtime,
             async (step, index, total, token) =>
             {
                 var presentation = GuideStepExecutionPolicy.Classify(step);
                 if (presentation == GuideStepPresentationKind.CenteredInformation)
-                    await adapter.ShowCenteredInformationAsync(step, total, token);
+                    await adapter.ShowCenteredInformationAsync(step, displayTotal, token);
                 else
                 {
                     if (GuideRunPlan.ShouldCapture(step, runtime, StepCaptureTiming.BeforeAction))
                         await adapter.CaptureAsync(step, plan, token);
-                    await adapter.ExecuteAsync(step, index, total, plan, token);
+                    await adapter.ExecuteAsync(step, index, displayTotal, plan, token);
                 }
             },
             cancellationToken,
