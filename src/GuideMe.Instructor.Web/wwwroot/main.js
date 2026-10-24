@@ -282,7 +282,7 @@ function renderSteps() {
     });
     const addCompletion = $('add-completion');
     if (addCompletion) addCompletion.onclick = () => guarded(() =>
-      beginWebPicker(current.guide.id, step.id, contextId, false, true));
+      beginTargetPicker('Web', current.guide.id, step.id, contextId, false, true, context));
     const removeCompletion = $('remove-completion');
     if (removeCompletion) removeCompletion.onclick = () => guarded(async () => {
       if (!confirm('להסיר את תנאי ההשלמה הנוסף?')) return;
@@ -294,62 +294,23 @@ function renderSteps() {
       if(item) item.click();
       notify('תנאי ההשלמה הוסר.');
     });
+    const startElementPicker = (replacing = false, completion = false) =>
+      beginTargetPicker(context.Runtime, current.guide.id, step.id, contextId, replacing, completion, context);
     const targetReplace = $('replace-web-target');
-    if (targetReplace) targetReplace.onclick = () => guarded(() =>
-      context?.Runtime === 'Windows' ? $('pick-windows-element').click() :
-        beginWebPicker(current.guide.id, step.id, contextId, true));
+    if (targetReplace) targetReplace.onclick = () => guarded(() => startElementPicker(true));
     const conditionEditor = $('edit-validation');
     if (conditionEditor) conditionEditor.onclick = () => editValidation(step, rule);
-    if (context?.Runtime === 'Windows') {
+    if (context?.Runtime === 'Web' || context?.Runtime === 'Windows') {
       const section = document.createElement('section');
       section.className = 'target-editor';
-      section.innerHTML = (!target && !rule ? '<h3>בחירת רכיב</h3>' : '') +
-        (!target && !rule ? '<button id="pick-windows-element" class="btn primary">הפעלת ממפה רכיבים</button>' : '') +
-        '<div id="pick-result" class="hidden" aria-live="polite"></div>';
-      $('step-inspector').append(section);
-      const startWindowsPicker = async () => {
-        const windows = (await api('/discovery')).windows || [];
-        const matchers = parseJson(context.MatchersJson, []);
-        const matches = windows.filter(w => matchers.some(m => {
-          const kind = String(m.Kind || '').toLowerCase();
-          const value = String(m.Value || '').toLowerCase();
-          return kind === 'processname' && value &&
-            w.processName.toLowerCase().replace(/\\.exe$/, '') === value.replace(/\\.exe$/, '');
-        }));
-        if (matches.length !== 1)
-          throw new Error(matches.length ? 'נמצאו מספר חלונות תואמים.' : 'לא נמצא חלון מתאים לאפליקציה.');
-        const pid = matches[0].processId;
-        if (pickingFor) {
-          await api(pickingFor.runtime === 'Windows' ? '/windows/picker/cancel' : '/target-picker/cancel',
-            {method:'POST',body:'{}'});
-        }
-        pickingFor = {guideId:current.guide.id,stepId:step.id,contextId,
-          runtime:'Windows',processId:pid,replacing:!!target,completion:false,startedAt:Date.now()};
-        const box = $('pick-result');
-        box.classList.remove('hidden');
-        box.dataset.pickedSelector = '';
-        box.textContent = 'עבור לאפליקציית היעד, הצבע על רכיב ולחץ Ctrl+Shift+Space לבחירה.';
-        await api('/windows/picker/start',{method:'POST',body:JSON.stringify({processId:pid})});
-        await refreshPicker();
-      };
-      const startButton = $('pick-windows-element');
-      if (startButton) startButton.onclick = () => guarded(startWindowsPicker);
-      const replaceButton = $('replace-web-target');
-      if (replaceButton) replaceButton.onclick = () => guarded(startWindowsPicker);
-    }
-    if (context?.Runtime === 'Web') {
-      const section = document.createElement('section');
-      section.className = 'target-editor';
-      section.innerHTML =
-        (!target && !rule
+      section.innerHTML = (!target && !rule
           ? '<h3>בחירת רכיב</h3>' +
-            '<button id="pick-web-element" class="btn primary">הפעלת ממפה רכיבים</button>'
+            '<button id="pick-element" class="btn primary">הפעלת ממפה רכיבים</button>'
           : '') +
         '<div id="pick-result" class="hidden" aria-live="polite"></div>';
       $('step-inspector').append(section);
-      if (!target && !rule)
-        $('pick-web-element').onclick = () => guarded(() =>
-          beginWebPicker(current.guide.id, step.id, contextId));
+      const startButton = $('pick-element');
+      if (startButton) startButton.onclick = () => guarded(() => startElementPicker());
     }
 
   })));
@@ -397,34 +358,98 @@ function editValidation(step, rule) {
 }
 
 let pickingFor = null;
-async function beginWebPicker(guideId, stepId, contextId, replacing=false, completion=false) {
+// Target lifecycle is shared. Only runtime-specific discovery and transport
+// belong to adapters; confirmation, validation editing and persistence stay central.
+const targetAdapters = {
+  Web: {
+    async start(session) {
+    const selected = await api('/capture/select', {method:'POST',
+      body:JSON.stringify({guideId,contextId})});
+    if (selected.status === 'notFound')
+      throw new Error('לא נמצאה לשונית מתאימה. פתח את האפליקציה באתר ונסה שוב.');
+    let tabId = null;
+    if (selected.status === 'multiple') {
+      const tabs = selected.tabs || [];
+      const choices = tabs.map((t,i) => (i+1)+'. '+(t.title || t.url)).join('\\n');
+      const answer = prompt('נמצאו כמה לשוניות מתאימות. הקלד את מספר הלשונית:\\n'+choices);
+      if (answer === null) return;
+      const i = Number(answer)-1;
+      if (!Number.isInteger(i) || !tabs[i]) throw new Error('בחירת לשונית אינה תקינה.');
+      tabId = tabs[i].tabId;
+      await api('/capture/select',{method:'POST',
+        body:JSON.stringify({guideId,contextId,tabId})});
+    }
+    await api('/target-picker/start',{method:'POST',body:JSON.stringify({guideId,contextId})});
+  
+    },
+    async status() { return api('/capture/status'); },
+    async cancel() { return api('/target-picker/cancel', {method:'POST',body:'{}'}); },
+    selected(state) { return state.picked; },
+    save(session, condition, gridChoiceIndex) {
+      return api('/guides/'+session.guideId+'/steps/'+encodeURIComponent(session.stepId)+'/web-target',
+        session.replacing ? {method:'PUT',body:JSON.stringify({gridChoice:gridChoiceIndex})} :
+          {method:'POST',body:JSON.stringify({condition,gridChoice:gridChoiceIndex})});
+    },
+    async saveCompletion(session, candidate) {
+      return api('/guides/'+session.guideId+'/steps/'+encodeURIComponent(session.stepId)+'/completion-target',
+        {method:'POST',body:JSON.stringify({kind:$('target-condition').value,
+          stateAttributeIndex:$('target-condition').value === 'attribute-equals' && (candidate.stateAttributes || []).length
+            ? Number($('completion-state-choice').value) : null})});
+    }
+  },
+  Windows: {
+    async start(session) {
+      const windows = (await api('/discovery')).windows || [];
+      const matchers = parseJson(session.context.MatchersJson, []);
+      const matches = windows.filter(w => matchers.some(m => {
+        const kind = String(m.Kind || '').toLowerCase();
+        const value = String(m.Value || '').toLowerCase();
+        return kind === 'processname' && value &&
+          w.processName.toLowerCase().replace(/\\.exe$/, '') === value.replace(/\\.exe$/, '');
+      }));
+      if (matches.length !== 1)
+        throw new Error(matches.length ? 'נמצאו מספר חלונות תואמים.' : 'לא נמצא חלון מתאים לאפליקציה.');
+      session.processId = matches[0].processId;
+      await api('/windows/picker/start',
+        {method:'POST',body:JSON.stringify({processId:session.processId})});
+    },
+    async status() { return api('/windows/picker/status'); },
+    async cancel() { return api('/windows/picker/cancel',{method:'POST',body:'{}'}); },
+    selected(state) {
+      return {selector:state.selection?.locators?.[0]?.value || '',
+        label:state.selection?.name || state.selection?.controlType,
+        tag:state.selection?.controlType === 'ControlType.Edit' ? 'input' : 'button'};
+    },
+    save(session, condition) {
+      return api('/guides/'+session.guideId+'/steps/'+encodeURIComponent(session.stepId)+'/windows-target',
+        {method:'POST',body:JSON.stringify({processId:session.processId,condition,
+          replacing:session.replacing})});
+    }
+  }
+};
+async function beginTargetPicker(runtime, guideId, stepId, contextId, replacing=false, completion=false, context=null) {
+  const adapter = targetAdapters[runtime];
+  if (!adapter) throw new Error('סביבת היעד אינה נתמכת.');
+  if (completion && !adapter.saveCompletion)
+    throw new Error('תנאי השלמה נוסף אינו נתמך כרגע בסביבת יעד זו.');
   if (pickingFor) {
-    await api(pickingFor.runtime === 'Windows' ? '/windows/picker/cancel' : '/target-picker/cancel',
-      {method:'POST',body:'{}'});
+    await targetAdapters[pickingFor.runtime].cancel();
     pickingFor = null;
   }
-  const selected = await api('/capture/select', {method:'POST',
-    body:JSON.stringify({guideId,contextId})});
-  if (selected.status === 'notFound')
-    throw new Error('לא נמצאה לשונית מתאימה. פתח את האפליקציה באתר ונסה שוב.');
-  let tabId = null;
-  if (selected.status === 'multiple') {
-    const tabs = selected.tabs || [];
-    const choices = tabs.map((t,i) => (i+1)+'. '+(t.title || t.url)).join('\\n');
-    const answer = prompt('נמצאו כמה לשוניות מתאימות. הקלד את מספר הלשונית:\\n'+choices);
-    if (answer === null) return;
-    const i = Number(answer)-1;
-    if (!Number.isInteger(i) || !tabs[i]) throw new Error('בחירת לשונית אינה תקינה.');
-    tabId = tabs[i].tabId;
-    await api('/capture/select',{method:'POST',
-      body:JSON.stringify({guideId,contextId,tabId})});
-  }
-  await api('/target-picker/start',{method:'POST',body:JSON.stringify({guideId,contextId})});
-  pickingFor = {guideId,stepId,contextId,replacing,completion,startedAt:Date.now()};
+  const session = {runtime,guideId,stepId,contextId,replacing,completion,context,startedAt:Date.now()};
   const box = $('pick-result');
-  if (!box) throw new Error('אזור אישור הרכיב חסר בממשק. פתח מחדש את השלב.');
-  if (box) { box.dataset.pickedSelector=''; box.classList.remove('hidden'); box.textContent = 'מתחבר ללשונית ומפעיל בחירת רכיב…'; }
-  await refreshPicker();
+  if (!box) throw new Error('אזור אישור הרכיב חסר בממשק.');
+  box.dataset.pickedSelector = '';
+  box.classList.remove('hidden');
+  box.textContent = 'מפעיל ממפה רכיבים…';
+  try {
+    await adapter.start(session);
+    pickingFor = session;
+    await refreshPicker();
+  } catch (error) {
+    box.textContent = error.message || String(error);
+    throw error;
+  }
 }
 async function refreshPicker() {
   if (!pickingFor) return;
@@ -433,8 +458,8 @@ async function refreshPicker() {
     return;
   }
   const requestSession = pickingFor;
-  const state = requestSession.runtime === 'Windows'
-    ? await api('/windows/picker/status') : await api('/capture/status');
+  const adapter = targetAdapters[requestSession.runtime];
+  const state = await adapter.status();
   if (!pickingFor || pickingFor !== requestSession ||
       current?.guide?.id !== requestSession.guideId || selectedStep !== requestSession.stepId) return;
   const box = $('pick-result');
@@ -450,22 +475,18 @@ async function refreshPicker() {
       box.textContent = 'איתור הרכיב בוטל. ניתן להפעיל שוב את הממפה.';
       return;
     }
-    if (requestSession.runtime !== 'Windows' && !state.connected) {
+    if (requestSession.runtime === 'Web' && !state.connected) {
       box.textContent = 'אין כרגע תקשורת עם תוסף Instructor. בדוק שהוא פעיל ב־Chrome.';
       return;
     }
-    if (requestSession.runtime !== 'Windows' && !state.pickReady && Date.now() - pickingFor.startedAt >= 5000) {
+    if (requestSession.runtime === 'Web' && !state.pickReady && Date.now() - pickingFor.startedAt >= 5000) {
       box.textContent = 'ממתין לאישור הפעלת הממפה בלשונית שנבחרה. אם לא מופיעה מסגרת בחלון היעד, ניתן לבטל ולנסות שוב.';
       return;
     }
     box.textContent = (requestSession.runtime === 'Windows' || state.pickReady) ? 'ממפה פעיל: העבר עכבר מעל רכיב ולחץ Ctrl+Shift+Space לבחירה (Esc לביטול).' : 'מפעיל בחירת רכיב…';
     return;
   }
-  const candidate = requestSession.runtime === 'Windows' ? {
-    selector:state.selection?.locators?.[0]?.value || '',
-    label:state.selection?.name || state.selection?.controlType,
-    tag:state.selection?.controlType === 'ControlType.Edit' ? 'input' : 'button'
-  } : state.picked;
+  const candidate = adapter.selected(state);
   if (box.dataset.pickedSelector === candidate.selector) return;
   box.dataset.pickedSelector = candidate.selector;
   box.innerHTML = '<p><strong>הרכיב שנבחר:</strong> '+esc(candidate.label || candidate.tag || 'רכיב')+'</p>'+
@@ -529,19 +550,11 @@ async function refreshPicker() {
     try {
       const gridChoice = $('grid-row-choice')?.value;
       const gridChoiceIndex = gridChoice === undefined || gridChoice === '' ? null : Number(gridChoice);
-      if (pickedFor.completion) {
-        await api('/guides/'+pickedFor.guideId+'/steps/'+encodeURIComponent(pickedFor.stepId)+'/completion-target',
-          {method:'POST',body:JSON.stringify({kind:$('target-condition').value,
-            stateAttributeIndex:$('target-condition').value === 'attribute-equals' && (candidate.stateAttributes || []).length
-              ? Number($('completion-state-choice').value) : null})});
-      } else {
-        await api('/guides/'+pickedFor.guideId+'/steps/'+encodeURIComponent(pickedFor.stepId)+
-          (pickedFor.runtime === 'Windows' ? '/windows-target' : '/web-target'),
-          pickedFor.runtime === 'Windows' ? {method:'POST',body:JSON.stringify({
-            processId:pickedFor.processId,condition:$('target-condition')?.value || 'clicked',
-            replacing:pickedFor.replacing})} : pickedFor.replacing ? {method:'PUT',body:JSON.stringify({gridChoice:gridChoiceIndex})} :
-            {method:'POST',body:JSON.stringify({condition:$('target-condition').value,gridChoice:gridChoiceIndex})});
-      }
+      const adapter = targetAdapters[pickedFor.runtime];
+      if (pickedFor.completion)
+        await adapter.saveCompletion(pickedFor, candidate);
+      else
+        await adapter.save(pickedFor, $('target-condition')?.value || 'clicked', gridChoiceIndex);
       pickingFor = null;
       result.textContent = 'הרכיב נשמר בהצלחה.';
       await openGuide(pickedFor.guideId);
@@ -560,8 +573,7 @@ async function refreshPicker() {
     }
   };
   $('cancel-web-target').onclick = () => guarded(async () => {
-    await api(pickingFor?.runtime === 'Windows' ? '/windows/picker/cancel' : '/target-picker/cancel',
-      {method:'POST',body:'{}'});
+    await targetAdapters[pickingFor.runtime].cancel();
     pickingFor = null;
     markClean();
     box.textContent = 'הבחירה בוטלה.';
