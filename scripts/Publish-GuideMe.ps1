@@ -1,6 +1,7 @@
 param(
     [string]$Destination = 'C:\GuideMe',
-    [switch]$SkipExtensionSync
+    [switch]$SkipExtensionSync,
+    [string]$ExtensionId
 )
 
 $ErrorActionPreference = 'Stop'
@@ -95,6 +96,57 @@ if (-not $SkipExtensionSync) {
 if (-not (Test-Path -LiteralPath (Join-Path $Destination 'GuideMe.exe') -PathType Leaf)) {
     throw 'Published GuideMe executable is missing.'
 }
+# Native Messaging registration is part of a successful production publish.
+# Never infer an extension ID from the Instructor extension or a different profile.
+# Reuse a previously verified Learner manifest, or require the ID explicitly
+# on first installation / after a missing manifest.
+if ([string]::Equals($destinationCanonical, $activeCanonical,
+    [StringComparison]::OrdinalIgnoreCase)) {
+    $manifestPath = Join-Path $env:LOCALAPPDATA 'GuideMe\NativeMessaging\com.guideme.web_runtime.json'
+    if ([string]::IsNullOrWhiteSpace($ExtensionId)) {
+        if (Test-Path -LiteralPath $manifestPath -PathType Leaf) {
+            try {
+                $existing = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+                $origins = @($existing.allowed_origins)
+                if ($existing.name -eq 'com.guideme.web_runtime' -and
+                    $origins.Count -eq 1 -and
+                    $origins[0] -match '^chrome-extension://([a-p]{32})/
+) {
+                    $ExtensionId = $Matches[1]
+                }
+            } catch {
+                Write-Warning "Existing Learner Native Messaging manifest is invalid: $($_.Exception.Message)"
+            }
+        }
+    }
+    if ($ExtensionId -notmatch '^[a-p]{32}
+) {
+        throw 'Learner Chrome extension ID is unknown. Run Publish-GuideMe.ps1 -ExtensionId <32-character ID from chrome://extensions> once. The ID will be reused from the registered manifest on later publishes.'
+    }
+
+    & (Join-Path $PSScriptRoot 'Register-WebNativeHost.ps1') -PackagePath $Destination -ExtensionId $ExtensionId
+    if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) {
+        throw "Native Messaging registration failed with exit code $LASTEXITCODE."
+    }
+    if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
+        throw "Learner Native Messaging manifest missing after registration: $manifestPath"
+    }
+    $registered = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+    $registryPath = 'HKCU:\Software\Google\Chrome\NativeMessagingHosts\com.guideme.web_runtime'
+    $registeredManifest = if (Test-Path -LiteralPath $registryPath) {
+        (Get-Item -LiteralPath $registryPath).GetValue('')
+    } else { $null }
+    if ($registered.name -ne 'com.guideme.web_runtime' -or
+        $registered.path -ne $nativeExecutable -or
+        -not (Test-Path -LiteralPath $registered.path -PathType Leaf) -or
+        @($registered.allowed_origins).Count -ne 1 -or
+        @($registered.allowed_origins)[0] -ne "chrome-extension://$ExtensionId/" -or
+        $registeredManifest -ne $manifestPath) {
+        throw 'Learner Native Messaging registration verification failed.'
+    }
+    Write-Host 'PASS: Learner Native Messaging manifest, executable, origin and Chrome registry verified.'
+}
+
 if ($SkipExtensionSync) {
     Write-Host 'PASS: GuideMe and Native Host published to isolated output.'
 } else {
