@@ -433,11 +433,6 @@ WHERE GuideId=$guideId AND ContextId=$contextId";
     internal static void SaveWebTarget(long guideId, string stepId, string selector,
         IReadOnlyList<string> framePath, string condition, string? displayName)
     {
-        if (kind == "attribute-equals" &&
-            (string.IsNullOrWhiteSpace(attributeName) ||
-             !System.Text.RegularExpressions.Regex.IsMatch(attributeName, @"^[a-zA-Z_][a-zA-Z0-9_.:-]{0,99}$") ||
-             attributeValue is null || attributeValue.Length > 500))
-            throw new ArgumentException("יש להזין שם מאפיין וערך צפוי תקינים.");
         if (string.IsNullOrWhiteSpace(selector) || selector.Length > 400 ||
             selector.IndexOf((char)0) >= 0)
             throw new ArgumentException("מזהה הרכיב אינו תקין.");
@@ -584,6 +579,11 @@ WHERE GuideId=$guideId AND ElementId=$elementId AND Runtime='Web'";
     {
         if (kind is not ("target-appeared" or "target-vanished" or "attribute-equals"))
             throw new ArgumentException("חוק השלמה לא נתמך.");
+        if (kind == "attribute-equals" &&
+            (string.IsNullOrWhiteSpace(attributeName) ||
+             !System.Text.RegularExpressions.Regex.IsMatch(attributeName, @"^[a-zA-Z_][a-zA-Z0-9_.:-]{0,99}$") ||
+             attributeValue is null || attributeValue.Length > 500))
+            throw new ArgumentException("יש להזין שם מאפיין וערך צפוי תקינים.");
         if (string.IsNullOrWhiteSpace(selector) || selector.Length > 400 ||
             selector.IndexOf((char)0) >= 0 || framePath.Count > 12 ||
             framePath.Any(p => string.IsNullOrWhiteSpace(p) || p.Length > 400))
