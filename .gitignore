@@ -12,3 +12,5 @@ demos/Shared/data/*.db-wal
 .idea/
 *.user
 *.suo
+
+__pycache__/
