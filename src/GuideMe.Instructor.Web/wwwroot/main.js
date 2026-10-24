@@ -71,7 +71,6 @@ async function openGuide(id) {
   $('list-view').classList.add('hidden'); $('detail-view').classList.remove('hidden');
   $('new-guide').classList.add('hidden');
   $('page-title').textContent = g.name; $('page-subtitle').textContent = 'ניהול השלבים, האפליקציות וההגדרות של הלומדה.';
-  $('breadcrumb').textContent = g.name;
   $('detail-name').textContent = g.name; $('detail-description').textContent = 'לומדה #' + g.id + ' · ' + current.steps.length + ' שלבים';
   $('steps-count').textContent = current.steps.length; $('contexts-count').textContent = current.contexts.length;
   selectTab('steps'); renderSteps(); renderContexts(); clearNotice();
