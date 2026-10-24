@@ -73,7 +73,6 @@ async function openGuide(id) {
   $('page-title').textContent = g.name; $('page-subtitle').textContent = 'ניהול השלבים, האפליקציות וההגדרות של הלומדה.';
   $('breadcrumb').textContent = g.name;
   $('detail-name').textContent = g.name; $('detail-description').textContent = 'לומדה #' + g.id + ' · ' + current.steps.length + ' שלבים';
-  $('guide-key').textContent = g.key;
   $('steps-count').textContent = current.steps.length; $('contexts-count').textContent = current.contexts.length;
   selectTab('steps'); renderSteps(); renderContexts(); clearNotice();
   $('page-title').setAttribute('tabindex','-1'); $('page-title').focus();
