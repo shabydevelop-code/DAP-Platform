@@ -379,6 +379,7 @@ internal sealed record EditStep(string? Bubble, bool Enabled, string? ContextId)
 
 internal sealed record NewManualStep(string ContextId, string Bubble, string Placement);
 
+internal sealed record WindowsInspectRequest(int ProcessId, bool Focused = false);
 internal sealed record PickStart(long GuideId, string ContextId);
 internal sealed record SaveWebTargetRequest(string Condition, int? GridChoice = null);
 internal sealed record ReplaceWebTargetRequest(int? GridChoice = null);
