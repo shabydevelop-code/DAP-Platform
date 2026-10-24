@@ -17,7 +17,7 @@ internal static class InstructorApplicationDiscovery
         var ownSession = Process.GetCurrentProcess().SessionId;
         EnumWindows((handle, _) =>
         {
-            if (!IsWindowVisible(handle) || GetWindow(handle, 4) != 0) return true; // owned/hidden windows
+            if (!IsWindowVisible(handle) || GetWindow(handle, 4) != 0 || IsCloaked(handle) || IsToolWindow(handle)) return true;
             var size = GetWindowTextLength(handle);
             if (size is < 1 or > 300) return true;
             var title = new StringBuilder(size + 1);
@@ -29,7 +29,8 @@ internal static class InstructorApplicationDiscovery
                 if (process.SessionId != ownSession ||
                     process.Id == Environment.ProcessId ||
                     process.ProcessName.Equals("chrome", StringComparison.OrdinalIgnoreCase) ||
-                    process.ProcessName.Equals("explorer", StringComparison.OrdinalIgnoreCase))
+                    process.ProcessName.Equals("explorer", StringComparison.OrdinalIgnoreCase) ||
+                    IsShellInfrastructure(process.ProcessName))
                     return true;
                 windows.Add(new WindowCandidate(process.ProcessName, title.ToString(), process.Id));
             }
@@ -39,6 +40,26 @@ internal static class InstructorApplicationDiscovery
         }, 0);
         return windows.OrderBy(w => w.Title, StringComparer.CurrentCultureIgnoreCase).ToArray();
     }
+
+    // Shell hosts are not stable application identities.
+    private static bool IsShellInfrastructure(string name) =>
+        name.Equals("TextInputHost", StringComparison.OrdinalIgnoreCase) ||
+        name.Equals("ApplicationFrameHost", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsCloaked(nint hwnd)
+    {
+        try { return DwmGetWindowAttribute(hwnd, 14, out int value, 4) == 0 && value != 0; }
+        catch (DllNotFoundException) { return false; }
+        catch (EntryPointNotFoundException) { return false; }
+    }
+
+    private static bool IsToolWindow(nint hwnd) =>
+        (GetWindowLongPtr(hwnd, -20).ToInt64() & 0x80L) != 0;
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmGetWindowAttribute(nint hwnd, int attribute, out int value, int size);
+    [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")]
+    private static extern nint GetWindowLongPtr(nint hwnd, int index);
 
     private delegate bool EnumWindowProc(nint handle, nint state);
     [DllImport("user32.dll")]
