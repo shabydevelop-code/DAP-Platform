@@ -164,6 +164,26 @@ app.MapPut("/api/guides/{id:long}/steps/{stepId}/web-target", (long id, string s
     return Results.NoContent();
 });
 
+app.MapPost("/api/guides/{id:long}/steps/{stepId}/completion-target",
+    (long id, string stepId, SaveCompletionTargetRequest request) =>
+{
+    var rows = V5GuideReader.ReadGuideTable(id, "Steps");
+    var row = rows.Rows.Cast<DataRow>().FirstOrDefault(r =>
+        string.Equals(r["StepId"].ToString(), stepId, StringComparison.Ordinal));
+    if (row is null) return Results.NotFound();
+    var selected = capture.GetApprovedTarget(id, row["ApplicationContextId"].ToString() ?? "");
+    V5GuideWriter.SaveWebCompletionTarget(id, stepId, selected.Selector,
+        selected.FramePath, request.Kind, selected.DisplayName);
+    capture.CancelPicking();
+    return Results.NoContent();
+});
+app.MapDelete("/api/guides/{id:long}/steps/{stepId}/completion-target",
+    (long id, string stepId) =>
+{
+    V5GuideWriter.RemoveWebCompletionTarget(id, stepId);
+    return Results.NoContent();
+});
+
 app.MapPut("/api/guides/{id:long}/steps/{stepId}/validation",
     (long id, string stepId, EditWebValidation request) =>
 {
@@ -290,5 +310,6 @@ internal sealed record NewManualStep(string ContextId, string Bubble, string Pla
 
 internal sealed record PickStart(long GuideId, string ContextId);
 internal sealed record SaveWebTargetRequest(string Condition);
+internal sealed record SaveCompletionTargetRequest(string Kind);
 
 internal sealed record EditWebValidation(string Kind, string? ExpectedValue);
