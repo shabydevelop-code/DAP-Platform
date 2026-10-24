@@ -45,6 +45,7 @@ function showList() {
   $('new-guide').classList.remove('hidden');
   $('page-title').textContent = 'הלומדות שלי'; $('page-subtitle').textContent = 'כל המדריכים, האפליקציות והשלבים במקום אחד.';
   $('breadcrumb').textContent = 'כל הלומדות'; clearNotice();
+  $('page-title').setAttribute('tabindex','-1'); $('page-title').focus();
 }
 async function loadGuides() {
   guides = await api('/guides');
@@ -72,9 +73,14 @@ async function openGuide(id) {
   $('guide-key').textContent = g.key;
   $('steps-count').textContent = current.steps.length; $('contexts-count').textContent = current.contexts.length;
   selectTab('steps'); renderSteps(); renderContexts(); clearNotice();
+  $('page-title').setAttribute('tabindex','-1'); $('page-title').focus();
 }
 function selectTab(tab) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active',t.dataset.tab===tab));
+  document.querySelectorAll('.tab').forEach(t => {
+    const active=t.dataset.tab===tab;
+    t.classList.toggle('active',active);
+    t.setAttribute('aria-selected',String(active));
+  });
   $('steps-panel').classList.toggle('hidden',tab!=='steps');
   $('contexts-panel').classList.toggle('hidden',tab!=='contexts');
 }
@@ -83,7 +89,7 @@ function renderSteps() {
   const search = $('step-search').value.trim().toLowerCase();
   const steps = (current?.steps || []).filter(s => String(s.order).includes(search) || s.id.toLowerCase().includes(search) || (s.bubble || '').toLowerCase().includes(search));
   $('step-list').innerHTML = steps.length ? steps.map(s =>
-    '<div class="step-row" role="button" tabindex="0" data-step="' + esc(s.id) + '"><span class="step-num">' + s.order + '</span><span class="step-body"><strong>' +
+    '<div class="step-row" role="button" tabindex="0" aria-pressed="false" data-step="' + esc(s.id) + '"><span class="step-num">' + s.order + '</span><span class="step-body"><strong>' +
     esc(s.bubble || 'שלב ' + s.order) + '</strong><small>' + (s.enabled ? 'שלב פעיל' : 'שלב מושבת') + '</small></span></div>').join('')
     : '<div class="empty">אין שלבים להצגה</div>';
   document.querySelectorAll('[data-step]').forEach(b => b.addEventListener('keydown', e => {
@@ -91,7 +97,7 @@ function renderSteps() {
   }));
   document.querySelectorAll('[data-step]').forEach(b => b.addEventListener('click',() => guarded(async () => {
     selectedStep = b.dataset.step;
-    document.querySelectorAll('[data-step]').forEach(x => x.classList.toggle('active', x===b));
+    document.querySelectorAll('[data-step]').forEach(x => { x.classList.toggle('active', x===b); x.setAttribute('aria-pressed', String(x===b)); });
     const data = await api('/guides/' + current.guide.id + '/step/' + encodeURIComponent(selectedStep));
     current.stepContexts ??= {};
     current.stepContexts[selectedStep] = data.step?.[0]?.ApplicationContextId || null;
@@ -330,10 +336,12 @@ function modal(title, fields, submit, buttonText='שמירה') {
   $('dialog-title').textContent=title;
   $('dialog-fields').innerHTML='<div class="fields">' + fields.map(f=>{
     const label='<label for="field-'+f.name+'">'+esc(f.label)+'</label>';
-    const field=f.choices?'<select id="field-'+f.name+'" name="'+f.name+'">'+f.choices.map(v=>'<option value="'+esc(v.value)+'" '+(v.value===f.value?'selected':'')+'>'+esc(v.text)+'</option>').join('')+'</select>'
-    :f.multiline?'<textarea id="field-'+f.name+'" name="'+f.name+'" maxlength="'+(f.max||4000)+'" rows="5">'+esc(f.value||'')+'</textarea>'
-    :'<input id="field-'+f.name+'" name="'+f.name+'" value="'+esc(f.value||'')+'" maxlength="'+(f.max||256)+'" '+(f.optional?'':'required')+'>';
-    return '<div class="field">'+label+field+(f.help?'<div class="field-help">'+esc(f.help)+'</div>':'')+'</div>';
+    const helpId='help-'+f.name;
+    const helpAttr=f.help?' aria-describedby="'+helpId+'"':'';
+    const field=f.choices?'<select id="field-'+f.name+'" name="'+f.name+'"'+helpAttr+'>'+f.choices.map(v=>'<option value="'+esc(v.value)+'" '+(v.value===f.value?'selected':'')+'>'+esc(v.text)+'</option>').join('')+'</select>'
+    :f.multiline?'<textarea id="field-'+f.name+'" name="'+f.name+'"'+helpAttr+' maxlength="'+(f.max||4000)+'" rows="5">'+esc(f.value||'')+'</textarea>'
+    :'<input id="field-'+f.name+'" name="'+f.name+'"'+helpAttr+' value="'+esc(f.value||'')+'" maxlength="'+(f.max||256)+'" '+(f.optional?'':'required')+'>';
+    return '<div class="field">'+label+field+(f.help?'<div class="field-help" id="'+helpId+'">'+esc(f.help)+'</div>':'')+'</div>';
   }).join('')+'</div>';
   $('submit-dialog').textContent=buttonText;
   const form=$('editor-form');
