@@ -413,7 +413,7 @@
     const parsed = parseCellTextSelector(selector);
     const source = String(parsed.selector || "");
     const textFilters = [];
-    const nativeSelector = source.replace;
+    const nativeSelector = source.replace(
       /:has-text\((["'])(.*?)\1\)/g,
       (_match, _quote, text) => {
         textFilters.push(normalize(text).toLowerCase());
@@ -421,10 +421,10 @@
       });
 
     if (nativeSelector && !el.matches(nativeSelector)) return false;
-    if (!textFilters.length) return true;
+    if (!textFilters.length && !parsed.cell) return true;
 
     const text = normalize(el.textContent).toLowerCase();
-    return textFilters.every(wanted => text.includes(wanted));
+    return matchesCellText(el, parsed.cell) && textFilters.every(wanted => text.includes(wanted));
   }
 
   function createCandidates(locator) {
