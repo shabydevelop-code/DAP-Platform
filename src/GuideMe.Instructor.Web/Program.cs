@@ -151,7 +151,7 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/windows-target",
         return kind.GetString()?.ToLowerInvariant() switch
         {
             "processname" => string.Equals(
-                Path.GetFileNameWithoutExtension(configured), process.ProcessName,
+                (configured.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? configured[..^4] : configured), process.ProcessName,
                 StringComparison.OrdinalIgnoreCase),
             _ => false
         };
