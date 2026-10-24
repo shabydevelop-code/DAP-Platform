@@ -18,60 +18,6 @@ internal sealed class InstructorCaptureBridge
     private bool _pickReady;
     private string? _pickerError;
     private JsonElement? _pickedElement;
-    private bool _observing;
-    private readonly Dictionary<int, HashSet<string>> _observedFrames = new();
-    private readonly List<string> _observations = new();
-    private bool _observationBaseline;
-    public object ObservationStatus()
-    {
-        lock (_gate) return new { active = _observing, baseline = _observationBaseline,
-            findings = _observations.ToArray() };
-    }
-    public object StartObservation(long guideId, string contextId)
-    {
-        lock (_gate)
-        {
-            if (!IsSelected(guideId, contextId))
-                throw new InvalidOperationException("בחר תחילה לשונית Web מתאימה.");
-            _observing = true;
-            _observedFrames.Clear();
-            _observations.Clear();
-            _observationBaseline = false;
-            return ObservationStatus();
-        }
-    }
-    public object StopObservation()
-    {
-        lock (_gate) { _observing = false; return ObservationStatus(); }
-    }
-    public object Observe(int tabId, int frameId, string[] selectors)
-    {
-        lock (_gate)
-        {
-            if (!_observing || _selectedTab != tabId) return new { accepted = false };
-            var next = selectors.Where(x => x.Length is > 0 and <= 160)
-                .Take(150).ToHashSet(StringComparer.Ordinal);
-            if (_observedFrames.TryGetValue(frameId, out var before))
-            {
-                foreach (var added in next.Except(before).Take(12))
-                    AddFinding($"הופיע רכיב: {added} (מסגרת {frameId})");
-                foreach (var removed in before.Except(next).Take(12))
-                    AddFinding($"נעלם רכיב: {removed} (מסגרת {frameId})");
-            }
-            else if (_observationBaseline)
-                AddFinding($"נטענה מסגרת חדשה ({frameId})");
-            _observedFrames[frameId] = next;
-            _observationBaseline = true;
-            return new { accepted = true };
-        }
-    }
-    private void AddFinding(string value)
-    {
-        if (_observations.Count < 80 && !_observations.Contains(value))
-            _observations.Add(value);
-    }
-
-
     public object Heartbeat(CaptureTab[] tabs)
     {
         if (tabs.Length > 100) throw new ArgumentException("Too many browser tabs.");
@@ -87,7 +33,7 @@ internal sealed class InstructorCaptureBridge
                 _selectedTab = null;
                 _recording = false;
             }
-            return new { selectedTabId = _selectedTab, recording = _recording, observing = _observing, pickTabId = _picking ? _selectedTab : null, pickerSession = _pickerSession };
+            return new { selectedTabId = _selectedTab, recording = _recording, pickTabId = _picking ? _selectedTab : null, pickerSession = _pickerSession };
         }
     }
     public bool IsConnected
@@ -111,7 +57,7 @@ internal sealed class InstructorCaptureBridge
                 guideId = _guideId, contextId = _selectedContext,
                 targetUrl = _targetUrl, targetTitle = _targetTitle,
                 tabId = _selectedTab, tabs = _tabs,
-                eventsCount = _events.Count, observing = _observing, picking = _picking, pickReady = _pickReady, pickerError = _pickerError, picked = _pickedElement
+                eventsCount = _events.Count, picking = _picking, pickReady = _pickReady, pickerError = _pickerError, picked = _pickedElement
             };
     }
 
@@ -133,7 +79,6 @@ internal sealed class InstructorCaptureBridge
                 throw new ArgumentException("Selected tab does not match the saved application context.");
             var target = explicitTabId is null ? matching[0] : matching.Single(t => t.TabId == explicitTabId);
             _recording = false;
-            _observing = false;
             _picking = false;
             _pickReady = false;
             _pickerError = null;
