@@ -10,25 +10,26 @@
   <script src="/main.js" defer></script>
 </head>
 <body>
+<a class="skip-link" href="#main-content">דלג לתוכן הראשי</a>
 <div class="shell">
-  <main>
-    <header class="topbar"><div class="brand-heading"><strong>GuideMe <span>Instructor</span></strong><span class="brand-separator">/</span><b id="breadcrumb">כל הלומדות</b></div><div class="top-actions"><span id="capture-status" class="pill connection-status">תוסף: בודק חיבור</span></div></header>
+  <main id="main-content">
+    <header class="topbar"><div class="brand-heading"><strong>GuideMe <span>Instructor</span></strong><span class="brand-separator">/</span><b id="breadcrumb">כל הלומדות</b></div><div class="top-actions"><span id="capture-status" class="pill connection-status" role="status" aria-live="polite">תוסף: בודק חיבור</span></div></header>
     <div class="content">
       <div class="heading"><div><div class="eyebrow">ניהול תוכן והדרכה</div><h1 id="page-title">הלומדות שלי</h1><p id="page-subtitle">כל המדריכים, האפליקציות והשלבים במקום אחד.</p></div><button id="new-guide" class="btn primary">＋ יצירת לומדה</button></div>
-      <div id="notice" class="notice hidden" role="status"></div>
+      <div id="notice" class="notice hidden" role="status" aria-live="polite" aria-atomic="true"></div>
       <section id="list-view">
         
-        <div class="panel"><div class="panel-header"><div><h2>ספריית לומדות <span class="guide-count" id="total-guides">—</span></h2><p>בחר לומדה כדי לצפות בשלבים ולנהל אפליקציות.</p></div><input id="guide-search" class="search" placeholder="חיפוש לפי שם או מזהה..."></div><div id="guides-table" class="table-area"></div></div>
+        <div class="panel"><div class="panel-header"><div><h2>ספריית לומדות <span class="guide-count" id="total-guides">—</span></h2><p>בחר לומדה כדי לצפות בשלבים ולנהל אפליקציות.</p></div><label class="visually-hidden" for="guide-search">חיפוש לומדה לפי שם או מזהה</label><input id="guide-search" class="search" placeholder="חיפוש לפי שם או מזהה..."></div><div id="guides-table" class="table-area"></div></div>
       </section>
       <section id="detail-view" class="hidden">
         <div class="detail-top"><button class="back" id="back">← חזרה לכל הלומדות</button><span id="guide-key" class="code-label"></span></div>
         <div class="panel guide-card"><div class="guide-top"><div><div class="eyebrow">לומדה נבחרת</div><h2 id="detail-name"></h2><p id="detail-description"></p></div><div class="guide-actions"><button class="btn secondary" id="rename-guide">שינוי שם</button><button class="btn danger" id="delete-guide">מחיקת לומדה</button></div></div></div>
-        <div class="tabs"><button class="tab active" data-tab="steps">שלבי הלומדה <span id="steps-count">0</span></button><button class="tab" data-tab="contexts">אפליקציות <span id="contexts-count">0</span></button></div>
-        <div class="panel" id="steps-panel"><div class="panel-header"><div><h2>שלבים</h2><p>יצירת שלבים, עריכת תוכן ושיוך לאפליקציה.</p></div><div class="steps-toolbar"><input id="step-search" class="search" placeholder="חיפוש שלב..."><button id="new-step" class="btn primary">＋ הוספת שלב</button></div></div><div class="steps-layout"><div id="step-list" class="step-list"></div><div id="step-inspector" class="inspector"><div class="empty-inspector">בחר שלב להצגת הפרטים שלו</div></div></div></div>
-        <div class="panel hidden" id="contexts-panel"><div class="panel-header"><div><h2>אפליקציות הלומדה</h2><p>הקשרים מזוהים בנפרד ל־Web ול־Windows.</p></div><button id="add-context" class="btn primary">＋ הוספת אפליקציה</button></div><div id="contexts-list" class="context-cards"></div></div>
+        <div class="tabs" role="tablist" aria-label="תוכן הלומדה"><button type="button" role="tab" aria-controls="steps-panel" aria-selected="true" class="tab active" data-tab="steps">שלבי הלומדה <span id="steps-count">0</span></button><button type="button" role="tab" aria-controls="contexts-panel" aria-selected="false" class="tab" data-tab="contexts">אפליקציות <span id="contexts-count">0</span></button></div>
+        <div class="panel" id="steps-panel" role="tabpanel"><div class="panel-header"><div><h2>שלבים</h2><p>יצירת שלבים, עריכת תוכן ושיוך לאפליקציה.</p></div><div class="steps-toolbar"><label class="visually-hidden" for="step-search">חיפוש שלב בלומדה</label><input id="step-search" class="search" placeholder="חיפוש שלב..."><button id="new-step" class="btn primary">＋ הוספת שלב</button></div></div><div class="steps-layout"><div id="step-list" class="step-list" aria-label="רשימת שלבים"></div><div id="step-inspector" class="inspector"><div class="empty-inspector">בחר שלב להצגת הפרטים שלו</div></div></div></div>
+        <div class="panel hidden" id="contexts-panel" role="tabpanel"><div class="panel-header"><div><h2>אפליקציות הלומדה</h2><p>הקשרים מזוהים בנפרד ל־Web ול־Windows.</p></div><button id="add-context" class="btn primary">＋ הוספת אפליקציה</button></div><div id="contexts-list" class="context-cards"></div></div>
       </section>
     </div>
   </main>
 </div>
-<dialog id="editor-dialog"><form method="dialog" id="editor-form"><div class="dialog-head"><h2 id="dialog-title"></h2><button id="close-dialog" class="icon-btn" type="button">✕</button></div><div id="dialog-fields"></div><div class="dialog-actions"><button type="button" class="btn secondary" id="cancel-dialog">ביטול</button><button class="btn primary" id="submit-dialog" value="save" type="submit">שמירה</button></div></form></dialog>
+<dialog id="editor-dialog" aria-labelledby="dialog-title"><form method="dialog" id="editor-form"><div class="dialog-head"><h2 id="dialog-title"></h2><button id="close-dialog" class="icon-btn" type="button" aria-label="סגירת חלון העריכה">✕</button></div><div id="dialog-fields"></div><div class="dialog-actions"><button type="button" class="btn secondary" id="cancel-dialog">ביטול</button><button class="btn primary" id="submit-dialog" value="save" type="submit">שמירה</button></div></form></dialog>
 </body></html>
