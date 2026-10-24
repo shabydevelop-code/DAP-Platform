@@ -97,6 +97,27 @@ async function sync() {
     const result = await request("heartbeat", { tabs: await listTabs() });
     const next = result.selectedTabId ?? null;
     selectedTabId = next;
+    if (result.observing && Number.isInteger(next)) {
+      try {
+        const snapshots = await chrome.scripting.executeScript({
+          target:{tabId:next,allFrames:true},
+          func:() => {
+            // Only stable structural identifiers. Never read field values or page text.
+            const visible = el => el.getClientRects().length > 0 &&
+              getComputedStyle(el).visibility !== "hidden";
+            return [...document.querySelectorAll('[id]')]
+              .filter(el => visible(el) && /^[a-zA-Z][a-zA-Z0-9_-]{2,79}$/.test(el.id) &&
+                !/password|secret|token|session|auth|credit|email|phone/i.test(el.id))
+              .slice(0,150).map(el => '#' + CSS.escape(el.id));
+          }
+        });
+        for (const frame of snapshots)
+          await request("observation",{tabId:next,frameId:frame.frameId,selectors:frame.result || []});
+      } catch (error) {
+        // Navigation can invalidate a snapshot; retry at the next heartbeat.
+      }
+    }
+
     const pickTabId = result.pickTabId ?? null;
     const pickerSession = result.pickerSession ?? null;
     // A navigation can replace the document (including a nested iframe) while
