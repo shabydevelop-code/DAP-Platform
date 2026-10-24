@@ -51,6 +51,7 @@ internal sealed class InstructorNativePipe
                 "heartbeat" => _capture.Heartbeat(root.GetProperty("tabs").Deserialize<CaptureTab[]>(new JsonSerializerOptions(JsonSerializerDefaults.Web)) ??
                     Array.Empty<CaptureTab>()),
                 "event" => ReceiveEvent(root.GetProperty("payload").Deserialize<CaptureEvent>(new JsonSerializerOptions(JsonSerializerDefaults.Web))),
+                "observation" => _capture.Observe(root.GetProperty("tabId").GetInt32(), root.GetProperty("frameId").GetInt32(), root.GetProperty("selectors").Deserialize<string[]>() ?? Array.Empty<string>()),
                 "picker-armed" => _capture.PickerArmed(root.GetProperty("tabId").GetInt32()),
                 "picker-error" => _capture.PickerFailed(root.GetProperty("tabId").GetInt32(), root.GetProperty("reason").GetString() ?? "Unknown picker error"),
                 "picker-cancelled" => _capture.PickerCancelled(root.GetProperty("tabId").GetInt32()),
