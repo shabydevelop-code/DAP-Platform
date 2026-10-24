@@ -165,7 +165,7 @@ internal sealed class InstructorCaptureBridge
         }
     }
 
-    public (string Name, string Value) GetApprovedStateAttribute(
+    public (string Name, string Value, string Selector) GetApprovedStateAttribute(
         long guideId, string contextId, int index)
     {
         lock (_gate)
@@ -178,9 +178,13 @@ internal sealed class InstructorCaptureBridge
             var attribute = attributes[index];
             var name = attribute.GetProperty("name").GetString() ?? "";
             var value = attribute.GetProperty("value").GetString() ?? "";
-            if (string.IsNullOrWhiteSpace(name) || value.Length == 0)
+            var selector = attribute.TryGetProperty("selector", out var selectorNode) &&
+                selectorNode.ValueKind == JsonValueKind.String
+                ? selectorNode.GetString() ?? "" : "";
+            if (string.IsNullOrWhiteSpace(name) || value.Length == 0 ||
+                selector.Length is < 1 or > 400)
                 throw new InvalidOperationException("מצב הרכיב שנלכד אינו תקין.");
-            return (name, value);
+            return (name, value, selector);
         }
     }
 
