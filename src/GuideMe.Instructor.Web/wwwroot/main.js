@@ -386,11 +386,6 @@ const targetAdapters = {
     async status() { return api('/capture/status'); },
     async cancel() { return api('/target-picker/cancel', {method:'POST',body:'{}'}); },
     selected(state) { return state.picked; },
-    save(session, condition, gridChoiceIndex) {
-      return api('/guides/'+session.guideId+'/steps/'+encodeURIComponent(session.stepId)+'/web-target',
-        session.replacing ? {method:'PUT',body:JSON.stringify({gridChoice:gridChoiceIndex})} :
-          {method:'POST',body:JSON.stringify({condition,gridChoice:gridChoiceIndex})});
-    },
     async saveCompletion(session, candidate) {
       return api('/guides/'+session.guideId+'/steps/'+encodeURIComponent(session.stepId)+'/completion-target',
         {method:'POST',body:JSON.stringify({kind:$('target-condition').value,
@@ -421,11 +416,7 @@ const targetAdapters = {
         label:state.selection?.name || state.selection?.controlType,
         tag:state.selection?.controlType === 'ControlType.Edit' ? 'input' : 'button'};
     },
-    save(session, condition) {
-      return api('/guides/'+session.guideId+'/steps/'+encodeURIComponent(session.stepId)+'/windows-target',
-        {method:'POST',body:JSON.stringify({processId:session.processId,condition,
-          replacing:session.replacing})});
-    }
+
   }
 };
 async function beginTargetPicker(runtime, guideId, stepId, contextId, replacing=false, completion=false, context=null) {
@@ -555,7 +546,11 @@ async function refreshPicker() {
       if (pickedFor.completion)
         await adapter.saveCompletion(pickedFor, candidate);
       else
-        await adapter.save(pickedFor, $('target-condition')?.value || 'clicked', gridChoiceIndex);
+        await api('/guides/'+pickedFor.guideId+'/steps/'+encodeURIComponent(pickedFor.stepId)+'/primary-target',
+          {method:'POST',body:JSON.stringify({
+            condition:$('target-condition')?.value || 'clicked',
+            replacing:pickedFor.replacing,gridChoice:gridChoiceIndex,
+            processId:pickedFor.processId || null})});
       pickingFor = null;
       result.textContent = 'הרכיב נשמר בהצלחה.';
       await openGuide(pickedFor.guideId);
