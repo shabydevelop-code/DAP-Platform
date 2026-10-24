@@ -302,64 +302,55 @@ function renderSteps() {
     if (context?.Runtime === 'Windows') {
       const section = document.createElement('section');
       section.className = 'target-editor';
-      section.innerHTML = '<h3>זיהוי רכיב Windows</h3>' +
-        '<p>לחץ על בדיקה לפי העכבר, ואז בתוך 3 שניות העבר את העכבר מעל הרכיב באפליקציית היעד. ' +
-        'אפשר גם לבדוק את הרכיב שנמצא במיקוד המקלדת.</p>' +
-        '<label for="windows-process">חלון האפליקציה</label>' +
-        '<select id="windows-process" dir="auto"></select>' +
-        '<div class="target-actions"><button id="inspect-windows-mouse" class="btn secondary">בדיקה לפי העכבר</button>' +
-        '<button id="inspect-windows-focus" class="btn secondary">בדיקה לפי מיקוד</button></div>' +
-        '<div id="windows-inspection" aria-live="polite" role="status"></div>';
+      section.innerHTML = '<h3>בחירת רכיב</h3>' +
+        '<button id="pick-windows-element" class="btn primary">הפעלת ממפה רכיבים</button>' +
+        '<div id="windows-pick-result" aria-live="polite"></div>';
       $('step-inspector').append(section);
-      const windows = (await api('/discovery')).windows || [];
       const matchers = parseJson(context.MatchersJson, []);
-      const matchingWindows = windows.filter(w => matchers.some(m => {
-        const kind = (m.Kind || '').toLowerCase();
-        const value = String(m.Value || '').toLowerCase();
-        if (!value) return false;
-        if (kind === 'processname')
-          return w.processName.toLowerCase().replace(/\\.exe$/, '') === value.replace(/\\.exe$/, '');
-        if (kind === 'windowtitlecontains')
-          return w.title.toLowerCase().includes(value);
-        return false;
-      }));
-      const processSelect = $('windows-process');
-      const processLabel = document.querySelector('label[for="windows-process"]');
-      if (matchingWindows.length === 1) {
-        processSelect.innerHTML = '<option value="' + Number(matchingWindows[0].processId) + '">' +
-          esc(matchingWindows[0].title) + '</option>';
-        processSelect.classList.add('hidden');
-        processLabel.classList.add('hidden');
-      } else if (matchingWindows.length > 1) {
-        processSelect.innerHTML = matchingWindows.map(w =>
-          '<option value="' + Number(w.processId) + '">' + esc(w.title) +
-          ' (PID ' + Number(w.processId) + ')</option>').join('');
-      } else {
-        processSelect.innerHTML = '<option value="">לא נמצא חלון התואם לאפליקציה המשויכת לשלב</option>';
-        processSelect.classList.add('hidden');
-        processLabel.classList.add('hidden');
-        $('windows-inspection').textContent = 'לא נמצא חלון פעיל התואם להגדרת האפליקציה בלומדה.';
-      }
-      const inspect = async focused => {
-        const processId = Number(processSelect.value);
-        if (!processId) throw new Error('לא נמצא חלון תואם לאפליקציה המשויכת לשלב.');
-        const result = $('windows-inspection');
-        result.textContent = focused ? 'בודק את הרכיב במיקוד…' : 'העבר את העכבר לרכיב היעד. הבדיקה תתבצע בעוד 3 שניות…';
-        try {
-          if (!focused) await new Promise(resolve => setTimeout(resolve, 3000));
-          const info = await api('/windows/inspect', {method:'POST',
-            body:JSON.stringify({processId, focused})});
-          result.innerHTML = '<p>שם: <strong>' + esc(info.name || '(ללא שם)') +
-            '</strong> · סוג: <code dir="ltr">' + esc(info.controlType) + '</code></p>' +
-            (info.locators.length ? '<p>מזהים ייחודיים:</p><ul>' + info.locators.map(x =>
-              '<li><code dir="ltr">' + esc(x.strategy) + ': ' + esc(x.value) +
-              '</code></li>').join('') + '</ul>' : '') +
-            (info.error ? '<p role="alert">' + esc(info.error) + '</p>' : '') +
-            '<p>בדיקה בלבד. שמירת רכיב Windows תחובר בשלב הבא.</p>';
-        } catch (error) { result.textContent = error.message; }
+      const resolveWindow = async () => {
+        const windows = (await api('/discovery')).windows || [];
+        const matches = windows.filter(w => matchers.some(m => {
+          const kind = String(m.Kind || '').toLowerCase();
+          const value = String(m.Value || '').toLowerCase();
+          if (!value) return false;
+          if (kind === 'processname')
+            return w.processName.toLowerCase().replace(/\\.exe$/, '') === value.replace(/\\.exe$/, '');
+          if (kind === 'windowtitlecontains') return w.title.toLowerCase().includes(value);
+          return false;
+        }));
+        if (matches.length !== 1)
+          throw new Error(matches.length ? 'נמצאו מספר חלונות תואמים. יש לסגור חלונות כפולים לפני הבחירה.' :
+            'לא נמצא חלון פעיל התואם לאפליקציה המשויכת לשלב.');
+        return matches[0].processId;
       };
-      $('inspect-windows-mouse').onclick = () => guarded(() => inspect(false));
-      $('inspect-windows-focus').onclick = () => guarded(() => inspect(true));
+      $('pick-windows-element').onclick = () => guarded(async () => {
+        const pid = await resolveWindow();
+        const result = $('windows-pick-result');
+        result.textContent = 'ממפה הרכיבים פעיל. עבור לאפליקציית היעד, העבר את העכבר מעל רכיב ולחץ עליו לבחירה.';
+        await api('/windows/picker/start', {method:'POST',body:JSON.stringify({processId:pid})});
+        const guideId = current.guide.id, stepId = step.id;
+        const poll = async () => {
+          if (current?.guide?.id !== guideId || selectedStep !== stepId || !result.isConnected) {
+            await api('/windows/picker/cancel',{method:'POST',body:'{}'});
+            return;
+          }
+          const status = await api('/windows/picker/status');
+          if (status.error) { result.textContent = status.error; return; }
+          if (status.picked && status.selection) {
+            const info = status.selection;
+            result.innerHTML = '<p>רכיב שנבחר: <strong>' + esc(info.name || '(ללא שם)') +
+              '</strong> · <code dir="ltr">' + esc(info.controlType) + '</code></p>' +
+              (info.locators?.length ? '<p>מזהים: ' + info.locators.map(x =>
+                '<code dir="ltr">' + esc(x.strategy) + ': ' + esc(x.value) + '</code>').join(' · ') + '</p>' : '') +
+              (info.error ? '<p role="alert">' + esc(info.error) + '</p>' : '') +
+              '<p>הרכיב זוהה. שמירה בלומדה תחובר בשלב הבא.</p>';
+            return;
+          }
+          if (!status.picking) { result.textContent = 'בחירת הרכיב הופסקה.'; return; }
+          setTimeout(() => void guarded(poll), 500);
+        };
+        setTimeout(() => void guarded(poll), 500);
+      });
     }
     if (context?.Runtime === 'Web') {
       const section = document.createElement('section');
