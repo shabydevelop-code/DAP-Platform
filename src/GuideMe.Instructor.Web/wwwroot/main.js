@@ -303,7 +303,7 @@ function renderSteps() {
     if (context?.Runtime === 'Windows') {
       const section = document.createElement('section');
       section.className = 'target-editor';
-      section.innerHTML = '<h3>בחירת רכיב</h3>' +
+      section.innerHTML = (!target && !rule ? '<h3>בחירת רכיב</h3>' : '') +
         (!target && !rule ? '<button id="pick-windows-element" class="btn primary">הפעלת ממפה רכיבים</button>' : '') +
         '<div id="pick-result" class="hidden" aria-live="polite"></div>';
       $('step-inspector').append(section);
