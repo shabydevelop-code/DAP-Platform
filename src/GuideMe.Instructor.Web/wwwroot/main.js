@@ -312,14 +312,37 @@ function renderSteps() {
         '<div id="windows-inspection" aria-live="polite" role="status"></div>';
       $('step-inspector').append(section);
       const windows = (await api('/discovery')).windows || [];
+      const matchers = parseJson(context.MatchersJson, []);
+      const matchingWindows = windows.filter(w => matchers.some(m => {
+        const kind = (m.Kind || '').toLowerCase();
+        const value = String(m.Value || '').toLowerCase();
+        if (!value) return false;
+        if (kind === 'processname')
+          return w.processName.toLowerCase().replace(/\\.exe$/, '') === value.replace(/\\.exe$/, '');
+        if (kind === 'windowtitlecontains')
+          return w.title.toLowerCase().includes(value);
+        return false;
+      }));
       const processSelect = $('windows-process');
-      processSelect.innerHTML = windows.length ? windows.map(w =>
-        '<option value="' + Number(w.processId) + '">' + esc(w.title) + ' (' + esc(w.processName) +
-        ', PID ' + Number(w.processId) + ')</option>').join('') :
-        '<option value="">לא נמצאו חלונות Windows זמינים</option>';
+      const processLabel = document.querySelector('label[for="windows-process"]');
+      if (matchingWindows.length === 1) {
+        processSelect.innerHTML = '<option value="' + Number(matchingWindows[0].processId) + '">' +
+          esc(matchingWindows[0].title) + '</option>';
+        processSelect.classList.add('hidden');
+        processLabel.classList.add('hidden');
+      } else if (matchingWindows.length > 1) {
+        processSelect.innerHTML = matchingWindows.map(w =>
+          '<option value="' + Number(w.processId) + '">' + esc(w.title) +
+          ' (PID ' + Number(w.processId) + ')</option>').join('');
+      } else {
+        processSelect.innerHTML = '<option value="">לא נמצא חלון התואם לאפליקציה המשויכת לשלב</option>';
+        processSelect.classList.add('hidden');
+        processLabel.classList.add('hidden');
+        $('windows-inspection').textContent = 'לא נמצא חלון פעיל התואם להגדרת האפליקציה בלומדה.';
+      }
       const inspect = async focused => {
         const processId = Number(processSelect.value);
-        if (!processId) throw new Error('בחר חלון Windows תחילה.');
+        if (!processId) throw new Error('לא נמצא חלון תואם לאפליקציה המשויכת לשלב.');
         const result = $('windows-inspection');
         result.textContent = focused ? 'בודק את הרכיב במיקוד…' : 'העבר את העכבר לרכיב היעד. הבדיקה תתבצע בעוד 3 שניות…';
         try {
