@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Windows.Automation;
 
 namespace GuideMe.Instructor.Web;
 
@@ -80,6 +81,19 @@ internal static class InstructorTargetActivation
 
         if (IsIconic(target)) ShowWindowAsync(target, SwRestore);
         if (GetForegroundWindow() == target) return true;
+
+        // Mirror Windows Learner's UI Automation focus strategy instead of
+        // relying exclusively on Win32 foreground promotion from Kestrel.
+        // Focus the application WINDOW, not an arbitrary input field.
+        try
+        {
+            var window = AutomationElement.FromHandle(target);
+            window?.SetFocus();
+            if (GetForegroundWindow() == target) return true;
+        }
+        catch (ElementNotAvailableException) { }
+        catch (InvalidOperationException) { }
+        catch (COMException) { }
 
         var foreground = GetForegroundWindow();
         var foregroundThread = foreground != 0
