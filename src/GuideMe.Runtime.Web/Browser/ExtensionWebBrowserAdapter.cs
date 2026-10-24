@@ -653,12 +653,18 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             var kind = condition.Kind.Trim().ToLowerInvariant();
             if (!GuideCompletionPolicy.IsSupportedObservationKind(kind))
                 throw new NotSupportedException($"Unsupported Web completion condition kind '{condition.Kind}'.");
+            // "Appeared"/"vanished" describe user-visible presence, not DOM
+            // membership. Preserve locator-based "exists"/"not-exists".
+            var observed = resolved;
+            if (kind is "target-appeared" or "target-vanished")
+                observed = resolved && result.TryGetProperty("visible", out var visibleProperty)
+                    && visibleProperty.ValueKind == JsonValueKind.True;
             var enabled = resolved && result.TryGetProperty("enabled", out var enabledProperty) && enabledProperty.GetBoolean();
             string? value = null;
             if (resolved && result.TryGetProperty("value", out var valueProperty) && valueProperty.ValueKind == JsonValueKind.String)
                 value = valueProperty.GetString();
             // Preserve the Web adapter's previous handling of non-resolved targets.
-            if (!GuideCompletionPolicy.IsSatisfied(condition, resolved, ambiguous: false, enabled, value))
+            if (!GuideCompletionPolicy.IsSatisfied(condition, observed, ambiguous: false, enabled, value))
                 return false;
         }
         return true;
