@@ -148,6 +148,16 @@ public static class GuideMeApplicationHost
         // its compiled steps. Never substitute the technical GuideKey.
         var guideName = await ReadGuideDisplayNameAsync(activeDatabasePath, options.GuideId!, cancellationToken);
         IReadOnlyList<GuideMe.Core.Guides.GuideStep> steps = v5.Steps;
+        // Start-step is an explicit editor test option. Keep original step IDs,
+        // order and contexts; only omit preceding steps from this run.
+        if (options.StartStepId is { } startStepId)
+        {
+            var start = steps.FirstOrDefault(step =>
+                step.IsEnabled && string.Equals(step.Id, startStepId, StringComparison.Ordinal));
+            if (start is null)
+                throw new InvalidOperationException($"Start step '{startStepId}' is missing or disabled.");
+            steps = steps.Where(step => step.Order >= start.Order).ToArray();
+        }
         IReadOnlyList<GuideMe.Core.Guides.GuideApplicationContext> applicationContexts = v5.Contexts;
         StartupMark(startup, $"guide loaded ({steps.Count} steps, {applicationContexts.Count} application contexts)");
         if (steps.Count == 0)
