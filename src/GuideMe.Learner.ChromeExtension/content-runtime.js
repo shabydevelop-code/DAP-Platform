@@ -15,6 +15,41 @@
   }
   globalThis.__guideMeAdapterEndpointVersion = "0.4.7";
 
+  // Track target-scoped DOM transitions between adapter polls. A visible
+  // results container can briefly disappear/reappear during server refresh,
+  // or be replaced without either state being sampled by the host.
+  const completionDocumentToken = crypto.randomUUID();
+  const completionWatchers = new Map();
+  function completionRevision(target) {
+    const key = JSON.stringify(target);
+    let watcher = completionWatchers.get(key);
+    if (!watcher) {
+      watcher = {revision:0, element:null, observer:null};
+      watcher.observer = new MutationObserver(records => {
+        const el = watcher.element;
+        if (!el) return;
+        for (const record of records) {
+          const node = record.target;
+          const related = node === el || el.contains(node) ||
+            (record.type === "attributes" && node.contains(el)) ||
+            (record.type === "childList" &&
+              [...record.removedNodes, ...record.addedNodes].some(n =>
+                n === el || (n.nodeType === 1 && n.contains(el))));
+          if (related) { watcher.revision++; break; }
+        }
+      });
+      watcher.observer.observe(document.documentElement, {
+        subtree:true, childList:true, attributes:true,
+        attributeFilter:["style","class","hidden","inert","open","aria-hidden"]
+      });
+      completionWatchers.set(key, watcher);
+    }
+    const resolved = resolveTarget(target);
+    if (resolved.status === "resolved") watcher.element = resolved.element;
+    // Keep the last element when removed: its removal is a relevant transition.
+    return {documentToken:completionDocumentToken, mutationRevision:watcher.revision};
+  }
+
   // Register the adapter message endpoint before the legacy POC runtime is
   // initialized. Target resolution is looked up at message time, so an
   // initialization failure later in this script can no longer make the frame
@@ -93,6 +128,7 @@
           return;
         }
         const el = result.element;
+        const completionChange = completionRevision(command.target);
         // Observation visibility is distinct from locator resolution. An element
         // can exist in the DOM while hidden by CSS, an ancestor, or a closed
         // details/dialog container. Keep the existing "target-exists" behavior.
@@ -108,7 +144,7 @@
           return el.getClientRects().length > 0;
         })();
         sendResponse({ok:true,result:{
-          status:"resolved",count:1,visible,
+          status:"resolved",count:1,visible,...completionChange,
           value:"value" in el ? String(el.value ?? "") : "",
           enabled:!(el.disabled === true || el.getAttribute("aria-disabled") === "true"),
           text:el.textContent ?? ""
