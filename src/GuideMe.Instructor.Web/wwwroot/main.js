@@ -374,7 +374,7 @@ function contextFields(c=null) {
     runtimeField(c?.Runtime||'Web'),{name:'matcherValue',label:'ערך זיהוי',value:raw.Value||'',help:'Web: localhost:5200 · Windows: שם התהליך ללא exe'}];
 }
 function contextPayload(v) {return {contextId:v.contextId.trim(),runtime:v.runtime,matcherProperty:v.runtime==='Web'?'UrlHost':'ProcessName',matcherValue:v.matcherValue.trim()};}
-async function newGuide() {
+async function discoverApplications() {
   const discovery = await api('/discovery');
   const unique = new Map();
   for (const tab of (discovery.web || [])) {
@@ -396,6 +396,18 @@ async function newGuide() {
         matcherProperty:'ProcessName',matcherValue:win.processName});
   }
   const apps = [...unique.values()];
+  return { discovery, apps };
+}
+function applicationChoices(apps, selectedValues = []) {
+  return apps.length ? '<div class="application-picker">' + apps.map((app, i) =>
+    '<label class="application-option"><input type="checkbox" name="app" value="' + i + '"' +
+    (selectedValues.includes(i) ? ' checked' : '') + '>' +
+    '<span><strong>' + esc(app.title) + '</strong><small>' +
+    esc(app.runtime + ' · ' + app.matcherValue) + '</small></span></label>').join('') + '</div>' :
+    '<p>לא אותרו אפליקציות. פתח אתר ב־Chrome או תוכנת Windows ולאחר מכן לחץ רענון.</p>';
+}
+async function newGuide() {
+  const { discovery, apps } = await discoverApplications();
   $('dialog-title').textContent = 'יצירת לומדה חדשה';
   $('submit-dialog').textContent = 'יצירת לומדה';
   $('dialog-fields').innerHTML =
@@ -403,11 +415,7 @@ async function newGuide() {
     '<input id="guide-new-name" name="name" maxlength="256" required autocomplete="off"></div>' +
     '<div class="field"><label>אפליקציות משתתפות</label>' +
     '<p>בחר אפליקציה אחת או יותר מבין האפליקציות הפתוחות. הזיהוי יישמר אוטומטית.</p>' +
-    (apps.length ? '<div class="application-picker">' + apps.map((app, i) =>
-       '<label class="application-option"><input type="checkbox" name="app" value="' + i + '">' +
-       '<span><strong>' + esc(app.title) + '</strong><small>' +
-       esc(app.runtime + ' · ' + app.matcherValue) + '</small></span></label>').join('') + '</div>' :
-       '<p>לא אותרו אפליקציות. פתח אתר ב־Chrome או תוכנת Windows ולאחר מכן לחץ רענון.</p>') +
+    applicationChoices(apps) +
     '<button type="button" class="btn secondary small" id="refresh-applications">רענון אפליקציות</button>' +
     (!discovery.webConnected ? '<p>תוסף Instructor אינו מחובר — רשימת אתרי Web אינה זמינה.</p>' : '') +
     '</div></div>';
@@ -458,24 +466,62 @@ function deleteGuide() {
     notify('הלומדה "' + guide.name + '" נמחקה.');
   }, 'מחיקה לצמיתות');
 }
-function addContext() {
-  modal('הוספת אפליקציה',contextFields(),async v=>{
-    await api('/guides/'+current.guide.id+'/contexts',{method:'POST',body:JSON.stringify(contextPayload(v))});
-    const id=current.guide.id;await openGuide(id);selectTab('contexts');notify('האפליקציה נוספה.');
-  },'הוספת אפליקציה');
+async function chooseContextApplication(existing = null) {
+  const guideId = current.guide.id;
+  const { discovery, apps: discovered } = await discoverApplications();
+  const apps = discovered.filter(app => existing ||
+    !current.contexts.some(c => {
+      let matcher; try { matcher = JSON.parse(c.MatchersJson || '[]')[0]; } catch {}
+      return c.Runtime === app.runtime && matcher?.Value?.toLowerCase() === app.matcherValue.toLowerCase();
+    }));
+  $('dialog-title').textContent = existing ? 'החלפת יעד אפליקציה' : 'הוספת אפליקציה';
+  $('submit-dialog').textContent = existing ? 'החלפת יעד' : 'הוספת אפליקציה';
+  $('dialog-fields').innerHTML =
+    '<div class="fields"><div class="field"><label>בחר אפליקציה פתוחה</label>' +
+    '<p>הזיהוי יישמר אוטומטית. אין צורך להזין פרטים טכניים.</p>' +
+    applicationChoices(apps) +
+    '<button type="button" class="btn secondary small" id="refresh-applications">רענון אפליקציות</button>' +
+    (!discovery.webConnected ? '<p>תוסף Instructor אינו מחובר — רשימת אתרי Web אינה זמינה.</p>' : '') +
+    (existing ? '<p>מיפויי השלבים הקיימים לא ישונו. לאחר ההחלפה יש לוודא שהם מתאימים לאפליקציה החדשה.</p>' : '') +
+    '</div></div>';
+  $('refresh-applications').onclick = () => guarded(() => chooseContextApplication(existing));
+  $('editor-form').onsubmit = event => {
+    event.preventDefault();
+    guarded(async () => {
+      const indexes = [...document.querySelectorAll('input[name="app"]:checked')].map(el => Number(el.value));
+      if (indexes.length !== 1) throw new Error('יש לבחור אפליקציה אחת.');
+      const app = apps[indexes[0]];
+      if (!app) throw new Error('האפליקציה שנבחרה אינה זמינה.');
+      if (existing && !confirm('להחליף את יעד האפליקציה? מיפויי השלבים הקיימים יישמרו ללא שינוי וייתכן שיידרש למפות אותם מחדש.')) return;
+      const used = new Set(current.contexts.map(c => c.ContextId));
+      let contextId = existing?.ContextId;
+      if (!contextId) {
+        let index = 1;
+        while (used.has('app-' + index)) index++;
+        contextId = 'app-' + index;
+      }
+      await api('/guides/' + guideId + '/contexts', {
+        method:'POST', body:JSON.stringify({
+          contextId, runtime:app.runtime,
+          matcherProperty:app.matcherProperty, matcherValue:app.matcherValue
+        })
+      });
+      $('editor-dialog').close();
+      await openGuide(guideId);
+      selectTab('contexts');
+      notify(existing ? 'יעד האפליקציה עודכן. יש לבדוק את מיפויי השלבים.' : 'האפליקציה נוספה.');
+    });
+  };
+  if (!$('editor-dialog').open) $('editor-dialog').showModal();
 }
+function addContext() { return guarded(() => chooseContextApplication()); }
 function renameContext(c) {
   modal('שינוי שם אפליקציה',[{name:'name',label:'שם תצוגה',value:c.DisplayName||c.ContextId,max:100}],async v=>{
     await api('/guides/'+current.guide.id+'/contexts/'+encodeURIComponent(c.ContextId)+'/name',{method:'PUT',body:JSON.stringify({name:v.name})});
     const id=current.guide.id;await openGuide(id);selectTab('contexts');notify('שם האפליקציה עודכן.');
   });
 }
-function editContext(c) {
-  modal('החלפת יעד אפליקציה',contextFields(c).filter(f=>f.name!=='contextId'),async v=>{
-    await api('/guides/'+current.guide.id+'/contexts',{method:'POST',body:JSON.stringify({...contextPayload({...v,contextId:c.ContextId})})});
-    const id=current.guide.id;await openGuide(id);selectTab('contexts');notify('יעד האפליקציה עודכן.');
-  });
-}
+function editContext(c) { return guarded(() => chooseContextApplication(c)); }
 async function deleteContext(c) {
   if(!confirm('להסיר את האפליקציה "'+(c.DisplayName||c.ContextId)+'"? ההסרה תתאפשר רק אם אין שלבים שתלויים בה.'))return;
   await api('/guides/'+current.guide.id+'/contexts/'+encodeURIComponent(c.ContextId),{method:'DELETE',body:'{}'});
