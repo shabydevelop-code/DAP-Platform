@@ -747,7 +747,7 @@ WHERE GuideId=$guideId AND StepId=$stepId
         string strategy, string value, string? displayName, string condition, bool replacing)
     {
         if (strategy is not ("automation-id" or "name") ||
-            string.IsNullOrWhiteSpace(value) || value.Length > 400 || value.Contains('\\0'))
+            string.IsNullOrWhiteSpace(value) || value.Length > 400 || value.Contains('\0'))
             throw new ArgumentException("מזהה Windows אינו תקין.");
         if (condition is not ("clicked" or "value-not-empty" or "target-disappeared"))
             throw new ArgumentException("תנאי התקדמות אינו נתמך.");
