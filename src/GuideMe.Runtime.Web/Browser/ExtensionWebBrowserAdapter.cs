@@ -47,6 +47,9 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
 
     private readonly ConcurrentDictionary<string, TaskCompletionSource<JsonElement>> _pendingResponses = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, string> _pendingErrors = new(StringComparer.Ordinal);
+    // Only transition-based rules use this state; legacy target-exists is unchanged.
+    private readonly Dictionary<string, (bool InitialVisible, bool SawHidden,
+        string? DocumentToken, long Revision)> _completionTransitions = new(StringComparer.Ordinal);
     private readonly Dictionary<string, Queue<WebValidationCommit>> _commits = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> _armedValidationIds = new(StringComparer.Ordinal);
     private readonly SemaphoreSlim _signal = new(0);
@@ -657,8 +660,42 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             // membership. Preserve locator-based "exists"/"not-exists".
             var observed = resolved;
             if (kind is "target-appeared" or "target-vanished")
-                observed = resolved && result.TryGetProperty("visible", out var visibleProperty)
+            {
+                var visible = resolved && result.TryGetProperty("visible", out var visibleProperty)
                     && visibleProperty.ValueKind == JsonValueKind.True;
+                var key = step.Id + ":" + kind;
+                var token = resolved && result.TryGetProperty("documentToken", out var tokenProperty)
+                    ? tokenProperty.GetString() : null;
+                var revision = resolved && result.TryGetProperty("mutationRevision", out var revisionProperty)
+                    ? revisionProperty.GetInt64() : 0;
+                if (!_completionTransitions.TryGetValue(key, out var state))
+                {
+                    _completionTransitions[key] = (visible, !visible, token, revision);
+                    // A transition cannot be established by the first sample.
+                    return false;
+                }
+                var changed = token is not null &&
+                    (state.DocumentToken != token || state.Revision != revision);
+                var sawHidden = state.SawHidden || !visible;
+                _completionTransitions[key] = (state.InitialVisible, sawHidden,
+                    token ?? state.DocumentToken, revision);
+                if (kind == "target-appeared")
+                {
+                    // An initially visible results container may be refreshed
+                    // by the server. Its DOM mutation/document replacement is
+                    // the observable result of the user's committed action.
+                    if (!visible || !(sawHidden || changed)) return false;
+                    observed = true;
+                }
+                else
+                {
+                    // Do not complete a disappearance just because a frame is
+                    // temporarily detached before the user's action.
+                    if (visible || (state.InitialVisible == false && !changed))
+                        return false;
+                    observed = false;
+                }
+            }
             var enabled = resolved && result.TryGetProperty("enabled", out var enabledProperty) && enabledProperty.GetBoolean();
             string? value = null;
             if (resolved && result.TryGetProperty("value", out var valueProperty) && valueProperty.ValueKind == JsonValueKind.String)
