@@ -76,6 +76,21 @@ chrome.runtime.onInstalled.addListener(ensureNativeConnection);
 // runtime-activation channel is available.
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message?.type === "guideMe-instructor-test-ping") {
+    (async () => {
+      try {
+        const nativePort = connect();
+        const requestId = crypto.randomUUID();
+        const reply = waitForNativeResponse(nativePort, requestId, 5000);
+        nativePort.postMessage({ type: "ping", requestId });
+        const response = await reply;
+        sendResponse({ ok: response?.ok === true, error: response?.error });
+      } catch (error) {
+        sendResponse({ ok: false, error: String(error?.message || error) });
+      }
+    })();
+    return true;
+  }
   if (message?.type === "guideMe-runtime-ready") {
     connect();
     sendResponse({ ok: true });
