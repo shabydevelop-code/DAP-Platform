@@ -203,14 +203,17 @@ app.MapPut("/api/guides/{id:long}/steps/{stepId}/validation",
     return Results.NoContent();
 });
 
-// A test uses the installed production Learner, the persisted V5 guide key,
- // and the normal first-step startup path. Never skip prerequisite steps.
-app.MapPost("/api/guides/{id:long}/test", (long id) =>
+// Test the persisted guide with the production Learner, optionally starting
+// at an editor-selected step. No preceding application actions are replayed.
+app.MapPost("/api/guides/{id:long}/test", (long id, string? startStepId) =>
 {
     var guide = V5GuideReader.ListGuides().FirstOrDefault(g => g.Id == id);
     if (guide is null) return Results.NotFound();
-    if (!V5GuideReader.ListSteps(id).Any(step => step.Enabled))
+    var enabledSteps = V5GuideReader.ListSteps(id).Where(step => step.Enabled).ToArray();
+    if (enabledSteps.Length == 0)
         return Results.Problem("בלומדה אין שלבים פעילים.", statusCode: 409);
+    if (startStepId is not null && !enabledSteps.Any(step => step.Id == startStepId))
+        return Results.Problem("שלב ההתחלה אינו קיים או אינו פעיל.", statusCode: 400);
     const string learnerExe = @"C:\GuideMe\GuideMe.exe";
     if (!File.Exists(learnerExe))
         return Results.Problem("לא נמצאה התקנת Learner ב־C:\\GuideMe\\GuideMe.exe. פרסם את GuideMe תחילה.", statusCode: 409);
@@ -223,6 +226,11 @@ app.MapPost("/api/guides/{id:long}/test", (long id) =>
         };
         launch.ArgumentList.Add("--guide");
         launch.ArgumentList.Add(guide.Key);
+        if (startStepId is not null)
+        {
+            launch.ArgumentList.Add("--start-step");
+            launch.ArgumentList.Add(startStepId);
+        }
         using var process = Process.Start(launch);
         if (process is null)
             return Results.Problem("לא ניתן להפעיל את ה־Learner.", statusCode: 500);
