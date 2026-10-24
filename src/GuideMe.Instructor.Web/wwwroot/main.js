@@ -643,6 +643,15 @@ async function deleteContext(c) {
 $('guide-search').addEventListener('input',renderGuides);
 $('step-search').addEventListener('input',()=>{if(current)renderSteps()});
 $('new-guide').onclick=()=>guarded(newGuide);
+$('test-guide').onclick=()=>guarded(async()=>{
+  if (!current || !confirmDiscard()) return;
+  const button=$('test-guide');
+  button.disabled=true;
+  try {
+    await api('/guides/'+current.guide.id+'/test',{method:'POST',body:'{}'});
+    notify('ה־Learner הופעל לבדיקת הלומדה מתחילתה. יש להכין את אפליקציית היעד למצב ההתחלתי.');
+  } finally { button.disabled=false; }
+});
 $('rename-guide').onclick=renameGuide;
 $('delete-guide').onclick=deleteGuide;
 $('add-context').onclick=addContext;
