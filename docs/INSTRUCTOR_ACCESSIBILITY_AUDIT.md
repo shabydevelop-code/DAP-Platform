@@ -36,3 +36,24 @@ Status: **static source review and initial remediation only**. No certification 
 - Repeat at 200%/400% zoom and with NVDA.
 
 Do not mark WCAG AA compliance until the checks above have been completed and recorded with evidence.
+
+## Automated accessibility regression (added)
+
+Read-only Playwright + axe-core tests live under `tests/Instructor.Accessibility`.
+They exercise the local Instructor instance, not a mock application. They open
+an existing guide and a rename dialog but never submit writes to the V5 database.
+
+Run from a separate PowerShell window while Instructor is running:
+
+```powershell
+cd C:\yossi\ChatGpt\DAP-Platform
+.\scripts\Test-GuideMeInstructorAccessibility.ps1
+```
+
+Requirements: Node.js/npm and .NET-hosted Instructor running on 127.0.0.1:53922.
+The first run installs test-only npm packages and Playwright Chromium.
+Report: `tests/Instructor.Accessibility/playwright-report/index.html`.
+
+**No test execution has been verified on the Windows machine yet.** Axe coverage
+is not equivalent to WCAG certification; continue manual NVDA, keyboard,
+zoom, picker and error-flow checks. Do not mark AA passed without evidence.
