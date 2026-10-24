@@ -216,7 +216,8 @@ function renderSteps() {
     $('step-inspector').innerHTML =
       '<div class="step-editor-head"><div><h2>שלב ' + step.order + '</h2>' +
       '<p>אפליקציה: ' + esc(appText) + '</p></div>' +
-      '<button class="btn secondary small" id="edit-step">עריכת תוכן השלב</button></div>' +
+      '<div class="step-editor-actions"><button class="btn secondary small" id="edit-step">עריכת תוכן השלב</button>' +
+      '<button class="btn primary small" id="test-from-step"' + (step.enabled ? '' : ' disabled') + '>בדיקה משלב זה</button></div></div>' +
       '<div class="step-summary"><strong>הנחיה למשתמש</strong><p>' +
       esc(step.bubble || 'לא הוגדרה הנחיה') + '</p>' +
       '<span class="chip">' + (step.enabled ? 'פעיל' : 'מושבת') + '</span></div>' +
@@ -245,6 +246,17 @@ function renderSteps() {
           '<button class="btn secondary small" id="add-completion">בחירת רכיב לתנאי השלמה</button>') +
         '</section>' : '');
     $('edit-step').onclick = () => editStep(step, contextId);
+    $('test-from-step').onclick = () => guarded(async () => {
+      if (!current || !confirmDiscard()) return;
+      const button = $('test-from-step');
+      button.disabled = true;
+      try {
+        await verifyLearnerTransport();
+        await api('/guides/' + current.guide.id + '/test?startStepId=' + encodeURIComponent(step.id),
+          {method:'POST', body:'{}'});
+        notify('ה־Learner הופעל משלב ' + step.order + '. הבועית תוצג כשהרכיב המתאים יהיה זמין.');
+      } finally { button.disabled = false; }
+    });
     const addCompletion = $('add-completion');
     if (addCompletion) addCompletion.onclick = () => guarded(() =>
       beginWebPicker(current.guide.id, step.id, contextId, false, true));
