@@ -373,7 +373,7 @@
   // Semantic grid-row selector authored by Instructor. Match an exact cell
   // value, not the row index, so sorting and re-rendering remain safe.
   function parseCellTextSelector(selector) {
-    const pattern = /:cell-text\\((\\d+),("(?:\\\\.|[^"\\\\])*")\\)$/;
+    const pattern = /:cell-text\((\d+),("(?:\\.|[^"\\])*")\)$/;
     const match = String(selector || "").match(pattern);
     if (!match) return {selector, cell: null};
     const column = Number(match[1]);
