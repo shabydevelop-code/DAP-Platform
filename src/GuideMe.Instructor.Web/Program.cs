@@ -122,6 +122,42 @@ app.MapPost("/api/windows/picker/start", (WindowsInspectRequest request) =>
 app.MapGet("/api/windows/picker/status", () => Results.Ok(windowsPicker.Status()));
 app.MapPost("/api/windows/picker/cancel", () => Results.Ok(windowsPicker.Stop()));
 
+app.MapPost("/api/guides/{id:long}/steps/{stepId}/windows-target",
+    (long id, string stepId, SaveWindowsTargetRequest request) =>
+{
+    var steps = V5GuideReader.ReadGuideTable(id, "Steps");
+    var step = steps.Rows.Cast<DataRow>().FirstOrDefault(r =>
+        string.Equals(r["StepId"].ToString(), stepId, StringComparison.Ordinal));
+    if (step is null) return Results.NotFound();
+    var contexts = V5GuideReader.ReadGuideTable(id, "ApplicationContexts");
+    var context = contexts.Rows.Cast<DataRow>().FirstOrDefault(r =>
+        string.Equals(r["ContextId"].ToString(), step["ApplicationContextId"].ToString(), StringComparison.Ordinal));
+    if (context is null || context["Runtime"].ToString() != "Windows")
+        return Results.BadRequest(new { message = "השלב אינו משויך לאפליקציית Windows." });
+    var picked = windowsPicker.Status().Selection;
+    if (picked is null || picked.Error is not null || picked.ProcessId != request.ProcessId)
+        return Results.BadRequest(new { message = "יש לבחור תחילה רכיב Windows תקין בממפה." });
+    var matchers = System.Text.Json.JsonDocument.Parse(context["MatchersJson"].ToString() ?? "[]");
+    using (matchers)
+    {
+        var process = System.Diagnostics.Process.GetProcessById(request.ProcessId);
+        if (!matchers.RootElement.EnumerateArray().Any(m =>
+            m.TryGetProperty("Kind", out var kind) &&
+            m.TryGetProperty("Value", out var value) &&
+            kind.GetString() == "ProcessName" &&
+            string.Equals(System.IO.Path.GetFileNameWithoutExtension(value.GetString()),
+                process.ProcessName, StringComparison.OrdinalIgnoreCase)))
+            return Results.BadRequest(new { message = "הרכיב אינו שייך לאפליקציה שהוגדרה בלומדה." });
+    }
+    var locator = picked.Locators.FirstOrDefault();
+    if (locator is null)
+        return Results.BadRequest(new { message = "לא נמצא מזהה ייחודי לרכיב." });
+    V5GuideWriter.SaveWindowsTarget(id, stepId, locator.Strategy, locator.Value,
+        picked.Name, request.Condition, request.Replacing);
+    windowsPicker.Stop();
+    return Results.NoContent();
+});
+
 app.MapPost("/api/windows/inspect", (WindowsInspectRequest request) =>
 {
     try { return Results.Ok(WindowsTargetInspector.Inspect(request.ProcessId, request.Focused)); }
@@ -387,6 +423,7 @@ internal sealed record EditStep(string? Bubble, bool Enabled, string? ContextId)
 internal sealed record NewManualStep(string ContextId, string Bubble, string Placement);
 
 internal sealed record WindowsInspectRequest(int ProcessId, bool Focused = false);
+internal sealed record SaveWindowsTargetRequest(int ProcessId, string Condition, bool Replacing = false);
 internal sealed record PickStart(long GuideId, string ContextId);
 internal sealed record SaveWebTargetRequest(string Condition, int? GridChoice = null);
 internal sealed record ReplaceWebTargetRequest(int? GridChoice = null);
