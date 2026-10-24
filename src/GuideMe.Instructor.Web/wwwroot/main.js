@@ -164,6 +164,8 @@ function renderSteps() {
     const name = row.querySelector('.step-body strong');
     if (!name) return;
     hideTip();
+    // Only offer a tooltip when the one-line label is actually truncated.
+    if (name.scrollWidth <= name.clientWidth + 1) return;
     activeTipRow = row;
     tip.textContent = name.textContent;
     tip.hidden = false;
