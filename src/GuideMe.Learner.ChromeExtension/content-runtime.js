@@ -93,8 +93,22 @@
           return;
         }
         const el = result.element;
+        // Observation visibility is distinct from locator resolution. An element
+        // can exist in the DOM while hidden by CSS, an ancestor, or a closed
+        // details/dialog container. Keep the existing "target-exists" behavior.
+        const visible = (() => {
+          if (!el.isConnected || el.closest('[hidden], [inert]')) return false;
+          if (el.closest('details:not([open])') &&
+              !el.closest('details:not([open]) > summary')) return false;
+          for (let node = el; node && node.nodeType === 1; node = node.parentElement) {
+            const style = getComputedStyle(node);
+            if (style.display === "none" || style.visibility === "hidden" ||
+                style.visibility === "collapse") return false;
+          }
+          return el.getClientRects().length > 0;
+        })();
         sendResponse({ok:true,result:{
-          status:"resolved",count:1,
+          status:"resolved",count:1,visible,
           value:"value" in el ? String(el.value ?? "") : "",
           enabled:!(el.disabled === true || el.getAttribute("aria-disabled") === "true"),
           text:el.textContent ?? ""
