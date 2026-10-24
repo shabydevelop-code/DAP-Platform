@@ -207,6 +207,38 @@ app.MapPut("/api/guides/{id:long}/steps/{stepId}/validation",
     return Results.NoContent();
 });
 
+// A test uses the installed production Learner, the persisted V5 guide key,
+ // and the normal first-step startup path. Never skip prerequisite steps.
+app.MapPost("/api/guides/{id:long}/test", (long id) =>
+{
+    var guide = V5GuideReader.ListGuides().FirstOrDefault(g => g.Id == id);
+    if (guide is null) return Results.NotFound();
+    if (!V5GuideReader.ListSteps(id).Any(step => step.Enabled))
+        return Results.Problem("בלומדה אין שלבים פעילים.", statusCode: 409);
+    const string learnerExe = @"C:\GuideMe\GuideMe.exe";
+    if (!File.Exists(learnerExe))
+        return Results.Problem("לא נמצאה התקנת Learner ב־C:\\GuideMe\\GuideMe.exe. פרסם את GuideMe תחילה.", statusCode: 409);
+    try
+    {
+        var launch = new ProcessStartInfo(learnerExe)
+        {
+            UseShellExecute = false,
+            WorkingDirectory = Path.GetDirectoryName(learnerExe)!
+        };
+        launch.ArgumentList.Add("--guide");
+        launch.ArgumentList.Add(guide.Key);
+        using var process = Process.Start(launch);
+        if (process is null)
+            return Results.Problem("לא ניתן להפעיל את ה־Learner.", statusCode: 500);
+        return Results.Ok(new { started = true, guideId = id });
+    }
+    catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+    {
+        app.Logger.LogError(ex, "Could not launch Learner for guide {GuideId}", id);
+        return Results.Problem("הפעלת ה־Learner נכשלה. בדוק את חלון ה־Instructor.", statusCode: 500);
+    }
+});
+
 app.MapGet("/api/guides", () => Results.Ok(V5GuideReader.ListGuides()));
 app.MapGet("/api/guides/{id:long}", (long id) =>
 {
