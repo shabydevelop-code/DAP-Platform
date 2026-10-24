@@ -252,7 +252,30 @@
     clearInterval(hoverPoll);
     hoverPoll = null;
     clearHighlight();
+    // Offer stable grid-row identity by exact cell value, independent of row order.
+    // Only offer values that uniquely identify a row in the selected table.
+    const row = target.closest('tr');
+    const table = row?.closest('table');
+    const gridChoices = [];
+    if (row && table && row.closest('tbody') && row.cells.length) {
+      const tableSelector = selectorFor(table);
+      if (tableSelector) {
+        const rows = [...table.querySelectorAll('tbody tr')];
+        const headers = [...table.querySelectorAll('thead th')];
+        [...row.cells].forEach((cell, index) => {
+          const value = cell.textContent.replace(/\\s+/g, ' ').trim();
+          if (!value || value.length > 120 || /[\\r\\n]/.test(value)) return;
+          const matches = rows.filter(other =>
+            other.cells[index]?.textContent.replace(/\\s+/g, ' ').trim() === value);
+          if (matches.length !== 1 || matches[0] !== row) return;
+          const header = headers[index]?.textContent.replace(/\\s+/g, ' ').trim().slice(0, 60) || 'עמודה ' + (index + 1);
+          const rowSelector = tableSelector + ' tbody tr:cell-text(' + (index + 1) + ',' + JSON.stringify(value) + ')';
+          if (rowSelector.length <= 400) gridChoices.push({header, value, selector:rowSelector});
+        });
+      }
+    }
     const candidate = {
+      gridChoices,
       selector, url:location.href, tag:target.tagName.toLowerCase(),
       label:(() => {
         const explicit = target.getAttribute("aria-label") ||
