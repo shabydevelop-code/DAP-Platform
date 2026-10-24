@@ -15,11 +15,11 @@
   function stopCapture() {
     if (!active) return;
     active = false;
+    globalThis.__guideMePickerActive = false;
     for (const type of eventTypes) removeEventListener(type, report, true);
     removeEventListener("pointermove", pickHover, true);
     removeEventListener("mousemove", pickHover, true);
     removeEventListener("keydown", pickKey, true);
-    removeEventListener("click", pickClick, true);
     chrome.runtime.onMessage.removeListener(pickMessages);
     removeEventListener("message", frameSelection, false);
     clearInterval(hoverPoll);
@@ -152,6 +152,7 @@
   function pickMessages(message, _sender, sendResponse) {
     if (message?.type === "guideme-instructor-pick-start") {
       pickActive = true;
+      globalThis.__guideMePickerActive = true;
       pickerNonce = message.nonce;
       if (!hoverPoll) hoverPoll = setInterval(inspectHoveredElement, 120);
       inspectHoveredElement();
@@ -165,6 +166,7 @@
     }
     if (message?.type === "guideme-instructor-pick-stop") {
       pickActive = false;
+      globalThis.__guideMePickerActive = false;
       pickerNonce = null;
       clearInterval(hoverPoll);
       hoverPoll = null;
@@ -190,24 +192,13 @@
     if (!pickActive || !event.isTrusted) return;
     inspectHoveredElement();
   }
-  // During picking, a click selects the target instead of executing the
-  // application's action (navigation, form submit, server refresh, etc.).
-  function pickClick(event) {
-    if (!pickActive || !event.isTrusted) return;
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    const element = event.target instanceof Element ? event.target : null;
-    if (!element) return;
-    const target = element.closest('button,a,input,select,textarea,[role="button"],[role="textbox"],[role="link"]') || element;
-    showHighlight(target);
-    confirmHighlightedSelection(target);
-  }
   function pickKey(event) {
     if (!pickActive || !event.isTrusted) return;
     if (event.key === 'Escape') {
       event.preventDefault();
       event.stopImmediatePropagation();
       pickActive = false;
+      globalThis.__guideMePickerActive = false;
       clearInterval(hoverPoll);
       hoverPoll = null;
       clearHighlight();
@@ -220,18 +211,19 @@
     event.stopImmediatePropagation();
     confirmHighlightedSelection();
   }
-  function confirmHighlightedSelection(explicitTarget = null) {
+  function confirmHighlightedSelection() {
     if (!pickActive) return;
-    // Keyboard selection uses hover; click selection uses the clicked target.
-    if (!explicitTarget) inspectHoveredElement();
+    // Refresh the hovered element even when the page has not received focus.
+    inspectHoveredElement();
     if (!highlighted || !highlighted.isConnected) return;
-    const target = explicitTarget || highlighted;
+    const target = highlighted;
     const selector = selectorFor(target);
     if (!selector) {
       try { chrome.runtime.sendMessage({type:"guideme-instructor-pick-error",reason:"לא ניתן ליצור מזהה CSS ייחודי לרכיב המסומן."}).catch(()=>{}); } catch {}
       return;
     }
     pickActive = false;
+    globalThis.__guideMePickerActive = false;
     clearInterval(hoverPoll);
     hoverPoll = null;
     clearHighlight();
@@ -247,7 +239,6 @@
   addEventListener("pointermove", pickHover, true);
   addEventListener("mousemove", pickHover, true);
   addEventListener("keydown", pickKey, true);
-  addEventListener("click", pickClick, true);
 
   // Structural snapshot only: never collect input values or page text wholesale.
   function snapshot() {
