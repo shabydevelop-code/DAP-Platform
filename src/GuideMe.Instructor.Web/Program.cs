@@ -137,16 +137,29 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/windows-target",
     var picked = windowsPicker.Status().Selection;
     if (picked is null || picked.Error is not null || picked.ProcessId != request.ProcessId)
         return Results.BadRequest(new { message = "יש לבחור תחילה רכיב Windows תקין בממפה." });
-    var matchers = System.Text.Json.JsonDocument.Parse(context["MatchersJson"].ToString() ?? "[]");
-    using (matchers)
+    var configuredMatchers = System.Text.Json.JsonDocument.Parse(
+        context["MatchersJson"].ToString() ?? "[]");
+    using (configuredMatchers)
     {
-        var process = System.Diagnostics.Process.GetProcessById(request.ProcessId);
-        if (!matchers.RootElement.EnumerateArray().Any(m =>
-            m.TryGetProperty("Kind", out var kind) &&
-            m.TryGetProperty("Value", out var value) &&
-            kind.GetString() == "ProcessName" &&
-            string.Equals(System.IO.Path.GetFileNameWithoutExtension(value.GetString()),
-                process.ProcessName, StringComparison.OrdinalIgnoreCase)))
+        var windows = InstructorApplicationDiscovery.Windows()
+            .Where(w => w.ProcessId == request.ProcessId).ToArray();
+        var matched = windows.Any(w => configuredMatchers.RootElement.EnumerateArray().Any(m =>
+        {
+            if (!m.TryGetProperty("Kind", out var kind) ||
+                !m.TryGetProperty("Value", out var value)) return false;
+            var matcherValue = value.GetString();
+            if (string.IsNullOrWhiteSpace(matcherValue)) return false;
+            return kind.GetString()?.ToLowerInvariant() switch
+            {
+                "processname" => string.Equals(
+                    Path.GetFileNameWithoutExtension(matcherValue), w.ProcessName,
+                    StringComparison.OrdinalIgnoreCase),
+                "windowtitlecontains" => w.Title.Contains(matcherValue,
+                    StringComparison.OrdinalIgnoreCase),
+                _ => false
+            };
+        }));
+        if (!matched)
             return Results.BadRequest(new { message = "הרכיב אינו שייך לאפליקציה שהוגדרה בלומדה." });
     }
     var locator = picked.Locators.FirstOrDefault();
