@@ -21,12 +21,47 @@ const $ = id => document.getElementById(id);
 
 let guides = [], current = null, selectedStep = null;
 let modalReturnFocus = null;
+let saveState = 'saved';
+let pendingChanges = false;
+let saveInFlight = 0;
+function updateSaveStatus() {
+  const el = $('save-status');
+  if (!el) return;
+  const state = saveInFlight ? 'saving' : pendingChanges ? 'dirty' : saveState;
+  el.dataset.state = state;
+  el.textContent = ({saved:'כל השינויים נשמרו',dirty:'שינויים שלא נשמרו',
+    saving:'שומר שינויים...',error:'השמירה נכשלה'})[state];
+}
+function markDirty() { pendingChanges = true; updateSaveStatus(); }
+function markClean() { pendingChanges = false; saveState = 'saved'; updateSaveStatus(); }
+function confirmDiscard() {
+  return !pendingChanges || confirm('יש שינויים שלא נשמרו. לצאת בלי לשמור אותם?');
+}
+window.addEventListener('beforeunload', event => {
+  if (!pendingChanges && !saveInFlight) return;
+  event.preventDefault();
+  event.returnValue = '';
+});
+
 const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 async function api(path, options = {}) {
-  const response = await fetch('/api' + path, {
+  const writing = options.method && !['GET','HEAD'].includes(options.method.toUpperCase());
+  if (writing) { saveInFlight++; updateSaveStatus(); }
+  let response;
+  try {
+    response = await fetch('/api' + path, {
     ...options, headers: { 'X-GuideMe-Session': token, ...(options.body ? {'Content-Type':'application/json'} : {}), ...options.headers },
     cache: 'no-store'
-  });
+    });
+  } catch (error) {
+    if (writing) { saveInFlight--; saveState = 'error'; updateSaveStatus(); }
+    throw error;
+  }
+  if (writing) {
+    saveInFlight--;
+    if (response.ok) markClean();
+    else { saveState = 'error'; updateSaveStatus(); }
+  }
   if (!response.ok) {
     let body = await response.text();
     try { const err = JSON.parse(body); body = err.detail || err.title || body; } catch {}
@@ -43,6 +78,7 @@ function notify(message, error = false) {
 function clearNotice() { $('notice').classList.add('hidden'); }
 async function guarded(action) { try { await action(); } catch(e) { notify(e.message || String(e), true); } }
 function showList() {
+  if (!confirmDiscard()) return;
   current = null; selectedStep = null;
   $('list-view').classList.remove('hidden'); $('detail-view').classList.add('hidden');
   $('new-guide').classList.remove('hidden');
@@ -65,6 +101,7 @@ function renderGuides() {
   document.querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', () => guarded(() => openGuide(Number(b.dataset.open)))));
 }
 async function openGuide(id) {
+  if (!confirmDiscard()) return;
   current = await api('/guides/' + id);
   const g = current.guide;
   $('list-view').classList.add('hidden'); $('detail-view').classList.remove('hidden');
@@ -109,6 +146,7 @@ function renderSteps() {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); b.click(); }
   }));
   document.querySelectorAll('[data-step]').forEach(b => b.addEventListener('click',() => guarded(async () => {
+    if (!confirmDiscard()) return;
     selectedStep = b.dataset.step;
     document.querySelectorAll('[data-step]').forEach(x => { x.classList.toggle('active', x===b); x.setAttribute('aria-pressed', String(x===b)); });
     const data = await api('/guides/' + current.guide.id + '/step/' + encodeURIComponent(selectedStep));
@@ -325,6 +363,7 @@ async function refreshPicker() {
     }
     if (!state.picking) {
       pickingFor = null;
+      markClean();
       box.textContent = 'איתור הרכיב בוטל. ניתן להפעיל שוב את הממפה.';
       return;
     }
@@ -400,6 +439,7 @@ async function refreshPicker() {
   $('cancel-web-target').onclick = () => guarded(async () => {
     await api('/target-picker/cancel',{method:'POST',body:'{}'});
     pickingFor = null;
+    markClean();
     box.textContent = 'הבחירה בוטלה.';
   });
 }
@@ -429,12 +469,20 @@ function modal(title, fields, submit, buttonText='שמירה') {
   $('submit-dialog').textContent=buttonText;
   const form=$('editor-form');
   form.onsubmit=e=>{e.preventDefault();const values=Object.fromEntries(new FormData(form).entries());guarded(async()=>{await submit(values);$('editor-dialog').close();});};
+  const baseline = new URLSearchParams(new FormData(form)).toString();
+  const onChange = () => {
+    if (new URLSearchParams(new FormData(form)).toString() !== baseline) markDirty();
+    else markClean();
+  };
+  form.oninput = onChange;
+  form.onchange = onChange;
   $('editor-dialog').showModal();
   form.querySelector('input,textarea,select')?.focus();
 }
 $('editor-dialog').addEventListener('close', () => {
   if (modalReturnFocus?.isConnected && !modalReturnFocus.closest('[hidden],.hidden')) modalReturnFocus.focus();
   modalReturnFocus = null;
+  if (pendingChanges) markClean();
 });
 async function discoverApplications() {
   const discovery = await api('/discovery');
@@ -597,7 +645,12 @@ $('delete-guide').onclick=deleteGuide;
 $('add-context').onclick=addContext;
 $('new-step').onclick=newStep;
 $('back').onclick=showList;
-$('close-dialog').onclick=$('cancel-dialog').onclick=()=>$('editor-dialog').close();
+$('close-dialog').onclick=$('cancel-dialog').onclick=()=>{
+  if (confirmDiscard()) $('editor-dialog').close();
+};
+$('editor-dialog').addEventListener('cancel', e => {
+  if (!confirmDiscard()) e.preventDefault();
+});
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>selectTab(b.dataset.tab));
 function newStep() {
   if (!current) return;
