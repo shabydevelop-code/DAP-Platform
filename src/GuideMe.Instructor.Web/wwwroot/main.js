@@ -208,7 +208,10 @@ function renderSteps() {
     const completionTarget = data.targets.find(x => x.UsageId === completionRule?.TargetUsageId);
     const completionElement = data.elements.find(x => x.ElementId === completionTarget?.ElementId);
     const completionSelector = parseJson(completionElement?.LocatorsJson, [])[0]?.Value || '';
-    const completionLabel = completionRule?.Kind === 'target-appeared' ? 'הופיע' : 'נעלם';
+    const completionLabel = completionRule?.Kind === 'target-appeared' ? 'הופיע' :
+      completionRule?.Kind === 'attribute-equals' ? 'מאפיין השתנה לערך צפוי' : 'נעלם';
+    const completionAttribute = completionRule?.Kind === 'attribute-equals'
+      ? parseJson(completionRule.ExpectedValue, {}) : {};
     const locatorText = locators[0]?.Value || '';
     const friendlyName = element?.DisplayName || (locatorText === 'a' ? 'קישור' : locatorText);
     const appText = context ? appLabel(context) : 'לא משויך';
@@ -241,6 +244,9 @@ function renderSteps() {
         '<section class="target-editor"><h3>תנאי השלמה נוסף</h3>' +
         (completionRule ? '<p>רכיב: <strong>' + esc(completionElement?.DisplayName || completionSelector) +
           '</strong> · חוק: <strong>' + completionLabel + '</strong></p>' +
+           (completionRule?.Kind === 'attribute-equals' ? '<p>מאפיין: <code dir="ltr">' +
+             esc(completionAttribute.name || '') + '</code> · ערך צפוי: <code dir="ltr">' +
+             esc(completionAttribute.value || '') + '</code></p>' : '') +
           '<button class="btn secondary small" id="remove-completion">הסרת תנאי השלמה</button>' :
           '<p>בחר רכיב נוסף שצריך להופיע או להיעלם בעקבות הפעולה.</p>' +
           '<button class="btn secondary small" id="add-completion">בחירת רכיב לתנאי השלמה</button>') +
@@ -411,13 +417,27 @@ async function refreshPicker() {
       '</select><p>בחירה לפי ערך תישאר תקפה גם לאחר מיון הטבלה. אם הערך אינו ייחודי, הוא לא יוצע.</p>' : '')+
     (pickingFor.replacing ? '' : '<label for="target-condition">' + (pickingFor.completion ? 'חוק השלמה' : 'תנאי התקדמות') + '</label>')+
     (pickingFor.replacing ? '' : '<select id="target-condition">'+
-    (pickingFor.completion ? '<option value="target-appeared">הופיע</option><option value="target-vanished">נעלם</option>' :
+    (pickingFor.completion ? '<option value="target-appeared">הופיע</option><option value="target-vanished">נעלם</option><option value="attribute-equals">מאפיין משתנה לערך צפוי</option>' :
     '<option value="clicked" '+(['input','textarea','select'].includes(candidate.tag)?'':'selected')+'>המשתמש לוחץ על הרכיב</option>'+
     '<option value="value-not-empty" '+(['input','textarea','select'].includes(candidate.tag)?'selected':'')+'>הוזן ערך בשדה</option>'+
     '<option value="target-disappeared">הרכיב נעלם בעקבות הפעולה</option>')+
-    '</select>')+'<div class="target-actions">'+
+    '</select>')+
+    (pickingFor.completion ? '<div id="attribute-condition-fields" class="hidden">' +
+      '<label for="completion-attribute-name">שם המאפיין ברכיב שנבחר</label>' +
+      '<input id="completion-attribute-name" dir="ltr" maxlength="100" placeholder="aria-sort">' +
+      '<label for="completion-attribute-value">הערך הצפוי לאחר הפעולה</label>' +
+      '<input id="completion-attribute-value" dir="ltr" maxlength="500" placeholder="ascending">' +
+      '<p>בחר את הרכיב שעליו נמצא המאפיין. התנאי יתקיים רק לאחר שנצפה שינוי לערך הצפוי.</p></div>' : '')+
+    '<div class="target-actions">'+
     '<button id="save-web-target" class="btn primary">אישור ושמירת רכיב</button>'+
     '<button id="cancel-web-target" class="btn secondary">ביטול</button></div>';
+  if (pickingFor.completion) {
+    const condition = $('target-condition');
+    const updateFields = () => $('attribute-condition-fields').classList.toggle('hidden',
+      condition.value !== 'attribute-equals');
+    condition.addEventListener('change', updateFields);
+    updateFields();
+  }
   $('save-web-target').onclick = async () => {
     const saveButton = $('save-web-target');
     const cancelButton = $('cancel-web-target');
@@ -440,7 +460,9 @@ async function refreshPicker() {
       const gridChoiceIndex = gridChoice === undefined || gridChoice === '' ? null : Number(gridChoice);
       if (pickedFor.completion) {
         await api('/guides/'+pickedFor.guideId+'/steps/'+encodeURIComponent(pickedFor.stepId)+'/completion-target',
-          {method:'POST',body:JSON.stringify({kind:$('target-condition').value})});
+          {method:'POST',body:JSON.stringify({kind:$('target-condition').value,
+            attributeName:$('target-condition').value === 'attribute-equals' ? $('completion-attribute-name').value.trim() : null,
+            attributeValue:$('target-condition').value === 'attribute-equals' ? $('completion-attribute-value').value : null})});
       } else {
         await api('/guides/'+pickedFor.guideId+'/steps/'+encodeURIComponent(pickedFor.stepId)+'/web-target',
           pickedFor.replacing ? {method:'PUT',body:JSON.stringify({gridChoice:gridChoiceIndex})} :
