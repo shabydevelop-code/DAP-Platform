@@ -1,10 +1,18 @@
-// Explicit local Instructor test launches wake the existing production transport.
+// Isolated-world bridge: explicitly verify that the Learner Native Host is
+// responsive before Instructor starts the production GuideMe process.
 (() => {
-  if (!['localhost', '127.0.0.1'].includes(location.hostname) || location.pathname !== '/') return;
-  document.addEventListener('guideme:instructor-test-launch', () => {
+  if (location.origin !== 'http://127.0.0.1:53922') return;
+  document.addEventListener('guideme:instructor-test-ping', async event => {
+    const requestId = event.detail?.requestId;
+    if (typeof requestId !== 'string' || !requestId) return;
+    let result;
     try {
-      const pending = chrome.runtime.sendMessage({ type: 'guideMe-runtime-ready' });
-      if (pending?.catch) pending.catch(() => {});
-    } catch { /* Extension may be reloading. */ }
+      result = await chrome.runtime.sendMessage({ type: 'guideMe-instructor-test-ping' });
+    } catch (error) {
+      result = { ok: false, error: String(error?.message || error) };
+    }
+    document.dispatchEvent(new CustomEvent('guideme:instructor-test-pong', {
+      detail: { requestId, ok: result?.ok === true, error: result?.error || null }
+    }));
   });
 })();
