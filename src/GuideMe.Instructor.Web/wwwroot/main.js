@@ -47,7 +47,7 @@ function showList() {
   $('list-view').classList.remove('hidden'); $('detail-view').classList.add('hidden');
   $('new-guide').classList.remove('hidden');
   $('page-title').textContent = 'הלומדות שלי'; $('page-subtitle').textContent = 'כל המדריכים, האפליקציות והשלבים במקום אחד.';
-  $('breadcrumb').textContent = 'כל הלומדות'; clearNotice();
+  clearNotice();
   $('page-title').setAttribute('tabindex','-1'); $('page-title').focus();
 }
 async function loadGuides() {
