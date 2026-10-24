@@ -636,7 +636,7 @@ VALUES ($guideId, $stepId, 'completion', $elementId, 'Completion')";
         command.ExecuteNonQuery();
         command.Parameters.AddWithValue("$kind", kind);
         command.Parameters.AddWithValue("$expected", kind == "attribute-equals"
-            ? JsonSerializer.Serialize(new { name = attributeName, value = attributeValue })
+            ? (object)JsonSerializer.Serialize(new { name = attributeName, value = attributeValue })
             : DBNull.Value);
         command.CommandText = @"INSERT INTO StepRules
 (GuideId, StepId, RuleType, RuleId, Kind, TargetUsageId, ExpectedValue)
