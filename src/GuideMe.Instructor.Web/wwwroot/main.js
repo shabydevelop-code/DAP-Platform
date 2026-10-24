@@ -193,17 +193,6 @@ function renderSteps() {
           : '') +
         '<div id="pick-result" class="hidden" aria-live="polite"></div>';
       $('step-inspector').append(section);
-      const observer = document.createElement('section');
-      observer.className = 'target-editor';
-      observer.innerHTML = '<h3>אבחון שינויים בעקבות פעולה</h3>' +
-        '<p>התצפית אינה משנה את פעולת האפליקציה. הפעל תצפית, בצע פעולה באתר, ועצור כדי לראות רכיבים שהופיעו או נעלמו.</p>' +
-        '<button type="button" class="btn secondary small" id="observe-start">התחלת תצפית</button> ' +
-        '<button type="button" class="btn secondary small" id="observe-stop">עצירת תצפית</button>' +
-        '<div id="observation-results" role="status" aria-live="polite"></div>';
-      $('step-inspector').append(observer);
-      $('observe-start').onclick = () => guarded(() => startObservation(current.guide.id, contextId));
-      $('observe-stop').onclick = () => guarded(stopObservation);
-      void guarded(refreshObservation);
       if (!target && !rule)
         $('pick-web-element').onclick = () => guarded(() =>
           beginWebPicker(current.guide.id, step.id, contextId));
