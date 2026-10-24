@@ -670,17 +670,10 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             {
                 var actual = resolved && result.TryGetProperty("attributeValue", out var attributeProperty)
                     && attributeProperty.ValueKind == JsonValueKind.String ? attributeProperty.GetString() : null;
-                var matches = resolved && string.Equals(actual, attributeExpected, StringComparison.Ordinal);
-                var key = step.Id + ":attribute-equals:" + attributeName;
-                if (!_completionTransitions.TryGetValue(key, out var prior))
-                {
-                    _completionTransitions[key] = (matches, !matches, null, 0, false);
+                // A captured post-action state is a predicate, not a transition.
+                // The primary validation independently requires the learner action.
+                if (!resolved || !string.Equals(actual, attributeExpected, StringComparison.Ordinal))
                     return false;
-                }
-                var observedTransition = prior.TransitionObserved || (prior.SawHidden && matches);
-                _completionTransitions[key] = (prior.InitialVisible, prior.SawHidden || !matches,
-                    null, 0, observedTransition);
-                if (!matches || !observedTransition) return false;
                 continue;
             }
             if (!GuideCompletionPolicy.IsSupportedObservationKind(kind))
