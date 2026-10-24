@@ -51,3 +51,7 @@
 ## Active learner session indicator (2026-10-24)
 - The shared Web/Windows/mixed session indicator displays the localized active-status label and the human-readable V5 `Guides.GuideName`, resolved by `GuideKey` from the same production database used to compile the guide. Do not display the technical key.
 - Long names are ellipsized and remain accessible through the full-name tooltip. This is a presentation-only change.
+
+## Instructor experimental observation removal (2026-10-24)
+- Removed the abandoned automatic structural Observation implementation end-to-end: Instructor HTTP endpoints, capture-bridge comparison state, native pipe route, extension heartbeat sampling, DOM snapshot before/after event payloads, and dormant Web UI functions/polling.
+- Manual primary/secondary target selection, picker, and ordinary action recording remain supported. Existing guide definitions and Learner completion semantics are unchanged. The removed observation API is intentionally no longer supported.
