@@ -248,7 +248,7 @@ function renderSteps() {
              esc(completionAttribute.name || '') + '</code> · ערך צפוי: <code dir="ltr">' +
              esc(completionAttribute.value || '') + '</code></p>' : '') +
           '<button class="btn secondary small" id="remove-completion">הסרת תנאי השלמה</button>' :
-          '<p>בחר רכיב נוסף שצריך להופיע או להיעלם בעקבות הפעולה.</p>' +
+          '<p>בחר רכיב ובדוק הופעה, היעלמות או שינוי מאפיין בעקבות הפעולה.</p>' +
           '<button class="btn secondary small" id="add-completion">בחירת רכיב לתנאי השלמה</button>') +
         '</section>' : '');
     $('edit-step').onclick = () => editStep(step, contextId);
