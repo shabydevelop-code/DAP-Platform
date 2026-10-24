@@ -406,8 +406,9 @@ const targetAdapters = {
       if (matches.length !== 1)
         throw new Error(matches.length ? 'נמצאו מספר חלונות תואמים.' : 'לא נמצא חלון מתאים לאפליקציה.');
       session.processId = matches[0].processId;
-      await api('/windows/picker/start',
+      const launch = await api('/windows/picker/start',
         {method:'POST',body:JSON.stringify({processId:session.processId})});
+      session.activated = launch.activated;
     },
     async status() { return api('/windows/picker/status'); },
     async cancel() { return api('/windows/picker/cancel',{method:'POST',body:'{}'}); },
@@ -438,6 +439,8 @@ async function beginTargetPicker(runtime, guideId, stepId, contextId, replacing=
     await adapter.start(session);
     pickingFor = session;
     await refreshPicker();
+    if (runtime === 'Windows' && session.activated === false)
+      notify('Windows לא אישר העברת פוקוס אוטומטית. הממפה פעיל; עבור לחלון האפליקציה כדי לבחור רכיב.', true);
   } catch (error) {
     box.textContent = error.message || String(error);
     throw error;
