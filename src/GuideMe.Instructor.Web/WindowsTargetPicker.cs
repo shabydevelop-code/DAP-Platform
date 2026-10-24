@@ -27,6 +27,8 @@ internal sealed class WindowsTargetPicker : IDisposable
     private DispatcherTimer? timer;
     private HookProc? hookDelegate;
     private nint hook;
+    private HookProc? keyboardHookDelegate;
+    private nint keyboardHook;
     private AutomationElement? hovered;
     private bool disposed;
 
@@ -40,6 +42,9 @@ internal sealed class WindowsTargetPicker : IDisposable
     [DllImport("user32.dll")] private static extern bool UnhookWindowsHookEx(nint handle);
     [DllImport("user32.dll")] private static extern nint CallNextHookEx(nint handle, int code, nuint message, nint data);
     [DllImport("user32.dll")] private static extern int GetSystemMetrics(int index);
+    [DllImport("user32.dll")] private static extern short GetAsyncKeyState(int virtualKey);
+    [StructLayout(LayoutKind.Sequential)]
+    private struct KeyboardHookData { public uint VkCode; public uint ScanCode; public uint Flags; public uint Time; public nuint ExtraInfo; }
     [DllImport("user32.dll")] private static extern uint GetDpiForWindow(nint hwnd);
     [DllImport("user32.dll")] private static extern nint GetWindowLongPtr(nint hwnd, int index);
     [DllImport("user32.dll")] private static extern nint SetWindowLongPtr(nint hwnd, int index, nint value);
@@ -129,6 +134,9 @@ internal sealed class WindowsTargetPicker : IDisposable
             hookDelegate = MouseHook;
             hook = SetWindowsHookEx(14, hookDelegate, 0, 0);
             if (hook == 0) throw new InvalidOperationException("לא ניתן להפעיל בחירת רכיב בעכבר.");
+            keyboardHookDelegate = KeyboardHook;
+            keyboardHook = SetWindowsHookEx(13, keyboardHookDelegate, 0, 0);
+            if (keyboardHook == 0) throw new InvalidOperationException("לא ניתן להפעיל קיצור מקלדת לבחירת רכיב.");
             timer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(90) };
             timer.Tick += (_, _) => UpdateHover(transform, origin);
             timer.Start();
@@ -141,6 +149,7 @@ internal sealed class WindowsTargetPicker : IDisposable
         finally
         {
             timer?.Stop();
+            if (keyboardHook != 0) { UnhookWindowsHookEx(keyboardHook); keyboardHook = 0; }
             if (hook != 0) { UnhookWindowsHookEx(hook); hook = 0; }
             overlay?.Close();
             lock (gate) { picking = false; dispatcher = null; }
@@ -179,29 +188,40 @@ internal sealed class WindowsTargetPicker : IDisposable
         catch (COMException) { hovered = null; outline!.Visibility = Visibility.Collapsed; }
     }
 
-    private nint MouseHook(int code, nuint message, nint data)
+    // The keyboard shortcut selects the hovered element without activating it.
+    // Mouse clicks are never intercepted: normal interaction with the app is preserved.
+    private nint KeyboardHook(int code, nuint message, nint data)
     {
-        if (code >= 0 && message == 0x201 && hovered is not null)
+        if (code >= 0 && (message == 0x100 || message == 0x104))
         {
-            try
+            var key = Marshal.PtrToStructure<KeyboardHookData>(data);
+            if (key.VkCode == 0x20 &&
+                (GetAsyncKeyState(0x11) & 0x8000) != 0 &&
+                (GetAsyncKeyState(0x10) & 0x8000) != 0 &&
+                hovered is not null)
             {
-                var mouse = Marshal.PtrToStructure<MouseHookData>(data);
-                var point = new System.Windows.Point(mouse.Point.X, mouse.Point.Y);
-                var hit = AutomationElement.FromPoint(point);
-                if (hit is not null && Automation.Compare(hit, hovered))
-                {
-                    var result = WindowsTargetInspector.Inspect(processId, false);
-                    lock (gate) { selection = result; picking = false; }
-                    dispatcher?.BeginInvokeShutdown(DispatcherPriority.Background);
-                    return 1; // Selecting must not activate the application's control.
-                }
-            }
-            catch (Exception ex) when (ex is COMException or ElementNotAvailableException or InvalidOperationException)
-            {
-                lock (gate) error = ex.Message;
+                SelectHovered();
+                return 1;
             }
         }
-        return CallNextHookEx(hook, code, message, data);
+        return CallNextHookEx(keyboardHook, code, message, data);
+    }
+
+    private nint MouseHook(int code, nuint message, nint data) =>
+        CallNextHookEx(hook, code, message, data);
+
+    private void SelectHovered()
+    {
+        try
+        {
+            var result = WindowsTargetInspector.Inspect(processId, false);
+            lock (gate) { selection = result; picking = false; }
+            dispatcher?.BeginInvokeShutdown(DispatcherPriority.Background);
+        }
+        catch (Exception ex) when (ex is COMException or ElementNotAvailableException or InvalidOperationException)
+        {
+            lock (gate) error = ex.Message;
+        }
     }
 
     public void Dispose()
