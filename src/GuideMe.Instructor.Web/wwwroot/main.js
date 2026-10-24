@@ -123,6 +123,11 @@ function renderSteps() {
     const locators = parseJson(element?.LocatorsJson, []);
     const frames = parseJson(element?.FrameContextJson, []);
     const conditionText = rule ? validationLabel(rule.Kind) : 'לא הוגדר תנאי';
+    const completionRule = data.rules.find(x => x.RuleType === 'AdditionalCompletionCondition');
+    const completionTarget = data.targets.find(x => x.UsageId === completionRule?.TargetUsageId);
+    const completionElement = data.elements.find(x => x.ElementId === completionTarget?.ElementId);
+    const completionSelector = parseJson(completionElement?.LocatorsJson, [])[0]?.Value || '';
+    const completionLabel = completionRule?.Kind === 'target-appeared' ? 'הופיע' : 'נעלם';
     const locatorText = locators[0]?.Value || '';
     const friendlyName = element?.DisplayName || (locatorText === 'a' ? 'קישור' : locatorText);
     const appText = context ? appLabel(context) : 'לא משויך';
@@ -149,8 +154,30 @@ function renderSteps() {
       (rule?.ExpectedValue ? '<p>ערך צפוי: <strong>' + esc(rule.ExpectedValue) + '</strong></p>' : '') +
       (context?.Runtime === 'Web' && rule ?
         '<button class="btn secondary small" id="edit-validation">עריכת תנאי ההתקדמות</button>' : '') +
-      '</section></div>';
+      '</section></div>' +
+      (context?.Runtime === 'Web' && target && rule ?
+        '<section class="target-editor"><h3>תנאי השלמה נוסף</h3>' +
+        (completionRule ? '<p>רכיב: <strong>' + esc(completionElement?.DisplayName || completionSelector) +
+          '</strong> · חוק: <strong>' + completionLabel + '</strong></p>' +
+          '<button class="btn secondary small" id="remove-completion">הסרת תנאי השלמה</button>' :
+          '<p>בחר רכיב נוסף שצריך להופיע או להיעלם בעקבות הפעולה.</p>' +
+          '<button class="btn secondary small" id="add-completion">בחירת רכיב לתנאי השלמה</button>') +
+        '</section>' : '');
     $('edit-step').onclick = () => editStep(step, contextId);
+    const addCompletion = $('add-completion');
+    if (addCompletion) addCompletion.onclick = () => guarded(() =>
+      beginWebPicker(current.guide.id, step.id, contextId, false, true));
+    const removeCompletion = $('remove-completion');
+    if (removeCompletion) removeCompletion.onclick = () => guarded(async () => {
+      if (!confirm('להסיר את תנאי ההשלמה הנוסף?')) return;
+      await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+'/completion-target',
+        {method:'DELETE',body:'{}'});
+      const guideId=current.guide.id;
+      await openGuide(guideId);
+      const item=[...document.querySelectorAll('[data-step]')].find(x=>x.dataset.step===step.id);
+      if(item) item.click();
+      notify('תנאי ההשלמה הוסר.');
+    });
     const targetReplace = $('replace-web-target');
     if (targetReplace) targetReplace.onclick = () => guarded(() =>
       beginWebPicker(current.guide.id, step.id, contextId, true));
@@ -262,7 +289,7 @@ async function refreshObservation() {
 }
 setInterval(() => { if ($('observation-results')) void refreshObservation().catch(()=>{}); }, 3000);
 let pickingFor = null;
-async function beginWebPicker(guideId, stepId, contextId, replacing=false) {
+async function beginWebPicker(guideId, stepId, contextId, replacing=false, completion=false) {
   if (pickingFor) {
     await api('/target-picker/cancel',{method:'POST',body:'{}'});
     pickingFor = null;
@@ -284,7 +311,7 @@ async function beginWebPicker(guideId, stepId, contextId, replacing=false) {
       body:JSON.stringify({guideId,contextId,tabId})});
   }
   await api('/target-picker/start',{method:'POST',body:JSON.stringify({guideId,contextId})});
-  pickingFor = {guideId,stepId,contextId,replacing,startedAt:Date.now()};
+  pickingFor = {guideId,stepId,contextId,replacing,completion,startedAt:Date.now()};
   const box = $('pick-result');
   if (!box) throw new Error('אזור אישור הרכיב חסר בממשק. פתח מחדש את השלב.');
   if (box) { box.dataset.pickedSelector=''; box.classList.remove('hidden'); box.textContent = 'מתחבר ללשונית ומפעיל בחירת רכיב…'; }
@@ -329,11 +356,12 @@ async function refreshPicker() {
   box.innerHTML = '<p><strong>הרכיב שנבחר:</strong> '+esc(candidate.label || candidate.tag || 'רכיב')+'</p>'+
     (candidate.framePath?.length ? '<p><strong>נתיב מסגרות:</strong> '+candidate.framePath.map(esc).join(' → ')+'</p>' : '')+
     '<p class="target-technical">מזהה רכיב: <code dir="ltr">'+esc(candidate.selector)+'</code></p>'+
-    (pickingFor.replacing ? '' : '<label for="target-condition">תנאי התקדמות</label>')+
+    (pickingFor.replacing ? '' : '<label for="target-condition">' + (pickingFor.completion ? 'חוק השלמה' : 'תנאי התקדמות') + '</label>')+
     (pickingFor.replacing ? '' : '<select id="target-condition">'+
+    (pickingFor.completion ? '<option value="target-appeared">הופיע</option><option value="target-vanished">נעלם</option>' :
     '<option value="clicked" '+(['input','textarea','select'].includes(candidate.tag)?'':'selected')+'>המשתמש לוחץ על הרכיב</option>'+
     '<option value="value-not-empty" '+(['input','textarea','select'].includes(candidate.tag)?'selected':'')+'>הוזן ערך בשדה</option>'+
-    '<option value="target-disappeared">הרכיב נעלם בעקבות הפעולה</option>'+
+    '<option value="target-disappeared">הרכיב נעלם בעקבות הפעולה</option>')+
     '</select>')+'<div class="target-actions">'+
     '<button id="save-web-target" class="btn primary">אישור ושמירת רכיב</button>'+
     '<button id="cancel-web-target" class="btn secondary">ביטול</button></div>';
@@ -355,9 +383,14 @@ async function refreshPicker() {
     }
     result.textContent = '';
     try {
-      await api('/guides/'+pickedFor.guideId+'/steps/'+encodeURIComponent(pickedFor.stepId)+'/web-target',
-        pickedFor.replacing ? {method:'PUT',body:'{}'} :
-          {method:'POST',body:JSON.stringify({condition:$('target-condition').value})});
+      if (pickedFor.completion) {
+        await api('/guides/'+pickedFor.guideId+'/steps/'+encodeURIComponent(pickedFor.stepId)+'/completion-target',
+          {method:'POST',body:JSON.stringify({kind:$('target-condition').value})});
+      } else {
+        await api('/guides/'+pickedFor.guideId+'/steps/'+encodeURIComponent(pickedFor.stepId)+'/web-target',
+          pickedFor.replacing ? {method:'PUT',body:'{}'} :
+            {method:'POST',body:JSON.stringify({condition:$('target-condition').value})});
+      }
       pickingFor = null;
       result.textContent = 'הרכיב נשמר בהצלחה.';
       await openGuide(pickedFor.guideId);
@@ -366,7 +399,7 @@ async function refreshPicker() {
       if (item) await item.click();
       notify(pickedFor.replacing
         ? 'הרכיב הוחלף בהצלחה. תנאי ההתקדמות נשאר ללא שינוי.'
-        : 'רכיב היעד ותנאי ההתקדמות נשמרו.');
+        : pickedFor.completion ? 'תנאי ההשלמה נשמר.' : 'רכיב היעד ותנאי ההתקדמות נשמרו.');
     } catch (error) {
       result.textContent = 'השמירה נכשלה: ' + (error.message || String(error));
       result.classList.add('save-error');
