@@ -42,3 +42,8 @@
 - Additional rules persist as a distinct `StepTargets` usage and `StepRules` `AdditionalCompletionCondition`, not by overwriting the primary action or validation. Only one new secondary rule per step is supported by this editor; removal is explicit.
 - The experimental automatic observation controls are hidden from the Instructor UI; the underlying diagnostic endpoints remain available for investigation.
 - This is an initial implementation. A transient frame detach during navigation must not be interpreted as a permanent disappearance; the runtime rechecks after a short interval, but production validation of full reload, iframe reload, and SPA transitions is required before calling this fully regression-tested.
+
+## Web completion visibility semantics (2026-10-24)
+- Author-facing `target-appeared` / `target-vanished` mean rendered presence/absence, not merely DOM membership. The Learner inspects CSS visibility, hidden/inert ancestors, closed details, and layout rectangles in the selected frame. The author does not configure or inspect `innerHTML`.
+- Existing `target-exists` / `target-not-exists` retain locator/DOM-resolution semantics for backward compatibility.
+- A transition requires an opposite-state baseline before the learner acts; a target already visible at step entry does not count as newly appeared. Rechecking disappearance guards against brief frame detach. Production verification remains required for iframe refresh and fast transitions.
