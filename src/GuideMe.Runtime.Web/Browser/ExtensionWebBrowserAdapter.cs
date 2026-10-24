@@ -650,10 +650,39 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
         {
             if (condition.Target.Runtime != TargetRuntime.Web)
                 throw new InvalidOperationException($"Web Guide Step '{step.Id}' contains a non-Web completion target.");
-            var response = await SendCommandAsync(ContextualCommand(step, new { type = "inspectTarget", target = condition.Target, framePath = condition.Target.FrameContext?.Path }), cancellationToken);
+            var kind = condition.Kind.Trim().ToLowerInvariant();
+            string? attributeName = null;
+            string? attributeExpected = null;
+            if (kind == "attribute-equals")
+            {
+                if (string.IsNullOrWhiteSpace(condition.ExpectedValue))
+                    throw new InvalidOperationException("Attribute completion requires a name and expected value.");
+                using var definition = JsonDocument.Parse(condition.ExpectedValue);
+                attributeName = definition.RootElement.GetProperty("name").GetString();
+                attributeExpected = definition.RootElement.GetProperty("value").GetString();
+                if (string.IsNullOrWhiteSpace(attributeName) || attributeExpected is null)
+                    throw new InvalidOperationException("Invalid attribute completion definition.");
+            }
+            var response = await SendCommandAsync(ContextualCommand(step, new { type = "inspectTarget", target = condition.Target, framePath = condition.Target.FrameContext?.Path, attributeName }), cancellationToken);
             var result = response.GetProperty("result");
             var resolved = result.GetProperty("status").GetString() == "resolved";
-            var kind = condition.Kind.Trim().ToLowerInvariant();
+            if (kind == "attribute-equals")
+            {
+                var actual = resolved && result.TryGetProperty("attributeValue", out var attributeProperty)
+                    && attributeProperty.ValueKind == JsonValueKind.String ? attributeProperty.GetString() : null;
+                var matches = resolved && string.Equals(actual, attributeExpected, StringComparison.Ordinal);
+                var key = step.Id + ":attribute-equals:" + attributeName;
+                if (!_completionTransitions.TryGetValue(key, out var prior))
+                {
+                    _completionTransitions[key] = (matches, !matches, null, 0, false);
+                    return false;
+                }
+                var observedTransition = prior.TransitionObserved || (!prior.InitialVisible && matches);
+                _completionTransitions[key] = (prior.InitialVisible, prior.SawHidden || !matches,
+                    null, 0, observedTransition);
+                if (!matches || !observedTransition) return false;
+                continue;
+            }
             if (!GuideCompletionPolicy.IsSupportedObservationKind(kind))
                 throw new NotSupportedException($"Unsupported Web completion condition kind '{condition.Kind}'.");
             // "Appeared"/"vanished" describe user-visible presence, not DOM
