@@ -173,7 +173,7 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/completion-target",
         var capturedState = request.Kind == "attribute-equals"
             ? capture.GetApprovedStateAttribute(id, row["ApplicationContextId"].ToString() ?? "",
                 request.StateAttributeIndex ?? -1)
-            : ((string Name, string Value)?)null;
+            : ((string Name, string Value, string Selector)?)null;
         V5GuideWriter.SaveWebCompletionTarget(id, stepId,
             capturedState?.Selector ?? selected.Selector,
             selected.FramePath, request.Kind, selected.DisplayName,
