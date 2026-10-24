@@ -114,10 +114,6 @@ app.MapGet("/api/discovery", () => Results.Ok(new
 }));
 
 app.MapGet("/api/capture/status", () => Results.Ok(capture.Status()));
-app.MapGet("/api/observation/status", () => Results.Ok(capture.ObservationStatus()));
-app.MapPost("/api/observation/start", (CaptureStart body) =>
-    Results.Ok(capture.StartObservation(body.GuideId, body.ContextId)));
-app.MapPost("/api/observation/stop", () => Results.Ok(capture.StopObservation()));
 app.MapPost("/api/capture/select", (CaptureSelection body) =>
 {
     var guide = V5GuideReader.ListGuides().FirstOrDefault(g => g.Id == body.GuideId);
