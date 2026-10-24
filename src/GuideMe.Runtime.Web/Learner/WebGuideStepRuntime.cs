@@ -77,12 +77,8 @@ public sealed class WebGuideStepRuntime
         // learner is invited to act; mere existence/absence is not completion.
         var transitionRequired = step.CompletionConditions is { Count: 1 } &&
             step.CompletionConditions[0].Kind is "target-appeared" or "target-vanished";
-        var transitionBaselineRecorded = false;
-        var transitionBaselineSatisfied = false;
         async Task<bool> CompletionReadyAsync(CancellationToken token)
         {
-            if (transitionRequired && (!transitionBaselineRecorded || transitionBaselineSatisfied))
-                return false;
             if (!await _browser.AreCompletionConditionsSatisfiedAsync(step, token))
                 return false;
             if (!transitionRequired) return true;
@@ -177,10 +173,11 @@ public sealed class WebGuideStepRuntime
             {
                 var presentationStable = await _browser.IsStableForPresentationAsync(step, _presentationSettleInterval, cancellationToken);
                 if (diagnoseReference && !presentationStable) ReferenceDiagnostic($"[GuideMe reference diagnostic] Step '{step.Id}' waiting for stable/interactable target.");
-                if (presentationStable && transitionRequired && !transitionBaselineRecorded)
+                if (presentationStable && transitionRequired && !activeState.PresentationReady)
                 {
-                    transitionBaselineSatisfied = await _browser.AreCompletionConditionsSatisfiedAsync(step, cancellationToken);
-                    transitionBaselineRecorded = true;
+                    // Register the initial target state before presenting the
+                    // action. The adapter observes intervening DOM transitions.
+                    await _browser.AreCompletionConditionsSatisfiedAsync(step, cancellationToken);
                 }
                 if (activeState.ObservePresentationStability(
                     presentationStable)
