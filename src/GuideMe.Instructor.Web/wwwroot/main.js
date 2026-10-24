@@ -54,8 +54,8 @@ function renderGuides() {
   const search = $('guide-search').value.trim().toLowerCase();
   const list = guides.filter(g => g.name.toLowerCase().includes(search) || String(g.id).includes(search) || g.key.toLowerCase().includes(search));
   $('guides-table').innerHTML = list.length
-    ? '<table class="table"><thead><tr><th>שם הלומדה</th><th>מזהה</th><th>מפתח לומדה</th><th></th></tr></thead><tbody>' +
-      list.map(g => '<tr><td><span class="guide-title">' + esc(g.name) + '</span></td><td><span class="guide-id">#' + g.id + '</span></td><td><span class="guide-id">' + esc(g.key) + '</span></td><td><button class="link" data-open="' + g.id + '">פתיחת לומדה ←</button></td></tr>').join('') +
+    ? '<table class="table"><thead><tr><th>שם הלומדה</th><th>מזהה</th></tr></thead><tbody>' +
+      list.map(g => '<tr><td><button type="button" class="guide-title guide-open-link" data-open="' + g.id + '">' + esc(g.name) + '</button></td><td><span class="guide-id">#' + g.id + '</span></td></tr>').join('') +
       '</tbody></table>'
     : '<div class="empty">לא נמצאו לומדות. ניתן ליצור לומדה חדשה.</div>';
   document.querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', () => guarded(() => openGuide(Number(b.dataset.open)))));
