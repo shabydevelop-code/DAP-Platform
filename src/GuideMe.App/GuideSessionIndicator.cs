@@ -15,7 +15,7 @@ internal sealed class GuideSessionIndicator : IDisposable
     private readonly Window _window;
     private bool _disposed;
 
-    public GuideSessionIndicator(IUiTextProvider texts, Action stop)
+    public GuideSessionIndicator(IUiTextProvider texts, string guideName, Action stop)
     {
         ArgumentNullException.ThrowIfNull(stop);
         var rtl = texts.IsRightToLeft ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
@@ -35,7 +35,12 @@ internal sealed class GuideSessionIndicator : IDisposable
         };
         var caption = new TextBlock
         {
-            Text = texts.Get("Learner.ActiveStatus"),
+            Text = string.IsNullOrWhiteSpace(guideName)
+                ? texts.Get("Learner.ActiveStatus")
+                : $"{texts.Get("Learner.ActiveStatus")} — {guideName}",
+            MaxWidth = 340,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            ToolTip = guideName,
             Foreground = Brushes.White,
             FontSize = 13,
             FontWeight = FontWeights.SemiBold,
