@@ -74,6 +74,22 @@
       const selector = tag + '[' + attr + '="' + CSS.escape(value) + '"]';
       if (unique(selector)) return selector;
     }
+    // Prefer unique, meaningful data-* attributes discovered on the target.
+    // Values (such as status, priority, etc.) always come from the live DOM.
+    // Exclude framework/internal and transient state attributes.
+    const dataAttributes = [...element.attributes]
+      .filter(({name, value}) => name.startsWith('data-') &&
+        !/^data-(?:react|vue|ng|v-|svelte|astro|next|state|active|selected|open|loading|disabled|index|position|row-index|col-index|timestamp|nonce|session|token|id)$/i.test(name) &&
+        stable(value) && !/^\\d+$/.test(value) &&
+        !/^(?:true|false|yes|no)$/i.test(value))
+      .sort((a, b) => {
+        const rank = name => /^(?:data-(?:sort|action|field|column|key|role|target|testid|test|qa))$/.test(name) ? 0 : 1;
+        return rank(a.name) - rank(b.name);
+      });
+    for (const {name, value} of dataAttributes) {
+      const selector = tag + '[' + CSS.escape(name) + '="' + CSS.escape(value) + '"]';
+      if (unique(selector)) return selector;
+    }
     // Prefer an identifying class over DOM structure when it is unique.
     for (const selector of simple(element)) {
       if (unique(selector)) return selector;
