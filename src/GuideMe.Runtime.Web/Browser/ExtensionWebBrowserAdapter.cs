@@ -677,7 +677,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
                     _completionTransitions[key] = (matches, !matches, null, 0, false);
                     return false;
                 }
-                var observedTransition = prior.TransitionObserved || (!prior.InitialVisible && matches);
+                var observedTransition = prior.TransitionObserved || (prior.SawHidden && matches);
                 _completionTransitions[key] = (prior.InitialVisible, prior.SawHidden || !matches,
                     null, 0, observedTransition);
                 if (!matches || !observedTransition) return false;
