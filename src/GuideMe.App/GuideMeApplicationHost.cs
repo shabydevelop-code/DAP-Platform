@@ -180,7 +180,7 @@ public static class GuideMeApplicationHost
             GuideMe.Core.Targets.TargetRuntime.Windows => await RunWindowsAsync(
                 options, steps, applicationContexts, guideName, texts, startup, cancellationToken),
             GuideMe.Core.Targets.TargetRuntime.Web => await RunWebAsync(
-                options, steps, applicationContexts, texts, startup, cancellationToken),
+                options, steps, applicationContexts, guideName, texts, startup, cancellationToken),
             _ => throw new NotSupportedException(
                 $"Guide '{options.GuideId}' uses unsupported Runtime '{enabledTargetRuntimes[0]}'.")
         };
