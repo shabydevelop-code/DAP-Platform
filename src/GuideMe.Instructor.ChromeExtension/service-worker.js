@@ -147,9 +147,12 @@ chrome.runtime.onMessage.addListener((message, sender) => {
     return false;
   }
   if (message?.type === 'guideme-instructor-pick-cancelled' && sender.tab?.id === selectedTabId) {
-    void request('picker-cancelled', {tabId:sender.tab.id}).catch(() => {});
-    pickerArmedTabId = null;
-    pickerArmedSession = null;
+    // Escape is received in one frame only. Disarm every injected frame,
+    // otherwise sibling/parent frames keep their blue outlines and hover polling.
+    const cancelledTabId = sender.tab.id;
+    void stopPicker(cancelledTabId)
+      .then(() => request('picker-cancelled', {tabId:cancelledTabId}))
+      .catch(error => console.warn('Instructor picker cancel:', error.message));
     return false;
   }
   if (message?.type === "guideme-instructor-picked" && sender.tab?.id === selectedTabId && sender.frameId === 0) {
