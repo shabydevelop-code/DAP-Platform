@@ -292,12 +292,22 @@
     }
     // Capture the selected element's current post-action state, not a diff.
     // Do not expose free-form attributes such as tokens, IDs or user data.
-    const stateAttributes = [...target.attributes]
-      .filter(({name, value}) =>
-        (/^aria-(?:sort|expanded|pressed|checked|selected|disabled|hidden|invalid|current|busy)$/.test(name) ||
-         /^(?:data-state|data-status|data-expanded|data-selected|data-active|open|checked|disabled)$/.test(name)) &&
-        value.length > 0 && value.length <= 120)
-      .map(({name, value}) => ({name, value}));
+    const stateAttributes = [];
+    // Include the chosen element and its nearest ancestors. A button often
+    // expresses its state on its enclosing heading, tab, or control container.
+    for (let node = target, depth = 0; node && depth <= 5 && node !== document.body;
+         node = node.parentElement, depth++) {
+      const stateSelector = selectorFor(node);
+      if (!stateSelector || stateSelector.length > 400) continue;
+      for (const {name, value} of node.attributes) {
+        if (!(/^aria-(?:sort|expanded|pressed|checked|selected|disabled|hidden|invalid|current|busy)$/.test(name) ||
+              /^(?:data-state|data-status|data-expanded|data-selected|data-active|open|checked|disabled)$/.test(name)) ||
+            value.length === 0 || value.length > 120) continue;
+        stateAttributes.push({name, value, selector:stateSelector,
+          label:depth === 0 ? 'הרכיב שנבחר' :
+            (node.getAttribute('aria-label') || node.tagName.toLowerCase()).slice(0, 80)});
+      }
+    }
     const candidate = {
       stateAttributes,
       gridChoices,
