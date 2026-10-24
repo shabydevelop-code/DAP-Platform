@@ -73,6 +73,23 @@ public sealed class WebGuideStepRuntime
         // exposing its target. The previous Step may have completed as soon as
         // its persisted completion condition became true while the application
         // is still finishing the same asynchronous render.
+        // Transition rules are opt-in. Capture the opposite state before the
+        // learner is invited to act; mere existence/absence is not completion.
+        var transitionRequired = step.CompletionConditions is { Count: 1 } &&
+            step.CompletionConditions[0].Kind is "target-appeared" or "target-vanished";
+        var transitionBaselineRecorded = false;
+        var transitionBaselineSatisfied = false;
+        async Task<bool> CompletionReadyAsync(CancellationToken token)
+        {
+            if (transitionRequired && (!transitionBaselineRecorded || transitionBaselineSatisfied))
+                return false;
+            if (!await _browser.AreCompletionConditionsSatisfiedAsync(step, token))
+                return false;
+            if (!transitionRequired) return true;
+            // Do not treat a momentary frame detach during navigation as a disappearance.
+            await Task.Delay(300, token);
+            return await _browser.AreCompletionConditionsSatisfiedAsync(step, token);
+        }
         var activeState = new GuideActiveStepState(step);
         var sharedEngine = new UnifiedGuideStepEngine();
         Task<WebValidationCommit?>? commitTask = automatic && !observationOnly && !stateValue
@@ -83,14 +100,14 @@ public sealed class WebGuideStepRuntime
         {
             if (stateValue && activeState.PresentationReady
                 && await _browser.IsPrimaryValidationSatisfiedAsync(step, cancellationToken)
-                && await _browser.AreCompletionConditionsSatisfiedAsync(step, cancellationToken))
+                && await CompletionReadyAsync(cancellationToken))
             {
                 await _browser.HideBubbleAsync(cancellationToken);
                 return GuideStepReconciliationResult.Completed;
             }
             if (observationOnly && activeState.PresentationReady)
             {
-                var satisfied = await _browser.AreCompletionConditionsSatisfiedAsync(step, cancellationToken);
+                var satisfied = await CompletionReadyAsync(cancellationToken);
                 if (!initialObservationRecorded)
                 {
                     initialObservationRecorded = true;
@@ -111,7 +128,7 @@ public sealed class WebGuideStepRuntime
             if (diagnoseReference && step.Id == "reference-web-save")
             {
                 var clickObserved = commitTask?.IsCompletedSuccessfully == true;
-                var destinationObserved = await _browser.AreCompletionConditionsSatisfiedAsync(step, cancellationToken);
+                var destinationObserved = await CompletionReadyAsync(cancellationToken);
                 ReferenceDiagnostic($"[GuideMe reference diagnostic] Save gate: clickObserved={clickObserved}, destinationObserved={destinationObserved}.");
             }
 
@@ -122,7 +139,7 @@ public sealed class WebGuideStepRuntime
                 {
                     if (sharedEngine.EvaluateCompletion(activeState, 
                         primary,
-                        await _browser.AreCompletionConditionsSatisfiedAsync(step, cancellationToken)) == GuideStepReconciliationResult.Completed)
+                        await CompletionReadyAsync(cancellationToken)) == GuideStepReconciliationResult.Completed)
                     {
                         await _browser.HideBubbleAsync(cancellationToken);
                         return GuideStepReconciliationResult.Completed;
@@ -160,6 +177,11 @@ public sealed class WebGuideStepRuntime
             {
                 var presentationStable = await _browser.IsStableForPresentationAsync(step, _presentationSettleInterval, cancellationToken);
                 if (diagnoseReference && !presentationStable) ReferenceDiagnostic($"[GuideMe reference diagnostic] Step '{step.Id}' waiting for stable/interactable target.");
+                if (presentationStable && transitionRequired && !transitionBaselineRecorded)
+                {
+                    transitionBaselineSatisfied = await _browser.AreCompletionConditionsSatisfiedAsync(step, cancellationToken);
+                    transitionBaselineRecorded = true;
+                }
                 if (activeState.ObservePresentationStability(
                     presentationStable)
                     == GuideStepReconciliationResult.WaitingForTarget)
@@ -190,7 +212,7 @@ public sealed class WebGuideStepRuntime
 
                     if (sharedEngine.EvaluateCompletion(activeState, 
                         true,
-                        await _browser.AreCompletionConditionsSatisfiedAsync(step, cancellationToken)) == GuideStepReconciliationResult.Completed)
+                        await CompletionReadyAsync(cancellationToken)) == GuideStepReconciliationResult.Completed)
                     {
                         await _browser.HideBubbleAsync(cancellationToken);
                         return GuideStepReconciliationResult.Completed;
@@ -237,7 +259,7 @@ public sealed class WebGuideStepRuntime
             {
                 if (sharedEngine.EvaluateCompletion(activeState, 
                     true,
-                    await _browser.AreCompletionConditionsSatisfiedAsync(step, cancellationToken)) == GuideStepReconciliationResult.Completed)
+                    await CompletionReadyAsync(cancellationToken)) == GuideStepReconciliationResult.Completed)
                 {
                     await _browser.HideBubbleAsync(cancellationToken);
                     return GuideStepReconciliationResult.Completed;
