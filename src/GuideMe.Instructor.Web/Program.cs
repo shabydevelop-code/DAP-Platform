@@ -122,51 +122,62 @@ app.MapPost("/api/windows/picker/start", (WindowsInspectRequest request) =>
 app.MapGet("/api/windows/picker/status", () => Results.Ok(windowsPicker.Status()));
 app.MapPost("/api/windows/picker/cancel", () => Results.Ok(windowsPicker.Stop()));
 
-app.MapPost("/api/guides/{id:long}/steps/{stepId}/windows-target",
-    (long id, string stepId, SaveWindowsTargetRequest request) =>
+// Single API for primary target confirmation and V5 persistence. Runtime-specific
+// selection is verified here; the DB writer never branches into per-runtime paths.
+app.MapPost("/api/guides/{id:long}/steps/{stepId}/primary-target",
+    (long id, string stepId, SavePrimaryTargetRequest request) =>
 {
     var steps = V5GuideReader.ReadGuideTable(id, "Steps");
     var step = steps.Rows.Cast<DataRow>().FirstOrDefault(r =>
         string.Equals(r["StepId"].ToString(), stepId, StringComparison.Ordinal));
     if (step is null) return Results.NotFound();
+    var contextId = step["ApplicationContextId"].ToString() ?? "";
     var contexts = V5GuideReader.ReadGuideTable(id, "ApplicationContexts");
     var context = contexts.Rows.Cast<DataRow>().FirstOrDefault(r =>
-        string.Equals(r["ContextId"].ToString(), step["ApplicationContextId"].ToString(), StringComparison.Ordinal));
-    if (context is null || context["Runtime"].ToString() != "Windows")
-        return Results.BadRequest(new { message = "השלב אינו משויך לאפליקציית Windows." });
-    var picked = windowsPicker.Status().Selection;
-    if (picked is null || picked.Error is not null || picked.ProcessId != request.ProcessId)
-        return Results.BadRequest(new { message = "יש לבחור תחילה רכיב Windows תקין בממפה." });
-    // The picker already selected a concrete PID. Revalidate its process identity
-    // directly rather than rediscovering top-level windows during confirmation:
-    // overlays and foreground-window changes must not affect identity.
-    using var process = Process.GetProcessById(request.ProcessId);
-    using var configuredMatchers = JsonDocument.Parse(context["MatchersJson"].ToString() ?? "[]");
-    var matchesProcess = configuredMatchers.RootElement.EnumerateArray().Any(m =>
+        string.Equals(r["ContextId"].ToString(), contextId, StringComparison.Ordinal));
+    if (context is null) return Results.BadRequest(new { message = "לא נמצא שיוך אפליקציה לשלב." });
+    var runtime = context["Runtime"].ToString();
+    IReadOnlyList<V5GuideWriter.TargetLocator> locators;
+    IReadOnlyList<V5GuideWriter.TargetLocator> frames;
+    string? displayName;
+    if (runtime == "Web")
     {
-        if (!m.TryGetProperty("Kind", out var kind) ||
-            !m.TryGetProperty("Value", out var value)) return false;
-        var configured = value.GetString();
-        if (string.IsNullOrWhiteSpace(configured)) return false;
-        return kind.GetString()?.ToLowerInvariant() switch
+        var target = capture.GetApprovedTarget(id, contextId, request.GridChoice);
+        locators = new[] { new V5GuideWriter.TargetLocator("css", target.Selector) };
+        frames = target.FramePath.Select(f => new V5GuideWriter.TargetLocator("css", f)).ToArray();
+        displayName = target.DisplayName;
+    }
+    else if (runtime == "Windows")
+    {
+        if (request.ProcessId is not > 0)
+            return Results.BadRequest(new { message = "תהליך Windows חסר." });
+        var picked = windowsPicker.Status().Selection;
+        if (picked is null || picked.Error is not null || picked.ProcessId != request.ProcessId.Value)
+            return Results.BadRequest(new { message = "יש לבחור תחילה רכיב Windows תקין בממפה." });
+        using var process = Process.GetProcessById(request.ProcessId.Value);
+        using var configuredMatchers = JsonDocument.Parse(context["MatchersJson"].ToString() ?? "[]");
+        var allowedProcess = configuredMatchers.RootElement.EnumerateArray().Any(m =>
         {
-            "processname" => string.Equals(
-                (configured.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? configured[..^4] : configured), process.ProcessName,
-                StringComparison.OrdinalIgnoreCase),
-            _ => false
-        };
-    });
-    if (!matchesProcess)
-        return Results.BadRequest(new { message =
-            "הרכיב אינו שייך לתהליך שהוגדר בלומדה. " +
-            $"תהליך בפועל: {process.ProcessName}; " +
-            $"הגדרה: {context["MatchersJson"]}" });
-    var locator = picked.Locators.FirstOrDefault();
-    if (locator is null)
-        return Results.BadRequest(new { message = "לא נמצא מזהה ייחודי לרכיב." });
-    V5GuideWriter.SaveWindowsTarget(id, stepId, locator.Strategy, locator.Value,
-        picked.Name, request.Condition, request.Replacing);
-    windowsPicker.Stop();
+            if (!m.TryGetProperty("Kind", out var kind) ||
+                !m.TryGetProperty("Value", out var value)) return false;
+            var name = value.GetString();
+            return kind.GetString() == "ProcessName" && !string.IsNullOrWhiteSpace(name) &&
+                string.Equals(name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+                    ? name[..^4] : name, process.ProcessName, StringComparison.OrdinalIgnoreCase);
+        });
+        if (!allowedProcess)
+            return Results.BadRequest(new { message = "הרכיב אינו שייך לאפליקציה שהוגדרה בלומדה." });
+        locators = picked.Locators
+            .Select(l => new V5GuideWriter.TargetLocator(l.Strategy, l.Value)).ToArray();
+        frames = Array.Empty<V5GuideWriter.TargetLocator>();
+        displayName = picked.Name;
+    }
+    else return Results.BadRequest(new { message = "סביבת יעד לא נתמכת." });
+
+    V5GuideWriter.SavePrimaryTarget(id, stepId, runtime, locators, frames,
+        displayName, request.Condition, request.Replacing);
+    if (runtime == "Web") capture.CancelPicking();
+    else windowsPicker.Stop();
     return Results.NoContent();
 });
 
@@ -200,32 +211,6 @@ app.MapPost("/api/capture/stop", () => Results.Ok(new { events = capture.End() }
 app.MapPost("/api/target-picker/start", (PickStart request) =>
     Results.Ok(capture.StartPicking(request.GuideId, request.ContextId)));
 app.MapPost("/api/target-picker/cancel", () => Results.Ok(capture.CancelPicking()));
-app.MapPost("/api/guides/{id:long}/steps/{stepId}/web-target",
-    (long id, string stepId, SaveWebTargetRequest request) =>
-{
-    var rows = V5GuideReader.ReadGuideTable(id, "Steps");
-    var row = rows.Rows.Cast<DataRow>().FirstOrDefault(r =>
-        string.Equals(r["StepId"].ToString(), stepId, StringComparison.Ordinal));
-    if (row is null) return Results.NotFound();
-    var contextId = row["ApplicationContextId"].ToString() ?? "";
-    var selected = capture.GetApprovedTarget(id, contextId, request.GridChoice);
-    V5GuideWriter.SaveWebTarget(id, stepId, selected.Selector, selected.FramePath, request.Condition, selected.DisplayName);
-    capture.CancelPicking();
-    return Results.NoContent();
-});
-
-app.MapPut("/api/guides/{id:long}/steps/{stepId}/web-target", (long id, string stepId, ReplaceWebTargetRequest request) =>
-{
-    var rows = V5GuideReader.ReadGuideTable(id, "Steps");
-    var row = rows.Rows.Cast<DataRow>().FirstOrDefault(r =>
-        string.Equals(r["StepId"].ToString(), stepId, StringComparison.Ordinal));
-    if (row is null) return Results.NotFound();
-    var selected = capture.GetApprovedTarget(id, row["ApplicationContextId"].ToString() ?? "", request.GridChoice);
-    V5GuideWriter.ReplaceWebTarget(id, stepId, selected.Selector, selected.FramePath, selected.DisplayName);
-    capture.CancelPicking();
-    return Results.NoContent();
-});
-
 app.MapPost("/api/guides/{id:long}/steps/{stepId}/completion-target",
     (long id, string stepId, SaveCompletionTargetRequest request) =>
 {
@@ -435,10 +420,9 @@ internal sealed record EditStep(string? Bubble, bool Enabled, string? ContextId)
 internal sealed record NewManualStep(string ContextId, string Bubble, string Placement);
 
 internal sealed record WindowsInspectRequest(int ProcessId, bool Focused = false);
-internal sealed record SaveWindowsTargetRequest(int ProcessId, string Condition, bool Replacing = false);
+internal sealed record SavePrimaryTargetRequest(string Condition, bool Replacing = false,
+    int? ProcessId = null, int? GridChoice = null);
 internal sealed record PickStart(long GuideId, string ContextId);
-internal sealed record SaveWebTargetRequest(string Condition, int? GridChoice = null);
-internal sealed record ReplaceWebTargetRequest(int? GridChoice = null);
 internal sealed record SaveCompletionTargetRequest(string Kind, int? StateAttributeIndex = null);
 
 internal sealed record EditWebValidation(string Kind, string? ExpectedValue);
