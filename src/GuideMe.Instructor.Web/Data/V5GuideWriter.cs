@@ -433,6 +433,11 @@ WHERE GuideId=$guideId AND ContextId=$contextId";
     internal static void SaveWebTarget(long guideId, string stepId, string selector,
         IReadOnlyList<string> framePath, string condition, string? displayName)
     {
+        if (kind == "attribute-equals" &&
+            (string.IsNullOrWhiteSpace(attributeName) ||
+             !System.Text.RegularExpressions.Regex.IsMatch(attributeName, @"^[a-zA-Z_][a-zA-Z0-9_.:-]{0,99}$") ||
+             attributeValue is null || attributeValue.Length > 500))
+            throw new ArgumentException("יש להזין שם מאפיין וערך צפוי תקינים.");
         if (string.IsNullOrWhiteSpace(selector) || selector.Length > 400 ||
             selector.IndexOf((char)0) >= 0)
             throw new ArgumentException("מזהה הרכיב אינו תקין.");
@@ -574,9 +579,10 @@ WHERE GuideId=$guideId AND ElementId=$elementId AND Runtime='Web'";
 
     // An explicitly selected secondary target, never inferred from the primary action.
     internal static void SaveWebCompletionTarget(long guideId, string stepId, string selector,
-        IReadOnlyList<string> framePath, string kind, string? displayName)
+        IReadOnlyList<string> framePath, string kind, string? displayName,
+        string? attributeName = null, string? attributeValue = null)
     {
-        if (kind is not ("target-appeared" or "target-vanished"))
+        if (kind is not ("target-appeared" or "target-vanished" or "attribute-equals"))
             throw new ArgumentException("חוק השלמה לא נתמך.");
         if (string.IsNullOrWhiteSpace(selector) || selector.Length > 400 ||
             selector.IndexOf((char)0) >= 0 || framePath.Count > 12 ||
@@ -629,9 +635,12 @@ VALUES ($guideId, $elementId, 'Web', $locators, $frame, $name)";
 VALUES ($guideId, $stepId, 'completion', $elementId, 'Completion')";
         command.ExecuteNonQuery();
         command.Parameters.AddWithValue("$kind", kind);
+        command.Parameters.AddWithValue("$expected", kind == "attribute-equals"
+            ? JsonSerializer.Serialize(new { name = attributeName, value = attributeValue })
+            : DBNull.Value);
         command.CommandText = @"INSERT INTO StepRules
-(GuideId, StepId, RuleType, RuleId, Kind, TargetUsageId)
-VALUES ($guideId, $stepId, 'AdditionalCompletionCondition', 'completion', $kind, 'completion')";
+(GuideId, StepId, RuleType, RuleId, Kind, TargetUsageId, ExpectedValue)
+VALUES ($guideId, $stepId, 'AdditionalCompletionCondition', 'completion', $kind, 'completion', $expected)";
         command.ExecuteNonQuery();
         transaction.Commit();
     }
