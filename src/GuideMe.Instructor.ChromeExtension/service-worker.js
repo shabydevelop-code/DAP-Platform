@@ -99,6 +99,24 @@ async function sync() {
     selectedTabId = next;
     const pickTabId = result.pickTabId ?? null;
     const pickerSession = result.pickerSession ?? null;
+    // A navigation can replace the document (including a nested iframe) while
+    // the Instructor capture session remains active. Detect missing content
+    // listeners and re-arm without cancelling the user's pending selection.
+    if (pickTabId !== null && pickerArmedTabId === pickTabId &&
+        pickerArmedSession === pickerSession) {
+      try {
+        const checks = await chrome.scripting.executeScript({
+          target:{tabId:pickTabId,allFrames:true},
+          func:() => globalThis.__guideMeCaptureInstalled === true &&
+            globalThis.__guideMePickerActive === true
+        });
+        if (!checks.length || checks.some(frame => frame.result !== true))
+          pickerArmedSession = null;
+      } catch {
+        // A page may be in the middle of navigation; retry on next sync.
+        pickerArmedSession = null;
+      }
+    }
     if (pickTabId !== null && (pickerArmedTabId !== pickTabId || pickerArmedSession !== pickerSession)) {
       try {
         if (pickerArmedTabId !== null) await stopPicker(pickerArmedTabId);
