@@ -172,10 +172,26 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/completion-target",
         string.Equals(r["StepId"].ToString(), stepId, StringComparison.Ordinal));
     if (row is null) return Results.NotFound();
     var selected = capture.GetApprovedTarget(id, row["ApplicationContextId"].ToString() ?? "");
-    V5GuideWriter.SaveWebCompletionTarget(id, stepId, selected.Selector,
-        selected.FramePath, request.Kind, selected.DisplayName);
-    capture.CancelPicking();
-    return Results.NoContent();
+    try
+    {
+        V5GuideWriter.SaveWebCompletionTarget(id, stepId, selected.Selector,
+            selected.FramePath, request.Kind, selected.DisplayName);
+        capture.CancelPicking();
+        return Results.NoContent();
+    }
+    catch (ArgumentException ex)
+    {
+        return Results.Problem(ex.Message, statusCode: 400);
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.Problem(ex.Message, statusCode: 409);
+    }
+    catch (Microsoft.Data.Sqlite.SqliteException ex)
+    {
+        app.Logger.LogError(ex, "Failed to save Web completion target for guide {GuideId}, step {StepId}", id, stepId);
+        return Results.Problem("שמירת תנאי ההשלמה נכשלה במסד הנתונים. בדוק את הודעת השגיאה בחלון ה־Instructor.", statusCode: 500);
+    }
 });
 app.MapDelete("/api/guides/{id:long}/steps/{stepId}/completion-target",
     (long id, string stepId) =>
