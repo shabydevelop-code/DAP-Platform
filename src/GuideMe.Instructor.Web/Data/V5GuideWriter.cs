@@ -741,4 +741,78 @@ WHERE GuideId=$guideId AND StepId=$stepId
         if (command.ExecuteNonQuery() != 1)
             throw new InvalidOperationException("השלב לא נמצא.");
     }
+    // Persist a confirmed Windows UIA target in the same V5 element/target/rule
+    // tables used by Web. Existing primary targets are never overwritten implicitly.
+    internal static void SaveWindowsTarget(long guideId, string stepId,
+        string strategy, string value, string? displayName, string condition, bool replacing)
+    {
+        if (strategy is not ("automation-id" or "name") ||
+            string.IsNullOrWhiteSpace(value) || value.Length > 400 || value.Contains('\\0'))
+            throw new ArgumentException("מזהה Windows אינו תקין.");
+        if (condition is not ("clicked" or "value-not-empty" or "target-disappeared"))
+            throw new ArgumentException("תנאי התקדמות אינו נתמך.");
+        using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = V5GuideReader.DatabasePath, Mode = SqliteOpenMode.ReadWrite,
+            Pooling = false, DefaultTimeout = 3
+        }.ToString());
+        connection.Open();
+        EnsureElementDisplayNameColumn(connection);
+        using var transaction = connection.BeginTransaction();
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.Parameters.AddWithValue("$guideId", guideId);
+        command.Parameters.AddWithValue("$stepId", stepId);
+        command.CommandText = @"SELECT COUNT(*) FROM Steps s
+JOIN ApplicationContexts c ON c.GuideId=s.GuideId AND c.ContextId=s.ApplicationContextId
+WHERE s.GuideId=$guideId AND s.StepId=$stepId AND c.Runtime='Windows'";
+        if (Convert.ToInt64(command.ExecuteScalar()) != 1)
+            throw new InvalidOperationException("השלב אינו משויך לאפליקציית Windows.");
+        command.CommandText = @"SELECT t.ElementId FROM StepTargets t
+WHERE t.GuideId=$guideId AND t.StepId=$stepId AND t.Purpose='Primary'";
+        var existing = command.ExecuteScalar()?.ToString();
+        if (replacing && string.IsNullOrEmpty(existing))
+            throw new InvalidOperationException("לא קיים רכיב ראשי להחלפה.");
+        if (!replacing && existing is not null)
+            throw new InvalidOperationException("כבר קיים רכיב בשלב.");
+        command.CommandText = @"SELECT COUNT(*) FROM StepRules
+WHERE GuideId=$guideId AND StepId=$stepId";
+        if (!replacing && Convert.ToInt64(command.ExecuteScalar()) != 0)
+            throw new InvalidOperationException("כבר קיימים כללי התקדמות בשלב.");
+        var elementId = replacing ? existing! : "element-" + Guid.NewGuid().ToString("N");
+        command.Parameters.AddWithValue("$elementId", elementId);
+        command.Parameters.AddWithValue("$locators", JsonSerializer.Serialize(
+            new[] { new { Strategy = strategy, Value = value } }));
+        command.Parameters.AddWithValue("$displayName",
+            (object?)CleanDisplayName(displayName) ?? DBNull.Value);
+        if (replacing)
+        {
+            command.CommandText = @"UPDATE Elements SET LocatorsJson=$locators,
+FrameContextJson=NULL, DisplayName=$displayName
+WHERE GuideId=$guideId AND ElementId=$elementId AND Runtime='Windows'";
+            if (command.ExecuteNonQuery() != 1)
+                throw new InvalidOperationException("לא ניתן להחליף רכיב Windows.");
+        }
+        else
+        {
+            command.CommandText = @"INSERT INTO Elements
+(GuideId, ElementId, Runtime, LocatorsJson, FrameContextJson, DisplayName)
+VALUES ($guideId, $elementId, 'Windows', $locators, NULL, $displayName)";
+            command.ExecuteNonQuery();
+            command.CommandText = @"INSERT INTO StepTargets
+(GuideId, StepId, UsageId, ElementId, Purpose)
+VALUES ($guideId, $stepId, 'primary', $elementId, 'Primary')";
+            command.ExecuteNonQuery();
+            command.Parameters.AddWithValue("$condition", condition);
+            command.CommandText = @"INSERT INTO StepRules
+(GuideId, StepId, RuleType, RuleId, Kind, TargetUsageId)
+VALUES ($guideId, $stepId, 'PrimaryValidation', 'primary', $condition, 'primary')";
+            command.ExecuteNonQuery();
+            command.CommandText = @"UPDATE Steps SET BubblePlacement='Auto'
+WHERE GuideId=$guideId AND StepId=$stepId AND BubblePlacement='Center'";
+            command.ExecuteNonQuery();
+        }
+        transaction.Commit();
+    }
+
 }
