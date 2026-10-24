@@ -189,8 +189,24 @@ p,.panel-header p,.step-body small,.empty,.empty-inspector{color:#52657a}
 
 .step-editor-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
 
-/* Let the step list use the remaining viewport height rather than a fixed 550px cap. */
+/* Size the entire steps grid to the remaining viewport, not just its list.
+   Both columns stay equal-height; only their own contents scroll. */
 @media(min-width:701px){
-  .steps-layout{align-items:stretch}
-  .steps-layout .step-list{max-height:none;height:var(--guideme-step-list-height,550px);min-height:280px;overflow-y:auto;overscroll-behavior:contain}
+  #steps-panel .steps-layout{
+    height:var(--guideme-steps-layout-height,550px);
+    min-height:280px;
+    align-items:stretch;
+    overflow:hidden;
+  }
+  #steps-panel .step-list{
+    max-height:none;
+    height:100%;
+    min-height:0;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+  }
+  #steps-panel .inspector{
+    min-height:0;
+    overflow-y:auto;
+  }
 }
