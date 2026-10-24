@@ -363,6 +363,7 @@ let pickingFor = null;
 const targetAdapters = {
   Web: {
     async start(session) {
+      const {guideId,contextId} = session;
     const selected = await api('/capture/select', {method:'POST',
       body:JSON.stringify({guideId,contextId})});
     if (selected.status === 'notFound')
@@ -372,7 +373,7 @@ const targetAdapters = {
       const tabs = selected.tabs || [];
       const choices = tabs.map((t,i) => (i+1)+'. '+(t.title || t.url)).join('\\n');
       const answer = prompt('נמצאו כמה לשוניות מתאימות. הקלד את מספר הלשונית:\\n'+choices);
-      if (answer === null) return;
+      if (answer === null) throw new Error('בחירת הלשונית בוטלה.');
       const i = Number(answer)-1;
       if (!Number.isInteger(i) || !tabs[i]) throw new Error('בחירת לשונית אינה תקינה.');
       tabId = tabs[i].tabId;
