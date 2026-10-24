@@ -83,3 +83,8 @@
 body,main,.content,.inspector,.step-summary,.step-friendly-card,.target-editor,#pick-result,dialog,p,span,strong,small,code{user-select:text;-webkit-user-select:text}
 button,.btn{user-select:none;-webkit-user-select:none}
 input,textarea{user-select:text;-webkit-user-select:text}
+
+/* Guide selection follows the same soft hover treatment as step selection. */
+.table tbody tr:has(.guide-open-link):hover td,.table tbody tr:has(.guide-open-link):focus-within td{background:#f1f6ff}
+.guide-open-link{display:block;width:100%;padding:8px 10px;margin:-8px -10px;text-align:right;color:#213b55;text-decoration:none;border-radius:8px;transition:background-color .15s ease,color .15s ease}
+.guide-open-link:hover,.guide-open-link:focus-visible{background:#eaf1fb;color:#2158b3;text-decoration:none}
