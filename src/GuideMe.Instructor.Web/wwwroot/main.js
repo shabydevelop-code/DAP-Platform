@@ -138,12 +138,18 @@ document.querySelectorAll('.tab').forEach(tabButton => tabButton.addEventListene
   selectTab(tabs[next].dataset.tab);
 }));
 function syncStepListHeight() {
-  const list = document.getElementById('step-list');
-  if (!list || window.matchMedia('(max-width:700px)').matches) return;
-  const top = list.getBoundingClientRect().top;
-  if (top <= 0) return; // Not visible yet.
+  const layout = document.querySelector('#steps-panel .steps-layout');
+  if (!layout) return;
+  if (window.matchMedia('(max-width:700px)').matches) {
+    layout.style.removeProperty('--guideme-steps-layout-height');
+    return;
+  }
+  const top = layout.getBoundingClientRect().top;
+  if (top <= 0 || !layout.getClientRects().length) return;
+  // Size the grid itself, so both the list and inspector fill its height.
+  // Measuring the list alone leaves unused space below the scrolling region.
   const available = Math.max(280, Math.floor(window.innerHeight - top - 24));
-  list.style.setProperty('--guideme-step-list-height', available + 'px');
+  layout.style.setProperty('--guideme-steps-layout-height', available + 'px');
 }
 window.addEventListener('resize', () => requestAnimationFrame(syncStepListHeight));
 
