@@ -20,6 +20,7 @@ const $ = id => document.getElementById(id);
  connectWindowSession();
 
 let guides = [], current = null, selectedStep = null;
+let modalReturnFocus = null;
 const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 async function api(path, options = {}) {
   const response = await fetch('/api' + path, {
@@ -35,7 +36,9 @@ async function api(path, options = {}) {
 }
 function notify(message, error = false) {
   const el = $('notice'); el.textContent = message; el.classList.toggle('error', error); el.classList.remove('hidden');
-  el.scrollIntoView({behavior:'smooth',block:'nearest'});
+  el.setAttribute('role',error?'alert':'status');
+  el.scrollIntoView({behavior:'auto',block:'nearest'});
+  if (error) { el.setAttribute('tabindex','-1'); el.focus(); }
 }
 function clearNotice() { $('notice').classList.add('hidden'); }
 async function guarded(action) { try { await action(); } catch(e) { notify(e.message || String(e), true); } }
@@ -80,10 +83,24 @@ function selectTab(tab) {
     const active=t.dataset.tab===tab;
     t.classList.toggle('active',active);
     t.setAttribute('aria-selected',String(active));
+    t.tabIndex=active?0:-1;
   });
   $('steps-panel').classList.toggle('hidden',tab!=='steps');
   $('contexts-panel').classList.toggle('hidden',tab!=='contexts');
 }
+document.querySelectorAll('.tab').forEach(tabButton => tabButton.addEventListener('keydown', e => {
+  const tabs = [...document.querySelectorAll('.tab')];
+  const index = tabs.indexOf(tabButton);
+  let next = index;
+  if (e.key === 'ArrowRight') next = (index - 1 + tabs.length) % tabs.length;
+  else if (e.key === 'ArrowLeft') next = (index + 1) % tabs.length;
+  else if (e.key === 'Home') next = 0;
+  else if (e.key === 'End') next = tabs.length - 1;
+  else return;
+  e.preventDefault();
+  tabs[next].focus();
+  selectTab(tabs[next].dataset.tab);
+}));
 function renderSteps() {
   selectedStep = null; $('step-inspector').innerHTML = '<div class="empty-inspector">בחר שלב להצגת הפרטים שלו</div>';
   const search = $('step-search').value.trim().toLowerCase();
@@ -333,6 +350,7 @@ function renderContexts() {
   document.querySelectorAll('[data-context-delete]').forEach(b=>b.onclick=()=>guarded(()=>deleteContext(current.contexts[Number(b.dataset.contextDelete)])));
 }
 function modal(title, fields, submit, buttonText='שמירה') {
+  modalReturnFocus = document.activeElement;
   $('dialog-title').textContent=title;
   $('dialog-fields').innerHTML='<div class="fields">' + fields.map(f=>{
     const label='<label for="field-'+f.name+'">'+esc(f.label)+'</label>';
@@ -349,6 +367,10 @@ function modal(title, fields, submit, buttonText='שמירה') {
   $('editor-dialog').showModal();
   form.querySelector('input,textarea,select')?.focus();
 }
+$('editor-dialog').addEventListener('close', () => {
+  if (modalReturnFocus?.isConnected && !modalReturnFocus.closest('[hidden],.hidden')) modalReturnFocus.focus();
+  modalReturnFocus = null;
+});
 const runtimeField=(value='Web')=>({name:'runtime',label:'סוג אפליקציה',value,choices:[{value:'Web',text:'Web — דפדפן'},{value:'Windows',text:'Windows — יישום מקומי'}]});
 function contextFields(c=null) {
   let raw={};try{raw=JSON.parse(c?.MatchersJson || '[]')[0] || {}}catch{}
