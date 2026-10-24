@@ -147,7 +147,9 @@
           status:"resolved",count:1,visible,...completionChange,
           value:"value" in el ? String(el.value ?? "") : "",
           enabled:!(el.disabled === true || el.getAttribute("aria-disabled") === "true"),
-          text:el.textContent ?? ""
+          text:el.textContent ?? "",
+          attributeValue:typeof command.attributeName === "string"
+            ? el.getAttribute(command.attributeName) : null
         }});
         return;
       }
