@@ -137,31 +137,30 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/windows-target",
     var picked = windowsPicker.Status().Selection;
     if (picked is null || picked.Error is not null || picked.ProcessId != request.ProcessId)
         return Results.BadRequest(new { message = "יש לבחור תחילה רכיב Windows תקין בממפה." });
-    var configuredMatchers = System.Text.Json.JsonDocument.Parse(
-        context["MatchersJson"].ToString() ?? "[]");
-    using (configuredMatchers)
+    // The picker already selected a concrete PID. Revalidate its process identity
+    // directly rather than rediscovering top-level windows during confirmation:
+    // overlays and foreground-window changes must not affect identity.
+    using var process = Process.GetProcessById(request.ProcessId);
+    using var configuredMatchers = JsonDocument.Parse(context["MatchersJson"].ToString() ?? "[]");
+    var matchesProcess = configuredMatchers.RootElement.EnumerateArray().Any(m =>
     {
-        var windows = InstructorApplicationDiscovery.Windows()
-            .Where(w => w.ProcessId == request.ProcessId).ToArray();
-        var matched = windows.Any(w => configuredMatchers.RootElement.EnumerateArray().Any(m =>
+        if (!m.TryGetProperty("Kind", out var kind) ||
+            !m.TryGetProperty("Value", out var value)) return false;
+        var configured = value.GetString();
+        if (string.IsNullOrWhiteSpace(configured)) return false;
+        return kind.GetString()?.ToLowerInvariant() switch
         {
-            if (!m.TryGetProperty("Kind", out var kind) ||
-                !m.TryGetProperty("Value", out var value)) return false;
-            var matcherValue = value.GetString();
-            if (string.IsNullOrWhiteSpace(matcherValue)) return false;
-            return kind.GetString()?.ToLowerInvariant() switch
-            {
-                "processname" => string.Equals(
-                    Path.GetFileNameWithoutExtension(matcherValue), w.ProcessName,
-                    StringComparison.OrdinalIgnoreCase),
-                "windowtitlecontains" => w.Title.Contains(matcherValue,
-                    StringComparison.OrdinalIgnoreCase),
-                _ => false
-            };
-        }));
-        if (!matched)
-            return Results.BadRequest(new { message = "הרכיב אינו שייך לאפליקציה שהוגדרה בלומדה." });
-    }
+            "processname" => string.Equals(
+                Path.GetFileNameWithoutExtension(configured), process.ProcessName,
+                StringComparison.OrdinalIgnoreCase),
+            _ => false
+        };
+    });
+    if (!matchesProcess)
+        return Results.BadRequest(new { message =
+            "הרכיב אינו שייך לתהליך שהוגדר בלומדה. " +
+            $"תהליך בפועל: {process.ProcessName}; " +
+            $"הגדרה: {context["MatchersJson"]}" });
     var locator = picked.Locators.FirstOrDefault();
     if (locator is null)
         return Results.BadRequest(new { message = "לא נמצא מזהה ייחודי לרכיב." });
