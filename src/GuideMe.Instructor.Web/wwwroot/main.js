@@ -137,10 +137,21 @@ document.querySelectorAll('.tab').forEach(tabButton => tabButton.addEventListene
   tabs[next].focus();
   selectTab(tabs[next].dataset.tab);
 }));
+function syncStepListHeight() {
+  const list = document.getElementById('step-list');
+  if (!list || window.matchMedia('(max-width:700px)').matches) return;
+  const top = list.getBoundingClientRect().top;
+  if (top <= 0) return; // Not visible yet.
+  const available = Math.max(280, Math.floor(window.innerHeight - top - 24));
+  list.style.setProperty('--guideme-step-list-height', available + 'px');
+}
+window.addEventListener('resize', () => requestAnimationFrame(syncStepListHeight));
+
 function renderSteps() {
   selectedStep = null; $('step-inspector').innerHTML = '<div class="empty-inspector">בחר שלב להצגת הפרטים שלו</div>';
   const search = $('step-search').value.trim().toLowerCase();
   const steps = (current?.steps || []).filter(s => String(s.order).includes(search) || s.id.toLowerCase().includes(search) || (s.bubble || '').toLowerCase().includes(search));
+  requestAnimationFrame(syncStepListHeight);
   $('step-list').innerHTML = steps.length ? steps.map(s =>
     '<div class="step-row" role="button" tabindex="0" aria-pressed="false" aria-label="' + esc('שלב ' + s.order + ': ' + (s.bubble || 'שלב ' + s.order)) + '" data-step="' + esc(s.id) + '"><span class="step-num">' + s.order + '</span><span class="step-body"><strong>' +
     esc(s.bubble || 'שלב ' + s.order) + '</strong><small>' + (s.enabled ? 'שלב פעיל' : 'שלב מושבת') + '</small></span></div>').join('')
