@@ -27,15 +27,18 @@ let saveInFlight = 0;
 function updateSaveStatus() {
   const el = $('save-status');
   if (!el) return;
-  const state = saveInFlight ? 'saving' : pendingChanges ? 'dirty' : saveState;
+  const state = saveInFlight ? 'saving' : saveState === 'error' ? 'error' : pendingChanges ? 'dirty' : saveState;
   el.dataset.state = state;
   el.textContent = ({saved:'כל השינויים נשמרו',dirty:'שינויים שלא נשמרו',
     saving:'שומר שינויים...',error:'השמירה נכשלה'})[state];
 }
-function markDirty() { pendingChanges = true; updateSaveStatus(); }
+function markDirty() { pendingChanges = true; saveState = 'dirty'; updateSaveStatus(); }
 function markClean() { pendingChanges = false; saveState = 'saved'; updateSaveStatus(); }
 function confirmDiscard() {
-  return !pendingChanges || confirm('יש שינויים שלא נשמרו. לצאת בלי לשמור אותם?');
+  if (!pendingChanges) return true;
+  if (!confirm('יש שינויים שלא נשמרו. לצאת בלי לשמור אותם?')) return false;
+  markClean();
+  return true;
 }
 window.addEventListener('beforeunload', event => {
   if (!pendingChanges && !saveInFlight) return;
