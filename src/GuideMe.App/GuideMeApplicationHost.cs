@@ -635,7 +635,13 @@ public static class GuideMeApplicationHost
         finally
         {
             if (!targetClosed.IsCancellationRequested)
-                await browserAdapter.HideBubbleAsync(CancellationToken.None);
+            {
+                try { await browserAdapter.HideBubbleAsync(CancellationToken.None); }
+                catch (TimeoutException ex)
+                {
+                    Console.Error.WriteLine($"[GuideMe diagnostic] Bubble cleanup skipped: {ex.Message}");
+                }
+            }
         }
 
         return 0;
