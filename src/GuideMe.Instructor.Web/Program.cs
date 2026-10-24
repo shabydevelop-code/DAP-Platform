@@ -170,9 +170,13 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/completion-target",
     var selected = capture.GetApprovedTarget(id, row["ApplicationContextId"].ToString() ?? "");
     try
     {
+        var capturedState = request.Kind == "attribute-equals"
+            ? capture.GetApprovedStateAttribute(id, row["ApplicationContextId"].ToString() ?? "",
+                request.StateAttributeIndex ?? -1)
+            : ((string Name, string Value)?)null;
         V5GuideWriter.SaveWebCompletionTarget(id, stepId, selected.Selector,
             selected.FramePath, request.Kind, selected.DisplayName,
-            request.AttributeName, request.AttributeValue);
+            capturedState?.Name, capturedState?.Value);
         capture.CancelPicking();
         return Results.NoContent();
     }
@@ -366,6 +370,6 @@ internal sealed record NewManualStep(string ContextId, string Bubble, string Pla
 internal sealed record PickStart(long GuideId, string ContextId);
 internal sealed record SaveWebTargetRequest(string Condition, int? GridChoice = null);
 internal sealed record ReplaceWebTargetRequest(int? GridChoice = null);
-internal sealed record SaveCompletionTargetRequest(string Kind, string? AttributeName = null, string? AttributeValue = null);
+internal sealed record SaveCompletionTargetRequest(string Kind, int? StateAttributeIndex = null);
 
 internal sealed record EditWebValidation(string Kind, string? ExpectedValue);
