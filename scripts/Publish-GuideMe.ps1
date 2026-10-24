@@ -110,17 +110,21 @@ if ([string]::Equals($destinationCanonical, $activeCanonical,
                 $origins = @($existing.allowed_origins)
                 if ($existing.name -eq 'com.guideme.web_runtime' -and
                     $origins.Count -eq 1 -and
-                    $origins[0] -match '^chrome-extension://([a-p]{32})/
-) {
-                    $ExtensionId = $Matches[1]
+                    $origins[0].StartsWith('chrome-extension://') -and
+                    $origins[0].EndsWith('/')) {
+                    $candidate = $origins[0].Substring(19, $origins[0].Length - 20)
+                    if ($candidate.Length -eq 32 -and
+                        @($candidate.ToCharArray() | Where-Object { $_ -clt 'a' -or $_ -cgt 'p' }).Count -eq 0) {
+                        $ExtensionId = $candidate
+                    }
                 }
             } catch {
                 Write-Warning "Existing Learner Native Messaging manifest is invalid: $($_.Exception.Message)"
             }
         }
     }
-    if ($ExtensionId -notmatch '^[a-p]{32}
-) {
+    if ($ExtensionId.Length -ne 32 -or
+        @($ExtensionId.ToCharArray() | Where-Object { $_ -clt 'a' -or $_ -cgt 'p' }).Count -ne 0) {
         throw 'Learner Chrome extension ID is unknown. Run Publish-GuideMe.ps1 -ExtensionId <32-character ID from chrome://extensions> once. The ID will be reused from the registered manifest on later publishes.'
     }
 
