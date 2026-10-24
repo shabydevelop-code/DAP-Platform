@@ -426,7 +426,7 @@ async function refreshPicker() {
       '<label for="completion-state-choice">המצב שנלכד מהרכיב</label>' +
       '<select id="completion-state-choice">' +
       (candidate.stateAttributes || []).map((state, index) =>
-        '<option value="' + index + '">' + esc(state.name + ' = ' + state.value) + '</option>').join('') +
+        '<option value="' + index + '">' + esc((state.label || 'רכיב') + ': ' + state.name + ' = ' + state.value) + '</option>').join('') +
       '</select>' +
       ((candidate.stateAttributes || []).length ? '<p>בחר את מצב הרכיב הרצוי. הערכים נקראו מאפליקציית היעד.</p>' :
         '<p>לא נמצאו מאפייני מצב מתאימים ברכיב. בחר רכיב אחר, למשל כותרת העמודה.</p>') +
