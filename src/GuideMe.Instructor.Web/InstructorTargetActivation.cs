@@ -33,6 +33,11 @@ internal static class InstructorTargetActivation
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool SetForegroundWindow(nint window);
 
+    [DllImport("user32.dll")]
+    private static extern void SwitchToThisWindow(nint window, bool altTab);
+    [DllImport("user32.dll")]
+    private static extern nint SetActiveWindow(nint window);
+
     [StructLayout(LayoutKind.Sequential)]
     private struct KeyboardInput
     {
@@ -117,8 +122,37 @@ internal static class InstructorTargetActivation
         // The Instructor runs behind Chrome; attaching input queues alone does
         // not confer permission to take focus under the Windows foreground lock.
         // Retry after a synthetic, non-text Alt tap to unlock foreground activation.
-        if (!RequestForegroundPermission()) return false;
-        SetForegroundWindow(target);
+        if (RequestForegroundPermission())
+        {
+            SetForegroundWindow(target);
+            if (GetForegroundWindow() == target) return true;
+        }
+
+        // Perform an explicit task switch as an alternative to background
+        // SetForegroundWindow, which may only flash the taskbar icon.
+        SwitchToThisWindow(target, true);
+        if (GetForegroundWindow() == target) return true;
+
+        // Attach also to the target GUI thread before activating its window.
+        foreground = GetForegroundWindow();
+        foregroundThread = foreground != 0 ? GetWindowThreadProcessId(foreground, out _) : 0;
+        var targetThread = GetWindowThreadProcessId(target, out _);
+        var linkedForeground = foregroundThread != 0 && foregroundThread != currentThread &&
+            AttachThreadInput(currentThread, foregroundThread, true);
+        var linkedTarget = targetThread != 0 && targetThread != currentThread &&
+            targetThread != foregroundThread &&
+            AttachThreadInput(currentThread, targetThread, true);
+        try
+        {
+            BringWindowToTop(target);
+            SetActiveWindow(target);
+            SetForegroundWindow(target);
+        }
+        finally
+        {
+            if (linkedTarget) AttachThreadInput(currentThread, targetThread, false);
+            if (linkedForeground) AttachThreadInput(currentThread, foregroundThread, false);
+        }
         return GetForegroundWindow() == target;
     }
 }
