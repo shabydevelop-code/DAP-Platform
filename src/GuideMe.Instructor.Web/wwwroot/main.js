@@ -303,7 +303,7 @@ function renderSteps() {
       const section = document.createElement('section');
       section.className = 'target-editor';
       section.innerHTML = '<h3>זיהוי רכיב Windows</h3>' +
-        '<p>העבר את העכבר מעל הרכיב באפליקציית היעד, ואז חזור לעורך ובחר בדיקה. ' +
+        '<p>לחץ על בדיקה לפי העכבר, ואז בתוך 3 שניות העבר את העכבר מעל הרכיב באפליקציית היעד. ' +
         'אפשר גם לבדוק את הרכיב שנמצא במיקוד המקלדת.</p>' +
         '<label for="windows-process">חלון האפליקציה</label>' +
         '<select id="windows-process" dir="auto"></select>' +
@@ -321,8 +321,9 @@ function renderSteps() {
         const processId = Number(processSelect.value);
         if (!processId) throw new Error('בחר חלון Windows תחילה.');
         const result = $('windows-inspection');
-        result.textContent = 'בודק את הרכיב…';
+        result.textContent = focused ? 'בודק את הרכיב במיקוד…' : 'העבר את העכבר לרכיב היעד. הבדיקה תתבצע בעוד 3 שניות…';
         try {
+          if (!focused) await new Promise(resolve => setTimeout(resolve, 3000));
           const info = await api('/windows/inspect', {method:'POST',
             body:JSON.stringify({processId, focused})});
           result.innerHTML = '<p>שם: <strong>' + esc(info.name || '(ללא שם)') +
