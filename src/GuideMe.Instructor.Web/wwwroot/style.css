@@ -163,3 +163,8 @@ p,.panel-header p,.step-body small,.empty,.empty-inspector{color:#52657a}
 .field :is(input,select,textarea):user-invalid{border-color:#ad2339}
 .field :is(input,select,textarea):user-invalid:focus-visible{outline-color:#ad2339}
 .notice[role="alert"]:focus{outline:3px solid #ad2339;outline-offset:3px}
+
+/* Skip link is intentionally keyboard-only; keep it clear of the window edge and scrollbar. */
+.skip-link{top:16px;right:32px;left:auto;max-width:calc(100vw - 64px);transform:translateY(calc(-100% - 32px));box-shadow:0 4px 16px #102c4d33}
+.skip-link:focus-visible{transform:none;outline:3px solid #155bc1;outline-offset:3px}
+@media(max-width:700px){.skip-link{right:16px;max-width:calc(100vw - 32px)}}
