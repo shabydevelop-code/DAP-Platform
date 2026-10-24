@@ -572,6 +572,99 @@ WHERE GuideId=$guideId AND ElementId=$elementId AND Runtime='Web'";
         transaction.Commit();
     }
 
+    // An explicitly selected secondary target, never inferred from the primary action.
+    internal static void SaveWebCompletionTarget(long guideId, string stepId, string selector,
+        IReadOnlyList<string> framePath, string kind, string? displayName)
+    {
+        if (kind is not ("target-appeared" or "target-vanished"))
+            throw new ArgumentException("חוק השלמה לא נתמך.");
+        if (string.IsNullOrWhiteSpace(selector) || selector.Length > 400 ||
+            selector.IndexOf((char)0) >= 0 || framePath.Count > 12 ||
+            framePath.Any(p => string.IsNullOrWhiteSpace(p) || p.Length > 400))
+            throw new ArgumentException("רכיב תנאי ההשלמה אינו תקין.");
+
+        using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = V5GuideReader.DatabasePath, Mode = SqliteOpenMode.ReadWrite,
+            Pooling = false, DefaultTimeout = 3
+        }.ToString());
+        connection.Open();
+        EnsureElementDisplayNameColumn(connection);
+        using var transaction = connection.BeginTransaction();
+        using var check = connection.CreateCommand();
+        check.Transaction = transaction;
+        check.CommandText = @"SELECT COUNT(*) FROM Steps s
+JOIN ApplicationContexts c ON c.GuideId=s.GuideId AND c.ContextId=s.ApplicationContextId
+WHERE s.GuideId=$guideId AND s.StepId=$stepId AND c.Runtime='Web'
+AND EXISTS (SELECT 1 FROM StepTargets t WHERE t.GuideId=s.GuideId
+AND t.StepId=s.StepId AND t.Purpose='Primary')
+AND EXISTS (SELECT 1 FROM StepRules r WHERE r.GuideId=s.GuideId
+AND r.StepId=s.StepId AND r.RuleType='PrimaryValidation')";
+        check.Parameters.AddWithValue("$guideId", guideId);
+        check.Parameters.AddWithValue("$stepId", stepId);
+        if (Convert.ToInt64(check.ExecuteScalar()) != 1)
+            throw new InvalidOperationException("יש להגדיר קודם רכיב פעולה ותנאי ראשי.");
+        check.CommandText = @"SELECT COUNT(*) FROM StepRules WHERE GuideId=$guideId
+AND StepId=$stepId AND RuleType='AdditionalCompletionCondition'";
+        if (Convert.ToInt64(check.ExecuteScalar()) != 0)
+            throw new InvalidOperationException("כבר קיים תנאי השלמה נוסף. יש להסיר אותו לפני בחירת אחר.");
+
+        var elementId = "element-" + Guid.NewGuid().ToString("N");
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = @"INSERT INTO Elements
+(GuideId, ElementId, Runtime, LocatorsJson, FrameContextJson, DisplayName)
+VALUES ($guideId, $elementId, 'Web', $locators, $frame, $name)";
+        command.Parameters.AddWithValue("$guideId", guideId);
+        command.Parameters.AddWithValue("$elementId", elementId);
+        command.Parameters.AddWithValue("$locators", JsonSerializer.Serialize(
+            new[] { new { Strategy="css", Value=selector } }));
+        command.Parameters.AddWithValue("$frame", framePath.Count == 0 ? DBNull.Value :
+            JsonSerializer.Serialize(framePath.Select(p => new { Strategy="css", Value=p })));
+        command.Parameters.AddWithValue("$name", (object?)CleanDisplayName(displayName) ?? DBNull.Value);
+        command.ExecuteNonQuery();
+        command.CommandText = @"INSERT INTO StepTargets
+(GuideId, StepId, UsageId, ElementId, Purpose)
+VALUES ($guideId, $stepId, 'completion', $elementId, 'Completion')";
+        command.ExecuteNonQuery();
+        command.Parameters.AddWithValue("$kind", kind);
+        command.CommandText = @"INSERT INTO StepRules
+(GuideId, StepId, RuleType, RuleId, Kind, TargetUsageId)
+VALUES ($guideId, $stepId, 'AdditionalCompletionCondition', 'completion', $kind, 'completion')";
+        command.ExecuteNonQuery();
+        transaction.Commit();
+    }
+
+    internal static void RemoveWebCompletionTarget(long guideId, string stepId)
+    {
+        using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = V5GuideReader.DatabasePath, Mode = SqliteOpenMode.ReadWrite,
+            Pooling = false, DefaultTimeout = 3
+        }.ToString());
+        connection.Open();
+        using var transaction = connection.BeginTransaction();
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.Parameters.AddWithValue("$guideId", guideId);
+        command.Parameters.AddWithValue("$stepId", stepId);
+        command.CommandText = @"SELECT ElementId FROM StepTargets WHERE GuideId=$guideId
+AND StepId=$stepId AND UsageId='completion' AND Purpose='Completion'";
+        var elementId = command.ExecuteScalar()?.ToString();
+        if (elementId is null) throw new InvalidOperationException("לא נמצא תנאי השלמה נוסף.");
+        command.CommandText = @"DELETE FROM StepRules WHERE GuideId=$guideId
+AND StepId=$stepId AND RuleType='AdditionalCompletionCondition' AND TargetUsageId='completion'";
+        command.ExecuteNonQuery();
+        command.CommandText = @"DELETE FROM StepTargets WHERE GuideId=$guideId
+AND StepId=$stepId AND UsageId='completion' AND Purpose='Completion'";
+        command.ExecuteNonQuery();
+        command.Parameters.AddWithValue("$elementId", elementId);
+        command.CommandText = @"DELETE FROM Elements WHERE GuideId=$guideId AND ElementId=$elementId
+AND NOT EXISTS (SELECT 1 FROM StepTargets WHERE GuideId=$guideId AND ElementId=$elementId)";
+        command.ExecuteNonQuery();
+        transaction.Commit();
+    }
+
     internal static void UpdateWebPrimaryValidation(long guideId, string stepId,
         string kind, string? expectedValue)
     {
