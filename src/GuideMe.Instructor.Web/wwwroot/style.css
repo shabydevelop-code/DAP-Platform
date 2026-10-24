@@ -188,3 +188,9 @@ p,.panel-header p,.step-body small,.empty,.empty-inspector{color:#52657a}
 .step-row:focus-visible{outline:2px solid #3273e2;outline-offset:-3px}
 
 .step-editor-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+
+/* Let the step list use the remaining viewport height rather than a fixed 550px cap. */
+@media(min-width:701px){
+  .steps-layout{align-items:stretch}
+  .steps-layout .step-list{max-height:none;height:var(--guideme-step-list-height,550px);min-height:280px;overflow-y:auto;overscroll-behavior:contain}
+}
