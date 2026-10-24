@@ -118,7 +118,13 @@ app.MapGet("/api/discovery", () => Results.Ok(new
 var windowsPicker = new WindowsTargetPicker();
 app.Lifetime.ApplicationStopping.Register(windowsPicker.Dispose);
 app.MapPost("/api/windows/picker/start", (WindowsInspectRequest request) =>
-    Results.Ok(windowsPicker.Start(request.ProcessId)));
+{
+    // Resolve the selected application before creating the non-activating overlay.
+    var activated = InstructorTargetActivation.Activate(request.ProcessId);
+    var status = windowsPicker.Start(request.ProcessId);
+    return Results.Ok(new { status.Picking, status.Picked, status.Selection,
+        status.Error, Activated = activated });
+});
 app.MapGet("/api/windows/picker/status", () => Results.Ok(windowsPicker.Status()));
 app.MapPost("/api/windows/picker/cancel", () => Results.Ok(windowsPicker.Stop()));
 
