@@ -274,7 +274,7 @@ function renderSteps() {
       const button = $('test-from-step');
       button.disabled = true;
       try {
-        await verifyLearnerTransport();
+        await verifyTestTransport(current.guide.id, step.id);
         await api('/guides/' + current.guide.id + '/test?startStepId=' + encodeURIComponent(step.id),
           {method:'POST', body:'{}'});
         notify('ה־Learner הופעל משלב ' + step.order + '. הבועית תוצג כשהרכיב המתאים יהיה זמין.');
@@ -778,6 +778,11 @@ $('new-guide').onclick=()=>guarded(newGuide);
 // The Learner extension must acknowledge a real Native Host ping before
 // launching GuideMe.exe. A missing content script means Instructor needs a
 // reload after the extension was installed or updated.
+async function verifyTestTransport(guideId, startStepId = null) {
+  const query = startStepId ? '?startStepId=' + encodeURIComponent(startStepId) : '';
+  const requirements = await api('/guides/' + guideId + '/test-requirements' + query);
+  if (requirements.requiresChromeExtension) await verifyLearnerTransport();
+}
 function verifyLearnerTransport() {
   return new Promise((resolve, reject) => {
     const requestId = crypto.randomUUID();
@@ -806,7 +811,7 @@ $('test-guide').onclick=()=>guarded(async()=>{
   const button=$('test-guide');
   button.disabled=true;
   try {
-    await verifyLearnerTransport();
+    await verifyTestTransport(current.guide.id);
     await api('/guides/'+current.guide.id+'/test',{method:'POST',body:'{}'});
     notify('ה־Learner הופעל לבדיקת הלומדה מתחילתה. יש להכין את אפליקציית היעד למצב ההתחלתי.');
   } finally { button.disabled=false; }
