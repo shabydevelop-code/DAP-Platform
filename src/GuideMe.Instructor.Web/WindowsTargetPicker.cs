@@ -1,0 +1,212 @@
+using System.Diagnostics;
+using System.Runtime.InteropServices;
+using System.Windows;
+using System.Windows.Automation;
+using System.Windows.Controls;
+using System.Windows.Interop;
+using System.Windows.Media;
+using System.Windows.Threading;
+
+namespace GuideMe.Instructor.Web;
+
+// Windows counterpart of the Web element picker: non-activating, mouse-transparent
+// highlight overlay and click-to-select. UIA work stays on its own STA thread.
+internal sealed class WindowsTargetPicker : IDisposable
+{
+    internal sealed record PickerStatus(bool Picking, bool Picked,
+        WindowsTargetInspector.Inspection? Selection, string? Error);
+    private readonly object gate = new();
+    private Thread? thread;
+    private Dispatcher? dispatcher;
+    private int processId;
+    private bool picking;
+    private WindowsTargetInspector.Inspection? selection;
+    private string? error;
+    private Window? overlay;
+    private Border? outline;
+    private DispatcherTimer? timer;
+    private HookProc? hookDelegate;
+    private nint hook;
+    private AutomationElement? hovered;
+    private bool disposed;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct Point { public int X; public int Y; }
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MouseHookData { public Point Point; public uint MouseData; public uint Flags; public uint Time; public nuint ExtraInfo; }
+    private delegate nint HookProc(int code, nuint message, nint data);
+    [DllImport("user32.dll")] private static extern bool GetCursorPos(out Point point);
+    [DllImport("user32.dll")] private static extern nint SetWindowsHookEx(int id, HookProc callback, nint module, uint threadId);
+    [DllImport("user32.dll")] private static extern bool UnhookWindowsHookEx(nint handle);
+    [DllImport("user32.dll")] private static extern nint CallNextHookEx(nint handle, int code, nuint message, nint data);
+    [DllImport("user32.dll")] private static extern int GetSystemMetrics(int index);
+    [DllImport("user32.dll")] private static extern uint GetDpiForWindow(nint hwnd);
+    [DllImport("user32.dll")] private static extern nint GetWindowLongPtr(nint hwnd, int index);
+    [DllImport("user32.dll")] private static extern nint SetWindowLongPtr(nint hwnd, int index, nint value);
+
+    internal PickerStatus Status()
+    {
+        lock (gate) return new PickerStatus(picking, selection is not null, selection, error);
+    }
+
+    internal PickerStatus Start(int pid)
+    {
+        if (pid <= 0) throw new ArgumentException("לא נמצא תהליך יעד תקין.");
+        Stop();
+        lock (gate)
+        {
+            if (disposed) throw new ObjectDisposedException(nameof(WindowsTargetPicker));
+            processId = pid;
+            selection = null;
+            error = null;
+            picking = true;
+        }
+        thread = new Thread(Run) { IsBackground = true, Name = "GuideMe Windows UIA Picker" };
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        return Status();
+    }
+
+    internal PickerStatus Stop()
+    {
+        Dispatcher? toStop;
+        lock (gate) { picking = false; toStop = dispatcher; }
+        if (toStop is not null)
+            try { toStop.BeginInvokeShutdown(DispatcherPriority.Normal); }
+            catch (TaskCanceledException) { }
+            catch (InvalidOperationException) { }
+        return Status();
+    }
+
+    private void Run()
+    {
+        try
+        {
+            dispatcher = Dispatcher.CurrentDispatcher;
+            var canvas = new Canvas { Background = Brushes.Transparent, IsHitTestVisible = false };
+            outline = new Border
+            {
+                BorderBrush = new SolidColorBrush(Color.FromRgb(20, 122, 255)),
+                BorderThickness = new Thickness(3),
+                CornerRadius = new CornerRadius(4),
+                Background = Brushes.Transparent,
+                Visibility = Visibility.Collapsed,
+                IsHitTestVisible = false
+            };
+            canvas.Children.Add(outline);
+            var left = GetSystemMetrics(76);
+            var top = GetSystemMetrics(77);
+            var width = GetSystemMetrics(78);
+            var height = GetSystemMetrics(79);
+            // WPF coordinates are DIPs. Convert from physical pixels below.
+            overlay = new Window
+            {
+                WindowStyle = WindowStyle.None,
+                AllowsTransparency = true,
+                Background = Brushes.Transparent,
+                ShowInTaskbar = false,
+                ShowActivated = false,
+                Topmost = true,
+                Left = left, Top = top, Width = width, Height = height,
+                Content = canvas
+            };
+            overlay.SourceInitialized += (_, _) =>
+            {
+                var hwnd = new WindowInteropHelper(overlay).Handle;
+                const long transparent = 0x20, toolWindow = 0x80, noActivate = 0x08000000;
+                SetWindowLongPtr(hwnd, -20, (nint)(GetWindowLongPtr(hwnd, -20).ToInt64() |
+                    transparent | toolWindow | noActivate));
+            };
+            overlay.Show();
+            var source = PresentationSource.FromVisual(overlay);
+            var transform = source?.CompositionTarget?.TransformFromDevice ?? Matrix.Identity;
+            var origin = transform.Transform(new System.Windows.Point(left, top));
+            var corner = transform.Transform(new System.Windows.Point(left + width, top + height));
+            overlay.Left = origin.X;
+            overlay.Top = origin.Y;
+            overlay.Width = corner.X - origin.X;
+            overlay.Height = corner.Y - origin.Y;
+            hookDelegate = MouseHook;
+            hook = SetWindowsHookEx(14, hookDelegate, 0, 0);
+            if (hook == 0) throw new InvalidOperationException("לא ניתן להפעיל בחירת רכיב בעכבר.");
+            timer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(90) };
+            timer.Tick += (_, _) => UpdateHover(transform, origin);
+            timer.Start();
+            Dispatcher.Run();
+        }
+        catch (Exception ex)
+        {
+            lock (gate) { error = ex.Message; picking = false; }
+        }
+        finally
+        {
+            timer?.Stop();
+            if (hook != 0) { UnhookWindowsHookEx(hook); hook = 0; }
+            overlay?.Close();
+            lock (gate) { picking = false; dispatcher = null; }
+        }
+    }
+
+    private void UpdateHover(Matrix transform, System.Windows.Point origin)
+    {
+        if (!GetCursorPos(out var cursor)) return;
+        try
+        {
+            var element = AutomationElement.FromPoint(new System.Windows.Point(cursor.X, cursor.Y));
+            if (element is null || element.Current.ProcessId != processId)
+            {
+                hovered = null;
+                outline!.Visibility = Visibility.Collapsed;
+                return;
+            }
+            var bounds = element.Current.BoundingRectangle;
+            if (bounds.IsEmpty || bounds.Width < 2 || bounds.Height < 2)
+            {
+                hovered = null;
+                outline!.Visibility = Visibility.Collapsed;
+                return;
+            }
+            hovered = element;
+            var a = transform.Transform(new System.Windows.Point(bounds.Left, bounds.Top));
+            var b = transform.Transform(new System.Windows.Point(bounds.Right, bounds.Bottom));
+            Canvas.SetLeft(outline!, a.X - origin.X);
+            Canvas.SetTop(outline!, a.Y - origin.Y);
+            outline!.Width = b.X - a.X;
+            outline.Height = b.Y - a.Y;
+            outline.Visibility = Visibility.Visible;
+        }
+        catch (ElementNotAvailableException) { hovered = null; outline!.Visibility = Visibility.Collapsed; }
+        catch (COMException) { hovered = null; outline!.Visibility = Visibility.Collapsed; }
+    }
+
+    private nint MouseHook(int code, nuint message, nint data)
+    {
+        if (code >= 0 && message == 0x201 && hovered is not null)
+        {
+            try
+            {
+                var mouse = Marshal.PtrToStructure<MouseHookData>(data);
+                var point = new System.Windows.Point(mouse.Point.X, mouse.Point.Y);
+                var hit = AutomationElement.FromPoint(point);
+                if (hit is not null && Automation.Compare(hit, hovered))
+                {
+                    var result = WindowsTargetInspector.Inspect(processId, false);
+                    lock (gate) { selection = result; picking = false; }
+                    dispatcher?.BeginInvokeShutdown(DispatcherPriority.Background);
+                    return 1; // Selecting must not activate the application's control.
+                }
+            }
+            catch (Exception ex) when (ex is COMException or ElementNotAvailableException or InvalidOperationException)
+            {
+                lock (gate) error = ex.Message;
+            }
+        }
+        return CallNextHookEx(hook, code, message, data);
+    }
+
+    public void Dispose()
+    {
+        Stop();
+        lock (gate) disposed = true;
+    }
+}
