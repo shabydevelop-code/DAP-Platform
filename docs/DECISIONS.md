@@ -47,3 +47,7 @@
 - Author-facing `target-appeared` / `target-vanished` mean rendered presence/absence, not merely DOM membership. The Learner inspects CSS visibility, hidden/inert ancestors, closed details, and layout rectangles in the selected frame. The author does not configure or inspect `innerHTML`.
 - Existing `target-exists` / `target-not-exists` retain locator/DOM-resolution semantics for backward compatibility.
 - A transition requires an opposite-state baseline before the learner acts; a target already visible at step entry does not count as newly appeared. Rechecking disappearance guards against brief frame detach. Production verification remains required for iframe refresh and fast transitions.
+
+## Active learner session indicator (2026-10-24)
+- The shared Web/Windows/mixed session indicator displays the localized active-status label and the human-readable V5 `Guides.GuideName`, resolved by `GuideKey` from the same production database used to compile the guide. Do not display the technical key.
+- Long names are ellipsized and remain accessible through the full-name tooltip. This is a presentation-only change.
