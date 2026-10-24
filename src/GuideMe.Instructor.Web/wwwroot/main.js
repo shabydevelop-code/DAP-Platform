@@ -299,6 +299,44 @@ function renderSteps() {
       beginWebPicker(current.guide.id, step.id, contextId, true));
     const conditionEditor = $('edit-validation');
     if (conditionEditor) conditionEditor.onclick = () => editValidation(step, rule);
+    if (context?.Runtime === 'Windows') {
+      const section = document.createElement('section');
+      section.className = 'target-editor';
+      section.innerHTML = '<h3>זיהוי רכיב Windows</h3>' +
+        '<p>העבר את העכבר מעל הרכיב באפליקציית היעד, ואז חזור לעורך ובחר בדיקה. ' +
+        'אפשר גם לבדוק את הרכיב שנמצא במיקוד המקלדת.</p>' +
+        '<label for="windows-process">חלון האפליקציה</label>' +
+        '<select id="windows-process" dir="auto"></select>' +
+        '<div class="target-actions"><button id="inspect-windows-mouse" class="btn secondary">בדיקה לפי העכבר</button>' +
+        '<button id="inspect-windows-focus" class="btn secondary">בדיקה לפי מיקוד</button></div>' +
+        '<div id="windows-inspection" aria-live="polite" role="status"></div>';
+      $('step-inspector').append(section);
+      const windows = (await api('/discovery')).windows || [];
+      const processSelect = $('windows-process');
+      processSelect.innerHTML = windows.length ? windows.map(w =>
+        '<option value="' + Number(w.processId) + '">' + esc(w.title) + ' (' + esc(w.processName) +
+        ', PID ' + Number(w.processId) + ')</option>').join('') :
+        '<option value="">לא נמצאו חלונות Windows זמינים</option>';
+      const inspect = async focused => {
+        const processId = Number(processSelect.value);
+        if (!processId) throw new Error('בחר חלון Windows תחילה.');
+        const result = $('windows-inspection');
+        result.textContent = 'בודק את הרכיב…';
+        try {
+          const info = await api('/windows/inspect', {method:'POST',
+            body:JSON.stringify({processId, focused})});
+          result.innerHTML = '<p>שם: <strong>' + esc(info.name || '(ללא שם)') +
+            '</strong> · סוג: <code dir="ltr">' + esc(info.controlType) + '</code></p>' +
+            (info.locators.length ? '<p>מזהים ייחודיים:</p><ul>' + info.locators.map(x =>
+              '<li><code dir="ltr">' + esc(x.strategy) + ': ' + esc(x.value) +
+              '</code></li>').join('') + '</ul>' : '') +
+            (info.error ? '<p role="alert">' + esc(info.error) + '</p>' : '') +
+            '<p>בדיקה בלבד. שמירת רכיב Windows תחובר בשלב הבא.</p>';
+        } catch (error) { result.textContent = error.message; }
+      };
+      $('inspect-windows-mouse').onclick = () => guarded(() => inspect(false));
+      $('inspect-windows-focus').onclick = () => guarded(() => inspect(true));
+    }
     if (context?.Runtime === 'Web') {
       const section = document.createElement('section');
       section.className = 'target-editor';
