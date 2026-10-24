@@ -283,41 +283,6 @@ function editValidation(step, rule) {
   updateValueVisibility();
 }
 
-async function startObservation(guideId, contextId) {
-  const selected = await api('/capture/select', {method:'POST',
-    body:JSON.stringify({guideId,contextId})});
-  if (selected.status === 'notFound')
-    throw new Error('לא נמצאה לשונית מתאימה לתצפית.');
-  if (selected.status === 'multiple') {
-    const tabs = selected.tabs || [];
-    const answer = prompt('בחר מספר לשונית לתצפית:\\n' +
-      tabs.map((t,i) => (i+1)+'. '+(t.title || t.url)).join('\\n'));
-    if (answer === null) return;
-    const tab = tabs[Number(answer)-1];
-    if (!tab) throw new Error('בחירת לשונית אינה תקינה.');
-    await api('/capture/select',{method:'POST',
-      body:JSON.stringify({guideId,contextId,tabId:tab.tabId})});
-  }
-  await api('/observation/start',{method:'POST',body:JSON.stringify({guideId,contextId})});
-  await refreshObservation();
-}
-async function stopObservation() {
-  await api('/observation/stop',{method:'POST',body:'{}'});
-  await refreshObservation();
-}
-async function refreshObservation() {
-  const box = $('observation-results');
-  if (!box) return;
-  const status = await api('/observation/status');
-  const findings = status.findings || [];
-  box.innerHTML = '<p>' + (status.active
-    ? (status.baseline ? 'תצפית פעילה. בצע פעולה באתר ולאחר מכן עצור.' : 'ממתין לדגימת מצב ראשונית...')
-    : 'התצפית אינה פעילה.') + '</p>' +
-    (findings.length ? '<ul>' + findings.map(f => '<li>' + esc(f) + '</li>').join('') + '</ul>' :
-      '<p>טרם זוהו שינויים ברכיבים בעלי מזהה יציב.</p>') +
-    '<p>הממצאים הם הצעות לבדיקה בלבד; לא נשמר תנאי התקדמות אוטומטי.</p>';
-}
-setInterval(() => { if ($('observation-results')) void refreshObservation().catch(()=>{}); }, 3000);
 let pickingFor = null;
 async function beginWebPicker(guideId, stepId, contextId, replacing=false, completion=false) {
   if (pickingFor) {
