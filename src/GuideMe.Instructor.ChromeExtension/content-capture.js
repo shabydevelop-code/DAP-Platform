@@ -54,8 +54,16 @@
       try { return document.querySelector(selector) === element &&
         document.querySelectorAll(selector).length === 1; } catch { return false; }
     };
-    const stable = value => value && value.length <= 120 &&
-      !/^[a-f0-9]{16,}$/i.test(value);
+    const stable = value => typeof value === 'string' && value.length > 0 &&
+      value.length <= 120 && !/^[a-f0-9]{16,}$/i.test(value);
+    const classNames = node => [...node.classList].filter(name =>
+      stable(name) && !/^(active|hover|focus|selected|disabled|loading|open|hidden|ng-|css-|jsx-|sc-)/i.test(name)
+      && !/[0-9a-f]{8,}/i.test(name)).slice(0, 3);
+    const simple = node => {
+      const base = node.tagName.toLowerCase();
+      const names = classNames(node);
+      return [base, ...names.map(name => base + '.' + CSS.escape(name))];
+    };
     if (stable(element.id)) {
       const selector = '#' + CSS.escape(element.id);
       if (unique(selector)) return selector;
@@ -63,10 +71,25 @@
     for (const attr of ['data-testid', 'data-test', 'data-qa', 'name', 'aria-label', 'placeholder']) {
       const value = element.getAttribute(attr);
       if (!stable(value)) continue;
-      const escaped = CSS.escape(value);
-      const selector = tag + '[' + attr + '="' + escaped + '"]';
+      const selector = tag + '[' + attr + '="' + CSS.escape(value) + '"]';
       if (unique(selector)) return selector;
     }
+    // Prefer an identifying class over DOM structure when it is unique.
+    for (const selector of simple(element)) {
+      if (unique(selector)) return selector;
+    }
+    // An ancestor's stable ID plus the target's distinguishing classes
+    // survives insertion or removal of intermediate layout wrappers.
+    for (let ancestor = element.parentElement, depth = 1;
+         ancestor && depth <= 7; ancestor = ancestor.parentElement, depth++) {
+      if (!stable(ancestor.id)) continue;
+      const anchor = '#' + CSS.escape(ancestor.id);
+      for (const suffix of simple(element)) {
+        const selector = anchor + ' ' + suffix;
+        if (unique(selector)) return selector;
+      }
+    }
+    // Use structural paths only if semantic selectors cannot identify one node.
     const parts = [];
     let node = element;
     for (let depth = 0; node && node.nodeType === 1 && depth < 7; depth++, node = node.parentElement) {
@@ -74,6 +97,8 @@
       if (node.id && stable(node.id)) {
         part += '#' + CSS.escape(node.id);
         parts.unshift(part);
+        const candidate = parts.join(' > ');
+        if (unique(candidate)) return candidate;
         break;
       }
       const parent = node.parentElement;
