@@ -57,6 +57,44 @@ internal static class InstructorSingleInstance
         return false;
     }
 
+    // Chrome can ignore --start-maximized for app windows when restoring saved bounds.
+    // Maximize only the Instructor app window, never unrelated Chrome windows.
+    internal static void MaximizeInstructorWindow()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        for (var attempt = 0; attempt < 50; attempt++)
+        {
+            nint target = 0;
+            EnumWindows((window, _) =>
+            {
+                if (!IsWindowVisible(window)) return true;
+                var length = GetWindowTextLength(window);
+                if (length != WindowTitle.Length) return true;
+                var title = new StringBuilder(length + 1);
+                _ = GetWindowText(window, title, title.Capacity);
+                if (!string.Equals(title.ToString(), WindowTitle, StringComparison.Ordinal)) return true;
+                GetWindowThreadProcessId(window, out var pid);
+                try
+                {
+                    using var process = Process.GetProcessById((int)pid);
+                    if (!string.Equals(process.ProcessName, "chrome", StringComparison.OrdinalIgnoreCase))
+                        return true;
+                    if (process.SessionId != Process.GetCurrentProcess().SessionId)
+                        return true;
+                }
+                catch (ArgumentException) { return true; }
+                target = window;
+                return false;
+            }, 0);
+            if (target != 0)
+            {
+                ShowWindow(target, 3); // SW_MAXIMIZE
+                return;
+            }
+            Thread.Sleep(100);
+        }
+    }
+
     private delegate bool WindowEnumerator(nint window, nint state);
 
     [DllImport("user32.dll")]
