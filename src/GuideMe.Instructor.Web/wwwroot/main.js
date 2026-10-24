@@ -353,7 +353,7 @@ function modal(title, fields, submit, buttonText='שמירה') {
     const helpId='help-'+f.name;
     const helpAttr=f.help?' aria-describedby="'+helpId+'"':'';
     const field=f.choices?'<select id="field-'+f.name+'" name="'+f.name+'"'+helpAttr+'>'+f.choices.map(v=>'<option value="'+esc(v.value)+'" '+(v.value===f.value?'selected':'')+'>'+esc(v.text)+'</option>').join('')+'</select>'
-    :f.multiline?'<textarea id="field-'+f.name+'" name="'+f.name+'"'+helpAttr+' maxlength="'+(f.max||4000)+'" rows="5">'+esc(f.value||'')+'</textarea>'
+    :f.multiline?'<textarea id="field-'+f.name+'" name="'+f.name+'"'+helpAttr+' maxlength="'+(f.max||4000)+'" rows="3">'+esc(f.value||'')+'</textarea>'
     :'<input id="field-'+f.name+'" name="'+f.name+'"'+helpAttr+' value="'+esc(f.value||'')+'" maxlength="'+(f.max||256)+'" '+(f.optional?'':'required')+'>';
     return '<div class="field">'+label+field+(f.help?'<div class="field-help" id="'+helpId+'">'+esc(f.help)+'</div>':'')+'</div>';
   }).join('')+'</div>';
@@ -544,19 +544,14 @@ function newStep() {
   const defaultContext = contexts.find(c => c.ContextId === previousContext)?.ContextId ||
     contexts[0].ContextId;
   modal('הוספת שלב', [
-    ...(contexts.length > 1 ? [{name:'contextId',label:'אפליקציית השלב',
-       value:defaultContext,choices:contexts.map(c => ({
-         value:c.ContextId, text:appLabel(c)
-       }))}] : []),
-    {name:'bubble',label:'טקסט הבועית',value:'',multiline:true,max:4000,
-     help:'שלב חדש ייווצר כשלב ידני. בהמשך ניתן יהיה להגדיר רכיב יעד ותנאי התקדמות.'},
-    {name:'placement',label:'מיקום בועית מידע ידנית',value:'Center',choices:[
-      {value:'Center',text:'מרכז — עד לבחירת רכיב יעד'}
-    ]}
+    {name:'contextId',label:'אפליקציית יעד',value:defaultContext,
+     choices:contexts.map(c => ({value:c.ContextId,text:appLabel(c)}))},
+    {name:'bubble',label:'מה להציג ללומד?',value:'',multiline:true,max:4000,
+     help:'לאחר יצירת השלב ניתן לבחור רכיב יעד ולהגדיר תנאי התקדמות.'}
   ],async v=>{
     const created=await api('/guides/' + guideId + '/steps', {
       method:'POST',body:JSON.stringify({contextId:v.contextId || defaultContext,
-        bubble:v.bubble,placement:v.placement})
+        bubble:v.bubble,placement:"Center"})
     });
     await openGuide(guideId);
     const row=[...document.querySelectorAll('[data-step]')]
@@ -573,10 +568,8 @@ function editStep(step, assignedContextId) {
   const selectedContext = contexts.some(c => c.ContextId === assignedContextId)
     ? assignedContextId : contexts[0]?.ContextId;
   modal('עריכת שלב ' + step.order, [
-    ...(contexts.length > 1 ? [{name:'contextId',label:'אפליקציית השלב',
-       value:selectedContext,choices:contexts.map(c => ({
-         value:c.ContextId, text:(appLabel(c)) + ' · ' + c.Runtime
-       }))}] : []),
+    {name:'contextId',label:'אפליקציית יעד',value:selectedContext,
+     choices:contexts.map(c => ({value:c.ContextId,text:appLabel(c)}))},
     {name:'bubble', label:'טקסט הבועית', value:step.bubble || '', max:4000, multiline:true,
      help:'השינוי ישפיע על תוכן הבועית בלבד. רכיבי יעד וכללי התקדמות אינם משתנים.'},
     {name:'enabled', label:'מצב השלב', value: step.enabled ? 'true' : 'false',
