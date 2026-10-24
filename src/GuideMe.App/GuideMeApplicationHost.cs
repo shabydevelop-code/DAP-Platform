@@ -1,3 +1,4 @@
+using Microsoft.Data.Sqlite;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -18,6 +19,25 @@ namespace GuideMe.App;
 
 public static class GuideMeApplicationHost
 {
+    private static async Task<string> ReadGuideDisplayNameAsync(
+        string databasePath, string guideKey, CancellationToken cancellationToken)
+    {
+        var builder = new SqliteConnectionStringBuilder
+        {
+            DataSource = databasePath,
+            Mode = SqliteOpenMode.ReadOnly
+        };
+        await using var connection = new SqliteConnection(builder.ToString());
+        await connection.OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT GuideName FROM Guides WHERE GuideKey=$key";
+        command.Parameters.AddWithValue("$key", guideKey);
+        var name = await command.ExecuteScalarAsync(cancellationToken) as string;
+        if (string.IsNullOrWhiteSpace(name))
+            throw new InvalidOperationException($"Guide '{guideKey}' has no display name.");
+        return name.Trim();
+    }
+
     private static void StartupMark(Stopwatch timer, string stage)
         => Console.Error.WriteLine($"[GuideMe startup] {timer.Elapsed.TotalMilliseconds:F0} ms - {stage}");
 
@@ -124,6 +144,9 @@ public static class GuideMeApplicationHost
 
         var v5 = await GuideV5ExecutionCompiler.CompileAsync(
             activeDatabasePath, options.GuideId!, cancellationToken);
+        // The learner's display name comes from the same V5 guide record as
+        // its compiled steps. Never substitute the technical GuideKey.
+        var guideName = await ReadGuideDisplayNameAsync(activeDatabasePath, options.GuideId!, cancellationToken);
         IReadOnlyList<GuideMe.Core.Guides.GuideStep> steps = v5.Steps;
         IReadOnlyList<GuideMe.Core.Guides.GuideApplicationContext> applicationContexts = v5.Contexts;
         StartupMark(startup, $"guide loaded ({steps.Count} steps, {applicationContexts.Count} application contexts)");
@@ -146,7 +169,7 @@ public static class GuideMeApplicationHost
         if (enabledTargetRuntimes.Length == 2 &&
             enabledTargetRuntimes.Contains(GuideMe.Core.Targets.TargetRuntime.Web) &&
             enabledTargetRuntimes.Contains(GuideMe.Core.Targets.TargetRuntime.Windows))
-            return await RunMixedAsync(options, steps, applicationContexts, texts, startup, cancellationToken);
+            return await RunMixedAsync(options, steps, applicationContexts, guideName, texts, startup, cancellationToken);
 
         if (enabledTargetRuntimes.Length != 1)
             throw new InvalidOperationException(
@@ -155,7 +178,7 @@ public static class GuideMeApplicationHost
         return enabledTargetRuntimes[0] switch
         {
             GuideMe.Core.Targets.TargetRuntime.Windows => await RunWindowsAsync(
-                options, steps, applicationContexts, texts, startup, cancellationToken),
+                options, steps, applicationContexts, guideName, texts, startup, cancellationToken),
             GuideMe.Core.Targets.TargetRuntime.Web => await RunWebAsync(
                 options, steps, applicationContexts, texts, startup, cancellationToken),
             _ => throw new NotSupportedException(
@@ -175,6 +198,7 @@ public static class GuideMeApplicationHost
         GuideMeLaunchOptions options,
         IReadOnlyList<GuideMe.Core.Guides.GuideStep> steps,
         IReadOnlyList<GuideMe.Core.Guides.GuideApplicationContext> applicationContexts,
+        string guideName,
         IUiTextProvider texts,
         Stopwatch startup,
         CancellationToken cancellationToken)
@@ -189,7 +213,7 @@ public static class GuideMeApplicationHost
         browser.ConfigureApplicationContexts(applicationContexts);
         using var stopped = new CancellationTokenSource();
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, stopped.Token);
-        using var indicator = new GuideSessionIndicator(texts, () => stopped.Cancel());
+        using var indicator = new GuideSessionIndicator(texts, guideName, () => stopped.Cancel());
         var bubbles = new WindowsBubblePresenter(texts);
         using var stopPresentation = stopped.Token.Register(() =>
         {
@@ -374,6 +398,7 @@ public static class GuideMeApplicationHost
         GuideMeLaunchOptions options,
         IReadOnlyList<GuideMe.Core.Guides.GuideStep> steps,
         IReadOnlyList<GuideMe.Core.Guides.GuideApplicationContext> applicationContexts,
+        string guideName,
         IUiTextProvider texts,
         Stopwatch startup,
         CancellationToken cancellationToken)
@@ -417,7 +442,7 @@ public static class GuideMeApplicationHost
         var resolver = new WindowsTargetResolver();
         var bubbles = new WindowsBubblePresenter(texts);
         using var userStopped = new CancellationTokenSource();
-        using var indicator = new GuideSessionIndicator(texts, () => userStopped.Cancel());
+        using var indicator = new GuideSessionIndicator(texts, guideName, () => userStopped.Cancel());
         // Presentation is removed as soon as the target exits; runtime cleanup
         // (including UI Automation subscriptions) may finish later.
         using var targetClosedPresentation = targetClosed.Token.Register(() =>
@@ -583,6 +608,7 @@ public static class GuideMeApplicationHost
         GuideMeLaunchOptions options,
         IReadOnlyList<GuideMe.Core.Guides.GuideStep> steps,
         IReadOnlyList<GuideMe.Core.Guides.GuideApplicationContext> applicationContexts,
+        string guideName,
         IUiTextProvider texts,
         Stopwatch startup,
         CancellationToken cancellationToken)
@@ -593,7 +619,7 @@ public static class GuideMeApplicationHost
         using var targetClosed = new CancellationTokenSource();
         using var runCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, targetClosed.Token);
         using var webUserStopped = new CancellationTokenSource();
-        using var indicator = new GuideSessionIndicator(texts,
+        using var indicator = new GuideSessionIndicator(texts, guideName,
             () => { webUserStopped.Cancel(); runCancellation.Cancel(); });
         browserAdapter.StopRequested += () => { webUserStopped.Cancel(); runCancellation.Cancel(); };
         browserAdapter.TargetTabClosed += () =>
