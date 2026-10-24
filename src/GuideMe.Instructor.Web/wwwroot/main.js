@@ -72,7 +72,7 @@ async function openGuide(id) {
   $('detail-name').textContent = g.name; $('detail-description').textContent = 'לומדה #' + g.id + ' · ' + current.steps.length + ' שלבים';
   $('steps-count').textContent = current.steps.length; $('contexts-count').textContent = current.contexts.length;
   selectTab('steps'); renderSteps(); renderContexts(); clearNotice();
-  $('library-title').focus();
+  $('detail-name').focus();
 }
 function selectTab(tab) {
   document.querySelectorAll('.tab').forEach(t => {
