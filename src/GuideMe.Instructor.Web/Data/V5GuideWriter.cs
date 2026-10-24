@@ -490,7 +490,7 @@ WHERE GuideId=$guideId AND StepId=$stepId";
         command.Parameters.AddWithValue("$elementId", elementId);
         command.Parameters.AddWithValue("$locators", JsonSerializer.Serialize(locators));
         command.Parameters.AddWithValue("$frame", frames.Count == 0
-            ? DBNull.Value : JsonSerializer.Serialize(frames));
+            ? (object)DBNull.Value : JsonSerializer.Serialize(frames));
         command.Parameters.AddWithValue("$displayName", (object?)CleanDisplayName(displayName) ?? DBNull.Value);
         if (replacing)
         {
