@@ -326,7 +326,7 @@ function renderSteps() {
       $('pick-windows-element').onclick = () => guarded(async () => {
         const pid = await resolveWindow();
         const result = $('windows-pick-result');
-        result.textContent = 'ממפה הרכיבים פעיל. עבור לאפליקציית היעד, העבר את העכבר מעל רכיב ולחץ עליו לבחירה.';
+        result.textContent = 'ממפה הרכיבים פעיל. עבור לאפליקציית היעד, העבר את העכבר מעל הרכיב ולחץ Ctrl+Shift+Space לבחירה.';
         await api('/windows/picker/start', {method:'POST',body:JSON.stringify({processId:pid})});
         const guideId = current.guide.id, stepId = step.id;
         const poll = async () => {
