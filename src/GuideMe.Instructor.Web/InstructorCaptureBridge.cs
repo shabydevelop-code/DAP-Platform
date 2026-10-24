@@ -165,6 +165,25 @@ internal sealed class InstructorCaptureBridge
         }
     }
 
+    public (string Name, string Value) GetApprovedStateAttribute(
+        long guideId, string contextId, int index)
+    {
+        lock (_gate)
+        {
+            if (!IsSelected(guideId, contextId) || _pickedElement is null ||
+                !_pickedElement.Value.TryGetProperty("stateAttributes", out var attributes) ||
+                attributes.ValueKind != JsonValueKind.Array ||
+                index < 0 || index >= attributes.GetArrayLength())
+                throw new InvalidOperationException("יש לבחור מצב שנלכד מהרכיב.");
+            var attribute = attributes[index];
+            var name = attribute.GetProperty("name").GetString() ?? "";
+            var value = attribute.GetProperty("value").GetString() ?? "";
+            if (string.IsNullOrWhiteSpace(name) || value.Length == 0)
+                throw new InvalidOperationException("מצב הרכיב שנלכד אינו תקין.");
+            return (name, value);
+        }
+    }
+
     public object PickerFailed(int tabId, string reason)
     {
         lock (_gate)
