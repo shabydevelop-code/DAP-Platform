@@ -124,7 +124,7 @@ internal sealed class InstructorCaptureBridge
         _selectedTab is not null && _tabs.Any(t => t.TabId == _selectedTab) &&
         DateTimeOffset.UtcNow - _lastHeartbeat < TimeSpan.FromSeconds(10);
 
-    public (string Selector, string[] FramePath, string? DisplayName) GetApprovedTarget(long guideId, string contextId)
+    public (string Selector, string[] FramePath, string? DisplayName) GetApprovedTarget(long guideId, string contextId, int? gridChoice = null)
     {
         lock (_gate)
         {
@@ -142,7 +142,26 @@ internal sealed class InstructorCaptureBridge
             }
             if (path.Any(p => p.Length is < 1 or > 400))
                 throw new InvalidOperationException("מזהה מסגרת אינו תקין.");
-            return (selector.GetString() ?? "", path, _pickedElement.Value.TryGetProperty("label", out var label) && label.ValueKind == JsonValueKind.String ? label.GetString() : null);
+            var chosenSelector = selector.GetString() ?? "";
+            string? displayName = _pickedElement.Value.TryGetProperty("label", out var label) && label.ValueKind == JsonValueKind.String ? label.GetString() : null;
+            if (gridChoice.HasValue)
+            {
+                if (!_pickedElement.Value.TryGetProperty("gridChoices", out var choices) ||
+                    choices.ValueKind != JsonValueKind.Array ||
+                    gridChoice.Value < 0 || gridChoice.Value >= choices.GetArrayLength())
+                    throw new InvalidOperationException("בחירת עמודת גריד אינה תקינה.");
+                var choice = choices[gridChoice.Value];
+                if (!choice.TryGetProperty("selector", out var rowSelector) ||
+                    rowSelector.ValueKind != JsonValueKind.String ||
+                    rowSelector.GetString() is not { Length: > 0 and <= 400 } value ||
+                    !value.Contains(":cell-text(", StringComparison.Ordinal))
+                    throw new InvalidOperationException("מזהה שורת גריד אינו תקין.");
+                chosenSelector = value;
+                displayName = choice.TryGetProperty("header", out var header) &&
+                    choice.TryGetProperty("value", out var cellValue)
+                    ? $"{header.GetString()}: {cellValue.GetString()}" : displayName;
+            }
+            return (chosenSelector, path, displayName);
         }
     }
 
