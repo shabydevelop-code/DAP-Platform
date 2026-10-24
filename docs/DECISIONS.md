@@ -55,3 +55,7 @@
 ## Instructor experimental observation removal (2026-10-24)
 - Removed the abandoned automatic structural Observation implementation end-to-end: Instructor HTTP endpoints, capture-bridge comparison state, native pipe route, extension heartbeat sampling, DOM snapshot before/after event payloads, and dormant Web UI functions/polling.
 - Manual primary/secondary target selection, picker, and ordinary action recording remain supported. Existing guide definitions and Learner completion semantics are unchanged. The removed observation API is intentionally no longer supported.
+
+## Web completion target transitions during server refresh (2026-10-24)
+- For explicitly authored `target-appeared` and `target-vanished`, the Learner tracks target-scoped DOM mutation revisions and document identity in addition to visible presence. A previously visible target refreshed by a committed action can count as appeared, even when a short disappearance is missed by periodic inspection.
+- The adapter latches a detected transition through the stability recheck; a first sample alone never completes a transition. The primary action validation remains required. `target-exists` and `target-not-exists` retain their original DOM-resolution semantics. No application-specific selectors or HTML-content rules are introduced.
