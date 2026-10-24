@@ -7,6 +7,7 @@
     <RootNamespace>GuideMe.Instructor.Web</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="../GuideMe.Runtime.Windows/GuideMe.Runtime.Windows.csproj" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.11" />
   </ItemGroup>
 </Project>
