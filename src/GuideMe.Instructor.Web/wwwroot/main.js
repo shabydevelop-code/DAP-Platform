@@ -649,6 +649,7 @@ $('test-guide').onclick=()=>guarded(async()=>{
   button.disabled=true;
   try {
     await api('/guides/'+current.guide.id+'/test',{method:'POST',body:'{}'});
+    document.dispatchEvent(new Event('guideme:instructor-test-launch'));
     notify('ה־Learner הופעל לבדיקת הלומדה מתחילתה. יש להכין את אפליקציית היעד למצב ההתחלתי.');
   } finally { button.disabled=false; }
 });
