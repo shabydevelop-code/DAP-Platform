@@ -142,19 +142,19 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/web-target",
         string.Equals(r["StepId"].ToString(), stepId, StringComparison.Ordinal));
     if (row is null) return Results.NotFound();
     var contextId = row["ApplicationContextId"].ToString() ?? "";
-    var selected = capture.GetApprovedTarget(id, contextId);
+    var selected = capture.GetApprovedTarget(id, contextId, request.GridChoice);
     V5GuideWriter.SaveWebTarget(id, stepId, selected.Selector, selected.FramePath, request.Condition, selected.DisplayName);
     capture.CancelPicking();
     return Results.NoContent();
 });
 
-app.MapPut("/api/guides/{id:long}/steps/{stepId}/web-target", (long id, string stepId) =>
+app.MapPut("/api/guides/{id:long}/steps/{stepId}/web-target", (long id, string stepId, ReplaceWebTargetRequest request) =>
 {
     var rows = V5GuideReader.ReadGuideTable(id, "Steps");
     var row = rows.Rows.Cast<DataRow>().FirstOrDefault(r =>
         string.Equals(r["StepId"].ToString(), stepId, StringComparison.Ordinal));
     if (row is null) return Results.NotFound();
-    var selected = capture.GetApprovedTarget(id, row["ApplicationContextId"].ToString() ?? "");
+    var selected = capture.GetApprovedTarget(id, row["ApplicationContextId"].ToString() ?? "", request.GridChoice);
     V5GuideWriter.ReplaceWebTarget(id, stepId, selected.Selector, selected.FramePath, selected.DisplayName);
     capture.CancelPicking();
     return Results.NoContent();
@@ -353,7 +353,8 @@ internal sealed record EditStep(string? Bubble, bool Enabled, string? ContextId)
 internal sealed record NewManualStep(string ContextId, string Bubble, string Placement);
 
 internal sealed record PickStart(long GuideId, string ContextId);
-internal sealed record SaveWebTargetRequest(string Condition);
+internal sealed record SaveWebTargetRequest(string Condition, int? GridChoice = null);
+internal sealed record ReplaceWebTargetRequest(int? GridChoice = null);
 internal sealed record SaveCompletionTargetRequest(string Kind);
 
 internal sealed record EditWebValidation(string Kind, string? ExpectedValue);
