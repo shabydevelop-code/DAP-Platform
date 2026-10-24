@@ -155,3 +155,11 @@ p,.panel-header p,.step-body small,.empty,.empty-inspector{color:#52657a}
 #page-title:focus-visible{outline:3px solid #155bc1;outline-offset:4px}
 .step-row:focus-visible{outline:3px solid #155bc1;outline-offset:-3px}
 @media(forced-colors:active){.tab.active,.step-row.active,.guide-open-link:focus-visible{outline:2px solid Highlight;outline-offset:-2px}.btn{border:1px solid ButtonText}}
+
+/* Readable link contrast and clear validation feedback */
+.guide-open-link{color:#174d9a}
+.guide-open-link:hover,.guide-open-link:focus-visible{color:#123d7a}
+.link,.back{color:#174d9a}
+.field :is(input,select,textarea):user-invalid{border-color:#ad2339}
+.field :is(input,select,textarea):user-invalid:focus-visible{outline-color:#ad2339}
+.notice[role="alert"]:focus{outline:3px solid #ad2339;outline-offset:3px}
