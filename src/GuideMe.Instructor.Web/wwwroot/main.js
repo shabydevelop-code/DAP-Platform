@@ -46,9 +46,8 @@ function showList() {
   current = null; selectedStep = null;
   $('list-view').classList.remove('hidden'); $('detail-view').classList.add('hidden');
   $('new-guide').classList.remove('hidden');
-  $('page-title').textContent = 'הלומדות שלי'; $('page-subtitle').textContent = 'כל המדריכים, האפליקציות והשלבים במקום אחד.';
   clearNotice();
-  $('page-title').setAttribute('tabindex','-1'); $('page-title').focus();
+  $('library-title').focus();
 }
 async function loadGuides() {
   guides = await api('/guides');
@@ -70,11 +69,10 @@ async function openGuide(id) {
   const g = current.guide;
   $('list-view').classList.add('hidden'); $('detail-view').classList.remove('hidden');
   $('new-guide').classList.add('hidden');
-  $('page-title').textContent = g.name; $('page-subtitle').textContent = 'ניהול השלבים, האפליקציות וההגדרות של הלומדה.';
   $('detail-name').textContent = g.name; $('detail-description').textContent = 'לומדה #' + g.id + ' · ' + current.steps.length + ' שלבים';
   $('steps-count').textContent = current.steps.length; $('contexts-count').textContent = current.contexts.length;
   selectTab('steps'); renderSteps(); renderContexts(); clearNotice();
-  $('page-title').setAttribute('tabindex','-1'); $('page-title').focus();
+  $('library-title').focus();
 }
 function selectTab(tab) {
   document.querySelectorAll('.tab').forEach(t => {
