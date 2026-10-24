@@ -14,7 +14,8 @@ public sealed record GuideMeLaunchOptions(
     GuideMeLaunchMode Mode,
     string? GuideId,
     string? WindowAutomationId,
-    string? V5DatabasePath = null)
+    string? V5DatabasePath = null,
+    string? StartStepId = null)
 {
     public static GuideMeLaunchOptions? Parse(string[] args, IUiTextProvider texts)
     {
@@ -31,12 +32,16 @@ public sealed record GuideMeLaunchOptions(
         {
             string? windowAutomationId = null;
             string? v5DatabasePath = null;
+            string? startStepId = null;
 
             for (var i = 2; i < args.Length; i++)
             {
                 if (args[i] == "--v5-db" && i + 1 < args.Length
                     && v5DatabasePath is null && !string.IsNullOrWhiteSpace(args[i + 1]))
                     v5DatabasePath = args[++i];
+                else if (args[i] == "--start-step" && i + 1 < args.Length
+                    && startStepId is null && !string.IsNullOrWhiteSpace(args[i + 1]))
+                    startStepId = args[++i];
                 else if (args[i] == "--window-automation-id" && i + 1 < args.Length
                     && !string.IsNullOrWhiteSpace(args[i + 1]))
                     windowAutomationId = args[++i];
@@ -48,7 +53,8 @@ public sealed record GuideMeLaunchOptions(
                 GuideMeLaunchMode.Learner,
                 args[1],
                 windowAutomationId,
-                v5DatabasePath);
+                v5DatabasePath,
+                startStepId);
         }
 
         return Usage(texts);
