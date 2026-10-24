@@ -254,7 +254,7 @@ function renderSteps() {
       '<section class="step-friendly-card"><h3>מתי ממשיכים לשלב הבא?</h3>' +
       '<p>' + esc(conditionText) + '</p>' +
       (rule?.ExpectedValue ? '<p>ערך צפוי: <strong>' + esc(rule.ExpectedValue) + '</strong></p>' : '') +
-      (context?.Runtime === 'Web' && rule ?
+      ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') && rule ?
         '<button class="btn secondary small" id="edit-validation">עריכת תנאי ההתקדמות</button>' : '') +
       '</section></div>' +
       (context?.Runtime === 'Web' && target && rule ?
@@ -304,10 +304,10 @@ function renderSteps() {
       const section = document.createElement('section');
       section.className = 'target-editor';
       section.innerHTML = '<h3>בחירת רכיב</h3>' +
-        '<button id="pick-windows-element" class="btn primary">הפעלת ממפה רכיבים</button>' +
+        (!target && !rule ? '<button id="pick-windows-element" class="btn primary">הפעלת ממפה רכיבים</button>' : '') +
         '<div id="pick-result" class="hidden" aria-live="polite"></div>';
       $('step-inspector').append(section);
-      $('pick-windows-element').onclick = () => guarded(async () => {
+      const startWindowsPicker = async () => {
         const windows = (await api('/discovery')).windows || [];
         const matchers = parseJson(context.MatchersJson, []);
         const matches = windows.filter(w => matchers.some(m => {
@@ -331,7 +331,11 @@ function renderSteps() {
         box.textContent = 'עבור לאפליקציית היעד, הצבע על רכיב ולחץ Ctrl+Shift+Space לבחירה.';
         await api('/windows/picker/start',{method:'POST',body:JSON.stringify({processId:pid})});
         await refreshPicker();
-      });
+      };
+      const startButton = $('pick-windows-element');
+      if (startButton) startButton.onclick = () => guarded(startWindowsPicker);
+      const replaceButton = $('replace-web-target');
+      if (replaceButton) replaceButton.onclick = () => guarded(startWindowsPicker);
     }
     if (context?.Runtime === 'Web') {
       const section = document.createElement('section');
