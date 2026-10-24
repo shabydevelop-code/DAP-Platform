@@ -401,7 +401,7 @@
       });
 
     const candidates = [...root.querySelectorAll(nativeSelector || "*")];
-    if (!textFilters.length) return candidates;
+    if (!textFilters.length && !parsed.cell) return candidates;
 
     return candidates.filter(el => {
       const text = normalize(el.textContent).toLowerCase();
@@ -410,9 +410,10 @@
   }
 
   function matchesExtendedCss(el, selector) {
-    const source = String(selector || "");
+    const parsed = parseCellTextSelector(selector);
+    const source = String(parsed.selector || "");
     const textFilters = [];
-    const nativeSelector = source.replace(
+    const nativeSelector = source.replace;
       /:has-text\((["'])(.*?)\1\)/g,
       (_match, _quote, text) => {
         textFilters.push(normalize(text).toLowerCase());
