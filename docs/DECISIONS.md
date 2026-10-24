@@ -59,3 +59,11 @@
 ## Web completion target transitions during server refresh (2026-10-24)
 - For explicitly authored `target-appeared` and `target-vanished`, the Learner tracks target-scoped DOM mutation revisions and document identity in addition to visible presence. A previously visible target refreshed by a committed action can count as appeared, even when a short disappearance is missed by periodic inspection.
 - The adapter latches a detected transition through the stability recheck; a first sample alone never completes a transition. The primary action validation remains required. `target-exists` and `target-not-exists` retain their original DOM-resolution semantics. No application-specific selectors or HTML-content rules are introduced.
+
+
+## זיהוי שורת גריד לפי ערך עמודה (Instructor / Web Learner)
+
+- Instructor מציע לעורך שבחר תא או שורה בטבלת HTML זיהוי לפי ערך תא בעמודה. מוצעים רק ערכים לא ריקים, באורך מוגבל, המזהים שורה יחידה בטבלה בזמן הבחירה. העורך בוחר במפורש עמודה וערך; אין הסקת ערך אוטומטית בזמן הרצת המדריך.
+- המזהה הנשמר הוא CSS מורחב מסוג `table-selector tbody tr:cell-text(columnIndex,"value")`, עם התאמה מדויקת של טקסט התא לאחר נרמול רווחים. Learner מאתר מחדש את השורה לאחר מיון או החלפת DOM, ולא מסתמך על מספר השורה. אין שינוי בסכמת V5 או בחוזה השלמת הפעולה.
+- אם הערך אינו ייחודי בזמן הבחירה, האפשרות לא תוצע. אם בזמן הרצה קיימות שתי שורות תואמות, מנוע היעדים מחזיר ambiguous ולא מנחש. אם השורה אינה בעמוד הגריד הנוכחי, המנוע ממתין; אין מעבר עמוד אוטומטי.
+- האפשרות חלה על HTML table בלבד בשלב זה, לא על ARIA grid או גריד וירטואלי. יש לוודא בבדיקת Windows מקומית Build ותרחישי מיון, רענון וכפילויות; אין טענה שבדיקות אלה כבר בוצעו.
