@@ -616,6 +616,7 @@ AND StepId=$stepId AND RuleType='AdditionalCompletionCondition'";
 (GuideId, ElementId, Runtime, LocatorsJson, FrameContextJson, DisplayName)
 VALUES ($guideId, $elementId, 'Web', $locators, $frame, $name)";
         command.Parameters.AddWithValue("$guideId", guideId);
+        command.Parameters.AddWithValue("$stepId", stepId);
         command.Parameters.AddWithValue("$elementId", elementId);
         command.Parameters.AddWithValue("$locators", JsonSerializer.Serialize(
             new[] { new { Strategy="css", Value=selector } }));
