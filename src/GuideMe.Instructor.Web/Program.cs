@@ -271,7 +271,7 @@ app.MapDelete("/api/guides/{id:long}/steps/{stepId}/completion-target",
 app.MapPut("/api/guides/{id:long}/steps/{stepId}/validation",
     (long id, string stepId, EditWebValidation request) =>
 {
-    V5GuideWriter.UpdateWebPrimaryValidation(id, stepId, request.Kind, request.ExpectedValue);
+    V5GuideWriter.UpdatePrimaryValidation(id, stepId, request.Kind, request.ExpectedValue);
     return Results.NoContent();
 });
 
