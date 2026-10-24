@@ -168,3 +168,10 @@ p,.panel-header p,.step-body small,.empty,.empty-inspector{color:#52657a}
 .skip-link{top:16px;right:32px;left:auto;max-width:calc(100vw - 64px);transform:translateY(calc(-100% - 32px));box-shadow:0 4px 16px #102c4d33}
 .skip-link:focus-visible{transform:none;outline:3px solid #155bc1;outline-offset:3px}
 @media(max-width:700px){.skip-link{right:16px;max-width:calc(100vw - 32px)}}
+
+/* Compact step authoring: content grows only when the editor needs more space. */
+#editor-dialog .field textarea{display:block;width:100%;min-height:78px;max-height:180px;resize:vertical;border:1px solid #dce5ef;border-radius:9px;padding:11px 12px;font:inherit;line-height:1.5;color:#1b334d;background:#fff}
+#editor-dialog .field textarea:focus-visible{outline:3px solid #3678e8;outline-offset:2px}
+#editor-dialog .fields{gap:12px;padding-top:16px}
+#editor-dialog .dialog-head{padding-top:17px;padding-bottom:17px}
+#editor-dialog .dialog-actions{padding-top:12px;padding-bottom:16px}
