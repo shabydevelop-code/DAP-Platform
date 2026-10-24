@@ -115,6 +115,13 @@ app.MapGet("/api/discovery", () => Results.Ok(new
 
 // Read-only Windows target discovery. The caller chooses a PID from /api/discovery.
 // No target is persisted until the author explicitly approves a supported locator.
+var windowsPicker = new WindowsTargetPicker();
+app.Lifetime.ApplicationStopping.Register(windowsPicker.Dispose);
+app.MapPost("/api/windows/picker/start", (WindowsInspectRequest request) =>
+    Results.Ok(windowsPicker.Start(request.ProcessId)));
+app.MapGet("/api/windows/picker/status", () => Results.Ok(windowsPicker.Status()));
+app.MapPost("/api/windows/picker/cancel", () => Results.Ok(windowsPicker.Stop()));
+
 app.MapPost("/api/windows/inspect", (WindowsInspectRequest request) =>
 {
     try { return Results.Ok(WindowsTargetInspector.Inspect(request.ProcessId, request.Focused)); }
