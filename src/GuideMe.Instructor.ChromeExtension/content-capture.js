@@ -290,7 +290,16 @@
         });
       }
     }
+    // Capture the selected element's current post-action state, not a diff.
+    // Do not expose free-form attributes such as tokens, IDs or user data.
+    const stateAttributes = [...target.attributes]
+      .filter(({name, value}) =>
+        (/^aria-(?:sort|expanded|pressed|checked|selected|disabled|hidden|invalid|current|busy)$/.test(name) ||
+         /^(?:data-state|data-status|data-expanded|data-selected|data-active|open|checked|disabled)$/.test(name)) &&
+        value.length > 0 && value.length <= 120)
+      .map(({name, value}) => ({name, value}));
     const candidate = {
+      stateAttributes,
       gridChoices,
       selector, url:location.href, tag:target.tagName.toLowerCase(),
       label:(() => {
