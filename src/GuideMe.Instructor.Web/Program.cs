@@ -113,6 +113,17 @@ app.MapGet("/api/discovery", () => Results.Ok(new
     windows = InstructorApplicationDiscovery.Windows()
 }));
 
+// Read-only Windows target discovery. The caller chooses a PID from /api/discovery.
+// No target is persisted until the author explicitly approves a supported locator.
+app.MapPost("/api/windows/inspect", (WindowsInspectRequest request) =>
+{
+    try { return Results.Ok(WindowsTargetInspector.Inspect(request.ProcessId, request.Focused)); }
+    catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or
+                               System.Windows.Automation.ElementNotAvailableException or
+                               System.Runtime.InteropServices.COMException)
+    { return Results.BadRequest(new { message = ex.Message }); }
+});
+
 app.MapGet("/api/capture/status", () => Results.Ok(capture.Status()));
 app.MapPost("/api/capture/select", (CaptureSelection body) =>
 {
