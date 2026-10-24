@@ -62,7 +62,7 @@
     const simple = node => {
       const base = node.tagName.toLowerCase();
       const names = classNames(node);
-      return [base, ...names.map(name => base + '.' + CSS.escape(name))];
+      return [...names.map(name => base + '.' + CSS.escape(name)), base];
     };
     if (stable(element.id)) {
       const selector = '#' + CSS.escape(element.id);
