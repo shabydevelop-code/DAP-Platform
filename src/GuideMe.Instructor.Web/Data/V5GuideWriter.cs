@@ -675,7 +675,7 @@ AND NOT EXISTS (SELECT 1 FROM StepTargets WHERE GuideId=$guideId AND ElementId=$
         transaction.Commit();
     }
 
-    internal static void UpdateWebPrimaryValidation(long guideId, string stepId,
+    internal static void UpdatePrimaryValidation(long guideId, string stepId,
         string kind, string? expectedValue)
     {
         if (kind is not ("clicked" or "target-disappeared" or "value-not-empty" or "value-equals"))
@@ -698,14 +698,14 @@ AND NOT EXISTS (SELECT 1 FROM StepTargets WHERE GuideId=$guideId AND ElementId=$
 WHERE GuideId=$guideId AND StepId=$stepId AND RuleType='PrimaryValidation'
 AND EXISTS (SELECT 1 FROM Steps s JOIN ApplicationContexts c
  ON s.GuideId=c.GuideId AND s.ApplicationContextId=c.ContextId
- WHERE s.GuideId=$guideId AND s.StepId=$stepId AND c.Runtime='Web')";
+ WHERE s.GuideId=$guideId AND s.StepId=$stepId AND c.Runtime IN ('Web','Windows'))";
         command.Parameters.AddWithValue("$guideId", guideId);
         command.Parameters.AddWithValue("$stepId", stepId);
         command.Parameters.AddWithValue("$kind", kind);
         command.Parameters.AddWithValue("$expected",
             kind == "value-equals" ? (object?)expectedValue : DBNull.Value);
         if (command.ExecuteNonQuery() != 1)
-            throw new InvalidOperationException("לא נמצא תנאי התקדמות יחיד לעריכה בשלב Web.");
+            throw new InvalidOperationException("לא נמצא תנאי התקדמות יחיד לעריכה בשלב.");
         transaction.Commit();
     }
 
