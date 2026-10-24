@@ -142,9 +142,47 @@ function renderSteps() {
   const search = $('step-search').value.trim().toLowerCase();
   const steps = (current?.steps || []).filter(s => String(s.order).includes(search) || s.id.toLowerCase().includes(search) || (s.bubble || '').toLowerCase().includes(search));
   $('step-list').innerHTML = steps.length ? steps.map(s =>
-    '<div class="step-row" role="button" tabindex="0" aria-pressed="false" data-step="' + esc(s.id) + '"><span class="step-num">' + s.order + '</span><span class="step-body"><strong>' +
+    '<div class="step-row" role="button" tabindex="0" aria-pressed="false" aria-label="' + esc('שלב ' + s.order + ': ' + (s.bubble || 'שלב ' + s.order)) + '" data-step="' + esc(s.id) + '"><span class="step-num">' + s.order + '</span><span class="step-body"><strong>' +
     esc(s.bubble || 'שלב ' + s.order) + '</strong><small>' + (s.enabled ? 'שלב פעיל' : 'שלב מושבת') + '</small></span></div>').join('')
     : '<div class="empty">אין שלבים להצגה</div>';
+  const tip = document.getElementById('step-name-tooltip') || (() => {
+    const node = document.createElement('div');
+    node.id = 'step-name-tooltip';
+    node.className = 'step-name-tooltip';
+    node.setAttribute('role', 'tooltip');
+    node.hidden = true;
+    document.body.appendChild(node);
+    return node;
+  })();
+  let activeTipRow = null;
+  const hideTip = () => {
+    if (activeTipRow) activeTipRow.removeAttribute('aria-describedby');
+    activeTipRow = null;
+    tip.hidden = true;
+  };
+  const showTip = row => {
+    const name = row.querySelector('.step-body strong');
+    if (!name) return;
+    hideTip();
+    activeTipRow = row;
+    tip.textContent = name.textContent;
+    tip.hidden = false;
+    row.setAttribute('aria-describedby', tip.id);
+    const rect = row.getBoundingClientRect();
+    const width = tip.offsetWidth;
+    tip.style.left = Math.max(8, Math.min(window.innerWidth - width - 8, rect.right - width)) + 'px';
+    const below = rect.bottom + 6;
+    tip.style.top = (below + tip.offsetHeight <= window.innerHeight - 8
+      ? below : Math.max(8, rect.top - tip.offsetHeight - 6)) + 'px';
+  };
+  document.querySelectorAll('[data-step]').forEach(row => {
+    row.addEventListener('mouseenter', () => showTip(row));
+    row.addEventListener('mouseleave', () => { if (activeTipRow === row && document.activeElement !== row) hideTip(); });
+    row.addEventListener('focus', () => showTip(row));
+    row.addEventListener('blur', () => { if (activeTipRow === row) hideTip(); });
+    row.addEventListener('keydown', e => { if (e.key === 'Escape') hideTip(); });
+  });
+  $('step-list').addEventListener('scroll', hideTip, {passive:true});
   document.querySelectorAll('[data-step]').forEach(b => b.addEventListener('keydown', e => {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); b.click(); }
   }));
