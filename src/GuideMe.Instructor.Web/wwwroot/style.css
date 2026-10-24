@@ -88,3 +88,61 @@ input,textarea{user-select:text;-webkit-user-select:text}
 .table tbody tr:has(.guide-open-link):hover td,.table tbody tr:has(.guide-open-link):focus-within td{background:#f1f6ff}
 .guide-open-link{display:block;width:100%;padding:8px 10px;margin:-8px -10px;text-align:right;color:#213b55;text-decoration:none;border-radius:8px;transition:background-color .15s ease,color .15s ease}
 .guide-open-link:hover,.guide-open-link:focus-visible{background:#eaf1fb;color:#2158b3;text-decoration:none}
+
+/* Accessibility baseline: WCAG 2.2 AA design targets. Formal audit still required. */
+:root{font-size:16px;line-height:1.5;color:#203246}
+body{font-size:1rem;line-height:1.5}
+h1{font-size:1.5rem;letter-spacing:0;line-height:1.35}
+h2,.guide-top h2{font-size:1.25rem;line-height:1.4}
+h3{line-height:1.4}
+p,.eyebrow,.brand-heading,.brand-heading strong,.brand-heading strong span,
+.panel-header p,.guide-count,.pill,.btn,.btn.small,.search,.table th,.table td,
+.guide-title,.guide-open-link,.guide-id,.link,.notice,.back,.code-label,
+.tab,.tab span,.step-num,.step-body strong,.step-body small,
+.detail-block small,.detail-block pre,.context-meta,.chip,.empty,
+.field label,.field-help,.field input,.field select,.field textarea,
+.capture-target,.capture-results h3,.capture-results pre,
+.step-capture-heading h3,.step-summary strong,.step-summary p,
+.application-option strong,.application-option small,.target-editor h3,
+#pick-result label,#pick-result select,.step-friendly-card h3,
+.step-friendly-card p,.step-friendly-card code,.step-muted,
+#target-save-feedback,.target-technical,.target-technical code,
+.metric small,.metric span,.metric strong,footer{
+  font-size:1rem;line-height:1.5
+}
+.eyebrow,.guide-count,.step-body small,.field-help,.context-meta,
+.detail-block small,.step-muted,.target-technical,.capture-target,
+.application-option small,.guide-id,.code-label{color:#52657a}
+p,.panel-header p,.step-body small,.empty,.empty-inspector{color:#52657a}
+.table th{color:#334b64}
+.table td{color:#24384e}
+.btn,.search,.field input,.field select,.field textarea,#pick-result select{min-height:44px}
+.guide-open-link{min-height:44px;display:flex;align-items:center}
+.tab,.back,.icon-btn,.link{min-height:44px}
+.step-row{min-height:56px;cursor:pointer}
+.step-num{min-width:36px;min-height:36px;width:36px;height:36px}
+:where(button,input,select,textarea,[role="button"],a):focus-visible{
+  outline:3px solid #155bc1;outline-offset:3px
+}
+.search:focus-visible,.field input:focus-visible,.field select:focus-visible,
+.field textarea:focus-visible{outline:3px solid #155bc1;outline-offset:2px}
+.tab.active{color:#155bc1;border-bottom-color:#155bc1}
+.btn.primary{background:#195bc1}
+.btn.primary:hover{background:#104b9f}
+.step-row:hover,.step-row:focus-visible,.step-row.active{background:#e9f2ff}
+.panel-header,.heading,.guide-top,.detail-top{flex-wrap:wrap}
+.table-area{overflow-x:auto}
+.table th,.table td{padding:14px 20px}
+.content{padding:28px clamp(16px,3vw,40px)}
+@media(max-width:700px){
+  .heading h1{font-size:1.5rem}
+  .brand-heading strong,.connection-status{font-size:1rem}
+  .topbar{height:auto;min-height:76px;flex-wrap:wrap;gap:12px;padding-block:12px}
+  .brand-heading{flex-wrap:wrap}
+  .steps-layout{grid-template-columns:minmax(0,1fr)}
+  .steps-toolbar .search{width:100%;min-width:0}
+  .guide-top,.detail-top{gap:12px}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{scroll-behavior:auto!important;transition-duration:0.01ms!important;animation-duration:0.01ms!important;animation-iteration-count:1!important}
+}
