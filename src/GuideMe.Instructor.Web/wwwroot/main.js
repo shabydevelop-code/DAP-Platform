@@ -643,13 +643,39 @@ async function deleteContext(c) {
 $('guide-search').addEventListener('input',renderGuides);
 $('step-search').addEventListener('input',()=>{if(current)renderSteps()});
 $('new-guide').onclick=()=>guarded(newGuide);
+// The Learner extension must acknowledge a real Native Host ping before
+// launching GuideMe.exe. A missing content script means Instructor needs a
+// reload after the extension was installed or updated.
+function verifyLearnerTransport() {
+  return new Promise((resolve, reject) => {
+    const requestId = crypto.randomUUID();
+    let settled = false;
+    const finish = error => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      document.removeEventListener('guideme:instructor-test-pong', onPong);
+      if (error) reject(new Error(error)); else resolve();
+    };
+    const onPong = event => {
+      if (event.detail?.requestId !== requestId) return;
+      finish(event.detail.ok ? null :
+        'תוסף ה־Learner לא הצליח לתקשר עם Native Host: ' + (event.detail.error || 'שגיאה לא ידועה'));
+    };
+    document.addEventListener('guideme:instructor-test-pong', onPong);
+    const timeout = setTimeout(() => finish(
+      'לא התקבל אישור מתוסף ה־Learner. ודא שהתוסף GuideMe פעיל ב־Chrome ורענן את חלון ה־Instructor (Ctrl+R) לאחר עדכון התוסף.'
+    ), 6000);
+    document.dispatchEvent(new CustomEvent('guideme:instructor-test-ping', { detail: { requestId } }));
+  });
+}
 $('test-guide').onclick=()=>guarded(async()=>{
   if (!current || !confirmDiscard()) return;
   const button=$('test-guide');
   button.disabled=true;
   try {
+    await verifyLearnerTransport();
     await api('/guides/'+current.guide.id+'/test',{method:'POST',body:'{}'});
-    document.dispatchEvent(new Event('guideme:instructor-test-launch'));
     notify('ה־Learner הופעל לבדיקת הלומדה מתחילתה. יש להכין את אפליקציית היעד למצב ההתחלתי.');
   } finally { button.disabled=false; }
 });
