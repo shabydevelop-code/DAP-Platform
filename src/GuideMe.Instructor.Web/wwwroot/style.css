@@ -186,3 +186,5 @@ p,.panel-header p,.step-body small,.empty,.empty-inspector{color:#52657a}
 .step-name-tooltip{position:fixed;z-index:10000;max-width:min(360px,calc(100vw - 16px));width:max-content;white-space:normal;overflow-wrap:anywhere;direction:rtl;text-align:right;background:#203750;color:#fff;border-radius:8px;padding:9px 12px;font-size:12px;line-height:1.6;box-shadow:0 6px 20px #10243b30;pointer-events:none}
 .step-name-tooltip[hidden]{display:none}
 .step-row:focus-visible{outline:2px solid #3273e2;outline-offset:-3px}
+
+.step-editor-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
