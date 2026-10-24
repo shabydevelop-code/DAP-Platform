@@ -174,7 +174,8 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/completion-target",
             ? capture.GetApprovedStateAttribute(id, row["ApplicationContextId"].ToString() ?? "",
                 request.StateAttributeIndex ?? -1)
             : ((string Name, string Value)?)null;
-        V5GuideWriter.SaveWebCompletionTarget(id, stepId, selected.Selector,
+        V5GuideWriter.SaveWebCompletionTarget(id, stepId,
+            capturedState?.Selector ?? selected.Selector,
             selected.FramePath, request.Kind, selected.DisplayName,
             capturedState?.Name, capturedState?.Value);
         capture.CancelPicking();
