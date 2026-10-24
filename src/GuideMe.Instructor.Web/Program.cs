@@ -319,12 +319,12 @@ app.Lifetime.ApplicationStarted.Register(() =>
             : new ProcessStartInfo(chrome)
               {
                   UseShellExecute = false,
-                  ArgumentList = { "--app=" + localOrigin }
+                  ArgumentList = { "--start-maximized", "--app=" + localOrigin }
               };
         Process.Start(start);
         Console.WriteLine(chrome is null
             ? "Chrome not found; opened default browser. Closing the UI ends Instructor."
-            : "Instructor opened in a dedicated Chrome app window.");
+            : "Instructor opened in a maximized Chrome app window.");
     }
     catch (Exception ex) { Console.Error.WriteLine($"Open {localOrigin} manually: {ex.Message}"); }
 });
