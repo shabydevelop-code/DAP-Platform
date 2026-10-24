@@ -426,7 +426,8 @@ function editValidation(step, rule) {
 let pickingFor = null;
 async function beginWebPicker(guideId, stepId, contextId, replacing=false, completion=false) {
   if (pickingFor) {
-    await api('/target-picker/cancel',{method:'POST',body:'{}'});
+    await api(pickingFor.runtime === 'Windows' ? '/windows/picker/cancel' : '/target-picker/cancel',
+      {method:'POST',body:'{}'});
     pickingFor = null;
   }
   const selected = await api('/capture/select', {method:'POST',
