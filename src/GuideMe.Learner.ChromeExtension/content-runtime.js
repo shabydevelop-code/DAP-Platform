@@ -370,8 +370,28 @@
     return null;
   }
 
+  // Semantic grid-row selector authored by Instructor. Match an exact cell
+  // value, not the row index, so sorting and re-rendering remain safe.
+  function parseCellTextSelector(selector) {
+    const pattern = /:cell-text\\((\\d+),("(?:\\\\.|[^"\\\\])*")\\)$/;
+    const match = String(selector || "").match(pattern);
+    if (!match) return {selector, cell: null};
+    const column = Number(match[1]);
+    if (!Number.isSafeInteger(column) || column < 1 || column > 100)
+      throw new Error("Invalid grid column");
+    return {selector:selector.slice(0, match.index),
+      cell:{column, value:JSON.parse(match[2])}};
+  }
+  function matchesCellText(el, cell) {
+    if (!cell) return true;
+    if (!(el instanceof HTMLTableRowElement)) return false;
+    const text = el.cells[cell.column - 1]?.textContent;
+    return text != null && normalize(text) === normalize(cell.value);
+  }
+
   function queryExtendedCss(selector, root = document) {
-    const source = String(selector || "");
+    const parsed = parseCellTextSelector(selector);
+    const source = String(parsed.selector || "");
     const textFilters = [];
     const nativeSelector = source.replace(
       /:has-text\((["'])(.*?)\1\)/g,
@@ -385,7 +405,7 @@
 
     return candidates.filter(el => {
       const text = normalize(el.textContent).toLowerCase();
-      return textFilters.every(wanted => text.includes(wanted));
+      return matchesCellText(el, parsed.cell) && textFilters.every(wanted => text.includes(wanted));
     });
   }
 
