@@ -125,9 +125,6 @@ if ([string]::Equals($destinationCanonical, $activeCanonical,
     }
 
     & (Join-Path $PSScriptRoot 'Register-WebNativeHost.ps1') -PackagePath $Destination -ExtensionId $ExtensionId
-    if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) {
-        throw "Native Messaging registration failed with exit code $LASTEXITCODE."
-    }
     if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
         throw "Learner Native Messaging manifest missing after registration: $manifestPath"
     }
@@ -140,7 +137,7 @@ if ([string]::Equals($destinationCanonical, $activeCanonical,
         $registered.path -ne $nativeExecutable -or
         -not (Test-Path -LiteralPath $registered.path -PathType Leaf) -or
         @($registered.allowed_origins).Count -ne 1 -or
-        @($registered.allowed_origins)[0] -ne "chrome-extension://$ExtensionId/" -or
+        ($registered.allowed_origins | Select-Object -First 1) -ne "chrome-extension://$ExtensionId/" -or
         $registeredManifest -ne $manifestPath) {
         throw 'Learner Native Messaging registration verification failed.'
     }
