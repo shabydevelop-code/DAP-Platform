@@ -423,11 +423,14 @@ async function refreshPicker() {
     '<option value="target-disappeared">הרכיב נעלם בעקבות הפעולה</option>')+
     '</select>')+
     (pickingFor.completion ? '<div id="attribute-condition-fields" class="hidden">' +
-      '<label for="completion-attribute-name">שם המאפיין ברכיב שנבחר</label>' +
-      '<input id="completion-attribute-name" dir="ltr" maxlength="100" placeholder="aria-sort">' +
-      '<label for="completion-attribute-value">הערך הצפוי לאחר הפעולה</label>' +
-      '<input id="completion-attribute-value" dir="ltr" maxlength="500" placeholder="ascending">' +
-      '<p>בחר את הרכיב שעליו נמצא המאפיין. התנאי יתקיים רק לאחר שנצפה שינוי לערך הצפוי.</p></div>' : '')+
+      '<label for="completion-state-choice">המצב שנלכד מהרכיב</label>' +
+      '<select id="completion-state-choice">' +
+      (candidate.stateAttributes || []).map((state, index) =>
+        '<option value="' + index + '">' + esc(state.name + ' = ' + state.value) + '</option>').join('') +
+      '</select>' +
+      ((candidate.stateAttributes || []).length ? '<p>בחר את מצב הרכיב הרצוי. הערכים נקראו מאפליקציית היעד.</p>' :
+        '<p>לא נמצאו מאפייני מצב מתאימים ברכיב. בחר רכיב אחר, למשל כותרת העמודה.</p>') +
+      '</div>' : '')+
     '<div class="target-actions">'+
     '<button id="save-web-target" class="btn primary">אישור ושמירת רכיב</button>'+
     '<button id="cancel-web-target" class="btn secondary">ביטול</button></div>';
@@ -461,8 +464,8 @@ async function refreshPicker() {
       if (pickedFor.completion) {
         await api('/guides/'+pickedFor.guideId+'/steps/'+encodeURIComponent(pickedFor.stepId)+'/completion-target',
           {method:'POST',body:JSON.stringify({kind:$('target-condition').value,
-            attributeName:$('target-condition').value === 'attribute-equals' ? $('completion-attribute-name').value.trim() : null,
-            attributeValue:$('target-condition').value === 'attribute-equals' ? $('completion-attribute-value').value : null})});
+            stateAttributeIndex:$('target-condition').value === 'attribute-equals' && (candidate.stateAttributes || []).length
+              ? Number($('completion-state-choice').value) : null})});
       } else {
         await api('/guides/'+pickedFor.guideId+'/steps/'+encodeURIComponent(pickedFor.stepId)+'/web-target',
           pickedFor.replacing ? {method:'PUT',body:JSON.stringify({gridChoice:gridChoiceIndex})} :
