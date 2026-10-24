@@ -229,7 +229,19 @@
     clearHighlight();
     const candidate = {
       selector, url:location.href, tag:target.tagName.toLowerCase(),
-      label:String(target.getAttribute("aria-label") || target.getAttribute("name") || target.textContent || "").trim().slice(0,100),
+      label:(() => {
+        const explicit = target.getAttribute("aria-label") ||
+          target.getAttribute("title") || target.getAttribute("name");
+        if (explicit) return String(explicit).trim().slice(0,80);
+        // A container's textContent includes all descendant records and may
+        // contain private business data. Never use it as an element label.
+        const directText = [...target.childNodes]
+          .filter(node => node.nodeType === Node.TEXT_NODE)
+          .map(node => node.textContent.trim()).filter(Boolean).join(" ").trim();
+        return (directText && directText.length <= 80 ? directText :
+          (target.id ? "#" + CSS.escape(target.id) :
+            target.tagName.toLowerCase())).slice(0,80);
+      })(),
       framePath: []
     };
     emitSelection(candidate);
