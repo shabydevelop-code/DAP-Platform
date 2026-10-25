@@ -278,8 +278,12 @@ function renderSteps() {
           action.kind === 'CopyFromVariable' ? 'העתקה מ־' + (source?.name || 'משתנה אחר') :
           'קליטה מרכיב (' + (action.property || 'ערך') + ')';
         return '<div class="guide-variable-row"><span><strong>' + esc(variable?.name || action.variableId) +
-          '</strong> · ' + esc(label) + '</span>' +
-          '<button class="btn danger small" data-remove-variable-action="' + esc(action.id) + '">הסרה</button></div>';
+          '</strong> · ' + esc(label) + '</span><span class="context-actions">' +
+          '<button class="btn secondary small" data-move-variable-action="' + esc(action.id) + '" data-direction="-1"' +
+          (action.order === variableActions[0].order ? ' disabled' : '') + '>למעלה</button>' +
+          '<button class="btn secondary small" data-move-variable-action="' + esc(action.id) + '" data-direction="1"' +
+          (action.order === variableActions[variableActions.length - 1].order ? ' disabled' : '') + '>למטה</button>' +
+          '<button class="btn danger small" data-remove-variable-action="' + esc(action.id) + '">הסרה</button></span></div>';
       }).join('') : '<p>לא הוגדרו פעולות משתנים לשלב.</p>') +
       '<button class="btn secondary small" id="add-variable-action"' +
       ((current.variables || []).length ? '' : ' disabled') + ' >הוספת פעולת משתנה</button>' +
