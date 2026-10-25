@@ -62,7 +62,10 @@
     const simple = node => {
       const base = node.tagName.toLowerCase();
       const names = classNames(node);
-      return [...names.map(name => base + '.' + CSS.escape(name)), base];
+      // Bare tags (for example h1) may be unique only on the current page,
+      // then match an unrelated element after navigation. Prefer semantic
+      // attributes/classes or a scoped path instead.
+      return names.map(name => base + '.' + CSS.escape(name));
     };
     if (stable(element.id)) {
       const selector = '#' + CSS.escape(element.id);
@@ -114,7 +117,7 @@
         part += '#' + CSS.escape(node.id);
         parts.unshift(part);
         const candidate = parts.join(' > ');
-        if (unique(candidate)) return candidate;
+        if (parts.length > 1 && unique(candidate)) return candidate;
         break;
       }
       const parent = node.parentElement;
@@ -125,10 +128,10 @@
       }
       parts.unshift(part);
       const candidate = parts.join(' > ');
-      if (unique(candidate)) return candidate;
+      if (parts.length > 1 && unique(candidate)) return candidate;
     }
     const selector = parts.join(' > ');
-    return unique(selector) ? selector : null;
+    return parts.length > 1 && unique(selector) ? selector : null;
   }
 
   // Outline is painted by the browser on the actual element's border box.
