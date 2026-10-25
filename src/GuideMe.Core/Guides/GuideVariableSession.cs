@@ -98,7 +98,10 @@ public sealed class GuideVariableSession
         {
             Target = step.Target is null ? null : Expand(step.Target),
             CompletionConditions = step.CompletionConditions?.Select(condition =>
-                condition with { Target = Expand(condition.Target) }).ToArray()
+                condition with { Target = Expand(condition.Target) }).ToArray(),
+            VariableActions = step.VariableActions?.Select(action =>
+                action.SourceTarget is null ? action :
+                action with { SourceTarget = Expand(action.SourceTarget) }).ToArray()
         };
     }
 
