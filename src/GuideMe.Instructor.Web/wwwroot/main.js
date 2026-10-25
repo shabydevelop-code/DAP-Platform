@@ -96,6 +96,7 @@ function renderGuides() {
 async function openGuide(id) {
   if (!confirmDiscard()) return;
   current = await api('/guides/' + id);
+  current.variables = await api('/guides/' + id + '/variables');
   const g = current.guide;
   $('list-view').classList.add('hidden'); $('detail-view').classList.remove('hidden');
   $('new-guide').classList.add('hidden');
@@ -592,7 +593,51 @@ function renderContexts() {
   document.querySelectorAll('[data-context-rename]').forEach(b=>b.onclick=()=>renameContext(current.contexts[Number(b.dataset.contextRename)]));
   document.querySelectorAll('[data-context-edit]').forEach(b=>b.onclick=()=>editContext(current.contexts[Number(b.dataset.contextEdit)]));
   document.querySelectorAll('[data-context-delete]').forEach(b=>b.onclick=()=>guarded(()=>deleteContext(current.contexts[Number(b.dataset.contextDelete)])));
+  renderGuideVariables();
 }
+function renderGuideVariables() {
+  const list = $('guide-variables-list');
+  if (!current || !list) return;
+  list.innerHTML = current.variables.length
+    ? current.variables.map((variable, index) =>
+      '<div class="guide-variable-row"><div><strong>' + esc(variable.name) +
+      '</strong><p>' + (variable.initialValue === null ? 'ללא ערך התחלתי' :
+      'ערך התחלתי: ' + esc(variable.initialValue)) + '</p></div>' +
+      '<div class="context-actions"><button class="btn secondary small" data-variable-edit="' + index + '">עריכה</button>' +
+      '<button class="btn danger small" data-variable-delete="' + index + '">הסרה</button></div></div>').join('')
+    : '<div class="empty">עדיין לא הוגדרו משתנים בלומדה.</div>';
+  list.querySelectorAll('[data-variable-edit]').forEach(button =>
+    button.onclick = () => editGuideVariable(current.variables[Number(button.dataset.variableEdit)]));
+  list.querySelectorAll('[data-variable-delete]').forEach(button =>
+    button.onclick = () => guarded(async () => {
+      const variable = current.variables[Number(button.dataset.variableDelete)];
+      if (!confirm('למחוק את המשתנה "' + variable.name + '"?')) return;
+      await api('/guides/' + current.guide.id + '/variables/' + encodeURIComponent(variable.id),
+        {method:'DELETE',body:'{}'});
+      current.variables = await api('/guides/' + current.guide.id + '/variables');
+      renderGuideVariables();
+      notify('המשתנה נמחק.');
+    }));
+}
+function editGuideVariable(variable = null) {
+  if (!current) return;
+  const guideId = current.guide.id;
+  modal(variable ? 'עריכת משתנה' : 'הוספת משתנה', [
+    {name:'name',label:'שם המשתנה',value:variable?.name || '',max:80,
+     help:'השם מוצג לעורך; מזהה המשתנה נוצר אוטומטית.'},
+    {name:'initialValue',label:'ערך התחלתי (לא חובה)',value:variable?.initialValue || '',
+     max:1000,optional:true}
+  ], async values => {
+    const path = '/guides/' + guideId + '/variables' +
+      (variable ? '/' + encodeURIComponent(variable.id) : '');
+    await api(path, {method:variable?'PUT':'POST',
+      body:JSON.stringify({name:values.name,initialValue:values.initialValue || null})});
+    current.variables = await api('/guides/' + guideId + '/variables');
+    renderGuideVariables();
+    notify(variable ? 'המשתנה עודכן.' : 'המשתנה נוסף ללומדה.');
+  });
+}
+$('add-guide-variable').onclick = () => editGuideVariable();
 function modal(title, fields, submit, buttonText='שמירה') {
   modalReturnFocus = document.activeElement;
   $('dialog-title').textContent=title;
