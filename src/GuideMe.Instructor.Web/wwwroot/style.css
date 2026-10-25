@@ -185,11 +185,6 @@ p,.panel-header p,.step-body small,.empty,.empty-inspector{color:#52657a}
 #editor-dialog .dialog-head{padding-top:17px;padding-bottom:17px}
 #editor-dialog .dialog-actions{padding-top:12px;padding-bottom:16px}
 
-/* Global persistence status: visible without scrolling or changing panels. */
-.save-status { white-space: nowrap; }
-.save-status[data-state="dirty"] { border-color: #b7791f; color: #854d0e; }
-.save-status[data-state="saving"] { border-color: #64748b; }
-.save-status[data-state="error"] { border-color: #b91c1c; color: #b91c1c; }
 
 /* Full step name is available on hover and keyboard focus without expanding the list. */
 .step-name-tooltip{position:fixed;z-index:10000;max-width:min(360px,calc(100vw - 16px));width:max-content;white-space:normal;overflow-wrap:anywhere;direction:rtl;text-align:right;background:#203750;color:#fff;border-radius:8px;padding:9px 12px;font-size:12px;line-height:1.6;box-shadow:0 6px 20px #10243b30;pointer-events:none}
