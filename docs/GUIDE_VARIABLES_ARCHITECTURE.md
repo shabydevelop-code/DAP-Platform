@@ -9,36 +9,29 @@
 - Values are session-local and must not be persisted as definitions or shared across sessions.
 - No permanent compatibility reader or dual engine for legacy StepRules Capture or `{{step:...:capture}}`.
 
-## Model and storage (first code changes)
-- `src/GuideMe.Core/Guides/GuideVariableDefinition.cs`: definitions and step actions.
-- `docs/schema/GuideMe-V5.sql`: `GuideVariables` and `StepVariableActions` with foreign keys to the existing guide, step, and target catalog.
-- Added `GuideVariableSession` in Core: isolated per-run variable values, assign/copy/clear/read, and `{{var:<id>}}` substitution. It is not yet wired into learner execution.
-- Added `scripts/Migrate-GuideMeVariables.py`: read-only default, creates a backup before explicit apply and blocks Windows implicit capture timings requiring an audit. The migration must not be applied until the unified engine fully replaces Capture.
-- No database migration or active runtime switch has been executed yet.
+## Implemented code (not yet build-verified)
+- The sole execution path uses GuideVariableSession in GuideRunPlan and GuideExecutionEngine for both single-runtime and mixed Web/Windows guides.
+- GuideV5ExecutionCompiler reads guide variables and ordered step actions. Source targets reuse StepTargets / Elements and preserve Web iframe and Windows UIA descriptors.
+- BeforeAction and AfterAction assignments execute at shared step boundaries; DuringStep is an adapter observation feeding the same variable session.
+- The Web adapter uses the existing DOM reading transport and the Windows adapter uses UI Automation; neither owns guide variable storage.
+- GuideStep no longer stores legacy Capture. V5 no longer compiles legacy StepRules Capture, and the new schema does not accept that rule type.
+- The Instructor supports guide-level add/edit/remove, step-level set/read/clear/copy, timing, and binding a picked primary target's locator value from a variable selection.
+- `scripts/Migrate-GuideMeVariables.py` converts existing captures and references once. Windows implicit dual sampling becomes two actions (DuringStep and AfterAction); the migration recreates StepRules without Capture fields.
+- Target selection for a **different** source element than the step primary/completion target is not yet integrated into the Inspector picker.
+- The database on the user's computer has **not** been migrated. A Windows build and full regression have **not** been run in this environment.
 
-## One-time conversion before enabling the new engine
-1. Back up the existing V5 database.
-2. Enumerate `StepRules` with `RuleType='Capture'`, and all locator/anchor/condition strings containing `{{step:<id>:capture}}`.
-3. Create one stable guide variable for each captured value; convert each capture into a `ReadFromTarget` step action, preserving its property, pattern, timing, target usage and step.
-4. Replace old step-based tokens in all persisted targets with stable variable references and verify every reference resolves to one guide variable.
-5. Audit runtime timings: existing null capture timings are platform-specific. Normalize them explicitly during conversion, not during execution. Ensure frames and nested paths are preserved.
-6. Run a read-only comparison of all original guide steps, runtime contexts, selectors and validation/completion rules, then perform production-like Web and Windows guide regressions.
-7. Remove `Capture` from V5 rule types and Core step definitions, and delete the old runtime Capture code in the **same integration change** that enables the variable engine. Do not ship two enabled engines.
-8. Validate the example sequence: save case (10), read URL fragment (11), reopen captured case (12), and reuse it (48/50); validate 2+ variable assignments per step and mixed Web/Windows navigation.
+## One-time migration and verification
 
-## Editor workflow
-- Guide configuration: add/rename/remove variable, optionally set default value.
-- Step configuration: add ordered action, select variable, choose set/read/clear/copy and timing; read action uses the same existing target picker.
-- In a step target selector, a bound locator value can be chosen from the guide variable list. The Instructor stores a typed reference or canonical variable token, never a manually typed step key.
-- Show missing/ambiguous variable errors before saving and at runtime; never silently guess a target.
+1. Close Instructor and Learner processes and **build the updated solution first**. Do not migrate a database while old binaries are active.
+2. Preview in read-only mode:
+   `python scripts/Migrate-GuideMeVariables.py "C:\\ProgramData\\GuideMe\\Data\\GuideMe-V5.db"`
+3. Compare the preview with expected legacy capture counts and references. The migration is not an application startup hook.
+4. Apply once, with the unified code built, using
+   `python scripts/Migrate-GuideMeVariables.py "C:\\ProgramData\\GuideMe\\Data\\GuideMe-V5.db" --apply --unified-runtime-ready`.
+   The script creates a SQLite backup before applying any changes and validates foreign keys.
+5. Re-publish updated GuideMe app and Instructor, then validate all original enabled Web and Windows steps and a mixed guide.
+6. Regression checkpoints: original Web 10 save, 11 captured frame hash, 12 reopen matching new case, 48/50 reuse; Windows captured ID and name; multiple actions on one step; variable reset/copy; and stop/restart session variable isolation.
 
 ## Release gate
-The first Core types/schema additions are **definitions only**. Do not run the schema against an existing V5 database and do not claim the new variables are operational until V5 migration, Instructor, compiler and both runtime adapters are updated and validated.
+Do not claim completion until updated .NET sources build on Windows, migration preview/apply is verified on a backup, and Web/Windows/mixed guide regressions pass. A guide tested from a later step can legitimately lack variables initialized in earlier steps; surface that as a missing variable rather than guessing.
 
-## Implementation checkpoint — 2026-10-25
-- Instructor has a shared guide-level variable catalog editor (add/rename/default/delete) and step action editor (SetValue/Clear/CopyFromVariable). IDs are assigned automatically.
-- Instructor V5 persistence uses the new tables; step and guide deletion clean up dependent variable action records.
-- Canonical variable definitions and step actions can be read from V5 by GuideV5VariableReader, and Core has GuideVariableSession.
-- **Not production-ready:** the unified GuideExecutionEngine and both runtime adapters are still wired to legacy Capture; ReadFromTarget, target binding from the editor, and one-time migration are not completed.
-- Do not run --apply migration or claim variable step actions execute until the runtime switch and regression tests pass.
-- A C# Windows build has not been performed in this environment.
