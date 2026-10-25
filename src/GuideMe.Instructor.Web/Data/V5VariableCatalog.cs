@@ -167,6 +167,9 @@ internal static class V5VariableCatalog
             throw new ArgumentException("מקור או מאפיין לכידה אינו תקין.");
         if (!Enum.TryParse<GuideMe.Core.Guides.StepCaptureTiming>(timing ?? "AfterAction", out var captureTiming))
             throw new ArgumentException("מועד הלכידה אינו תקין.");
+        if (captureTiming == GuideMe.Core.Guides.StepCaptureTiming.DuringStep &&
+            kind != "ReadFromTarget")
+            throw new ArgumentException("קליטה במהלך השלב מיועדת לקריאה מרכיב בלבד.");
         using var connection = Open();
         EnsureSchema(connection);
         using var cmd = connection.CreateCommand();
