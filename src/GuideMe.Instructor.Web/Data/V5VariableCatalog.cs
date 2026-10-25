@@ -252,7 +252,7 @@ internal static class V5VariableCatalog
                 $variable,'ReadFromTarget',$usage,$property,$timing,$pattern)";
         cmd.Parameters.AddWithValue("$action", "action-" + Guid.NewGuid().ToString("N"));
         cmd.Parameters.AddWithValue("$property", property);
-        cmd.Parameters.AddWithValue("$timing", "BeforeAction");
+        cmd.Parameters.AddWithValue("$timing", "AfterAction");
         cmd.Parameters.AddWithValue("$pattern", (object?)pattern ?? DBNull.Value);
         cmd.ExecuteNonQuery();
         tx.Commit();
