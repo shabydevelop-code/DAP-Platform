@@ -188,4 +188,14 @@ internal static class V5VariableCatalog
             throw new InvalidOperationException("פעולת המשתנה לא נמצאה.");
     }
 
+    internal static bool HasActions(long guideId)
+    {
+        using var connection = Open();
+        EnsureSchema(connection);
+        using var command = connection.CreateCommand();
+        command.CommandText = @"SELECT EXISTS(SELECT 1 FROM StepVariableActions WHERE GuideId=$guide)";
+        command.Parameters.AddWithValue("$guide", guideId);
+        return Convert.ToInt64(command.ExecuteScalar()) != 0;
+    }
+
 }
