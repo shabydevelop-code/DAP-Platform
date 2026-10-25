@@ -1,4 +1,4 @@
--- GuideMe V5 official compact schema (7 tables).
+-- GuideMe V5 official schema (9 tables).
 -- Use for provisioning a NEW empty V5 database only.
 -- Never run this schema against an existing database; use the migration script.
 -- JSON array ordering must preserve MatcherOrder and LocatorId ordering from V5.
@@ -100,5 +100,56 @@ CREATE TABLE StepRules (
             AND Kind IS NULL AND ExpectedValue IS NULL AND OptionsJson IS NULL)
         OR
         (RuleType!='Capture' AND Kind IS NOT NULL AND Property IS NULL AND Pattern IS NULL AND Timing IS NULL)
+    )
+);
+
+-- Guide-level variable declarations. Values captured during execution are never persisted here.
+CREATE TABLE GuideVariables (
+    GuideId INTEGER NOT NULL,
+    VariableId TEXT NOT NULL,
+    DisplayName TEXT NOT NULL,
+    InitialValue TEXT,
+    PRIMARY KEY (GuideId, VariableId),
+    UNIQUE (GuideId, DisplayName),
+    FOREIGN KEY (GuideId) REFERENCES Guides(GuideId)
+);
+
+-- Ordered variable assignments belong to steps. A target read references the
+-- same StepTargets catalog that is used by Web and Windows element picking.
+CREATE TABLE StepVariableActions (
+    GuideId INTEGER NOT NULL,
+    StepId TEXT NOT NULL,
+    ActionId TEXT NOT NULL,
+    ActionOrder INTEGER NOT NULL,
+    VariableId TEXT NOT NULL,
+    ActionKind TEXT NOT NULL CHECK (ActionKind IN
+        ('SetValue','ReadFromTarget','Clear','CopyFromVariable')),
+    LiteralValue TEXT,
+    SourceVariableId TEXT,
+    TargetUsageId TEXT,
+    Property TEXT,
+    Pattern TEXT,
+    Timing TEXT NOT NULL DEFAULT 'AfterAction'
+        CHECK (Timing IN ('BeforeAction','DuringStep','AfterAction')),
+    PRIMARY KEY (GuideId, StepId, ActionId),
+    UNIQUE (GuideId, StepId, ActionOrder),
+    FOREIGN KEY (GuideId, StepId) REFERENCES Steps(GuideId, StepId),
+    FOREIGN KEY (GuideId, VariableId) REFERENCES GuideVariables(GuideId, VariableId),
+    FOREIGN KEY (GuideId, SourceVariableId)
+        REFERENCES GuideVariables(GuideId, VariableId),
+    FOREIGN KEY (GuideId, StepId, TargetUsageId)
+        REFERENCES StepTargets(GuideId, StepId, UsageId),
+    CHECK (
+      (ActionKind='SetValue' AND LiteralValue IS NOT NULL AND
+          SourceVariableId IS NULL AND TargetUsageId IS NULL AND Property IS NULL AND Pattern IS NULL)
+      OR
+      (ActionKind='ReadFromTarget' AND LiteralValue IS NULL AND
+          SourceVariableId IS NULL AND TargetUsageId IS NOT NULL AND Property IS NOT NULL)
+      OR
+      (ActionKind='CopyFromVariable' AND LiteralValue IS NULL AND
+          SourceVariableId IS NOT NULL AND TargetUsageId IS NULL AND Property IS NULL AND Pattern IS NULL)
+      OR
+      (ActionKind='Clear' AND LiteralValue IS NULL AND
+          SourceVariableId IS NULL AND TargetUsageId IS NULL AND Property IS NULL AND Pattern IS NULL)
     )
 );
