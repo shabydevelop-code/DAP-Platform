@@ -31,4 +31,45 @@ public static class GuideV5VariableReader
         }
         return definitions;
     }
+    public static async Task<IReadOnlyDictionary<string, IReadOnlyList<GuideVariableAction>>> ReadActionsAsync(
+        string databasePath, long guideId, CancellationToken token = default)
+    {
+        var definitions = await ReadDefinitionsAsync(databasePath, guideId, token);
+        var ids = definitions.Select(x => x.Id).ToHashSet(StringComparer.Ordinal);
+        await using var db = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = databasePath, Mode = SqliteOpenMode.ReadOnly
+        }.ToString());
+        await db.OpenAsync(token);
+        await using var cmd = db.CreateCommand();
+        cmd.CommandText = @"SELECT StepId,ActionId,ActionOrder,VariableId,ActionKind,
+            LiteralValue,SourceVariableId,TargetUsageId,Property,Pattern,Timing
+            FROM StepVariableActions WHERE GuideId=$guide ORDER BY StepId,ActionOrder";
+        cmd.Parameters.AddWithValue("$guide", guideId);
+        await using var reader = await cmd.ExecuteReaderAsync(token);
+        var byStep = new Dictionary<string, List<GuideVariableAction>>(StringComparer.Ordinal);
+        while (await reader.ReadAsync(token))
+        {
+            var stepId = reader.GetString(0);
+            var variableId = reader.GetString(3);
+            if (!ids.Contains(variableId)
+                || !Enum.TryParse<GuideVariableActionKind>(reader.GetString(4), out var kind)
+                || !Enum.TryParse<StepCaptureTiming>(reader.GetString(10), out var timing))
+                throw new InvalidOperationException($"Invalid variable action for step '{stepId}'.");
+            string? Nullable(int index) => reader.IsDBNull(index) ? null : reader.GetString(index);
+            var action = new GuideVariableAction(reader.GetString(1), variableId, kind,
+                reader.GetInt32(2), Nullable(5), Nullable(6), Nullable(7),
+                Nullable(8), Nullable(9), timing);
+            if (action.SourceVariableId is { } source && !ids.Contains(source))
+                throw new InvalidOperationException($"Unknown source variable '{source}'.");
+            if (!byStep.TryGetValue(stepId, out var actions))
+                byStep[stepId] = actions = new List<GuideVariableAction>();
+            if (actions.Any(x => x.Order == action.Order || x.Id == action.Id))
+                throw new InvalidOperationException($"Duplicate variable action in step '{stepId}'.");
+            actions.Add(action);
+        }
+        return byStep.ToDictionary(x => x.Key,
+            x => (IReadOnlyList<GuideVariableAction>)x.Value, StringComparer.Ordinal);
+    }
+
 }
