@@ -352,7 +352,7 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/variables",
     (long id, string stepId, StepVariableActionRequest body) =>
 {
     V5VariableCatalog.AddAction(id, stepId, body.VariableId, body.Kind,
-        body.Value, body.SourceVariableId);
+        body.Value, body.SourceVariableId, body.TargetUsageId, body.Property, body.Timing);
     return Results.NoContent();
 });
 app.MapDelete("/api/guides/{id:long}/steps/{stepId}/variables/{actionId}",
@@ -498,4 +498,5 @@ internal sealed record EditWebValidation(string Kind, string? ExpectedValue);
 
 internal sealed record GuideVariableRequest(string Name, string? InitialValue);
 
-internal sealed record StepVariableActionRequest(string VariableId, string Kind, string? Value, string? SourceVariableId);
+internal sealed record StepVariableActionRequest(string VariableId, string Kind, string? Value,
+    string? SourceVariableId, string? TargetUsageId, string? Property, string? Timing);
