@@ -282,7 +282,7 @@ function renderSteps() {
       }).join('') : '<p>לא הוגדרו פעולות משתנים לשלב.</p>') +
       '<button class="btn secondary small" id="add-variable-action"' +
       ((current.variables || []).length ? '' : ' disabled') + '>הוספת פעולת משתנה</button></section>';
-    $('add-variable-action').onclick = () => editStepVariableAction(step);
+    $('add-variable-action').onclick = () => editStepVariableAction(step, data.targets, context?.Runtime);
     document.querySelectorAll('[data-remove-variable-action]').forEach(button =>
       button.onclick = () => guarded(async () => {
         if (!confirm('להסיר את פעולת המשתנה?')) return;
@@ -936,10 +936,16 @@ function newStep() {
     notify('השלב נוצר. כרגע התקדמותו ידנית עד שיוגדרו רכיב יעד ותנאי התקדמות.');
   },'יצירת שלב');
 }
-function editStepVariableAction(step) {
+function editStepVariableAction(step, targets, runtime) {
   if (!current || !current.variables?.length) return;
   const guideId = current.guide.id, stepId = step.id;
   const options = current.variables.map(v => ({value:v.id,text:v.name}));
+  const targetOptions = (targets || []).map(t => ({value:t.UsageId,
+    text:t.Purpose === 'Primary' ? 'הרכיב הראשי' : 'רכיב נוסף'}));
+  const properties = runtime === 'Windows'
+    ? [{value:'name',text:'שם הרכיב'},{value:'automation-id',text:'מזהה הרכיב'}]
+    : [{value:'text',text:'טקסט'},{value:'value',text:'ערך שדה'},
+       {value:'frame-url-fragment',text:'כתובת המסגרת'}];
   modal('פעולת משתנה — שלב ' + step.order, [
     {name:'variableId',label:'משתנה לעדכון',value:options[0].value,choices:options},
     {name:'kind',label:'פעולה',value:'SetValue',choices:[
