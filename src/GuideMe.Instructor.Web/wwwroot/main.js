@@ -480,6 +480,27 @@ const targetAdapters = {
   }
 };
 // The picker transport is shared; each authoring purpose owns its preview.
+function variableExtractionEditor(candidate, runtime) {
+  const samples = runtime === 'Windows'
+    ? [{property:'name',value:candidate.label || ''}]
+    : (candidate.variableSamples || []);
+  const selected = samples.find(sample => sample.value && sample.property === 'value') ||
+    samples.find(sample => sample.value);
+  const sample = selected?.value || '';
+  if (pickingFor?.variableSource) {
+    pickingFor.variableSource.property = selected?.property || (runtime === 'Windows' ? 'name' : 'text');
+  }
+  const number = sample.match(/[0-9]+/)?.[0];
+  return '<div class="field"><label for="variable-extract-choice">ערך לקליטה</label>' +
+    '<select id="variable-extract-choice" data-sample="' + esc(sample) + '">' +
+    '<option value="full">' + esc(sample ? sample + ' — הערך המלא' : 'הערך המלא בזמן ההרצה') + '</option>' +
+    (number ? '<option value="number">' + esc(number + ' — המספר מתוך הערך') + '</option>' : '') +
+    '<option value="custom">חילוץ מותאם אישית</option></select>' +
+    '<p id="variable-extract-preview" aria-live="polite"></p></div>' +
+    '<div class="field hidden"><label for="variable-extract-pattern">ביטוי לחילוץ (Regex)</label>' +
+    '<input id="variable-extract-pattern" dir="ltr" maxlength="300" placeholder="([0-9]+)" />' +
+    '<p>אם הוגדרה קבוצת לכידה, יישמר תוכן הקבוצה הראשונה.</p></div>';
+}
 function pickerResultBox(session) {
   return $(session.variableSource ? 'variable-pick-result' :
     session.completion ? 'completion-pick-result' : 'pick-result');
@@ -572,9 +593,31 @@ async function refreshPicker() {
       ((candidate.stateAttributes || []).length ? '<p>בחר את מצב הרכיב הרצוי. הערכים נקראו מאפליקציית היעד.</p>' :
         '<p>לא נמצאו מאפייני מצב מתאימים ברכיב. בחר רכיב אחר, למשל כותרת העמודה.</p>') +
       '</div>' : '')+
+    (pickingFor.variableSource ? variableExtractionEditor(candidate, requestSession.runtime) : '') +
     '<div class="target-actions">'+
     '<button id="save-web-target" class="btn primary">אישור ושמירת רכיב</button>'+
     '<button id="cancel-web-target" class="btn secondary">ביטול</button></div>';
+  if (pickingFor.variableSource) {
+    const extract = $('variable-extract-choice');
+    const custom = $('variable-extract-pattern')?.closest('.field');
+    const updateExtraction = () => {
+      if (custom) custom.classList.toggle('hidden',extract?.value !== 'custom');
+      const preview = $('variable-extract-preview');
+      if (!preview) return;
+      const sample = extract?.dataset.sample || '';
+      if (extract?.value === 'number') {
+        preview.textContent = 'יישמר לדוגמה: ' + (sample.match(/[0-9]+/)?.[0] || 'לא נמצא מספר');
+      } else if (extract?.value === 'custom') {
+        try {
+          const m = sample.match(new RegExp($('variable-extract-pattern')?.value || ''));
+          preview.textContent = 'יישמר לדוגמה: ' + (m ? (m[1] ?? m[0]) : 'לא נמצאה התאמה');
+        } catch { preview.textContent = 'ביטוי לא תקין'; }
+      } else preview.textContent = 'יישמר לדוגמה: ' + sample;
+    };
+    extract?.addEventListener('change',updateExtraction);
+    $('variable-extract-pattern')?.addEventListener('input',updateExtraction);
+    updateExtraction();
+  }
   if (requestSession.runtime === 'Windows' && state.selection?.error) {
     const warning = document.createElement('p');
     warning.textContent = state.selection.error;
