@@ -243,7 +243,8 @@ function renderSteps() {
           '<p class="target-technical">מזהה רכיב: <code dir="ltr">' + esc(locatorText) + '</code></p>' : '') :
         '<p>עדיין לא נבחר רכיב לשלב הזה.</p>') +
       ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') ?
-        (target ? '<button class="btn secondary small" id="replace-web-target">בחירת רכיב אחר</button>' :
+        (target ? '<button class="btn secondary small" id="replace-web-target">בחירת רכיב אחר</button>' +
+          ((current.variables || []).length ? ' <button class="btn secondary small" id="bind-target-variable">שימוש במשתנה במזהה הרכיב</button>' : '') :
           '<button id="pick-element" class="btn primary">הפעלת ממפה רכיבים</button>') +
         '<div id="pick-result" class="hidden" aria-live="polite"></div>' : '') +
       '</section>' +
@@ -342,6 +343,8 @@ function renderSteps() {
       beginTargetPicker(context.Runtime, current.guide.id, step.id, contextId, replacing, completion, context);
     const targetReplace = $('replace-web-target');
     if (targetReplace) targetReplace.onclick = () => guarded(() => startElementPicker(true));
+    const bindTarget = $('bind-target-variable');
+    if (bindTarget) bindTarget.onclick = () => bindTargetToVariable(step, context?.Runtime, locatorText);
     const conditionEditor = $('edit-validation');
     if (conditionEditor) conditionEditor.onclick = () => editValidation(step, rule);
     const startButton = $('pick-element');
@@ -935,6 +938,32 @@ function newStep() {
     row?.click();
     notify('השלב נוצר. כרגע התקדמותו ידנית עד שיוגדרו רכיב יעד ותנאי התקדמות.');
   },'יצירת שלב');
+}
+function bindTargetToVariable(step, runtime, locatorText) {
+  if (!current?.variables?.length) return;
+  const guideId = current.guide.id, stepId = step.id;
+  const attributeOptions = [...locatorText.matchAll(/\[\s*([\w-]+)\s*=\s*(['"])(.*?)\2\s*\]/g)]
+    .map(match => ({value:match[1],text:match[1] + ' · ' + match[3]}));
+  if (runtime === 'Web' && !attributeOptions.length) {
+    notify('לא נמצא מאפיין בעל ערך במזהה הרכיב. יש לבחור רכיב עם מזהה מתאים.', true);
+    return;
+  }
+  modal('שימוש במשתנה — שלב ' + step.order, [
+    {name:'variableId',label:'משתנה מהלומדה',value:current.variables[0].id,
+     choices:current.variables.map(v => ({value:v.id,text:v.name}))},
+    ...(runtime === 'Web'
+      ? [{name:'attribute',label:'המאפיין שערכו יוחלף במשתנה',
+          value:attributeOptions[0].value,choices:attributeOptions}]
+      : [])
+  ], async values => {
+    await api('/guides/' + guideId + '/steps/' + encodeURIComponent(stepId) + '/bind-variable',
+      {method:'POST',body:JSON.stringify({variableId:values.variableId,
+        attribute:values.attribute || null})});
+    await openGuide(guideId);
+    const row = [...document.querySelectorAll('[data-step]')].find(x => x.dataset.step === stepId);
+    row?.click();
+    notify('המשתנה קושר למזהה הרכיב.');
+  });
 }
 function editStepVariableAction(step, targets, runtime) {
   if (!current || !current.variables?.length) return;
