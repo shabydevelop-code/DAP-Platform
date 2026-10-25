@@ -120,4 +120,72 @@ internal static class V5VariableCatalog
         catch (SqliteException e) when (e.SqliteErrorCode == 19)
         { throw new InvalidOperationException("לא ניתן למחוק משתנה שמשמש בשלבי הלומדה.", e); }
     }
+    internal sealed record Action(string Id, int Order, string VariableId, string Kind,
+        string? LiteralValue, string? SourceVariableId, string Timing);
+
+    internal static IReadOnlyList<Action> ListActions(long guideId, string stepId)
+    {
+        using var connection = Open();
+        EnsureSchema(connection);
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = @"SELECT ActionId,ActionOrder,VariableId,ActionKind,LiteralValue,
+            SourceVariableId,Timing FROM StepVariableActions
+            WHERE GuideId=$guide AND StepId=$step ORDER BY ActionOrder";
+        cmd.Parameters.AddWithValue("$guide", guideId);
+        cmd.Parameters.AddWithValue("$step", stepId);
+        using var reader = cmd.ExecuteReader();
+        var result = new List<Action>();
+        while (reader.Read())
+            result.Add(new Action(reader.GetString(0), reader.GetInt32(1), reader.GetString(2),
+                reader.GetString(3), reader.IsDBNull(4) ? null : reader.GetString(4),
+                reader.IsDBNull(5) ? null : reader.GetString(5), reader.GetString(6)));
+        return result;
+    }
+
+    internal static void AddAction(long guideId, string stepId,
+        string variableId, string kind, string? value, string? sourceVariableId)
+    {
+        if (kind is not ("SetValue" or "Clear" or "CopyFromVariable"))
+            throw new ArgumentException("סוג הפעולה אינו נתמך.");
+        if (kind == "SetValue" && (value is null || value.Length > 1000))
+            throw new ArgumentException("יש להזין ערך באורך עד 1000 תווים.");
+        if (kind == "CopyFromVariable" && string.IsNullOrWhiteSpace(sourceVariableId))
+            throw new ArgumentException("יש לבחור משתנה מקור.");
+        using var connection = Open();
+        EnsureSchema(connection);
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = @"INSERT INTO StepVariableActions
+            (GuideId,StepId,ActionId,ActionOrder,VariableId,ActionKind,
+             LiteralValue,SourceVariableId,Timing)
+            VALUES ($guide,$step,$id,
+             (SELECT COALESCE(MAX(ActionOrder),-1)+1 FROM StepVariableActions
+              WHERE GuideId=$guide AND StepId=$step),
+             $variable,$kind,$value,$source,'AfterAction')";
+        cmd.Parameters.AddWithValue("$guide", guideId);
+        cmd.Parameters.AddWithValue("$step", stepId);
+        cmd.Parameters.AddWithValue("$id", "action-" + Guid.NewGuid().ToString("N"));
+        cmd.Parameters.AddWithValue("$variable", variableId);
+        cmd.Parameters.AddWithValue("$kind", kind);
+        cmd.Parameters.AddWithValue("$value", kind == "SetValue" ? (object)value! : DBNull.Value);
+        cmd.Parameters.AddWithValue("$source", kind == "CopyFromVariable"
+            ? (object)sourceVariableId! : DBNull.Value);
+        try { cmd.ExecuteNonQuery(); }
+        catch (SqliteException ex) when (ex.SqliteErrorCode == 19)
+        { throw new InvalidOperationException("לא ניתן לשמור פעולה: בדוק את המשתנה ואת השלב.", ex); }
+    }
+
+    internal static void DeleteAction(long guideId, string stepId, string actionId)
+    {
+        using var connection = Open();
+        EnsureSchema(connection);
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = @"DELETE FROM StepVariableActions
+            WHERE GuideId=$guide AND StepId=$step AND ActionId=$id";
+        cmd.Parameters.AddWithValue("$guide", guideId);
+        cmd.Parameters.AddWithValue("$step", stepId);
+        cmd.Parameters.AddWithValue("$id", actionId);
+        if (cmd.ExecuteNonQuery() != 1)
+            throw new InvalidOperationException("פעולת המשתנה לא נמצאה.");
+    }
+
 }
