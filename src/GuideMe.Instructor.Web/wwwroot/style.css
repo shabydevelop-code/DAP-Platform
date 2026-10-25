@@ -280,3 +280,5 @@ body, body *, dialog, dialog * { font-size: 15px !important; }
 .guide-variables-head p{margin:0;color:#52667d}
 .guide-variable-row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 16px;border:1px solid var(--gm-border,#a7b8cc);border-radius:10px;margin-bottom:10px;background:#fff}
 .guide-variable-row p{margin:6px 0 0;color:#52667d;overflow-wrap:anywhere}
+.variable-action-details{display:grid;gap:5px;margin-top:7px;font-size:12px;line-height:1.5;color:#52667d;overflow-wrap:anywhere}
+.variable-action-details strong{color:#233a52;font-weight:650}
