@@ -34,3 +34,11 @@
 
 ## Release gate
 The first Core types/schema additions are **definitions only**. Do not run the schema against an existing V5 database and do not claim the new variables are operational until V5 migration, Instructor, compiler and both runtime adapters are updated and validated.
+
+## Implementation checkpoint — 2026-10-25
+- Instructor has a shared guide-level variable catalog editor (add/rename/default/delete) and step action editor (SetValue/Clear/CopyFromVariable). IDs are assigned automatically.
+- Instructor V5 persistence uses the new tables; step and guide deletion clean up dependent variable action records.
+- Canonical variable definitions and step actions can be read from V5 by GuideV5VariableReader, and Core has GuideVariableSession.
+- **Not production-ready:** the unified GuideExecutionEngine and both runtime adapters are still wired to legacy Capture; ReadFromTarget, target binding from the editor, and one-time migration are not completed.
+- Do not run --apply migration or claim variable step actions execute until the runtime switch and regression tests pass.
+- A C# Windows build has not been performed in this environment.
