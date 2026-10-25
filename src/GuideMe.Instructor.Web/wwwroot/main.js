@@ -239,11 +239,13 @@ function renderSteps() {
         (locatorText ? '<p>רכיב שנבחר: <strong>' + esc(friendlyName) + '</strong></p>' +
           '<p class="target-technical">מזהה רכיב: <code dir="ltr">' + esc(locatorText) + '</code></p>' : '') :
         '<p>עדיין לא נבחר רכיב לשלב הזה.</p>') +
-      ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') && target ?
-        '<button class="btn secondary small" id="replace-web-target">בחירת רכיב אחר</button>' : '') +
+      ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') ?
+        (target ? '<button class="btn secondary small" id="replace-web-target">בחירת רכיב אחר</button>' :
+          '<button id="pick-element" class="btn primary">הפעלת ממפה רכיבים</button>') +
+        '<div id="pick-result" class="hidden" aria-live="polite"></div>' : '') +
       '</section>' +
       '<section class="step-friendly-card"><h3>מתי ממשיכים לשלב הבא?</h3>' +
-      '<p>' + esc(conditionText) + '</p>' +
+      '<p>' + esc(!target ? 'יוגדר לאחר בחירת הרכיב.' : conditionText) + '</p>' +
       (rule?.ExpectedValue ? '<p>ערך צפוי: <strong>' + esc(rule.ExpectedValue) + '</strong></p>' : '') +
       ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') && rule ?
         '<button class="btn secondary small" id="edit-validation">עריכת תנאי ההתקדמות</button>' : '') +
@@ -311,18 +313,8 @@ function renderSteps() {
     if (targetReplace) targetReplace.onclick = () => guarded(() => startElementPicker(true));
     const conditionEditor = $('edit-validation');
     if (conditionEditor) conditionEditor.onclick = () => editValidation(step, rule);
-    if (context?.Runtime === 'Web' || context?.Runtime === 'Windows') {
-      const section = document.createElement('section');
-      section.className = 'target-editor';
-      section.innerHTML = (!target && !rule
-          ? '<h3>בחירת רכיב</h3>' +
-            '<button id="pick-element" class="btn primary">הפעלת ממפה רכיבים</button>'
-          : '') +
-        '<div id="pick-result" class="hidden" aria-live="polite"></div>';
-      $('step-inspector').append(section);
-      const startButton = $('pick-element');
-      if (startButton) startButton.onclick = () => guarded(() => startElementPicker());
-    }
+    const startButton = $('pick-element');
+    if (startButton) startButton.onclick = () => guarded(() => startElementPicker());
 
   })));
 }
