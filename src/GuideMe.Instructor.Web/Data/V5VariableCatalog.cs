@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.Data.Sqlite;
 
 namespace GuideMe.Instructor.Web.Data;
@@ -227,6 +229,85 @@ internal static class V5VariableCatalog
         command.CommandText = @"SELECT EXISTS(SELECT 1 FROM StepVariableActions WHERE GuideId=$guide)";
         command.Parameters.AddWithValue("$guide", guideId);
         return Convert.ToInt64(command.ExecuteScalar()) != 0;
+    }
+
+    /// <summary>
+    /// Bind one persisted primary locator to a guide variable. The picker owns
+    /// target discovery; the editor selects only the variable (and CSS attribute).
+    /// </summary>
+    internal static void BindPrimaryTarget(long guideId, string stepId,
+        string variableId, string? attribute)
+    {
+        using var connection = Open();
+        EnsureSchema(connection);
+        using var tx = connection.BeginTransaction();
+        using var cmd = connection.CreateCommand();
+        cmd.Transaction = tx;
+        cmd.Parameters.AddWithValue("$guide", guideId);
+        cmd.Parameters.AddWithValue("$step", stepId);
+        cmd.Parameters.AddWithValue("$variable", variableId);
+        cmd.CommandText = @"SELECT COUNT(*) FROM GuideVariables
+            WHERE GuideId=$guide AND VariableId=$variable";
+        if (Convert.ToInt32(cmd.ExecuteScalar()) != 1)
+            throw new ArgumentException("יש לבחור משתנה שהוגדר בלומדה.");
+
+        cmd.CommandText = @"SELECT t.ElementId,e.Runtime,e.LocatorsJson
+            FROM StepTargets t JOIN Elements e
+              ON e.GuideId=t.GuideId AND e.ElementId=t.ElementId
+            WHERE t.GuideId=$guide AND t.StepId=$step AND t.Purpose='Primary'";
+        string elementId, runtime, json;
+        using (var reader = cmd.ExecuteReader())
+        {
+            if (!reader.Read())
+                throw new InvalidOperationException("יש לבחור רכיב במסך לפני קישור משתנה.");
+            elementId = reader.GetString(0);
+            runtime = reader.GetString(1);
+            json = reader.GetString(2);
+            if (reader.Read())
+                throw new InvalidOperationException("נמצאו מספר רכיבים ראשיים.");
+        }
+        cmd.Parameters.AddWithValue("$element", elementId);
+        cmd.CommandText = @"SELECT COUNT(*) FROM StepTargets
+            WHERE GuideId=$guide AND ElementId=$element";
+        if (Convert.ToInt32(cmd.ExecuteScalar()) != 1)
+            throw new InvalidOperationException("הרכיב משותף לשלבים נוספים; יש לבחור רכיב ייעודי לשלב.");
+
+        var locators = JsonSerializer.Deserialize<List<V5GuideWriter.TargetLocator>>(json)
+            ?? throw new InvalidOperationException("לא ניתן לקרוא מזהה רכיב.");
+        if (locators.Count != 1)
+            throw new InvalidOperationException("קישור משתנה דורש מזהה רכיב ראשי יחיד.");
+        var selected = locators[0];
+        var token = "{{var:" + variableId + "}}";
+        string updated;
+        if (runtime == "Windows")
+        {
+            if (selected.Strategy is not ("name" or "automation-id"))
+                throw new InvalidOperationException("סוג מזהה Windows אינו נתמך.");
+            updated = token;
+        }
+        else if (runtime == "Web")
+        {
+            if (selected.Strategy != "css" || string.IsNullOrWhiteSpace(attribute)
+                || !Regex.IsMatch(attribute, @"^[a-zA-Z_][\w-]*$"))
+                throw new ArgumentException("יש לבחור מאפיין מתוך מזהה רכיב ה־Web.");
+            var pattern = @"\[\s*" + Regex.Escape(attribute) +
+                @"\s*=\s*(?<q>['""])(?<value>.*?)\k<q>\s*\]";
+            var matches = Regex.Matches(selected.Value, pattern, RegexOptions.CultureInvariant);
+            if (matches.Count != 1)
+                throw new InvalidOperationException("לא נמצא ערך מאפיין חד־משמעי במזהה הרכיב.");
+            var value = matches[0].Groups["value"];
+            updated = selected.Value[..value.Index] + token
+                + selected.Value[(value.Index + value.Length)..];
+        }
+        else throw new InvalidOperationException("סוג אפליקציית יעד אינו נתמך.");
+
+        cmd.CommandText = @"UPDATE Elements SET LocatorsJson=$locators
+            WHERE GuideId=$guide AND ElementId=$element";
+        cmd.Parameters.AddWithValue("$locators", JsonSerializer.Serialize(
+            new[] { selected with { Value = updated } }));
+        if (cmd.ExecuteNonQuery() != 1)
+            throw new InvalidOperationException("שמירת קישור המשתנה נכשלה.");
+        tx.Commit();
     }
 
 }
