@@ -274,15 +274,23 @@ function renderSteps() {
       (variableActions.length ? variableActions.map(action => {
         const variable = (current.variables || []).find(v => v.id === action.variableId);
         const source = (current.variables || []).find(v => v.id === action.sourceVariableId);
-        const label = action.kind === 'SetValue' ? 'הזנת ערך' :
-          action.kind === 'Clear' ? 'איפוס' :
-          action.kind === 'CopyFromVariable' ? 'העתקה מ־' + (source?.name || 'משתנה אחר') :
-          'קליטה מרכיב (' + (action.property || 'ערך') + ')';
-        return '<div class="guide-variable-row"><span><strong>' + esc(variable?.name || action.variableId) +
-          '</strong> · ' + esc(label) + ' · ' + esc(
-            action.timing === 'DuringStep' ? 'במהלך השלב' :
-            action.timing === 'BeforeAction' ? 'לפני הפעולה' : 'אחרי הפעולה') +
-          '</span><span class="context-actions">' +
+        const read = action.kind === 'ReadFromTarget';
+        const usage = read ? data.targets.find(t => t.UsageId === action.targetUsageId) : null;
+        const sourceElement = usage ? (data.elements || []).find(e => e.ElementId === usage.ElementId) : null;
+        const sourceLocator = parseJson(sourceElement?.LocatorsJson, [])[0]?.Value || '';
+        const sourceName = sourceElement?.DisplayName || sourceLocator || 'רכיב שלא זוהה';
+        const extraction = !action.pattern ? 'הערך המלא' :
+          action.pattern === '([0-9]+)' ? 'מספר בלבד' : 'חילוץ מותאם אישית';
+        const description = read
+          ? '<div class="variable-action-details"><div>מקור: <strong>' + esc(sourceName) + '</strong></div>' +
+            '<div>מה יישמר? <strong>' + esc(extraction) + '</strong></div></div>'
+          : '<div class="variable-action-details">' + esc(
+              action.kind === 'SetValue' ? 'ערך קבוע' :
+              action.kind === 'Clear' ? 'איפוס המשתנה' :
+              'העתקה מהמשתנה ' + (source?.name || 'שנבחר')) + '</div>';
+        return '<div class="guide-variable-row"><div><strong>' + esc(variable?.name || action.variableId) +
+          '</strong>' + description +
+          '</div><span class="context-actions">' +
           '<button class="btn secondary small" data-move-variable-action="' + esc(action.id) + '" data-direction="-1"' +
           (action.order === variableActions[0].order ? ' disabled' : '') + '>למעלה</button>' +
           '<button class="btn secondary small" data-move-variable-action="' + esc(action.id) + '" data-direction="1"' +
