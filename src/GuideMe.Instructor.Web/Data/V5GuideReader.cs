@@ -10,7 +10,7 @@ namespace GuideMe.Instructor.Web.Data;
 internal static class V5GuideReader
 {
     internal const string DatabasePath = @"C:\ProgramData\GuideMe\Data\GuideMe-V5.db";
-    internal sealed record GuideInfo(long Id, string Key, string Name)
+    internal sealed record GuideInfo(long Id, string Key, string Name, int StepCount = 0)
     {
         public string DisplayName => $"{Id} — {Name}";
     }
@@ -37,11 +37,13 @@ internal static class V5GuideReader
     {
         using var connection = Open();
         using var command = connection.CreateCommand();
-        command.CommandText = "SELECT GuideId, GuideKey, GuideName FROM Guides ORDER BY GuideName";
+        command.CommandText = @"SELECT g.GuideId, g.GuideKey, g.GuideName,
+       (SELECT COUNT(*) FROM Steps s WHERE s.GuideId = g.GuideId) AS StepCount
+FROM Guides g ORDER BY g.GuideName";
         using var reader = command.ExecuteReader();
         var guides = new List<GuideInfo>();
         while (reader.Read())
-            guides.Add(new GuideInfo(reader.GetInt64(0), reader.GetString(1), reader.GetString(2)));
+            guides.Add(new GuideInfo(reader.GetInt64(0), reader.GetString(1), reader.GetString(2), reader.GetInt32(3)));
         return guides;
     }
 
