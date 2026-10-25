@@ -278,7 +278,10 @@ function renderSteps() {
           action.kind === 'CopyFromVariable' ? 'העתקה מ־' + (source?.name || 'משתנה אחר') :
           'קליטה מרכיב (' + (action.property || 'ערך') + ')';
         return '<div class="guide-variable-row"><span><strong>' + esc(variable?.name || action.variableId) +
-          '</strong> · ' + esc(label) + '</span><span class="context-actions">' +
+          '</strong> · ' + esc(label) + ' · ' + esc(
+            action.timing === 'DuringStep' ? 'במהלך השלב' :
+            action.timing === 'BeforeAction' ? 'לפני הפעולה' : 'אחרי הפעולה') +
+          '</span><span class="context-actions">' +
           '<button class="btn secondary small" data-move-variable-action="' + esc(action.id) + '" data-direction="-1"' +
           (action.order === variableActions[0].order ? ' disabled' : '') + '>למעלה</button>' +
           '<button class="btn secondary small" data-move-variable-action="' + esc(action.id) + '" data-direction="1"' +
@@ -286,7 +289,7 @@ function renderSteps() {
           '<button class="btn danger small" data-remove-variable-action="' + esc(action.id) + '">הסרה</button></span></div>';
       }).join('') : '<p>לא הוגדרו פעולות משתנים לשלב.</p>') +
       '<button class="btn secondary small" id="add-variable-action"' +
-      ((current.variables || []).length ? '' : ' disabled') + ' >הוספת פעולת משתנה</button>' +
+      ((current.variables || []).length ? '' : ' disabled') + '>הוספת פעולת משתנה</button>' +
       '<button class="btn secondary small" id="pick-variable-source"' +
       ((current.variables || []).length ? '' : ' disabled') + '>בחירת רכיב מקור למשתנה</button></section>';
     $('add-variable-action').onclick = () => editStepVariableAction(step, data.targets, context?.Runtime);
@@ -616,7 +619,8 @@ async function refreshPicker() {
       const item = [...document.querySelectorAll('[data-step]')]
         .find(x => x.dataset.step === pickedFor.stepId);
       if (item) await item.click();
-      notify(pickedFor.replacing
+      notify(pickedFor.variableSource ? 'רכיב מקור המשתנה נשמר ללא שינוי רכיב הפעולה.'
+        : pickedFor.replacing
         ? 'הרכיב הוחלף בהצלחה. תנאי ההתקדמות נשאר ללא שינוי.'
         : pickedFor.completion ? 'תנאי ההשלמה נשמר.' : 'רכיב היעד ותנאי ההתקדמות נשמרו.');
     } catch (error) {
