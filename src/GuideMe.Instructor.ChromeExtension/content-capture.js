@@ -321,7 +321,9 @@
       // Values are not persisted: only the chosen extraction rule is stored.
       variableSamples: (() => {
         const samples = [];
-        if ('value' in target && typeof target.value === 'string' && target.value.trim())
+        if ('value' in target && typeof target.value === 'string' && target.value.trim() &&
+            !['password','hidden'].includes(String(target.type || '').toLowerCase()) &&
+            !/password|one-time-code|cc-number|cc-csc/i.test(target.getAttribute('autocomplete') || ''))
           samples.push({property:'value', value:target.value.slice(0,250)});
         const directText = (target.innerText || target.textContent || '').replace(/\s+/g,' ').trim();
         if (directText && directText.length <= 250)
