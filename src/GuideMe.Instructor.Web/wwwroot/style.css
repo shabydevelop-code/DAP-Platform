@@ -242,3 +242,31 @@ p,.panel-header p,.step-body small,.empty,.empty-inspector{color:#52657a}
    component and media-query font-size overrides cannot reintroduce jumps. */
 html { font-size: 15px; }
 body, body *, dialog, dialog * { font-size: 15px !important; }
+
+/* Unified, higher-contrast surface outlines across Instructor.
+   Keep dividers subtler than interactive controls; preserve focus styles. */
+:root {
+  --gm-border: #a7b8cc;
+  --gm-divider: #c4cedb;
+}
+.panel, .metric, .context-card, .step-friendly-card, .step-summary,
+.application-option, .context-cards .context-card {
+  border-color: var(--gm-border);
+}
+.btn.secondary, .btn.danger, .search,
+.field input, .field select, .field textarea,
+#editor-dialog .field textarea, #pick-result select {
+  border-color: var(--gm-border);
+}
+.panel-header, .table td, .step-row, .step-list,
+.dialog-head, .step-capture, .target-editor {
+  border-color: var(--gm-divider);
+}
+#editor-dialog { border: 1px solid var(--gm-border); }
+.btn.danger, .guide-actions .danger { border-color: #cf8493; }
+.application-option:has(input:checked) { border-color: #3975c4; }
+.btn.secondary:hover, .btn.secondary:focus-visible,
+.search:hover, .field input:hover, .field select:hover,
+.field textarea:hover, #editor-dialog .field textarea:hover {
+  border-color: #6e88a8;
+}
