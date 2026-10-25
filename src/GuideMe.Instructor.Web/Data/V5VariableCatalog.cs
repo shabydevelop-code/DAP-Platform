@@ -324,14 +324,44 @@ internal static class V5VariableCatalog
     {
         using var connection = Open();
         EnsureSchema(connection);
+        using var tx = connection.BeginTransaction();
         using var cmd = connection.CreateCommand();
-        cmd.CommandText = @"DELETE FROM StepVariableActions
-            WHERE GuideId=$guide AND StepId=$step AND ActionId=$id";
+        cmd.Transaction = tx;
         cmd.Parameters.AddWithValue("$guide", guideId);
         cmd.Parameters.AddWithValue("$step", stepId);
         cmd.Parameters.AddWithValue("$id", actionId);
+        cmd.CommandText = @"SELECT TargetUsageId FROM StepVariableActions
+            WHERE GuideId=$guide AND StepId=$step AND ActionId=$id";
+        var usageId = cmd.ExecuteScalar() as string;
+        cmd.CommandText = @"DELETE FROM StepVariableActions
+            WHERE GuideId=$guide AND StepId=$step AND ActionId=$id";
         if (cmd.ExecuteNonQuery() != 1)
             throw new InvalidOperationException("פעולת המשתנה לא נמצאה.");
+        if (usageId is not null)
+        {
+            cmd.Parameters.AddWithValue("$usage", usageId);
+            cmd.CommandText = @"SELECT ElementId FROM StepTargets
+                WHERE GuideId=$guide AND StepId=$step
+                    AND UsageId=$usage AND Purpose='VariableSource'
+                    AND NOT EXISTS (SELECT 1 FROM StepVariableActions a
+                        WHERE a.GuideId=$guide AND a.StepId=$step
+                            AND a.TargetUsageId=$usage)";
+            var elementId = cmd.ExecuteScalar() as string;
+            if (elementId is not null)
+            {
+                cmd.Parameters.AddWithValue("$element", elementId);
+                cmd.CommandText = @"DELETE FROM StepTargets
+                    WHERE GuideId=$guide AND StepId=$step AND UsageId=$usage
+                        AND Purpose='VariableSource'";
+                cmd.ExecuteNonQuery();
+                cmd.CommandText = @"DELETE FROM Elements
+                    WHERE GuideId=$guide AND ElementId=$element
+                    AND NOT EXISTS (SELECT 1 FROM StepTargets t
+                        WHERE t.GuideId=$guide AND t.ElementId=$element)";
+                cmd.ExecuteNonQuery();
+            }
+        }
+        tx.Commit();
     }
 
     internal static bool HasActions(long guideId)
