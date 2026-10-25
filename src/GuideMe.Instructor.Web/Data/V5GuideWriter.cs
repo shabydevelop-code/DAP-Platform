@@ -469,6 +469,24 @@ WHERE GuideId=$guideId AND StepOrder<0";
         using var transaction = connection.BeginTransaction();
         // The V5 schema does not define ON DELETE CASCADE. Remove dependent
         // entities in foreign-key order, atomically, without touching other guides.
+        // Variable tables may be absent until the editor initializes them.
+        using (var variableCleanup = connection.CreateCommand())
+        {
+            variableCleanup.Transaction = transaction;
+            variableCleanup.CommandText = @"SELECT name FROM sqlite_master WHERE type='table'
+                AND name IN ('StepVariableActions','GuideVariables')";
+            var present = new HashSet<string>(StringComparer.Ordinal);
+            using (var names = variableCleanup.ExecuteReader())
+                while (names.Read()) present.Add(names.GetString(0));
+            foreach (var table in new[] { "StepVariableActions", "GuideVariables" })
+            {
+                if (!present.Contains(table)) continue;
+                variableCleanup.CommandText = "DELETE FROM " + table + " WHERE GuideId=$id";
+                variableCleanup.Parameters.Clear();
+                variableCleanup.Parameters.AddWithValue("$id", guideId);
+                variableCleanup.ExecuteNonQuery();
+            }
+        }
         foreach (var table in new[] {
             "StepRules", "StepTargets", "ElementAnchors", "Elements",
             "Steps", "ApplicationContexts", "Guides"
