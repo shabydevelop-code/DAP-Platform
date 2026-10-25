@@ -1,4 +1,4 @@
-# GuideMe — unified guide variables (implementation in progress)
+# GuideMe — unified guide variables
 
 ## Decision
 - One **guide-level variable catalog**, one **ordered step action list**, and one **runtime variable store** per learner session.
@@ -9,7 +9,7 @@
 - Values are session-local and must not be persisted as definitions or shared across sessions.
 - No permanent compatibility reader or dual engine for legacy StepRules Capture or `{{step:...:capture}}`.
 
-## Implemented code (not yet build-verified)
+## Implemented code (Windows build / Instructor authoring regression pending)
 - The sole execution path uses GuideVariableSession in GuideRunPlan and GuideExecutionEngine for both single-runtime and mixed Web/Windows guides.
 - GuideV5ExecutionCompiler reads guide variables and ordered step actions. Source targets reuse StepTargets / Elements and preserve Web iframe and Windows UIA descriptors.
 - BeforeAction and AfterAction assignments execute at shared step boundaries; DuringStep is an adapter observation feeding the same variable session.
@@ -17,8 +17,10 @@
 - GuideStep no longer stores legacy Capture. V5 no longer compiles legacy StepRules Capture, and the new schema does not accept that rule type.
 - The Instructor supports guide-level add/edit/remove, step-level set/read/clear/copy, timing, and binding a picked primary target's locator value from a variable selection.
 - `scripts/Migrate-GuideMeVariables.py` converts existing captures and references once. Windows implicit dual sampling becomes two actions (DuringStep and AfterAction); the migration recreates StepRules without Capture fields.
-- Target selection for a **different** source element than the step primary/completion target is not yet integrated into the Inspector picker.
-- The database on the user's computer has **not** been migrated. A Windows build and full regression have **not** been run in this environment.
+- Independent source element selection uses the existing Instructor Web/Windows picker and persists a dedicated `VariableSource` StepTarget/Element plus ordered `ReadFromTarget` action transactionally, without changing the primary/completion targets.
+- The step action dialog supports `BeforeAction`, `DuringStep` (target reads only), and `AfterAction`; the Instructor lets authors reorder actions via up/down controls. The underlying variable session and compiler are shared by Web and Windows.
+- When a dedicated source read action is deleted, its unreferenced target and element are cleaned up. A primary target can be selected after defining a source-only target.
+- The user migrated the V5 database successfully (GuideVariables=2, StepVariableActions=3, legacy Capture rules=0, foreign key errors=0) and published Learner and Instructor. Web Learner full regression succeeded after fixing iframe context for variable URL fragment reads. Windows/mixed runtime regressions and the new Instructor authoring flow are still pending; a Windows build of the new Instructor changes has not yet been reported.
 
 ## One-time migration and verification
 
@@ -28,10 +30,10 @@
 3. Compare the preview with expected legacy capture counts and references. The migration is not an application startup hook.
 4. Apply once, with the unified code built, using
    `python scripts/Migrate-GuideMeVariables.py "C:\\ProgramData\\GuideMe\\Data\\GuideMe-V5.db" --apply --unified-runtime-ready`.
-   The script creates a SQLite backup before applying any changes and validates foreign keys.
+   The script validates foreign keys; it does not create a backup (per user request).
 5. Re-publish updated GuideMe app and Instructor, then validate all original enabled Web and Windows steps and a mixed guide.
 6. Regression checkpoints: original Web 10 save, 11 captured frame hash, 12 reopen matching new case, 48/50 reuse; Windows captured ID and name; multiple actions on one step; variable reset/copy; and stop/restart session variable isolation.
 
 ## Release gate
-Do not claim completion until updated .NET sources build on Windows, migration preview/apply is verified on a backup, and Web/Windows/mixed guide regressions pass. A guide tested from a later step can legitimately lack variables initialized in earlier steps; surface that as a missing variable rather than guessing.
+Do not claim full completion until updated .NET sources build on Windows, the Instructor variable-picker/reorder authoring path is exercised end-to-end, and Windows/mixed guide regressions pass. Web learner full regression and migration were reported successful. A guide tested from a later step can legitimately lack variables initialized in earlier steps; surface that as a missing variable rather than guessing.
 
