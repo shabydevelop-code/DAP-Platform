@@ -580,7 +580,7 @@ WHERE GuideId=$guideId AND StepId=$stepId AND Purpose='Primary'";
         if (!replacing)
         {
             command.CommandText = @"SELECT COUNT(*) FROM StepTargets
-WHERE GuideId=$guideId AND StepId=$stepId";
+WHERE GuideId=$guideId AND StepId=$stepId AND Purpose='Primary'";
             if (Convert.ToInt64(command.ExecuteScalar()) != 0)
                 throw new InvalidOperationException("כבר קיים רכיב יעד בשלב.");
             command.CommandText = @"SELECT COUNT(*) FROM StepRules
