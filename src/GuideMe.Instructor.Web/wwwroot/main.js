@@ -275,7 +275,7 @@ function renderSteps() {
         const label = action.kind === 'SetValue' ? 'הזנת ערך' :
           action.kind === 'Clear' ? 'איפוס' :
           action.kind === 'CopyFromVariable' ? 'העתקה מ־' + (source?.name || 'משתנה אחר') :
-          'קליטה מרכיב';
+          'קליטה מרכיב (' + (action.property || 'ערך') + ')';
         return '<div class="guide-variable-row"><span><strong>' + esc(variable?.name || action.variableId) +
           '</strong> · ' + esc(label) + '</span>' +
           '<button class="btn danger small" data-remove-variable-action="' + esc(action.id) + '">הסרה</button></div>';
