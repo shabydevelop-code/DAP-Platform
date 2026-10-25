@@ -24,7 +24,7 @@ public interface IWebBrowserAdapter
     Task<WebBubblePresentation> EnsureBubbleShownAsync(GuideStep step, int stepNumber, int totalSteps, bool visible = true, CancellationToken cancellationToken = default, string? automaticStepLabel = null);
     Task HideBubbleAsync(CancellationToken cancellationToken = default);
     Task WaitForCenteredStepDismissalAsync(GuideStep step, int stepNumber, int totalSteps, CancellationToken cancellationToken = default);
-    Task<string?> CaptureAsync(GuideStep step, CancellationToken cancellationToken = default);
+    Task<string?> ReadVariableAsync(GuideStep step, GuideVariableAction action, CancellationToken cancellationToken = default);
 }
 
 public sealed record WebTargetResolution(WebTargetResolutionStatus Status, int MatchCount = 0);
