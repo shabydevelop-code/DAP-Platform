@@ -457,7 +457,7 @@ const targetAdapters = {
 
   }
 };
-async function beginTargetPicker(runtime, guideId, stepId, contextId, replacing=false, completion=false, context=null) {
+async function beginTargetPicker(runtime, guideId, stepId, contextId, replacing=false, completion=false, context=null, variableSource=null) {
   const adapter = targetAdapters[runtime];
   if (!adapter) throw new Error('סביבת היעד אינה נתמכת.');
   if (completion && !adapter.saveCompletion)
@@ -466,7 +466,7 @@ async function beginTargetPicker(runtime, guideId, stepId, contextId, replacing=
     await targetAdapters[pickingFor.runtime].cancel();
     pickingFor = null;
   }
-  const session = {runtime,guideId,stepId,contextId,replacing,completion,context,startedAt:Date.now()};
+  const session = {runtime,guideId,stepId,contextId,replacing,completion,context,variableSource,startedAt:Date.now()};
   const box = $('pick-result');
   if (!box) throw new Error('אזור אישור הרכיב חסר בממשק.');
   box.dataset.pickedSelector = '';
@@ -529,8 +529,8 @@ async function refreshPicker() {
       '<select id="grid-row-choice"><option value="">בחירת הרכיב הרגילה (לפי מיקום)</option>'+
       candidate.gridChoices.map((choice,i)=>'<option value="'+i+'">'+esc(choice.header)+': '+esc(choice.value)+'</option>').join('')+
       '</select><p>בחירה לפי ערך תישאר תקפה גם לאחר מיון הטבלה. אם הערך אינו ייחודי, הוא לא יוצע.</p>' : '')+
-    (pickingFor.replacing ? '' : '<label for="target-condition">' + (pickingFor.completion ? 'חוק השלמה' : 'תנאי התקדמות') + '</label>')+
-    (pickingFor.replacing ? '' : '<select id="target-condition">'+
+    (pickingFor.replacing || pickingFor.variableSource ? '' : '<label for="target-condition">' + (pickingFor.completion ? 'חוק השלמה' : 'תנאי התקדמות') + '</label>')+
+    (pickingFor.replacing || pickingFor.variableSource ? '' : '<select id="target-condition">'+
     (pickingFor.completion ? '<option value="target-appeared">הופיע</option><option value="target-vanished">נעלם</option><option value="attribute-equals">מאפיין משתנה לערך צפוי</option>' :
     '<option value="clicked" '+(['input','textarea','select'].includes(candidate.tag)?'':'selected')+'>המשתמש לוחץ על הרכיב</option>'+
     '<option value="value-not-empty" '+(['input','textarea','select'].includes(candidate.tag)?'selected':'')+'>הוזן ערך בשדה</option>'+
