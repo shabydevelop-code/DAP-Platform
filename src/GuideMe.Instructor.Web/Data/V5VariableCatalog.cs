@@ -212,6 +212,114 @@ internal static class V5VariableCatalog
         { throw new InvalidOperationException("לא ניתן לשמור פעולה: בדוק את המשתנה ואת השלב.", ex); }
     }
 
+    /// <summary>Persist a picked, independent source target and its read action
+    /// in one transaction; neither the primary target nor completion rules change.</summary>
+    internal static void AddPickedRead(long guideId, string stepId, string variableId,
+        string runtime, IReadOnlyList<V5GuideWriter.TargetLocator> locators,
+        IReadOnlyList<V5GuideWriter.TargetLocator> frames, string? displayName,
+        string property, string timing)
+    {
+        if (runtime is not ("Web" or "Windows") || locators.Count is < 1 or > 12
+            || locators.Any(l => string.IsNullOrWhiteSpace(l.Value) || l.Value.Length > 400
+                || (runtime == "Web" ? l.Strategy != "css"
+                    : l.Strategy is not ("name" or "automation-id")))
+            || frames.Count > 12 || frames.Any(l => runtime != "Web"
+                || l.Strategy != "css" || string.IsNullOrWhiteSpace(l.Value)))
+            throw new ArgumentException("מזהה רכיב המקור אינו תקין.");
+        if (runtime == "Web" && property is not ("text" or "value" or "frame-url-fragment")
+            || runtime == "Windows" && property is not ("name" or "automation-id"))
+            throw new ArgumentException("מאפיין קריאה אינו נתמך.");
+        if (!Enum.TryParse<GuideMe.Core.Guides.StepCaptureTiming>(timing, false, out _))
+            throw new ArgumentException("מועד הקריאה אינו תקין.");
+        using var connection = Open();
+        EnsureSchema(connection);
+        using var tx = connection.BeginTransaction();
+        using var cmd = connection.CreateCommand();
+        cmd.Transaction = tx;
+        cmd.CommandText = @"SELECT COUNT(*) FROM Steps s
+            JOIN ApplicationContexts c ON c.GuideId=s.GuideId
+                AND c.ContextId=s.ApplicationContextId
+            JOIN GuideVariables v ON v.GuideId=s.GuideId AND v.VariableId=$variable
+            WHERE s.GuideId=$guide AND s.StepId=$step AND c.Runtime=$runtime";
+        cmd.Parameters.AddWithValue("$guide", guideId);
+        cmd.Parameters.AddWithValue("$step", stepId);
+        cmd.Parameters.AddWithValue("$variable", variableId);
+        cmd.Parameters.AddWithValue("$runtime", runtime);
+        if (Convert.ToInt64(cmd.ExecuteScalar()) != 1)
+            throw new InvalidOperationException("הרכיב או המשתנה אינם שייכים לשלב באפליקציית היעד.");
+        var usageId = "variable-" + Guid.NewGuid().ToString("N");
+        var elementId = "element-" + Guid.NewGuid().ToString("N");
+        cmd.Parameters.AddWithValue("$usage", usageId);
+        cmd.Parameters.AddWithValue("$element", elementId);
+        cmd.Parameters.AddWithValue("$locators", JsonSerializer.Serialize(locators));
+        cmd.Parameters.AddWithValue("$frames", frames.Count == 0
+            ? (object)DBNull.Value : JsonSerializer.Serialize(frames));
+        cmd.Parameters.AddWithValue("$name", (object?)displayName ?? DBNull.Value);
+        cmd.CommandText = @"INSERT INTO Elements
+            (GuideId,ElementId,Runtime,LocatorsJson,FrameContextJson,DisplayName)
+            VALUES ($guide,$element,$runtime,$locators,$frames,$name)";
+        cmd.ExecuteNonQuery();
+        cmd.CommandText = @"INSERT INTO StepTargets
+            (GuideId,StepId,UsageId,ElementId,Purpose)
+            VALUES ($guide,$step,$usage,$element,'VariableSource')";
+        cmd.ExecuteNonQuery();
+        cmd.CommandText = @"INSERT INTO StepVariableActions
+            (GuideId,StepId,ActionId,ActionOrder,VariableId,ActionKind,
+             TargetUsageId,Property,Timing)
+            VALUES ($guide,$step,$action,
+                (SELECT COALESCE(MAX(ActionOrder),-1)+1 FROM StepVariableActions
+                 WHERE GuideId=$guide AND StepId=$step),
+                $variable,'ReadFromTarget',$usage,$property,$timing)";
+        cmd.Parameters.AddWithValue("$action", "action-" + Guid.NewGuid().ToString("N"));
+        cmd.Parameters.AddWithValue("$property", property);
+        cmd.Parameters.AddWithValue("$timing", timing);
+        cmd.ExecuteNonQuery();
+        tx.Commit();
+    }
+
+    internal static void MoveAction(long guideId, string stepId, string actionId, int direction)
+    {
+        if (direction is not (-1 or 1))
+            throw new ArgumentException("כיוון שינוי סדר אינו תקין.");
+        using var connection = Open();
+        EnsureSchema(connection);
+        using var tx = connection.BeginTransaction();
+        using var cmd = connection.CreateCommand();
+        cmd.Transaction = tx;
+        cmd.CommandText = @"SELECT ActionId,ActionOrder FROM StepVariableActions
+            WHERE GuideId=$guide AND StepId=$step ORDER BY ActionOrder";
+        cmd.Parameters.AddWithValue("$guide", guideId);
+        cmd.Parameters.AddWithValue("$step", stepId);
+        var rows = new List<(string Id,int Order)>();
+        using (var reader = cmd.ExecuteReader())
+            while (reader.Read()) rows.Add((reader.GetString(0),reader.GetInt32(1)));
+        var index = rows.FindIndex(x => x.Id == actionId);
+        if (index < 0) throw new InvalidOperationException("פעולת המשתנה אינה קיימת.");
+        var destination = index + direction;
+        if (destination < 0 || destination >= rows.Count) return;
+        (rows[index],rows[destination])=(rows[destination],rows[index]);
+        // Negative temporary orders avoid colliding with the unique
+        // (GuideId,StepId,ActionOrder) constraint during re-numbering.
+        for (var i=0;i<rows.Count;i++)
+        {
+            cmd.Parameters.Clear();
+            cmd.CommandText = @"UPDATE StepVariableActions SET ActionOrder=$order
+                WHERE GuideId=$guide AND StepId=$step AND ActionId=$id";
+            cmd.Parameters.AddWithValue("$guide",guideId);
+            cmd.Parameters.AddWithValue("$step",stepId);
+            cmd.Parameters.AddWithValue("$id",rows[i].Id);
+            cmd.Parameters.AddWithValue("$order",-i-1000000);
+            cmd.ExecuteNonQuery();
+        }
+        for (var i=0;i<rows.Count;i++)
+        {
+            cmd.Parameters["$id"].Value=rows[i].Id;
+            cmd.Parameters["$order"].Value=i;
+            cmd.ExecuteNonQuery();
+        }
+        tx.Commit();
+    }
+
     internal static void DeleteAction(long guideId, string stepId, string actionId)
     {
         using var connection = Open();
