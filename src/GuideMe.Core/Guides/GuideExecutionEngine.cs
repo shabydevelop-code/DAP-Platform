@@ -236,7 +236,7 @@ public sealed class GuideExecutionEngine
         var runtime = adapter.Runtime;
         var diagnosticName = adapter.DiagnosticName;
 
-        var plan = new GuideRunPlan(steps);
+        var plan = new GuideRunPlan(steps, variables);
         // Step.Order is the persisted guide position. A start-step run contains
         // only a suffix of the guide, so its count is not the display total.
         var displayTotal = plan.Steps.Count == 0 ? 0 : Math.Max(plan.Steps.Count, plan.Steps.Max(step => step.Order));
