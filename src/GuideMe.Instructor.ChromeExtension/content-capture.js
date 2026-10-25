@@ -317,6 +317,17 @@
     const candidate = {
       stateAttributes,
       gridChoices,
+      // Display-only snapshot for Instructor variable extraction preview.
+      // Values are not persisted: only the chosen extraction rule is stored.
+      variableSamples: (() => {
+        const samples = [];
+        if ('value' in target && typeof target.value === 'string' && target.value.trim())
+          samples.push({property:'value', value:target.value.slice(0,250)});
+        const directText = (target.innerText || target.textContent || '').replace(/\s+/g,' ').trim();
+        if (directText && directText.length <= 250)
+          samples.push({property:'text', value:directText});
+        return samples;
+      })(),
       selector, url:location.href, tag:target.tagName.toLowerCase(),
       label:(() => {
         const explicit = target.getAttribute("aria-label") ||
