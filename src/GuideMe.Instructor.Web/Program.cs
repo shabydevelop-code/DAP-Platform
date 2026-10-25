@@ -346,6 +346,12 @@ app.MapDelete("/api/guides/{id:long}/variables/{variableId}",
     return Results.NoContent();
 });
 
+app.MapPost("/api/guides/{id:long}/steps/{stepId}/bind-variable",
+    (long id, string stepId, TargetVariableBinding body) =>
+{
+    V5VariableCatalog.BindPrimaryTarget(id, stepId, body.VariableId, body.Attribute);
+    return Results.NoContent();
+});
 app.MapGet("/api/guides/{id:long}/steps/{stepId}/variables", (long id, string stepId) =>
     Results.Ok(V5VariableCatalog.ListActions(id, stepId)));
 app.MapPost("/api/guides/{id:long}/steps/{stepId}/variables",
@@ -500,3 +506,5 @@ internal sealed record GuideVariableRequest(string Name, string? InitialValue);
 
 internal sealed record StepVariableActionRequest(string VariableId, string Kind, string? Value,
     string? SourceVariableId, string? TargetUsageId, string? Property, string? Timing);
+
+internal sealed record TargetVariableBinding(string VariableId, string? Attribute);
