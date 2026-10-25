@@ -4,6 +4,7 @@ using GuideMe.Runtime.Web.Browser;
 
 namespace GuideMe.Runtime.Web.Learner;
 
+/// <summary>Web step adapter for the single GuideMe variable execution model.</summary>
 public sealed class AdapterWebGuideRuntime
 {
     private readonly WebGuideStepRuntime _steps;
@@ -15,46 +16,25 @@ public sealed class AdapterWebGuideRuntime
         _browser = browser ?? throw new ArgumentNullException(nameof(browser));
     }
 
-    public Task RunAsync(
-        IReadOnlyList<GuideStep> guideSteps,
-        CancellationToken cancellationToken)
-    {
-        return new GuideExecutionEngine().RunAsync(guideSteps, CreateStepAdapter(), cancellationToken);
-    }
+    public Task RunAsync(IReadOnlyList<GuideStep> guideSteps, CancellationToken cancellationToken,
+        IReadOnlyList<GuideVariableDefinition>? variables = null)
+        => new GuideExecutionEngine().RunAsync(guideSteps, CreateStepAdapter(), cancellationToken, variables);
 
     public IGuideStepAdapter CreateStepAdapter()
-    {
-        return new DelegateGuideStepAdapter(TargetRuntime.Web, "Web",
+        => new DelegateGuideStepAdapter(TargetRuntime.Web, "Web",
             async (step, index, total, plan, token) =>
             {
                 Func<CancellationToken, Task>? onTargetObserved = null;
-                if (GuideRunPlan.ShouldCapture(step, TargetRuntime.Web, StepCaptureTiming.DuringStep))
-                    onTargetObserved = async observationToken =>
-                    {
-                        var value = await _browser.CaptureAsync(step, observationToken);
-                        GuideRunPlan.RecordCapture(plan.Captures, step.Id, value);
-                    };
+                if (step.VariableActions?.Any(a => a.Timing == StepCaptureTiming.DuringStep) == true)
+                    onTargetObserved = observationToken =>
+                        plan.Variables.ExecuteActionsAsync(step.VariableActions!,
+                            StepCaptureTiming.DuringStep,
+                            (action, readToken) => _browser.ReadVariableAsync(step, action, readToken),
+                            observationToken);
                 await _steps.RunActiveStepAsync(
                     step, step.Order, total, token, onTargetObserved: onTargetObserved);
-                if (GuideRunPlan.ShouldCapture(step, TargetRuntime.Web, StepCaptureTiming.AfterAction))
-                {
-                    var value = await _browser.CaptureAsync(step, token);
-                    if (value is null)
-                        throw new InvalidOperationException($"Guide Step '{step.Id}' declares a Web after-action capture that could not be resolved.");
-                    GuideRunPlan.RecordCapture(plan.Captures, step.Id, value);
-                }
             },
-            async (step, total, token) =>
-            {
-                await _browser.WaitForCenteredStepDismissalAsync(step, step.Order, total, token);
-            },
-            async (step, plan, token) =>
-            {
-                var value = await _browser.CaptureAsync(step, token);
-                if (value is null)
-                    throw new InvalidOperationException($"Guide Step '{step.Id}' declares a Web capture that could not be resolved.");
-                GuideRunPlan.RecordCapture(plan.Captures, step.Id, value);
-            });
-    }
-
+            (step, total, token) =>
+                _browser.WaitForCenteredStepDismissalAsync(step, step.Order, total, token),
+            (step, action, token) => _browser.ReadVariableAsync(step, action, token));
 }
