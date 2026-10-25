@@ -82,11 +82,10 @@ def convert(db, apply):
         guide,step,rule,usage,prop,pattern,timing,runtime=row
         resolved_timing = timing or ("BeforeAction" if runtime=="Web" else "DuringStep")
         print(f" guide={guide} step={step} variable={variable_id(step)} property={prop} timing={resolved_timing}")
-        # Legacy Windows has BOTH during-step and final after-action capture.
-        # A single explicit timing cannot reproduce both in all cases.
+        # Legacy Windows can observe during the step and after validation.
+        # Preserve both observations as two ordered actions, not a second engine.
         if runtime=="Windows" and timing is None:
-            raise ValueError("Windows capture with legacy implicit DuringStep+AfterAction timing: "
-                             "manual timing audit required before conversion")
+            print("  Windows implicit timing -> DuringStep + AfterAction actions")
     if not apply:
         print("Read-only preview; database unchanged")
         return
@@ -100,12 +99,15 @@ def convert(db, apply):
         vid=variable_id(step)
         db.execute("INSERT INTO GuideVariables(GuideId,VariableId,DisplayName) VALUES(?,?,?)",
                    (guide,vid,"לכידה: "+step))
-        db.execute("""INSERT INTO StepVariableActions
-          (GuideId,StepId,ActionId,ActionOrder,VariableId,ActionKind,
-           TargetUsageId,Property,Pattern,Timing)
-          VALUES (?,?,?,?,?,'ReadFromTarget',?,?,?,?)""",
-          (guide,step,"converted-"+rule,0,vid,usage,prop,pattern,
-           timing or ("BeforeAction" if runtime=="Web" else "DuringStep")))
+        moments = ([timing] if timing else
+                   ["BeforeAction"] if runtime=="Web" else
+                   ["DuringStep","AfterAction"])
+        for order,moment in enumerate(moments):
+            db.execute("""INSERT INTO StepVariableActions
+              (GuideId,StepId,ActionId,ActionOrder,VariableId,ActionKind,
+               TargetUsageId,Property,Pattern,Timing)
+              VALUES (?,?,?,?,?,'ReadFromTarget',?,?,?,?)""",
+              (guide,step,"converted-"+rule+"-"+moment,order,vid,usage,prop,pattern,moment))
     for table,column,rowid,value in updates:
         db.execute(f"UPDATE {table} SET {column}=? WHERE rowid=?",(value,rowid))
     db.execute("DELETE FROM StepRules WHERE RuleType='Capture'")
