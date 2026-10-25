@@ -115,8 +115,13 @@ internal static class V5VariableCatalog
         using var connection = Open();
         EnsureSchema(connection);
         using var command = connection.CreateCommand();
-        command.CommandText = @"DELETE FROM GuideVariables WHERE GuideId=$guide AND VariableId=$id";
+        command.CommandText = @"SELECT COUNT(*) FROM Elements WHERE GuideId=$guide
+            AND (LocatorsJson LIKE $token OR FrameContextJson LIKE $token)";
+        command.Parameters.AddWithValue("$token", "%{{var:" + variableId + "}}%");
         command.Parameters.AddWithValue("$guide", guideId);
+        if (Convert.ToInt64(command.ExecuteScalar()) != 0)
+            throw new InvalidOperationException("לא ניתן למחוק משתנה המשמש לזיהוי רכיב. יש להסיר תחילה את הקישור.");
+        command.CommandText = @"DELETE FROM GuideVariables WHERE GuideId=$guide AND VariableId=$id";
         command.Parameters.AddWithValue("$id", variableId);
         try { if (command.ExecuteNonQuery() != 1) throw new InvalidOperationException("המשתנה לא נמצא."); }
         catch (SqliteException e) when (e.SqliteErrorCode == 19)
