@@ -267,6 +267,7 @@ function renderSteps() {
           '<button class="btn secondary small" id="remove-completion">הסרת תנאי השלמה</button>' :
           '<p>בחר רכיב ובדוק הופעה, היעלמות או שינוי מאפיין בעקבות הפעולה.</p>' +
           '<button class="btn secondary small" id="add-completion">בחירת רכיב לתנאי השלמה</button>') +
+        '<div id="completion-pick-result" class="hidden" aria-live="polite"></div>' +
         '</section>' : '') +
       '<section class="step-friendly-card completion-card" aria-labelledby="step-variables-title">' +
       '<h3 id="step-variables-title">משתנים</h3>' +
@@ -291,7 +292,8 @@ function renderSteps() {
       '<button class="btn secondary small" id="add-variable-action"' +
       ((current.variables || []).length ? '' : ' disabled') + '>הוספת פעולת משתנה</button>' +
       '<button class="btn secondary small" id="pick-variable-source"' +
-      ((current.variables || []).length ? '' : ' disabled') + '>בחירת רכיב מקור למשתנה</button></section>';
+      ((current.variables || []).length ? '' : ' disabled') + '>בחירת רכיב מקור למשתנה</button>' +
+      '<div id="variable-pick-result" class="hidden" aria-live="polite"></div></section>';
     $('add-variable-action').onclick = () => editStepVariableAction(step, data.targets, context?.Runtime);
     if ($('pick-variable-source')) $('pick-variable-source').onclick = () => selectVariableSource(step, context);
     document.querySelectorAll('[data-move-variable-action]').forEach(button =>
@@ -477,6 +479,11 @@ const targetAdapters = {
 
   }
 };
+// The picker transport is shared; each authoring purpose owns its preview.
+function pickerResultBox(session) {
+  return $(session.variableSource ? 'variable-pick-result' :
+    session.completion ? 'completion-pick-result' : 'pick-result');
+}
 async function beginTargetPicker(runtime, guideId, stepId, contextId, replacing=false, completion=false, context=null, variableSource=null) {
   const adapter = targetAdapters[runtime];
   if (!adapter) throw new Error('סביבת היעד אינה נתמכת.');
@@ -487,7 +494,7 @@ async function beginTargetPicker(runtime, guideId, stepId, contextId, replacing=
     pickingFor = null;
   }
   const session = {runtime,guideId,stepId,contextId,replacing,completion,context,variableSource,startedAt:Date.now()};
-  const box = $('pick-result');
+  const box = pickerResultBox(session);
   if (!box) throw new Error('אזור אישור הרכיב חסר בממשק.');
   box.dataset.pickedSelector = '';
   box.classList.remove('hidden');
@@ -514,7 +521,7 @@ async function refreshPicker() {
   const state = await adapter.status();
   if (!pickingFor || pickingFor !== requestSession ||
       current?.guide?.id !== requestSession.guideId || selectedStep !== requestSession.stepId) return;
-  const box = $('pick-result');
+  const box = pickerResultBox(requestSession);
   if (!box) return;
   if (!state.picked) {
     if (state.error || state.pickerError) {
