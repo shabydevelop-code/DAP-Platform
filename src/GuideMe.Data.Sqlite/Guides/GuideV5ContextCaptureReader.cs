@@ -3,15 +3,12 @@ using System.Text.Json;
 
 namespace GuideMe.Data.Sqlite.Guides;
 
-/// <summary>Loads application contexts and captures for the production learner.</summary>
+/// <summary>Loads application contexts for the production learner.</summary>
 public static class GuideV5ContextCaptureReader
 {
     public sealed record ContextMatcher(int Order, string Kind, string Value);
     public sealed record ApplicationContext(string ContextId, string Runtime, IReadOnlyList<ContextMatcher> Matchers);
-    public sealed record Capture(string StepId, string CaptureId, string TargetUsageId,
-        string Property, string? Pattern, string? Timing);
-    public sealed record Definitions(long GuideId, IReadOnlyList<ApplicationContext> Contexts,
-        IReadOnlyList<Capture> Captures);
+    public sealed record Definitions(long GuideId, IReadOnlyList<ApplicationContext> Contexts);
 
     public static async Task<Definitions> ReadAsync(
         string databasePath, string guideKey, CancellationToken cancellationToken = default)
@@ -47,19 +44,6 @@ public static class GuideV5ContextCaptureReader
                         ?? throw new InvalidOperationException("Invalid compact matchers JSON.")));
         }
 
-        var captures = new List<Capture>();
-        await using (var command = connection.CreateCommand())
-        {
-            command.CommandText = "SELECT StepId,RuleId,TargetUsageId,Property,Pattern,Timing FROM StepRules WHERE GuideId=$guide AND RuleType='Capture' ORDER BY StepId,RuleId";
-            command.Parameters.AddWithValue("$guide", guideId);
-            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-            while (await reader.ReadAsync(cancellationToken))
-                captures.Add(new Capture(reader.GetString(0), reader.GetString(1),
-                    reader.GetString(2), reader.GetString(3),
-                    reader.IsDBNull(4) ? null : reader.GetString(4),
-                    reader.IsDBNull(5) ? null : reader.GetString(5)));
-        }
-
-        return new Definitions(guideId, contexts, captures);
+        return new Definitions(guideId, contexts);
     }
 }
