@@ -164,7 +164,6 @@ public sealed class WindowsGuideRuntime
                             true,
                             AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction)) == GuideStepReconciliationResult.Completed)
                 {
-                    ApplyVariableActions(windowRoot, step, plan, StepCaptureTiming.AfterAction);
                     return GuideStepReconciliationResult.Completed;
                 }
 
@@ -541,7 +540,6 @@ public sealed class WindowsGuideRuntime
                             true,
                             AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction)) == GuideStepReconciliationResult.Completed)
                     {
-                        ApplyVariableActions(windowRoot, step, plan, StepCaptureTiming.AfterAction);
                         return GuideStepReconciliationResult.Completed;
                     }
                 }
