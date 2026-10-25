@@ -220,8 +220,15 @@ internal static class V5VariableCatalog
     internal static void AddPickedRead(long guideId, string stepId, string variableId,
         string runtime, IReadOnlyList<V5GuideWriter.TargetLocator> locators,
         IReadOnlyList<V5GuideWriter.TargetLocator> frames, string? displayName,
-        string property, string timing)
+        string property, string timing, string? pattern)
     {
+        if (pattern is { Length: > 300 })
+            throw new ArgumentException("כלל חילוץ ארוך מדי.");
+        if (!string.IsNullOrEmpty(pattern))
+        {
+            try { _ = new Regex(pattern, RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(250)); }
+            catch (ArgumentException) { throw new ArgumentException("כלל החילוץ אינו תקין."); }
+        }
         if (runtime is not ("Web" or "Windows") || locators.Count is < 1 or > 12
             || locators.Any(l => string.IsNullOrWhiteSpace(l.Value) || l.Value.Length > 400
                 || (runtime == "Web" ? l.Strategy != "css"
@@ -268,14 +275,15 @@ internal static class V5VariableCatalog
         cmd.ExecuteNonQuery();
         cmd.CommandText = @"INSERT INTO StepVariableActions
             (GuideId,StepId,ActionId,ActionOrder,VariableId,ActionKind,
-             TargetUsageId,Property,Timing)
+             TargetUsageId,Property,Timing,Pattern)
             VALUES ($guide,$step,$action,
                 (SELECT COALESCE(MAX(ActionOrder),-1)+1 FROM StepVariableActions
                  WHERE GuideId=$guide AND StepId=$step),
-                $variable,'ReadFromTarget',$usage,$property,$timing)";
+                $variable,'ReadFromTarget',$usage,$property,$timing,$pattern)";
         cmd.Parameters.AddWithValue("$action", "action-" + Guid.NewGuid().ToString("N"));
         cmd.Parameters.AddWithValue("$property", property);
         cmd.Parameters.AddWithValue("$timing", timing);
+        cmd.Parameters.AddWithValue("$pattern", (object?)pattern ?? DBNull.Value);
         cmd.ExecuteNonQuery();
         tx.Commit();
     }
