@@ -221,3 +221,18 @@ p,.panel-header p,.step-body small,.empty,.empty-inspector{color:#52657a}
 #steps-panel .step-body{flex:1;min-width:0}
 #steps-panel .step-body strong{font-size:12px;line-height:1.35}
 #steps-panel .step-disabled-badge{flex-shrink:0;font-size:10px;font-weight:650;color:#805d20;background:#fff3d9;border-radius:6px;padding:3px 5px}
+
+/* Selected guide heading shares the compact toolbar's visual hierarchy. */
+.guide-card .guide-identity #detail-name {
+  font-size: 1rem;
+  line-height: 1.4;
+  font-weight: 700;
+  letter-spacing: 0;
+  max-width: 100%;
+}
+.guide-card .guide-identity { gap: 10px; }
+@media (max-width: 700px) {
+  .guide-card .guide-identity #detail-name { font-size: 1rem; }
+  .guide-card .guide-identity { flex-wrap: wrap; gap: 4px 10px; }
+  .guide-card .guide-identity #detail-description { font-size: .75rem; }
+}
