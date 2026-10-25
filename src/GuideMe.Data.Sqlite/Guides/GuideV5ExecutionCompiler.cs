@@ -18,6 +18,8 @@ public static class GuideV5ExecutionCompiler
         string databasePath, string guideKey, CancellationToken cancellationToken = default)
     {
         var data = await GuideV5GuideReader.ReadAsync(databasePath, guideKey, cancellationToken);
+        await GuideV5VariableReader.RequireMigratedAsync(
+            databasePath, data.GuideId, cancellationToken);
         // V5 variables are the single canonical definition. This read requires
         // the new schema; legacy captures must be converted before switching
         // the active learner execution to this model.
