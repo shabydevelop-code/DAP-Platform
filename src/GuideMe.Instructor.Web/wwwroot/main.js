@@ -950,10 +950,18 @@ function editStepVariableAction(step, targets, runtime) {
     {name:'variableId',label:'משתנה לעדכון',value:options[0].value,choices:options},
     {name:'kind',label:'פעולה',value:'SetValue',choices:[
       {value:'SetValue',text:'הזנת ערך'}, {value:'Clear',text:'איפוס משתנה'},
-      {value:'CopyFromVariable',text:'העתקה ממשתנה אחר'}]},
+      {value:'CopyFromVariable',text:'העתקה ממשתנה אחר'},
+      ...(targetOptions.length ? [{value:'ReadFromTarget',text:'קליטה מהאפליקציה'}] : [])]},
     {name:'value',label:'ערך (עבור הזנת ערך)',value:'',optional:true,max:1000},
     {name:'sourceVariableId',label:'משתנה מקור (עבור העתקה)',
-     value:options[0].value,choices:options}
+     value:options[0].value,choices:options},
+    ...(targetOptions.length ? [
+      {name:'targetUsageId',label:'רכיב לקריאה',value:targetOptions[0].value,choices:targetOptions},
+      {name:'property',label:'ערך לקריאה',value:properties[0].value,choices:properties}
+    ] : []),
+    {name:'timing',label:'מועד הפעולה',value:'AfterAction',choices:[
+      {value:'BeforeAction',text:'לפני הפעולה בשלב'},
+      {value:'AfterAction',text:'אחרי הפעולה בשלב'}]}
   ],async values => {
     await api('/guides/' + guideId + '/steps/' + encodeURIComponent(stepId) + '/variables',
       {method:'POST',body:JSON.stringify(values)});
