@@ -583,7 +583,9 @@ async function refreshPicker() {
       const gridChoice = $('grid-row-choice')?.value;
       const gridChoiceIndex = gridChoice === undefined || gridChoice === '' ? null : Number(gridChoice);
       const adapter = targetAdapters[pickedFor.runtime];
-      if (pickedFor.completion)
+      if (pickedFor.variableSource)
+        await api('/guides/'+pickedFor.guideId+'/steps/'+encodeURIComponent(pickedFor.stepId)+'/variable-source', {method:'POST',body:JSON.stringify({...pickedFor.variableSource,processId:pickedFor.processId || null,gridChoice:gridChoiceIndex})});
+      else if (pickedFor.completion)
         await adapter.saveCompletion(pickedFor, candidate);
       else
         await api('/guides/'+pickedFor.guideId+'/steps/'+encodeURIComponent(pickedFor.stepId)+'/primary-target',
