@@ -179,7 +179,7 @@ public static class GuideMeApplicationHost
         if (enabledTargetRuntimes.Length == 2 &&
             enabledTargetRuntimes.Contains(GuideMe.Core.Targets.TargetRuntime.Web) &&
             enabledTargetRuntimes.Contains(GuideMe.Core.Targets.TargetRuntime.Windows))
-            return await RunMixedAsync(options, steps, applicationContexts, guideName, texts, startup, cancellationToken);
+            return await RunMixedAsync(options, steps, applicationContexts, v5.Variables, guideName, texts, startup, cancellationToken);
 
         if (enabledTargetRuntimes.Length != 1)
             throw new InvalidOperationException(
@@ -188,9 +188,9 @@ public static class GuideMeApplicationHost
         return enabledTargetRuntimes[0] switch
         {
             GuideMe.Core.Targets.TargetRuntime.Windows => await RunWindowsAsync(
-                options, steps, applicationContexts, guideName, texts, startup, cancellationToken),
+                options, steps, applicationContexts, v5.Variables, guideName, texts, startup, cancellationToken),
             GuideMe.Core.Targets.TargetRuntime.Web => await RunWebAsync(
-                options, steps, applicationContexts, guideName, texts, startup, cancellationToken),
+                options, steps, applicationContexts, v5.Variables, guideName, texts, startup, cancellationToken),
             _ => throw new NotSupportedException(
                 $"Guide '{options.GuideId}' uses unsupported Runtime '{enabledTargetRuntimes[0]}'.")
         };
@@ -208,6 +208,7 @@ public static class GuideMeApplicationHost
         GuideMeLaunchOptions options,
         IReadOnlyList<GuideMe.Core.Guides.GuideStep> steps,
         IReadOnlyList<GuideMe.Core.Guides.GuideApplicationContext> applicationContexts,
+        IReadOnlyList<GuideMe.Core.Guides.GuideVariableDefinition> variables,
         string guideName,
         IUiTextProvider texts,
         Stopwatch startup,
@@ -301,8 +302,8 @@ public static class GuideMeApplicationHost
                 var root = ResolveWindow(step);
                 await windows.CreateStepAdapter(root).ShowCenteredInformationAsync(step, total, token);
             },
-            (step, plan, token) =>
-                windows.CreateStepAdapter(ResolveWindow(step)).CaptureAsync(step, plan, token));
+            (step, action, token) =>
+                windows.CreateStepAdapter(ResolveWindow(step)).ReadVariableAsync(step, action, token));
 
         try
         {
@@ -376,7 +377,7 @@ public static class GuideMeApplicationHost
                         }
                         await Task.Delay(250, token);
                     }
-                });
+                }, variables);
         }
         catch (OperationCanceledException) when (stopped.IsCancellationRequested)
         {
@@ -408,6 +409,7 @@ public static class GuideMeApplicationHost
         GuideMeLaunchOptions options,
         IReadOnlyList<GuideMe.Core.Guides.GuideStep> steps,
         IReadOnlyList<GuideMe.Core.Guides.GuideApplicationContext> applicationContexts,
+        IReadOnlyList<GuideMe.Core.Guides.GuideVariableDefinition> variables,
         string guideName,
         IUiTextProvider texts,
         Stopwatch startup,
@@ -466,7 +468,7 @@ public static class GuideMeApplicationHost
         try
         {
             StartupMark(startup, "Windows guide runtime starting");
-            await runtime.RunAsync(window, steps, runCancellation.Token);
+            await runtime.RunAsync(window, steps, runCancellation.Token, variables);
         }
         catch (OperationCanceledException) when (userStopped.IsCancellationRequested)
         {
@@ -618,6 +620,7 @@ public static class GuideMeApplicationHost
         GuideMeLaunchOptions options,
         IReadOnlyList<GuideMe.Core.Guides.GuideStep> steps,
         IReadOnlyList<GuideMe.Core.Guides.GuideApplicationContext> applicationContexts,
+        IReadOnlyList<GuideMe.Core.Guides.GuideVariableDefinition> variables,
         string guideName,
         IUiTextProvider texts,
         Stopwatch startup,
@@ -646,7 +649,7 @@ public static class GuideMeApplicationHost
         try
         {
             StartupMark(startup, "Web adapter guide runtime starting");
-            await guideRuntime.RunAsync(steps, runCancellation.Token);
+            await guideRuntime.RunAsync(steps, runCancellation.Token, variables);
             Console.Error.WriteLine("[GuideMe diagnostic] Web guide runtime completed normally.");
         }
         catch (OperationCanceledException) when (webUserStopped.IsCancellationRequested)
