@@ -977,6 +977,10 @@ function editStepVariableAction(step, targets, runtime) {
     $('field-value').closest('.field').classList.toggle('hidden', operation.value !== 'SetValue');
     $('field-sourceVariableId').closest('.field').classList.toggle('hidden',
       operation.value !== 'CopyFromVariable');
+    $('field-targetUsageId')?.closest('.field').classList.toggle('hidden',
+      operation.value !== 'ReadFromTarget');
+    $('field-property')?.closest('.field').classList.toggle('hidden',
+      operation.value !== 'ReadFromTarget');
   };
   operation.addEventListener('change', updateFields);
   updateFields();
