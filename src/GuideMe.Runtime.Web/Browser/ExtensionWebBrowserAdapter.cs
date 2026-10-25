@@ -783,18 +783,25 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             _centeredDismissal = null;
         }
     }
-    public async Task<string?> CaptureAsync(GuideStep step, CancellationToken cancellationToken = default)
+    public async Task<string?> ReadVariableAsync(GuideStep step, GuideVariableAction action,
+        CancellationToken cancellationToken = default)
     {
-        if (step.Capture is null) return null;
-        if (step.Capture.Runtime != TargetRuntime.Web)
-            throw new InvalidOperationException("Web adapter can capture only Web runtime values.");
-        var response = await SendCommandAsync(ContextualCommand(step, new { type = "capture", capture = step.Capture, framePath = step.Target?.FrameContext?.Path }), cancellationToken);
+        var source = action.SourceTarget
+            ?? throw new InvalidOperationException($"Variable action '{action.Id}' has no target.");
+        if (source.Runtime != TargetRuntime.Web)
+            throw new InvalidOperationException("Web adapter can read only Web target values.");
+        var capture = new StepCaptureDefinition(source.Runtime, source.Locator,
+            action.Property ?? throw new InvalidOperationException("Missing variable read property."),
+            action.Pattern, action.Timing);
+        var response = await SendCommandAsync(ContextualCommand(step,
+            new { type = "capture", capture, framePath = source.FrameContext?.Path }), cancellationToken);
         var result = response.GetProperty("result");
         if (result.GetProperty("status").GetString() != "resolved" ||
             !result.TryGetProperty("value", out var value) || value.ValueKind == JsonValueKind.Null) return null;
         var raw = value.GetString();
-        if (raw is null || string.IsNullOrEmpty(step.Capture.Pattern)) return raw;
-        var match = System.Text.RegularExpressions.Regex.Match(raw, step.Capture.Pattern, System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+        if (raw is null || string.IsNullOrEmpty(action.Pattern)) return raw;
+        var match = System.Text.RegularExpressions.Regex.Match(raw, action.Pattern,
+            System.Text.RegularExpressions.RegexOptions.CultureInvariant);
         if (!match.Success) return null;
         return match.Groups.Count > 1 ? match.Groups[1].Value : match.Value;
     }
