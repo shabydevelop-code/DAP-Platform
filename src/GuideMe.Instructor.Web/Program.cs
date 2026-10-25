@@ -406,20 +406,13 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/variable-source",
     return Results.NoContent();
 });
 
-app.MapPost("/api/guides/{id:long}/steps/{stepId}/variables/{actionId}/move",
-    (long id, string stepId, string actionId, MoveVariableActionRequest request) =>
-{
-    V5VariableCatalog.MoveAction(id, stepId, actionId, request.Direction);
-    return Results.NoContent();
-});
-
 app.MapGet("/api/guides/{id:long}/steps/{stepId}/variables", (long id, string stepId) =>
     Results.Ok(V5VariableCatalog.ListActions(id, stepId)));
 app.MapPost("/api/guides/{id:long}/steps/{stepId}/variables",
     (long id, string stepId, StepVariableActionRequest body) =>
 {
     V5VariableCatalog.AddAction(id, stepId, body.VariableId, body.Kind,
-        body.Value, body.SourceVariableId, body.TargetUsageId, body.Property, body.Timing);
+        body.Value, body.SourceVariableId);
     return Results.NoContent();
 });
 app.MapDelete("/api/guides/{id:long}/steps/{stepId}/variables/{actionId}",
@@ -566,10 +559,10 @@ internal sealed record EditWebValidation(string Kind, string? ExpectedValue);
 internal sealed record GuideVariableRequest(string Name, string? InitialValue);
 
 internal sealed record StepVariableActionRequest(string VariableId, string Kind, string? Value,
-    string? SourceVariableId, string? TargetUsageId, string? Property, string? Timing);
+    string? SourceVariableId);
 
 internal sealed record TargetVariableBinding(string VariableId, string? Attribute);
 
 internal sealed record SaveVariableSourceRequest(string VariableId, string Property,
     int? ProcessId, int? GridChoice, string? Pattern);
-internal sealed record MoveVariableActionRequest(int Direction);
+
