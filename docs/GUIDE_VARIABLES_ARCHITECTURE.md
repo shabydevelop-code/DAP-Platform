@@ -12,6 +12,8 @@
 ## Model and storage (first code changes)
 - `src/GuideMe.Core/Guides/GuideVariableDefinition.cs`: definitions and step actions.
 - `docs/schema/GuideMe-V5.sql`: `GuideVariables` and `StepVariableActions` with foreign keys to the existing guide, step, and target catalog.
+- Added `GuideVariableSession` in Core: isolated per-run variable values, assign/copy/clear/read, and `{{var:<id>}}` substitution. It is not yet wired into learner execution.
+- Added `scripts/Migrate-GuideMeVariables.py`: read-only default, creates a backup before explicit apply and blocks Windows implicit capture timings requiring an audit. The migration must not be applied until the unified engine fully replaces Capture.
 - No database migration or active runtime switch has been executed yet.
 
 ## One-time conversion before enabling the new engine
