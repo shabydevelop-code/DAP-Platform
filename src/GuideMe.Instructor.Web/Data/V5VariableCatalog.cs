@@ -163,6 +163,23 @@ internal static class V5VariableCatalog
         using var connection = Open();
         EnsureSchema(connection);
         using var cmd = connection.CreateCommand();
+        if (kind == "ReadFromTarget")
+        {
+            cmd.CommandText = @"SELECT c.Runtime FROM StepTargets t
+                JOIN Steps s ON s.GuideId=t.GuideId AND s.StepId=t.StepId
+                JOIN ApplicationContexts c ON c.GuideId=s.GuideId AND c.ContextId=s.ApplicationContextId
+                WHERE t.GuideId=$checkGuide AND t.StepId=$checkStep AND t.UsageId=$checkUsage";
+            cmd.Parameters.AddWithValue("$checkGuide", guideId);
+            cmd.Parameters.AddWithValue("$checkStep", stepId);
+            cmd.Parameters.AddWithValue("$checkUsage", targetUsageId!);
+            var runtime = cmd.ExecuteScalar() as string;
+            if (runtime is null)
+                throw new InvalidOperationException("הרכיב שנבחר אינו שייך לשלב.");
+            if (runtime == "Web" && property is not ("text" or "value" or "frame-url-fragment")
+                || runtime == "Windows" && property is not ("name" or "automation-id"))
+                throw new ArgumentException("המאפיין אינו נתמך בסוג אפליקציית היעד.");
+            cmd.Parameters.Clear();
+        }
         cmd.CommandText = @"INSERT INTO StepVariableActions
             (GuideId,StepId,ActionId,ActionOrder,VariableId,ActionKind,
              LiteralValue,SourceVariableId,TargetUsageId,Property,Timing)
