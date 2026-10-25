@@ -400,7 +400,7 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/variable-source",
     }
     else return Results.BadRequest(new { message = "סביבת היעד אינה נתמכת." });
     V5VariableCatalog.AddPickedRead(id, stepId, request.VariableId,
-        runtime!, locators, frames, displayName, request.Property, request.Timing, request.Pattern);
+        runtime!, locators, frames, displayName, request.Property, request.Pattern);
     if (runtime == "Web") capture.CancelPicking();
     else windowsPicker.Stop();
     return Results.NoContent();
@@ -571,5 +571,5 @@ internal sealed record StepVariableActionRequest(string VariableId, string Kind,
 internal sealed record TargetVariableBinding(string VariableId, string? Attribute);
 
 internal sealed record SaveVariableSourceRequest(string VariableId, string Property,
-    string Timing, int? ProcessId, int? GridChoice, string? Pattern);
+    int? ProcessId, int? GridChoice, string? Pattern);
 internal sealed record MoveVariableActionRequest(int Direction);
