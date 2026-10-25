@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """One-time V5 capture-to-variable migration.
 
-Default: read-only preview. --apply requires a backup and an EXPLICIT
+Default: read-only preview. --apply requires an EXPLICIT
 integration switch to the unified variables runtime. This script is not
 part of normal application startup or publishing.
 """
@@ -9,7 +9,6 @@ import argparse
 import json
 import pathlib
 import re
-import shutil
 import sqlite3
 import sys
 
@@ -160,14 +159,6 @@ def main():
         parser.error("V5 database not found")
     if args.apply and not args.unified_runtime_ready:
         parser.error("--apply requires --unified-runtime-ready; never migrate ahead of runtime switch")
-    if args.apply:
-        backup=args.database.with_name(args.database.name+".before-variables.bak")
-        if backup.exists():
-            parser.error(f"Backup already exists: {backup}")
-        source=sqlite3.connect(f"file:{args.database.as_posix()}?mode=ro",uri=True)
-        with sqlite3.connect(backup) as dest: source.backup(dest)
-        source.close()
-        print(f"Backup created: {backup}")
     connection=sqlite3.connect(str(args.database) if args.apply else
         f"file:{args.database.as_posix()}?mode=ro",uri=not args.apply)
     try:
