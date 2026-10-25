@@ -139,7 +139,7 @@
   // has borders, or applies zoom/transforms. Outline does not affect layout.
   function clearHighlight() {
     if (highlighted && previousOutline) {
-      for (const property of ['outline', 'outline-offset']) {
+      for (const property of ['outline', 'outline-offset', 'box-shadow']) {
         const old = previousOutline[property];
         if (old.value)
           highlighted.style.setProperty(property, old.value, old.priority);
@@ -156,14 +156,17 @@
     clearHighlight();
     highlighted = target;
     previousOutline = {};
-    for (const property of ['outline', 'outline-offset']) {
+    for (const property of ['outline', 'outline-offset', 'box-shadow']) {
       previousOutline[property] = {
         value: target.style.getPropertyValue(property),
         priority: target.style.getPropertyPriority(property)
       };
     }
-    target.style.setProperty('outline', '2px solid #3678e8', 'important');
-    target.style.setProperty('outline-offset', '0px', 'important');
+    // A two-tone black/yellow halo stays visible on blue, white and dark UIs.
+    // Preserve and restore the target's original inline styling on cancel.
+    target.style.setProperty('box-shadow', '0 0 0 2px #111827', 'important');
+    target.style.setProperty('outline', '3px solid #ffdf00', 'important');
+    target.style.setProperty('outline-offset', '2px', 'important');
   }
 
   // Relay a selected element through its parent frames. The parent determines
