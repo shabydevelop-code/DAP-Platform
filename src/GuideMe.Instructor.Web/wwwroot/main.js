@@ -226,12 +226,13 @@ function renderSteps() {
     $('step-inspector').innerHTML =
       '<div class="step-editor-head"><div><h2>שלב ' + step.order + '</h2>' +
       '<p>אפליקציה: ' + esc(appText) + '</p></div>' +
-      '<div class="step-editor-actions"><button class="btn secondary small" id="edit-step">עריכת תוכן השלב</button>' +
+      '<div class="step-editor-actions">' +
       '<button class="btn danger small" id="delete-step">מחיקת שלב</button>' +
       '<button class="btn primary small" id="test-from-step"' + (step.enabled ? '' : ' disabled') + '>בדיקה משלב זה</button></div></div>' +
       '<div class="step-summary"><strong>הנחיה למשתמש</strong><p>' +
       esc(step.bubble || 'לא הוגדרה הנחיה') + '</p>' +
-      '<span class="chip">' + (step.enabled ? 'פעיל' : 'מושבת') + '</span></div>' +
+      '<div class="step-summary-actions"><span class="chip">' + (step.enabled ? 'פעיל' : 'מושבת') + '</span>' +
+      '<button class="btn secondary small" id="edit-step">עריכת תוכן השלב</button></div></div>' +
       '<div class="step-friendly-grid">' +
       '<section class="step-friendly-card"><h3>רכיב במסך</h3>' +
       (target ? '<p>נבחר רכיב באפליקציה' +
