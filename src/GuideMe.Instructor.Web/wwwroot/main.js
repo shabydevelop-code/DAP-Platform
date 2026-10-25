@@ -237,6 +237,7 @@ function renderSteps() {
       '<div class="step-editor-head"><div><h2>שלב ' + step.order + '</h2>' +
       '<p>אפליקציה: ' + esc(appText) + '</p></div>' +
       '<div class="step-editor-actions"><button class="btn secondary small" id="edit-step">עריכת תוכן השלב</button>' +
+      '<button class="btn secondary small" id="delete-step">מחיקת שלב</button>' +
       '<button class="btn primary small" id="test-from-step"' + (step.enabled ? '' : ' disabled') + '>בדיקה משלב זה</button></div></div>' +
       '<div class="step-summary"><strong>הנחיה למשתמש</strong><p>' +
       esc(step.bubble || 'לא הוגדרה הנחיה') + '</p>' +
@@ -269,6 +270,23 @@ function renderSteps() {
           '<button class="btn secondary small" id="add-completion">בחירת רכיב לתנאי השלמה</button>') +
         '</section>' : '');
     $('edit-step').onclick = () => editStep(step, contextId);
+    $('delete-step').onclick = () => guarded(async () => {
+      if (!current || !confirmDiscard()) return;
+      const guideId = current.guide.id;
+      const stepId = step.id;
+      if (!confirm('למחוק את שלב ' + step.order + '?\\n' +
+        (step.bubble || 'ללא הנחיה') +
+        '\\n\\nהשלב, הרכיבים וכללי ההתקדמות הייחודיים לו יימחקו לצמיתות.')) return;
+      const button = $('delete-step');
+      button.disabled = true;
+      try {
+        await api('/guides/' + guideId + '/steps/' + encodeURIComponent(stepId),
+          {method:'DELETE', body:'{}'});
+        await loadGuides();
+        await openGuide(guideId);
+        notify('שלב ' + step.order + ' נמחק. סדר השלבים עודכן.');
+      } finally { if (button.isConnected) button.disabled = false; }
+    });
     $('test-from-step').onclick = () => guarded(async () => {
       if (!current || !confirmDiscard()) return;
       const button = $('test-from-step');
