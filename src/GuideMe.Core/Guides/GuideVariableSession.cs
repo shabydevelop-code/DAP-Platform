@@ -127,6 +127,10 @@ public sealed class GuideVariableSession
                 continue;
             }
             var value = await readTarget(action, cancellationToken);
+            // DuringStep is a nonblocking observation. The requested value may
+            // appear later as the user types or navigates.
+            if (value is null && timing == StepCaptureTiming.DuringStep)
+                continue;
             if (value is null)
                 throw new InvalidOperationException(
                     $"Variable action '{action.Id}' could not read its target.");
