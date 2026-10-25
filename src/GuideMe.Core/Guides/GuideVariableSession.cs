@@ -6,13 +6,39 @@ namespace GuideMe.Core.Guides;
 /// <summary>
 /// One variable store per learner execution. This is the only variable model
 /// intended for the unified V5 execution path after the one-time data conversion.
-/// Not wired into production execution until the old capture path is removed.
+/// The active unified V5 learner uses this session for Web and Windows.
 /// </summary>
 public sealed class GuideVariableSession
 {
     private static readonly Regex Reference = new(
         @"\{\{var:(?<id>[^{}:]+)\}\}",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+    private static readonly object DiagnosticGate = new();
+    private static readonly bool DiagnosticsEnabled =
+        string.Equals(Environment.GetEnvironmentVariable("GUIDEME_VARIABLE_DIAGNOSTICS"),
+            "1", StringComparison.Ordinal);
+    private static readonly string DiagnosticFile =
+        Path.Combine(Path.GetTempPath(), "GuideMe-variable-diagnostic.log");
+
+    private static void Trace(string eventName, string detail)
+    {
+        if (!DiagnosticsEnabled) return;
+        lock (DiagnosticGate)
+        {
+            try
+            {
+                File.AppendAllText(DiagnosticFile,
+                    $"{DateTimeOffset.UtcNow:O} event={eventName} {detail}{Environment.NewLine}");
+            }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+        }
+    }
+
+    private static string Quoted(string? value)
+        => System.Text.Json.JsonSerializer.Serialize(value is { Length: > 2048 }
+            ? value[..2048] + "...(truncated)" : value);
 
     private readonly Dictionary<string, string?> _values;
 
@@ -64,6 +90,8 @@ public sealed class GuideVariableSession
             default:
                 throw new ArgumentOutOfRangeException(nameof(action.Kind));
         }
+        Trace("variable-action",
+            $"id={Quoted(action.Id)} kind={action.Kind} variable={Quoted(action.VariableId)} value={Quoted(Read(action.VariableId))}");
     }
 
     public string Resolve(string expression)
@@ -81,6 +109,11 @@ public sealed class GuideVariableSession
     public GuideStep Materialize(GuideStep step)
     {
         ArgumentNullException.ThrowIfNull(step);
+        if (step.Target is not null &&
+            (step.Target.Locator.Value.Contains("{{var:", StringComparison.Ordinal)
+             || step.Target.Anchors.Any(x => x.Locator.Value.Contains("{{var:", StringComparison.Ordinal))))
+            Trace("materialize-input",
+                $"step={Quoted(step.Id)} locator={Quoted(step.Target.Locator.Value)}");
         TargetDescriptor Expand(TargetDescriptor target) => target with
         {
             Locator = target.Locator with { Value = Resolve(target.Locator.Value) },
@@ -94,7 +127,7 @@ public sealed class GuideVariableSession
                     locator with { Value = Resolve(locator.Value) }).ToArray()
             }
         };
-        return step with
+        var expanded = step with
         {
             Target = step.Target is null ? null : Expand(step.Target),
             CompletionConditions = step.CompletionConditions?.Select(condition =>
@@ -103,6 +136,11 @@ public sealed class GuideVariableSession
                 action.SourceTarget is null ? action :
                 action with { SourceTarget = Expand(action.SourceTarget) }).ToArray()
         };
+        if (expanded.Target is not null &&
+            (step.Target?.Locator.Value.Contains("{{var:", StringComparison.Ordinal) == true))
+            Trace("materialize-result",
+                $"step={Quoted(step.Id)} locator={Quoted(expanded.Target.Locator.Value)}");
+        return expanded;
     }
 
     /// <summary>
@@ -127,6 +165,8 @@ public sealed class GuideVariableSession
                 continue;
             }
             var value = await readTarget(action, cancellationToken);
+            Trace("variable-observation",
+                $"id={Quoted(action.Id)} variable={Quoted(action.VariableId)} timing={timing} observed={Quoted(value)}");
             // DuringStep is a nonblocking observation. The requested value may
             // appear later as the user types or navigates.
             if (value is null && timing == StepCaptureTiming.DuringStep)
