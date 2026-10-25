@@ -290,6 +290,16 @@ function renderSteps() {
       '<button class="btn secondary small" id="pick-variable-source">בחירת רכיב מקור למשתנה</button></section>';
     $('add-variable-action').onclick = () => editStepVariableAction(step, data.targets, context?.Runtime);
     if ($('pick-variable-source')) $('pick-variable-source').onclick = () => selectVariableSource(step, context);
+    document.querySelectorAll('[data-move-variable-action]').forEach(button =>
+      button.onclick = () => guarded(async () => {
+        const guideId = current.guide.id, stepId = step.id;
+        await api('/guides/' + guideId + '/steps/' + encodeURIComponent(stepId) +
+          '/variables/' + encodeURIComponent(button.dataset.moveVariableAction) + '/move',
+          {method:'POST',body:JSON.stringify({direction:Number(button.dataset.direction)})});
+        await openGuide(guideId);
+        const item = [...document.querySelectorAll('[data-step]')].find(x => x.dataset.step === stepId);
+        item?.click();
+      }));
     document.querySelectorAll('[data-remove-variable-action]').forEach(button =>
       button.onclick = () => guarded(async () => {
         if (!confirm('להסיר את פעולת המשתנה?')) return;
