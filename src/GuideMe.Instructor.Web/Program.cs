@@ -292,6 +292,9 @@ app.MapPost("/api/guides/{id:long}/test", (long id, string? startStepId) =>
 {
     var guide = V5GuideReader.ListGuides().FirstOrDefault(g => g.Id == id);
     if (guide is null) return Results.NotFound();
+    // Until the one-engine runtime switch, never pretend authored variable actions execute.
+    if (V5VariableCatalog.HasActions(id))
+        return Results.Problem("לומדה זו כוללת פעולות משתנים, אך מנוע המשתנים עדיין אינו מחובר ל־Learner.", statusCode: 409);
     var enabledSteps = V5GuideReader.ListSteps(id).Where(step => step.Enabled).ToArray();
     if (enabledSteps.Length == 0)
         return Results.Problem("בלומדה אין שלבים פעילים.", statusCode: 409);
