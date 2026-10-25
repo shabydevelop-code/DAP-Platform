@@ -207,7 +207,7 @@ function renderSteps() {
     const step = current.steps.find(x=>x.id===selectedStep);
     const contextId = data.step?.[0]?.ApplicationContextId;
     const context = current.contexts.find(c => c.ContextId === contextId);
-    const target = data.targets.find(x => x.Purpose === 'Primary') || data.targets[0];
+    const target = data.targets.find(x => x.Purpose === 'Primary');
     const element = (data.elements || []).find(x => x.ElementId === target?.ElementId);
     const rule = data.rules.find(x => x.RuleType === 'PrimaryValidation');
     const locators = parseJson(element?.LocatorsJson, []);
@@ -287,7 +287,8 @@ function renderSteps() {
       }).join('') : '<p>לא הוגדרו פעולות משתנים לשלב.</p>') +
       '<button class="btn secondary small" id="add-variable-action"' +
       ((current.variables || []).length ? '' : ' disabled') + ' >הוספת פעולת משתנה</button>' +
-      '<button class="btn secondary small" id="pick-variable-source">בחירת רכיב מקור למשתנה</button></section>';
+      '<button class="btn secondary small" id="pick-variable-source"' +
+      ((current.variables || []).length ? '' : ' disabled') + '>בחירת רכיב מקור למשתנה</button></section>';
     $('add-variable-action').onclick = () => editStepVariableAction(step, data.targets, context?.Runtime);
     if ($('pick-variable-source')) $('pick-variable-source').onclick = () => selectVariableSource(step, context);
     document.querySelectorAll('[data-move-variable-action]').forEach(button =>
