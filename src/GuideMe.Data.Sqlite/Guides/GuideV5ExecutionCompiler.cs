@@ -11,12 +11,20 @@ namespace GuideMe.Data.Sqlite.Guides;
 public static class GuideV5ExecutionCompiler
 {
     public sealed record ExecutionPlan(IReadOnlyList<GuideStep> Steps,
-        IReadOnlyList<GuideApplicationContext> Contexts);
+        IReadOnlyList<GuideApplicationContext> Contexts,
+        IReadOnlyList<GuideVariableDefinition> Variables);
 
     public static async Task<ExecutionPlan> CompileAsync(
         string databasePath, string guideKey, CancellationToken cancellationToken = default)
     {
         var data = await GuideV5GuideReader.ReadAsync(databasePath, guideKey, cancellationToken);
+        // V5 variables are the single canonical definition. This read requires
+        // the new schema; legacy captures must be converted before switching
+        // the active learner execution to this model.
+        var variables = await GuideV5VariableReader.ReadDefinitionsAsync(
+            databasePath, data.GuideId, cancellationToken);
+        var actionsByStep = await GuideV5VariableReader.ReadActionsAsync(
+            databasePath, data.GuideId, cancellationToken);
         var uses = data.ElementCatalog.Usages.ToDictionary(x => (x.StepId, x.UsageId));
         var primaryUsagesByStep = data.ElementCatalog.Usages
             .Where(x => x.Purpose == "Primary")
@@ -106,12 +114,19 @@ public static class GuideV5ExecutionCompiler
                 }
                 capture = new StepCaptureDefinition(t.Runtime, t.Locator, c.Property, c.Pattern, timing);
             }
+            var actions = actionsByStep.TryGetValue(s.StepId, out var configuredActions)
+                ? configuredActions.Select(a => a.Kind == GuideVariableActionKind.ReadFromTarget
+                    ? a with { SourceTarget = Target(s.StepId,
+                        a.TargetUsageId ?? throw new InvalidOperationException(
+                            $"Variable action '{a.Id}' is missing its target usage.")) }
+                    : a).ToArray()
+                : Array.Empty<GuideVariableAction>();
             var policy = mainTarget is null
                 ? StepAdvanceMode.Manual
                 : StepAdvanceMode.AutomaticOnValidation;
             steps.Add(new GuideStep(s.StepId, s.Order, mainTarget,
                 new BubbleDefinition(s.BubbleContent, placement), validation, policy,
-                context, capture, completion, s.IsEnabled, s.ApplicationContextId));
+                context, capture, completion, s.IsEnabled, s.ApplicationContextId, actions));
         }
 
         var contexts = data.ContextsAndCaptures.Contexts.Select(c =>
@@ -121,6 +136,6 @@ public static class GuideV5ExecutionCompiler
             return new GuideApplicationContext(c.ContextId, runtime,
                 c.Matchers.Select(m => new ApplicationContextMatcher(m.Order, m.Kind, m.Value)).ToArray());
         }).ToArray();
-        return new ExecutionPlan(steps, contexts);
+        return new ExecutionPlan(steps, contexts, variables);
     }
 }
