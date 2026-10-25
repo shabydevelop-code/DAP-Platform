@@ -355,6 +355,13 @@ app.MapPut("/api/guides/{id:long}/steps/{stepId}", (long id, string stepId, Edit
     V5GuideWriter.UpdateStep(id, stepId, body.Bubble, body.Enabled, body.ContextId);
     return Results.NoContent();
 });
+app.MapDelete("/api/guides/{id:long}/steps/{stepId}", (long id, string stepId) =>
+{
+    if (V5GuideReader.ListSteps(id).All(step => step.Id != stepId))
+        return Results.NotFound();
+    V5GuideWriter.DeleteStep(id, stepId);
+    return Results.NoContent();
+});
 app.MapPost("/api/guides", (CreateGuideRequest body) =>
     Results.Ok(V5GuideWriter.CreateGuideWithApplications(body.Name, body.Applications)));
 app.MapPut("/api/guides/{id:long}/name", (long id, RenameGuide body) =>
