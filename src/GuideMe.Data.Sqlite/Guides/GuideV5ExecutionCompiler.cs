@@ -29,8 +29,6 @@ public static class GuideV5ExecutionCompiler
         var primaryUsagesByStep = data.ElementCatalog.Usages
             .Where(x => x.Purpose == "Primary")
             .ToLookup(x => x.StepId, StringComparer.Ordinal);
-        var capturesByStep = data.ContextsAndCaptures.Captures
-            .ToLookup(x => x.StepId, StringComparer.Ordinal);
         TargetDescriptor Target(string stepId, string usageId)
         {
             if (!uses.TryGetValue((stepId, usageId), out var use)
@@ -97,23 +95,6 @@ public static class GuideV5ExecutionCompiler
                 .Select(x => new StepCompletionCondition(x.Kind,
                     Target(s.StepId, x.TargetUsageId ?? throw new InvalidOperationException(
                         $"Completion signal '{x.SignalId}' has no target.")), x.ExpectedValue)).ToArray();
-            var captures = capturesByStep[s.StepId].ToArray();
-            if (captures.Length > 1)
-                throw new NotSupportedException($"Multiple captures at '{s.StepId}' are not supported by the current runtime.");
-            StepCaptureDefinition? capture = null;
-            if (captures.Length == 1)
-            {
-                var c = captures[0];
-                var t = Target(s.StepId, c.TargetUsageId);
-                StepCaptureTiming? timing = null;
-                if (c.Timing is not null)
-                {
-                    if (!Enum.TryParse<StepCaptureTiming>(c.Timing, out var parsed))
-                        throw new InvalidOperationException($"Invalid capture timing '{c.Timing}'.");
-                    timing = parsed;
-                }
-                capture = new StepCaptureDefinition(t.Runtime, t.Locator, c.Property, c.Pattern, timing);
-            }
             var actions = actionsByStep.TryGetValue(s.StepId, out var configuredActions)
                 ? configuredActions.Select(a => a.Kind == GuideVariableActionKind.ReadFromTarget
                     ? a with { SourceTarget = Target(s.StepId,
@@ -126,7 +107,7 @@ public static class GuideV5ExecutionCompiler
                 : StepAdvanceMode.AutomaticOnValidation;
             steps.Add(new GuideStep(s.StepId, s.Order, mainTarget,
                 new BubbleDefinition(s.BubbleContent, placement), validation, policy,
-                context, capture, completion, s.IsEnabled, s.ApplicationContextId, actions));
+                context, completion, s.IsEnabled, s.ApplicationContextId, actions));
         }
 
         var contexts = data.ContextsAndCaptures.Contexts.Select(c =>
