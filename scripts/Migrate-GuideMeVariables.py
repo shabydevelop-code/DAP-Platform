@@ -90,7 +90,11 @@ def convert(db, apply):
     if not apply:
         print("Read-only preview; database unchanged")
         return
-    db.executescript(TABLES)
+    # sqlite3.executescript() implicitly commits any pending transaction.
+    # Execute each CREATE inside BEGIN IMMEDIATE to keep migration atomic.
+    for statement in TABLES.split(";"):
+        if statement.strip():
+            db.execute(statement)
     for row in captures:
         guide,step,rule,usage,prop,pattern,timing,runtime=row
         vid=variable_id(step)
