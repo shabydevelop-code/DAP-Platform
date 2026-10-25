@@ -259,9 +259,12 @@ function renderSteps() {
         '<button class="btn secondary small" id="edit-validation">עריכת תנאי ההתקדמות</button>' : '') +
       '</section></div>' +
       (context?.Runtime === 'Web' && target && rule ?
-        '<section class="target-editor"><h3>תנאי השלמה נוסף</h3>' +
-        (completionRule ? '<p>רכיב: <strong>' + esc(completionElement?.DisplayName || completionSelector) +
-          '</strong> · חוק: <strong>' + completionLabel + '</strong></p>' +
+        '<section class="step-friendly-card completion-card"><h3>תנאי השלמה נוסף</h3>' +
+        (completionRule ? '<p>רכיב שנבחר: <strong>' + esc(completionElement?.DisplayName || completionSelector || 'לא הוגדר שם') +
+          '</strong></p>' +
+          (completionSelector ? '<p class="target-technical">מזהה רכיב: <code dir="ltr">' +
+            esc(completionSelector) + '</code></p>' : '') +
+          '<p>תנאי השלמה: <strong>' + esc(completionLabel) + '</strong></p>' +
            (completionRule?.Kind === 'attribute-equals' ? '<p>מאפיין: <code dir="ltr">' +
              esc(completionAttribute.name || '') + '</code> · ערך צפוי: <code dir="ltr">' +
              esc(completionAttribute.value || '') + '</code></p>' : '') +
