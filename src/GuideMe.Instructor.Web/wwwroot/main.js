@@ -291,29 +291,12 @@ function renderSteps() {
         return '<div class="guide-variable-row"><div><strong>' + esc(variable?.name || action.variableId) +
           '</strong>' + description +
           '</div><span class="context-actions">' +
-          '<button class="btn secondary small" data-move-variable-action="' + esc(action.id) + '" data-direction="-1"' +
-          (action.order === variableActions[0].order ? ' disabled' : '') + '>למעלה</button>' +
-          '<button class="btn secondary small" data-move-variable-action="' + esc(action.id) + '" data-direction="1"' +
-          (action.order === variableActions[variableActions.length - 1].order ? ' disabled' : '') + '>למטה</button>' +
           '<button class="btn danger small" data-remove-variable-action="' + esc(action.id) + '">הסרה</button></span></div>';
       }).join('') : '<p>לא הוגדרו פעולות משתנים לשלב.</p>') +
       '<button class="btn secondary small" id="add-variable-action"' +
-      ((current.variables || []).length ? '' : ' disabled') + '>הוספת פעולת משתנה</button>' +
-      '<button class="btn secondary small" id="pick-variable-source"' +
-      ((current.variables || []).length ? '' : ' disabled') + '>בחירת רכיב מקור למשתנה</button>' +
+      ((current.variables || []).length ? '' : ' disabled') + '>הוספת פעולה למשתנה</button>' +
       '<div id="variable-pick-result" class="hidden" aria-live="polite"></div></section>';
-    $('add-variable-action').onclick = () => editStepVariableAction(step, data.targets, context?.Runtime);
-    if ($('pick-variable-source')) $('pick-variable-source').onclick = () => selectVariableSource(step, context);
-    document.querySelectorAll('[data-move-variable-action]').forEach(button =>
-      button.onclick = () => guarded(async () => {
-        const guideId = current.guide.id, stepId = step.id;
-        await api('/guides/' + guideId + '/steps/' + encodeURIComponent(stepId) +
-          '/variables/' + encodeURIComponent(button.dataset.moveVariableAction) + '/move',
-          {method:'POST',body:JSON.stringify({direction:Number(button.dataset.direction)})});
-        await openGuide(guideId);
-        const item = [...document.querySelectorAll('[data-step]')].find(x => x.dataset.step === stepId);
-        item?.click();
-      }));
+    $('add-variable-action').onclick = () => editStepVariableAction(step, context);
     document.querySelectorAll('[data-remove-variable-action]').forEach(button =>
       button.onclick = () => guarded(async () => {
         if (!confirm('להסיר את פעולת המשתנה?')) return;
@@ -1055,64 +1038,41 @@ function bindTargetToVariable(step, runtime, locatorText) {
     notify('המשתנה קושר למזהה הרכיב.');
   });
 }
-function selectVariableSource(step, context) {
-  if (!current || !context || !current.variables?.length) return;
-  const choices = current.variables.map(v => ({value:v.id,text:v.name}));
-  modal('בחירת רכיב מקור למשתנה — שלב ' + step.order, [
-    {name:'variableId',label:'משתנה לעדכון',value:choices[0].value,choices}
-  ], async values => {
-    await beginTargetPicker(context.Runtime, current.guide.id, step.id,
-      context.ContextId, false, false, context, values);
-  }, 'הפעלת ממפה רכיבים');
-}
-function editStepVariableAction(step, targets, runtime) {
-  if (!current || !current.variables?.length) return;
+function editStepVariableAction(step, context) {
+  if (!current?.variables?.length || !context) return;
   const guideId = current.guide.id, stepId = step.id;
-  const options = current.variables.map(v => ({value:v.id,text:v.name}));
-  const targetOptions = (targets || []).map(t => ({value:t.UsageId,
-    text:t.Purpose === 'Primary' ? 'הרכיב הראשי' : 'רכיב נוסף'}));
-  const properties = runtime === 'Windows'
-    ? [{value:'name',text:'שם הרכיב'},{value:'automation-id',text:'מזהה הרכיב'}]
-    : [{value:'text',text:'טקסט'},{value:'value',text:'ערך שדה'},
-       {value:'frame-url-fragment',text:'כתובת המסגרת'}];
-  modal('פעולת משתנה — שלב ' + step.order, [
-    {name:'variableId',label:'משתנה לעדכון',value:options[0].value,choices:options},
-    {name:'kind',label:'פעולה',value:'SetValue',choices:[
-      {value:'SetValue',text:'הזנת ערך'}, {value:'Clear',text:'איפוס משתנה'},
-      {value:'CopyFromVariable',text:'העתקה ממשתנה אחר'},
-      ...(targetOptions.length ? [{value:'ReadFromTarget',text:'קליטה מהאפליקציה'}] : [])]},
-    {name:'value',label:'ערך (עבור הזנת ערך)',value:'',optional:true,max:1000},
-    {name:'sourceVariableId',label:'משתנה מקור (עבור העתקה)',
-     value:options[0].value,choices:options},
-    ...(targetOptions.length ? [
-      {name:'targetUsageId',label:'רכיב לקריאה',value:targetOptions[0].value,choices:targetOptions},
-      {name:'property',label:'ערך לקריאה',value:properties[0].value,choices:properties}
-    ] : []),
-    {name:'timing',label:'מועד הפעולה',value:'AfterAction',choices:[
-      {value:'BeforeAction',text:'לפני הפעולה בשלב'},
-      {value:'DuringStep',text:'במהלך השלב'},
-      {value:'AfterAction',text:'אחרי הפעולה בשלב'}]}
-  ],async values => {
+  const choices = current.variables.map(v => ({value:v.id,text:v.name}));
+  modal('הוספת פעולה למשתנה — שלב ' + step.order, [
+    {name:'variableId',label:'משתנה לעדכון',value:choices[0].value,choices},
+    {name:'kind',label:'פעולה',value:'ReadFromTarget',choices:[
+      {value:'ReadFromTarget',text:'קליטת ערך מהאפליקציה'},
+      {value:'SetValue',text:'הזנת ערך קבוע'},
+      {value:'Clear',text:'איפוס משתנה'},
+      {value:'CopyFromVariable',text:'העתקה ממשתנה אחר'}]},
+    {name:'value',label:'ערך קבוע',value:'',optional:true,max:1000},
+    {name:'sourceVariableId',label:'משתנה מקור להעתקה',value:choices[0].value,choices}
+  ], async values => {
+    if (values.kind === 'ReadFromTarget') {
+      await beginTargetPicker(context.Runtime, guideId, stepId, context.ContextId,
+        false, false, context, {variableId:values.variableId});
+      return;
+    }
     await api('/guides/' + guideId + '/steps/' + encodeURIComponent(stepId) + '/variables',
-      {method:'POST',body:JSON.stringify(values)});
+      {method:'POST',body:JSON.stringify({
+        variableId:values.variableId, kind:values.kind,
+        value:values.value, sourceVariableId:values.sourceVariableId})});
     await openGuide(guideId);
-    const row = [...document.querySelectorAll('[data-step]')]
-      .find(x => x.dataset.step === stepId);
+    const row = [...document.querySelectorAll('[data-step]')].find(x => x.dataset.step === stepId);
     row?.click();
     notify('פעולת המשתנה נוספה.');
-  },'הוספת פעולה');
-  // Only show fields needed for the selected operation.
+  },'המשך');
   const operation = $('field-kind');
   const updateFields = () => {
-    $('field-value').closest('.field').classList.toggle('hidden', operation.value !== 'SetValue');
+    $('field-value').closest('.field').classList.toggle('hidden',operation.value !== 'SetValue');
     $('field-sourceVariableId').closest('.field').classList.toggle('hidden',
       operation.value !== 'CopyFromVariable');
-    $('field-targetUsageId')?.closest('.field').classList.toggle('hidden',
-      operation.value !== 'ReadFromTarget');
-    $('field-property')?.closest('.field').classList.toggle('hidden',
-      operation.value !== 'ReadFromTarget');
   };
-  operation.addEventListener('change', updateFields);
+  operation.addEventListener('change',updateFields);
   updateFields();
 }
 function editStep(step, assignedContextId) {
