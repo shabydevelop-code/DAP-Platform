@@ -102,4 +102,33 @@ public sealed class GuideVariableSession
         };
     }
 
+    /// <summary>
+    /// Run ordered actions at a step boundary. Only target reads are delegated to
+    /// the active Web/Windows adapter; all assignments remain platform neutral.
+    /// </summary>
+    public async Task ExecuteActionsAsync(
+        IReadOnlyList<GuideVariableAction> actions,
+        StepCaptureTiming timing,
+        Func<GuideVariableAction, CancellationToken, Task<string?>> readTarget,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(actions);
+        ArgumentNullException.ThrowIfNull(readTarget);
+        foreach (var action in actions.OrderBy(x => x.Order))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (action.Timing != timing) continue;
+            if (action.Kind != GuideVariableActionKind.ReadFromTarget)
+            {
+                Execute(action);
+                continue;
+            }
+            var value = await readTarget(action, cancellationToken);
+            if (value is null)
+                throw new InvalidOperationException(
+                    $"Variable action '{action.Id}' could not read its target.");
+            Execute(action, value);
+        }
+    }
+
 }
