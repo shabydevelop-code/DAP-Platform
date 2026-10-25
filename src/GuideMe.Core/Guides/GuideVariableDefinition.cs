@@ -1,3 +1,5 @@
+using GuideMe.Core.Targets;
+
 namespace GuideMe.Core.Guides;
 
 /// <summary>
@@ -31,4 +33,5 @@ public sealed record GuideVariableAction(
     string? TargetUsageId = null,
     string? Property = null,
     string? Pattern = null,
-    StepCaptureTiming Timing = StepCaptureTiming.AfterAction);
+    StepCaptureTiming Timing = StepCaptureTiming.AfterAction,
+    TargetDescriptor? SourceTarget = null);
