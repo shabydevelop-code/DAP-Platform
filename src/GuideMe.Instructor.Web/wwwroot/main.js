@@ -957,6 +957,15 @@ function editStepVariableAction(step) {
     row?.click();
     notify('פעולת המשתנה נוספה.');
   },'הוספת פעולה');
+  // Only show fields needed for the selected operation.
+  const operation = $('field-kind');
+  const updateFields = () => {
+    $('field-value').closest('.field').classList.toggle('hidden', operation.value !== 'SetValue');
+    $('field-sourceVariableId').closest('.field').classList.toggle('hidden',
+      operation.value !== 'CopyFromVariable');
+  };
+  operation.addEventListener('change', updateFields);
+  updateFields();
 }
 function editStep(step, assignedContextId) {
   if (!current || !step) return;
