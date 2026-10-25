@@ -111,6 +111,33 @@ def convert(db, apply):
     for table,column,rowid,value in updates:
         db.execute(f"UPDATE {table} SET {column}=? WHERE rowid=?",(value,rowid))
     db.execute("DELETE FROM StepRules WHERE RuleType='Capture'")
+    # Rebuild the validation table without the legacy Capture rule kind or
+    # columns. SQLite cannot remove a value from an existing CHECK constraint.
+    columns = {col[1] for col in db.execute("PRAGMA table_info(StepRules)")}
+    if "Property" in columns:
+        db.execute("""
+            CREATE TABLE StepRulesCanonical (
+                GuideId INTEGER NOT NULL,
+                StepId TEXT NOT NULL,
+                RuleType TEXT NOT NULL CHECK (RuleType IN
+                    ('PrimaryValidation','AdditionalCompletionCondition')),
+                RuleId TEXT NOT NULL,
+                Kind TEXT NOT NULL,
+                TargetUsageId TEXT,
+                ExpectedValue TEXT,
+                OptionsJson TEXT,
+                PRIMARY KEY (GuideId,StepId,RuleType,RuleId),
+                FOREIGN KEY (GuideId,StepId) REFERENCES Steps(GuideId,StepId),
+                FOREIGN KEY (GuideId,StepId,TargetUsageId)
+                    REFERENCES StepTargets(GuideId,StepId,UsageId)
+            )
+        """)
+        db.execute("""INSERT INTO StepRulesCanonical
+            (GuideId,StepId,RuleType,RuleId,Kind,TargetUsageId,ExpectedValue,OptionsJson)
+            SELECT GuideId,StepId,RuleType,RuleId,Kind,TargetUsageId,ExpectedValue,OptionsJson
+            FROM StepRules""")
+        db.execute("DROP TABLE StepRules")
+        db.execute("ALTER TABLE StepRulesCanonical RENAME TO StepRules")
     bad=db.execute("PRAGMA foreign_key_check").fetchall()
     if bad: raise ValueError(f"FK violations: {bad}")
     print("Conversion staged; transaction will commit")
