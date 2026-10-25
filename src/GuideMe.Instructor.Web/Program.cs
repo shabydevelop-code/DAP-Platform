@@ -349,6 +349,65 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/bind-variable",
     V5VariableCatalog.BindPrimaryTarget(id, stepId, body.VariableId, body.Attribute);
     return Results.NoContent();
 });
+app.MapPost("/api/guides/{id:long}/steps/{stepId}/variable-source",
+    (long id, string stepId, SaveVariableSourceRequest request) =>
+{
+    var steps = V5GuideReader.ReadGuideTable(id, "Steps");
+    var step = steps.Rows.Cast<DataRow>().FirstOrDefault(r =>
+        string.Equals(r["StepId"].ToString(), stepId, StringComparison.Ordinal));
+    if (step is null) return Results.NotFound();
+    var contextId = step["ApplicationContextId"].ToString() ?? "";
+    var contexts = V5GuideReader.ReadGuideTable(id, "ApplicationContexts");
+    var context = contexts.Rows.Cast<DataRow>().FirstOrDefault(r =>
+        string.Equals(r["ContextId"].ToString(), contextId, StringComparison.Ordinal));
+    if (context is null) return Results.BadRequest(new { message = "לא נמצאה אפליקציית יעד לשלב." });
+    var runtime = context["Runtime"].ToString();
+    IReadOnlyList<V5GuideWriter.TargetLocator> locators;
+    IReadOnlyList<V5GuideWriter.TargetLocator> frames;
+    string? displayName;
+    if (runtime == "Web")
+    {
+        var target = capture.GetApprovedTarget(id, contextId, request.GridChoice);
+        locators = new[] { new V5GuideWriter.TargetLocator("css", target.Selector) };
+        frames = target.FramePath.Select(f => new V5GuideWriter.TargetLocator("css", f)).ToArray();
+        displayName = target.DisplayName;
+    }
+    else if (runtime == "Windows")
+    {
+        if (request.ProcessId is not > 0)
+            return Results.BadRequest(new { message = "תהליך Windows חסר." });
+        var picked = windowsPicker.Status().Selection;
+        if (picked is null || picked.Error is not null || picked.ProcessId != request.ProcessId.Value)
+            return Results.BadRequest(new { message = "יש לבחור תחילה רכיב Windows תקין." });
+        using var process = Process.GetProcessById(request.ProcessId.Value);
+        using var matchers = JsonDocument.Parse(context["MatchersJson"].ToString() ?? "[]");
+        var allowed = matchers.RootElement.EnumerateArray().Any(m =>
+            m.TryGetProperty("Kind", out var kind) && kind.GetString() == "ProcessName"
+            && m.TryGetProperty("Value", out var value)
+            && string.Equals((value.GetString() ?? "").Replace(".exe", "", StringComparison.OrdinalIgnoreCase),
+                process.ProcessName, StringComparison.OrdinalIgnoreCase));
+        if (!allowed)
+            return Results.BadRequest(new { message = "הרכיב אינו שייך לאפליקציית היעד." });
+        locators = picked.Locators.Select(l =>
+            new V5GuideWriter.TargetLocator(l.Strategy, l.Value)).ToArray();
+        frames = Array.Empty<V5GuideWriter.TargetLocator>();
+        displayName = picked.Name;
+    }
+    else return Results.BadRequest(new { message = "סביבת היעד אינה נתמכת." });
+    V5VariableCatalog.AddPickedRead(id, stepId, request.VariableId,
+        runtime!, locators, frames, displayName, request.Property, request.Timing);
+    if (runtime == "Web") capture.CancelPicking();
+    else windowsPicker.Stop();
+    return Results.NoContent();
+});
+
+app.MapPost("/api/guides/{id:long}/steps/{stepId}/variables/{actionId}/move",
+    (long id, string stepId, string actionId, MoveVariableActionRequest request) =>
+{
+    V5VariableCatalog.MoveAction(id, stepId, actionId, request.Direction);
+    return Results.NoContent();
+});
+
 app.MapGet("/api/guides/{id:long}/steps/{stepId}/variables", (long id, string stepId) =>
     Results.Ok(V5VariableCatalog.ListActions(id, stepId)));
 app.MapPost("/api/guides/{id:long}/steps/{stepId}/variables",
@@ -505,3 +564,7 @@ internal sealed record StepVariableActionRequest(string VariableId, string Kind,
     string? SourceVariableId, string? TargetUsageId, string? Property, string? Timing);
 
 internal sealed record TargetVariableBinding(string VariableId, string? Attribute);
+
+internal sealed record SaveVariableSourceRequest(string VariableId, string Property,
+    string Timing, int? ProcessId, int? GridChoice);
+internal sealed record MoveVariableActionRequest(int Direction);
