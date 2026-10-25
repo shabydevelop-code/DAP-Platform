@@ -131,6 +131,11 @@ public sealed class GuideVariableSession
             // appear later as the user types or navigates.
             if (value is null && timing == StepCaptureTiming.DuringStep)
                 continue;
+            // If navigation removed the source after the action, retain a
+            // value already observed during the step (Windows migration case).
+            if (value is null && timing == StepCaptureTiming.AfterAction
+                && Read(action.VariableId) is not null)
+                continue;
             if (value is null)
                 throw new InvalidOperationException(
                     $"Variable action '{action.Id}' could not read its target.");
