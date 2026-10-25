@@ -103,9 +103,9 @@ public static class GuideStepExecutionPolicy
             || step.AdvanceMode != StepAdvanceMode.Manual
             || step.Validation is not null
             || step.Context is not null
-            || step.Capture is not null
+            || step.VariableActions is { Count: > 0 }
             || step.CompletionConditions is { Count: > 0 })
             throw new InvalidOperationException(
-                $"Centered Guide Step '{step.Id}' must be a pure Manual information Step with no target, context, validation, capture, or completion conditions.");
+                $"Centered Guide Step '{step.Id}' must be a pure Manual information Step with no target, context, validation, variable actions, or completion conditions.");
     }
 }
