@@ -2,7 +2,7 @@
 -- Use for provisioning a NEW empty V5 database only.
 -- Never run this schema against an existing database; use the migration script.
 -- JSON array ordering must preserve MatcherOrder and LocatorId ordering from V5.
--- StepRules combines signals and captures; RuleType disambiguates their identifiers.
+-- StepRules stores validation and completion signals; variables use StepVariableActions.
 PRAGMA foreign_keys=ON;
 
 CREATE TABLE Guides (
@@ -82,25 +82,16 @@ CREATE TABLE StepRules (
     GuideId INTEGER NOT NULL,
     StepId TEXT NOT NULL,
     RuleType TEXT NOT NULL CHECK (RuleType IN
-        ('PrimaryValidation','AdditionalCompletionCondition','Capture')),
+        ('PrimaryValidation','AdditionalCompletionCondition')),
     RuleId TEXT NOT NULL,
-    Kind TEXT,
+    Kind TEXT NOT NULL,
     TargetUsageId TEXT,
     ExpectedValue TEXT,
     OptionsJson TEXT,
-    Property TEXT,
-    Pattern TEXT,
-    Timing TEXT,
     PRIMARY KEY (GuideId, StepId, RuleType, RuleId),
     FOREIGN KEY (GuideId, StepId) REFERENCES Steps(GuideId, StepId),
     FOREIGN KEY (GuideId, StepId, TargetUsageId)
-        REFERENCES StepTargets(GuideId, StepId, UsageId),
-    CHECK (
-        (RuleType='Capture' AND Property IS NOT NULL AND TargetUsageId IS NOT NULL
-            AND Kind IS NULL AND ExpectedValue IS NULL AND OptionsJson IS NULL)
-        OR
-        (RuleType!='Capture' AND Kind IS NOT NULL AND Property IS NULL AND Pattern IS NULL AND Timing IS NULL)
-    )
+        REFERENCES StepTargets(GuideId, StepId, UsageId)
 );
 
 -- Guide-level variable declarations. Values captured during execution are never persisted here.
