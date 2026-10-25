@@ -270,3 +270,5 @@ body, body *, dialog, dialog * { font-size: 15px !important; }
 .field textarea:hover, #editor-dialog .field textarea:hover {
   border-color: #6e88a8;
 }
+
+.step-summary-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
