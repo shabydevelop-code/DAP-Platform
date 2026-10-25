@@ -153,51 +153,27 @@ internal static class V5VariableCatalog
         return result;
     }
 
+    // Manual actions are stored in creation order. Element reads use
+    // AddPickedRead exclusively, so there is one authoring path.
     internal static void AddAction(long guideId, string stepId,
-        string variableId, string kind, string? value, string? sourceVariableId,
-        string? targetUsageId, string? property, string? timing)
+        string variableId, string kind, string? value, string? sourceVariableId)
     {
-        if (kind is not ("SetValue" or "Clear" or "CopyFromVariable" or "ReadFromTarget"))
+        if (kind is not ("SetValue" or "Clear" or "CopyFromVariable"))
             throw new ArgumentException("סוג הפעולה אינו נתמך.");
         if (kind == "SetValue" && (value is null || value.Length > 1000))
             throw new ArgumentException("יש להזין ערך באורך עד 1000 תווים.");
         if (kind == "CopyFromVariable" && string.IsNullOrWhiteSpace(sourceVariableId))
             throw new ArgumentException("יש לבחור משתנה מקור.");
-        if (kind == "ReadFromTarget" && (string.IsNullOrWhiteSpace(targetUsageId) ||
-            property is not ("text" or "value" or "name" or "automation-id" or "frame-url-fragment")))
-            throw new ArgumentException("מקור או מאפיין לכידה אינו תקין.");
-        if (!Enum.TryParse<GuideMe.Core.Guides.StepCaptureTiming>(timing ?? "AfterAction", out var captureTiming))
-            throw new ArgumentException("מועד הלכידה אינו תקין.");
-        if (captureTiming == GuideMe.Core.Guides.StepCaptureTiming.DuringStep &&
-            kind != "ReadFromTarget")
-            throw new ArgumentException("קליטה במהלך השלב מיועדת לקריאה מרכיב בלבד.");
         using var connection = Open();
         EnsureSchema(connection);
         using var cmd = connection.CreateCommand();
-        if (kind == "ReadFromTarget")
-        {
-            cmd.CommandText = @"SELECT c.Runtime FROM StepTargets t
-                JOIN Steps s ON s.GuideId=t.GuideId AND s.StepId=t.StepId
-                JOIN ApplicationContexts c ON c.GuideId=s.GuideId AND c.ContextId=s.ApplicationContextId
-                WHERE t.GuideId=$checkGuide AND t.StepId=$checkStep AND t.UsageId=$checkUsage";
-            cmd.Parameters.AddWithValue("$checkGuide", guideId);
-            cmd.Parameters.AddWithValue("$checkStep", stepId);
-            cmd.Parameters.AddWithValue("$checkUsage", targetUsageId!);
-            var runtime = cmd.ExecuteScalar() as string;
-            if (runtime is null)
-                throw new InvalidOperationException("הרכיב שנבחר אינו שייך לשלב.");
-            if (runtime == "Web" && property is not ("text" or "value" or "frame-url-fragment")
-                || runtime == "Windows" && property is not ("name" or "automation-id"))
-                throw new ArgumentException("המאפיין אינו נתמך בסוג אפליקציית היעד.");
-            cmd.Parameters.Clear();
-        }
         cmd.CommandText = @"INSERT INTO StepVariableActions
             (GuideId,StepId,ActionId,ActionOrder,VariableId,ActionKind,
-             LiteralValue,SourceVariableId,TargetUsageId,Property,Timing)
+             LiteralValue,SourceVariableId,Timing)
             VALUES ($guide,$step,$id,
              (SELECT COALESCE(MAX(ActionOrder),-1)+1 FROM StepVariableActions
               WHERE GuideId=$guide AND StepId=$step),
-             $variable,$kind,$value,$source,$usage,$property,$timing)";
+             $variable,$kind,$value,$source,'AfterAction')";
         cmd.Parameters.AddWithValue("$guide", guideId);
         cmd.Parameters.AddWithValue("$step", stepId);
         cmd.Parameters.AddWithValue("$id", "action-" + Guid.NewGuid().ToString("N"));
@@ -206,11 +182,6 @@ internal static class V5VariableCatalog
         cmd.Parameters.AddWithValue("$value", kind == "SetValue" ? (object)value! : DBNull.Value);
         cmd.Parameters.AddWithValue("$source", kind == "CopyFromVariable"
             ? (object)sourceVariableId! : DBNull.Value);
-        cmd.Parameters.AddWithValue("$usage", kind == "ReadFromTarget"
-            ? (object)targetUsageId! : DBNull.Value);
-        cmd.Parameters.AddWithValue("$property", kind == "ReadFromTarget"
-            ? (object)property! : DBNull.Value);
-        cmd.Parameters.AddWithValue("$timing", captureTiming.ToString());
         try { cmd.ExecuteNonQuery(); }
         catch (SqliteException ex) when (ex.SqliteErrorCode == 19)
         { throw new InvalidOperationException("לא ניתן לשמור פעולה: בדוק את המשתנה ואת השלב.", ex); }
@@ -284,49 +255,6 @@ internal static class V5VariableCatalog
         cmd.Parameters.AddWithValue("$timing", "BeforeAction");
         cmd.Parameters.AddWithValue("$pattern", (object?)pattern ?? DBNull.Value);
         cmd.ExecuteNonQuery();
-        tx.Commit();
-    }
-
-    internal static void MoveAction(long guideId, string stepId, string actionId, int direction)
-    {
-        if (direction is not (-1 or 1))
-            throw new ArgumentException("כיוון שינוי סדר אינו תקין.");
-        using var connection = Open();
-        EnsureSchema(connection);
-        using var tx = connection.BeginTransaction();
-        using var cmd = connection.CreateCommand();
-        cmd.Transaction = tx;
-        cmd.CommandText = @"SELECT ActionId,ActionOrder FROM StepVariableActions
-            WHERE GuideId=$guide AND StepId=$step ORDER BY ActionOrder";
-        cmd.Parameters.AddWithValue("$guide", guideId);
-        cmd.Parameters.AddWithValue("$step", stepId);
-        var rows = new List<(string Id,int Order)>();
-        using (var reader = cmd.ExecuteReader())
-            while (reader.Read()) rows.Add((reader.GetString(0),reader.GetInt32(1)));
-        var index = rows.FindIndex(x => x.Id == actionId);
-        if (index < 0) throw new InvalidOperationException("פעולת המשתנה אינה קיימת.");
-        var destination = index + direction;
-        if (destination < 0 || destination >= rows.Count) return;
-        (rows[index],rows[destination])=(rows[destination],rows[index]);
-        // Negative temporary orders avoid colliding with the unique
-        // (GuideId,StepId,ActionOrder) constraint during re-numbering.
-        for (var i=0;i<rows.Count;i++)
-        {
-            cmd.Parameters.Clear();
-            cmd.CommandText = @"UPDATE StepVariableActions SET ActionOrder=$order
-                WHERE GuideId=$guide AND StepId=$step AND ActionId=$id";
-            cmd.Parameters.AddWithValue("$guide",guideId);
-            cmd.Parameters.AddWithValue("$step",stepId);
-            cmd.Parameters.AddWithValue("$id",rows[i].Id);
-            cmd.Parameters.AddWithValue("$order",-i-1000000);
-            cmd.ExecuteNonQuery();
-        }
-        for (var i=0;i<rows.Count;i++)
-        {
-            cmd.Parameters["$id"].Value=rows[i].Id;
-            cmd.Parameters["$order"].Value=i;
-            cmd.ExecuteNonQuery();
-        }
         tx.Commit();
     }
 
