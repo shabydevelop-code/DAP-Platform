@@ -201,6 +201,7 @@ function renderSteps() {
     selectedStep = b.dataset.step;
     document.querySelectorAll('[data-step]').forEach(x => { x.classList.toggle('active', x===b); x.setAttribute('aria-pressed', String(x===b)); });
     const data = await api('/guides/' + current.guide.id + '/step/' + encodeURIComponent(selectedStep));
+    const variableActions = await api('/guides/' + current.guide.id + '/steps/' + encodeURIComponent(selectedStep) + '/variables');
     current.stepContexts ??= {};
     current.stepContexts[selectedStep] = data.step?.[0]?.ApplicationContextId || null;
     const step = current.steps.find(x=>x.id===selectedStep);
@@ -265,7 +266,35 @@ function renderSteps() {
           '<button class="btn secondary small" id="remove-completion">הסרת תנאי השלמה</button>' :
           '<p>בחר רכיב ובדוק הופעה, היעלמות או שינוי מאפיין בעקבות הפעולה.</p>' +
           '<button class="btn secondary small" id="add-completion">בחירת רכיב לתנאי השלמה</button>') +
-        '</section>' : '');
+        '</section>' : '') +
+      '<section class="step-friendly-card completion-card" aria-labelledby="step-variables-title">' +
+      '<h3 id="step-variables-title">משתנים</h3>' +
+      (variableActions.length ? variableActions.map(action => {
+        const variable = (current.variables || []).find(v => v.id === action.variableId);
+        const source = (current.variables || []).find(v => v.id === action.sourceVariableId);
+        const label = action.kind === 'SetValue' ? 'הזנת ערך' :
+          action.kind === 'Clear' ? 'איפוס' :
+          action.kind === 'CopyFromVariable' ? 'העתקה מ־' + (source?.name || 'משתנה אחר') :
+          'קליטה מרכיב';
+        return '<div class="guide-variable-row"><span><strong>' + esc(variable?.name || action.variableId) +
+          '</strong> · ' + esc(label) + '</span>' +
+          '<button class="btn danger small" data-remove-variable-action="' + esc(action.id) + '">הסרה</button></div>';
+      }).join('') : '<p>לא הוגדרו פעולות משתנים לשלב.</p>') +
+      '<button class="btn secondary small" id="add-variable-action"' +
+      ((current.variables || []).length ? '' : ' disabled') + '>הוספת פעולת משתנה</button></section>';
+    $('add-variable-action').onclick = () => editStepVariableAction(step);
+    document.querySelectorAll('[data-remove-variable-action]').forEach(button =>
+      button.onclick = () => guarded(async () => {
+        if (!confirm('להסיר את פעולת המשתנה?')) return;
+        const guideId = current.guide.id, stepId = step.id;
+        await api('/guides/' + guideId + '/steps/' + encodeURIComponent(stepId) +
+          '/variables/' + encodeURIComponent(button.dataset.removeVariableAction),
+          {method:'DELETE', body:'{}'});
+        await openGuide(guideId);
+        document.querySelectorAll('[data-step]').forEach(row => {
+          if (row.dataset.step === stepId) row.click();
+        });
+      }));
     $('edit-step').onclick = () => editStep(step, contextId);
     $('delete-step').onclick = () => guarded(async () => {
       if (!current || !confirmDiscard()) return;
@@ -906,6 +935,28 @@ function newStep() {
     row?.click();
     notify('השלב נוצר. כרגע התקדמותו ידנית עד שיוגדרו רכיב יעד ותנאי התקדמות.');
   },'יצירת שלב');
+}
+function editStepVariableAction(step) {
+  if (!current || !current.variables?.length) return;
+  const guideId = current.guide.id, stepId = step.id;
+  const options = current.variables.map(v => ({value:v.id,text:v.name}));
+  modal('פעולת משתנה — שלב ' + step.order, [
+    {name:'variableId',label:'משתנה לעדכון',value:options[0].value,choices:options},
+    {name:'kind',label:'פעולה',value:'SetValue',choices:[
+      {value:'SetValue',text:'הזנת ערך'}, {value:'Clear',text:'איפוס משתנה'},
+      {value:'CopyFromVariable',text:'העתקה ממשתנה אחר'}]},
+    {name:'value',label:'ערך (עבור הזנת ערך)',value:'',optional:true,max:1000},
+    {name:'sourceVariableId',label:'משתנה מקור (עבור העתקה)',
+     value:options[0].value,choices:options}
+  ],async values => {
+    await api('/guides/' + guideId + '/steps/' + encodeURIComponent(stepId) + '/variables',
+      {method:'POST',body:JSON.stringify(values)});
+    await openGuide(guideId);
+    const row = [...document.querySelectorAll('[data-step]')]
+      .find(x => x.dataset.step === stepId);
+    row?.click();
+    notify('פעולת המשתנה נוספה.');
+  },'הוספת פעולה');
 }
 function editStep(step, assignedContextId) {
   if (!current || !step) return;
