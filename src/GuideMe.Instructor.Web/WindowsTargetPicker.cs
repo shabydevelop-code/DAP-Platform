@@ -91,10 +91,19 @@ internal sealed class WindowsTargetPicker : IDisposable
             var canvas = new Canvas { Background = Brushes.Transparent, IsHitTestVisible = false };
             outline = new Border
             {
-                BorderBrush = new SolidColorBrush(Color.FromRgb(20, 122, 255)),
-                BorderThickness = new Thickness(3),
+                // Two-tone outline matches Web picking and remains visible on blue backgrounds.
+                BorderBrush = new SolidColorBrush(Color.FromRgb(17, 24, 39)),
+                BorderThickness = new Thickness(2),
                 CornerRadius = new CornerRadius(4),
                 Background = Brushes.Transparent,
+                Child = new Border
+                {
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(255, 223, 0)),
+                    BorderThickness = new Thickness(3),
+                    CornerRadius = new CornerRadius(2),
+                    Background = Brushes.Transparent,
+                    IsHitTestVisible = false
+                },
                 Visibility = Visibility.Collapsed,
                 IsHitTestVisible = false
             };
