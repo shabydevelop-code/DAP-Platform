@@ -121,7 +121,8 @@ internal static class V5VariableCatalog
         { throw new InvalidOperationException("לא ניתן למחוק משתנה שמשמש בשלבי הלומדה.", e); }
     }
     internal sealed record Action(string Id, int Order, string VariableId, string Kind,
-        string? LiteralValue, string? SourceVariableId, string Timing);
+        string? LiteralValue, string? SourceVariableId, string Timing,
+        string? TargetUsageId, string? Property);
 
     internal static IReadOnlyList<Action> ListActions(long guideId, string stepId)
     {
@@ -129,7 +130,7 @@ internal static class V5VariableCatalog
         EnsureSchema(connection);
         using var cmd = connection.CreateCommand();
         cmd.CommandText = @"SELECT ActionId,ActionOrder,VariableId,ActionKind,LiteralValue,
-            SourceVariableId,Timing FROM StepVariableActions
+            SourceVariableId,Timing,TargetUsageId,Property FROM StepVariableActions
             WHERE GuideId=$guide AND StepId=$step ORDER BY ActionOrder";
         cmd.Parameters.AddWithValue("$guide", guideId);
         cmd.Parameters.AddWithValue("$step", stepId);
@@ -138,29 +139,37 @@ internal static class V5VariableCatalog
         while (reader.Read())
             result.Add(new Action(reader.GetString(0), reader.GetInt32(1), reader.GetString(2),
                 reader.GetString(3), reader.IsDBNull(4) ? null : reader.GetString(4),
-                reader.IsDBNull(5) ? null : reader.GetString(5), reader.GetString(6)));
+                reader.IsDBNull(5) ? null : reader.GetString(5), reader.GetString(6),
+                reader.IsDBNull(7) ? null : reader.GetString(7),
+                reader.IsDBNull(8) ? null : reader.GetString(8)));
         return result;
     }
 
     internal static void AddAction(long guideId, string stepId,
-        string variableId, string kind, string? value, string? sourceVariableId)
+        string variableId, string kind, string? value, string? sourceVariableId,
+        string? targetUsageId, string? property, string? timing)
     {
-        if (kind is not ("SetValue" or "Clear" or "CopyFromVariable"))
+        if (kind is not ("SetValue" or "Clear" or "CopyFromVariable" or "ReadFromTarget"))
             throw new ArgumentException("סוג הפעולה אינו נתמך.");
         if (kind == "SetValue" && (value is null || value.Length > 1000))
             throw new ArgumentException("יש להזין ערך באורך עד 1000 תווים.");
         if (kind == "CopyFromVariable" && string.IsNullOrWhiteSpace(sourceVariableId))
             throw new ArgumentException("יש לבחור משתנה מקור.");
+        if (kind == "ReadFromTarget" && (string.IsNullOrWhiteSpace(targetUsageId) ||
+            property is not ("text" or "value" or "name" or "automation-id" or "frame-url-fragment")))
+            throw new ArgumentException("מקור או מאפיין לכידה אינו תקין.");
+        if (!Enum.TryParse<GuideMe.Core.Guides.StepCaptureTiming>(timing ?? "AfterAction", out var captureTiming))
+            throw new ArgumentException("מועד הלכידה אינו תקין.");
         using var connection = Open();
         EnsureSchema(connection);
         using var cmd = connection.CreateCommand();
         cmd.CommandText = @"INSERT INTO StepVariableActions
             (GuideId,StepId,ActionId,ActionOrder,VariableId,ActionKind,
-             LiteralValue,SourceVariableId,Timing)
+             LiteralValue,SourceVariableId,TargetUsageId,Property,Timing)
             VALUES ($guide,$step,$id,
              (SELECT COALESCE(MAX(ActionOrder),-1)+1 FROM StepVariableActions
               WHERE GuideId=$guide AND StepId=$step),
-             $variable,$kind,$value,$source,'AfterAction')";
+             $variable,$kind,$value,$source,$usage,$property,$timing)";
         cmd.Parameters.AddWithValue("$guide", guideId);
         cmd.Parameters.AddWithValue("$step", stepId);
         cmd.Parameters.AddWithValue("$id", "action-" + Guid.NewGuid().ToString("N"));
@@ -169,6 +178,11 @@ internal static class V5VariableCatalog
         cmd.Parameters.AddWithValue("$value", kind == "SetValue" ? (object)value! : DBNull.Value);
         cmd.Parameters.AddWithValue("$source", kind == "CopyFromVariable"
             ? (object)sourceVariableId! : DBNull.Value);
+        cmd.Parameters.AddWithValue("$usage", kind == "ReadFromTarget"
+            ? (object)targetUsageId! : DBNull.Value);
+        cmd.Parameters.AddWithValue("$property", kind == "ReadFromTarget"
+            ? (object)property! : DBNull.Value);
+        cmd.Parameters.AddWithValue("$timing", captureTiming.ToString());
         try { cmd.ExecuteNonQuery(); }
         catch (SqliteException ex) when (ex.SqliteErrorCode == 19)
         { throw new InvalidOperationException("לא ניתן לשמור פעולה: בדוק את המשתנה ואת השלב.", ex); }
