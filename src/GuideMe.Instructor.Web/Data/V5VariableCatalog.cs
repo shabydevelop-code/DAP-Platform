@@ -129,7 +129,7 @@ internal static class V5VariableCatalog
     }
     internal sealed record Action(string Id, int Order, string VariableId, string Kind,
         string? LiteralValue, string? SourceVariableId, string Timing,
-        string? TargetUsageId, string? Property);
+        string? TargetUsageId, string? Property, string? Pattern);
 
     internal static IReadOnlyList<Action> ListActions(long guideId, string stepId)
     {
@@ -137,7 +137,7 @@ internal static class V5VariableCatalog
         EnsureSchema(connection);
         using var cmd = connection.CreateCommand();
         cmd.CommandText = @"SELECT ActionId,ActionOrder,VariableId,ActionKind,LiteralValue,
-            SourceVariableId,Timing,TargetUsageId,Property FROM StepVariableActions
+            SourceVariableId,Timing,TargetUsageId,Property,Pattern FROM StepVariableActions
             WHERE GuideId=$guide AND StepId=$step ORDER BY ActionOrder";
         cmd.Parameters.AddWithValue("$guide", guideId);
         cmd.Parameters.AddWithValue("$step", stepId);
@@ -148,7 +148,8 @@ internal static class V5VariableCatalog
                 reader.GetString(3), reader.IsDBNull(4) ? null : reader.GetString(4),
                 reader.IsDBNull(5) ? null : reader.GetString(5), reader.GetString(6),
                 reader.IsDBNull(7) ? null : reader.GetString(7),
-                reader.IsDBNull(8) ? null : reader.GetString(8)));
+                reader.IsDBNull(8) ? null : reader.GetString(8),
+                reader.IsDBNull(9) ? null : reader.GetString(9)));
         return result;
     }
 
