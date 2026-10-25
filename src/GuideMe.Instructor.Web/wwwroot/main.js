@@ -282,8 +282,10 @@ function renderSteps() {
           '<button class="btn danger small" data-remove-variable-action="' + esc(action.id) + '">הסרה</button></div>';
       }).join('') : '<p>לא הוגדרו פעולות משתנים לשלב.</p>') +
       '<button class="btn secondary small" id="add-variable-action"' +
-      ((current.variables || []).length ? '' : ' disabled') + '>הוספת פעולת משתנה</button></section>';
+      ((current.variables || []).length ? '' : ' disabled') + ' >הוספת פעולת משתנה</button>' +
+      '<button class="btn secondary small" id="pick-variable-source">בחירת רכיב מקור למשתנה</button></section>';
     $('add-variable-action').onclick = () => editStepVariableAction(step, data.targets, context?.Runtime);
+    if ($('pick-variable-source')) $('pick-variable-source').onclick = () => selectVariableSource(step, context);
     document.querySelectorAll('[data-remove-variable-action]').forEach(button =>
       button.onclick = () => guarded(async () => {
         if (!confirm('להסיר את פעולת המשתנה?')) return;
