@@ -2,7 +2,7 @@ namespace GuideMe.Data.Sqlite.Guides;
 
 /// <summary>
 /// Validates the production V5 learner definition and cross-references between
-/// steps, observation rules, captures, and reusable UI elements.
+/// steps, observation rules, and reusable UI elements.
 /// </summary>
 public static class GuideV5GuideReader
 {
@@ -22,7 +22,7 @@ public static class GuideV5GuideReader
         var additional = await GuideV5ContextCaptureReader.ReadAsync(
             databasePath, guideKey, cancellationToken);
         if (additional.GuideId != catalog.GuideId)
-            throw new InvalidOperationException("V5 context/capture guide identity mismatch.");
+            throw new InvalidOperationException("V5 application context guide identity mismatch.");
         var usageIds = catalog.Usages.Select(x => (x.StepId, x.UsageId)).ToHashSet();
         var stepIds = new HashSet<string>(StringComparer.Ordinal);
 
@@ -57,14 +57,6 @@ public static class GuideV5GuideReader
             if (!stepIds.Contains(usage.StepId))
                 throw new InvalidOperationException(
                     $"V5 element usage '{usage.UsageId}' references unknown step '{usage.StepId}'.");
-        }
-
-        foreach (var capture in additional.Captures)
-        {
-            if (!stepIds.Contains(capture.StepId)
-                || !usageIds.Contains((capture.StepId, capture.TargetUsageId)))
-                throw new InvalidOperationException(
-                    $"V5 capture '{capture.CaptureId}' has an unresolved step or element usage.");
         }
 
         return new GuideDefinition(catalog.GuideId, steps, catalog, additional);
