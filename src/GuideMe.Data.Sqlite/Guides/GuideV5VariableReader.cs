@@ -14,6 +14,17 @@ public static class GuideV5VariableReader
             DataSource = databasePath, Mode = SqliteOpenMode.ReadOnly
         }.ToString());
         await db.OpenAsync(token);
+        // New variable tables may not exist on a database that has not yet
+        // undergone the one-time migration. Do not break existing guide startup.
+        await using (var presence = db.CreateCommand())
+        {
+            presence.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=$table";
+            presence.Parameters.AddWithValue("$table", "GuideVariables");
+            var expectedTable = "GuideVariables";
+            presence.Parameters["$table"].Value = expectedTable;
+            if (Convert.ToInt32(await presence.ExecuteScalarAsync(token)) == 0)
+                return Array.Empty<GuideVariableDefinition>();
+        }
         await using var cmd = db.CreateCommand();
         cmd.CommandText = "SELECT VariableId,DisplayName,InitialValue FROM GuideVariables WHERE GuideId=$guide ORDER BY rowid";
         cmd.Parameters.AddWithValue("$guide", guideId);
@@ -41,6 +52,17 @@ public static class GuideV5VariableReader
             DataSource = databasePath, Mode = SqliteOpenMode.ReadOnly
         }.ToString());
         await db.OpenAsync(token);
+        // New variable tables may not exist on a database that has not yet
+        // undergone the one-time migration. Do not break existing guide startup.
+        await using (var presence = db.CreateCommand())
+        {
+            presence.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=$table";
+            presence.Parameters.AddWithValue("$table", "StepVariableActions");
+            var expectedTable = "StepVariableActions";
+            presence.Parameters["$table"].Value = expectedTable;
+            if (Convert.ToInt32(await presence.ExecuteScalarAsync(token)) == 0)
+                return new Dictionary<string, IReadOnlyList<GuideVariableAction>>(StringComparer.Ordinal);
+        }
         await using var cmd = db.CreateCommand();
         cmd.CommandText = @"SELECT StepId,ActionId,ActionOrder,VariableId,ActionKind,
             LiteralValue,SourceVariableId,TargetUsageId,Property,Pattern,Timing
