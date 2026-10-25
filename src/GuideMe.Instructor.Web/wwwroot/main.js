@@ -967,6 +967,25 @@ function bindTargetToVariable(step, runtime, locatorText) {
     notify('המשתנה קושר למזהה הרכיב.');
   });
 }
+function selectVariableSource(step, context) {
+  if (!current || !context || !current.variables?.length) return;
+  const choices = current.variables.map(v => ({value:v.id,text:v.name}));
+  const properties = context.Runtime === 'Windows'
+    ? [{value:'name',text:'שם הרכיב'},{value:'automation-id',text:'מזהה הרכיב'}]
+    : [{value:'text',text:'טקסט הרכיב'},{value:'value',text:'ערך שדה'},
+       {value:'frame-url-fragment',text:'כתובת המסגרת'}];
+  modal('בחירת רכיב מקור למשתנה — שלב ' + step.order, [
+    {name:'variableId',label:'משתנה לעדכון',value:choices[0].value,choices},
+    {name:'property',label:'ערך לקריאה',value:properties[0].value,choices:properties},
+    {name:'timing',label:'מועד הקריאה',value:'BeforeAction',choices:[
+      {value:'BeforeAction',text:'לפני הפעולה בשלב'},
+      {value:'DuringStep',text:'במהלך השלב'},
+      {value:'AfterAction',text:'אחרי הפעולה בשלב'}]}
+  ], async values => {
+    await beginTargetPicker(context.Runtime, current.guide.id, step.id,
+      context.ContextId, false, false, context, values);
+  }, 'הפעלת ממפה רכיבים');
+}
 function editStepVariableAction(step, targets, runtime) {
   if (!current || !current.variables?.length) return;
   const guideId = current.guide.id, stepId = step.id;
