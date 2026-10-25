@@ -1013,6 +1013,7 @@ function editStepVariableAction(step, targets, runtime) {
     ] : []),
     {name:'timing',label:'מועד הפעולה',value:'AfterAction',choices:[
       {value:'BeforeAction',text:'לפני הפעולה בשלב'},
+      {value:'DuringStep',text:'במהלך השלב'},
       {value:'AfterAction',text:'אחרי הפעולה בשלב'}]}
   ],async values => {
     await api('/guides/' + guideId + '/steps/' + encodeURIComponent(stepId) + '/variables',
