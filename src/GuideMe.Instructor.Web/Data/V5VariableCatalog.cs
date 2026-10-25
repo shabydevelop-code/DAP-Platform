@@ -220,7 +220,7 @@ internal static class V5VariableCatalog
     internal static void AddPickedRead(long guideId, string stepId, string variableId,
         string runtime, IReadOnlyList<V5GuideWriter.TargetLocator> locators,
         IReadOnlyList<V5GuideWriter.TargetLocator> frames, string? displayName,
-        string property, string timing, string? pattern)
+        string property, string? pattern)
     {
         if (pattern is { Length: > 300 })
             throw new ArgumentException("כלל חילוץ ארוך מדי.");
@@ -239,8 +239,6 @@ internal static class V5VariableCatalog
         if (runtime == "Web" && property is not ("text" or "value" or "frame-url-fragment")
             || runtime == "Windows" && property is not ("name" or "automation-id"))
             throw new ArgumentException("מאפיין קריאה אינו נתמך.");
-        if (!Enum.TryParse<GuideMe.Core.Guides.StepCaptureTiming>(timing, false, out _))
-            throw new ArgumentException("מועד הקריאה אינו תקין.");
         using var connection = Open();
         EnsureSchema(connection);
         using var tx = connection.BeginTransaction();
@@ -282,7 +280,7 @@ internal static class V5VariableCatalog
                 $variable,'ReadFromTarget',$usage,$property,$timing,$pattern)";
         cmd.Parameters.AddWithValue("$action", "action-" + Guid.NewGuid().ToString("N"));
         cmd.Parameters.AddWithValue("$property", property);
-        cmd.Parameters.AddWithValue("$timing", timing);
+        cmd.Parameters.AddWithValue("$timing", "BeforeAction");
         cmd.Parameters.AddWithValue("$pattern", (object?)pattern ?? DBNull.Value);
         cmd.ExecuteNonQuery();
         tx.Commit();
