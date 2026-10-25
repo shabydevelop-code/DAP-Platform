@@ -38,9 +38,10 @@ public sealed class WindowsGuideRuntime
     public Task RunAsync(
         AutomationElement windowRoot,
         IReadOnlyList<GuideStep> guideSteps,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IReadOnlyList<GuideVariableDefinition>? variables = null)
     {
-        return new GuideExecutionEngine().RunAsync(guideSteps, CreateStepAdapter(windowRoot), cancellationToken);
+        return new GuideExecutionEngine().RunAsync(guideSteps, CreateStepAdapter(windowRoot), cancellationToken, variables);
     }
 
     public IGuideStepAdapter CreateStepAdapter(AutomationElement windowRoot)
@@ -72,19 +73,12 @@ public sealed class WindowsGuideRuntime
 
                 await RunStepAsync(
                     windowRoot, step, step.Order, total, token,
-                    preExistingTargetForCurrentStep, plan.Captures);
+                    preExistingTargetForCurrentStep, plan);
                 preExistingTargetForCurrentStep = nextTargetBeforeCurrentAction;
             },
             (step, total, token) => _bubbles.WaitForCenteredStepDismissalAsync(
                 step, step.Order, total, token),
-            (step, plan, token) =>
-            {
-                var value = CaptureStepValue(windowRoot, step);
-                if (value is null)
-                    throw new InvalidOperationException($"Guide Step '{step.Id}' declares a Windows before-action capture that could not be resolved.");
-                GuideRunPlan.RecordCapture(plan.Captures, step.Id, value);
-                return Task.CompletedTask;
-            });
+            (step, action, token) => Task.FromResult(ResolveVariable(windowRoot, action)));
     }
 
     private async Task RunStepAsync(
@@ -94,7 +88,7 @@ public sealed class WindowsGuideRuntime
         int totalSteps,
         CancellationToken cancellationToken,
         AutomationElement? preExistingTarget,
-        IDictionary<string, string> capturedValues)
+        GuideRunPlan plan)
     {
         if (GuideStepExecutionPolicy.Classify(step) == GuideStepPresentationKind.CenteredInformation)
         {
@@ -170,7 +164,7 @@ public sealed class WindowsGuideRuntime
                             true,
                             AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction)) == GuideStepReconciliationResult.Completed)
                 {
-                    FinalizeCapture(windowRoot, step, capturedValues);
+                    ApplyVariableActions(windowRoot, step, plan, StepCaptureTiming.AfterAction);
                     return GuideStepReconciliationResult.Completed;
                 }
 
@@ -431,15 +425,7 @@ public sealed class WindowsGuideRuntime
                     && preExistingTarget is not null
                     && SameElement(preExistingTarget, target);
 
-                if (GuideRunPlan.ShouldCapture(step, TargetRuntime.Windows, StepCaptureTiming.DuringStep))
-                {
-                    var capture = ResolveCapture(windowRoot, step.Capture!);
-                    if (GuideRunPlan.RecordCapture(capturedValues, step.Id, capture))
-                    {
-                        Console.Error.WriteLine(
-                            $"[GuideMe Windows guide] updated runtime capture for Step '{step.Id}' to '{capture}'.");
-                    }
-                }
+                ApplyVariableActions(windowRoot, step, plan, StepCaptureTiming.DuringStep);
 
                 // Match the Web learner behavior at Step entry: if the newly
                 // resolved target is clipped by the application window or by a
@@ -555,7 +541,7 @@ public sealed class WindowsGuideRuntime
                             true,
                             AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction)) == GuideStepReconciliationResult.Completed)
                     {
-                        FinalizeCapture(windowRoot, step, capturedValues);
+                        ApplyVariableActions(windowRoot, step, plan, StepCaptureTiming.AfterAction);
                         return GuideStepReconciliationResult.Completed;
                     }
                 }
@@ -747,59 +733,51 @@ public sealed class WindowsGuideRuntime
         }
     }
 
-    private void FinalizeCapture(AutomationElement windowRoot, GuideStep step, IDictionary<string, string> capturedValues)
+    private void ApplyVariableActions(AutomationElement root, GuideStep step,
+        GuideRunPlan plan, StepCaptureTiming timing)
     {
-        if (!GuideRunPlan.ShouldCapture(step, TargetRuntime.Windows, StepCaptureTiming.AfterAction))
-            return;
-
-        var value = ResolveCapture(windowRoot, step.Capture!);
-        if (value is null)
-            return;
-
-        GuideRunPlan.RecordCapture(capturedValues, step.Id, value);
-        Console.Error.WriteLine($"[GuideMe Windows guide] finalized runtime capture for Step '{step.Id}' as '{value}'.");
+        foreach (var action in step.VariableActions ?? Array.Empty<GuideVariableAction>())
+        {
+            if (action.Timing != timing) continue;
+            if (action.Kind != GuideVariableActionKind.ReadFromTarget)
+            {
+                plan.Variables.Execute(action);
+                continue;
+            }
+            var value = ResolveVariable(root, action);
+            // DuringStep samples may occur before the UI value becomes available.
+            if (value is null && timing == StepCaptureTiming.DuringStep) continue;
+            if (value is null)
+                throw new InvalidOperationException(
+                    $"Windows variable action '{action.Id}' could not read its target.");
+            plan.Variables.Execute(action, value);
+        }
     }
 
-    public string? CaptureStepValue(AutomationElement windowRoot, GuideStep step)
+    private string? ResolveVariable(AutomationElement windowRoot, GuideVariableAction action)
     {
-        if (step.Capture is null)
-            return null;
-
-        return ResolveCapture(windowRoot, step.Capture);
-    }
-
-    private string? ResolveCapture(AutomationElement windowRoot, StepCaptureDefinition capture)
-    {
-        if (capture.Runtime != TargetRuntime.Windows)
-            throw new InvalidOperationException("WindowsGuideRuntime can capture only Windows runtime values.");
-
-        var descriptor = TargetDescriptor.Create(TargetRuntime.Windows, capture.Locator);
+        var descriptor = action.SourceTarget
+            ?? throw new InvalidOperationException($"Variable action '{action.Id}' has no target.");
+        if (descriptor.Runtime != TargetRuntime.Windows)
+            throw new InvalidOperationException("Windows runtime can read only Windows variables.");
         var resolution = _resolver.Resolve(GetActiveResolutionRoot(windowRoot), descriptor);
         if (resolution.Status != TargetResolutionStatus.Resolved || resolution.Target is null)
             return null;
-
         string? raw;
         try
         {
-            raw = capture.Property.Trim().ToLowerInvariant() switch
+            raw = action.Property?.Trim().ToLowerInvariant() switch
             {
                 "name" => resolution.Target.Current.Name,
                 "automation-id" => resolution.Target.Current.AutomationId,
-                _ => throw new NotSupportedException($"Unsupported Windows capture property '{capture.Property}'.")
+                _ => throw new NotSupportedException(
+                    $"Unsupported Windows variable property '{action.Property}'.")
             };
         }
-        catch (ElementNotAvailableException)
-        {
-            // Capture retries on the next observation if UIA replaced the element.
-            return null;
-        }
-
-        if (string.IsNullOrEmpty(capture.Pattern))
-            return raw;
-
-        var match = Regex.Match(raw ?? string.Empty, capture.Pattern, RegexOptions.CultureInvariant);
-        if (!match.Success)
-            return null;
+        catch (ElementNotAvailableException) { return null; }
+        if (string.IsNullOrEmpty(action.Pattern)) return raw;
+        var match = Regex.Match(raw ?? string.Empty, action.Pattern, RegexOptions.CultureInvariant);
+        if (!match.Success) return null;
         return match.Groups.Count > 1 ? match.Groups[1].Value : match.Value;
     }
 
