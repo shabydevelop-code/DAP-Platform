@@ -375,6 +375,82 @@ WHERE GuideId=$guideId AND ContextId=$contextId";
         transaction.Commit();
     }
 
+    // Delete only the selected step, its rules and targets, then unreferenced
+    // elements. Keep shared elements/anchors and other steps untouched.
+    internal static void DeleteStep(long guideId, string stepId)
+    {
+        if (string.IsNullOrWhiteSpace(stepId))
+            throw new ArgumentException("מזהה השלב חסר.");
+        using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = V5GuideReader.DatabasePath, Mode = SqliteOpenMode.ReadWrite,
+            Pooling = false, DefaultTimeout = 3
+        }.ToString());
+        connection.Open();
+        using (var pragma = connection.CreateCommand())
+        {
+            pragma.CommandText = "PRAGMA foreign_keys=ON";
+            pragma.ExecuteNonQuery();
+        }
+        using var transaction = connection.BeginTransaction();
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandTimeout = 3;
+        command.Parameters.AddWithValue("$guideId", guideId);
+        command.Parameters.AddWithValue("$stepId", stepId);
+        command.CommandText = "SELECT StepOrder FROM Steps WHERE GuideId=$guideId AND StepId=$stepId";
+        var originalOrder = command.ExecuteScalar();
+        if (originalOrder is null)
+            throw new InvalidOperationException("השלב לא נמצא.");
+        var order = Convert.ToInt32(originalOrder);
+        command.Parameters.AddWithValue("$order", order);
+
+        // Mark candidates before deleting their step targets.
+        command.CommandText = @"CREATE TEMP TABLE _DeletedStepElements (ElementId TEXT PRIMARY KEY)";
+        command.ExecuteNonQuery();
+        command.CommandText = @"INSERT INTO _DeletedStepElements (ElementId)
+SELECT DISTINCT ElementId FROM StepTargets WHERE GuideId=$guideId AND StepId=$stepId";
+        command.ExecuteNonQuery();
+
+        command.CommandText = "DELETE FROM StepRules WHERE GuideId=$guideId AND StepId=$stepId";
+        command.ExecuteNonQuery();
+        command.CommandText = "DELETE FROM StepTargets WHERE GuideId=$guideId AND StepId=$stepId";
+        command.ExecuteNonQuery();
+        command.CommandText = "DELETE FROM Steps WHERE GuideId=$guideId AND StepId=$stepId";
+        if (command.ExecuteNonQuery() != 1)
+            throw new InvalidOperationException("מחיקת השלב נכשלה.");
+
+        // Clear anchors owned by elements exclusively used by this step.
+        // Preserve elements referenced by any surviving step or anchor.
+        command.CommandText = @"DELETE FROM ElementAnchors
+WHERE GuideId=$guideId AND ElementId IN (
+ SELECT e.ElementId FROM _DeletedStepElements e
+ WHERE NOT EXISTS (SELECT 1 FROM StepTargets t
+   WHERE t.GuideId=$guideId AND t.ElementId=e.ElementId)
+ AND NOT EXISTS (SELECT 1 FROM ElementAnchors a
+   WHERE a.GuideId=$guideId AND a.AnchorElementId=e.ElementId
+     AND a.ElementId NOT IN (SELECT ElementId FROM _DeletedStepElements))
+)";
+        command.ExecuteNonQuery();
+        command.CommandText = @"DELETE FROM Elements
+WHERE GuideId=$guideId AND ElementId IN (SELECT ElementId FROM _DeletedStepElements)
+AND NOT EXISTS (SELECT 1 FROM StepTargets t
+  WHERE t.GuideId=$guideId AND t.ElementId=Elements.ElementId)
+AND NOT EXISTS (SELECT 1 FROM ElementAnchors a
+  WHERE a.GuideId=$guideId AND
+  (a.ElementId=Elements.ElementId OR a.AnchorElementId=Elements.ElementId))";
+        command.ExecuteNonQuery();
+
+        // Shift using temporary negative values to satisfy UNIQUE(GuideId,StepOrder).
+        command.CommandText = @"UPDATE Steps SET StepOrder=-StepOrder
+WHERE GuideId=$guideId AND StepOrder>$order";
+        command.ExecuteNonQuery();
+        command.CommandText = @"UPDATE Steps SET StepOrder=-StepOrder-1
+WHERE GuideId=$guideId AND StepOrder<0";
+        command.ExecuteNonQuery();
+        transaction.Commit();
+    }
+
     internal static void DeleteGuide(long guideId)
     {
         using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
