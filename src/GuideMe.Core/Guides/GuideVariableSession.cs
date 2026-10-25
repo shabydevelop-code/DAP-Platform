@@ -1,3 +1,4 @@
+using GuideMe.Core.Targets;
 using System.Text.RegularExpressions;
 
 namespace GuideMe.Core.Guides;
@@ -75,4 +76,30 @@ public sealed class GuideVariableSession
                 $"Guide variable '{id}' has not been assigned.");
         });
     }
+    /// <summary>Resolve variable references in all target locators, including
+    /// anchors, iframe paths and additional completion conditions.</summary>
+    public GuideStep Materialize(GuideStep step)
+    {
+        ArgumentNullException.ThrowIfNull(step);
+        TargetDescriptor Expand(TargetDescriptor target) => target with
+        {
+            Locator = target.Locator with { Value = Resolve(target.Locator.Value) },
+            Anchors = target.Anchors.Select(anchor => anchor with
+            {
+                Locator = anchor.Locator with { Value = Resolve(anchor.Locator.Value) }
+            }).ToArray(),
+            FrameContext = target.FrameContext is null ? null : target.FrameContext with
+            {
+                Path = target.FrameContext.Path.Select(locator =>
+                    locator with { Value = Resolve(locator.Value) }).ToArray()
+            }
+        };
+        return step with
+        {
+            Target = step.Target is null ? null : Expand(step.Target),
+            CompletionConditions = step.CompletionConditions?.Select(condition =>
+                condition with { Target = Expand(condition.Target) }).ToArray()
+        };
+    }
+
 }
