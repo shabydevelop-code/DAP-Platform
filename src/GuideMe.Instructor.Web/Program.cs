@@ -388,8 +388,13 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/variable-source",
                 process.ProcessName, StringComparison.OrdinalIgnoreCase));
         if (!allowed)
             return Results.BadRequest(new { message = "הרכיב אינו שייך לאפליקציית היעד." });
-        locators = picked.Locators.Select(l =>
-            new V5GuideWriter.TargetLocator(l.Strategy, l.Value)).ToArray();
+        var selected = picked.Locators.FirstOrDefault(l =>
+            l.Strategy == "automation-id" && !string.IsNullOrWhiteSpace(l.Value))
+            ?? picked.Locators.FirstOrDefault(l =>
+                l.Strategy == "name" && !string.IsNullOrWhiteSpace(l.Value));
+        if (selected is null)
+            return Results.BadRequest(new { message = "לא נמצא מזהה Windows מתאים לרכיב." });
+        locators = new[] { new V5GuideWriter.TargetLocator(selected.Strategy, selected.Value) };
         frames = Array.Empty<V5GuideWriter.TargetLocator>();
         displayName = picked.Name;
     }
