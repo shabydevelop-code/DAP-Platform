@@ -58,7 +58,7 @@ public static class GuideV5DefinitionReader
         {
             var signals = new List<ObservedSignal>();
             await using var command = connection.CreateCommand();
-            command.CommandText = "SELECT RuleId,RuleType,Kind,TargetUsageId,ExpectedValue,OptionsJson FROM StepRules WHERE GuideId=$guideId AND StepId=$stepId AND RuleType!='Capture' ORDER BY RuleType,RuleId";
+            command.CommandText = "SELECT RuleId,RuleType,Kind,TargetUsageId,ExpectedValue,OptionsJson FROM StepRules WHERE GuideId=$guideId AND StepId=$stepId ORDER BY RuleType,RuleId";
             command.Parameters.AddWithValue("$guideId", step.GuideId);
             command.Parameters.AddWithValue("$stepId", step.StepId);
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
