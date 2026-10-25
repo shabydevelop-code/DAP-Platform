@@ -6,6 +6,27 @@ namespace GuideMe.Data.Sqlite.Guides;
 /// <summary>Read canonical guide variable definitions; no legacy-capture fallback.</summary>
 public static class GuideV5VariableReader
 {
+    public static async Task RequireMigratedAsync(
+        string databasePath, long guideId, CancellationToken token = default)
+    {
+        await using var db = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = databasePath, Mode = SqliteOpenMode.ReadOnly
+        }.ToString());
+        await db.OpenAsync(token);
+        await using var cmd = db.CreateCommand();
+        cmd.CommandText = @"SELECT
+            (SELECT COUNT(*) FROM StepRules WHERE GuideId=$guide AND RuleType='Capture')
+          + (SELECT COUNT(*) FROM Elements WHERE GuideId=$guide
+             AND LocatorsJson LIKE '%{{step:%:capture}}%')
+          + (SELECT COUNT(*) FROM Steps WHERE GuideId=$guide
+             AND ContextValue LIKE '%{{step:%:capture}}%')";
+        cmd.Parameters.AddWithValue("$guide", guideId);
+        if (Convert.ToInt64(await cmd.ExecuteScalarAsync(token)) != 0)
+            throw new InvalidOperationException(
+                "Guide contains legacy Capture data. Run the one-time V5 variable migration before starting the Learner.");
+    }
+
     public static async Task<IReadOnlyList<GuideVariableDefinition>> ReadDefinitionsAsync(
         string databasePath, long guideId, CancellationToken token = default)
     {
