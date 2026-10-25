@@ -1051,11 +1051,7 @@ function selectVariableSource(step, context) {
   if (!current || !context || !current.variables?.length) return;
   const choices = current.variables.map(v => ({value:v.id,text:v.name}));
   modal('בחירת רכיב מקור למשתנה — שלב ' + step.order, [
-    {name:'variableId',label:'משתנה לעדכון',value:choices[0].value,choices},
-    {name:'timing',label:'מועד הקריאה',value:'BeforeAction',choices:[
-      {value:'BeforeAction',text:'לפני הפעולה בשלב'},
-      {value:'DuringStep',text:'במהלך השלב'},
-      {value:'AfterAction',text:'אחרי הפעולה בשלב'}]}
+    {name:'variableId',label:'משתנה לעדכון',value:choices[0].value,choices}
   ], async values => {
     await beginTargetPicker(context.Runtime, current.guide.id, step.id,
       context.ContextId, false, false, context, values);
