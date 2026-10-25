@@ -793,12 +793,26 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
         var capture = new StepCaptureDefinition(source.Runtime, source.Locator,
             action.Property ?? throw new InvalidOperationException("Missing variable read property."),
             action.Pattern, action.Timing);
+        // A variable's source usage may not persist an iframe path even though
+        // the owning step is hosted inside that iframe. The old capture transport
+        // used the step frame; retain that frame boundary when a source has none.
+        var framePath = source.FrameContext?.Path is { Count: > 0 } sourcePath
+            ? sourcePath
+            : step.Target?.FrameContext?.Path;
         var response = await SendCommandAsync(ContextualCommand(step,
-            new { type = "capture", capture, framePath = source.FrameContext?.Path }), cancellationToken);
+            new { type = "capture", capture, framePath }), cancellationToken);
         var result = response.GetProperty("result");
         if (result.GetProperty("status").GetString() != "resolved" ||
             !result.TryGetProperty("value", out var value) || value.ValueKind == JsonValueKind.Null) return null;
         var raw = value.GetString();
+        // An empty URL hash is not a usable captured identifier. Do not store
+        // it and later materialize a syntactically valid but impossible selector.
+        if (action.Property == "frame-url-fragment" && string.IsNullOrEmpty(raw))
+            throw new InvalidOperationException(
+                $"Step '{step.Id}' read an empty frame URL fragment. " +
+                $"FramePath={JsonSerializer.Serialize(framePath)}; " +
+                $"SourceFramePath={JsonSerializer.Serialize(source.FrameContext?.Path)}. " +
+                "The variable read must target the content frame, not the top document.");
         if (raw is null || string.IsNullOrEmpty(action.Pattern)) return raw;
         var match = System.Text.RegularExpressions.Regex.Match(raw, action.Pattern,
             System.Text.RegularExpressions.RegexOptions.CultureInvariant);
