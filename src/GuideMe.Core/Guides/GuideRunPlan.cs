@@ -1,58 +1,33 @@
-using System.Text.RegularExpressions;
 using GuideMe.Core.Targets;
 
 namespace GuideMe.Core.Guides;
 
-/// <summary>Runtime-neutral guide sequencing and captured-value substitution.</summary>
+/// <summary>One ordered guide execution and one session-scoped variable store.</summary>
 public sealed class GuideRunPlan
 {
-    private static readonly Regex CaptureToken = new(
-        @"\{\{step:(?<step>[^}:]+):capture\}\}",
-        RegexOptions.Compiled | RegexOptions.CultureInvariant);
-
     private readonly GuideStep[] _steps;
     public IReadOnlyList<GuideStep> Steps => _steps;
-    public Dictionary<string, string> Captures { get; }
+    public GuideVariableSession Variables { get; }
 
-    public GuideRunPlan(IReadOnlyList<GuideStep> steps)
+    public GuideRunPlan(IReadOnlyList<GuideStep> steps,
+        IReadOnlyList<GuideVariableDefinition>? variables = null)
     {
         _steps = steps.OrderBy(step => step.Order).ToArray();
-        Captures = new Dictionary<string, string>(StringComparer.Ordinal);
+        Variables = new GuideVariableSession(variables ?? Array.Empty<GuideVariableDefinition>());
     }
 
-    /// <summary>Explicit timing is shared across runtimes. For older guides,
-    /// retain the established Web/Windows observation schedule.</summary>
-    public static bool ShouldCapture(GuideStep step, TargetRuntime runtime, StepCaptureTiming timing)
+    public int NextEnabledIndex(int currentIndex) =>
+        Array.FindIndex(_steps, currentIndex + 1, step => step.IsEnabled);
+
+    public GuideStep Materialize(GuideStep step) => Variables.Materialize(step);
+
+    public GuideStep? TryMaterialize(GuideStep step)
     {
-        ArgumentNullException.ThrowIfNull(step);
-        if (step.Capture is null)
-            return false;
-        if (step.Capture.Timing is { } configured)
-            return configured == timing;
-        return runtime switch
-        {
-            TargetRuntime.Web => timing == StepCaptureTiming.BeforeAction,
-            TargetRuntime.Windows => timing is StepCaptureTiming.DuringStep or StepCaptureTiming.AfterAction,
-            _ => throw new ArgumentOutOfRangeException(nameof(runtime))
-        };
+        try { return Materialize(step); }
+        catch (InvalidOperationException) { return null; }
     }
 
-    /// <summary>Store an observed capture only when it is available and changed.
-    /// Platform adapters retain control of when the value is observed.</summary>
-    public static bool RecordCapture(IDictionary<string, string> captures, string stepId, string? value)
-    {
-        ArgumentNullException.ThrowIfNull(captures);
-        ArgumentException.ThrowIfNullOrWhiteSpace(stepId);
-        if (value is null)
-            return false;
-        if (captures.TryGetValue(stepId, out var existing)
-            && string.Equals(existing, value, StringComparison.Ordinal))
-            return false;
-        captures[stepId] = value;
-        return true;
-    }
-
-    /// <summary>Execute shared step lifecycle; environment-specific work stays in the callback.</summary>
+    /// <summary>Execute the same ordered step and variable lifecycle for one runtime.</summary>
     public async Task ExecuteAsync(
         TargetRuntime runtime,
         Func<GuideStep, int, int, CancellationToken, Task> executeStep,
@@ -66,57 +41,14 @@ public sealed class GuideRunPlan
         {
             cancellationToken.ThrowIfCancellationRequested();
             var persisted = _steps[index];
-            if (!persisted.IsEnabled)
-            {
-                onSkipped?.Invoke(persisted);
-                continue;
-            }
-
+            if (!persisted.IsEnabled) { onSkipped?.Invoke(persisted); continue; }
             var step = Materialize(persisted);
             if (step.Target is not null && step.Target.Runtime != runtime)
                 throw new InvalidOperationException(
                     $"Guide Step '{step.Id}' is not a {runtime} Step.");
-
             onStarting?.Invoke(step);
             await executeStep(step, index, _steps.Length, cancellationToken);
             onCompleted?.Invoke(step);
         }
-    }
-
-    public int NextEnabledIndex(int currentIndex) =>
-        Array.FindIndex(_steps, currentIndex + 1, step => step.IsEnabled);
-
-    public GuideStep Materialize(GuideStep step)
-    {
-        if (step.Target is null)
-            return step;
-
-        string Replace(string value) => CaptureToken.Replace(value, match =>
-        {
-            var source = match.Groups["step"].Value;
-            if (!Captures.TryGetValue(source, out var captured))
-                throw new InvalidOperationException(
-                    $"Guide Step '{step.Id}' references uncaptured runtime value from Step '{source}'.");
-            return captured;
-        });
-
-        Locator MaterializeLocator(Locator locator) =>
-            locator with { Value = Replace(locator.Value) };
-
-        return step with
-        {
-            Target = step.Target with
-            {
-                Locator = MaterializeLocator(step.Target.Locator),
-                Anchors = step.Target.Anchors.Select(anchor =>
-                    anchor with { Locator = MaterializeLocator(anchor.Locator) }).ToArray()
-            }
-        };
-    }
-
-    public GuideStep? TryMaterialize(GuideStep step)
-    {
-        try { return Materialize(step); }
-        catch (InvalidOperationException) { return null; }
     }
 }
