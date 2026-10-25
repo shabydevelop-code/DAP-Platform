@@ -32,6 +32,23 @@ internal static class V5VariableCatalog
             FOREIGN KEY (GuideId) REFERENCES Guides(GuideId)
         )";
         command.ExecuteNonQuery();
+        command.CommandText = @"CREATE TABLE IF NOT EXISTS StepVariableActions (
+            GuideId INTEGER NOT NULL, StepId TEXT NOT NULL, ActionId TEXT NOT NULL,
+            ActionOrder INTEGER NOT NULL, VariableId TEXT NOT NULL,
+            ActionKind TEXT NOT NULL CHECK (ActionKind IN
+                ('SetValue','ReadFromTarget','Clear','CopyFromVariable')),
+            LiteralValue TEXT, SourceVariableId TEXT, TargetUsageId TEXT,
+            Property TEXT, Pattern TEXT,
+            Timing TEXT NOT NULL DEFAULT 'AfterAction',
+            PRIMARY KEY (GuideId,StepId,ActionId),
+            UNIQUE (GuideId,StepId,ActionOrder),
+            FOREIGN KEY (GuideId,StepId) REFERENCES Steps(GuideId,StepId),
+            FOREIGN KEY (GuideId,VariableId) REFERENCES GuideVariables(GuideId,VariableId),
+            FOREIGN KEY (GuideId,SourceVariableId) REFERENCES GuideVariables(GuideId,VariableId),
+            FOREIGN KEY (GuideId,StepId,TargetUsageId)
+                REFERENCES StepTargets(GuideId,StepId,UsageId)
+        )";
+        command.ExecuteNonQuery();
     }
 
     internal static IReadOnlyList<Variable> List(long guideId)
