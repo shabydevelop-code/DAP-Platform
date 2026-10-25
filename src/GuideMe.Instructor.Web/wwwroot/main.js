@@ -274,9 +274,9 @@ function renderSteps() {
       if (!current || !confirmDiscard()) return;
       const guideId = current.guide.id;
       const stepId = step.id;
-      if (!confirm('למחוק את שלב ' + step.order + '?\\n' +
+      if (!confirm('למחוק את שלב ' + step.order + '?\n' +
         (step.bubble || 'ללא הנחיה') +
-        '\\n\\nהשלב, הרכיבים וכללי ההתקדמות הייחודיים לו יימחקו לצמיתות.')) return;
+        '\n\nהשלב, הרכיבים וכללי ההתקדמות הייחודיים לו יימחקו לצמיתות.')) return;
       const button = $('delete-step');
       button.disabled = true;
       try {
@@ -389,8 +389,8 @@ const targetAdapters = {
     let tabId = null;
     if (selected.status === 'multiple') {
       const tabs = selected.tabs || [];
-      const choices = tabs.map((t,i) => (i+1)+'. '+(t.title || t.url)).join('\\n');
-      const answer = prompt('נמצאו כמה לשוניות מתאימות. הקלד את מספר הלשונית:\\n'+choices);
+      const choices = tabs.map((t,i) => (i+1)+'. '+(t.title || t.url)).join('\n');
+      const answer = prompt('נמצאו כמה לשוניות מתאימות. הקלד את מספר הלשונית:\n'+choices);
       if (answer === null) throw new Error('בחירת הלשונית בוטלה.');
       const i = Number(answer)-1;
       if (!Number.isInteger(i) || !tabs[i]) throw new Error('בחירת לשונית אינה תקינה.');
