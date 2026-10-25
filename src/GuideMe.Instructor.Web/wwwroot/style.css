@@ -272,3 +272,11 @@ body, body *, dialog, dialog * { font-size: 15px !important; }
 }
 
 .step-summary-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+
+/* Guide-level variable catalog shares application-configuration layout. */
+.guide-variables-section{padding:20px 24px;border-top:1px solid var(--gm-divider,#c4cedb)}
+.guide-variables-head{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:12px}
+.guide-variables-head h2{margin:0 0 6px}
+.guide-variables-head p{margin:0;color:#52667d}
+.guide-variable-row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 16px;border:1px solid var(--gm-border,#a7b8cc);border-radius:10px;margin-bottom:10px;background:#fff}
+.guide-variable-row p{margin:6px 0 0;color:#52667d;overflow-wrap:anywhere}
