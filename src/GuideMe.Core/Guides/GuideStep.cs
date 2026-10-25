@@ -16,7 +16,6 @@ public sealed record GuideStep(
     ValidationDefinition? Validation = null,
     StepAdvanceMode AdvanceMode = StepAdvanceMode.AutomaticOnValidation,
     StepContextDefinition? Context = null,
-    StepCaptureDefinition? Capture = null,
     IReadOnlyList<StepCompletionCondition>? CompletionConditions = null,
     bool IsEnabled = true,
     string? ApplicationContextKey = null,
