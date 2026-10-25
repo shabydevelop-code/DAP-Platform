@@ -236,3 +236,9 @@ p,.panel-header p,.step-body small,.empty,.empty-inspector{color:#52657a}
   .guide-card .guide-identity { flex-wrap: wrap; gap: 4px 10px; }
   .guide-card .guide-identity #detail-description { font-size: .75rem; }
 }
+
+/* Instructor-wide typography: one readable size; hierarchy uses weight and spacing.
+   Browser zoom remains available for accessibility. Applied last so historic
+   component and media-query font-size overrides cannot reintroduce jumps. */
+html { font-size: 15px; }
+body, body *, dialog, dialog * { font-size: 15px !important; }
