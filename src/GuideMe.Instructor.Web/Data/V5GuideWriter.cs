@@ -412,6 +412,14 @@ WHERE GuideId=$guideId AND ContextId=$contextId";
 SELECT DISTINCT ElementId FROM StepTargets WHERE GuideId=$guideId AND StepId=$stepId";
         command.ExecuteNonQuery();
 
+        // Step variable actions reference both Steps and StepTargets.
+        command.CommandText = @"SELECT COUNT(*) FROM sqlite_master
+            WHERE type='table' AND name='StepVariableActions'";
+        if (Convert.ToInt64(command.ExecuteScalar()) > 0)
+        {
+            command.CommandText = "DELETE FROM StepVariableActions WHERE GuideId=$guideId AND StepId=$stepId";
+            command.ExecuteNonQuery();
+        }
         command.CommandText = "DELETE FROM StepRules WHERE GuideId=$guideId AND StepId=$stepId";
         command.ExecuteNonQuery();
         command.CommandText = "DELETE FROM StepTargets WHERE GuideId=$guideId AND StepId=$stepId";
