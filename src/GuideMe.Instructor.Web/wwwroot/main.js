@@ -21,19 +21,10 @@ const $ = id => document.getElementById(id);
 
 let guides = [], current = null, selectedStep = null;
 let modalReturnFocus = null;
-let saveState = 'saved';
 let pendingChanges = false;
 let saveInFlight = 0;
-function updateSaveStatus() {
-  const el = $('save-status');
-  if (!el) return;
-  const state = saveInFlight ? 'saving' : saveState === 'error' ? 'error' : pendingChanges ? 'dirty' : saveState;
-  el.dataset.state = state;
-  el.textContent = ({saved:'כל השינויים נשמרו',dirty:'שינויים שלא נשמרו',
-    saving:'שומר שינויים...',error:'השמירה נכשלה'})[state];
-}
-function markDirty() { pendingChanges = true; saveState = 'dirty'; updateSaveStatus(); }
-function markClean() { pendingChanges = false; saveState = 'saved'; updateSaveStatus(); }
+function markDirty() { pendingChanges = true; }
+function markClean() { pendingChanges = false; }
 function confirmDiscard() {
   if (!pendingChanges) return true;
   if (!confirm('יש שינויים שלא נשמרו. לצאת בלי לשמור אותם?')) return false;
@@ -49,7 +40,7 @@ window.addEventListener('beforeunload', event => {
 const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 async function api(path, options = {}) {
   const writing = options.method && !['GET','HEAD'].includes(options.method.toUpperCase());
-  if (writing) { saveInFlight++; updateSaveStatus(); }
+  if (writing) saveInFlight++;
   let response;
   try {
     response = await fetch('/api' + path, {
@@ -57,13 +48,12 @@ async function api(path, options = {}) {
     cache: 'no-store'
     });
   } catch (error) {
-    if (writing) { saveInFlight--; saveState = 'error'; updateSaveStatus(); }
+    if (writing) saveInFlight--;
     throw error;
   }
   if (writing) {
     saveInFlight--;
     if (response.ok) markClean();
-    else { saveState = 'error'; updateSaveStatus(); }
   }
   if (!response.ok) {
     let body = await response.text();
