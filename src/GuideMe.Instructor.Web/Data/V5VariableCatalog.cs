@@ -421,7 +421,7 @@ internal static class V5VariableCatalog
     // Two explicit picks: the persisted primary action and a separately picked
     // identifying element. No data is inferred from the action's neighbours.
     internal static void BindIdentifiedAction(long guideId, string stepId,
-        string variableId, string identifierSelector)
+        string variableId, string identifierSelector, IReadOnlyList<string> identifierFrames)
     {
         if (string.IsNullOrWhiteSpace(identifierSelector) || identifierSelector.Length > 400)
             throw new ArgumentException("יש לבחור רכיב זיהוי תקין.");
@@ -454,11 +454,23 @@ internal static class V5VariableCatalog
         var locators = JsonSerializer.Deserialize<List<V5GuideWriter.TargetLocator>>(locatorJson);
         if (locators is not { Count: 1 } || locators[0].Strategy != "css")
             throw new InvalidOperationException("נדרש מזהה פעולה יחיד מסוג CSS.");
+        var actionFrames = frameJson is null ? Array.Empty<V5GuideWriter.TargetLocator>() :
+            JsonSerializer.Deserialize<List<V5GuideWriter.TargetLocator>>(frameJson)?.ToArray()
+                ?? Array.Empty<V5GuideWriter.TargetLocator>();
+        if (!actionFrames.Select(f => f.Value).SequenceEqual(identifierFrames))
+            throw new InvalidOperationException("שני הרכיבים חייבים להיבחר באותה מסגרת.");
         var original = locators[0].Value;
         // Only a specifically selected, identifiable interactive element can
         // be generalized. Never turn a selected row into a click target.
         var last = Regex.Split(original, @"\s*>\s*|\s+(?![^\[]*\])").Last().Trim();
         last = Regex.Replace(last, @":nth-(?:of-type|child)\(\d+\)", "");
+        // Row-specific attributes are not stable action identifiers. Require
+        // an explicit class on the picked action instead of guessing IDs.
+        last = Regex.Replace(last, @"\[[^\]]+\]", "");
+        if (!Regex.IsMatch(last, @"^(?:button|a|input)(?:\.[a-zA-Z_][\w-]*)+$",
+                RegexOptions.IgnoreCase))
+            throw new InvalidOperationException(
+                "לכפתור שנבחר אין מאפיין פעולה יציב. יש לבחור רכיב פעולה אחר.");
         if (!Regex.IsMatch(last, @"^(?:button|a|input)(?:[.#\[][^\s]+)+$", RegexOptions.IgnoreCase))
             throw new InvalidOperationException(
                 "רכיב הפעולה אינו מזוהה באופן יציב. יש לבחור את הכפתור עצמו מחדש.");
