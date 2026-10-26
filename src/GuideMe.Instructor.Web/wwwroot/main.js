@@ -244,7 +244,7 @@ function renderSteps() {
         '<p>עדיין לא נבחר רכיב לשלב הזה.</p>') +
       ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') ?
         (target ? '<button class="btn secondary small" id="replace-web-target">בחירת רכיב אחר</button>' +
-          ((current.variables || []).length ? ' <button class="btn secondary small" id="bind-target-variable">שימוש במשתנה במזהה הרכיב</button>' : '') :
+          ((current.variables || []).length && context?.Runtime === 'Web' ? ' <button class="btn secondary small" id="identify-action">בחירת רכיב זיהוי לפי משתנה</button>' : '') :
           '<button id="pick-element" class="btn primary">הפעלת ממפה רכיבים</button>') +
         '<div id="pick-result" class="hidden" aria-live="polite"></div>' : '') +
       '</section>' +
@@ -367,8 +367,18 @@ function renderSteps() {
       beginTargetPicker(context.Runtime, current.guide.id, step.id, contextId, replacing, completion, context);
     const targetReplace = $('replace-web-target');
     if (targetReplace) targetReplace.onclick = () => guarded(() => startElementPicker(true));
-    const bindTarget = $('bind-target-variable');
-    if (bindTarget) bindTarget.onclick = () => bindTargetToVariable(step, context?.Runtime, locatorText);
+    const identifyAction = $('identify-action');
+    if (identifyAction) identifyAction.onclick = () => {
+      const variables = current.variables || [];
+      const start = variableId => guarded(() =>
+        beginTargetPicker('Web', current.guide.id, step.id, contextId,
+          false, false, context, null, {variableId}));
+      if (variables.length === 1) start(variables[0].id);
+      else modal('בחירת משתנה לזיהוי', [
+        {name:'variableId',label:'משתנה',value:variables[0].id,
+          choices:variables.map(v => ({value:v.id,text:v.name}))}
+      ], values => start(values.variableId));
+    };
     const conditionEditor = $('edit-validation');
     if (conditionEditor) conditionEditor.onclick = () => editValidation(step, rule);
     const startButton = $('pick-element');
@@ -507,7 +517,7 @@ function pickerResultBox(session) {
   return $(session.variableSource ? 'variable-pick-result' :
     session.completion ? 'completion-pick-result' : 'pick-result');
 }
-async function beginTargetPicker(runtime, guideId, stepId, contextId, replacing=false, completion=false, context=null, variableSource=null) {
+async function beginTargetPicker(runtime, guideId, stepId, contextId, replacing=false, completion=false, context=null, variableSource=null, identifier=null) {
   const adapter = targetAdapters[runtime];
   if (!adapter) throw new Error('סביבת היעד אינה נתמכת.');
   if (completion && !adapter.saveCompletion)
@@ -516,7 +526,7 @@ async function beginTargetPicker(runtime, guideId, stepId, contextId, replacing=
     await targetAdapters[pickingFor.runtime].cancel();
     pickingFor = null;
   }
-  const session = {runtime,guideId,stepId,contextId,replacing,completion,context,variableSource,startedAt:Date.now()};
+  const session = {runtime,guideId,stepId,contextId,replacing,completion,context,variableSource,identifier,startedAt:Date.now()};
   const box = pickerResultBox(session);
   if (!box) throw new Error('אזור אישור הרכיב חסר בממשק.');
   box.dataset.pickedSelector = '';
@@ -579,8 +589,8 @@ async function refreshPicker() {
       '<select id="grid-row-choice"><option value="">בחירת הרכיב הרגילה (לפי מיקום)</option>'+
       candidate.gridChoices.map((choice,i)=>'<option value="'+i+'">'+esc(choice.header)+': '+esc(choice.value)+'</option>').join('')+
       '</select><p>בחירה לפי ערך תישאר תקפה גם לאחר מיון הטבלה. אם הערך אינו ייחודי, הוא לא יוצע.</p>' : '')+
-    (pickingFor.replacing || pickingFor.variableSource ? '' : '<label for="target-condition">' + (pickingFor.completion ? 'חוק השלמה' : 'תנאי התקדמות') + '</label>')+
-    (pickingFor.replacing || pickingFor.variableSource ? '' : '<select id="target-condition">'+
+    (pickingFor.replacing || pickingFor.variableSource || pickingFor.identifier ? '' : '<label for="target-condition">' + (pickingFor.completion ? 'חוק השלמה' : 'תנאי התקדמות') + '</label>')+
+    (pickingFor.replacing || pickingFor.variableSource || pickingFor.identifier ? '' : '<select id="target-condition">'+
     (pickingFor.completion ? '<option value="target-appeared">הופיע</option><option value="target-vanished">נעלם</option><option value="attribute-equals">מאפיין משתנה לערך צפוי</option>' :
     '<option value="clicked" '+(['input','textarea','select'].includes(candidate.tag)?'':'selected')+'>המשתמש לוחץ על הרכיב</option>'+
     '<option value="value-not-empty" '+(['input','textarea','select'].includes(candidate.tag)?'selected':'')+'>הוזן ערך בשדה</option>'+
@@ -655,7 +665,11 @@ async function refreshPicker() {
       const gridChoice = $('grid-row-choice')?.value;
       const gridChoiceIndex = gridChoice === undefined || gridChoice === '' ? null : Number(gridChoice);
       const adapter = targetAdapters[pickedFor.runtime];
-      if (pickedFor.variableSource) {
+      if (pickedFor.identifier) {
+        await api('/guides/'+pickedFor.guideId+'/steps/'+encodeURIComponent(pickedFor.stepId)+'/identified-action',
+          {method:'POST',body:JSON.stringify({variableId:pickedFor.identifier.variableId})});
+      }
+      else if (pickedFor.variableSource) {
         const mode = $('variable-extract-choice')?.value || 'full';
         const pattern = mode === 'number' ? '([0-9]+)' :
           mode === 'custom' ? $('variable-extract-pattern')?.value : null;
@@ -680,7 +694,8 @@ async function refreshPicker() {
       const item = [...document.querySelectorAll('[data-step]')]
         .find(x => x.dataset.step === pickedFor.stepId);
       if (item) await item.click();
-      notify(pickedFor.variableSource ? 'רכיב מקור המשתנה נשמר ללא שינוי רכיב הפעולה.'
+      notify(pickedFor.identifier ? 'רכיב הזיהוי קושר למשתנה ולרכיב הפעולה.' :
+        pickedFor.variableSource ? 'רכיב מקור המשתנה נשמר ללא שינוי רכיב הפעולה.'
         : pickedFor.replacing
         ? 'הרכיב הוחלף בהצלחה. תנאי ההתקדמות נשאר ללא שינוי.'
         : pickedFor.completion ? 'תנאי ההשלמה נשמר.' : 'רכיב היעד ותנאי ההתקדמות נשמרו.');
