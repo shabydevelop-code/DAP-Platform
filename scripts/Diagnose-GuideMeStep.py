@@ -17,7 +17,7 @@ with sqlite3.connect("file:" + args.db.replace("\\", "/") + "?mode=ro", uri=True
         except sqlite3.OperationalError as exc:
             return [{"error": str(exc)}]
 
-    guides = rows("SELECT GuideId,Name FROM Guides ORDER BY GuideId")
+    guides = rows("SELECT * FROM Guides ORDER BY GuideId")
     print("GUIDES:", json.dumps(guides, ensure_ascii=False))
     steps = rows("SELECT GuideId,StepId,ApplicationContextId FROM Steps WHERE StepId=?"
                  + (" AND GuideId=?" if args.guide is not None else ""),
