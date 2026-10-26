@@ -97,12 +97,12 @@ public static class GuideV5VariableReader
             var variableId = reader.GetString(3);
             if (!ids.Contains(variableId)
                 || !Enum.TryParse<GuideVariableActionKind>(reader.GetString(4), out var kind)
-                || !Enum.TryParse<StepCaptureTiming>(reader.GetString(10), out var timing))
+                || reader.IsDBNull(10))
                 throw new InvalidOperationException($"Invalid variable action for step '{stepId}'.");
             string? Nullable(int index) => reader.IsDBNull(index) ? null : reader.GetString(index);
             var action = new GuideVariableAction(reader.GetString(1), variableId, kind,
                 reader.GetInt32(2), Nullable(5), Nullable(6), Nullable(7),
-                Nullable(8), Nullable(9), timing);
+                Nullable(8), Nullable(9), StepCaptureTiming.AfterAction);
             if (action.SourceVariableId is { } source && !ids.Contains(source))
                 throw new InvalidOperationException($"Unknown source variable '{source}'.");
             if (!byStep.TryGetValue(stepId, out var actions))
