@@ -595,7 +595,7 @@ async function refreshPicker() {
   const candidate = adapter.selected(state);
   if (box.dataset.pickedSelector === candidate.selector) return;
   box.dataset.pickedSelector = candidate.selector;
-  box.innerHTML = '<p><strong>הרכיב שנבחר:</strong> '+esc(candidate.label || candidate.tag || 'רכיב')+'</p>'+
+  box.innerHTML = '<div class="picked-target-fields"><p><strong>הרכיב שנבחר:</strong> '+esc(candidate.label || candidate.tag || 'רכיב')+'</p>'+
     (candidate.framePath?.length ? '<p><strong>נתיב מסגרות:</strong> '+candidate.framePath.map(esc).join(' → ')+'</p>' : '')+
     '<p class="target-technical">מזהה רכיב: <code dir="ltr">'+esc(candidate.selector)+'</code></p>'+
     (!pickingFor.completion && !pickingFor.identifier &&
@@ -607,7 +607,7 @@ async function refreshPicker() {
       '</select><p>בחירה לפי ערך תישאר תקפה גם לאחר מיון הטבלה. אם הערך אינו ייחודי, הוא לא יוצע.</p>' : '')+
     (pickingFor.replacing || pickingFor.variableSource || pickingFor.identifier ? '' : '<label for="target-condition">' + (pickingFor.completion ? 'חוק השלמה' : 'תנאי התקדמות') + '</label>')+
     (pickingFor.replacing || pickingFor.variableSource || pickingFor.identifier ? '' : '<select id="target-condition">'+
-    (pickingFor.completion ? '<option value="target-appeared">הופיע</option><option value="target-appeared-variable">מכיל ערך של משתנה</option><option value="target-vanished">נעלם</option><option value="attribute-equals">מאפיין משתנה לערך צפוי</option>' :
+    (pickingFor.completion ? '<option value="target-appeared">הופיע</option><option value="target-appeared-variable">מכיל ערך של משתנה</option><option value="target-vanished">נעלם</option>' :
     '<option value="clicked" '+(['input','textarea','select'].includes(candidate.tag)?'':'selected')+'>המשתמש לוחץ על הרכיב</option>'+
     '<option value="value-not-empty" '+(['input','textarea','select'].includes(candidate.tag)?'selected':'')+'>הוזן ערך בשדה</option>'+
     '<option value="target-disappeared">הרכיב נעלם בעקבות הפעולה</option>')+
@@ -617,17 +617,8 @@ async function refreshPicker() {
       '<select id="completion-variable-choice">' +
       (current?.variables || []).map(v => '<option value="' + esc(v.id) + '">' + esc(v.name) + '</option>').join('') +
       '</select><p>ההשלמה תתבצע רק כאשר הרכיב שנבחר מכיל את ערך המשתנה.</p></div>' : '')+
-    (pickingFor.completion ? '<div id="attribute-condition-fields" class="hidden">' +
-      '<label for="completion-state-choice">המצב שנלכד מהרכיב</label>' +
-      '<select id="completion-state-choice">' +
-      (candidate.stateAttributes || []).map((state, index) =>
-        '<option value="' + index + '">' + esc((state.label || 'רכיב') + ': ' + state.name + ' = ' + state.value) + '</option>').join('') +
-      '</select>' +
-      ((candidate.stateAttributes || []).length ? '<p>בחר את מצב הרכיב הרצוי. הערכים נקראו מאפליקציית היעד.</p>' :
-        '<p>לא נמצאו מאפייני מצב מתאימים ברכיב. בחר רכיב אחר, למשל כותרת העמודה.</p>') +
-      '</div>' : '')+
     (pickingFor.variableSource ? variableExtractionEditor(candidate, requestSession.runtime) : '') +
-    '<div class="target-actions">'+
+    '</div><div class="target-actions">'+
     '<button id="save-web-target" class="btn primary">' + (pickingFor.identifier ? 'שמירת רכיב הזיהוי' : 'אישור ושמירת רכיב') + '</button>'+
     '<button id="cancel-web-target" class="btn secondary">ביטול</button></div>';
   if (pickingFor.variableSource) {
@@ -661,8 +652,8 @@ async function refreshPicker() {
   if (pickingFor.completion) {
     const condition = $('target-condition');
     const updateFields = () => {
-      $('attribute-condition-fields').classList.toggle('hidden', condition.value !== 'attribute-equals');
-      $('completion-variable-fields').classList.toggle('hidden', condition.value !== 'target-appeared-variable');
+      $('completion-variable-fields').classList.toggle('hidden',
+        condition.value !== 'target-appeared-variable');
     };
     condition.addEventListener('change', updateFields);
     updateFields();
