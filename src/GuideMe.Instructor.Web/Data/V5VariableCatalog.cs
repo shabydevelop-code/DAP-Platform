@@ -377,6 +377,15 @@ internal static class V5VariableCatalog
                 RegexOptions.CultureInvariant);
             if (attribute == "cell-text")
             {
+                // A row selector identifies the row, not the action button.
+                // Never bind it as a clickable primary target: doing so could
+                // activate a different control or no control at all.
+                if (Regex.IsMatch(selected.Value,
+                    @":cell-text\(\s*\d+\s*,\s*['""][^'""]*['""]\s*\)$",
+                    RegexOptions.CultureInvariant))
+                    throw new InvalidOperationException(
+                        "מזהה זה מצביע על שורה ולא על כפתור הפעולה. נדרשת בחירה נפרדת של רכיב הזיהוי.");
+
                 if (cellText.Count != 1)
                     throw new InvalidOperationException("לא נמצא מספר יחיד בתוכן שורת הטבלה.");
                 var value = cellText[0];
