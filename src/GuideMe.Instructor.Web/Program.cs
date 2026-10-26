@@ -357,7 +357,7 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/identified-action",
     if (context is null || context["Runtime"].ToString() != "Web")
         return Results.BadRequest(new { message = "קישור רכיב זיהוי נתמך כרגע ב־Web בלבד." });
     var selected = capture.GetApprovedTarget(id, contextId);
-    V5VariableCatalog.BindIdentifiedAction(id, stepId, body.VariableId, selected.Selector);
+    V5VariableCatalog.BindIdentifiedAction(id, stepId, body.VariableId, selected.Selector, selected.FramePath);
     capture.CancelPicking();
     return Results.NoContent();
 });
