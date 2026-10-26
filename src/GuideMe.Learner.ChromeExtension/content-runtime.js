@@ -460,7 +460,7 @@
     throw new Error("Unsupported Web locator strategy '" + locator.strategy + "'.");
   }
 
-  function matchesAnchor(el, anchor) {
+  function matchesAnchor(el, anchor, actionSelector) {
     if (anchor.locator.strategy.toLowerCase() !== "css")
       throw new Error("Initial Web anchor relations support CSS anchors only.");
 
@@ -481,16 +481,17 @@
       case "nearby":
         return !!(el.parentElement && queryExtendedCss(selector, el.parentElement).length > 0);
       case "sharedcontainer": {
-        // Both explicitly captured elements must belong to a local container.
-        // Never treat the document/body as a relationship, and never guess
-        // between multiple identifiers within a container.
-        for (let parent = el.parentElement; parent &&
-             parent !== document.body && parent !== document.documentElement;
-             parent = parent.parentElement) {
-          const identifiers = queryExtendedCss(selector, parent);
-          if (identifiers.length === 1 && !el.contains(identifiers[0]))
-            return true;
-          if (identifiers.length > 1) return false;
+        // Identify a repeated local item (row/card), not an arbitrary common
+        // ancestor such as a whole table. Both picks must resolve in one item.
+        for (let container = el.parentElement; container &&
+             container !== document.body && container !== document.documentElement;
+             container = container.parentElement) {
+          const parent = container.parentElement;
+          if (!parent || parent === document.body) continue;
+          const inside = queryExtendedCss(actionSelector, container);
+          const peers = queryExtendedCss(actionSelector, parent);
+          if (inside.length !== 1 || inside[0] !== el || peers.length < 2) continue;
+          return queryExtendedCss(selector, container).length === 1;
         }
         return false;
       }
@@ -501,7 +502,8 @@
 
   function resolveTarget(descriptor) {
     const matches = createCandidates(descriptor.locator)
-      .filter(el => (descriptor.anchors || []).every(a => matchesAnchor(el, a)));
+      .filter(el => (descriptor.anchors || []).every(a =>
+        matchesAnchor(el, a, descriptor.locator.value)));
 
     if (matches.length === 0) return { status: "notFound", count: 0 };
     if (matches.length > 1) return { status: "ambiguous", count: matches.length };
