@@ -67,6 +67,26 @@
       // attributes/classes or a scoped path instead.
       return names.map(name => base + '.' + CSS.escape(name));
     };
+    // Generated record IDs are unique only until the next render. Use a
+    // structural selector with a semantic class so identified-action binding
+    // can discard the row position but retain the selected action type.
+    if (element.closest('tr, li') && classNames(element).length &&
+        /[-_][a-z0-9]{5,}[-_]\\d+$/i.test(element.id || '')) {
+      const parts = [];
+      for (let node = element, depth = 0; node && node.nodeType === 1 && depth < 9;
+           node = node.parentElement, depth++) {
+        let part = node.tagName.toLowerCase();
+        if (node === element) part += '.' + CSS.escape(classNames(node)[0]);
+        const parent = node.parentElement;
+        if (parent) {
+          const siblings = [...parent.children].filter(el => el.tagName === node.tagName);
+          if (siblings.length > 1)
+            part += ':nth-of-type(' + (siblings.indexOf(node) + 1) + ')';
+        }
+        parts.unshift(part);
+        if (parts.length > 1 && unique(parts.join(' > '))) return parts.join(' > ');
+      }
+    }
     if (stable(element.id)) {
       const selector = '#' + CSS.escape(element.id);
       if (unique(selector)) return selector;
