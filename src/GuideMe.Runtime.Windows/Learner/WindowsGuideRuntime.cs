@@ -729,27 +729,6 @@ public sealed class WindowsGuideRuntime
         }
     }
 
-    private void ApplyVariableActions(AutomationElement root, GuideStep step,
-        GuideRunPlan plan, StepCaptureTiming timing)
-    {
-        foreach (var action in step.VariableActions ?? Array.Empty<GuideVariableAction>())
-        {
-            if (action.Timing != timing) continue;
-            if (action.Kind != GuideVariableActionKind.ReadFromTarget)
-            {
-                plan.Variables.Execute(action);
-                continue;
-            }
-            var value = ResolveVariable(root, action);
-            // DuringStep samples may occur before the UI value becomes available.
-            if (value is null && timing == StepCaptureTiming.DuringStep) continue;
-            if (value is null)
-                throw new InvalidOperationException(
-                    $"Windows variable action '{action.Id}' could not read its target.");
-            plan.Variables.Execute(action, value);
-        }
-    }
-
     private string? ResolveVariable(AutomationElement windowRoot, GuideVariableAction action)
     {
         var descriptor = action.SourceTarget
