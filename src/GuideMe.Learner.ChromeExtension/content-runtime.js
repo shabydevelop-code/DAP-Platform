@@ -481,16 +481,31 @@
       case "nearby":
         return !!(el.parentElement && queryExtendedCss(selector, el.parentElement).length > 0);
       case "sharedcontainer": {
-        // Identify a repeated local item (row/card), not an arbitrary common
-        // ancestor such as a whole table. Both picks must resolve in one item.
+        // Match within an explicit repeated item, never the entire page.
+        // A table row is an item even if only one row is currently visible.
         for (let container = el.parentElement; container &&
              container !== document.body && container !== document.documentElement;
              container = container.parentElement) {
-          const parent = container.parentElement;
-          if (!parent || parent === document.body) continue;
-          const inside = queryExtendedCss(actionSelector, container);
-          const peers = queryExtendedCss(actionSelector, parent);
-          if (inside.length !== 1 || inside[0] !== el || peers.length < 2) continue;
+          const tag = container.tagName.toLowerCase();
+          const item = tag === "tr" || tag === "li" ||
+            container.getAttribute("role") === "row" ||
+            container.getAttribute("role") === "listitem";
+          if (!item) continue;
+          const actions = queryExtendedCss(actionSelector, container);
+          if (actions.length !== 1 || actions[0] !== el) return false;
+          return queryExtendedCss(selector, container).length === 1;
+        }
+        // For cards without standard item semantics, require sibling
+        // containers with the same action type to prove the local boundary.
+        for (let container = el.parentElement; container &&
+             container.parentElement &&
+             container.parentElement !== document.body;
+             container = container.parentElement) {
+          const actions = queryExtendedCss(actionSelector, container);
+          if (actions.length !== 1 || actions[0] !== el) continue;
+          const siblings = [...container.parentElement.children];
+          if (siblings.filter(peer => queryExtendedCss(actionSelector, peer).length === 1).length < 2)
+            continue;
           return queryExtendedCss(selector, container).length === 1;
         }
         return false;
