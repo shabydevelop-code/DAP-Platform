@@ -632,8 +632,22 @@ WHERE GuideId=$guideId AND StepId=$stepId AND BubblePlacement='Center'";
     // An explicitly selected secondary target, never inferred from the primary action.
     internal static void SaveWebCompletionTarget(long guideId, string stepId, string selector,
         IReadOnlyList<string> framePath, string kind, string? displayName,
-        string? attributeName = null, string? attributeValue = null)
+        string? attributeName = null, string? attributeValue = null,
+        string? variableId = null, string? selectedTag = null)
     {
+        if (kind == "target-appeared-variable")
+        {
+            if (string.IsNullOrWhiteSpace(variableId) ||
+                !System.Text.RegularExpressions.Regex.IsMatch(variableId, @"^[a-zA-Z0-9_-]{1,120}$"))
+                throw new ArgumentException("יש לבחור משתנה תקין.");
+            if (string.IsNullOrWhiteSpace(selectedTag) ||
+                !System.Text.RegularExpressions.Regex.IsMatch(selectedTag, @"^[a-z][a-z0-9-]{0,40}$"))
+                throw new ArgumentException("יש לבחור רכיב טקסט תקין.");
+            // Keep the text check scoped to the explicitly picked element type.
+            // The variable is substituted by the shared runtime before lookup.
+            selector = selectedTag + ":has-text(\"{{var:" + variableId + "}}\")";
+            kind = "target-appeared";
+        }
         if (kind is not ("target-appeared" or "target-vanished" or "attribute-equals"))
             throw new ArgumentException("חוק השלמה לא נתמך.");
         if (kind == "attribute-equals" &&
@@ -653,6 +667,15 @@ WHERE GuideId=$guideId AND StepId=$stepId AND BubblePlacement='Center'";
         }.ToString());
         connection.Open();
         EnsureElementDisplayNameColumn(connection);
+        if (variableId is not null)
+        {
+            using var variableCheck = connection.CreateCommand();
+            variableCheck.CommandText = "SELECT COUNT(*) FROM GuideVariables WHERE GuideId=$guide AND VariableId=$variable";
+            variableCheck.Parameters.AddWithValue("$guide", guideId);
+            variableCheck.Parameters.AddWithValue("$variable", variableId);
+            if (Convert.ToInt64(variableCheck.ExecuteScalar()) != 1)
+                throw new ArgumentException("המשתנה אינו מוגדר בלומדה.");
+        }
         using var transaction = connection.BeginTransaction();
         using var check = connection.CreateCommand();
         check.Transaction = transaction;
