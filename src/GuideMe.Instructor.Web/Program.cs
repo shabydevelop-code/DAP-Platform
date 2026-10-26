@@ -343,12 +343,6 @@ app.MapDelete("/api/guides/{id:long}/variables/{variableId}",
     return Results.NoContent();
 });
 
-app.MapDelete("/api/guides/{id:long}/steps/{stepId}/identified-action",
-    (long id, string stepId) =>
-{
-    V5VariableCatalog.RemoveIdentifiedAction(id, stepId);
-    return Results.NoContent();
-});
 app.MapPost("/api/guides/{id:long}/steps/{stepId}/identified-action",
     (long id, string stepId, IdentifiedActionRequest body) =>
 {
