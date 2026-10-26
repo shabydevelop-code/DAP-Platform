@@ -281,9 +281,20 @@ function renderSteps() {
         const sourceName = sourceElement?.DisplayName || sourceLocator || 'רכיב שלא זוהה';
         const extraction = !action.pattern ? 'הערך המלא' :
           action.pattern === '([0-9]+)' ? 'מספר בלבד' : 'חילוץ מותאם אישית';
+        const sampleMatch = action.pattern ? (() => {
+          try {
+            const match = sourceName.match(new RegExp(action.pattern));
+            return match ? (match[1] ?? match[0]) : null;
+          } catch { return null; }
+        })() : sourceName;
         const description = read
-          ? '<div class="variable-action-details"><div>מקור: <strong>' + esc(sourceName) + '</strong></div>' +
-            '<div>מה יישמר? <strong>' + esc(extraction) + '</strong></div></div>'
+          ? '<div class="variable-action-details"><div>מקור: <strong>טקסט הרכיב שנבחר</strong></div>' +
+            '<div>חילוץ: <strong>' + esc(extraction) + '</strong></div>' +
+            (sourceElement?.DisplayName
+              ? '<div>דוגמה מהבחירה: <strong>' + esc(sourceName) + '</strong>' +
+                (sampleMatch !== null ? ' ← <strong>' + esc(sampleMatch) + '</strong>' : '') + '</div>'
+              : '') +
+            '</div>'
           : '<div class="variable-action-details">' + esc(
               action.kind === 'SetValue' ? 'ערך קבוע' :
               action.kind === 'Clear' ? 'איפוס המשתנה' :
