@@ -313,111 +313,6 @@ internal static class V5VariableCatalog
     }
 
     /// <summary>
-    /// Bind one persisted primary locator to a guide variable. The picker owns
-    /// target discovery; the editor selects only the variable (and CSS attribute).
-    /// </summary>
-    internal static void BindPrimaryTarget(long guideId, string stepId,
-        string variableId, string? attribute)
-    {
-        using var connection = Open();
-        EnsureSchema(connection);
-        using var tx = connection.BeginTransaction();
-        using var cmd = connection.CreateCommand();
-        cmd.Transaction = tx;
-        cmd.Parameters.AddWithValue("$guide", guideId);
-        cmd.Parameters.AddWithValue("$step", stepId);
-        cmd.Parameters.AddWithValue("$variable", variableId);
-        cmd.CommandText = @"SELECT COUNT(*) FROM GuideVariables
-            WHERE GuideId=$guide AND VariableId=$variable";
-        if (Convert.ToInt32(cmd.ExecuteScalar()) != 1)
-            throw new ArgumentException("יש לבחור משתנה שהוגדר בלומדה.");
-
-        cmd.CommandText = @"SELECT t.ElementId,e.Runtime,e.LocatorsJson
-            FROM StepTargets t JOIN Elements e
-              ON e.GuideId=t.GuideId AND e.ElementId=t.ElementId
-            WHERE t.GuideId=$guide AND t.StepId=$step AND t.Purpose='Primary'";
-        string elementId, runtime, json;
-        using (var reader = cmd.ExecuteReader())
-        {
-            if (!reader.Read())
-                throw new InvalidOperationException("יש לבחור רכיב במסך לפני קישור משתנה.");
-            elementId = reader.GetString(0);
-            runtime = reader.GetString(1);
-            json = reader.GetString(2);
-            if (reader.Read())
-                throw new InvalidOperationException("נמצאו מספר רכיבים ראשיים.");
-        }
-        cmd.Parameters.AddWithValue("$element", elementId);
-        cmd.CommandText = @"SELECT COUNT(*) FROM StepTargets
-            WHERE GuideId=$guide AND ElementId=$element";
-        if (Convert.ToInt32(cmd.ExecuteScalar()) != 1)
-            throw new InvalidOperationException("הרכיב משותף לשלבים נוספים; יש לבחור רכיב ייעודי לשלב.");
-
-        var locators = JsonSerializer.Deserialize<List<V5GuideWriter.TargetLocator>>(json)
-            ?? throw new InvalidOperationException("לא ניתן לקרוא מזהה רכיב.");
-        if (locators.Count != 1)
-            throw new InvalidOperationException("קישור משתנה דורש מזהה רכיב ראשי יחיד.");
-        var selected = locators[0];
-        var token = "{{var:" + variableId + "}}";
-        string updated;
-        if (runtime == "Windows")
-        {
-            if (selected.Strategy is not ("name" or "automation-id"))
-                throw new InvalidOperationException("סוג מזהה Windows אינו נתמך.");
-            updated = token;
-        }
-        else if (runtime == "Web")
-        {
-            if (selected.Strategy != "css")
-                throw new InvalidOperationException("קישור משתנה נתמך רק במזהה רכיב מסוג CSS.");
-            // A grid row may be identified by its visible cell text rather than
-            // an HTML attribute. The authoring-time number is only a sample.
-            var cellText = Regex.Matches(selected.Value,
-                @"(?<=:cell-text\(\s*\d+\s*,\s*['""])\d+(?=['""]\s*\))",
-                RegexOptions.CultureInvariant);
-            if (attribute == "cell-text")
-            {
-                // A row selector identifies the row, not the action button.
-                // Never bind it as a clickable primary target: doing so could
-                // activate a different control or no control at all.
-                if (Regex.IsMatch(selected.Value,
-                    @":cell-text\(\s*\d+\s*,\s*['""][^'""]*['""]\s*\)$",
-                    RegexOptions.CultureInvariant))
-                    throw new InvalidOperationException(
-                        "מזהה זה מצביע על שורה ולא על כפתור הפעולה. נדרשת בחירה נפרדת של רכיב הזיהוי.");
-
-                if (cellText.Count != 1)
-                    throw new InvalidOperationException("לא נמצא מספר יחיד בתוכן שורת הטבלה.");
-                var value = cellText[0];
-                updated = selected.Value[..value.Index] + token +
-                    selected.Value[(value.Index + value.Length)..];
-            }
-            else
-            {
-                if (string.IsNullOrWhiteSpace(attribute)
-                    || !Regex.IsMatch(attribute, @"^[a-zA-Z_][\w-]*$"))
-                    throw new ArgumentException("יש לבחור מאפיין מתוך מזהה רכיב ה־Web.");
-                var pattern = @"\[\s*" + Regex.Escape(attribute) +
-                    @"\s*=\s*(?<q>['""])(?<value>.*?)\k<q>\s*\]";
-                var matches = Regex.Matches(selected.Value, pattern, RegexOptions.CultureInvariant);
-                if (matches.Count != 1)
-                    throw new InvalidOperationException("לא נמצא ערך מאפיין חד־משמעי במזהה הרכיב.");
-                var value = matches[0].Groups["value"];
-                updated = selected.Value[..value.Index] + token +
-                    selected.Value[(value.Index + value.Length)..];
-            }
-        }
-        else throw new InvalidOperationException("סוג אפליקציית יעד אינו נתמך.");
-
-        cmd.CommandText = @"UPDATE Elements SET LocatorsJson=$locators
-            WHERE GuideId=$guide AND ElementId=$element";
-        cmd.Parameters.AddWithValue("$locators", JsonSerializer.Serialize(
-            new[] { selected with { Value = updated } }));
-        if (cmd.ExecuteNonQuery() != 1)
-            throw new InvalidOperationException("שמירת קישור המשתנה נכשלה.");
-        tx.Commit();
-    }
-
     // Two explicit picks: the persisted primary action and a separately picked
     // identifying element. No data is inferred from the action's neighbours.
     internal static void BindIdentifiedAction(long guideId, string stepId,
@@ -471,9 +366,6 @@ internal static class V5VariableCatalog
                 RegexOptions.IgnoreCase))
             throw new InvalidOperationException(
                 "לכפתור שנבחר אין מאפיין פעולה יציב. יש לבחור רכיב פעולה אחר.");
-        if (!Regex.IsMatch(last, @"^(?:button|a|input)(?:[.#\[][^\s]+)+$", RegexOptions.IgnoreCase))
-            throw new InvalidOperationException(
-                "רכיב הפעולה אינו מזוהה באופן יציב. יש לבחור את הכפתור עצמו מחדש.");
         var identifierTag = Regex.Match(identifierSelector.Trim(), @"(?:^|[>\s])([a-z][a-z0-9-]*)(?:[.#:\[]|$)",
             RegexOptions.IgnoreCase | RegexOptions.RightToLeft).Groups[1].Value;
         if (string.IsNullOrWhiteSpace(identifierTag) || identifierTag is "body" or "html")
@@ -484,8 +376,6 @@ internal static class V5VariableCatalog
             WHERE GuideId=$guide AND ElementId=$element";
         if (Convert.ToInt32(cmd.ExecuteScalar()) != 1)
             throw new InvalidOperationException("רכיב הפעולה משותף לשלבים נוספים.");
-        cmd.CommandText = @"SELECT FrameContextJson FROM Elements
-            WHERE GuideId=$guide AND ElementId=$element";
         // The identifier is captured in the same picker context as the action.
         var anchorId = "element-" + Guid.NewGuid().ToString("N");
         cmd.Parameters.AddWithValue("$anchor", anchorId);
@@ -502,6 +392,11 @@ internal static class V5VariableCatalog
             WHERE GuideId=$guide AND ElementId=$element";
         cmd.ExecuteNonQuery();
         cmd.CommandText = @"DELETE FROM ElementAnchors WHERE GuideId=$guide AND ElementId=$element";
+        cmd.ExecuteNonQuery();
+        cmd.CommandText = @"DELETE FROM Elements WHERE GuideId=$guide
+            AND ElementId NOT IN (SELECT ElementId FROM StepTargets WHERE GuideId=$guide)
+            AND ElementId NOT IN (SELECT AnchorElementId FROM ElementAnchors WHERE GuideId=$guide)
+            AND ElementId NOT IN (SELECT ElementId FROM ElementAnchors WHERE GuideId=$guide)";
         cmd.ExecuteNonQuery();
         cmd.CommandText = @"INSERT INTO ElementAnchors
             (GuideId,ElementId,AnchorElementId,Relation,AnchorOrder)
