@@ -212,8 +212,6 @@ public sealed class GuideExecutionEngine
             Console.Error.WriteLine($"[GuideMe {adapter.DiagnosticName} guide] starting Step {step.Order}/{displayTotal} '{step.Id}'.");
             async Task<string?> Read(GuideVariableAction action, CancellationToken token)
                 => await adapter.ReadVariableAsync(step, action, token);
-            await plan.Variables.ExecuteActionsAsync(step.VariableActions ?? Array.Empty<GuideVariableAction>(),
-                StepCaptureTiming.BeforeAction, Read, cancellationToken);
             if (GuideStepExecutionPolicy.Classify(step) == GuideStepPresentationKind.CenteredInformation)
                 await adapter.ShowCenteredInformationAsync(step, displayTotal, cancellationToken);
             else
@@ -247,8 +245,6 @@ public sealed class GuideExecutionEngine
                 var presentation = GuideStepExecutionPolicy.Classify(step);
                 async Task<string?> Read(GuideVariableAction action, CancellationToken readToken)
                     => await adapter.ReadVariableAsync(step, action, readToken);
-                await plan.Variables.ExecuteActionsAsync(step.VariableActions ?? Array.Empty<GuideVariableAction>(),
-                    StepCaptureTiming.BeforeAction, Read, token);
                 if (presentation == GuideStepPresentationKind.CenteredInformation)
                     await adapter.ShowCenteredInformationAsync(step, displayTotal, token);
                 else
