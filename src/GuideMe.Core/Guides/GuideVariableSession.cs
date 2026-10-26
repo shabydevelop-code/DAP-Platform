@@ -167,15 +167,6 @@ public sealed class GuideVariableSession
             var value = await readTarget(action, cancellationToken);
             Trace("variable-observation",
                 $"id={Quoted(action.Id)} variable={Quoted(action.VariableId)} timing={timing} observed={Quoted(value)}");
-            // DuringStep is a nonblocking observation. The requested value may
-            // appear later as the user types or navigates.
-            if (value is null && timing == StepCaptureTiming.DuringStep)
-                continue;
-            // If navigation removed the source after the action, retain a
-            // value already observed during the step (Windows migration case).
-            if (value is null && timing == StepCaptureTiming.AfterAction
-                && Read(action.VariableId) is not null)
-                continue;
             if (value is null)
                 throw new InvalidOperationException(
                     $"Variable action '{action.Id}' could not read its target.");
