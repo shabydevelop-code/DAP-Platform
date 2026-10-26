@@ -452,6 +452,7 @@ app.MapGet("/api/guides/{id:long}/step/{stepId}", (long id, string stepId) =>
         step = TableRows(V5GuideReader.ReadGuideTable(id, "Steps")).Where(r => Equals(r["StepId"], stepId)),
         targets = TableRows(V5GuideReader.ReadGuideTable(id, "StepTargets")).Where(r => Equals(r["StepId"], stepId)),
         elements = TableRows(V5GuideReader.ReadGuideTable(id, "Elements")),
+        anchors = TableRows(V5GuideReader.ReadGuideTable(id, "ElementAnchors")),
         rules = TableRows(V5GuideReader.ReadGuideTable(id, "StepRules")).Where(r => Equals(r["StepId"], stepId))
     });
 });
