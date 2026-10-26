@@ -594,7 +594,9 @@ async function refreshPicker() {
   box.innerHTML = '<p><strong>הרכיב שנבחר:</strong> '+esc(candidate.label || candidate.tag || 'רכיב')+'</p>'+
     (candidate.framePath?.length ? '<p><strong>נתיב מסגרות:</strong> '+candidate.framePath.map(esc).join(' → ')+'</p>' : '')+
     '<p class="target-technical">מזהה רכיב: <code dir="ltr">'+esc(candidate.selector)+'</code></p>'+
-    (!pickingFor.completion && !pickingFor.identifier && candidate.gridChoices?.length ?
+    (!pickingFor.completion && !pickingFor.identifier &&
+     !['button','a','input','select','textarea'].includes(candidate.tag) &&
+     candidate.gridChoices?.length ?
       '<label for="grid-row-choice">זיהוי שורה לפי תוכן בעמודה</label>'+
       '<select id="grid-row-choice"><option value="">בחירת הרכיב הרגילה (לפי מיקום)</option>'+
       candidate.gridChoices.map((choice,i)=>'<option value="'+i+'">'+esc(choice.header)+': '+esc(choice.value)+'</option>').join('')+
