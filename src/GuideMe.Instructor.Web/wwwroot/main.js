@@ -1027,27 +1027,41 @@ function bindTargetToVariable(step, runtime, locatorText) {
   if (!current?.variables?.length) return;
   const guideId = current.guide.id, stepId = step.id;
   const attributeOptions = [...locatorText.matchAll(/\[\s*([\w-]+)\s*=\s*(['"])(.*?)\2\s*\]/g)]
-    .map(match => ({value:match[1],text:match[1] + ' · ' + match[3]}));
-  if (runtime === 'Web' && !attributeOptions.length) {
-    notify('לא נמצא מאפיין בעל ערך במזהה הרכיב. יש לבחור רכיב עם מזהה מתאים.', true);
-    return;
+    .map(match => ({value:match[1],text:'מאפיין רכיב: ' + match[1]}));
+  if (runtime === 'Web') {
+    const cellTextNumbers = [...locatorText.matchAll(/:cell-text\(\s*\d+\s*,\s*(['"])(\d+)\1\s*\)/g)];
+    if (cellTextNumbers.length === 1)
+      attributeOptions.unshift({value:'cell-text',text:'מספר בשורת הטבלה'});
+    if (!attributeOptions.length) {
+      notify('לא נמצא ערך מספרי מתאים לקישור במזהה הרכיב.', true);
+      return;
+    }
   }
-  modal('שימוש במשתנה — שלב ' + step.order, [
-    {name:'variableId',label:'משתנה מהלומדה',value:current.variables[0].id,
-     choices:current.variables.map(v => ({value:v.id,text:v.name}))},
-    ...(runtime === 'Web'
-      ? [{name:'attribute',label:'המאפיין שערכו יוחלף במשתנה',
-          value:attributeOptions[0].value,choices:attributeOptions}]
-      : [])
-  ], async values => {
+  const bind = async (variableId, attribute) => {
     await api('/guides/' + guideId + '/steps/' + encodeURIComponent(stepId) + '/bind-variable',
-      {method:'POST',body:JSON.stringify({variableId:values.variableId,
-        attribute:values.attribute || null})});
+      {method:'POST',body:JSON.stringify({variableId,attribute:attribute || null})});
     await openGuide(guideId);
     const row = [...document.querySelectorAll('[data-step]')].find(x => x.dataset.step === stepId);
     row?.click();
-    notify('המשתנה קושר למזהה הרכיב.');
-  });
+    notify('הרכיב יקושר לערך המשתנה בזמן הפעלת הלומדה.');
+  };
+  const variables = current.variables;
+  if (variables.length === 1 && (runtime !== 'Web' || attributeOptions.length === 1)) {
+    guarded(() => bind(variables[0].id, runtime === 'Web' ? attributeOptions[0].value : null));
+    return;
+  }
+  modal('קישור רכיב למשתנה — שלב ' + step.order, [
+    ...(variables.length > 1
+      ? [{name:'variableId',label:'משתנה מהלומדה',value:variables[0].id,
+          choices:variables.map(v => ({value:v.id,text:v.name}))}] : []),
+    ...(runtime === 'Web' && attributeOptions.length > 1
+      ? [{name:'attribute',label:'איזה ערך ישתנה?',value:attributeOptions[0].value,
+          choices:attributeOptions}] : [])
+  ], async values => bind(
+    variables.length === 1 ? variables[0].id : values.variableId,
+    runtime === 'Web'
+      ? (attributeOptions.length === 1 ? attributeOptions[0].value : values.attribute)
+      : null));
 }
 function editStepVariableAction(step, context) {
   if (!current?.variables?.length || !context) return;
