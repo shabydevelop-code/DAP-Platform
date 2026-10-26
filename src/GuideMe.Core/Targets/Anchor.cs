@@ -12,5 +12,6 @@ public enum AnchorRelation
     Descendant,
     ColumnHeader,
     Sibling,
-    Nearby
+    Nearby,
+    SharedContainer
 }
