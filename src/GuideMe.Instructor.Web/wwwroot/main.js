@@ -224,7 +224,8 @@ function renderSteps() {
     const completionTarget = data.targets.find(x => x.UsageId === completionRule?.TargetUsageId);
     const completionElement = data.elements.find(x => x.ElementId === completionTarget?.ElementId);
     const completionSelector = parseJson(completionElement?.LocatorsJson, [])[0]?.Value || '';
-    const completionLabel = completionRule?.Kind === 'target-appeared' ? 'הופיע' :
+    const completionLabel = completionSelector.includes(':has-text("{{var:') ? 'מכיל ערך של משתנה' :
+      completionRule?.Kind === 'target-appeared' ? 'הופיע' :
       completionRule?.Kind === 'attribute-equals' ? 'מאפיין השתנה לערך צפוי' : 'נעלם';
     const completionAttribute = completionRule?.Kind === 'attribute-equals'
       ? parseJson(completionRule.ExpectedValue, {}) : {};
@@ -471,7 +472,10 @@ const targetAdapters = {
       return api('/guides/'+session.guideId+'/steps/'+encodeURIComponent(session.stepId)+'/completion-target',
         {method:'POST',body:JSON.stringify({kind:$('target-condition').value,
           stateAttributeIndex:$('target-condition').value === 'attribute-equals' && (candidate.stateAttributes || []).length
-            ? Number($('completion-state-choice').value) : null})});
+            ? Number($('completion-state-choice').value) : null,
+          variableId:$('target-condition').value === 'target-appeared-variable'
+            ? $('completion-variable-choice')?.value : null,
+          selectedTag:candidate.tag})});
     }
   },
   Windows: {
@@ -603,11 +607,16 @@ async function refreshPicker() {
       '</select><p>בחירה לפי ערך תישאר תקפה גם לאחר מיון הטבלה. אם הערך אינו ייחודי, הוא לא יוצע.</p>' : '')+
     (pickingFor.replacing || pickingFor.variableSource || pickingFor.identifier ? '' : '<label for="target-condition">' + (pickingFor.completion ? 'חוק השלמה' : 'תנאי התקדמות') + '</label>')+
     (pickingFor.replacing || pickingFor.variableSource || pickingFor.identifier ? '' : '<select id="target-condition">'+
-    (pickingFor.completion ? '<option value="target-appeared">הופיע</option><option value="target-vanished">נעלם</option><option value="attribute-equals">מאפיין משתנה לערך צפוי</option>' :
+    (pickingFor.completion ? '<option value="target-appeared">הופיע</option><option value="target-appeared-variable">מכיל ערך של משתנה</option><option value="target-vanished">נעלם</option><option value="attribute-equals">מאפיין משתנה לערך צפוי</option>' :
     '<option value="clicked" '+(['input','textarea','select'].includes(candidate.tag)?'':'selected')+'>המשתמש לוחץ על הרכיב</option>'+
     '<option value="value-not-empty" '+(['input','textarea','select'].includes(candidate.tag)?'selected':'')+'>הוזן ערך בשדה</option>'+
     '<option value="target-disappeared">הרכיב נעלם בעקבות הפעולה</option>')+
     '</select>')+
+    (pickingFor.completion ? '<div id="completion-variable-fields" class="hidden">' +
+      '<label for="completion-variable-choice">משתנה להשוואה</label>' +
+      '<select id="completion-variable-choice">' +
+      (current?.variables || []).map(v => '<option value="' + esc(v.id) + '">' + esc(v.name) + '</option>').join('') +
+      '</select><p>ההשלמה תתבצע רק כאשר הרכיב שנבחר מכיל את ערך המשתנה.</p></div>' : '')+
     (pickingFor.completion ? '<div id="attribute-condition-fields" class="hidden">' +
       '<label for="completion-state-choice">המצב שנלכד מהרכיב</label>' +
       '<select id="completion-state-choice">' +
@@ -651,8 +660,10 @@ async function refreshPicker() {
   }
   if (pickingFor.completion) {
     const condition = $('target-condition');
-    const updateFields = () => $('attribute-condition-fields').classList.toggle('hidden',
-      condition.value !== 'attribute-equals');
+    const updateFields = () => {
+      $('attribute-condition-fields').classList.toggle('hidden', condition.value !== 'attribute-equals');
+      $('completion-variable-fields').classList.toggle('hidden', condition.value !== 'target-appeared-variable');
+    };
     condition.addEventListener('change', updateFields);
     updateFields();
   }
