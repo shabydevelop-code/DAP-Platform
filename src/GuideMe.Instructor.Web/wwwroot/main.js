@@ -254,8 +254,7 @@ function renderSteps() {
           ((current.variables || []).length && context?.Runtime === 'Web' ?
             (identifierBinding ? '<p>רכיב זיהוי מקושר למשתנה: <strong>' + esc(boundVariable?.name || 'משתנה') + '</strong></p>' : '') +
             ' <button class="btn secondary small" id="identify-action">' +
-            (identifierBinding ? 'בחירת רכיב זיהוי אחר' : 'בחירת רכיב זיהוי לפי משתנה') + '</button>' +
-            (identifierBinding ? ' <button class="btn secondary small" id="remove-identifier">הסרת זיהוי לפי משתנה</button>' : '') : '') :
+            (identifierBinding ? 'בחירת רכיב זיהוי אחר' : 'בחירת רכיב זיהוי לפי משתנה') + '</button>' : '') :
           '<button id="pick-element" class="btn primary">הפעלת ממפה רכיבים</button>') +
         '<div id="pick-result" class="hidden" aria-live="polite"></div>' : '') +
       '</section>' +
@@ -378,16 +377,6 @@ function renderSteps() {
       beginTargetPicker(context.Runtime, current.guide.id, step.id, contextId, replacing, completion, context);
     const targetReplace = $('replace-web-target');
     if (targetReplace) targetReplace.onclick = () => guarded(() => startElementPicker(true));
-    const removeIdentifier = $('remove-identifier');
-    if (removeIdentifier) removeIdentifier.onclick = () => guarded(async () => {
-      if (!confirm('להסיר את קישור רכיב הזיהוי? רכיב הפעולה יישאר ללא שינוי.')) return;
-      await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+'/identified-action',
-        {method:'DELETE',body:'{}'});
-      await openGuide(current.guide.id);
-      const row = [...document.querySelectorAll('[data-step]')].find(x => x.dataset.step === step.id);
-      row?.click();
-      notify('קישור רכיב הזיהוי הוסר.');
-    });
     const identifyAction = $('identify-action');
     if (identifyAction) identifyAction.onclick = () => {
       const variables = current.variables || [];
