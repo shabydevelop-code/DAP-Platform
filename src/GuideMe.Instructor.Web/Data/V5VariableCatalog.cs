@@ -418,4 +418,84 @@ internal static class V5VariableCatalog
         tx.Commit();
     }
 
+    // Two explicit picks: the persisted primary action and a separately picked
+    // identifying element. No data is inferred from the action's neighbours.
+    internal static void BindIdentifiedAction(long guideId, string stepId,
+        string variableId, string identifierSelector)
+    {
+        if (string.IsNullOrWhiteSpace(identifierSelector) || identifierSelector.Length > 400)
+            throw new ArgumentException("יש לבחור רכיב זיהוי תקין.");
+        using var connection = Open();
+        EnsureSchema(connection);
+        using var tx = connection.BeginTransaction();
+        using var cmd = connection.CreateCommand();
+        cmd.Transaction = tx;
+        cmd.Parameters.AddWithValue("$guide", guideId);
+        cmd.Parameters.AddWithValue("$step", stepId);
+        cmd.Parameters.AddWithValue("$variable", variableId);
+        cmd.CommandText = "SELECT COUNT(*) FROM GuideVariables WHERE GuideId=$guide AND VariableId=$variable";
+        if (Convert.ToInt32(cmd.ExecuteScalar()) != 1)
+            throw new ArgumentException("המשתנה אינו מוגדר בלומדה.");
+        cmd.CommandText = @"SELECT e.ElementId,e.Runtime,e.LocatorsJson,e.FrameContextJson
+            FROM StepTargets t JOIN Elements e ON e.GuideId=t.GuideId AND e.ElementId=t.ElementId
+            WHERE t.GuideId=$guide AND t.StepId=$step AND t.Purpose='Primary'";
+        string elementId, locatorJson;
+        string? frameJson;
+        using (var reader = cmd.ExecuteReader())
+        {
+            if (!reader.Read()) throw new InvalidOperationException("יש לבחור תחילה רכיב פעולה.");
+            elementId = reader.GetString(0);
+            if (reader.GetString(1) != "Web")
+                throw new InvalidOperationException("לכידת זיהוי נפרדת זמינה כרגע לרכיבי Web.");
+            locatorJson = reader.GetString(2);
+            frameJson = reader.IsDBNull(3) ? null : reader.GetString(3);
+            if (reader.Read()) throw new InvalidOperationException("נמצאו כמה רכיבי פעולה.");
+        }
+        var locators = JsonSerializer.Deserialize<List<V5GuideWriter.TargetLocator>>(locatorJson);
+        if (locators is not { Count: 1 } || locators[0].Strategy != "css")
+            throw new InvalidOperationException("נדרש מזהה פעולה יחיד מסוג CSS.");
+        var original = locators[0].Value;
+        // Only a specifically selected, identifiable interactive element can
+        // be generalized. Never turn a selected row into a click target.
+        var last = Regex.Split(original, @"\s*>\s*|\s+(?![^\[]*\])").Last().Trim();
+        last = Regex.Replace(last, @":nth-(?:of-type|child)\(\d+\)", "");
+        if (!Regex.IsMatch(last, @"^(?:button|a|input)(?:[.#\[][^\s]+)+$", RegexOptions.IgnoreCase))
+            throw new InvalidOperationException(
+                "רכיב הפעולה אינו מזוהה באופן יציב. יש לבחור את הכפתור עצמו מחדש.");
+        var identifierTag = Regex.Match(identifierSelector.Trim(), @"(?:^|[>\s])([a-z][a-z0-9-]*)(?:[.#:\[]|$)",
+            RegexOptions.IgnoreCase | RegexOptions.RightToLeft).Groups[1].Value;
+        if (string.IsNullOrWhiteSpace(identifierTag) || identifierTag is "body" or "html")
+            throw new InvalidOperationException("יש לבחור רכיב נתון ממוקד, כגון תא או תווית.");
+        var anchorSelector = identifierTag + ":exact-text(\\"{{var:" + variableId + "}}\\")";
+        cmd.Parameters.AddWithValue("$element", elementId);
+        cmd.CommandText = @"SELECT COUNT(*) FROM StepTargets
+            WHERE GuideId=$guide AND ElementId=$element";
+        if (Convert.ToInt32(cmd.ExecuteScalar()) != 1)
+            throw new InvalidOperationException("רכיב הפעולה משותף לשלבים נוספים.");
+        cmd.CommandText = @"SELECT FrameContextJson FROM Elements
+            WHERE GuideId=$guide AND ElementId=$element";
+        // The identifier is captured in the same picker context as the action.
+        var anchorId = "element-" + Guid.NewGuid().ToString("N");
+        cmd.Parameters.AddWithValue("$anchor", anchorId);
+        cmd.Parameters.AddWithValue("$anchorLocators", JsonSerializer.Serialize(
+            new[] { new V5GuideWriter.TargetLocator("css", anchorSelector) }));
+        cmd.Parameters.AddWithValue("$frame", (object?)frameJson ?? DBNull.Value);
+        cmd.CommandText = @"INSERT INTO Elements
+            (GuideId,ElementId,Runtime,LocatorsJson,FrameContextJson,DisplayName)
+            VALUES ($guide,$anchor,'Web',$anchorLocators,$frame,'רכיב זיהוי')";
+        cmd.ExecuteNonQuery();
+        cmd.Parameters.AddWithValue("$locators", JsonSerializer.Serialize(
+            new[] { new V5GuideWriter.TargetLocator("css", last) }));
+        cmd.CommandText = @"UPDATE Elements SET LocatorsJson=$locators
+            WHERE GuideId=$guide AND ElementId=$element";
+        cmd.ExecuteNonQuery();
+        cmd.CommandText = @"DELETE FROM ElementAnchors WHERE GuideId=$guide AND ElementId=$element";
+        cmd.ExecuteNonQuery();
+        cmd.CommandText = @"INSERT INTO ElementAnchors
+            (GuideId,ElementId,AnchorElementId,Relation,AnchorOrder)
+            VALUES ($guide,$element,$anchor,'SharedContainer',0)";
+        cmd.ExecuteNonQuery();
+        tx.Commit();
+    }
+
 }
