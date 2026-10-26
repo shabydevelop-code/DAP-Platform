@@ -343,6 +343,24 @@ app.MapDelete("/api/guides/{id:long}/variables/{variableId}",
     return Results.NoContent();
 });
 
+app.MapPost("/api/guides/{id:long}/steps/{stepId}/identified-action",
+    (long id, string stepId, IdentifiedActionRequest body) =>
+{
+    var steps = V5GuideReader.ReadGuideTable(id, "Steps");
+    var step = steps.Rows.Cast<DataRow>().FirstOrDefault(r =>
+        string.Equals(r["StepId"].ToString(), stepId, StringComparison.Ordinal));
+    if (step is null) return Results.NotFound();
+    var contextId = step["ApplicationContextId"].ToString() ?? "";
+    var contexts = V5GuideReader.ReadGuideTable(id, "ApplicationContexts");
+    var context = contexts.Rows.Cast<DataRow>().FirstOrDefault(r =>
+        string.Equals(r["ContextId"].ToString(), contextId, StringComparison.Ordinal));
+    if (context is null || context["Runtime"].ToString() != "Web")
+        return Results.BadRequest(new { message = "קישור רכיב זיהוי נתמך כרגע ב־Web בלבד." });
+    var selected = capture.GetApprovedTarget(id, contextId);
+    V5VariableCatalog.BindIdentifiedAction(id, stepId, body.VariableId, selected.Selector);
+    capture.CancelPicking();
+    return Results.NoContent();
+});
 app.MapPost("/api/guides/{id:long}/steps/{stepId}/bind-variable",
     (long id, string stepId, TargetVariableBinding body) =>
 {
@@ -566,3 +584,5 @@ internal sealed record TargetVariableBinding(string VariableId, string? Attribut
 internal sealed record SaveVariableSourceRequest(string VariableId, string Property,
     int? ProcessId, int? GridChoice, string? Pattern);
 
+
+internal sealed record IdentifiedActionRequest(string VariableId);
