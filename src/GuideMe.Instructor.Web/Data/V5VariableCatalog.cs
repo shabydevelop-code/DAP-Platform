@@ -366,11 +366,16 @@ internal static class V5VariableCatalog
         var last = Regex.Split(original, @"\s*>\s*|\s+(?![^\[]*\])").Last().Trim();
         last = Regex.Replace(last, @":nth-(?:of-type|child)\(\d+\)", "");
         last = Regex.Replace(last, @"\[[^\]]+\]", "");
-        if (!Regex.IsMatch(last, @"^(?:button|a|input)(?:\.[a-zA-Z_][\w-]*)+$",
+        // A selected action may legitimately have no class at all (e.g.
+        // button:nth-of-type(1)). Its repeated-item anchor is what makes
+        // the match unambiguous, not a mandatory CSS class.
+        // Never generalize a non-action node into a clickable element.
+        if (!Regex.IsMatch(last, @"^(?:button|a|input)(?:\.[a-zA-Z_][\w-]*)*$",
                 RegexOptions.IgnoreCase))
             throw new InvalidOperationException(
-                "רכיב הפעולה השמור אינו מזהה כפתור באופן יציב. " +
-                "יש לבחור מחדש את כפתור 'פתח'; התא שנבחר לזיהוי תקין.");
+                "רכיב הפעולה השמור אינו כפתור או קישור. " +
+                "יש לבחור את רכיב הפעולה עצמו, ולא את התא או השורה.");
+
         var identifierTag = Regex.Match(identifierSelector.Trim(), @"(?:^|[>\s])([a-z][a-z0-9-]*)(?:[.#:\[]|$)",
             RegexOptions.IgnoreCase | RegexOptions.RightToLeft).Groups[1].Value;
         if (string.IsNullOrWhiteSpace(identifierTag) || identifierTag is "body" or "html")
