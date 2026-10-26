@@ -368,17 +368,35 @@ internal static class V5VariableCatalog
         }
         else if (runtime == "Web")
         {
-            if (selected.Strategy != "css" || string.IsNullOrWhiteSpace(attribute)
-                || !Regex.IsMatch(attribute, @"^[a-zA-Z_][\w-]*$"))
-                throw new ArgumentException("יש לבחור מאפיין מתוך מזהה רכיב ה־Web.");
-            var pattern = @"\[\s*" + Regex.Escape(attribute) +
-                @"\s*=\s*(?<q>['""])(?<value>.*?)\k<q>\s*\]";
-            var matches = Regex.Matches(selected.Value, pattern, RegexOptions.CultureInvariant);
-            if (matches.Count != 1)
-                throw new InvalidOperationException("לא נמצא ערך מאפיין חד־משמעי במזהה הרכיב.");
-            var value = matches[0].Groups["value"];
-            updated = selected.Value[..value.Index] + token
-                + selected.Value[(value.Index + value.Length)..];
+            if (selected.Strategy != "css")
+                throw new InvalidOperationException("קישור משתנה נתמך רק במזהה רכיב מסוג CSS.");
+            // A grid row may be identified by its visible cell text rather than
+            // an HTML attribute. The authoring-time number is only a sample.
+            var cellText = Regex.Matches(selected.Value,
+                @"(?<=:cell-text\(\s*\d+\s*,\s*['""])\d+(?=['""]\s*\))",
+                RegexOptions.CultureInvariant);
+            if (attribute == "cell-text")
+            {
+                if (cellText.Count != 1)
+                    throw new InvalidOperationException("לא נמצא מספר יחיד בתוכן שורת הטבלה.");
+                var value = cellText[0];
+                updated = selected.Value[..value.Index] + token +
+                    selected.Value[(value.Index + value.Length)..];
+            }
+            else
+            {
+                if (string.IsNullOrWhiteSpace(attribute)
+                    || !Regex.IsMatch(attribute, @"^[a-zA-Z_][\w-]*$"))
+                    throw new ArgumentException("יש לבחור מאפיין מתוך מזהה רכיב ה־Web.");
+                var pattern = @"\[\s*" + Regex.Escape(attribute) +
+                    @"\s*=\s*(?<q>['""])(?<value>.*?)\k<q>\s*\]";
+                var matches = Regex.Matches(selected.Value, pattern, RegexOptions.CultureInvariant);
+                if (matches.Count != 1)
+                    throw new InvalidOperationException("לא נמצא ערך מאפיין חד־משמעי במזהה הרכיב.");
+                var value = matches[0].Groups["value"];
+                updated = selected.Value[..value.Index] + token +
+                    selected.Value[(value.Index + value.Length)..];
+            }
         }
         else throw new InvalidOperationException("סוג אפליקציית יעד אינו נתמך.");
 
