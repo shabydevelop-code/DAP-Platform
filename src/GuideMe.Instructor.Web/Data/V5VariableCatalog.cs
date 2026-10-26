@@ -355,27 +355,30 @@ internal static class V5VariableCatalog
         if (!actionFrames.Select(f => f.Value).SequenceEqual(identifierFrames))
             throw new InvalidOperationException("שני הרכיבים חייבים להיבחר באותה מסגרת.");
         var original = locators[0].Value;
-        if (original.Contains(":cell-text(", StringComparison.Ordinal) ||
-            Regex.IsMatch(original, @"(?:^|[>\s])tr(?::nth-(?:child|of-type)\(\d+\))?\s*$",
-                RegexOptions.IgnoreCase))
+        // The author already selected the action independently. Do not infer
+        // its role from the CSS tag: actions may be cells, custom controls,
+        // menu items or buttons. The identifier capture only scopes it.
+        // A row-only selector, however, cannot tell us which child to act on.
+        if (original.Contains(":cell-text(", StringComparison.Ordinal))
             throw new InvalidOperationException(
-                "רכיב הפעולה השמור הוא שורת טבלה. יש לבחור פעם אחת את כפתור 'פתח' " +
-                "כרכיב הפעולה, ואז לבחור את תא מספר הפנייה כרכיב הזיהוי.");
-        // Keep the explicit selected action's tag and semantic class(es).
-        // Positional paths are not safe when the row order changes.
+                "רכיב הפעולה השמור הוא שורת טבלה ללא רכיב פעולה מסוים. " +
+                "יש ללכוד את רכיב הפעולה עצמו, בנפרד מתא הזיהוי.");
+        // Retain the terminal compound selector and its within-item position.
+        // Discard ancestor paths and attributes containing row-specific values.
+        // At runtime the shared-container relation requires exactly one action
+        // and one matching identifier in the same repeated item.
         var last = Regex.Split(original, @"\s*>\s*|\s+(?![^\[]*\])").Last().Trim();
-        last = Regex.Replace(last, @":nth-(?:of-type|child)\(\d+\)", "");
         last = Regex.Replace(last, @"\[[^\]]+\]", "");
-        // A selected action may legitimately have no class at all (e.g.
-        // button:nth-of-type(1)). Its repeated-item anchor is what makes
-        // the match unambiguous, not a mandatory CSS class.
-        // Never generalize a non-action node into a clickable element.
-        if (!Regex.IsMatch(last, @"^(?:button|a|input)(?:\.[a-zA-Z_][\w-]*)*$",
+        if (string.IsNullOrWhiteSpace(last) ||
+            last is "*" or "html" or "body" ||
+            Regex.IsMatch(last, @"^tr(?::nth-(?:child|of-type)\(\d+\))?$",
+                RegexOptions.IgnoreCase) ||
+            !Regex.IsMatch(last,
+                @"^(?:[a-z][\w-]*|[.#][\w-]+)(?:(?:[.#][\w-]+)|(?::nth-(?:child|of-type)\(\d+\)))*$",
                 RegexOptions.IgnoreCase))
             throw new InvalidOperationException(
-                "רכיב הפעולה השמור אינו כפתור או קישור. " +
-                "יש לבחור את רכיב הפעולה עצמו, ולא את התא או השורה.");
-
+                "לא ניתן לשייך את רכיב הפעולה שנשמר לרכיב הזיהוי. " +
+                "יש לבחור רכיב פעולה ממוקד, ולא שורה שלמה.");
         var identifierTag = Regex.Match(identifierSelector.Trim(), @"(?:^|[>\s])([a-z][a-z0-9-]*)(?:[.#:\[]|$)",
             RegexOptions.IgnoreCase | RegexOptions.RightToLeft).Groups[1].Value;
         if (string.IsNullOrWhiteSpace(identifierTag) || identifierTag is "body" or "html")
