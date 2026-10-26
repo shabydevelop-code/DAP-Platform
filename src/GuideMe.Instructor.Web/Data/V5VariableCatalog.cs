@@ -355,27 +355,22 @@ internal static class V5VariableCatalog
         if (!actionFrames.Select(f => f.Value).SequenceEqual(identifierFrames))
             throw new InvalidOperationException("שני הרכיבים חייבים להיבחר באותה מסגרת.");
         var original = locators[0].Value;
-        // A prior grid-row choice may have saved a row as the primary target.
-        // Do not interpret that row as the clicked action or blame the
-        // separately selected identifier cell for this legacy configuration.
         if (original.Contains(":cell-text(", StringComparison.Ordinal) ||
-            Regex.IsMatch(original, @"(?:^|[>\\s])tr(?::nth-(?:child|of-type)\\(\\d+\\))?\\s*$",
+            Regex.IsMatch(original, @"(?:^|[>\s])tr(?::nth-(?:child|of-type)\(\d+\))?\s*$",
                 RegexOptions.IgnoreCase))
             throw new InvalidOperationException(
-                "רכיב הפעולה שנשמר בשלב הוא שורת טבלה, ולא כפתור 'פתח'. " +
-                "יש לבחור מחדש את כפתור הפעולה עצמו פעם אחת, ואז לקשר אליו את תא מספר הפנייה.");
-        // Only a specifically selected, identifiable interactive element can
-        // be generalized. Never turn a selected row into a click target.
+                "רכיב הפעולה השמור הוא שורת טבלה. יש לבחור פעם אחת את כפתור 'פתח' " +
+                "כרכיב הפעולה, ואז לבחור את תא מספר הפנייה כרכיב הזיהוי.");
+        // Keep the explicit selected action's tag and semantic class(es).
+        // Positional paths are not safe when the row order changes.
         var last = Regex.Split(original, @"\s*>\s*|\s+(?![^\[]*\])").Last().Trim();
         last = Regex.Replace(last, @":nth-(?:of-type|child)\(\d+\)", "");
-        // Row-specific attributes are not stable action identifiers. Require
-        // an explicit class on the picked action instead of guessing IDs.
         last = Regex.Replace(last, @"\[[^\]]+\]", "");
         if (!Regex.IsMatch(last, @"^(?:button|a|input)(?:\.[a-zA-Z_][\w-]*)+$",
                 RegexOptions.IgnoreCase))
             throw new InvalidOperationException(
-                "רכיב הפעולה שנשמר קודם אינו מזהה כפתור חוזר באופן יציב. " +
-                "יש לבחור מחדש את כפתור 'פתח' עצמו; התא שסימנת לזיהוי תקין.");
+                "רכיב הפעולה השמור אינו מזהה כפתור באופן יציב. " +
+                "יש לבחור מחדש את כפתור 'פתח'; התא שנבחר לזיהוי תקין.");
         var identifierTag = Regex.Match(identifierSelector.Trim(), @"(?:^|[>\s])([a-z][a-z0-9-]*)(?:[.#:\[]|$)",
             RegexOptions.IgnoreCase | RegexOptions.RightToLeft).Groups[1].Value;
         if (string.IsNullOrWhiteSpace(identifierTag) || identifierTag is "body" or "html")
