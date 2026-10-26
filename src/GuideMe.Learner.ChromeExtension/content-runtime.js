@@ -466,6 +466,20 @@
           [...el.parentElement.children].some(x => x !== el && matchesExtendedCss(x, selector)));
       case "nearby":
         return !!(el.parentElement && queryExtendedCss(selector, el.parentElement).length > 0);
+      case "sharedcontainer": {
+        // Both explicitly captured elements must belong to a local container.
+        // Never treat the document/body as a relationship, and never guess
+        // between multiple identifiers within a container.
+        for (let parent = el.parentElement; parent &&
+             parent !== document.body && parent !== document.documentElement;
+             parent = parent.parentElement) {
+          const identifiers = queryExtendedCss(selector, parent);
+          if (identifiers.length === 1 && !el.contains(identifiers[0]))
+            return true;
+          if (identifiers.length > 1) return false;
+        }
+        return false;
+      }
       default:
         return false;
     }
