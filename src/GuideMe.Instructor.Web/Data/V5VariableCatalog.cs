@@ -400,4 +400,41 @@ internal static class V5VariableCatalog
         tx.Commit();
     }
 
+    internal static void RemoveIdentifiedAction(long guideId, string stepId)
+    {
+        using var connection = Open();
+        using var tx = connection.BeginTransaction();
+        using var cmd = connection.CreateCommand();
+        cmd.Transaction = tx;
+        cmd.Parameters.AddWithValue("$guide", guideId);
+        cmd.Parameters.AddWithValue("$step", stepId);
+        cmd.CommandText = @"SELECT a.AnchorElementId
+            FROM ElementAnchors a JOIN StepTargets t
+              ON t.GuideId=a.GuideId AND t.ElementId=a.ElementId
+            WHERE t.GuideId=$guide AND t.StepId=$step AND t.Purpose='Primary'
+              AND a.Relation='SharedContainer'";
+        var oldAnchors = new List<string>();
+        using (var reader = cmd.ExecuteReader())
+            while (reader.Read()) oldAnchors.Add(reader.GetString(0));
+        cmd.CommandText = @"DELETE FROM ElementAnchors
+            WHERE GuideId=$guide AND Relation='SharedContainer'
+              AND ElementId IN (SELECT ElementId FROM StepTargets
+                  WHERE GuideId=$guide AND StepId=$step AND Purpose='Primary')";
+        cmd.ExecuteNonQuery();
+        foreach (var anchor in oldAnchors)
+        {
+            cmd.Parameters.AddWithValue("$oldAnchor", anchor);
+            cmd.CommandText = @"DELETE FROM Elements
+                WHERE GuideId=$guide AND ElementId=$oldAnchor
+                  AND NOT EXISTS (SELECT 1 FROM StepTargets
+                    WHERE GuideId=$guide AND ElementId=$oldAnchor)
+                  AND NOT EXISTS (SELECT 1 FROM ElementAnchors
+                    WHERE GuideId=$guide AND
+                      (ElementId=$oldAnchor OR AnchorElementId=$oldAnchor))";
+            cmd.ExecuteNonQuery();
+            cmd.Parameters.RemoveAt("$oldAnchor");
+        }
+        tx.Commit();
+    }
+
 }
