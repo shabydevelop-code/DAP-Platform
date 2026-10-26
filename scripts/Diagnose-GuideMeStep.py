@@ -6,7 +6,7 @@ import sqlite3
 parser = argparse.ArgumentParser()
 parser.add_argument("--db", default=r"C:\ProgramData\GuideMe\Data\GuideMe-V5.db")
 parser.add_argument("--guide", type=int, default=None)
-parser.add_argument("--step", default="testcrm-open-created-case")
+parser.add_argument("--step", default=None, help="Exact StepId; omitted with --guide selects the last ordered step")
 args = parser.parse_args()
 
 with sqlite3.connect("file:" + args.db.replace("\\", "/") + "?mode=ro", uri=True) as db:
@@ -19,9 +19,17 @@ with sqlite3.connect("file:" + args.db.replace("\\", "/") + "?mode=ro", uri=True
 
     guides = rows("SELECT * FROM Guides ORDER BY GuideId")
     print("GUIDES:", json.dumps(guides, ensure_ascii=False))
-    steps = rows("SELECT GuideId,StepId,ApplicationContextId FROM Steps WHERE StepId=?"
-                 + (" AND GuideId=?" if args.guide is not None else ""),
-                 (args.step, args.guide) if args.guide is not None else (args.step,))
+    if args.guide is not None and args.step is None:
+        ordered = rows("SELECT * FROM Steps WHERE GuideId=? ORDER BY StepOrder", (args.guide,))
+        if ordered and "error" in ordered[0]:
+            ordered = rows("SELECT * FROM Steps WHERE GuideId=?", (args.guide,))
+        print("GUIDE STEPS:", json.dumps(ordered, ensure_ascii=False, indent=2))
+        steps = ordered[-1:] if ordered else []
+    else:
+        selected = args.step or "testcrm-open-created-case"
+        steps = rows("SELECT GuideId,StepId,ApplicationContextId FROM Steps WHERE StepId=?"
+                     + (" AND GuideId=?" if args.guide is not None else ""),
+                     (selected, args.guide) if args.guide is not None else (selected,))
     print("MATCHED STEPS:", json.dumps(steps, ensure_ascii=False))
     for step in steps:
         guide, sid = step["GuideId"], step["StepId"]
