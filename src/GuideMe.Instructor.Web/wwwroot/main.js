@@ -212,6 +212,13 @@ function renderSteps() {
     const rule = data.rules.find(x => x.RuleType === 'PrimaryValidation');
     const locators = parseJson(element?.LocatorsJson, []);
     const frames = parseJson(element?.FrameContextJson, []);
+    const identifierBinding = (data.anchors || []).find(a =>
+      a.ElementId === target?.ElementId && a.Relation === 'SharedContainer');
+    const identifierElement = (data.elements || []).find(e =>
+      e.ElementId === identifierBinding?.AnchorElementId);
+    const identifierLocator = parseJson(identifierElement?.LocatorsJson, [])[0]?.Value || '';
+    const boundVariableId = identifierLocator.match(/\{\{var:([^}]+)\}\}/)?.[1];
+    const boundVariable = (current.variables || []).find(v => v.id === boundVariableId);
     const conditionText = rule ? validationLabel(rule.Kind) : 'לא הוגדר תנאי';
     const completionRule = data.rules.find(x => x.RuleType === 'AdditionalCompletionCondition');
     const completionTarget = data.targets.find(x => x.UsageId === completionRule?.TargetUsageId);
@@ -244,7 +251,10 @@ function renderSteps() {
         '<p>עדיין לא נבחר רכיב לשלב הזה.</p>') +
       ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') ?
         (target ? '<button class="btn secondary small" id="replace-web-target">בחירת רכיב אחר</button>' +
-          ((current.variables || []).length && context?.Runtime === 'Web' ? ' <button class="btn secondary small" id="identify-action">בחירת רכיב זיהוי לפי משתנה</button>' : '') :
+          ((current.variables || []).length && context?.Runtime === 'Web' ?
+            (identifierBinding ? '<p>רכיב זיהוי מקושר למשתנה: <strong>' + esc(boundVariable?.name || 'משתנה') + '</strong></p>' : '') +
+            ' <button class="btn secondary small" id="identify-action">' +
+            (identifierBinding ? 'בחירת רכיב זיהוי אחר' : 'בחירת רכיב זיהוי לפי משתנה') + '</button>' : '') :
           '<button id="pick-element" class="btn primary">הפעלת ממפה רכיבים</button>') +
         '<div id="pick-result" class="hidden" aria-live="polite"></div>' : '') +
       '</section>' +
