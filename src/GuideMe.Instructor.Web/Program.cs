@@ -361,12 +361,6 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/identified-action",
     capture.CancelPicking();
     return Results.NoContent();
 });
-app.MapPost("/api/guides/{id:long}/steps/{stepId}/bind-variable",
-    (long id, string stepId, TargetVariableBinding body) =>
-{
-    V5VariableCatalog.BindPrimaryTarget(id, stepId, body.VariableId, body.Attribute);
-    return Results.NoContent();
-});
 app.MapPost("/api/guides/{id:long}/steps/{stepId}/variable-source",
     (long id, string stepId, SaveVariableSourceRequest request) =>
 {
@@ -579,7 +573,6 @@ internal sealed record GuideVariableRequest(string Name, string? InitialValue);
 internal sealed record StepVariableActionRequest(string VariableId, string Kind, string? Value,
     string? SourceVariableId);
 
-internal sealed record TargetVariableBinding(string VariableId, string? Attribute);
 
 internal sealed record SaveVariableSourceRequest(string VariableId, string Property,
     int? ProcessId, int? GridChoice, string? Pattern);
