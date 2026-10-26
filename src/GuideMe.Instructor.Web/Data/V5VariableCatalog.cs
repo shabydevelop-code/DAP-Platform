@@ -466,7 +466,7 @@ internal static class V5VariableCatalog
             RegexOptions.IgnoreCase | RegexOptions.RightToLeft).Groups[1].Value;
         if (string.IsNullOrWhiteSpace(identifierTag) || identifierTag is "body" or "html")
             throw new InvalidOperationException("יש לבחור רכיב נתון ממוקד, כגון תא או תווית.");
-        var anchorSelector = identifierTag + ":exact-text(\\"{{var:" + variableId + "}}\\")";
+        var anchorSelector = identifierTag + ":exact-text(\"{{var:" + variableId + "}}\")";
         cmd.Parameters.AddWithValue("$element", elementId);
         cmd.CommandText = @"SELECT COUNT(*) FROM StepTargets
             WHERE GuideId=$guide AND ElementId=$element";
