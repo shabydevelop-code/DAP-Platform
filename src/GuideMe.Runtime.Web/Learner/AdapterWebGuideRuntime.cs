@@ -22,18 +22,8 @@ public sealed class AdapterWebGuideRuntime
 
     public IGuideStepAdapter CreateStepAdapter()
         => new DelegateGuideStepAdapter(TargetRuntime.Web, "Web",
-            async (step, index, total, plan, token) =>
-            {
-                Func<CancellationToken, Task>? onTargetObserved = null;
-                if (step.VariableActions?.Any(a => a.Timing == StepCaptureTiming.DuringStep) == true)
-                    onTargetObserved = observationToken =>
-                        plan.Variables.ExecuteActionsAsync(step.VariableActions!,
-                            StepCaptureTiming.DuringStep,
-                            (action, readToken) => _browser.ReadVariableAsync(step, action, readToken),
-                            observationToken);
-                await _steps.RunActiveStepAsync(
-                    step, step.Order, total, token, onTargetObserved: onTargetObserved);
-            },
+            (step, index, total, plan, token) =>
+                _steps.RunActiveStepAsync(step, step.Order, total, token),
             (step, total, token) =>
                 _browser.WaitForCenteredStepDismissalAsync(step, step.Order, total, token),
             (step, action, token) => _browser.ReadVariableAsync(step, action, token));
