@@ -424,8 +424,6 @@ public sealed class WindowsGuideRuntime
                     && preExistingTarget is not null
                     && SameElement(preExistingTarget, target);
 
-                ApplyVariableActions(windowRoot, step, plan, StepCaptureTiming.DuringStep);
-
                 // Match the Web learner behavior at Step entry: if the newly
                 // resolved target is clipped by the application window or by a
                 // scrollable ancestor, bring it into view once before presenting
