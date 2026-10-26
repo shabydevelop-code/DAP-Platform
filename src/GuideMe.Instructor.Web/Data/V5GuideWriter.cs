@@ -596,6 +596,11 @@ WHERE GuideId=$guideId AND StepId=$stepId";
         command.Parameters.AddWithValue("$displayName", (object?)CleanDisplayName(displayName) ?? DBNull.Value);
         if (replacing)
         {
+            // Replacing the action invalidates its previously captured identifier.
+            // Never keep an anchor bound to an unrelated newly selected control.
+            command.CommandText = @"DELETE FROM ElementAnchors
+                WHERE GuideId=$guideId AND ElementId=$elementId";
+            command.ExecuteNonQuery();
             command.CommandText = @"UPDATE Elements SET LocatorsJson=$locators,
 FrameContextJson=$frame, DisplayName=$displayName
 WHERE GuideId=$guideId AND ElementId=$elementId AND Runtime=$runtime";
