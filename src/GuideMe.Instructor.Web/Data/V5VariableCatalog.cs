@@ -391,8 +391,26 @@ internal static class V5VariableCatalog
         cmd.CommandText = @"UPDATE Elements SET LocatorsJson=$locators
             WHERE GuideId=$guide AND ElementId=$element";
         cmd.ExecuteNonQuery();
+        cmd.CommandText = @"SELECT AnchorElementId FROM ElementAnchors
+            WHERE GuideId=$guide AND ElementId=$element AND Relation='SharedContainer'";
+        var previousAnchors = new List<string>();
+        using (var reader = cmd.ExecuteReader())
+            while (reader.Read()) previousAnchors.Add(reader.GetString(0));
         cmd.CommandText = @"DELETE FROM ElementAnchors WHERE GuideId=$guide AND ElementId=$element";
         cmd.ExecuteNonQuery();
+        foreach (var previousAnchor in previousAnchors)
+        {
+            cmd.Parameters.AddWithValue("$previousAnchor", previousAnchor);
+            cmd.CommandText = @"DELETE FROM Elements WHERE GuideId=$guide
+                AND ElementId=$previousAnchor
+                AND NOT EXISTS (SELECT 1 FROM StepTargets
+                    WHERE GuideId=$guide AND ElementId=$previousAnchor)
+                AND NOT EXISTS (SELECT 1 FROM ElementAnchors
+                    WHERE GuideId=$guide AND
+                    (ElementId=$previousAnchor OR AnchorElementId=$previousAnchor))";
+            cmd.ExecuteNonQuery();
+            cmd.Parameters.RemoveAt("$previousAnchor");
+        }
         cmd.CommandText = @"INSERT INTO ElementAnchors
             (GuideId,ElementId,AnchorElementId,Relation,AnchorOrder)
             VALUES ($guide,$element,$anchor,'SharedContainer',0)";
