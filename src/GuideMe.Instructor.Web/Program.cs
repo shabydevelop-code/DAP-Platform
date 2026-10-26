@@ -235,7 +235,7 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/completion-target",
         V5GuideWriter.SaveWebCompletionTarget(id, stepId,
             capturedState?.Selector ?? selected.Selector,
             selected.FramePath, request.Kind, selected.DisplayName,
-            capturedState?.Name, capturedState?.Value);
+            capturedState?.Name, capturedState?.Value, request.VariableId, request.SelectedTag);
         capture.CancelPicking();
         return Results.NoContent();
     }
@@ -577,7 +577,8 @@ internal sealed record WindowsInspectRequest(int ProcessId, bool Focused = false
 internal sealed record SavePrimaryTargetRequest(string Condition, bool Replacing = false,
     int? ProcessId = null, int? GridChoice = null);
 internal sealed record PickStart(long GuideId, string ContextId);
-internal sealed record SaveCompletionTargetRequest(string Kind, int? StateAttributeIndex = null);
+internal sealed record SaveCompletionTargetRequest(string Kind, int? StateAttributeIndex = null,
+    string? VariableId = null, string? SelectedTag = null);
 
 internal sealed record EditWebValidation(string Kind, string? ExpectedValue);
 
