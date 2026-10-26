@@ -393,11 +393,6 @@ internal static class V5VariableCatalog
         cmd.ExecuteNonQuery();
         cmd.CommandText = @"DELETE FROM ElementAnchors WHERE GuideId=$guide AND ElementId=$element";
         cmd.ExecuteNonQuery();
-        cmd.CommandText = @"DELETE FROM Elements WHERE GuideId=$guide
-            AND ElementId NOT IN (SELECT ElementId FROM StepTargets WHERE GuideId=$guide)
-            AND ElementId NOT IN (SELECT AnchorElementId FROM ElementAnchors WHERE GuideId=$guide)
-            AND ElementId NOT IN (SELECT ElementId FROM ElementAnchors WHERE GuideId=$guide)";
-        cmd.ExecuteNonQuery();
         cmd.CommandText = @"INSERT INTO ElementAnchors
             (GuideId,ElementId,AnchorElementId,Relation,AnchorOrder)
             VALUES ($guide,$element,$anchor,'SharedContainer',0)";
