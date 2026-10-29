@@ -502,7 +502,7 @@ function editValidation(step, rule) {
   ],async values=>{
     await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+'/validation',
       {method:'PUT',body:JSON.stringify({kind:values.kind,
-        expectedValue:values.kind === 'value-contains' ? values.expectedValue : null})});
+        expectedValue:values.kind === 'value-equals' ? values.expectedValue : null})});
     const guideId=current.guide.id, stepId=step.id;
     await openGuide(guideId);
     document.querySelectorAll('[data-step]').forEach(b=>{
@@ -513,9 +513,9 @@ function editValidation(step, rule) {
   const kindControl = $('field-kind');
   const valueContainer = $('field-expectedValue')?.closest('.field');
   const updateValueVisibility = () => {
-    if (valueContainer) valueContainer.classList.toggle('hidden',kindControl?.value !== 'value-contains');
+    if (valueContainer) valueContainer.classList.toggle('hidden',kindControl?.value !== 'value-equals');
     const valueInput = $('field-expectedValue');
-    if (valueInput) valueInput.required = kindControl?.value === 'value-contains';
+    if (valueInput) valueInput.required = kindControl?.value === 'value-equals';
   };
   kindControl?.addEventListener('change', updateValueVisibility);
   updateValueVisibility();
