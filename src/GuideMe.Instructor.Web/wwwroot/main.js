@@ -259,12 +259,18 @@ function renderSteps() {
           '<p class="target-technical">מזהה רכיב: <code dir="ltr">' + esc(locatorText) + '</code></p>' : '') :
         '<p>עדיין לא נבחר רכיב לשלב הזה.</p>') +
       ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') ?
-        (target ? '<button class="btn secondary small" id="replace-web-target">בחירת רכיב אחר</button>' +
-          ' <button class="btn danger small" id="remove-primary-target">הסרת רכיב</button>' +
+        (target ? '<div class="target-action-buttons">' +
+          '<div class="target-action-primary">' +
+          '<button class="btn secondary small" id="replace-web-target">בחירת רכיב אחר</button>' +
+          '<button class="btn danger small" id="remove-primary-target">הסרת רכיב</button>' +
+          '</div>' +
           ((current.variables || []).length && context?.Runtime === 'Web' ?
+            '<div class="target-action-identifier">' +
             (identifierBinding ? '<p>רכיב זיהוי מקושר למשתנה: <strong>' + esc(boundVariable?.name || 'משתנה') + '</strong></p>' : '') +
-            ' <button class="btn secondary small" id="identify-action">' +
-            (identifierBinding ? 'בחירת רכיב זיהוי אחר' : 'בחירת רכיב זיהוי לפי משתנה') + '</button>' : '') :
+            '<button class="btn secondary small" id="identify-action">' +
+            (identifierBinding ? 'בחירת רכיב זיהוי אחר' : 'בחירת רכיב זיהוי לפי משתנה') + '</button>' +
+            '</div>' : '') +
+          '</div>' :
           '<button id="pick-element" class="btn primary">הפעלת ממפה רכיבים</button>') +
         '<div id="pick-result" class="hidden" aria-live="polite"></div>' : '') +
       '</section>' +
