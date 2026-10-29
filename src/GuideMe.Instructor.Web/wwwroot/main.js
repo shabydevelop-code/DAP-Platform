@@ -807,7 +807,7 @@ async function refreshPicker() {
       notify(pickedFor.identifier ? 'רכיב הזיהוי קושר למשתנה ולרכיב הפעולה.' :
         pickedFor.variableSource ? 'רכיב מקור המשתנה נשמר ללא שינוי רכיב הפעולה.'
         : pickedFor.replacing
-        ? 'הרכיב הוחלף בהצלחה. תנאי ההתקדמות נשאר ללא שינוי.'
+        ? 'הרכיב הוחלף בהצלחה. יש להגדיר מחדש מתי ממשיכים לשלב הבא.'
         : pickedFor.completion ? 'תנאי ההשלמה נשמר.' : 'רכיב היעד נשמר. ניתן להגדיר תנאי התקדמות בנפרד.');
     } catch (error) {
       result.textContent = 'השמירה נכשלה: ' + (error.message || String(error));
