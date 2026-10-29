@@ -14,6 +14,8 @@ internal sealed class GuideSessionIndicator : IDisposable
 {
     private readonly Window _window;
     private bool _disposed;
+    private readonly TextBlock _waitingText;
+    private bool _waiting;
 
     public GuideSessionIndicator(IUiTextProvider texts, string guideName, Action stop)
     {
@@ -46,8 +48,22 @@ internal sealed class GuideSessionIndicator : IDisposable
             FontWeight = FontWeights.SemiBold,
             VerticalAlignment = VerticalAlignment.Center
         };
+        _waitingText = new TextBlock
+        {
+            Text = texts.Get("Learner.WaitingForStep"),
+            Foreground = new SolidColorBrush(Color.FromRgb(183, 200, 212)),
+            FontSize = 12,
+            FlowDirection = rtl,
+            TextAlignment = texts.IsRightToLeft ? TextAlignment.Right : TextAlignment.Left,
+            Visibility = Visibility.Collapsed
+        };
+        caption.FlowDirection = rtl;
+        caption.TextAlignment = texts.IsRightToLeft ? TextAlignment.Right : TextAlignment.Left;
+        var captionStack = new StackPanel { Orientation = Orientation.Vertical, FlowDirection = rtl };
+        captionStack.Children.Add(caption);
+        captionStack.Children.Add(_waitingText);
         var row = new StackPanel { Orientation = Orientation.Horizontal, FlowDirection = rtl };
-        row.Children.Add(caption);
+        row.Children.Add(captionStack);
         row.Children.Add(stopButton);
         var panel = new Border
         {
@@ -92,6 +108,21 @@ internal sealed class GuideSessionIndicator : IDisposable
         _window.Loaded += (_, _) => Reposition();
         _window.Show();
         Reposition();
+    }
+
+    // Called only when the learner's existing target/presentation state changes.
+    // No extra UIA/DOM queries, polling, or timers.
+    public void SetBubbleAvailable(bool available)
+    {
+        if (_disposed) return;
+        void Apply()
+        {
+            if (_disposed || _waiting == !available) return;
+            _waiting = !available;
+            _waitingText.Visibility = _waiting ? Visibility.Visible : Visibility.Collapsed;
+        }
+        if (_window.Dispatcher.CheckAccess()) Apply();
+        else _ = _window.Dispatcher.BeginInvoke((Action)Apply);
     }
 
     private void Reposition()
