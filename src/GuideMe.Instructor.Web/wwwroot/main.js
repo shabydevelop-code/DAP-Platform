@@ -268,7 +268,9 @@ function renderSteps() {
     const hasFriendlyCompletionName = completionElementName !== 'הרכיב שנבחר';
     const completionSubject = hasFriendlyCompletionName
       ? 'הרכיב "' + completionElementName + '"' : 'הרכיב שנבחר';
-    const completionDescription = completionVariableId
+    const completionDescription = completionRule?.Kind === 'value-equals'
+      ? 'השדה ' + completionSubject + ' מכיל את הערך "' + (completionRule.ExpectedValue || '') + '".'
+      : completionVariableId
       ? 'הטקסט ב' + completionSubject + ' מכיל את ערך המשתנה "' + completionVariableName + '".'
       : completionRule?.Kind === 'target-appeared'
         ? completionSubject + ' יופיע במסך.'
@@ -555,7 +557,9 @@ const targetAdapters = {
             ? Number($('completion-state-choice').value) : null,
           variableId:$('target-condition').value === 'target-appeared-variable'
             ? $('completion-variable-choice')?.value : null,
-          selectedTag:candidate.tag})});
+          selectedTag:candidate.tag,
+          expectedValue:$('target-condition').value === 'value-equals'
+            ? $('completion-fixed-value')?.value : null})});
     }
   },
   Windows: {
@@ -692,12 +696,17 @@ async function refreshPicker() {
     (pickingFor.completion ? '<label for="target-condition">חוק השלמה</label>' +
       '<select id="target-condition"><option value="target-appeared">הופיע</option>' +
       '<option value="target-appeared-variable">מכיל ערך של משתנה</option>' +
+      '<option value="value-equals">השדה מכיל ערך מסוים</option>' +
       '<option value="target-vanished">נעלם</option></select>' : '')+
     (pickingFor.completion ? '<div id="completion-variable-fields" class="hidden">' +
       '<label for="completion-variable-choice">משתנה להשוואה</label>' +
       '<select id="completion-variable-choice">' +
       (current?.variables || []).map(v => '<option value="' + esc(v.id) + '">' + esc(v.name) + '</option>').join('') +
       '</select><p>ההשלמה תתבצע רק כאשר הרכיב שנבחר מכיל את ערך המשתנה.</p></div>' : '')+
+    (pickingFor.completion ? '<div id="completion-fixed-value-fields" class="hidden">' +
+      '<label for="completion-fixed-value">ערך צפוי</label>' +
+      '<input id="completion-fixed-value" maxlength="500" autocomplete="off" />' +
+      '</div>' : '') +
     (pickingFor.variableSource ? variableExtractionEditor(candidate, requestSession.runtime) : '') +
     '</div><div class="target-actions">'+
     '<button id="save-web-target" class="btn primary">' + (pickingFor.identifier ? 'שמירת רכיב הזיהוי' : 'אישור ושמירת רכיב') + '</button>'+
@@ -735,6 +744,7 @@ async function refreshPicker() {
     const updateFields = () => {
       $('completion-variable-fields').classList.toggle('hidden',
         condition.value !== 'target-appeared-variable');
+      $('completion-fixed-value-fields').classList.toggle('hidden', condition.value !== 'value-equals');
     };
     condition.addEventListener('change', updateFields);
     updateFields();
