@@ -271,8 +271,9 @@ function renderSteps() {
       '<section class="step-friendly-card"><h3>מתי ממשיכים לשלב הבא?</h3>' +
       '<p>' + esc(!target ? 'יוגדר לאחר בחירת הרכיב.' : conditionText) + '</p>' +
       (rule?.ExpectedValue ? '<p>ערך צפוי: <strong>' + esc(rule.ExpectedValue) + '</strong></p>' : '') +
-      ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') && rule ?
-        '<button class="btn secondary small" id="edit-validation">עריכת תנאי ההתקדמות</button>' : '') +
+      ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') && target ?
+        '<button class="btn secondary small" id="edit-validation">' +
+        (rule ? 'עריכת תנאי ההתקדמות' : 'הגדרת תנאי התקדמות') + '</button>' : '') +
       '</section></div>' +
       (context?.Runtime === 'Web' && target && rule ?
         '<section class="step-friendly-card completion-card"><h3>תנאי השלמה נוסף</h3>' +
@@ -433,11 +434,11 @@ function validationLabel(kind) {
     'תנאי מתקדם שהוגדר במערכת';
 }
 function editValidation(step, rule) {
-  const kind = validationChoices.some(x=>x.value===rule.Kind) ? rule.Kind : 'clicked';
+  const kind = validationChoices.some(x=>x.value===rule?.Kind) ? rule.Kind : 'clicked';
   modal('עריכת תנאי התקדמות — שלב ' + step.order, [
     {name:'kind',label:'מתי המערכת תעבור לשלב הבא?',value:kind,choices:validationChoices},
     {name:'expectedValue',label:'ערך צפוי (רק עבור ״השדה מכיל ערך מסוים״)',
-      value:rule.ExpectedValue || '',max:500,optional:true,
+      value:rule?.ExpectedValue || '',max:500,optional:true,
       help:'הזנת ערך נדרשת רק כאשר בוחרים התאמה לערך מסוים. אין להשתמש כאן בסיסמאות או במידע אישי.'}
   ],async values=>{
     await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+'/validation',
@@ -627,13 +628,10 @@ async function refreshPicker() {
       '<select id="grid-row-choice"><option value="">בחירת הרכיב הרגילה (לפי מיקום)</option>'+
       candidate.gridChoices.map((choice,i)=>'<option value="'+i+'">'+esc(choice.header)+': '+esc(choice.value)+'</option>').join('')+
       '</select><p>בחירה לפי ערך תישאר תקפה גם לאחר מיון הטבלה. אם הערך אינו ייחודי, הוא לא יוצע.</p>' : '')+
-    (pickingFor.replacing || pickingFor.variableSource || pickingFor.identifier ? '' : '<label for="target-condition">' + (pickingFor.completion ? 'חוק השלמה' : 'תנאי התקדמות') + '</label>')+
-    (pickingFor.replacing || pickingFor.variableSource || pickingFor.identifier ? '' : '<select id="target-condition">'+
-    (pickingFor.completion ? '<option value="target-appeared">הופיע</option><option value="target-appeared-variable">מכיל ערך של משתנה</option><option value="target-vanished">נעלם</option>' :
-    '<option value="clicked" '+(['input','textarea','select'].includes(candidate.tag)?'':'selected')+'>המשתמש לוחץ על הרכיב</option>'+
-    '<option value="value-not-empty" '+(['input','textarea','select'].includes(candidate.tag)?'selected':'')+'>הוזן ערך בשדה</option>'+
-    '<option value="target-disappeared">הרכיב נעלם בעקבות הפעולה</option>')+
-    '</select>')+
+    (pickingFor.completion ? '<label for="target-condition">חוק השלמה</label>' +
+      '<select id="target-condition"><option value="target-appeared">הופיע</option>' +
+      '<option value="target-appeared-variable">מכיל ערך של משתנה</option>' +
+      '<option value="target-vanished">נעלם</option></select>' : '')+
     (pickingFor.completion ? '<div id="completion-variable-fields" class="hidden">' +
       '<label for="completion-variable-choice">משתנה להשוואה</label>' +
       '<select id="completion-variable-choice">' +
@@ -721,7 +719,7 @@ async function refreshPicker() {
       else
         await api('/guides/'+pickedFor.guideId+'/steps/'+encodeURIComponent(pickedFor.stepId)+'/primary-target',
           {method:'POST',body:JSON.stringify({
-            condition:$('target-condition')?.value || 'clicked',
+            condition:'',
             replacing:pickedFor.replacing,gridChoice:gridChoiceIndex,
             processId:pickedFor.processId || null})});
       pickingFor = null;
@@ -734,7 +732,7 @@ async function refreshPicker() {
         pickedFor.variableSource ? 'רכיב מקור המשתנה נשמר ללא שינוי רכיב הפעולה.'
         : pickedFor.replacing
         ? 'הרכיב הוחלף בהצלחה. תנאי ההתקדמות נשאר ללא שינוי.'
-        : pickedFor.completion ? 'תנאי ההשלמה נשמר.' : 'רכיב היעד ותנאי ההתקדמות נשמרו.');
+        : pickedFor.completion ? 'תנאי ההשלמה נשמר.' : 'רכיב היעד נשמר. ניתן להגדיר תנאי התקדמות בנפרד.');
     } catch (error) {
       result.textContent = 'השמירה נכשלה: ' + (error.message || String(error));
       result.classList.add('save-error');
