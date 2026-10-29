@@ -224,7 +224,7 @@ function renderSteps() {
     const completionTarget = data.targets.find(x => x.UsageId === completionRule?.TargetUsageId);
     const completionElement = data.elements.find(x => x.ElementId === completionTarget?.ElementId);
     const completionSelector = parseJson(completionElement?.LocatorsJson, [])[0]?.Value || '';
-    const completionVariableId = completionSelector.match(/\\{\\{var:([^}]+)\\}\\}/)?.[1];
+    const completionVariableId = completionSelector.match(/\{\{var:([^}]+)\}\}/)?.[1];
     const completionVariable = (current.variables || []).find(v => v.id === completionVariableId);
     const completionVariableName = completionVariable?.name || 'המשתנה שנבחר';
     const completionElementName = completionElement?.DisplayName ||
