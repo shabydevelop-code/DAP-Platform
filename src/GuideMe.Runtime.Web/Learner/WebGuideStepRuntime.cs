@@ -22,6 +22,8 @@ public sealed class WebGuideStepRuntime
     }
 
     private readonly IWebBrowserAdapter _browser;
+    private readonly Action<bool>? _bubbleAvailabilityChanged;
+    private bool? _lastBubbleAvailable;
     private readonly TimeSpan _reconcileInterval;
     private readonly TimeSpan _stableReconcileInterval;
     private readonly TimeSpan _presentationSettleInterval;
@@ -29,12 +31,21 @@ public sealed class WebGuideStepRuntime
     public WebGuideStepRuntime(
         IWebBrowserAdapter browser,
         TimeSpan? reconcileInterval = null,
-        TimeSpan? presentationSettleInterval = null)
+        TimeSpan? presentationSettleInterval = null,
+        Action<bool>? bubbleAvailabilityChanged = null)
     {
         _browser = browser ?? throw new ArgumentNullException(nameof(browser));
+        _bubbleAvailabilityChanged = bubbleAvailabilityChanged;
         _reconcileInterval = reconcileInterval ?? TimeSpan.FromMilliseconds(100);
         _stableReconcileInterval = TimeSpan.FromMilliseconds(500);
         _presentationSettleInterval = presentationSettleInterval ?? TimeSpan.FromMilliseconds(250);
+    }
+
+    private void ReportBubbleAvailable(bool available)
+    {
+        if (_lastBubbleAvailable == available) return;
+        _lastBubbleAvailable = available;
+        _bubbleAvailabilityChanged?.Invoke(available);
     }
 
     public async Task RunActiveStepAsync(
@@ -54,6 +65,7 @@ public sealed class WebGuideStepRuntime
             return;
         }
 
+        ReportBubbleAvailable(false);
         var diagnoseReference = step.Id.StartsWith("reference-", StringComparison.Ordinal);
         if (diagnoseReference) ReferenceDiagnostic($"[GuideMe reference diagnostic] Starting Web Step {stepNumber}/{totalSteps} '{step.Id}'.");
         var automatic = GuideStepExecutionPolicy.IsAutomaticValidationStep(step);
@@ -164,6 +176,7 @@ public sealed class WebGuideStepRuntime
             if (sharedEngine.ObserveContext(activeState, contextActive)
                 == GuideStepReconciliationResult.WaitingForContext)
             {
+                ReportBubbleAvailable(false);
                 await _browser.HideBubbleAsync(cancellationToken);
                 return await GuideActiveStepState.WaitAsync(
                     GuideStepReconciliationResult.WaitingForContext, _reconcileInterval, cancellationToken);
@@ -234,6 +247,7 @@ public sealed class WebGuideStepRuntime
                 targetAvailable: presentation.Status == WebTargetResolutionStatus.Resolved, targetVisible: true)
                 == GuideStepReconciliationResult.WaitingForTarget)
             {
+                ReportBubbleAvailable(false);
                 await _browser.HideBubbleAsync(cancellationToken);
             }
             else if (activeState.TrySignalReady())
@@ -247,6 +261,8 @@ public sealed class WebGuideStepRuntime
 
             // Observe captures only against a resolved target. The guide layer
             // owns persistence and the shared core owns capture timing.
+            if (presentation.Status == WebTargetResolutionStatus.Resolved && showPresentation)
+                ReportBubbleAvailable(true);
             if (presentation.Status == WebTargetResolutionStatus.Resolved && onTargetObserved is not null)
                 await onTargetObserved(cancellationToken);
 
