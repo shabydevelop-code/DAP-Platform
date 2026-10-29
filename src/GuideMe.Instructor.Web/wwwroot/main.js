@@ -69,16 +69,23 @@ function clearNotice() {
   el.classList.add('hidden');
   el.replaceChildren();
 }
-function notify(message, error = false) {
+function notify(message, error = false, kind = "success") {
   clearNotice();
   const el = $('notice');
+  const type = error ? 'error' : (['success', 'info', 'warning'].includes(kind) ? kind : 'info');
+  el.classList.remove('error', 'success', 'info', 'warning');
+  el.classList.add(type);
+  const symbol = document.createElement('span');
+  symbol.className = 'notice-symbol';
+  symbol.textContent = {error:'!', warning:'!', success:'✓', info:'i'}[type];
+  symbol.setAttribute('aria-hidden', 'true');
+  el.append(symbol);
   const text = document.createElement('span');
   text.className = 'notice-text';
   text.textContent = message;
   el.append(text);
-  el.classList.toggle('error', error);
-  el.setAttribute('role', error ? 'alert' : 'status');
-  if (error) {
+  el.setAttribute('role', error || type === 'warning' ? 'alert' : 'status');
+  if (error || type === 'warning') {
     const close = document.createElement('button');
     close.type = 'button';
     close.className = 'notice-close';
@@ -88,7 +95,7 @@ function notify(message, error = false) {
     el.append(close);
   }
   el.classList.remove('hidden');
-  if (!error) noticeTimer = setTimeout(clearNotice, 3000);
+  if (!error && type !== 'warning') noticeTimer = setTimeout(clearNotice, 3000);
 }
 async function guarded(action) { try { await action(); } catch(e) { notify(e.message || String(e), true); } }
 function showList() {
@@ -398,7 +405,7 @@ function renderSteps() {
         await verifyTestTransport(current.guide.id, step.id);
         await api('/guides/' + current.guide.id + '/test?startStepId=' + encodeURIComponent(step.id),
           {method:'POST', body:'{}'});
-        notify('ה־Learner הופעל משלב ' + step.order + '. הבועית תוצג כשהרכיב המתאים יהיה זמין.');
+        notify('ה־Learner הופעל משלב ' + step.order + '. הבועית תוצג כשהרכיב המתאים יהיה זמין.', false, 'info');
       } finally { button.disabled = false; }
     });
     const addCompletion = $('add-completion');
@@ -1064,7 +1071,7 @@ $('test-guide').onclick=()=>guarded(async()=>{
   try {
     await verifyTestTransport(current.guide.id);
     await api('/guides/'+current.guide.id+'/test',{method:'POST',body:'{}'});
-    notify('ה־Learner הופעל לבדיקת הלומדה מתחילתה. יש להכין את אפליקציית היעד למצב ההתחלתי.');
+    notify('ה־Learner הופעל לבדיקת הלומדה מתחילתה. יש להכין את אפליקציית היעד למצב ההתחלתי.', false, 'info');
   } finally { button.disabled=false; }
 });
 $('rename-guide').onclick=renameGuide;
