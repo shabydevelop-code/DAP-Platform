@@ -642,7 +642,7 @@ public sealed class WindowsGuideRuntime
                 string? observedValue = null;
                 if (resolved && kind == "target-enabled")
                     enabled = resolution.Target!.Current.IsEnabled;
-                if (resolved && kind is "value-equals" or "value-contains" && resolution.Target!.TryGetCurrentPattern(ValuePattern.Pattern, out var valuePattern))
+                if (resolved && (kind is "value-equals" or "value-contains") && resolution.Target!.TryGetCurrentPattern(ValuePattern.Pattern, out var valuePattern))
                     observedValue = ((ValuePattern)valuePattern).Current.Value;
                 if (!GuideCompletionPolicy.IsSatisfied(condition, resolved, ambiguous, enabled, observedValue))
                     return false;
