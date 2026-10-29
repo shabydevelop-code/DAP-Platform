@@ -533,7 +533,7 @@
     };
   }
 
-  const theme={backgroundColor:"#312E5A",textColor:"#FFFFFF",borderColor:"#8B83C7",borderWidth:1,borderRadius:8,maxWidth:320,padding:"12px 16px",boxShadow:"0 10px 28px rgba(32,29,67,.28)",fontFamily:"Arial, sans-serif",fontSize:14,lineHeight:1.4,targetHighlightColor:"#A99FE8",targetHighlightWidth:2,targetHighlightShadow:"0 0 0 3px rgba(169,159,232,.22)",pointerSize:9};
+  const theme={backgroundColor:"#312E5A",textColor:"#FFFFFF",borderColor:"#8B83C7",borderWidth:1,borderRadius:8,maxWidth:320,padding:"12px 16px",boxShadow:"0 10px 28px rgba(32,29,67,.28)",fontFamily:"Arial, sans-serif",fontSize:14,lineHeight:1.4,targetHighlightColor:"#ffdf00",targetHighlightWidth:3,targetHighlightShadow:"0 0 0 2px #111827",pointerSize:9};
   let bubbleState=null;
   let validationState=null;
   function hideBubble(){
@@ -909,7 +909,7 @@
       el.isContentEditable===true);
     if(inputLike&&!el.disabled&&typeof el.focus==="function")el.focus({preventScroll:true});
     const previous={outline:el.style.outline,outlineOffset:el.style.outlineOffset,boxShadow:el.style.boxShadow};
-    el.style.outline=theme.targetHighlightWidth+"px solid "+theme.targetHighlightColor;el.style.outlineOffset="0px";el.style.boxShadow=theme.targetHighlightShadow;
+    el.style.outline=theme.targetHighlightWidth+"px solid "+theme.targetHighlightColor;el.style.outlineOffset="2px";el.style.boxShadow=theme.targetHighlightShadow;
     const b=root.createElement("div");b.id="guideMe-guide-bubble";b.dataset.guideMeStepId=step.id;b.dataset.placement=String(step.bubble?.placement||"Auto");b.__guideMeTarget=el;b.setAttribute("role","status");
     const handle=root.createElement("div");handle.dataset.guideMeDragHandle="1";handle.setAttribute("aria-label",presentation.dragText||"");handle.textContent="⠿";handle.title=presentation.dragText||"";Object.assign(handle.style,{display:"block",width:"fit-content",marginLeft:"auto",marginRight:"auto",textAlign:"center",fontSize:"18px",lineHeight:"14px",opacity:".72",marginBottom:"6px",cursor:"grab",touchAction:"none"});
     const content=root.createElement("div");content.textContent=step.bubble?.content||"";content.style.cursor="default";b.append(handle);
