@@ -225,7 +225,41 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/completion-target",
     var row = rows.Rows.Cast<DataRow>().FirstOrDefault(r =>
         string.Equals(r["StepId"].ToString(), stepId, StringComparison.Ordinal));
     if (row is null) return Results.NotFound();
-    var selected = capture.GetApprovedTarget(id, row["ApplicationContextId"].ToString() ?? "");
+    var contextId = row["ApplicationContextId"].ToString() ?? "";
+    var contexts = V5GuideReader.ReadGuideTable(id, "ApplicationContexts");
+    var context = contexts.Rows.Cast<DataRow>().FirstOrDefault(r =>
+        string.Equals(r["ContextId"].ToString(), contextId, StringComparison.Ordinal));
+    if (context is null) return Results.BadRequest(new { message = "לא נמצא שיוך אפליקציה." });
+    var runtime = context["Runtime"].ToString();
+    if (runtime == "Windows")
+    {
+        if (request.Kind != "value-equals" || request.ProcessId is not > 0)
+            return Results.BadRequest(new { message = "יש לבחור בדיקת ערך ורכיב Windows תקין." });
+        var picked = windowsPicker.Status().Selection;
+        if (picked is null || picked.Error is not null || picked.ProcessId != request.ProcessId.Value)
+            return Results.BadRequest(new { message = "לא נבחר רכיב Windows תקין." });
+        using var process = Process.GetProcessById(request.ProcessId.Value);
+        using var matchers = JsonDocument.Parse(context["MatchersJson"].ToString() ?? "[]");
+        var allowed = matchers.RootElement.EnumerateArray().Any(m =>
+            m.TryGetProperty("Kind", out var kind) && kind.GetString() == "ProcessName" &&
+            m.TryGetProperty("Value", out var value) &&
+            string.Equals((value.GetString() ?? "").Replace(".exe", "", StringComparison.OrdinalIgnoreCase),
+                process.ProcessName, StringComparison.OrdinalIgnoreCase));
+        if (!allowed) return Results.BadRequest(new { message = "הרכיב אינו שייך לאפליקציה שהוגדרה." });
+        try
+        {
+            V5GuideWriter.SaveWebCompletionTarget(id, stepId, "", Array.Empty<string>(),
+                request.Kind, picked.Name, expectedValue: request.ExpectedValue,
+                runtime: "Windows", windowsLocators: picked.Locators
+                    .Select(l => new V5GuideWriter.TargetLocator(l.Strategy, l.Value)).ToArray());
+            windowsPicker.Stop();
+            return Results.NoContent();
+        }
+        catch (ArgumentException ex) { return Results.Problem(ex.Message, statusCode: 400); }
+        catch (InvalidOperationException ex) { return Results.Problem(ex.Message, statusCode: 409); }
+    }
+    if (runtime != "Web") return Results.BadRequest(new { message = "סביבת יעד לא נתמכת." });
+    var selected = capture.GetApprovedTarget(id, contextId);
     try
     {
         var capturedState = request.Kind == "attribute-equals"
@@ -617,7 +651,8 @@ internal sealed record SavePrimaryTargetRequest(string Condition, bool Replacing
     int? ProcessId = null, int? GridChoice = null);
 internal sealed record PickStart(long GuideId, string ContextId);
 internal sealed record SaveCompletionTargetRequest(string Kind, int? StateAttributeIndex = null,
-    string? VariableId = null, string? SelectedTag = null, string? ExpectedValue = null);
+    string? VariableId = null, string? SelectedTag = null, string? ExpectedValue = null,
+    int? ProcessId = null);
 
 internal sealed record EditWebValidation(string Kind, string? ExpectedValue);
 
