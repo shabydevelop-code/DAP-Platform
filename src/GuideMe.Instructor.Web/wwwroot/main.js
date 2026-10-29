@@ -274,6 +274,7 @@ function renderSteps() {
       '<div class="step-editor-head"><div><h2>שלב ' + step.order + '</h2>' +
       '<p>אפליקציה: ' + esc(appText) + '</p></div>' +
       '<div class="step-editor-actions">' +
+      '<button class="btn secondary small" id="duplicate-step">שכפל שלב</button>' +
       '<button class="btn danger small" id="delete-step">מחיקת שלב</button>' +
       '<button class="btn primary small" id="test-from-step"' + (step.enabled ? '' : ' disabled') + '>בדיקה משלב זה</button></div></div>' +
       '<div class="step-summary"><div class="step-summary-heading"><strong>הנחיה למשתמש</strong>' +
@@ -380,6 +381,22 @@ function renderSteps() {
         });
       }));
     $('edit-step').onclick = () => editStep(step, contextId);
+    $('duplicate-step').onclick = () => guarded(async () => {
+      if (!current || !confirmDiscard()) return;
+      const guideId = current.guide.id;
+      const button = $('duplicate-step');
+      button.disabled = true;
+      try {
+        const result = await api('/guides/' + guideId + '/steps/' +
+          encodeURIComponent(step.id) + '/duplicate', {method:'POST', body:'{}'});
+        await loadGuides();
+        await openGuide(guideId);
+        const row = [...document.querySelectorAll('[data-step]')]
+          .find(item => item.dataset.step === result.stepId);
+        if (row) row.click();
+        notify('השלב שוכפל ונפתח לעריכה.');
+      } finally { if (button.isConnected) button.disabled = false; }
+    });
     $('delete-step').onclick = () => guarded(async () => {
       if (!current || !confirmDiscard()) return;
       const guideId = current.guide.id;
