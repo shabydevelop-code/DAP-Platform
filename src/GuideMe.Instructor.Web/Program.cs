@@ -233,7 +233,7 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/completion-target",
     var runtime = context["Runtime"].ToString();
     if (runtime == "Windows")
     {
-        if (request.Kind != "value-equals" || request.ProcessId is not > 0)
+        if (request.Kind != "value-contains" || request.ProcessId is not > 0)
             return Results.BadRequest(new { message = "יש לבחור בדיקת ערך ורכיב Windows תקין." });
         var picked = windowsPicker.Status().Selection;
         if (picked is null || picked.Error is not null || picked.ProcessId != request.ProcessId.Value)
