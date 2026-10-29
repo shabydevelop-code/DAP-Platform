@@ -87,7 +87,7 @@
 .step-friendly-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:16px;direction:rtl}
 .step-friendly-card{border:1px solid #dce6f2;border-radius:12px;padding:19px;background:#fff;text-align:right;min-width:0}
 .completion-card{margin-top:14px}
-.step-friendly-card h3{font-size:15px;font-weight:700;margin:0 0 12px;color:#203d63}
+.step-friendly-card h3{font-size:16px;font-weight:700;margin:0 0 12px;color:#203d63}
 .step-friendly-card p{font-size:13px;margin:0 0 13px;line-height:1.65}
 .step-friendly-card code{display:inline-block;max-width:100%;overflow-wrap:anywhere;direction:ltr;text-align:left;unicode-bidi:isolate;font-size:12px;background:#f4f7fc;padding:3px 7px;border-radius:5px}
 .step-muted{color:#657d96}
@@ -321,8 +321,8 @@ body .brand-heading strong span { font-size: 26px; }
 /* Compact, readable additional completion condition summary. */
 .completion-details{display:grid;gap:12px;margin:0 0 14px;direction:rtl;text-align:right}
 .completion-detail{display:grid;gap:3px;min-width:0}
-.completion-detail-label{color:#657d96;font-size:12px}
-.completion-detail strong{font-size:13px;font-weight:600;overflow-wrap:anywhere}
+.completion-detail-label{color:#657d96;font-size:15px;line-height:1.5}
+.completion-detail strong{font-size:15px;line-height:1.5;font-weight:600;overflow-wrap:anywhere}
 
 /* Consistent navigation feedback for mouse, keyboard and both text directions. */
 .back,.link,.guide-open-link{cursor:pointer;text-underline-offset:3px}
