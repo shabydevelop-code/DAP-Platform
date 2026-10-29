@@ -304,6 +304,32 @@ app.MapPost("/api/guides/{id:long}/test", (long id, string? startStepId) =>
         return Results.Problem("בלומדה אין שלבים פעילים.", statusCode: 409);
     if (startStepId is not null && !enabledSteps.Any(step => step.Id == startStepId))
         return Results.Problem("שלב ההתחלה אינו קיים או אינו פעיל.", statusCode: 400);
+    // A step without a primary target is a manual explanation step.
+    // A targeted step must have exactly one primary validation before testing.
+    var ordered = V5GuideReader.ReadGuideTable(id, "Steps").Rows.Cast<DataRow>()
+        .OrderBy(row => Convert.ToInt32(row["StepOrder"])).ToArray();
+    var startIndex = startStepId is null ? 0 : Array.FindIndex(ordered,
+        row => string.Equals(row["StepId"].ToString(), startStepId, StringComparison.Ordinal));
+    var targets = V5GuideReader.ReadGuideTable(id, "StepTargets").Rows.Cast<DataRow>()
+        .Where(row => string.Equals(row["Purpose"].ToString(), "Primary", StringComparison.OrdinalIgnoreCase))
+        .GroupBy(row => row["StepId"].ToString() ?? "")
+        .ToDictionary(group => group.Key, group => group.Count(), StringComparer.Ordinal);
+    var validations = V5GuideReader.ReadGuideTable(id, "StepRules").Rows.Cast<DataRow>()
+        .Where(row => string.Equals(row["RuleType"].ToString(), "PrimaryValidation", StringComparison.Ordinal))
+        .GroupBy(row => row["StepId"].ToString() ?? "")
+        .ToDictionary(group => group.Key, group => group.Count(), StringComparer.Ordinal);
+    foreach (var row in ordered.Skip(Math.Max(startIndex, 0)))
+    {
+        if (Convert.ToInt64(row["IsEnabled"]) != 1) continue;
+        var stepKey = row["StepId"].ToString() ?? "";
+        var primaryCount = targets.GetValueOrDefault(stepKey);
+        var validationCount = validations.GetValueOrDefault(stepKey);
+        if (primaryCount == 0 && validationCount == 0) continue;
+        if (primaryCount != 1 || validationCount != 1)
+            return Results.Problem("לא ניתן לבדוק את שלב " + row["StepOrder"] +
+                ": נבחר רכיב במסך אך לא הוגדר תנאי התקדמות תקין. יש להשלים את ההגדרה לפני הבדיקה.",
+                statusCode: 409);
+    }
     const string learnerExe = @"C:\GuideMe\GuideMe.exe";
     if (!File.Exists(learnerExe))
         return Results.Problem("לא נמצאה התקנת Learner ב־C:\\GuideMe\\GuideMe.exe. פרסם את GuideMe תחילה.", statusCode: 409);
