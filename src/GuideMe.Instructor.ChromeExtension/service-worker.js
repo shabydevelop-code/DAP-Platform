@@ -6,6 +6,7 @@ let port = null;
 let selectedTabId = null;
 let pickerArmedTabId = null;
 let pickerArmedSession = null;
+let lastActivatedPicker = null;
 let pickerFrames = [];
 let pending = new Map();
 let serial = 0;
@@ -137,6 +138,19 @@ async function sync() {
         if (ack?.accepted === true) {
           pickerArmedTabId = pickTabId;
           pickerArmedSession = pickerSession;
+          // Bring the already-matched application forward once per picker session.
+          // Re-arming after a navigation must not steal focus again.
+          const activationKey = pickTabId + ":" + pickerSession;
+          if (lastActivatedPicker !== activationKey) {
+            lastActivatedPicker = activationKey;
+            try {
+              const tab = await chrome.tabs.update(pickTabId, {active:true});
+              if (tab?.windowId !== undefined)
+                await chrome.windows.update(tab.windowId, {focused:true});
+            } catch (error) {
+              console.warn("Instructor target activation:", error?.message || error);
+            }
+          }
         }
       } catch (error) { await reportPickerError(pickTabId,error); }
     }
