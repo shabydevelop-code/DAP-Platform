@@ -62,13 +62,34 @@ async function api(path, options = {}) {
   }
   return response.status === 204 ? null : response.json();
 }
-function notify(message, error = false) {
-  const el = $('notice'); el.textContent = message; el.classList.toggle('error', error); el.classList.remove('hidden');
-  el.setAttribute('role',error?'alert':'status');
-  el.scrollIntoView({behavior:'auto',block:'nearest'});
-  if (error) { el.setAttribute('tabindex','-1'); el.focus(); }
+let noticeTimer = null;
+function clearNotice() {
+  if (noticeTimer !== null) { clearTimeout(noticeTimer); noticeTimer = null; }
+  const el = $('notice');
+  el.classList.add('hidden');
+  el.replaceChildren();
 }
-function clearNotice() { $('notice').classList.add('hidden'); }
+function notify(message, error = false) {
+  clearNotice();
+  const el = $('notice');
+  const text = document.createElement('span');
+  text.className = 'notice-text';
+  text.textContent = message;
+  el.append(text);
+  el.classList.toggle('error', error);
+  el.setAttribute('role', error ? 'alert' : 'status');
+  if (error) {
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'notice-close';
+    close.textContent = '×';
+    close.setAttribute('aria-label', 'סגירת הודעה');
+    close.addEventListener('click', clearNotice);
+    el.append(close);
+  }
+  el.classList.remove('hidden');
+  if (!error) noticeTimer = setTimeout(clearNotice, 3000);
+}
 async function guarded(action) { try { await action(); } catch(e) { notify(e.message || String(e), true); } }
 function showList() {
   if (!confirmDiscard()) return;
