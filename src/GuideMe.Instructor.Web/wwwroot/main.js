@@ -324,7 +324,7 @@ function renderSteps() {
         '<button class="btn secondary small" id="edit-validation">' +
         (rule ? 'עריכת תנאי ההתקדמות' : 'הגדרת תנאי התקדמות') + '</button>' : '') +
       '</section></div>' +
-      (context?.Runtime === 'Web' && target && rule ?
+      ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') && target && rule ?
         '<section class="step-friendly-card completion-card"><h3>תנאי השלמה נוסף</h3>' +
         (completionRule ? '<div class="completion-details">' +
           '<div class="completion-detail"><span class="completion-detail-label">השלב יושלם כאשר:</span>' +
@@ -586,7 +586,11 @@ const targetAdapters = {
         label:state.selection?.name || state.selection?.controlType,
         tag:state.selection?.controlType === 'ControlType.Edit' ? 'input' : 'button'};
     },
-
+    async saveCompletion(session) {
+      return api('/guides/'+session.guideId+'/steps/'+encodeURIComponent(session.stepId)+'/completion-target',
+        {method:'POST',body:JSON.stringify({kind:$('target-condition').value,
+          expectedValue:$('completion-fixed-value')?.value,processId:session.processId})});
+    },
   }
 };
 // The picker transport is shared; each authoring purpose owns its preview.
@@ -694,10 +698,11 @@ async function refreshPicker() {
       candidate.gridChoices.map((choice,i)=>'<option value="'+i+'">'+esc(choice.header)+': '+esc(choice.value)+'</option>').join('')+
       '</select><p>בחירה לפי ערך תישאר תקפה גם לאחר מיון הטבלה. אם הערך אינו ייחודי, הוא לא יוצע.</p>' : '')+
     (pickingFor.completion ? '<label for="target-condition">חוק השלמה</label>' +
-      '<select id="target-condition"><option value="target-appeared">הופיע</option>' +
-      '<option value="target-appeared-variable">מכיל ערך של משתנה</option>' +
+      '<select id="target-condition">' +
+      (requestSession.runtime === 'Windows' ? '' : '<option value="target-appeared">הופיע</option>') +
+      (requestSession.runtime === 'Windows' ? '' : '<option value="target-appeared-variable">מכיל ערך של משתנה</option>') +
       '<option value="value-equals">השדה מכיל ערך מסוים</option>' +
-      '<option value="target-vanished">נעלם</option></select>' : '')+
+      (requestSession.runtime === 'Windows' ? '' : '<option value="target-vanished">נעלם</option>') + '</select>' : '')+
     (pickingFor.completion ? '<div id="completion-variable-fields" class="hidden">' +
       '<label for="completion-variable-choice">משתנה להשוואה</label>' +
       '<select id="completion-variable-choice">' +
