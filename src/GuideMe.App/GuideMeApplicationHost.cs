@@ -252,8 +252,8 @@ public static class GuideMeApplicationHost
                 }, TaskScheduler.Default);
         };
 
-        var web = new AdapterWebGuideRuntime(new WebGuideStepRuntime(browser), browser);
-        var windows = new WindowsGuideRuntime(new WindowsTargetResolver(), bubbles);
+        var web = new AdapterWebGuideRuntime(new WebGuideStepRuntime(browser, bubbleAvailabilityChanged: indicator.SetBubbleAvailable), browser);
+        var windows = new WindowsGuideRuntime(new WindowsTargetResolver(), bubbles, bubbleAvailabilityChanged: indicator.SetBubbleAvailable);
 
         AutomationElement ResolveWindow(GuideMe.Core.Guides.GuideStep step)
         {
@@ -463,7 +463,7 @@ public static class GuideMeApplicationHost
             _ = bubbles.HideAsync();
         });
         using var stopRegistration = userStopped.Token.Register(() => runCancellation.Cancel());
-        var runtime = new WindowsGuideRuntime(resolver, bubbles);
+        var runtime = new WindowsGuideRuntime(resolver, bubbles, bubbleAvailabilityChanged: indicator.SetBubbleAvailable);
 
         try
         {
@@ -642,7 +642,7 @@ public static class GuideMeApplicationHost
             targetClosed.Cancel();
         };
         browserAdapter.TargetWindowActivationRequested += title => _ = Task.Run(() => ActivateChromeWindowAsync(title, runCancellation.Token));
-        var stepRuntime = new WebGuideStepRuntime(browserAdapter);
+        var stepRuntime = new WebGuideStepRuntime(browserAdapter, bubbleAvailabilityChanged: indicator.SetBubbleAvailable);
         var guideRuntime = new AdapterWebGuideRuntime(stepRuntime, browserAdapter);
         StartupMark(startup, "Web extension adapter composition root created");
 
