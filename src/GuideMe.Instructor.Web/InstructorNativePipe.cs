@@ -40,6 +40,7 @@ internal sealed class InstructorNativePipe
         var line = await reader.ReadLineAsync(timeout.Token);
         if (line is null || line.Length > 1024 * 1024) return;
         object response;
+        var returnToInstructor = false;
         string? requestId = null;
         try
         {
@@ -58,11 +59,16 @@ internal sealed class InstructorNativePipe
                 "picked" => _capture.Picked(root.GetProperty("payload").Deserialize<CaptureEvent>(new JsonSerializerOptions(JsonSerializerDefaults.Web)) ?? throw new ArgumentException("Missing picked element.")),
                 _ => throw new InvalidOperationException("Unknown Instructor native request.")
             };
+            if (type == "picked" && result is not null)
+                returnToInstructor = JsonSerializer.SerializeToElement(result)
+                    .TryGetProperty("accepted", out var accepted) && accepted.GetBoolean();
             response = new { requestId, ok = true, result };
         }
         catch (Exception ex) { response = new { requestId, ok = false, error = ex.Message }; }
         await writer.WriteLineAsync(JsonSerializer.Serialize(response,
             new JsonSerializerOptions(JsonSerializerDefaults.Web)).AsMemory(), timeout.Token);
+        if (returnToInstructor)
+            _ = Task.Run(InstructorSingleInstance.ActivateExisting);
     }
 
     private object ReceiveEvent(CaptureEvent? value)
