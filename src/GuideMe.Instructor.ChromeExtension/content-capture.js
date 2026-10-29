@@ -378,6 +378,12 @@
           }
           return clean(node.innerText || node.textContent);
         };
+        // Action controls use their own visible caption before adjacent table-cell
+        // text, which often contains a record number rather than the button label.
+        if (target.matches('button, a, [role="button"], input[type="button"], input[type="submit"]')) {
+          const caption = clean(target.innerText || target.textContent || target.value);
+          if (caption) return caption;
+        }
         // Native label associations, including labels wrapping the control.
         const labels = target.labels ? Array.from(target.labels) : [];
         if (target.closest('label')) labels.push(target.closest('label'));
