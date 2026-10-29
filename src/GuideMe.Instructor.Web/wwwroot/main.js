@@ -286,8 +286,7 @@ function renderSteps() {
       '<div id="primary-target-summary">' +
       (target ? '<p>נבחר רכיב באפליקציה' +
         (frames.length ? ' בתוך ' + frames.length + ' מסגרות' : '') + '.</p>' +
-        (locatorText ? '<p>רכיב שנבחר: <strong>' + esc(friendlyName) + '</strong></p>' +
-          '<p class="target-technical">מזהה רכיב: <code dir="ltr">' + esc(locatorText) + '</code></p>' : '') :
+        (locatorText ? '<p>רכיב שנבחר: <strong>' + esc(friendlyName) + '</strong></p>' : '') :
         '<p>עדיין לא נבחר רכיב לשלב הזה.</p>') +
       '</div>' +
       ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') ?
