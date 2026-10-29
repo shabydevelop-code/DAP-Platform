@@ -136,7 +136,6 @@ public sealed class WindowsGuideRuntime
         var resolutionAttempt = 0;
         AutomationElement? cachedExactTarget = null;
         var lastFullResolution = Stopwatch.StartNew();
-        Task<TargetResolution<AutomationElement>>? pendingRowResolution = null;
 
         var initialVisibilityChecked = false;
         var initialInputFocusApplied = false;
@@ -197,39 +196,19 @@ public sealed class WindowsGuideRuntime
                 resolutionAttempt++;
                 try
                 {
-                    // Reuse stable exact targets briefly instead of traversing the UIA
-                    // tree on every poll. Anchored targets, including grid rows, still
-                    // require authoritative resolution to prevent stale record binding.
+                    // Cache only unanchored exact targets; anchored targets require fresh resolution.
                     var strategy = step.Target!.Locator.Strategy.Trim().ToLowerInvariant();
                     var cacheEligible = step.Target.Anchors.Count == 0
                         && (strategy == "automation-id" || strategy == "name");
-                    // Reuse an anchored row only while its identifying cell remains.
-                    var rowAnchor = step.Target.Anchors.FirstOrDefault(anchor =>
-                        anchor.Relation == AnchorRelation.Descendant
-                        && anchor.Locator.Strategy.Equals("name-regex", StringComparison.OrdinalIgnoreCase));
-                    var expression = rowAnchor?.Locator.Value;
-                    var exactRowName = expression is { Length: >= 3 }
-                        && expression[0] == (char)94 && expression[^1] == (char)36
-                        && expression[1..^1].IndexOfAny(new[] { '.', '*', '+', '?', '[', ']', '(', ')', '{', '}', '|' }) < 0
-                        ? expression[1..^1] : null;
-                    cacheEligible |= exactRowName is not null
-                        && strategy == "control-type"
-                        && step.Target.Locator.Value.Equals("dataitem", StringComparison.OrdinalIgnoreCase);
                     var reusedCachedTarget = false;
                     if (cacheEligible && cachedExactTarget is not null
-                        && (pendingRowResolution is not null || lastFullResolution.ElapsedMilliseconds < (exactRowName is null ? 1000 : 5000)))
+                        && lastFullResolution.ElapsedMilliseconds < 1000)
                     {
                         try
                         {
                             var current = cachedExactTarget.Current;
-                            if ((step.Target.Anchors.Count == 0
-                                && ((strategy == "automation-id" && current.AutomationId == step.Target.Locator.Value)
-                                    || (strategy == "name" && current.Name == step.Target.Locator.Value)))
-                                || (exactRowName is not null
-                                    && current.ControlType == ControlType.DataItem
-                                    && (current.IsOffscreen
-                                        || cachedExactTarget.FindFirst(TreeScope.Descendants,
-                                            new PropertyCondition(AutomationElement.NameProperty, exactRowName)) is not null)))
+                            if ((strategy == "automation-id" && current.AutomationId == step.Target.Locator.Value)
+                                || (strategy == "name" && current.Name == step.Target.Locator.Value))
                             {
                                 resolution = TargetResolution<AutomationElement>.Resolved(cachedExactTarget);
                                 reusedCachedTarget = true;
@@ -240,74 +219,12 @@ public sealed class WindowsGuideRuntime
                             cachedExactTarget = null;
                         }
                     }
-                    // Full anchored-row scans must not block the viewport refresh loop.
-                    if (exactRowName is not null && cachedExactTarget is not null
-                        && pendingRowResolution is null && lastFullResolution.ElapsedMilliseconds >= 5000)
-                    {
-                        var resolutionRoot = GetActiveResolutionRoot(windowRoot);
-                        var resolutionDescriptor = step.Target;
-                        pendingRowResolution = Task.Run(
-                            () => _resolver.Resolve(resolutionRoot, resolutionDescriptor));
-                        lastFullResolution.Restart();
-                    }
-                    if (pendingRowResolution?.IsCompleted == true)
-                    {
-                        try
-                        {
-                            var refreshed = await pendingRowResolution;
-                            cachedExactTarget = refreshed.Status == TargetResolutionStatus.Resolved
-                                ? refreshed.Target : null;
-                            resolution = refreshed;
-                            reusedCachedTarget = true;
-                        }
-                        catch (ElementNotAvailableException)
-                        {
-                            cachedExactTarget = null;
-                        }
-                        catch (InvalidOperationException)
-                        {
-                            cachedExactTarget = null;
-                        }
-                        finally
-                        {
-                            pendingRowResolution = null;
-                        }
-                    }
                     if (!reusedCachedTarget)
                     {
-                        if (pendingRowResolution is not null)
-                        {
-                            // Preserve only a cached target whose identity was verified on this pass.
-                            // A background refresh must not make a valid bubble blink.
-                            if (cachedExactTarget is not null)
-                            {
-                                try
-                                {
-                                    var current = cachedExactTarget.Current;
-                                    if (exactRowName is not null
-                                        && current.ControlType == ControlType.DataItem
-                                        && cachedExactTarget.FindFirst(TreeScope.Descendants,
-                                            new PropertyCondition(AutomationElement.NameProperty, exactRowName)) is not null)
-                                    {
-                                        resolution = TargetResolution<AutomationElement>.Resolved(cachedExactTarget);
-                                        reusedCachedTarget = true;
-                                    }
-                                }
-                                catch (ElementNotAvailableException)
-                                {
-                                    cachedExactTarget = null;
-                                }
-                            }
-                            if (!reusedCachedTarget)
-                                resolution = TargetResolution<AutomationElement>.NotFound();
-                        }
-                        else
-                        {
-                            resolution = _resolver.Resolve(GetActiveResolutionRoot(windowRoot), step.Target);
-                            cachedExactTarget = cacheEligible && resolution.Status == TargetResolutionStatus.Resolved
-                                ? resolution.Target : null;
-                            lastFullResolution.Restart();
-                        }
+                        resolution = _resolver.Resolve(GetActiveResolutionRoot(windowRoot), step.Target);
+                        cachedExactTarget = cacheEligible && resolution.Status == TargetResolutionStatus.Resolved
+                            ? resolution.Target : null;
+                        lastFullResolution.Restart();
                     }
 
                 }
