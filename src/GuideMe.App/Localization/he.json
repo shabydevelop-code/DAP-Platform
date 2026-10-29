@@ -18,5 +18,6 @@
   "App.TargetWindowNotFoundMessage": "לא הצלחנו לזהות את חלון היישום המתאים למדריך. ודא שהיישום פתוח ונסה שוב.",
   "Learner.GuideAlreadyRunning": "מדריך אחר כבר פועל בסביבת העבודה הנוכחית. יש לסיים אותו לפני הפעלת מדריך חדש.",
   "Learner.ActiveStatus": "למידה פעילה",
+  "Learner.WaitingForStep": "ממתין להמשך השלב…",
   "Learner.Exit": "יציאה"
 }
