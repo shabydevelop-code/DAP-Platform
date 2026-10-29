@@ -296,9 +296,8 @@ function renderSteps() {
        '<div class="step-friendly-grid">' +
       '<section class="step-friendly-card"><h3>רכיב במסך</h3>' +
       '<div id="primary-target-summary">' +
-      (target ? '<p>נבחר רכיב באפליקציה' +
-        (frames.length ? ' בתוך ' + frames.length + ' מסגרות' : '') + '.</p>' +
-        (locatorText ? '<p>רכיב שנבחר: <strong>' + esc(friendlyName) + '</strong></p>' : '') :
+      (target ? '<p class="target-field-label">הרכיב שנבחר</p>' +
+        '<p><strong>' + esc(friendlyName) + '</strong></p>' :
         '<p>עדיין לא נבחר רכיב לשלב הזה.</p>') +
       '</div>' +
       ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') ?
@@ -309,9 +308,11 @@ function renderSteps() {
           '</div>' +
           ((current.variables || []).length && context?.Runtime === 'Web' ?
             '<div class="target-action-identifier">' +
-            (identifierBinding ? '<p>רכיב זיהוי מקושר למשתנה: <strong>' + esc(boundVariable?.name || 'משתנה') + '</strong></p>' : '') +
+            '<h4>זיהוי לפי משתנה</h4>' +
+            (identifierBinding ? '<p>משתנה מקושר: <strong>' + esc(boundVariable?.name || 'משתנה') + '</strong></p>' :
+              '<p>לא הוגדר רכיב זיהוי.</p>') +
             '<button class="btn secondary small" id="identify-action">' +
-            (identifierBinding ? 'בחירת רכיב זיהוי אחר' : 'בחירת רכיב זיהוי לפי משתנה') + '</button>' +
+            (identifierBinding ? 'החלפת רכיב זיהוי' : 'בחירת רכיב זיהוי') + '</button>' +
             '</div>' : '') +
           '</div>' :
           '<button id="pick-element" class="btn primary">הפעלת ממפה רכיבים</button>') +
