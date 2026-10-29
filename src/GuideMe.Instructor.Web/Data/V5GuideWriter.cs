@@ -282,6 +282,75 @@ SELECT $guideId, $stepId, COALESCE(MAX(StepOrder), 0) + 1,
         command.Parameters.AddWithValue("$newId", newId);
         command.Parameters.AddWithValue("$nextOrder", nextOrder);
 
+        // Clone every element used by the step, including recursively referenced anchors.
+        // A duplicated step must not share mutable element definitions with its source.
+        var elementIds = new HashSet<string>(StringComparer.Ordinal);
+        var pending = new Queue<string>();
+        using (var roots = connection.CreateCommand())
+        {
+            roots.Transaction = transaction;
+            roots.CommandText = "SELECT DISTINCT ElementId FROM StepTargets WHERE GuideId=$guideId AND StepId=$source";
+            roots.Parameters.AddWithValue("$guideId", guideId);
+            roots.Parameters.AddWithValue("$source", sourceStepId);
+            using var reader = roots.ExecuteReader();
+            while (reader.Read()) pending.Enqueue(reader.GetString(0));
+        }
+        while (pending.Count > 0)
+        {
+            var elementId = pending.Dequeue();
+            if (!elementIds.Add(elementId)) continue;
+            using var anchors = connection.CreateCommand();
+            anchors.Transaction = transaction;
+            anchors.CommandText = "SELECT AnchorElementId FROM ElementAnchors WHERE GuideId=$guideId AND ElementId=$elementId";
+            anchors.Parameters.AddWithValue("$guideId", guideId);
+            anchors.Parameters.AddWithValue("$elementId", elementId);
+            using var reader = anchors.ExecuteReader();
+            while (reader.Read()) pending.Enqueue(reader.GetString(0));
+        }
+        var elementMap = elementIds.ToDictionary(id => id,
+            _ => "element-" + Guid.NewGuid().ToString("N"), StringComparer.Ordinal);
+        foreach (var pair in elementMap)
+        {
+            using var clone = connection.CreateCommand();
+            clone.Transaction = transaction;
+            clone.CommandText = @"INSERT INTO Elements
+(GuideId,ElementId,Runtime,LocatorsJson,FrameContextJson,DisplayName)
+SELECT GuideId,$newElement,Runtime,LocatorsJson,FrameContextJson,DisplayName
+FROM Elements WHERE GuideId=$guideId AND ElementId=$oldElement";
+            clone.Parameters.AddWithValue("$newElement", pair.Value);
+            clone.Parameters.AddWithValue("$guideId", guideId);
+            clone.Parameters.AddWithValue("$oldElement", pair.Key);
+            if (clone.ExecuteNonQuery() != 1)
+                throw new InvalidOperationException("לא ניתן לשכפל את הגדרת רכיב היעד.");
+        }
+        foreach (var pair in elementMap)
+        {
+            using var anchors = connection.CreateCommand();
+            anchors.Transaction = transaction;
+            anchors.CommandText = @"SELECT AnchorElementId,Relation,AnchorOrder
+FROM ElementAnchors WHERE GuideId=$guideId AND ElementId=$elementId";
+            anchors.Parameters.AddWithValue("$guideId", guideId);
+            anchors.Parameters.AddWithValue("$elementId", pair.Key);
+            var relations = new List<(string AnchorId, string Relation, long Order)>();
+            using (var reader = anchors.ExecuteReader())
+                while (reader.Read())
+                    relations.Add((reader.GetString(0), reader.GetString(1), reader.GetInt64(2)));
+            foreach (var relation in relations)
+            {
+                using var clone = connection.CreateCommand();
+                clone.Transaction = transaction;
+                clone.CommandText = @"INSERT INTO ElementAnchors
+(GuideId,ElementId,AnchorElementId,Relation,AnchorOrder)
+VALUES ($guideId,$elementId,$anchorId,$relation,$order)";
+                clone.Parameters.AddWithValue("$guideId", guideId);
+                clone.Parameters.AddWithValue("$elementId", pair.Value);
+                clone.Parameters.AddWithValue("$anchorId", elementMap[relation.AnchorId]);
+                clone.Parameters.AddWithValue("$relation", relation.Relation);
+                clone.Parameters.AddWithValue("$order", relation.Order);
+                clone.ExecuteNonQuery();
+            }
+        }
+
         // Copy all current step columns without dropping future persisted settings.
         // Only the step identifier and sequence number change.
         foreach (var table in new[] { "Steps", "StepTargets", "StepRules", "StepVariableActions" })
@@ -312,6 +381,22 @@ SELECT $guideId, $stepId, COALESCE(MAX(StepOrder), 0) + 1,
             var copied = command.ExecuteNonQuery();
             if (table == "Steps" && copied != 1)
                 throw new InvalidOperationException("שכפול השלב נכשל.");
+            if (table == "StepTargets")
+            {
+                foreach (var pair in elementMap)
+                {
+                    // Remap only the new step; the original and other steps remain untouched.
+                    using var remap = connection.CreateCommand();
+                    remap.Transaction = transaction;
+                    remap.CommandText = @"UPDATE StepTargets SET ElementId=$newElement
+WHERE GuideId=$guideId AND StepId=$newId AND ElementId=$oldElement";
+                    remap.Parameters.AddWithValue("$newElement", pair.Value);
+                    remap.Parameters.AddWithValue("$guideId", guideId);
+                    remap.Parameters.AddWithValue("$newId", newId);
+                    remap.Parameters.AddWithValue("$oldElement", pair.Key);
+                    remap.ExecuteNonQuery();
+                }
+            }
         }
         transaction.Commit();
         return newId;
