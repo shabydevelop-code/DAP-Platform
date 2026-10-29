@@ -851,8 +851,16 @@ WHERE GuideId=$guideId AND StepId=$stepId";
     internal static void SaveWebCompletionTarget(long guideId, string stepId, string selector,
         IReadOnlyList<string> framePath, string kind, string? displayName,
         string? attributeName = null, string? attributeValue = null,
-        string? variableId = null, string? selectedTag = null, string? expectedValue = null)
+        string? variableId = null, string? selectedTag = null, string? expectedValue = null,
+        string runtime = "Web", IReadOnlyList<TargetLocator>? windowsLocators = null)
     {
+        if (runtime is not ("Web" or "Windows"))
+            throw new ArgumentException("סביבת יעד לא נתמכת.");
+        if (runtime == "Windows" && (windowsLocators is null || windowsLocators.Count == 0 ||
+            windowsLocators.Any(l => l.Strategy is not ("automation-id" or "name") || string.IsNullOrWhiteSpace(l.Value) || l.Value.Length > 400)))
+            throw new ArgumentException("מזהה רכיב Windows אינו תקין.");
+        if (runtime == "Windows" && kind is not "value-equals")
+            throw new ArgumentException("תנאי זה עדיין אינו נתמך עבור Windows.");
         if (kind == "target-appeared-variable")
         {
             if (string.IsNullOrWhiteSpace(variableId) ||
@@ -901,13 +909,14 @@ WHERE GuideId=$guideId AND StepId=$stepId";
         check.Transaction = transaction;
         check.CommandText = @"SELECT COUNT(*) FROM Steps s
 JOIN ApplicationContexts c ON c.GuideId=s.GuideId AND c.ContextId=s.ApplicationContextId
-WHERE s.GuideId=$guideId AND s.StepId=$stepId AND c.Runtime='Web'
+WHERE s.GuideId=$guideId AND s.StepId=$stepId AND c.Runtime=$runtime
 AND EXISTS (SELECT 1 FROM StepTargets t WHERE t.GuideId=s.GuideId
 AND t.StepId=s.StepId AND t.Purpose='Primary')
 AND EXISTS (SELECT 1 FROM StepRules r WHERE r.GuideId=s.GuideId
 AND r.StepId=s.StepId AND r.RuleType='PrimaryValidation')";
         check.Parameters.AddWithValue("$guideId", guideId);
         check.Parameters.AddWithValue("$stepId", stepId);
+        check.Parameters.AddWithValue("$runtime", runtime);
         if (Convert.ToInt64(check.ExecuteScalar()) != 1)
             throw new InvalidOperationException("יש להגדיר קודם רכיב פעולה ותנאי ראשי.");
         check.CommandText = @"SELECT COUNT(*) FROM StepRules WHERE GuideId=$guideId
@@ -920,12 +929,13 @@ AND StepId=$stepId AND RuleType='AdditionalCompletionCondition'";
         command.Transaction = transaction;
         command.CommandText = @"INSERT INTO Elements
 (GuideId, ElementId, Runtime, LocatorsJson, FrameContextJson, DisplayName)
-VALUES ($guideId, $elementId, 'Web', $locators, $frame, $name)";
+VALUES ($guideId, $elementId, $runtime, $locators, $frame, $name)";
         command.Parameters.AddWithValue("$guideId", guideId);
         command.Parameters.AddWithValue("$stepId", stepId);
+        command.Parameters.AddWithValue("$runtime", runtime);
         command.Parameters.AddWithValue("$elementId", elementId);
         command.Parameters.AddWithValue("$locators", JsonSerializer.Serialize(
-            new[] { new { Strategy="css", Value=selector } }));
+            runtime == "Web" ? new[] { new TargetLocator("css", selector) } : windowsLocators!));
         command.Parameters.AddWithValue("$frame", framePath.Count == 0 ? DBNull.Value :
             JsonSerializer.Serialize(framePath.Select(p => new { Strategy="css", Value=p })));
         command.Parameters.AddWithValue("$name", (object?)CleanDisplayName(displayName) ?? DBNull.Value);
