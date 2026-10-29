@@ -594,7 +594,7 @@ function pickerResultBox(session) {
   return $(session.variableSource ? 'variable-pick-result' :
     session.completion ? 'completion-pick-result' : 'pick-result');
 }
-async function beginTargetPicker(runtime, guideId, stepId, contextId, replacing=false, completion=false, context=null, variableSource=null, identifier=null) {
+async function beginTargetPicker(runtime, guideId, stepId, contextId, replacing=false, completion=false, context=null, variableSource=null) {
   const adapter = targetAdapters[runtime];
   if (!adapter) throw new Error('סביבת היעד אינה נתמכת.');
   if (completion && !adapter.saveCompletion)
@@ -603,7 +603,7 @@ async function beginTargetPicker(runtime, guideId, stepId, contextId, replacing=
     await targetAdapters[pickingFor.runtime].cancel();
     pickingFor = null;
   }
-  const session = {runtime,guideId,stepId,contextId,replacing,completion,context,variableSource,identifier,startedAt:Date.now()};
+  const session = {runtime,guideId,stepId,contextId,replacing,completion,context,variableSource,startedAt:Date.now()};
   const box = pickerResultBox(session);
   if (!box) throw new Error('אזור אישור הרכיב חסר בממשק.');
   box.dataset.pickedSelector = '';
@@ -656,7 +656,7 @@ async function refreshPicker() {
     return;
   }
   const candidate = adapter.selected(state);
-  if (!requestSession.completion && !requestSession.variableSource && !requestSession.identifier)
+  if (!requestSession.completion && !requestSession.variableSource)
     $('primary-target-summary')?.classList.add('hidden');
   if (box.dataset.pickedSelector === candidate.selector) return;
   box.dataset.pickedSelector = candidate.selector;
@@ -665,7 +665,7 @@ async function refreshPicker() {
     candidate.tag === 'button' ? 'כפתור' : candidate.tag === 'a' ? 'קישור' : 'רכיב במסך';
   box.innerHTML = '<div class="picked-target-fields" dir="rtl"><p class="target-field-label">הרכיב שנבחר</p>' +
     '<p><strong>'+esc(candidate.label || candidate.tag || 'רכיב')+'</strong> <span class="picked-target-kind">('+esc(kindLabel)+')</span></p>'+
-    (!pickingFor.completion && !pickingFor.identifier &&
+    (!pickingFor.completion &&
      !['button','a','input','select','textarea'].includes(candidate.tag) &&
      candidate.gridChoices?.length ?
       '<label for="grid-row-choice">זיהוי שורה לפי תוכן בעמודה</label>'+
@@ -689,7 +689,7 @@ async function refreshPicker() {
       '</div>' : '') +
     (pickingFor.variableSource ? variableExtractionEditor(candidate, requestSession.runtime) : '') +
     '</div><div class="target-actions">'+
-    '<button id="save-web-target" class="btn primary">' + (pickingFor.identifier ? 'שמירת רכיב הזיהוי' : 'אישור ושמירת רכיב') + '</button>'+
+    '<button id="save-web-target" class="btn primary">' + 'אישור ושמירת רכיב' + '</button>'+
     '<button id="cancel-web-target" class="btn secondary">ביטול</button></div>';
   if (pickingFor.variableSource) {
     const extract = $('variable-extract-choice');
@@ -775,8 +775,7 @@ async function refreshPicker() {
       const item = [...document.querySelectorAll('[data-step]')]
         .find(x => x.dataset.step === pickedFor.stepId);
       if (item) await item.click();
-      notify(pickedFor.identifier ? 'רכיב הזיהוי קושר למשתנה ולרכיב הפעולה.' :
-        pickedFor.variableSource ? 'רכיב מקור המשתנה נשמר ללא שינוי רכיב הפעולה.'
+      notify(pickedFor.variableSource ? 'רכיב מקור המשתנה נשמר ללא שינוי רכיב הפעולה.'
         : pickedFor.replacing
         ? 'הרכיב הוחלף בהצלחה. יש להגדיר מחדש מתי ממשיכים לשלב הבא.'
         : pickedFor.completion ? 'תנאי ההשלמה נשמר.' : 'רכיב היעד נשמר. ניתן להגדיר תנאי התקדמות בנפרד.');
