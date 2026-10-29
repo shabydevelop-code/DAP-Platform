@@ -659,6 +659,7 @@ async function refreshPicker() {
   if (!requestSession.completion && !requestSession.variableSource)
     $('primary-target-summary')?.classList.add('hidden');
   if (box.dataset.pickedSelector === candidate.selector) return;
+  if (requestSession.autoSaving) return;
   box.dataset.pickedSelector = candidate.selector;
   const kindLabel = candidate.tag === 'textarea' ? 'שדה טקסט רב־שורות' :
     candidate.tag === 'input' ? 'שדה קלט' : candidate.tag === 'select' ? 'רשימת בחירה' :
@@ -688,9 +689,9 @@ async function refreshPicker() {
       '<input id="completion-fixed-value" maxlength="500" autocomplete="off" />' +
       '</div>' : '') +
     (pickingFor.variableSource ? variableExtractionEditor(candidate, requestSession.runtime) : '') +
-    '</div><div class="target-actions">'+
-    '<button id="save-web-target" class="btn primary">' + 'אישור ושמירת רכיב' + '</button>'+
-    '<button id="cancel-web-target" class="btn secondary">ביטול</button></div>';
+    '</div>' + (pickingFor.completion || pickingFor.variableSource
+      ? '<div class="target-actions"><button id="save-web-target" class="btn primary">אישור ושמירת רכיב</button><button id="cancel-web-target" class="btn secondary">ביטול</button></div>'
+      : '<p id="target-save-feedback" role="status">שומר רכיב...</p>');
   if (pickingFor.variableSource) {
     const extract = $('variable-extract-choice');
     const custom = $('variable-extract-pattern')?.closest('.field');
@@ -717,7 +718,7 @@ async function refreshPicker() {
     warning.textContent = state.selection.error;
     warning.setAttribute('role','alert');
     box.prepend(warning);
-    $('save-web-target').disabled = true;
+    if ($('save-web-target')) $('save-web-target').disabled = true;
   }
   if (pickingFor.completion) {
     const condition = $('target-condition');
@@ -729,15 +730,16 @@ async function refreshPicker() {
     condition.addEventListener('change', updateFields);
     updateFields();
   }
-  $('save-web-target').onclick = async () => {
+  const savePickedTarget = async () => {
     const saveButton = $('save-web-target');
     const cancelButton = $('cancel-web-target');
     const pickedFor = pickingFor;
-    if (!pickedFor || saveButton.disabled) return;
-    saveButton.disabled = true;
-    cancelButton.disabled = true;
-    const originalLabel = saveButton.textContent;
-    saveButton.textContent = 'שומר רכיב...';
+    if (!pickedFor || pickedFor.autoSaving || saveButton?.disabled) return;
+    pickedFor.autoSaving = true;
+    if (saveButton) saveButton.disabled = true;
+    if (cancelButton) cancelButton.disabled = true;
+    const originalLabel = saveButton?.textContent;
+    if (saveButton) saveButton.textContent = 'שומר רכיב...';
     let result = $('target-save-feedback');
     if (!result) {
       result = document.createElement('p');
@@ -782,12 +784,14 @@ async function refreshPicker() {
     } catch (error) {
       result.textContent = 'השמירה נכשלה: ' + (error.message || String(error));
       result.classList.add('save-error');
-      saveButton.disabled = false;
-      cancelButton.disabled = false;
-      saveButton.textContent = originalLabel;
+      pickedFor.autoSaving = false;
+      if (saveButton) { saveButton.disabled = false; saveButton.textContent = originalLabel; }
+      if (cancelButton) cancelButton.disabled = false;
     }
   };
-  $('cancel-web-target').onclick = () => guarded(async () => {
+  if ($('save-web-target')) $('save-web-target').onclick = savePickedTarget;
+  else void savePickedTarget();
+  if ($('cancel-web-target')) $('cancel-web-target').onclick = () => guarded(async () => {
     await targetAdapters[pickingFor.runtime].cancel();
     pickingFor = null;
     $('primary-target-summary')?.classList.remove('hidden');
