@@ -9,7 +9,7 @@ namespace GuideMe.Instructor.Web;
 internal static class InstructorSingleInstance
 {
     private const string WindowTitle = "GuideMe — Instructor";
-    private const int SwRestore = 9;
+    private const int SwMaximize = 3;
 
     internal static Mutex? TryAcquire()
     {
@@ -49,7 +49,7 @@ internal static class InstructorSingleInstance
             }, 0);
             if (target != 0)
             {
-                ShowWindow(target, SwRestore);
+                ShowWindow(target, SwMaximize);
                 return SetForegroundWindow(target);
             }
             Thread.Sleep(100);
@@ -88,7 +88,7 @@ internal static class InstructorSingleInstance
             }, 0);
             if (target != 0)
             {
-                ShowWindow(target, 3); // SW_MAXIMIZE
+                ShowWindow(target, SwMaximize);
                 return;
             }
             Thread.Sleep(100);
