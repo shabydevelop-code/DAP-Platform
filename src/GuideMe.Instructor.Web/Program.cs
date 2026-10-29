@@ -235,7 +235,7 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/completion-target",
         V5GuideWriter.SaveWebCompletionTarget(id, stepId,
             capturedState?.Selector ?? selected.Selector,
             selected.FramePath, request.Kind, selected.DisplayName,
-            capturedState?.Name, capturedState?.Value, request.VariableId, request.SelectedTag);
+            capturedState?.Name, capturedState?.Value, request.VariableId, request.SelectedTag, request.ExpectedValue);
         capture.CancelPicking();
         return Results.NoContent();
     }
@@ -617,7 +617,7 @@ internal sealed record SavePrimaryTargetRequest(string Condition, bool Replacing
     int? ProcessId = null, int? GridChoice = null);
 internal sealed record PickStart(long GuideId, string ContextId);
 internal sealed record SaveCompletionTargetRequest(string Kind, int? StateAttributeIndex = null,
-    string? VariableId = null, string? SelectedTag = null);
+    string? VariableId = null, string? SelectedTag = null, string? ExpectedValue = null);
 
 internal sealed record EditWebValidation(string Kind, string? ExpectedValue);
 
