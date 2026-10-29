@@ -629,6 +629,69 @@ WHERE GuideId=$guideId AND StepId=$stepId AND BubblePlacement='Center'";
         transaction.Commit();
     }
 
+    // Remove the step's target-dependent configuration without deleting the step or shared elements.
+    internal static void RemovePrimaryTarget(long guideId, string stepId)
+    {
+        using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = V5GuideReader.DatabasePath, Mode = SqliteOpenMode.ReadWrite,
+            Pooling = false, DefaultTimeout = 3
+        }.ToString());
+        connection.Open();
+        using (var pragma = connection.CreateCommand())
+        {
+            pragma.CommandText = "PRAGMA foreign_keys=ON";
+            pragma.ExecuteNonQuery();
+        }
+        using var transaction = connection.BeginTransaction();
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandTimeout = 3;
+        command.Parameters.AddWithValue("$guideId", guideId);
+        command.Parameters.AddWithValue("$stepId", stepId);
+        command.CommandText = @"SELECT COUNT(*) FROM StepTargets
+WHERE GuideId=$guideId AND StepId=$stepId AND Purpose='Primary'";
+        if (Convert.ToInt64(command.ExecuteScalar()) == 0)
+            throw new InvalidOperationException("לא נמצא רכיב להסרה.");
+
+        command.CommandText = @"CREATE TEMP TABLE _RemovedTargetElements (ElementId TEXT PRIMARY KEY)";
+        command.ExecuteNonQuery();
+        command.CommandText = @"INSERT INTO _RemovedTargetElements (ElementId)
+SELECT DISTINCT ElementId FROM StepTargets WHERE GuideId=$guideId AND StepId=$stepId";
+        command.ExecuteNonQuery();
+
+        command.CommandText = @"SELECT COUNT(*) FROM sqlite_master
+WHERE type='table' AND name='StepVariableActions'";
+        if (Convert.ToInt64(command.ExecuteScalar()) > 0)
+        {
+            // Keep independent variable actions, but remove reads bound to removed targets.
+            command.CommandText = @"DELETE FROM StepVariableActions
+WHERE GuideId=$guideId AND StepId=$stepId AND TargetUsageId IS NOT NULL";
+            command.ExecuteNonQuery();
+        }
+        command.CommandText = @"DELETE FROM StepRules WHERE GuideId=$guideId AND StepId=$stepId";
+        command.ExecuteNonQuery();
+        command.CommandText = @"DELETE FROM StepTargets WHERE GuideId=$guideId AND StepId=$stepId";
+        command.ExecuteNonQuery();
+        command.CommandText = @"DELETE FROM ElementAnchors WHERE GuideId=$guideId
+AND ElementId IN (SELECT ElementId FROM _RemovedTargetElements)
+AND NOT EXISTS (SELECT 1 FROM StepTargets t
+  WHERE t.GuideId=$guideId AND t.ElementId=ElementAnchors.ElementId)";
+        command.ExecuteNonQuery();
+        command.CommandText = @"DELETE FROM Elements WHERE GuideId=$guideId
+AND ElementId IN (SELECT ElementId FROM _RemovedTargetElements)
+AND NOT EXISTS (SELECT 1 FROM StepTargets t
+  WHERE t.GuideId=$guideId AND t.ElementId=Elements.ElementId)
+AND NOT EXISTS (SELECT 1 FROM ElementAnchors a
+  WHERE a.GuideId=$guideId AND
+  (a.ElementId=Elements.ElementId OR a.AnchorElementId=Elements.ElementId))";
+        command.ExecuteNonQuery();
+        command.CommandText = @"UPDATE Steps SET BubblePlacement='Center'
+WHERE GuideId=$guideId AND StepId=$stepId";
+        command.ExecuteNonQuery();
+        transaction.Commit();
+    }
+
     // An explicitly selected secondary target, never inferred from the primary action.
     internal static void SaveWebCompletionTarget(long guideId, string stepId, string selector,
         IReadOnlyList<string> framePath, string kind, string? displayName,
