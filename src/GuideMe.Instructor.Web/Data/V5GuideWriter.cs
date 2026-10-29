@@ -851,7 +851,7 @@ WHERE GuideId=$guideId AND StepId=$stepId";
     internal static void SaveWebCompletionTarget(long guideId, string stepId, string selector,
         IReadOnlyList<string> framePath, string kind, string? displayName,
         string? attributeName = null, string? attributeValue = null,
-        string? variableId = null, string? selectedTag = null)
+        string? variableId = null, string? selectedTag = null, string? expectedValue = null)
     {
         if (kind == "target-appeared-variable")
         {
@@ -866,8 +866,10 @@ WHERE GuideId=$guideId AND StepId=$stepId";
             selector = selectedTag + ":has-text(\"{{var:" + variableId + "}}\")";
             kind = "target-appeared";
         }
-        if (kind is not ("target-appeared" or "target-vanished" or "attribute-equals"))
+        if (kind is not ("target-appeared" or "target-vanished" or "attribute-equals" or "value-equals"))
             throw new ArgumentException("חוק השלמה לא נתמך.");
+        if (kind == "value-equals" && (string.IsNullOrWhiteSpace(expectedValue) || expectedValue.Length > 500))
+            throw new ArgumentException("יש להזין ערך צפוי לתנאי ההשלמה.");
         if (kind == "attribute-equals" &&
             (string.IsNullOrWhiteSpace(attributeName) ||
              !System.Text.RegularExpressions.Regex.IsMatch(attributeName, @"^[a-zA-Z_][a-zA-Z0-9_.:-]{0,99}$") ||
@@ -935,7 +937,7 @@ VALUES ($guideId, $stepId, 'completion', $elementId, 'Completion')";
         command.Parameters.AddWithValue("$kind", kind);
         command.Parameters.AddWithValue("$expected", kind == "attribute-equals"
             ? (object)JsonSerializer.Serialize(new { name = attributeName, value = attributeValue })
-            : DBNull.Value);
+            : kind == "value-equals" ? expectedValue! : DBNull.Value);
         command.CommandText = @"INSERT INTO StepRules
 (GuideId, StepId, RuleType, RuleId, Kind, TargetUsageId, ExpectedValue)
 VALUES ($guideId, $stepId, 'AdditionalCompletionCondition', 'completion', $kind, 'completion', $expected)";
