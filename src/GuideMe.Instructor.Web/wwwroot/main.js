@@ -259,13 +259,16 @@ function renderSteps() {
     const completionElementName = completionElement?.DisplayName ||
       (/^h[1-6](?=:|$)/i.test(completionSelector) ? 'כותרת הפנייה' :
         completionSelector ? 'הרכיב שנבחר' : 'רכיב לא מוגדר');
-    const completionLabel = completionVariableId
-      ? 'הטקסט ברכיב מכיל את ערך המשתנה "' + completionVariableName + '"'
-      : completionRule?.Kind === 'target-appeared' ? 'הרכיב מופיע במסך'
-      : completionRule?.Kind === 'attribute-equals' ? 'מאפיין הרכיב שווה לערך הצפוי'
-      : 'הרכיב נעלם מהמסך';
     const completionAttribute = completionRule?.Kind === 'attribute-equals'
       ? parseJson(completionRule.ExpectedValue, {}) : {};
+    const completionDescription = completionVariableId
+      ? 'הטקסט ברכיב "' + completionElementName + '" מכיל את ערך המשתנה "' + completionVariableName + '".'
+      : completionRule?.Kind === 'target-appeared'
+        ? 'הרכיב "' + completionElementName + '" יופיע במסך.'
+      : completionRule?.Kind === 'attribute-equals'
+        ? 'המאפיין "' + (completionAttribute.name || 'הנבחר') + '" של הרכיב "' +
+          completionElementName + '" יהיה שווה ל־"' + (completionAttribute.value ?? '') + '".'
+      : 'הרכיב "' + completionElementName + '" ייעלם מהמסך.';
     const locatorText = locators[0]?.Value || '';
     const friendlyName = element?.DisplayName || (locatorText === 'a' ? 'קישור' : locatorText);
     const appText = context ? appLabel(context) : 'לא משויך';
@@ -315,14 +318,8 @@ function renderSteps() {
       (context?.Runtime === 'Web' && target && rule ?
         '<section class="step-friendly-card completion-card"><h3>תנאי השלמה נוסף</h3>' +
         (completionRule ? '<div class="completion-details">' +
-          '<div class="completion-detail"><span class="completion-detail-label">הרכיב שנבדק</span>' +
-          '<strong>' + esc(completionElementName) + '</strong></div>' +
-          '<div class="completion-detail"><span class="completion-detail-label">התנאי להשלמת השלב</span>' +
-          '<strong>' + esc(completionLabel) + '</strong></div>' +
-          (completionRule?.Kind === 'attribute-equals' ?
-            '<div class="completion-detail"><span class="completion-detail-label">מאפיין וערך צפוי</span>' +
-            '<strong>' + esc(completionAttribute.name || '') + ' · ' +
-            esc(completionAttribute.value || '') + '</strong></div>' : '') +
+          '<div class="completion-detail"><span class="completion-detail-label">השלב יושלם כאשר:</span>' +
+          '<strong>' + esc(completionDescription) + '</strong></div>' +
           '</div><button class="btn secondary small" id="remove-completion">הסרת תנאי</button>' :
           '<p>בחר רכיב ובדוק הופעה, היעלמות או שינוי מאפיין בעקבות הפעולה.</p>' +
           '<button class="btn secondary small" id="add-completion">בחירת רכיב לתנאי השלמה</button>') +
