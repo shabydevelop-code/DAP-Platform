@@ -312,6 +312,4 @@ internal static class V5VariableCatalog
         return Convert.ToInt64(command.ExecuteScalar()) != 0;
     }
 
-    /// <summary>
-
 }
