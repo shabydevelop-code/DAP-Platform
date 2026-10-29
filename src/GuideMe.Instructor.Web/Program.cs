@@ -478,6 +478,12 @@ app.MapGet("/api/guides/{id:long}/step/{stepId}", (long id, string stepId) =>
 app.MapPost("/api/guides/{id:long}/steps", (long id, NewManualStep request) =>
     Results.Ok(new { stepId = V5GuideWriter.CreateManualStep(id,
         request.ContextId, request.Bubble, request.Placement) }));
+app.MapPost("/api/guides/{id:long}/steps/{stepId}/duplicate", (long id, string stepId) =>
+{
+    if (V5GuideReader.ListSteps(id).All(step => step.Id != stepId))
+        return Results.NotFound();
+    return Results.Ok(new { stepId = V5GuideWriter.DuplicateStep(id, stepId) });
+});
 app.MapPut("/api/guides/{id:long}/steps/{stepId}", (long id, string stepId, EditStep body) =>
 {
     V5GuideWriter.UpdateStep(id, stepId, body.Bubble, body.Enabled, body.ContextId);
