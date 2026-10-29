@@ -101,7 +101,7 @@ async function openGuide(id) {
   $('list-view').classList.add('hidden'); $('detail-view').classList.remove('hidden');
   $('new-guide').classList.add('hidden');
   $('detail-name').textContent = g.name; $('detail-description').textContent = 'לומדה #' + g.id + ' · ' + current.steps.length + ' שלבים';
-  $('steps-count').textContent = current.steps.length; $('contexts-count').textContent = current.contexts.length;
+  $('steps-count').textContent = current.steps.length;
   selectTab('steps'); renderSteps(); renderContexts(); clearNotice();
   $('detail-name').focus();
 }
@@ -741,6 +741,7 @@ setInterval(() => { if (pickingFor) void guarded(refreshPicker); }, 1500);
 function appLabel(c) { if(c.DisplayName) return c.DisplayName; try { const m=JSON.parse(c.MatchersJson || '[]')[0]; return m?.Value ? c.Runtime + ' · ' + m.Value : c.ContextId; } catch { return c.ContextId; } }
 function matcher(c) { try { return JSON.parse(c.MatchersJson || '[]').map(m=>m.Kind+': '+m.Value).join(', '); }catch{return '—';} }
 function renderContexts() {
+  $('apps-count').textContent = '(' + current.contexts.length + ')';
   $('contexts-list').innerHTML = current.contexts.length ? current.contexts.map((c,i) =>
     '<div class="context-card"><div><span class="chip ' + (c.Runtime === 'Windows'?'win':'') + '">' + esc(c.Runtime) + '</span> <span class="context-name">' + esc(appLabel(c)) + '</span><div class="context-meta">' + esc(matcher(c)) + '</div></div><div class="context-actions"><button class="btn secondary small" data-context-rename="' + i + '">שינוי שם</button><button class="btn secondary small" data-context-edit="' + i + '">החלפת יעד</button><button class="btn danger small" data-context-delete="' + i + '">הסרה</button></div></div>').join('')
     : '<div class="empty">טרם נוספו אפליקציות ללומדה.</div>';
@@ -752,6 +753,7 @@ function renderContexts() {
 function renderGuideVariables() {
   const list = $('guide-variables-list');
   if (!current || !list) return;
+  $('variables-count').textContent = '(' + current.variables.length + ')';
   list.innerHTML = current.variables.length
     ? current.variables.map((variable, index) =>
       '<div class="guide-variable-row"><div><strong>' + esc(variable.name) +
