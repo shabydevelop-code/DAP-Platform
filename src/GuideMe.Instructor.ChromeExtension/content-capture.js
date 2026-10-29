@@ -352,17 +352,41 @@
       })(),
       selector, url:location.href, tag:target.tagName.toLowerCase(),
       label:(() => {
-        const explicit = target.getAttribute("aria-label") ||
-          target.getAttribute("title") || target.getAttribute("name");
-        if (explicit) return String(explicit).trim().slice(0,80);
-        // A container's textContent includes all descendant records and may
-        // contain private business data. Never use it as an element label.
+        const clean = value => String(value || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+        // Native label associations, including labels wrapping the control.
+        const labels = target.labels ? Array.from(target.labels) : [];
+        if (target.closest('label')) labels.push(target.closest('label'));
+        for (const label of labels) {
+          const text = clean(label.innerText || label.textContent);
+          if (text) return text;
+        }
+        const labelledBy = (target.getAttribute('aria-labelledby') || '').split(/\s+/).filter(Boolean);
+        if (labelledBy.length) {
+          const text = clean(labelledBy.map(id => document.getElementById(id)?.textContent || '').join(' '));
+          if (text) return text;
+        }
+        for (const attribute of ['aria-label', 'title', 'placeholder']) {
+          const text = clean(target.getAttribute(attribute));
+          if (text) return text;
+        }
+        // PeopleSoft and other legacy forms often use adjacent table cells as labels.
+        const cell = target.closest('td,th');
+        if (cell) {
+          const previous = cell.previousElementSibling;
+          if (previous && /^(TD|TH)$/.test(previous.tagName)) {
+            const text = clean(previous.innerText || previous.textContent);
+            if (text && text.length <= 80) return text;
+          }
+        }
+        if (['BUTTON','A','LABEL'].includes(target.tagName)) {
+          const text = clean(target.innerText || target.textContent);
+          if (text) return text;
+        }
         const directText = [...target.childNodes]
           .filter(node => node.nodeType === Node.TEXT_NODE)
-          .map(node => node.textContent.trim()).filter(Boolean).join(" ").trim();
-        return (directText && directText.length <= 80 ? directText :
-          (target.id ? "#" + CSS.escape(target.id) :
-            target.tagName.toLowerCase())).slice(0,80);
+          .map(node => clean(node.textContent)).filter(Boolean).join(' ').trim();
+        if (directText) return directText.slice(0,80);
+        return clean(target.getAttribute('name') || (target.id ? '#' + CSS.escape(target.id) : target.tagName.toLowerCase()));
       })(),
       framePath: []
     };
