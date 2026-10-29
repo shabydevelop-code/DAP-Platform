@@ -301,3 +301,7 @@ body, body *, dialog, dialog * { font-size: 15px !important; }
 .completion-detail{display:grid;gap:3px;min-width:0}
 .completion-detail-label{color:#657d96;font-size:12px}
 .completion-detail strong{font-size:13px;font-weight:600;overflow-wrap:anywhere}
+
+/* Prominent Instructor brand at desktop and narrow widths. */
+.brand-heading strong{font-size:22px;font-weight:750;line-height:1.3}
+.brand-heading strong span{font-weight:600}
