@@ -241,11 +241,20 @@ p,.panel-header p,.step-body small,.empty,.empty-inspector{color:#52657a}
   .guide-card .guide-identity #detail-description { font-size: .75rem; }
 }
 
-/* Instructor-wide typography: one readable size; hierarchy uses weight and spacing.
-   Browser zoom remains available for accessibility. Applied last so historic
-   component and media-query font-size overrides cannot reintroduce jumps. */
+/* Instructor typography: 15px for ordinary content and controls, with
+   explicit heading sizes. Avoid a universal !important rule: it suppresses
+   heading hierarchy and makes future component styling unpredictable. */
 html { font-size: 15px; }
-body, body *, dialog, dialog * { font-size: 15px !important; }
+body, dialog { font-size: 15px; }
+body :is(p, span, strong, small, label, button, input, select, textarea, td, th, a, code, pre, li),
+dialog :is(p, span, strong, small, label, button, input, select, textarea, td, th, a, code, pre, li) {
+  font-size: 15px;
+}
+body :is(h1, .heading h1), dialog h1 { font-size: 22px; }
+body :is(h2, .guide-top h2), dialog h2 { font-size: 18px; }
+body h3, dialog h3 { font-size: 16px; }
+body .brand-heading strong,
+body .brand-heading strong span { font-size: 26px; }
 
 /* Unified, higher-contrast surface outlines across Instructor.
    Keep dividers subtler than interactive controls; preserve focus styles. */
@@ -301,9 +310,6 @@ body, body *, dialog, dialog * { font-size: 15px !important; }
 .completion-detail{display:grid;gap:3px;min-width:0}
 .completion-detail-label{color:#657d96;font-size:12px}
 .completion-detail strong{font-size:13px;font-weight:600;overflow-wrap:anywhere}
-
-/* Prominent Instructor brand at desktop and narrow widths. */
-
 
 /* Consistent navigation feedback for mouse, keyboard and both text directions. */
 .back,.link,.guide-open-link{cursor:pointer;text-underline-offset:3px}
