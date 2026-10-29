@@ -689,8 +689,8 @@ async function refreshPicker() {
   const kindLabel = candidate.tag === 'textarea' ? 'שדה טקסט רב־שורות' :
     candidate.tag === 'input' ? 'שדה קלט' : candidate.tag === 'select' ? 'רשימת בחירה' :
     candidate.tag === 'button' ? 'כפתור' : candidate.tag === 'a' ? 'קישור' : 'רכיב במסך';
-  box.innerHTML = '<div class="picked-target-fields"><p><strong>'+esc(candidate.label || candidate.tag || 'רכיב')+'</strong></p>'+
-    '<p class="picked-target-kind">'+esc(kindLabel)+'</p>'+
+  box.innerHTML = '<div class="picked-target-fields" dir="rtl"><p class="target-field-label">הרכיב שנבחר</p>' +
+    '<p><strong>'+esc(candidate.label || candidate.tag || 'רכיב')+'</strong> <span class="picked-target-kind">('+esc(kindLabel)+')</span></p>'+
     (!pickingFor.completion && !pickingFor.identifier &&
      !['button','a','input','select','textarea'].includes(candidate.tag) &&
      candidate.gridChoices?.length ?
