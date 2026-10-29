@@ -546,7 +546,7 @@ WHERE GuideId=$guideId AND StepOrder<0";
             frames.Count > 12 || frames.Any(l => runtime != "Web" || l.Strategy != "css" ||
                 string.IsNullOrWhiteSpace(l.Value) || l.Value.Length > 400 || l.Value.Contains((char)0)))
             throw new ArgumentException("מזהי הרכיב אינם תקינים.");
-        if (!replacing && condition is not ("clicked" or "target-disappeared" or "value-not-empty"))
+        if (!replacing && condition is not ("" or "clicked" or "target-disappeared" or "value-not-empty"))
             throw new ArgumentException("תנאי ההתקדמות אינו נתמך.");
         using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
         {
@@ -617,11 +617,14 @@ VALUES ($guideId, $elementId, $runtime, $locators, $frame, $displayName)";
 (GuideId, StepId, UsageId, ElementId, Purpose)
 VALUES ($guideId, $stepId, 'primary', $elementId, 'Primary')";
             command.ExecuteNonQuery();
-            command.Parameters.AddWithValue("$condition", condition);
-            command.CommandText = @"INSERT INTO StepRules
+            if (!string.IsNullOrEmpty(condition))
+            {
+                command.Parameters.AddWithValue("$condition", condition);
+                command.CommandText = @"INSERT INTO StepRules
 (GuideId, StepId, RuleType, RuleId, Kind, TargetUsageId)
 VALUES ($guideId, $stepId, 'PrimaryValidation', 'primary', $condition, 'primary')";
-            command.ExecuteNonQuery();
+                command.ExecuteNonQuery();
+            }
             command.CommandText = @"UPDATE Steps SET BubblePlacement='Auto'
 WHERE GuideId=$guideId AND StepId=$stepId AND BubblePlacement='Center'";
             command.ExecuteNonQuery();
