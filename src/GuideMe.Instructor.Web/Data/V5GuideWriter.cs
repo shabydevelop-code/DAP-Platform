@@ -275,18 +275,12 @@ SELECT $guideId, $stepId, COALESCE(MAX(StepOrder), 0) + 1,
         var originalOrder = command.ExecuteScalar();
         if (originalOrder is null)
             throw new InvalidOperationException("שלב המקור לא נמצא.");
-        var order = Convert.ToInt32(originalOrder);
+        // Duplicates are appended at the end; existing step orders never change.
+        command.CommandText = "SELECT COALESCE(MAX(StepOrder), 0) + 1 FROM Steps WHERE GuideId=$guideId";
+        var nextOrder = Convert.ToInt32(command.ExecuteScalar());
         var newId = "step-" + Guid.NewGuid().ToString("N");
         command.Parameters.AddWithValue("$newId", newId);
-        command.Parameters.AddWithValue("$order", order);
-
-        // Shift via negative temporary values to respect UNIQUE(GuideId,StepOrder).
-        command.CommandText = @"UPDATE Steps SET StepOrder=-StepOrder
-WHERE GuideId=$guideId AND StepOrder>$order";
-        command.ExecuteNonQuery();
-        command.CommandText = @"UPDATE Steps SET StepOrder=-StepOrder+1
-WHERE GuideId=$guideId AND StepOrder<0";
-        command.ExecuteNonQuery();
+        command.Parameters.AddWithValue("$nextOrder", nextOrder);
 
         // Copy all current step columns without dropping future persisted settings.
         // Only the step identifier and sequence number change.
@@ -310,7 +304,7 @@ WHERE GuideId=$guideId AND StepOrder<0";
             // and UsageId are scoped by StepId and can be retained.
             var quoted = columns.Select(c => "\"" + c.Replace("\"", "\"\"") + "\"").ToArray();
             var expressions = columns.Select(c => c == "StepId" ? "$newId" :
-                c == "StepOrder" && table == "Steps" ? "$order + 1" :
+                c == "StepOrder" && table == "Steps" ? "$nextOrder" :
                 "\"" + c.Replace("\"", "\"\"") + "\"").ToArray();
             command.CommandText = "INSERT INTO " + table + " (" + string.Join(",", quoted) +
                 ") SELECT " + string.Join(",", expressions) + " FROM " + table +
