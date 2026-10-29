@@ -253,6 +253,13 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/completion-target",
         return Results.Problem("שמירת תנאי ההשלמה נכשלה במסד הנתונים. בדוק את הודעת השגיאה בחלון ה־Instructor.", statusCode: 500);
     }
 });
+app.MapDelete("/api/guides/{id:long}/steps/{stepId}/primary-target",
+    (long id, string stepId) =>
+{
+    V5GuideWriter.RemovePrimaryTarget(id, stepId);
+    return Results.NoContent();
+});
+
 app.MapDelete("/api/guides/{id:long}/steps/{stepId}/completion-target",
     (long id, string stepId) =>
 {
