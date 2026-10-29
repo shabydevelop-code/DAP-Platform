@@ -16,6 +16,15 @@ public sealed class WindowsGuideRuntime
     private readonly WindowsBubblePresenter _bubbles;
     private readonly WindowsValidationEvaluator _validation;
     private readonly TimeSpan _pollInterval;
+    private readonly Action<bool>? _bubbleAvailabilityChanged;
+    private bool? _lastBubbleAvailable;
+
+    private void ReportBubbleAvailable(bool available)
+    {
+        if (_lastBubbleAvailable == available) return;
+        _lastBubbleAvailable = available;
+        _bubbleAvailabilityChanged?.Invoke(available);
+    }
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern void keybd_event(byte virtualKey, byte scanCode, uint flags, UIntPtr extraInfo);
@@ -27,12 +36,14 @@ public sealed class WindowsGuideRuntime
         WindowsTargetResolver resolver,
         WindowsBubblePresenter bubbles,
         WindowsValidationEvaluator? validation = null,
-        TimeSpan? pollInterval = null)
+        TimeSpan? pollInterval = null,
+        Action<bool>? bubbleAvailabilityChanged = null)
     {
         _resolver = resolver ?? throw new ArgumentNullException(nameof(resolver));
         _bubbles = bubbles ?? throw new ArgumentNullException(nameof(bubbles));
         _validation = validation ?? new WindowsValidationEvaluator();
         _pollInterval = pollInterval ?? TimeSpan.FromMilliseconds(100);
+        _bubbleAvailabilityChanged = bubbleAvailabilityChanged;
     }
 
     public Task RunAsync(
@@ -105,6 +116,7 @@ public sealed class WindowsGuideRuntime
             throw new InvalidOperationException(
                 $"Target-attached Guide Step '{step.Id}' must define a target.");
 
+        ReportBubbleAvailable(false);
         var activeState = new GuideActiveStepState(step);
         var sharedEngine = new UnifiedGuideStepEngine();
         var clicked = GuideStepExecutionPolicy.IsClickValidationStep(step);
@@ -152,6 +164,7 @@ public sealed class WindowsGuideRuntime
                 if (sharedEngine.ObserveContext(activeState, IsTargetWindowInteractive(windowRoot))
                     == GuideStepReconciliationResult.WaitingForContext)
                 {
+                    ReportBubbleAvailable(false);
                     await _bubbles.HideAsync();
                     return await GuideActiveStepState.WaitAsync(
                         GuideStepReconciliationResult.WaitingForContext, _pollInterval, cancellationToken);
@@ -172,6 +185,7 @@ public sealed class WindowsGuideRuntime
                 if (sharedEngine.ObserveContext(activeState, stepContextActive)
                     == GuideStepReconciliationResult.WaitingForContext)
                 {
+                    ReportBubbleAvailable(false);
                     await _bubbles.HideAsync();
                     return await GuideActiveStepState.WaitAsync(
                         GuideStepReconciliationResult.WaitingForContext, _pollInterval, cancellationToken);
@@ -298,6 +312,7 @@ public sealed class WindowsGuideRuntime
                 }
                 catch (ElementNotAvailableException)
                 {
+                    ReportBubbleAvailable(false);
                     await _bubbles.HideAsync();
                     if (IsDisappearedTargetStepComplete())
                         return GuideStepReconciliationResult.Completed;
@@ -307,6 +322,7 @@ public sealed class WindowsGuideRuntime
 
                 if (resolution.Status != TargetResolutionStatus.Resolved || resolution.Target is null)
                 {
+                    ReportBubbleAvailable(false);
                     await _bubbles.HideAsync();
                     if (IsDisappearedTargetStepComplete())
                         return GuideStepReconciliationResult.Completed;
@@ -457,6 +473,7 @@ public sealed class WindowsGuideRuntime
                     // completion/validation semantics independent of bubble
                     // placement; the presenter decides whether a partially clipped
                     // target is suitable for showing an attached bubble.
+                    ReportBubbleAvailable(false);
                     await _bubbles.HideAsync();
                     return await GuideActiveStepState.WaitAsync(
                         GuideStepReconciliationResult.WaitingForAction, _pollInterval, cancellationToken);
@@ -486,11 +503,13 @@ public sealed class WindowsGuideRuntime
                     await _bubbles.ShowAsync(
                         target, step, stepNumber, totalSteps, cancellationToken,
                         null);
+                    ReportBubbleAvailable(true);
                 }
                 catch (ElementNotAvailableException)
                 {
                     // The target was removed or virtualized after resolution.
                     // Retry resolution on the next reconciliation cycle.
+                    ReportBubbleAvailable(false);
                     await _bubbles.HideAsync();
                     return await GuideActiveStepState.WaitAsync(
                         GuideStepReconciliationResult.WaitingForAction, _pollInterval, cancellationToken);
@@ -502,6 +521,7 @@ public sealed class WindowsGuideRuntime
                     // navigates from a grid to a detail view). Treat that race as
                     // transient: hide the stale bubble and resolve again instead
                     // of terminating the learner runtime.
+                    ReportBubbleAvailable(false);
                     await _bubbles.HideAsync();
                     return await GuideActiveStepState.WaitAsync(
                         GuideStepReconciliationResult.WaitingForAction, _pollInterval, cancellationToken);
