@@ -256,9 +256,13 @@ function renderSteps() {
     const completionVariableId = completionSelector.match(/\{\{var:([^}]+)\}\}/)?.[1];
     const completionVariable = (current.variables || []).find(v => v.id === completionVariableId);
     const completionVariableName = completionVariable?.name || 'המשתנה שנבחר';
-    const completionElementName = completionElement?.DisplayName ||
-      (/^h[1-6](?=:|$)/i.test(completionSelector) ? 'כותרת הפנייה' :
-        completionSelector ? 'הרכיב שנבחר' : 'רכיב לא מוגדר');
+    const completionDisplayName = (completionElement?.DisplayName || '').trim();
+    const completionElementName = completionDisplayName &&
+      !/^[#.[>:+~]/.test(completionDisplayName) &&
+      !/^[a-z][\\w-]*\\[[^\\]]+\\]/i.test(completionDisplayName)
+      ? completionDisplayName
+      : /^h[1-6](?=:|$)/i.test(completionSelector) ? 'כותרת במסך'
+      : 'הרכיב שנבחר';
     const completionAttribute = completionRule?.Kind === 'attribute-equals'
       ? parseJson(completionRule.ExpectedValue, {}) : {};
     const completionDescription = completionVariableId
