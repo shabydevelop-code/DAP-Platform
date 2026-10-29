@@ -748,6 +748,11 @@ WHERE GuideId=$guideId AND StepId=$stepId";
         command.Parameters.AddWithValue("$displayName", (object?)CleanDisplayName(displayName) ?? DBNull.Value);
         if (replacing)
         {
+            // A new primary control invalidates the old primary validation.
+            // Keep independent additional completion conditions untouched.
+            command.CommandText = @"DELETE FROM StepRules
+WHERE GuideId=$guideId AND StepId=$stepId AND RuleType='PrimaryValidation'";
+            command.ExecuteNonQuery();
             // Replacing the action invalidates its previously captured identifier.
             // Never keep an anchor bound to an unrelated newly selected control.
             command.CommandText = @"DELETE FROM ElementAnchors
