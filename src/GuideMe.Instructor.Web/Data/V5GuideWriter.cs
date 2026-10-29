@@ -840,18 +840,30 @@ AND NOT EXISTS (SELECT 1 FROM StepTargets WHERE GuideId=$guideId AND ElementId=$
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandTimeout = 3;
-        command.CommandText = @"UPDATE StepRules SET Kind=$kind, ExpectedValue=$expected
-WHERE GuideId=$guideId AND StepId=$stepId AND RuleType='PrimaryValidation'
-AND EXISTS (SELECT 1 FROM Steps s JOIN ApplicationContexts c
- ON s.GuideId=c.GuideId AND s.ApplicationContextId=c.ContextId
- WHERE s.GuideId=$guideId AND s.StepId=$stepId AND c.Runtime IN ('Web','Windows'))";
         command.Parameters.AddWithValue("$guideId", guideId);
         command.Parameters.AddWithValue("$stepId", stepId);
         command.Parameters.AddWithValue("$kind", kind);
         command.Parameters.AddWithValue("$expected",
             kind == "value-equals" ? (object?)expectedValue : DBNull.Value);
+        command.CommandText = @"SELECT COUNT(*) FROM Steps s
+JOIN ApplicationContexts c ON s.GuideId=c.GuideId AND s.ApplicationContextId=c.ContextId
+JOIN StepTargets t ON t.GuideId=s.GuideId AND t.StepId=s.StepId AND t.Purpose='Primary'
+WHERE s.GuideId=$guideId AND s.StepId=$stepId AND c.Runtime IN ('Web','Windows')";
+        if (Convert.ToInt64(command.ExecuteScalar()) != 1)
+            throw new InvalidOperationException("יש לבחור רכיב לפני הגדרת תנאי התקדמות.");
+        command.CommandText = @"SELECT COUNT(*) FROM StepRules
+WHERE GuideId=$guideId AND StepId=$stepId AND RuleType='PrimaryValidation'";
+        var existing = Convert.ToInt64(command.ExecuteScalar());
+        if (existing > 1)
+            throw new InvalidOperationException("נמצאו מספר תנאי התקדמות ראשיים.");
+        command.CommandText = existing == 0
+            ? @"INSERT INTO StepRules
+(GuideId,StepId,RuleType,RuleId,Kind,TargetUsageId,ExpectedValue)
+VALUES ($guideId,$stepId,'PrimaryValidation','primary',$kind,'primary',$expected)"
+            : @"UPDATE StepRules SET Kind=$kind, ExpectedValue=$expected
+WHERE GuideId=$guideId AND StepId=$stepId AND RuleType='PrimaryValidation'";
         if (command.ExecuteNonQuery() != 1)
-            throw new InvalidOperationException("לא נמצא תנאי התקדמות יחיד לעריכה בשלב.");
+            throw new InvalidOperationException("שמירת תנאי ההתקדמות נכשלה.");
         transaction.Commit();
     }
 
