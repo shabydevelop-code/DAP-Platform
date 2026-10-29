@@ -859,7 +859,7 @@ WHERE GuideId=$guideId AND StepId=$stepId";
         if (runtime == "Windows" && (windowsLocators is null || windowsLocators.Count == 0 ||
             windowsLocators.Any(l => l.Strategy is not ("automation-id" or "name") || string.IsNullOrWhiteSpace(l.Value) || l.Value.Length > 400)))
             throw new ArgumentException("מזהה רכיב Windows אינו תקין.");
-        if (runtime == "Windows" && kind is not "value-equals")
+        if (runtime == "Windows" && kind is not "value-contains")
             throw new ArgumentException("תנאי זה עדיין אינו נתמך עבור Windows.");
         if (kind == "target-appeared-variable")
         {
@@ -874,9 +874,9 @@ WHERE GuideId=$guideId AND StepId=$stepId";
             selector = selectedTag + ":has-text(\"{{var:" + variableId + "}}\")";
             kind = "target-appeared";
         }
-        if (kind is not ("target-appeared" or "target-vanished" or "attribute-equals" or "value-equals"))
+        if (kind is not ("target-appeared" or "target-vanished" or "attribute-equals" or "value-contains"))
             throw new ArgumentException("חוק השלמה לא נתמך.");
-        if (kind == "value-equals" && (string.IsNullOrWhiteSpace(expectedValue) || expectedValue.Length > 500))
+        if (kind == "value-contains" && (string.IsNullOrWhiteSpace(expectedValue) || expectedValue.Length > 500))
             throw new ArgumentException("יש להזין ערך צפוי לתנאי ההשלמה.");
         if (kind == "attribute-equals" &&
             (string.IsNullOrWhiteSpace(attributeName) ||
@@ -947,7 +947,7 @@ VALUES ($guideId, $stepId, 'completion', $elementId, 'Completion')";
         command.Parameters.AddWithValue("$kind", kind);
         command.Parameters.AddWithValue("$expected", kind == "attribute-equals"
             ? (object)JsonSerializer.Serialize(new { name = attributeName, value = attributeValue })
-            : kind == "value-equals" ? expectedValue! : DBNull.Value);
+            : kind == "value-contains" ? expectedValue! : DBNull.Value);
         command.CommandText = @"INSERT INTO StepRules
 (GuideId, StepId, RuleType, RuleId, Kind, TargetUsageId, ExpectedValue)
 VALUES ($guideId, $stepId, 'AdditionalCompletionCondition', 'completion', $kind, 'completion', $expected)";
