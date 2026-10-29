@@ -241,13 +241,6 @@ function renderSteps() {
     const rule = data.rules.find(x => x.RuleType === 'PrimaryValidation');
     const locators = parseJson(element?.LocatorsJson, []);
     const frames = parseJson(element?.FrameContextJson, []);
-    const identifierBinding = (data.anchors || []).find(a =>
-      a.ElementId === target?.ElementId && a.Relation === 'SharedContainer');
-    const identifierElement = (data.elements || []).find(e =>
-      e.ElementId === identifierBinding?.AnchorElementId);
-    const identifierLocator = parseJson(identifierElement?.LocatorsJson, [])[0]?.Value || '';
-    const boundVariableId = identifierLocator.match(/\{\{var:([^}]+)\}\}/)?.[1];
-    const boundVariable = (current.variables || []).find(v => v.id === boundVariableId);
     const conditionText = rule ? validationLabel(rule.Kind) : 'לא הוגדר תנאי';
     const completionRule = data.rules.find(x => x.RuleType === 'AdditionalCompletionCondition');
     const completionTarget = data.targets.find(x => x.UsageId === completionRule?.TargetUsageId);
@@ -306,14 +299,7 @@ function renderSteps() {
           '<button class="btn secondary small" id="replace-web-target">בחירת רכיב אחר</button>' +
           '<button class="btn danger small" id="remove-primary-target">הסרת רכיב</button>' +
           '</div>' +
-          ((current.variables || []).length && context?.Runtime === 'Web' ?
-            '<div class="target-action-identifier">' +
-            '<h4>זיהוי לפי משתנה</h4>' +
-            (identifierBinding ? '<p>משתנה מקושר: <strong>' + esc(boundVariable?.name || 'משתנה') + '</strong></p>' :
-              '<p>לא הוגדר רכיב זיהוי.</p>') +
-            '<button class="btn secondary small" id="identify-action">' +
-            (identifierBinding ? 'החלפת רכיב זיהוי' : 'בחירת רכיב זיהוי') + '</button>' +
-            '</div>' : '') +
+
           '</div>' :
           '<button id="pick-element" class="btn primary">הפעלת ממפה רכיבים</button>') +
         '<div id="pick-result" class="hidden" aria-live="polite"></div>' : '') +
@@ -461,18 +447,6 @@ function renderSteps() {
       if (item) item.click();
       notify('הרכיב הוסר מהשלב.');
     });
-    const identifyAction = $('identify-action');
-    if (identifyAction) identifyAction.onclick = () => {
-      const variables = current.variables || [];
-      const start = variableId => guarded(() =>
-        beginTargetPicker('Web', current.guide.id, step.id, contextId,
-          false, false, context, null, {variableId}));
-      if (variables.length === 1) start(variables[0].id);
-      else modal('בחירת משתנה לזיהוי', [
-        {name:'variableId',label:'משתנה',value:variables[0].id,
-          choices:variables.map(v => ({value:v.id,text:v.name}))}
-      ], values => start(values.variableId));
-    };
     const conditionEditor = $('edit-validation');
     if (conditionEditor) conditionEditor.onclick = () => editValidation(step, rule);
     const startButton = $('pick-element');
@@ -776,11 +750,7 @@ async function refreshPicker() {
       const gridChoice = $('grid-row-choice')?.value;
       const gridChoiceIndex = gridChoice === undefined || gridChoice === '' ? null : Number(gridChoice);
       const adapter = targetAdapters[pickedFor.runtime];
-      if (pickedFor.identifier) {
-        await api('/guides/'+pickedFor.guideId+'/steps/'+encodeURIComponent(pickedFor.stepId)+'/identified-action',
-          {method:'POST',body:JSON.stringify({variableId:pickedFor.identifier.variableId})});
-      }
-      else if (pickedFor.variableSource) {
+      if (pickedFor.variableSource) {
         const mode = $('variable-extract-choice')?.value || 'full';
         const pattern = mode === 'number' ? '([0-9]+)' :
           mode === 'custom' ? $('variable-extract-pattern')?.value : null;
