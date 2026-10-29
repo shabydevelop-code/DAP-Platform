@@ -265,14 +265,17 @@ function renderSteps() {
       : 'הרכיב שנבחר';
     const completionAttribute = completionRule?.Kind === 'attribute-equals'
       ? parseJson(completionRule.ExpectedValue, {}) : {};
+    const hasFriendlyCompletionName = completionElementName !== 'הרכיב שנבחר';
+    const completionSubject = hasFriendlyCompletionName
+      ? 'הרכיב "' + completionElementName + '"' : 'הרכיב שנבחר';
     const completionDescription = completionVariableId
-      ? 'הטקסט ברכיב "' + completionElementName + '" מכיל את ערך המשתנה "' + completionVariableName + '".'
+      ? 'הטקסט ב' + completionSubject + ' מכיל את ערך המשתנה "' + completionVariableName + '".'
       : completionRule?.Kind === 'target-appeared'
-        ? 'הרכיב "' + completionElementName + '" יופיע במסך.'
+        ? completionSubject + ' יופיע במסך.'
       : completionRule?.Kind === 'attribute-equals'
-        ? 'המאפיין "' + (completionAttribute.name || 'הנבחר') + '" של הרכיב "' +
-          completionElementName + '" יהיה שווה ל־"' + (completionAttribute.value ?? '') + '".'
-      : 'הרכיב "' + completionElementName + '" ייעלם מהמסך.';
+        ? 'המאפיין "' + (completionAttribute.name || 'הנבחר') + '" של ' +
+          completionSubject + ' יהיה שווה ל־"' + (completionAttribute.value ?? '') + '".'
+      : completionSubject + ' ייעלם מהמסך.';
     const locatorText = locators[0]?.Value || '';
     const friendlyName = element?.DisplayName || (locatorText === 'a' ? 'קישור' : locatorText);
     const appText = context ? appLabel(context) : 'לא משויך';
