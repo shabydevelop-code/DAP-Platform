@@ -55,6 +55,7 @@ public sealed class WebGuideStepRuntime
     {
         if (GuideStepExecutionPolicy.Classify(step) == GuideStepPresentationKind.CenteredInformation)
         {
+            ReportBubbleAvailable(false);
 
             if (showPresentation)
             {
