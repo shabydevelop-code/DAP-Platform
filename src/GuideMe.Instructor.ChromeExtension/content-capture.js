@@ -353,16 +353,41 @@
       selector, url:location.href, tag:target.tagName.toLowerCase(),
       label:(() => {
         const clean = value => String(value || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+        // Prefer the label's own text over help text nested in the same element.
+        // Never split sentences or translate field names: this is DOM-based only.
+        const labelText = node => {
+          if (!node) return '';
+          const direct = [...node.childNodes]
+            .filter(child => child.nodeType === Node.TEXT_NODE)
+            .map(child => clean(child.textContent)).filter(Boolean).join(' ');
+          if (direct) return clean(direct);
+          const named = node.querySelector(
+            '.label-text, .field-label, .control-label, [class*="labelText"], [class*="label-text"]');
+          if (named && named !== node) {
+            const text = clean(named.innerText || named.textContent);
+            if (text) return text;
+          }
+          // Labels commonly contain a title span followed by a description/help span.
+          for (const child of node.children) {
+            if (/^(INPUT|TEXTAREA|SELECT|BUTTON|SVG|IMG)$/.test(child.tagName) ||
+                /help|hint|description|assist|tooltip|error/i.test(
+                  String(child.className?.baseVal ?? child.className ?? '') + ' ' +
+                  (child.getAttribute('role') || ''))) continue;
+            const text = clean(child.innerText || child.textContent);
+            if (text) return text;
+          }
+          return clean(node.innerText || node.textContent);
+        };
         // Native label associations, including labels wrapping the control.
         const labels = target.labels ? Array.from(target.labels) : [];
         if (target.closest('label')) labels.push(target.closest('label'));
         for (const label of labels) {
-          const text = clean(label.innerText || label.textContent);
+          const text = labelText(label);
           if (text) return text;
         }
         const labelledBy = (target.getAttribute('aria-labelledby') || '').split(/\s+/).filter(Boolean);
-        if (labelledBy.length) {
-          const text = clean(labelledBy.map(id => document.getElementById(id)?.textContent || '').join(' '));
+        for (const id of labelledBy) {
+          const text = labelText(document.getElementById(id));
           if (text) return text;
         }
         for (const attribute of ['aria-label', 'title', 'placeholder']) {
