@@ -223,11 +223,11 @@ p,.panel-header p,.step-body small,.empty,.empty-inspector{color:#52657a}
   }
 }
 
-/* Compact single-line step navigation; status is shown only for disabled steps. */
+/* Compact step navigation with up to two lines of authored instruction text. */
 #steps-panel .step-row{align-items:center;gap:9px;padding:9px 12px;min-height:48px}
 #steps-panel .step-num{width:30px;height:30px;min-width:30px;min-height:30px;flex-shrink:0;border-radius:8px}
 #steps-panel .step-body{flex:1;min-width:0}
-#steps-panel .step-body strong{font-size:15px;line-height:1.35}
+#steps-panel .step-body strong{font-size:15px;line-height:1.35;white-space:pre-wrap;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden;text-overflow:ellipsis}
 #steps-panel .step-disabled-badge{flex-shrink:0;font-size:10px;font-weight:650;color:#805d20;background:#fff3d9;border-radius:6px;padding:3px 5px}
 
 /* Selected guide heading shares the compact toolbar's visual hierarchy. */
