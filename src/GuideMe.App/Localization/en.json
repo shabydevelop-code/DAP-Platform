@@ -18,5 +18,6 @@
   "App.TargetWindowNotFoundMessage": "We couldn't find the application window required for this guide. Make sure the application is open and try again.",
   "Learner.GuideAlreadyRunning": "Another guide is already running in this Windows session. End it before starting a new guide.",
   "Learner.ActiveStatus": "Guide active",
+  "Learner.WaitingForStep": "Waiting to continue the step…",
   "Learner.Exit": "Exit"
 }
