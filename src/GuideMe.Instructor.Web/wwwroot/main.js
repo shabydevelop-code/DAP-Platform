@@ -268,7 +268,7 @@ function renderSteps() {
     const hasFriendlyCompletionName = completionElementName !== 'הרכיב שנבחר';
     const completionSubject = hasFriendlyCompletionName
       ? 'הרכיב "' + completionElementName + '"' : 'הרכיב שנבחר';
-    const completionDescription = completionRule?.Kind === 'value-equals'
+    const completionDescription = completionRule?.Kind === 'value-contains'
       ? 'השדה ' + completionSubject + ' מכיל את הערך "' + (completionRule.ExpectedValue || '') + '".'
       : completionVariableId
       ? 'הטקסט ב' + completionSubject + ' מכיל את ערך המשתנה "' + completionVariableName + '".'
@@ -502,7 +502,7 @@ function editValidation(step, rule) {
   ],async values=>{
     await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+'/validation',
       {method:'PUT',body:JSON.stringify({kind:values.kind,
-        expectedValue:values.kind === 'value-equals' ? values.expectedValue : null})});
+        expectedValue:values.kind === 'value-contains' ? values.expectedValue : null})});
     const guideId=current.guide.id, stepId=step.id;
     await openGuide(guideId);
     document.querySelectorAll('[data-step]').forEach(b=>{
@@ -513,9 +513,9 @@ function editValidation(step, rule) {
   const kindControl = $('field-kind');
   const valueContainer = $('field-expectedValue')?.closest('.field');
   const updateValueVisibility = () => {
-    if (valueContainer) valueContainer.classList.toggle('hidden',kindControl?.value !== 'value-equals');
+    if (valueContainer) valueContainer.classList.toggle('hidden',kindControl?.value !== 'value-contains');
     const valueInput = $('field-expectedValue');
-    if (valueInput) valueInput.required = kindControl?.value === 'value-equals';
+    if (valueInput) valueInput.required = kindControl?.value === 'value-contains';
   };
   kindControl?.addEventListener('change', updateValueVisibility);
   updateValueVisibility();
@@ -558,7 +558,7 @@ const targetAdapters = {
           variableId:$('target-condition').value === 'target-appeared-variable'
             ? $('completion-variable-choice')?.value : null,
           selectedTag:candidate.tag,
-          expectedValue:$('target-condition').value === 'value-equals'
+          expectedValue:$('target-condition').value === 'value-contains'
             ? $('completion-fixed-value')?.value : null})});
     }
   },
@@ -701,7 +701,7 @@ async function refreshPicker() {
       '<select id="target-condition">' +
       (requestSession.runtime === 'Windows' ? '' : '<option value="target-appeared">הופיע</option>') +
       (requestSession.runtime === 'Windows' ? '' : '<option value="target-appeared-variable">מכיל ערך של משתנה</option>') +
-      '<option value="value-equals">השדה מכיל ערך מסוים</option>' +
+      '<option value="value-contains">השדה מכיל ערך מסוים</option>' +
       (requestSession.runtime === 'Windows' ? '' : '<option value="target-vanished">נעלם</option>') + '</select>' : '')+
     (pickingFor.completion ? '<div id="completion-variable-fields" class="hidden">' +
       '<label for="completion-variable-choice">משתנה להשוואה</label>' +
@@ -749,7 +749,7 @@ async function refreshPicker() {
     const updateFields = () => {
       $('completion-variable-fields').classList.toggle('hidden',
         condition.value !== 'target-appeared-variable');
-      $('completion-fixed-value-fields').classList.toggle('hidden', condition.value !== 'value-equals');
+      $('completion-fixed-value-fields').classList.toggle('hidden', condition.value !== 'value-contains');
     };
     condition.addEventListener('change', updateFields);
     updateFields();
