@@ -250,6 +250,79 @@ SELECT $guideId, $stepId, COALESCE(MAX(StepOrder), 0) + 1,
         return stepId;
     }
 
+    // Duplicate one step and its step-owned associations atomically. Element definitions,
+    // anchors, application contexts and guide variables remain shared references.
+    internal static string DuplicateStep(long guideId, string sourceStepId)
+    {
+        using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = V5GuideReader.DatabasePath, Mode = SqliteOpenMode.ReadWrite,
+            Pooling = false, DefaultTimeout = 3
+        }.ToString());
+        connection.Open();
+        using (var pragma = connection.CreateCommand())
+        {
+            pragma.CommandText = "PRAGMA foreign_keys=ON";
+            pragma.ExecuteNonQuery();
+        }
+        using var transaction = connection.BeginTransaction();
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandTimeout = 3;
+        command.Parameters.AddWithValue("$guideId", guideId);
+        command.Parameters.AddWithValue("$source", sourceStepId);
+        command.CommandText = "SELECT StepOrder FROM Steps WHERE GuideId=$guideId AND StepId=$source";
+        var originalOrder = command.ExecuteScalar();
+        if (originalOrder is null)
+            throw new InvalidOperationException("שלב המקור לא נמצא.");
+        var order = Convert.ToInt32(originalOrder);
+        var newId = "step-" + Guid.NewGuid().ToString("N");
+        command.Parameters.AddWithValue("$newId", newId);
+        command.Parameters.AddWithValue("$order", order);
+
+        // Shift via negative temporary values to respect UNIQUE(GuideId,StepOrder).
+        command.CommandText = @"UPDATE Steps SET StepOrder=-StepOrder
+WHERE GuideId=$guideId AND StepOrder>$order";
+        command.ExecuteNonQuery();
+        command.CommandText = @"UPDATE Steps SET StepOrder=-StepOrder+1
+WHERE GuideId=$guideId AND StepOrder<0";
+        command.ExecuteNonQuery();
+
+        // Copy all current step columns without dropping future persisted settings.
+        // Only the step identifier and sequence number change.
+        foreach (var table in new[] { "Steps", "StepTargets", "StepRules", "StepVariableActions" })
+        {
+            command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='" + table + "'";
+            if (Convert.ToInt64(command.ExecuteScalar()) == 0)
+            {
+                if (table == "StepVariableActions") continue;
+                throw new InvalidOperationException("טבלת נתוני שלבים חסרה: " + table);
+            }
+            var columns = new List<string>();
+            using (var schema = connection.CreateCommand())
+            {
+                schema.Transaction = transaction;
+                schema.CommandText = "PRAGMA table_info(" + table + ")";
+                using var reader = schema.ExecuteReader();
+                while (reader.Read()) columns.Add(reader.GetString(1));
+            }
+            // The supported step tables use composite natural keys; ActionId
+            // and UsageId are scoped by StepId and can be retained.
+            var quoted = columns.Select(c => "\"" + c.Replace("\"", "\"\"") + "\"").ToArray();
+            var expressions = columns.Select(c => c == "StepId" ? "$newId" :
+                c == "StepOrder" && table == "Steps" ? "$order + 1" :
+                "\"" + c.Replace("\"", "\"\"") + "\"").ToArray();
+            command.CommandText = "INSERT INTO " + table + " (" + string.Join(",", quoted) +
+                ") SELECT " + string.Join(",", expressions) + " FROM " + table +
+                " WHERE GuideId=$guideId AND StepId=$source";
+            var copied = command.ExecuteNonQuery();
+            if (table == "Steps" && copied != 1)
+                throw new InvalidOperationException("שכפול השלב נכשל.");
+        }
+        transaction.Commit();
+        return newId;
+    }
+
     // Contexts are independent guide entities; updates never overwrite steps.
     internal static void SaveApplicationContext(long guideId, string contextId, string runtime, string matcherProperty, string matcherValue)
     {
