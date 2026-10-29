@@ -295,3 +295,9 @@ body, body *, dialog, dialog * { font-size: 15px !important; }
 .picked-target-fields>div:not(.hidden){display:flex;flex-direction:column;align-items:stretch;gap:9px;min-width:0}
 .picked-target-fields>div:not(.hidden)>p{margin:0;line-height:1.6}
 .picked-target-fields .target-technical{overflow-wrap:anywhere}
+
+/* Compact, readable additional completion condition summary. */
+.completion-details{display:grid;gap:12px;margin:0 0 14px;direction:rtl;text-align:right}
+.completion-detail{display:grid;gap:3px;min-width:0}
+.completion-detail-label{color:#657d96;font-size:12px}
+.completion-detail strong{font-size:13px;font-weight:600;overflow-wrap:anywhere}
