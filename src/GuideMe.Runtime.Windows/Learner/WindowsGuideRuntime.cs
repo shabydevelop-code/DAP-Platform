@@ -103,6 +103,7 @@ public sealed class WindowsGuideRuntime
     {
         if (GuideStepExecutionPolicy.Classify(step) == GuideStepPresentationKind.CenteredInformation)
         {
+            ReportBubbleAvailable(false);
 
             await _bubbles.WaitForCenteredStepDismissalAsync(
                 step,
