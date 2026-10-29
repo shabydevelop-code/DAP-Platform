@@ -253,11 +253,13 @@ function renderSteps() {
        '<button class="btn secondary small" id="edit-step">עריכת תוכן השלב</button></div></div>' +
        '<div class="step-friendly-grid">' +
       '<section class="step-friendly-card"><h3>רכיב במסך</h3>' +
+      '<div id="primary-target-summary">' +
       (target ? '<p>נבחר רכיב באפליקציה' +
         (frames.length ? ' בתוך ' + frames.length + ' מסגרות' : '') + '.</p>' +
         (locatorText ? '<p>רכיב שנבחר: <strong>' + esc(friendlyName) + '</strong></p>' +
           '<p class="target-technical">מזהה רכיב: <code dir="ltr">' + esc(locatorText) + '</code></p>' : '') :
         '<p>עדיין לא נבחר רכיב לשלב הזה.</p>') +
+      '</div>' +
       ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') ?
         (target ? '<div class="target-action-buttons">' +
           '<div class="target-action-primary">' +
@@ -622,6 +624,8 @@ async function refreshPicker() {
     return;
   }
   const candidate = adapter.selected(state);
+  if (!requestSession.completion && !requestSession.variableSource && !requestSession.identifier)
+    $('primary-target-summary')?.classList.add('hidden');
   if (box.dataset.pickedSelector === candidate.selector) return;
   box.dataset.pickedSelector = candidate.selector;
   box.innerHTML = '<div class="picked-target-fields"><p><strong>הרכיב שנבחר:</strong> '+esc(candidate.label || candidate.tag || 'רכיב')+'</p>'+
@@ -750,6 +754,7 @@ async function refreshPicker() {
   $('cancel-web-target').onclick = () => guarded(async () => {
     await targetAdapters[pickingFor.runtime].cancel();
     pickingFor = null;
+    $('primary-target-summary')?.classList.remove('hidden');
     markClean();
     box.textContent = 'הבחירה בוטלה.';
   });
