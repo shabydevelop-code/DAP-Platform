@@ -628,9 +628,11 @@ async function refreshPicker() {
     $('primary-target-summary')?.classList.add('hidden');
   if (box.dataset.pickedSelector === candidate.selector) return;
   box.dataset.pickedSelector = candidate.selector;
-  box.innerHTML = '<div class="picked-target-fields"><p><strong>הרכיב שנבחר:</strong> '+esc(candidate.label || candidate.tag || 'רכיב')+'</p>'+
-    (candidate.framePath?.length ? '<p><strong>נתיב מסגרות:</strong> '+candidate.framePath.map(esc).join(' → ')+'</p>' : '')+
-    '<p class="target-technical">מזהה רכיב: <code dir="ltr">'+esc(candidate.selector)+'</code></p>'+
+  const kindLabel = candidate.tag === 'textarea' ? 'שדה טקסט רב־שורות' :
+    candidate.tag === 'input' ? 'שדה קלט' : candidate.tag === 'select' ? 'רשימת בחירה' :
+    candidate.tag === 'button' ? 'כפתור' : candidate.tag === 'a' ? 'קישור' : 'רכיב במסך';
+  box.innerHTML = '<div class="picked-target-fields"><p><strong>'+esc(candidate.label || candidate.tag || 'רכיב')+'</strong></p>'+
+    '<p class="picked-target-kind">'+esc(kindLabel)+'</p>'+
     (!pickingFor.completion && !pickingFor.identifier &&
      !['button','a','input','select','textarea'].includes(candidate.tag) &&
      candidate.gridChoices?.length ?
