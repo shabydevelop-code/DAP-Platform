@@ -1310,32 +1310,41 @@ function openVariableBindingDialog({kind, step, contextId, locators, displayName
       notify('לא נמצא מזהה רכיב שניתן לערוך.', true);
       return;
     }
-    // Present only the human-readable value, never the CSS/HTML structure.
-    // The complete locator is reconstructed unchanged around the edited value.
+    // Extract the business value from the known :cell-text(column,"value")
+    // grammar. Never guess a value from arbitrary CSS quoted fragments.
     const original = locator.Value;
-    let valueStart = 0, valueEnd = original.length;
+    let rawValue, buildTemplate;
     if (locator.Strategy === 'css') {
-      const quoted = /"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)'/g;
-      const candidates = [...original.matchAll(quoted)];
-      if (!candidates.length) {
-        notify('לא נמצא ערך טקסטואלי במזהה הרכיב לשילוב משתנה.', true);
+      const cellText = /:cell-text\(\s*\d+\s*,\s*("(?:[^"\\]|\\.)*")\s*\)/g;
+      const matches = [...original.matchAll(cellText)];
+      if (matches.length !== 1) {
+        notify('לא ניתן לזהות ערך רכיב יחיד לעריכה. יש לבחור רכיב עם זיהוי לפי ערך תא.', true);
         return;
       }
-      // For :cell-text the quoted text is the authored business value.
-      const cell = original.indexOf(':cell-text(');
-      const selected = candidates.find(m => cell >= 0 && m.index > cell) ||
-        candidates[candidates.length - 1];
-      valueStart = selected.index + 1;
-      valueEnd = selected.index + selected[0].length - 1;
+      const match = matches[0];
+      const quotedValue = match[1];
+      const quoteStart = match.index + match[0].indexOf(quotedValue);
+      const quoteEnd = quoteStart + quotedValue.length;
+      try {
+        rawValue = JSON.parse(quotedValue);
+      } catch {
+        notify('ערך הרכיב אינו בפורמט תקין.', true);
+        return;
+      }
+      buildTemplate = value =>
+        original.slice(0, quoteStart) + JSON.stringify(value) + original.slice(quoteEnd);
+    } else {
+      rawValue = original;
+      buildTemplate = value => value;
     }
     openVariableTextEditor({
       title:'שילוב משתנים ברכיב במסך',
       fieldLabel:'ערך הרכיב',
-      original:original.slice(valueStart, valueEnd),
+      original:rawValue,
       variables, maxLength:400, saveLabel:'שמירת הרכיב',
       description:'הרכיב שנבחר: ' + (displayName || 'הרכיב שנבחר'),
       save: async value => {
-        const template = original.slice(0, valueStart) + value + original.slice(valueEnd);
+        const template = buildTemplate(value);
         if (template.length > 400) throw new Error('מזהה הרכיב ארוך מדי.');
         await api('/guides/' + current.guide.id + '/steps/' +
           encodeURIComponent(step.id) + '/primary-target/variable', {
