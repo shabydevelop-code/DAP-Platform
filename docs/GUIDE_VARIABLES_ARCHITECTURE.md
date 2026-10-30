@@ -38,3 +38,10 @@
 ## Release gate
 Do not claim full completion until updated .NET sources build on Windows, the Instructor variable-picker/reorder authoring path is exercised end-to-end, and Windows/mixed guide regressions pass. Web learner full regression and migration were reported successful. A guide tested from a later step can legitimately lack variables initialized in earlier steps; surface that as a missing variable rather than guessing.
 
+
+## Variable action scope (2026-10-30)
+
+- A step can update a guide variable only by reading a selected application target (`ReadFromTarget`), after its action and completion validation.
+- The Instructor variable-action dialog selects the destination variable and proceeds directly to target picking; it has no operation-kind dropdown.
+- Constant assignment, clearing a variable, and copying from another variable are not supported in the Instructor API, shared action enum, or Learner execution logic. Existing records of these unsupported action kinds are not migrated or supported.
+- Both Web and Windows use the same shared action model and capture ordering.
