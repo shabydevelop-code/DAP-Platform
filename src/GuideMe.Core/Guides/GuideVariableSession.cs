@@ -185,11 +185,6 @@ public sealed class GuideVariableSession
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (action.Timing != timing) continue;
-            if (action.Kind != GuideVariableActionKind.ReadFromTarget)
-            {
-                Execute(action);
-                continue;
-            }
             var value = await readTarget(action, cancellationToken);
             Trace("variable-observation",
                 $"id={Quoted(action.Id)} variable={Quoted(action.VariableId)} timing={timing} observed={Quoted(value)}");
