@@ -191,6 +191,7 @@ window.addEventListener('resize', () => requestAnimationFrame(syncStepListHeight
 function renderSteps() {
   selectedTargetPreviewValue = null;
   selectedValidationExpectedValue = null;
+  selectedCompletionDescription = null;
   selectedStep = null; $('step-inspector').innerHTML = '<div class="empty-inspector">בחר שלב להצגת הפרטים שלו</div>';
   const search = $('step-search').value.trim().toLowerCase();
   const steps = (current?.steps || []).filter(s => String(s.order).includes(search) || s.id.toLowerCase().includes(search) || (s.bubble || '').toLowerCase().includes(search));
@@ -264,9 +265,6 @@ function renderSteps() {
     const completionTarget = data.targets.find(x => x.UsageId === completionRule?.TargetUsageId);
     const completionElement = data.elements.find(x => x.ElementId === completionTarget?.ElementId);
     const completionSelector = parseJson(completionElement?.LocatorsJson, [])[0]?.Value || '';
-    const completionVariableId = completionSelector.match(/\{\{var:([^}]+)\}\}/)?.[1];
-    const completionVariable = (current.variables || []).find(v => v.id === completionVariableId);
-    const completionVariableName = completionVariable?.name || 'המשתנה שנבחר';
     const completionDisplayName = (completionElement?.DisplayName || '').trim();
     const completionElementName = completionDisplayName &&
       !/^[#.[>:+~]/.test(completionDisplayName) &&
@@ -280,9 +278,7 @@ function renderSteps() {
     const completionSubject = hasFriendlyCompletionName
       ? 'הרכיב "' + completionElementName + '"' : 'הרכיב שנבחר';
     const completionDescription = completionRule?.Kind === 'value-contains'
-      ? 'השדה ' + completionSubject + ' מכיל את הערך "' + (completionRule.ExpectedValue || '') + '".'
-      : completionVariableId
-      ? 'הטקסט ב' + completionSubject + ' מכיל את ערך המשתנה "' + completionVariableName + '".'
+      ? 'השדה ' + completionSubject + ' מכיל את הערך "' + friendlyInstructionText(completionRule.ExpectedValue || '') + '".'
       : completionRule?.Kind === 'target-appeared'
         ? completionSubject + ' יופיע במסך.'
       : completionRule?.Kind === 'attribute-equals'
@@ -294,6 +290,9 @@ function renderSteps() {
     const targetValue = targetBusinessValue(locators[0]);
     selectedTargetPreviewValue = targetValue || null;
     selectedValidationExpectedValue = rule?.ExpectedValue || null;
+    selectedCompletionDescription = completionRule?.Kind === 'value-contains'
+      ? () => 'השדה ' + completionSubject + ' מכיל את הערך "' + friendlyInstructionText(completionRule.ExpectedValue || '') + '".'
+      : null;
     const appText = context ? appLabel(context) : 'לא משויך';
 
     $('step-inspector').innerHTML =
@@ -341,7 +340,7 @@ function renderSteps() {
         '<section class="step-friendly-card completion-card"><h3>תנאי השלמה נוסף</h3>' +
         (completionRule ? '<div class="completion-details">' +
           '<div class="completion-detail"><span class="completion-detail-label">השלב יושלם כאשר:</span>' +
-          '<strong>' + esc(completionDescription) + '</strong></div>' +
+          '<strong class="completion-description-preview">' + esc(completionDescription) + '</strong></div>' +
           '</div><button class="btn danger small" id="remove-completion">הסרת תנאי</button>' :
           '<p>בחר רכיב ובדוק הופעה, היעלמות או שינוי מאפיין בעקבות הפעולה.</p>' +
           '<button class="btn secondary small" id="add-completion">בחירת רכיב לתנאי השלמה</button>') +
@@ -654,11 +653,9 @@ const targetAdapters = {
         {method:'POST',body:JSON.stringify({kind:$('target-condition').value,
           stateAttributeIndex:$('target-condition').value === 'attribute-equals' && (candidate.stateAttributes || []).length
             ? Number($('completion-state-choice').value) : null,
-          variableId:$('target-condition').value === 'target-appeared-variable'
-            ? $('completion-variable-choice')?.value : null,
           selectedTag:candidate.tag,
           expectedValue:$('target-condition').value === 'value-contains'
-            ? $('completion-fixed-value')?.value : null})});
+            ? variableEditorResult($('completion-fixed-value')) : null})});
     }
   },
   Windows: {
@@ -694,7 +691,7 @@ const targetAdapters = {
     async saveCompletion(session) {
       return api('/guides/'+session.guideId+'/steps/'+encodeURIComponent(session.stepId)+'/completion-target',
         {method:'POST',body:JSON.stringify({kind:$('target-condition').value,
-          expectedValue:$('completion-fixed-value')?.value,processId:session.processId})});
+          expectedValue:$('target-condition').value === 'value-contains' ? variableEditorResult($('completion-fixed-value')) : null,processId:session.processId})});
     },
   }
 };
@@ -814,17 +811,12 @@ async function refreshPicker() {
     (pickingFor.completion ? '<label for="target-condition">חוק השלמה</label>' +
       '<select id="target-condition">' +
       '<option value="target-appeared">הופיע</option>' +
-      (requestSession.runtime === 'Windows' ? '' : '<option value="target-appeared-variable">מכיל ערך של משתנה</option>') +
       '<option value="value-contains">השדה מכיל ערך מסוים</option>' +
       '<option value="target-vanished">נעלם</option>' + '</select>' : '')+
-    (pickingFor.completion ? '<div id="completion-variable-fields" class="hidden">' +
-      '<label for="completion-variable-choice">משתנה להשוואה</label>' +
-      '<select id="completion-variable-choice">' +
-      (current?.variables || []).map(v => '<option value="' + esc(v.id) + '">' + esc(v.name) + '</option>').join('') +
-      '</select><p>ההשלמה תתבצע רק כאשר הרכיב שנבחר מכיל את ערך המשתנה.</p></div>' : '')+
     (pickingFor.completion ? '<div id="completion-fixed-value-fields" class="hidden">' +
       '<label for="completion-fixed-value">ערך צפוי</label>' +
       '<input id="completion-fixed-value" maxlength="500" autocomplete="off" />' +
+      '<div id="completion-insert-controls"></div>' +
       '</div>' : '') +
     (pickingFor.variableSource ? variableExtractionEditor(candidate, requestSession.runtime) : '') +
     '</div>' + (pickingFor.completion || pickingFor.variableSource
@@ -861,12 +853,11 @@ async function refreshPicker() {
   if (pickingFor.completion) {
     const condition = $('target-condition');
     const updateFields = () => {
-      $('completion-variable-fields').classList.toggle('hidden',
-        condition.value !== 'target-appeared-variable');
       $('completion-fixed-value-fields').classList.toggle('hidden', condition.value !== 'value-contains');
     };
     condition.addEventListener('change', updateFields);
     updateFields();
+    setupVariableInsertion($('completion-fixed-value'), $('completion-insert-controls'), current?.variables || []);
   }
   const savePickedTarget = async () => {
     const saveButton = $('save-web-target');
@@ -991,6 +982,7 @@ function renderGuideVariables() {
 }
 let selectedTargetPreviewValue = null;
 let selectedValidationExpectedValue = null;
+let selectedCompletionDescription = null;
 function refreshStepVariablePreviews() {
   if (!current) return;
   // Update the existing list in place so the selected step and scroll position
@@ -1015,6 +1007,9 @@ function refreshStepVariablePreviews() {
   const targetPreview = document.querySelector('#primary-target-summary strong');
   if (targetPreview && selectedTargetPreviewValue != null)
     targetPreview.innerHTML = friendlyInstructionHtml(selectedTargetPreviewValue);
+  const completionPreview = document.querySelector('.completion-description-preview');
+  if (completionPreview && selectedCompletionDescription != null)
+    completionPreview.textContent = selectedCompletionDescription();
   const validationPreview = document.querySelector('.validation-expected-preview');
   if (validationPreview && selectedValidationExpectedValue != null)
     validationPreview.innerHTML = friendlyInstructionHtml(selectedValidationExpectedValue);
@@ -1457,6 +1452,53 @@ async function reloadSelectedStep(guideId, stepId) {
   const row = [...document.querySelectorAll('[data-step]')]
     .find(b => b.dataset.step === stepId);
   row?.click();
+}
+// Shared token insertion for inline expected-value fields.
+function variableEditorResult(input) {
+  if (!input) return '';
+  let value = input.value;
+  const references = input._variableReferences || new Map();
+  for (const label of [...references.keys()].sort((a,b)=>b.length-a.length))
+    value = value.split(label).join('{{var:' + references.get(label) + '}}');
+  if (/【[^】]*】/.test(value)) throw new Error('סימון משתנה לא מוכר.');
+  return value;
+}
+function setupVariableInsertion(input, container, variables) {
+  if (!input || !container || !variables.length) return;
+  const references = new Map();
+  input._variableReferences = references;
+  const select = document.createElement('select');
+  select.setAttribute('aria-label','משתנה');
+  select.style.width = '100%';
+  variables.forEach(v => {
+    const option=document.createElement('option');
+    option.value=v.id; option.textContent=v.name; select.append(option);
+  });
+  const add=document.createElement('button');
+  add.type='button'; add.className='btn secondary small';
+  add.textContent='הוסף משתנה';
+  const controls=document.createElement('div');
+  controls.style.display='grid'; controls.style.gap='8px';
+  controls.style.marginTop='12px'; controls.style.justifyItems='start';
+  controls.append(select,add); container.append(controls);
+  let start=input.selectionStart, end=input.selectionEnd;
+  const track=()=>{start=input.selectionStart;end=input.selectionEnd;};
+  ['select','click','keyup'].forEach(e=>input.addEventListener(e,track));
+  add.onclick=()=>{
+    const variable=variables.find(v=>v.id===select.value);
+    if(!variable)return;
+    const label='【'+variablePreviewValue(variable)+'】';
+    if(references.has(label)&&references.get(label)!==variable.id) {
+      notify('לשני משתנים יש אותו ערך מוצג.',true);return;
+    }
+    const spans=[...input.value.matchAll(/【[^】]*】/g)].map(m=>({start:m.index,end:m.index+m[0].length}));
+    if(spans.some(p=>(start>p.start&&start<p.end)||(end>p.start&&end<p.end))) {
+      notify('יש לבחור משתנה בשלמותו או למקם את הסמן מחוץ לסימון.',true);return;
+    }
+    references.set(label,variable.id);
+    input.setRangeText(label,start,end,'end');
+    track();input.dispatchEvent(new Event('input',{bubbles:true}));input.focus();
+  };
 }
 function openVariableTextEditor({title, original, variables, maxLength, saveLabel, save, fieldLabel = 'טקסט', description = ''}) {
   const references = new Map();
