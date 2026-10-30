@@ -1431,6 +1431,16 @@ function locatorTextBinding(locator, displayName = '') {
       original.slice(offset + quoted.length)};
   }
   if (matchers.length || /:cell-text\(|:exact-text\(/.test(original)) return null;
+  const attributes = [...original.matchAll(/\[(?:aria-label|placeholder|name|title|data-[\w-]+)\s*=\s*("(?:[^"\\]|\\.)*")\]/g)];
+  if (attributes.length === 1) {
+    const match = attributes[0], quoted = match[1];
+    try {
+      const value = JSON.parse(quoted);
+      const offset = match.index + match[0].indexOf(quoted);
+      return {value, build:next=>original.slice(0,offset) + JSON.stringify(next) +
+        original.slice(offset + quoted.length)};
+    } catch { return null; }
+  }
   // A captured label may serve as a semantic text discriminator for any
   // content-bearing element, using the Web Learner's existing :exact-text rule.
   const name = String(displayName || '').trim();
