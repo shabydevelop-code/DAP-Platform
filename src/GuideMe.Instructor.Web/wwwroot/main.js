@@ -669,7 +669,7 @@ async function refreshPicker() {
   if (!box) return;
   if (!state.picked) {
     if (state.error || state.pickerError) {
-      await adapter.cancel();
+      try { await adapter.cancel(); } catch { /* Keep the reported picker error. */ }
       pickerEvent(requestSession, 'failed', 'לא ניתן להפעיל את ממפה הרכיבים: ' + (state.error || state.pickerError));
       return;
     }
@@ -829,8 +829,9 @@ async function refreshPicker() {
   if ($('save-web-target')) $('save-web-target').onclick = savePickedTarget;
   else void savePickedTarget();
   if ($('cancel-web-target')) $('cancel-web-target').onclick = () => guarded(async () => {
-    await targetAdapters[pickingFor.runtime].cancel();
-    pickerEvent(pickingFor, 'cancelled');
+    const cancelled = pickingFor;
+    await targetAdapters[cancelled.runtime].cancel();
+    pickerEvent(cancelled, 'cancelled');
     markClean();
     box.textContent = 'הבחירה בוטלה.';
   });
