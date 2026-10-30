@@ -121,8 +121,9 @@ app.MapPost("/api/windows/picker/start", (WindowsInspectRequest request) =>
 {
     // Resolve the selected application before creating the non-activating overlay.
     using var targetProcess = Process.GetProcessById(request.ProcessId);
+    var instructorWindow = WindowsTargetPicker.CaptureInstructorWindow();
     var activated = GuideMe.Runtime.Windows.Targets.WindowsWindowActivation.Activate(targetProcess.MainWindowHandle);
-    var status = windowsPicker.Start(request.ProcessId);
+    var status = windowsPicker.Start(request.ProcessId, instructorWindow);
     return Results.Ok(new { status.Picking, status.Picked, status.Selection,
         status.Error, Activated = activated });
 });
