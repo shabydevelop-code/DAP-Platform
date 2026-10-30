@@ -107,16 +107,19 @@ public sealed class GuideVariableSession
     // CSS locators can contain JSON-quoted semantic text (e.g. :cell-text or
     // :exact-text). Resolve variables inside those literals before serializing
     // them again, so quotes and backslashes in user data cannot break selectors.
-    private static readonly Regex CssQuotedLiteral = new(
-        "\\\"(?:\\\\.|[^\\\"\\\\])*\\\"",
+    private static readonly Regex CssLocatorParts = new(
+        @"(?<quoted>""(?:\\.|[^""\\])*"")|(?<reference>\\{\\{var:[^{}:]+\\}\\})",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     private string ResolveLocator(Locator locator)
     {
         if (!string.Equals(locator.Strategy, "css", StringComparison.OrdinalIgnoreCase))
             return Resolve(locator.Value);
-        var selector = CssQuotedLiteral.Replace(locator.Value, match =>
+        // One pass only: a resolved value containing {{var:...}} is literal data,
+        // not another variable expression to expand.
+        return CssLocatorParts.Replace(locator.Value, match =>
         {
+            if (match.Groups["reference"].Success) return Resolve(match.Value);
             if (!Reference.IsMatch(match.Value)) return match.Value;
             string literal;
             try
@@ -130,8 +133,6 @@ public sealed class GuideVariableSession
             }
             return System.Text.Json.JsonSerializer.Serialize(Resolve(literal));
         });
-        // Unquoted placeholders retain their existing behavior.
-        return Resolve(selector);
     }
 
     /// <summary>Resolve variable references in all target locators, including
