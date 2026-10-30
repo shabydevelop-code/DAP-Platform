@@ -132,6 +132,7 @@ public sealed class WindowsGuideRuntime
         var clickCompleted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         AutomationEventHandler? clickHandler = null;
         AutomationElement? subscribedTarget = null;
+        AutomationElement? subscribedSelectionTarget = null;
 
         var resolutionAttempt = 0;
 
@@ -387,6 +388,32 @@ public sealed class WindowsGuideRuntime
                     subscribedTarget = target;
                 }
 
+                if (clicked)
+                {
+                    // Grid rows commonly activate via SelectionItem rather than Invoke.
+                    // Subscribe only to the selected target or its nearest selectable row.
+                    AutomationElement? selectionTarget = target;
+                    while (selectionTarget is not null &&
+                           !selectionTarget.TryGetCurrentPattern(SelectionItemPattern.Pattern, out _))
+                        selectionTarget = TreeWalker.ControlViewWalker.GetParent(selectionTarget);
+                    if (selectionTarget is not null &&
+                        (subscribedSelectionTarget is null ||
+                         !SameElement(subscribedSelectionTarget, selectionTarget)))
+                    {
+                        if (subscribedSelectionTarget is not null && clickHandler is not null)
+                        {
+                            try { Automation.RemoveAutomationEventHandler(
+                                SelectionItemPattern.ElementSelectedEvent, subscribedSelectionTarget, clickHandler); }
+                            catch (ElementNotAvailableException) { }
+                        }
+                        clickHandler ??= (_, _) => clickCompleted.TrySetResult();
+                        Automation.AddAutomationEventHandler(
+                            SelectionItemPattern.ElementSelectedEvent, selectionTarget,
+                            TreeScope.Element, clickHandler);
+                        subscribedSelectionTarget = selectionTarget;
+                    }
+                }
+
                 try
                 {
                     await _bubbles.ShowAsync(
@@ -512,6 +539,12 @@ public sealed class WindowsGuideRuntime
             if (subscribedTarget is not null && clickHandler is not null)
             {
                 try { Automation.RemoveAutomationEventHandler(InvokePattern.InvokedEvent, subscribedTarget, clickHandler); }
+                catch (ElementNotAvailableException) { }
+            }
+            if (subscribedSelectionTarget is not null && clickHandler is not null)
+            {
+                try { Automation.RemoveAutomationEventHandler(
+                    SelectionItemPattern.ElementSelectedEvent, subscribedSelectionTarget, clickHandler); }
                 catch (ElementNotAvailableException) { }
             }
             await _bubbles.HideAsync();
