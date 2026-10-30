@@ -497,6 +497,13 @@ function editValidation(step, rule) {
 }
 
 let pickingFor = null;
+function syncPickerButtons() {
+  const busy = !!pickingFor;
+  for (const id of ['pick-element','replace-web-target','add-completion','pick-variable-source']) {
+    const button = $(id);
+    if (button) button.disabled = busy;
+  }
+}
 // Target lifecycle is shared. Only runtime-specific discovery and transport
 // belong to adapters; confirmation, validation editing and persistence stay central.
 const targetAdapters = {
@@ -599,10 +606,7 @@ async function beginTargetPicker(runtime, guideId, stepId, contextId, replacing=
   if (!adapter) throw new Error('סביבת היעד אינה נתמכת.');
   if (completion && !adapter.saveCompletion)
     throw new Error('תנאי השלמה נוסף אינו נתמך כרגע בסביבת יעד זו.');
-  if (pickingFor) {
-    await targetAdapters[pickingFor.runtime].cancel();
-    pickingFor = null;
-  }
+  if (pickingFor) return;
   const session = {runtime,guideId,stepId,contextId,replacing,completion,context,variableSource,startedAt:Date.now()};
   const box = pickerResultBox(session);
   if (!box) throw new Error('אזור אישור הרכיב חסר בממשק.');
@@ -612,6 +616,7 @@ async function beginTargetPicker(runtime, guideId, stepId, contextId, replacing=
   try {
     await adapter.start(session);
     pickingFor = session;
+    syncPickerButtons();
     await refreshPicker();
     if (runtime === 'Windows' && session.activated === false)
       notify('Windows לא אישר העברת פוקוס אוטומטית. הממפה פעיל; עבור לחלון האפליקציה כדי לבחור רכיב.', true);
@@ -624,6 +629,7 @@ async function refreshPicker() {
   if (!pickingFor) return;
   if (current?.guide?.id !== pickingFor.guideId || selectedStep !== pickingFor.stepId) {
     pickingFor = null;
+    syncPickerButtons();
     return;
   }
   const requestSession = pickingFor;
@@ -640,6 +646,7 @@ async function refreshPicker() {
     }
     if (!state.picking) {
       pickingFor = null;
+      syncPickerButtons();
       markClean();
       box.textContent = 'איתור הרכיב בוטל. ניתן להפעיל שוב את הממפה.';
       return;
@@ -775,6 +782,7 @@ async function refreshPicker() {
             replacing:pickedFor.replacing,gridChoice:gridChoiceIndex,
             processId:pickedFor.processId || null})});
       pickingFor = null;
+      syncPickerButtons();
       result.textContent = 'הרכיב נשמר בהצלחה.';
       await openGuide(pickedFor.guideId);
       const item = [...document.querySelectorAll('[data-step]')]
@@ -797,6 +805,7 @@ async function refreshPicker() {
   if ($('cancel-web-target')) $('cancel-web-target').onclick = () => guarded(async () => {
     await targetAdapters[pickingFor.runtime].cancel();
     pickingFor = null;
+    syncPickerButtons();
     $('primary-target-summary')?.classList.remove('hidden');
     markClean();
     box.textContent = 'הבחירה בוטלה.';
