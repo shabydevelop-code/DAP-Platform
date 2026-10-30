@@ -767,7 +767,8 @@ AND (t.StepId<>$stepId OR t.Purpose<>'Primary'))";
 
     internal static void SavePrimaryTarget(long guideId, string stepId, string runtime,
         IReadOnlyList<TargetLocator> locators, IReadOnlyList<TargetLocator> frames,
-        string? displayName, string condition, bool replacing)
+        string? displayName, string condition, bool replacing,
+        IReadOnlyList<(TargetLocator Locator, string Relation)>? anchors = null)
     {
         if (runtime is not ("Web" or "Windows") || locators.Count is < 1 or > 12 ||
             locators.Any(l => string.IsNullOrWhiteSpace(l.Value) || l.Value.Length > 400 ||
@@ -776,6 +777,12 @@ AND (t.StepId<>$stepId OR t.Purpose<>'Primary'))";
             frames.Count > 12 || frames.Any(l => runtime != "Web" || l.Strategy != "css" ||
                 string.IsNullOrWhiteSpace(l.Value) || l.Value.Length > 400 || l.Value.Contains((char)0)))
             throw new ArgumentException("מזהי הרכיב אינם תקינים.");
+        if (anchors is { Count: > 0 } &&
+            (runtime != "Windows" || anchors.Count > 12 ||
+             anchors.Any(a => a.Relation is not ("Sibling" or "Ancestor") ||
+                 a.Locator.Strategy is not ("name" or "automation-id") ||
+                 string.IsNullOrWhiteSpace(a.Locator.Value) || a.Locator.Value.Length > 400)))
+            throw new ArgumentException("עוגני הרכיב אינם תקינים.");
         if (!replacing && condition is not ("" or "clicked" or "target-disappeared" or "value-not-empty"))
             throw new ArgumentException("תנאי ההתקדמות אינו נתמך.");
         using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
@@ -863,6 +870,32 @@ VALUES ($guideId, $stepId, 'PrimaryValidation', 'primary', $condition, 'primary'
             command.CommandText = @"UPDATE Steps SET BubblePlacement='Auto'
 WHERE GuideId=$guideId AND StepId=$stepId AND BubblePlacement='Center'";
             command.ExecuteNonQuery();
+        }
+        if (anchors is not null)
+        {
+            for (var index = 0; index < anchors.Count; index++)
+            {
+                var anchor = anchors[index];
+                var anchorId = "element-" + Guid.NewGuid().ToString("N");
+                using var insert = connection.CreateCommand();
+                insert.Transaction = transaction;
+                insert.CommandTimeout = 3;
+                insert.CommandText = @"INSERT INTO Elements
+(GuideId,ElementId,Runtime,LocatorsJson,FrameContextJson,DisplayName)
+VALUES ($guideId,$anchorId,$runtime,$locators,NULL,NULL)";
+                insert.Parameters.AddWithValue("$guideId", guideId);
+                insert.Parameters.AddWithValue("$anchorId", anchorId);
+                insert.Parameters.AddWithValue("$runtime", runtime);
+                insert.Parameters.AddWithValue("$locators", JsonSerializer.Serialize(new[] { anchor.Locator }));
+                insert.ExecuteNonQuery();
+                insert.CommandText = @"INSERT INTO ElementAnchors
+(GuideId,ElementId,AnchorElementId,Relation,AnchorOrder)
+VALUES ($guideId,$elementId,$anchorId,$relation,$order)";
+                insert.Parameters.AddWithValue("$elementId", elementId);
+                insert.Parameters.AddWithValue("$relation", anchor.Relation);
+                insert.Parameters.AddWithValue("$order", index);
+                insert.ExecuteNonQuery();
+            }
         }
         transaction.Commit();
     }
