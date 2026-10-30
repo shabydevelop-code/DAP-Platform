@@ -148,6 +148,7 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/primary-target",
     IReadOnlyList<V5GuideWriter.TargetLocator> locators;
     IReadOnlyList<V5GuideWriter.TargetLocator> frames;
     string? displayName;
+    IReadOnlyList<(V5GuideWriter.TargetLocator Locator, string Relation)>? anchors = null;
     if (runtime == "Web")
     {
         var target = capture.GetApprovedTarget(id, contextId, request.GridChoice);
@@ -207,13 +208,15 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/primary-target",
             .Select(l => new V5GuideWriter.TargetLocator(l.Strategy, l.Value)).ToArray();
         frames = Array.Empty<V5GuideWriter.TargetLocator>();
         displayName = picked.Name;
+        anchors = picked.Anchors?.Select(a =>
+            (new V5GuideWriter.TargetLocator(a.Strategy, a.Value), a.Relation)).ToArray();
     }
     else return Results.BadRequest(new { message = "סביבת יעד לא נתמכת." });
 
     try
     {
         V5GuideWriter.SavePrimaryTarget(id, stepId, runtime, locators, frames,
-            displayName, request.Condition, request.Replacing);
+            displayName, request.Condition, request.Replacing, anchors);
     }
     catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
     {
