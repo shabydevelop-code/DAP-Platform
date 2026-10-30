@@ -128,7 +128,7 @@ async function openGuide(id) {
   const g = current.guide;
   $('list-view').classList.add('hidden'); $('detail-view').classList.remove('hidden');
   $('new-guide').classList.add('hidden');
-  $('detail-name').textContent = g.name; $('detail-description').textContent = 'לומדה #' + g.id + ' · ' + current.steps.length + ' שלבים';
+  $('detail-name').textContent = g.name;
   $('steps-count').textContent = current.steps.length;
   selectTab('steps'); renderSteps(); renderContexts(); clearNotice();
   $('detail-name').focus();
