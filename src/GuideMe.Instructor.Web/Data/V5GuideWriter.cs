@@ -748,7 +748,7 @@ WHERE GuideId=$guideId AND VariableId=$variableId";
             // previously captured locator; no other CSS structure may change.
             var appendedTextFilter = !original.Value.Contains(":exact-text(", StringComparison.Ordinal) &&
                 !original.Value.Contains(":cell-text(", StringComparison.Ordinal) &&
-                string.Equals(updatedShape, originalShape + ":exact-text(\\\"\\\")", StringComparison.Ordinal);
+                string.Equals(updatedShape, originalShape + ":exact-text(\"\")", StringComparison.Ordinal);
             if (!string.Equals(originalShape, updatedShape, StringComparison.Ordinal) && !appendedTextFilter)
                 throw new ArgumentException("ניתן לערוך את ערך התוכן בלבד, לא את מבנה מזהה הרכיב.");
         }
