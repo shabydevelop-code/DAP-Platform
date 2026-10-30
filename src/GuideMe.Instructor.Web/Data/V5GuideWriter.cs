@@ -1036,6 +1036,23 @@ WHERE GuideId=$guideId AND StepId=$stepId AND RuleType='PrimaryValidation'";
         transaction.Commit();
     }
 
+    internal static void RemovePrimaryValidation(long guideId, string stepId)
+    {
+        using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = V5GuideReader.DatabasePath, Mode = SqliteOpenMode.ReadWrite,
+            Pooling = false, DefaultTimeout = 3
+        }.ToString());
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandTimeout = 3;
+        command.CommandText = @"DELETE FROM StepRules
+WHERE GuideId=$guideId AND StepId=$stepId AND RuleType='PrimaryValidation'";
+        command.Parameters.AddWithValue("$guideId", guideId);
+        command.Parameters.AddWithValue("$stepId", stepId);
+        command.ExecuteNonQuery();
+    }
+
     // Edit only fields already represented by the V5 Steps entity.
     // Never recreate a step or overwrite its targets, rules or captures.
     internal static void UpdateStep(long guideId, string stepId, string? bubble, bool enabled, string? contextId)
