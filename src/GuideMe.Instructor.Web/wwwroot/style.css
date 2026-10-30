@@ -348,4 +348,5 @@ body .brand-heading strong span { font-size: 26px; }
 .btn.btn-add:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}
 
 /* Application section uses the same unruled heading treatment as variables. */
-#contexts-panel > .panel-header{border-bottom:0}
+#contexts-panel > .panel-header{border-bottom:0;padding-bottom:10px}
+#contexts-panel > .context-cards{padding-top:10px}
