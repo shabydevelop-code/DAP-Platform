@@ -744,8 +744,13 @@ WHERE GuideId=$guideId AND VariableId=$variableId";
             const string quoted = "\\\"(?:[^\\\"\\\\]|\\\\.)*\\\"|'(?:[^'\\\\]|\\\\.)*'";
             var originalShape = System.Text.RegularExpressions.Regex.Replace(original.Value, quoted, "\"\"");
             var updatedShape = System.Text.RegularExpressions.Regex.Replace(locatorValue, quoted, "\"\"");
-            if (!string.Equals(originalShape, updatedShape, StringComparison.Ordinal))
-                throw new ArgumentException("ניתן לשלב משתנים בערכים בתוך מזהה CSS, לא במבנה המזהה.");
+            // Adding one supported semantic text filter is allowed for a
+            // previously captured locator; no other CSS structure may change.
+            var appendedTextFilter = !original.Value.Contains(":exact-text(", StringComparison.Ordinal) &&
+                !original.Value.Contains(":cell-text(", StringComparison.Ordinal) &&
+                string.Equals(updatedShape, originalShape + ":exact-text(\\\"\\\")", StringComparison.Ordinal);
+            if (!string.Equals(originalShape, updatedShape, StringComparison.Ordinal) && !appendedTextFilter)
+                throw new ArgumentException("ניתן לערוך את ערך התוכן בלבד, לא את מבנה מזהה הרכיב.");
         }
         locators[0] = original with { Value = locatorValue };
         command.Parameters.AddWithValue("$elementId", elementId);
