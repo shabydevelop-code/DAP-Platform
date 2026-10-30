@@ -729,10 +729,10 @@ async function refreshPicker() {
       '</select><p>בחירה לפי ערך תישאר תקפה גם לאחר מיון הטבלה. אם הערך אינו ייחודי, הוא לא יוצע.</p>' : '')+
     (pickingFor.completion ? '<label for="target-condition">חוק השלמה</label>' +
       '<select id="target-condition">' +
-      (requestSession.runtime === 'Windows' ? '' : '<option value="target-appeared">הופיע</option>') +
+      '<option value="target-appeared">הופיע</option>' +
       (requestSession.runtime === 'Windows' ? '' : '<option value="target-appeared-variable">מכיל ערך של משתנה</option>') +
       '<option value="value-contains">השדה מכיל ערך מסוים</option>' +
-      (requestSession.runtime === 'Windows' ? '' : '<option value="target-vanished">נעלם</option>') + '</select>' : '')+
+      '<option value="target-vanished">נעלם</option>' + '</select>' : '')+
     (pickingFor.completion ? '<div id="completion-variable-fields" class="hidden">' +
       '<label for="completion-variable-choice">משתנה להשוואה</label>' +
       '<select id="completion-variable-choice">' +
