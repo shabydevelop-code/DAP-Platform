@@ -301,7 +301,9 @@ function renderSteps() {
     const targetType = targetKind ? 'כותרת (H' + targetKind[1] + ')' :
       /(?:^|[ >+~])button(?=[:.#\\[ >+~]|$)/i.test(locatorText) ? 'כפתור' :
       /(?:^|[ >+~])input(?=[:.#\\[ >+~]|$)/i.test(locatorText) ? 'שדה קלט' :
-      /(?:^|[ >+~])a(?=[:.#\\[ >+~]|$)/i.test(locatorText) ? 'קישור' : 'רכיב';
+      /(?:^|[ >+~])a(?=[:.#\\[ >+~]|$)/i.test(locatorText) ? 'קישור' :
+      /(?:^|[ >+~])(?:td|th)(?=[:.#\\[ >+~]|$)/i.test(locatorText) ? 'תא בטבלה' :
+      targetValue ? 'רכיב טקסט' : 'רכיב במסך';
     selectedTargetPreviewValue = targetValue || null;
     selectedValidationExpectedValue = rule?.ExpectedValue || null;
     selectedCompletionDescription = completionRule?.Kind === 'value-contains'
@@ -824,12 +826,22 @@ async function refreshPicker() {
   const kindLabel = candidate.tag === 'textarea' ? 'שדה טקסט רב־שורות' :
     candidate.tag === 'input' ? 'שדה קלט' : candidate.tag === 'select' ? 'רשימת בחירה' :
     candidate.tag === 'button' ? 'כפתור' : candidate.tag === 'a' ? 'קישור' : 'רכיב במסך';
-  const contentMatch = requestSession.runtime === 'Web' &&
-    !['input','textarea','select'].includes((candidate.tag || '').toLowerCase()) &&
-    [...(candidate.selector || '').matchAll(/:cell-text\\(\\s*\\d+\\s*,\\s*("(?:[^"\\\\]|\\\\.)*")\\s*\\)/g)];
-  const editableContent = Array.isArray(contentMatch) && contentMatch.length === 1
+  // Prefer the unique text value corresponding to the captured element.
+  // The transport still constructs the locator; the editor changes only its value.
+  const capturedText = String(candidate.label || '').trim();
+  const matchingChoices = requestSession.runtime === 'Web' &&
+    !['input','textarea','select'].includes((candidate.tag || '').toLowerCase())
+    ? (candidate.gridChoices || []).map((choice, index) => ({choice,index}))
+        .filter(({choice}) => capturedText && String(choice.value || '').trim() === capturedText)
+    : [];
+  const capturedChoice = matchingChoices.length === 1 ? matchingChoices[0] : null;
+  const contentMatch = requestSession.runtime === 'Web'
+    ? [...(candidate.selector || '').matchAll(/:cell-text\\(\\s*\\d+\\s*,\\s*("(?:[^"\\\\]|\\\\.)*")\\s*\\)/g)]
+    : [];
+  const selectorText = contentMatch.length === 1
     ? (() => { try { return JSON.parse(contentMatch[0][1]); } catch { return null; } })()
     : null;
+  const editableContent = capturedChoice ? String(capturedChoice.choice.value) : selectorText;
   box.innerHTML = '<div class="picked-target-fields" dir="rtl">' +
     '<p><strong>'+esc(candidate.label || candidate.tag || 'רכיב')+'</strong> <span class="picked-target-kind">('+esc(kindLabel)+')</span></p>'+
     (!pickingFor.completion && !pickingFor.variableSource && editableContent !== null ?
@@ -915,7 +927,8 @@ async function refreshPicker() {
     }
     result.textContent = '';
     try {
-      const gridChoiceIndex = null;
+      const gridChoiceIndex = !pickedFor.completion && !pickedFor.variableSource
+        ? capturedChoice?.index ?? null : null;
       const adapter = targetAdapters[pickedFor.runtime];
       if (pickedFor.variableSource) {
         const mode = $('variable-extract-choice')?.value || 'full';
@@ -935,17 +948,11 @@ async function refreshPicker() {
         const contentValue = contentInput ? variableEditorResult(contentInput).trim() : null;
         if (contentInput && (!contentValue || contentValue.length > 400))
           throw new Error('יש להזין תוכן לזיהוי הרכיב (עד 400 תווים).');
-        const locatorValue = contentInput
-          ? (candidate.selector || '').replace(contentMatch[0][1], JSON.stringify(contentValue))
-          : candidate.selector || '';
         await api('/guides/'+pickedFor.guideId+'/steps/'+encodeURIComponent(pickedFor.stepId)+'/primary-target',
           {method:'POST',body:JSON.stringify({
             condition:'',
             replacing:pickedFor.replacing,gridChoice:gridChoiceIndex,
-            processId:pickedFor.processId || null})});
-        if (locatorValue !== (candidate.selector || '').trim())
-          await api('/guides/'+pickedFor.guideId+'/steps/'+encodeURIComponent(pickedFor.stepId)+'/primary-target/variable',
-            {method:'POST',body:JSON.stringify({locatorValue})});
+            contentValue,processId:pickedFor.processId || null})});
       }
       pickerEvent(pickedFor, 'saved');
       result.textContent = 'הרכיב נשמר בהצלחה.';
