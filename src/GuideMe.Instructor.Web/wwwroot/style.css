@@ -332,7 +332,8 @@ body .brand-heading strong span { font-size: 26px; }
 
 /* Target actions: predictable RTL grouping and spacing at narrow widths. */
 .target-action-buttons{display:flex;flex-direction:column;align-items:stretch;gap:12px;margin-top:14px;direction:rtl}
-.target-action-primary{display:flex;align-items:center;justify-content:flex-start;flex-wrap:wrap;gap:10px}
+.target-action-primary{display:flex;align-items:center;justify-content:flex-start;flex-wrap:nowrap;gap:8px;min-width:0}
+.target-action-primary .btn{flex:0 0 auto;white-space:nowrap}
 .target-action-primary .btn{margin:0}
 .target-action-identifier{display:flex;flex-direction:column;align-items:stretch;gap:8px}
 .target-action-identifier p{margin:0;line-height:1.5}
@@ -367,4 +368,17 @@ body .brand-heading strong span { font-size: 26px; }
 @media(max-width:700px){
   #steps-panel .steps-list-pane{border-left:0}
   #steps-panel .steps-list-pane .step-list{flex:none}
+}
+
+/* Give the step editor room for all three target actions on one line.
+   The step list already truncates long titles and exposes their full text on hover. */
+@media (min-width:1251px){
+  #steps-panel .steps-layout{grid-template-columns:minmax(240px,280px) minmax(0,1fr)}
+}
+@media (min-width:701px) and (max-width:1250px){
+  #steps-panel .steps-layout{grid-template-columns:minmax(210px,240px) minmax(0,1fr)}
+  #steps-panel .step-friendly-grid{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:700px){
+  #steps-panel .target-action-primary{overflow-x:auto;max-width:100%;padding-bottom:2px}
 }
