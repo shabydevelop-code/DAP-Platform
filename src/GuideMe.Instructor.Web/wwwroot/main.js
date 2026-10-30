@@ -750,7 +750,10 @@ async function refreshPicker() {
     result.textContent = '';
     try {
       const gridChoice = $('grid-row-choice')?.value;
-      const gridChoiceIndex = gridChoice === undefined || gridChoice === '' ? null : Number(gridChoice);
+      const gridChoiceIndex = gridChoice === undefined || gridChoice === ''
+        ? (!pickedFor.completion && !pickedFor.variableSource && pickedFor.runtime === 'Web'
+          ? candidate.selectedGridChoice ?? null : null)
+        : Number(gridChoice);
       const adapter = targetAdapters[pickedFor.runtime];
       if (pickedFor.variableSource) {
         const mode = $('variable-extract-choice')?.value || 'full';
