@@ -1339,7 +1339,7 @@ function openVariableBindingDialog({kind, step, contextId, locators, displayName
     }
     openVariableTextEditor({
       title:'שילוב משתנים ברכיב במסך',
-      fieldLabel:'ערך הרכיב',
+      fieldLabel:'הערך המשמש לאיתור',
       original:rawValue,
       variables, maxLength:400, saveLabel:'שמירת הרכיב',
       description:'הרכיב שנבחר: ' + (displayName || 'הרכיב שנבחר'),
@@ -1409,6 +1409,7 @@ function openVariableTextEditor({title, original, variables, maxLength, saveLabe
     const detail = document.createElement('p');
     detail.textContent = description;
     detail.className = 'target-field-label';
+    detail.setAttribute('dir', 'rtl');
     textareaField.prepend(detail);
   }
   const textarea = $('field-sourceText');
