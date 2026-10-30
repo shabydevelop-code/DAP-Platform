@@ -146,8 +146,17 @@ async function openGuide(id) {
   $('new-guide').classList.add('hidden');
   $('detail-name').textContent = g.name;
   $('steps-count').textContent = current.steps.length;
-  selectTab('steps'); renderSteps(); renderContexts(); clearNotice();
-  $('detail-name').focus();
+  selectTab('steps');
+  $('step-search').value = '';
+  renderSteps(); renderContexts(); clearNotice();
+  const firstStep = [...(current.steps || [])].sort((a,b) => a.order - b.order)[0];
+  if (firstStep) {
+    const row = [...document.querySelectorAll('#step-list [data-step]')]
+      .find(item => item.dataset.step === firstStep.id);
+    row?.click();
+  } else {
+    $('detail-name').focus();
+  }
 }
 function selectTab(tab) {
   document.querySelectorAll('.tab').forEach(t => {
