@@ -327,7 +327,7 @@ function renderSteps() {
       '<div id="primary-target-summary">' +
       (target ? '<p><strong>' + esc(friendlyName) + '</strong></p>' +
         '<p class="field-help">סוג רכיב: ' + esc(targetType) + '</p>' +
-        (targetValue ? '<p>ערך איתור: <strong>' + friendlyInstructionHtml(targetValue) + '</strong></p>' : '') +
+        (targetValue ? '<p>ערך איתור: <strong class="target-business-value-preview">' + friendlyInstructionHtml(targetValue) + '</strong></p>' : '') +
         '' :
         '<p>עדיין לא נבחר רכיב לשלב הזה.</p>') +
       '</div>' +
@@ -1054,7 +1054,7 @@ function refreshStepVariablePreviews() {
     friendlyInstructionHtml(step.bubble || 'לא הוגדרה הנחיה');
   // Keep the selected target preview in sync with the same variable updates.
   // Its locator template is retained from the step fetch, not rewritten.
-  const targetPreview = document.querySelector('#primary-target-summary strong');
+  const targetPreview = document.querySelector('#primary-target-summary .target-business-value-preview');
   if (targetPreview && selectedTargetPreviewValue != null)
     targetPreview.innerHTML = friendlyInstructionHtml(selectedTargetPreviewValue);
   const completionPreview = document.querySelector('.completion-description-preview');
