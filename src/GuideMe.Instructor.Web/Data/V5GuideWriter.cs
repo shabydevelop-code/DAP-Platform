@@ -902,9 +902,10 @@ SELECT DISTINCT ElementId FROM StepTargets WHERE GuideId=$guideId AND StepId=$st
 WHERE type='table' AND name='StepVariableActions'";
         if (Convert.ToInt64(command.ExecuteScalar()) > 0)
         {
-            // Keep independent variable actions, but remove reads bound to removed targets.
+            // Every variable action reads a target; removing the primary target
+            // clears step captures so none retain a detached source.
             command.CommandText = @"DELETE FROM StepVariableActions
-WHERE GuideId=$guideId AND StepId=$stepId AND TargetUsageId IS NOT NULL";
+WHERE GuideId=$guideId AND StepId=$stepId";
             command.ExecuteNonQuery();
         }
         command.CommandText = @"DELETE FROM StepRules WHERE GuideId=$guideId AND StepId=$stepId";
