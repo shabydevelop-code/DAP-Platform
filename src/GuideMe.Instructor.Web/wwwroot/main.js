@@ -599,7 +599,13 @@ const targetAdapters = {
     selected(state) {
       return {selector:state.selection?.locators?.[0]?.value || '',
         label:state.selection?.name || state.selection?.controlType,
-        tag:state.selection?.controlType === 'ControlType.Edit' ? 'input' : 'button'};
+        tag:({
+          'ControlType.Edit':'input',
+          'ControlType.Document':'textarea',
+          'ControlType.ComboBox':'select',
+          'ControlType.Button':'button',
+          'ControlType.Hyperlink':'a'
+        })[state.selection?.controlType] || 'div'};
     },
     async saveCompletion(session) {
       return api('/guides/'+session.guideId+'/steps/'+encodeURIComponent(session.stepId)+'/completion-target',
