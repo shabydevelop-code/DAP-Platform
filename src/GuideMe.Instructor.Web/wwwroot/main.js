@@ -293,7 +293,6 @@ function renderSteps() {
       /(?:^|[ >+~])button(?=[:.#\\[ >+~]|$)/i.test(locatorText) ? 'כפתור' :
       /(?:^|[ >+~])input(?=[:.#\\[ >+~]|$)/i.test(locatorText) ? 'שדה קלט' :
       /(?:^|[ >+~])a(?=[:.#\\[ >+~]|$)/i.test(locatorText) ? 'קישור' : 'רכיב';
-    const targetHasEditableValue = !!targetValue;
     selectedTargetPreviewValue = targetValue || null;
     selectedValidationExpectedValue = rule?.ExpectedValue || null;
     selectedCompletionDescription = completionRule?.Kind === 'value-contains'
@@ -325,7 +324,7 @@ function renderSteps() {
         (target ? '<div class="target-action-buttons">' +
           '<div class="target-action-primary">' +
           '<button class="btn secondary small" id="replace-web-target">בחירת רכיב אחר</button>' +
-           (targetHasEditableValue ? '<button class="btn secondary small" id="bind-target-variable">עריכה</button>' : '') +
+           '<button class="btn secondary small" id="bind-target-variable">עריכה</button>' +
           '<button class="btn danger small" id="remove-primary-target">הסרת רכיב</button>' +
           '</div>' +
 
@@ -1389,13 +1388,15 @@ function openVariableBindingDialog({kind, step, locators}) {
   let buildTemplate;
   if (locator.Strategy === 'css') {
     const matches = [...original.matchAll(/:cell-text\(\s*\d+\s*,\s*("(?:[^"\\]|\\.)*")\s*\)/g)];
-    if (matches.length !== 1 || !rawValue) {
-      notify('לרכיב זה אין ערך עסקי שניתן לערוך.', false, 'info'); return;
+    if (matches.length === 1 && rawValue) {
+      const match = matches[0], quoted = match[1];
+      const start = match.index + match[0].indexOf(quoted);
+      buildTemplate = value => original.slice(0,start) + JSON.stringify(value) +
+        original.slice(start + quoted.length);
+    } else {
+      rawValue = original;
+      buildTemplate = value => value;
     }
-    const match = matches[0], quoted = match[1];
-    const start = match.index + match[0].indexOf(quoted);
-    buildTemplate = value => original.slice(0,start) + JSON.stringify(value) +
-      original.slice(start + quoted.length);
   } else {
     rawValue = original;
     buildTemplate = value => value;
@@ -1409,7 +1410,7 @@ function openVariableBindingDialog({kind, step, locators}) {
   const edit = document.createElement('div');
   edit.className = 'field';
   const label = document.createElement('label');
-  label.textContent = 'ערך לאיתור הרכיב';
+  label.textContent = rawValue === original ? 'מזהה הרכיב' : 'ערך לאיתור הרכיב';
   const input = document.createElement('textarea');
   input.rows = 1; input.maxLength = 400; input.dir = 'rtl';
   input.value = String(rawValue).replace(/\{\{var:([^}]+)\}\}/g, (_,id) => {
@@ -1448,7 +1449,13 @@ function openVariableBindingDialog({kind, step, locators}) {
     try {
       const value=variableEditorResult(input);
       const template=buildTemplate(value);
-      if(template.length>400)throw new Error('מזהה הרכיב ארוך מדי.');
+      if (!template.trim()) throw new Error('יש להזין מזהה רכיב.');
+      if (template.length>400) throw new Error('מזהה הרכיב ארוך מדי.');
+      if (locator.Strategy === 'css' && rawValue === original &&
+          !template.includes('{{var:')) {
+        try { document.querySelector(template); }
+        catch { throw new Error('מזהה CSS אינו תקין.'); }
+      }
       save.disabled=true;cancel.disabled=true;
       await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+'/primary-target/variable',{
         method:'POST',body:JSON.stringify({locatorValue:template})
