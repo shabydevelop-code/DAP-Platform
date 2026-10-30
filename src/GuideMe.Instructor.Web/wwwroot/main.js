@@ -630,7 +630,11 @@ async function beginTargetPicker(runtime, guideId, stepId, contextId, replacing=
   syncPickerButtons();
   const session = {runtime,guideId,stepId,contextId,replacing,completion,context,variableSource,startedAt:Date.now()};
   const box = pickerResultBox(session);
-  if (!box) throw new Error('אזור אישור הרכיב חסר בממשק.');
+  if (!box) {
+    pickerStarting = false;
+    syncPickerButtons();
+    throw new Error('אזור אישור הרכיב חסר בממשק.');
+  }
   box.dataset.pickedSelector = '';
   box.classList.remove('hidden');
   box.textContent = 'מפעיל ממפה רכיבים…';
@@ -643,6 +647,7 @@ async function beginTargetPicker(runtime, guideId, stepId, contextId, replacing=
       notify('Windows לא אישר העברת פוקוס אוטומטית. הממפה פעיל; עבור לחלון האפליקציה כדי לבחור רכיב.', true);
   } catch (error) {
     pickerStarting = false;
+    try { await adapter.cancel(); } catch { /* Preserve original failure. */ }
     pickerEvent(session, 'failed', error.message || String(error));
     throw error;
   }
@@ -664,6 +669,7 @@ async function refreshPicker() {
   if (!box) return;
   if (!state.picked) {
     if (state.error || state.pickerError) {
+      await adapter.cancel();
       pickerEvent(requestSession, 'failed', 'לא ניתן להפעיל את ממפה הרכיבים: ' + (state.error || state.pickerError));
       return;
     }
@@ -829,7 +835,12 @@ async function refreshPicker() {
     box.textContent = 'הבחירה בוטלה.';
   });
 }
-setInterval(() => { if (pickingFor) void guarded(refreshPicker); }, 1500);
+let pickerPolling = false;
+setInterval(() => {
+  if (!pickingFor || pickerPolling) return;
+  pickerPolling = true;
+  void guarded(refreshPicker).finally(() => { pickerPolling = false; });
+}, 1500);
 function appLabel(c) { if(c.DisplayName) return c.DisplayName; try { const m=JSON.parse(c.MatchersJson || '[]')[0]; return m?.Value ? c.Runtime + ' · ' + m.Value : c.ContextId; } catch { return c.ContextId; } }
 function matcher(c) { try { return JSON.parse(c.MatchersJson || '[]').map(m=>m.Kind+': '+m.Value).join(', '); }catch{return '—';} }
 function renderContexts() {
