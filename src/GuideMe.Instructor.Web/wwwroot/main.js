@@ -333,7 +333,7 @@ function renderSteps() {
         (target ? '<div class="target-action-buttons">' +
           '<div class="target-action-primary">' +
           '<button class="btn secondary small" id="replace-web-target">בחירת רכיב אחר</button>' +
-           '<button class="btn secondary small" id="bind-target-variable">עריכה</button>' +
+           (targetValue ? '<button class="btn secondary small" id="bind-target-variable">עריכה</button>' : '') +
           '<button class="btn danger small" id="remove-primary-target">הסרת רכיב</button>' +
           '</div>' +
 
