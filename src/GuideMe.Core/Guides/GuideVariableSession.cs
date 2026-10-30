@@ -69,27 +69,11 @@ public sealed class GuideVariableSession
     public void Execute(GuideVariableAction action, string? observedValue = null)
     {
         ArgumentNullException.ThrowIfNull(action);
-        switch (action.Kind)
-        {
-            case GuideVariableActionKind.SetValue:
-                Set(action.VariableId, action.Value ??
-                    throw new InvalidOperationException("SetValue requires a value."));
-                break;
-            case GuideVariableActionKind.Clear:
-                Set(action.VariableId, null);
-                break;
-            case GuideVariableActionKind.CopyFromVariable:
-                Set(action.VariableId, Read(action.SourceVariableId ??
-                    throw new InvalidOperationException("CopyFromVariable requires a source.")));
-                break;
-            case GuideVariableActionKind.ReadFromTarget:
-                Set(action.VariableId, observedValue ??
-                    throw new InvalidOperationException(
-                        $"Target value for '{action.VariableId}' was not observed."));
-                break;
-            default:
-                throw new ArgumentOutOfRangeException(nameof(action.Kind));
-        }
+        if (action.Kind != GuideVariableActionKind.ReadFromTarget)
+            throw new ArgumentOutOfRangeException(nameof(action.Kind));
+        Set(action.VariableId, observedValue ??
+            throw new InvalidOperationException(
+                $"Target value for '{action.VariableId}' was not observed."));
         Trace("variable-action",
             $"id={Quoted(action.Id)} kind={action.Kind} variable={Quoted(action.VariableId)} value={Quoted(Read(action.VariableId))}");
     }
