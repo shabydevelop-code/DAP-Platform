@@ -478,7 +478,7 @@ function renderSteps() {
       beginTargetPicker(context.Runtime, current.guide.id, step.id, contextId, replacing, completion, context);
     const bindTarget = $('bind-target-variable');
     if (bindTarget) bindTarget.onclick = () => editPrimaryTargetValue({
-      kind:'target', step, contextId, locators, displayName:friendlyName
+      kind:'target', step, locators
     });
     const targetReplace = $('replace-web-target');
     if (targetReplace) targetReplace.onclick = () => guarded(() => startElementPicker(true));
@@ -1407,7 +1407,7 @@ function friendlyInstructionHtml(value) {
 // The inspector and editor share one value extraction rule; the CSS selector
 // remains a private implementation detail.
 // Only a semantic text value may be edited; never expose or modify the CSS structure.
-function locatorTextBinding(locator, displayName = '') {
+function locatorTextBinding(locator) {
   if (!locator?.Value) return null;
   const original = locator.Value;
   // A name locator is an identifier, not an editable text value.
@@ -1435,7 +1435,7 @@ function locatorTextBinding(locator, displayName = '') {
   // A display label alone does not prove that the locator uses text for identification.
   return null;
 }
-function editPrimaryTargetValue({kind, step, locators, displayName}) {
+function editPrimaryTargetValue({kind, step, locators}) {
   if (!current || kind !== 'target') return;
   const locator = (locators || [])[0];
   if (!locator?.Value) {
