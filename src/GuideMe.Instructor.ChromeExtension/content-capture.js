@@ -299,6 +299,7 @@
     const row = target.closest('tr');
     const table = row?.closest('table');
     const gridChoices = [];
+    let selectedGridChoice = null;
     if (row && table && row.closest('tbody') && row.cells.length) {
       const tableSelector = selectorFor(table);
       if (tableSelector) {
@@ -312,7 +313,10 @@
           if (matches.length !== 1 || matches[0] !== row) return;
           const header = headers[index]?.textContent.replace(/\s+/g, ' ').trim().slice(0, 60) || 'עמודה ' + (index + 1);
           const rowSelector = tableSelector + ' tbody tr:cell-text(' + (index + 1) + ',' + JSON.stringify(value) + ')';
-          if (rowSelector.length <= 400) gridChoices.push({header, value, selector:rowSelector});
+          if (rowSelector.length <= 400) {
+            if (target.closest('td,th') === cell) selectedGridChoice = gridChoices.length;
+            gridChoices.push({header, value, selector:rowSelector});
+          }
         });
       }
     }
@@ -337,6 +341,7 @@
     const candidate = {
       stateAttributes,
       gridChoices,
+      selectedGridChoice,
       // Display-only snapshot for Instructor variable extraction preview.
       // Values are not persisted: only the chosen extraction rule is stored.
       variableSamples: (() => {
@@ -398,6 +403,13 @@
         }
         for (const attribute of ['aria-label', 'title', 'placeholder']) {
           const text = clean(target.getAttribute(attribute));
+          if (text) return text;
+        }
+        // In result grids, the selected cell's own text is the label; never borrow
+        // the preceding column (often the numeric record ID).
+        const selectedCell = target.closest('tbody td,tbody th');
+        if (selectedCell) {
+          const text = clean(target.innerText || target.textContent || selectedCell.innerText || selectedCell.textContent);
           if (text) return text;
         }
         // PeopleSoft and other legacy forms often use adjacent table cells as labels.
