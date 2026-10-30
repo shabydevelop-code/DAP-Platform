@@ -182,8 +182,20 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/primary-target",
     }
     else return Results.BadRequest(new { message = "סביבת יעד לא נתמכת." });
 
-    V5GuideWriter.SavePrimaryTarget(id, stepId, runtime, locators, frames,
-        displayName, request.Condition, request.Replacing);
+    try
+    {
+        V5GuideWriter.SavePrimaryTarget(id, stepId, runtime, locators, frames,
+            displayName, request.Condition, request.Replacing);
+    }
+    catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+    {
+        return Results.BadRequest(new { message = ex.Message });
+    }
+    catch (Microsoft.Data.Sqlite.SqliteException ex)
+    {
+        app.Logger.LogError(ex, "Primary target persistence failed for guide {GuideId}, step {StepId}, runtime {Runtime}", id, stepId, runtime);
+        return Results.Problem("שמירת הרכיב נכשלה במסד הנתונים. יש לבדוק את יומן השרת.", statusCode: 500);
+    }
     if (runtime == "Web") capture.CancelPicking();
     else windowsPicker.Stop();
     return Results.NoContent();
