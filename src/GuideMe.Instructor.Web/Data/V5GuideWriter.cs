@@ -687,12 +687,12 @@ WHERE GuideId=$guideId AND StepOrder<0";
     // Runtime-neutral primary target writer. Locator discovery belongs to the
     // runtime adapter; V5 persistence and transaction semantics are shared.
     internal sealed record TargetLocator(string Strategy, string Value);
-    internal static void BindPrimaryTargetVariable(long guideId, string stepId,
-        string sourceText, string variableId)
+    internal static void SavePrimaryTargetLocatorTemplate(long guideId, string stepId,
+        string locatorValue)
     {
-        if (string.IsNullOrWhiteSpace(sourceText) || sourceText.Length > 400 ||
-            string.IsNullOrWhiteSpace(variableId))
-            throw new ArgumentException("יש לבחור טקסט מזהה ומשתנה תקינים.");
+        if (string.IsNullOrWhiteSpace(locatorValue) || locatorValue.Length > 400 ||
+            locatorValue.Contains((char)0))
+            throw new ArgumentException("מזהה הרכיב אינו תקין.");
         using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
         {
             DataSource = V5GuideReader.DatabasePath, Mode = SqliteOpenMode.ReadWrite,
@@ -705,11 +705,6 @@ WHERE GuideId=$guideId AND StepOrder<0";
         command.CommandTimeout = 3;
         command.Parameters.AddWithValue("$guideId", guideId);
         command.Parameters.AddWithValue("$stepId", stepId);
-        command.Parameters.AddWithValue("$variableId", variableId);
-        command.CommandText = @"SELECT COUNT(*) FROM GuideVariables
-WHERE GuideId=$guideId AND VariableId=$variableId";
-        if (Convert.ToInt64(command.ExecuteScalar()) != 1)
-            throw new ArgumentException("המשתנה שנבחר אינו קיים בלומדה.");
         command.CommandText = @"SELECT e.ElementId, e.LocatorsJson FROM Elements e
 JOIN StepTargets t ON t.GuideId=e.GuideId AND t.ElementId=e.ElementId
 WHERE t.GuideId=$guideId AND t.StepId=$stepId AND t.Purpose='Primary'";
@@ -722,12 +717,31 @@ WHERE t.GuideId=$guideId AND t.StepId=$stepId AND t.Purpose='Primary'";
         }
         var locators = JsonSerializer.Deserialize<List<TargetLocator>>(json)
             ?? throw new InvalidOperationException("מזהי הרכיב אינם תקינים.");
-        var index = locators.FindIndex(l => l.Value.Contains(sourceText, StringComparison.Ordinal));
-        if (index < 0) throw new ArgumentException("הטקסט שנבחר אינו מופיע במזהה הרכיב.");
-        var original = locators[index];
-        var updated = original.Value.Replace(sourceText, "{{var:" + variableId + "}}", StringComparison.Ordinal);
-        if (updated.Length > 400) throw new ArgumentException("מזהה הרכיב ארוך מדי.");
-        locators[index] = original with { Value = updated };
+        if (locators.Count == 0) throw new InvalidOperationException("לא נמצא מזהה רכיב.");
+        var original = locators[0];
+        // The editor changes only the first locator. Existing frame, anchors,
+        // validation rules and other locators remain untouched.
+        var matches = System.Text.RegularExpressions.Regex.Matches(
+            locatorValue, @"\{\{var:(?<id>[^{}:]+)\}\}");
+        var withoutTokens = System.Text.RegularExpressions.Regex.Replace(
+            locatorValue, @"\{\{var:[^{}:]+\}\}", "");
+        if (withoutTokens.Contains("{{", StringComparison.Ordinal) ||
+            withoutTokens.Contains("}}", StringComparison.Ordinal))
+            throw new ArgumentException("נמצא סימון משתנה לא תקין.");
+        foreach (System.Text.RegularExpressions.Match match in matches)
+        {
+            command.Parameters.AddWithValue("$variableId", match.Groups["id"].Value);
+            command.CommandText = @"SELECT COUNT(*) FROM GuideVariables
+WHERE GuideId=$guideId AND VariableId=$variableId";
+            if (Convert.ToInt64(command.ExecuteScalar()) != 1)
+                throw new ArgumentException("משתנה במזהה אינו קיים בלומדה.");
+            command.Parameters.RemoveAt("$variableId");
+        }
+        if (original.Strategy == "css" &&
+            (locatorValue.TrimStart().StartsWith("{{var:", StringComparison.Ordinal) ||
+             locatorValue.Contains("{{var:", StringComparison.Ordinal) && matches.Count == 0))
+            throw new ArgumentException("אין להחליף את מבנה מזהה CSS במשתנה.");
+        locators[0] = original with { Value = locatorValue };
         command.Parameters.AddWithValue("$elementId", elementId);
         command.Parameters.AddWithValue("$locators", JsonSerializer.Serialize(locators));
         command.CommandText = @"UPDATE Elements SET LocatorsJson=$locators
