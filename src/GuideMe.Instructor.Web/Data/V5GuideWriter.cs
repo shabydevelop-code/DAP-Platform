@@ -737,10 +737,16 @@ WHERE GuideId=$guideId AND VariableId=$variableId";
                 throw new ArgumentException("משתנה במזהה אינו קיים בלומדה.");
             command.Parameters.RemoveAt("$variableId");
         }
-        if (original.Strategy == "css" &&
-            (locatorValue.TrimStart().StartsWith("{{var:", StringComparison.Ordinal) ||
-             locatorValue.Contains("{{var:", StringComparison.Ordinal) && matches.Count == 0))
-            throw new ArgumentException("אין להחליף את מבנה מזהה CSS במשתנה.");
+        if (original.Strategy == "css")
+        {
+            // Variables may change quoted CSS values (including :cell-text),
+            // never the selector's structural syntax.
+            const string quoted = "\\\"(?:[^\\\"\\\\]|\\\\.)*\\\"|'(?:[^'\\\\]|\\\\.)*'";
+            var originalShape = System.Text.RegularExpressions.Regex.Replace(original.Value, quoted, "\"\"");
+            var updatedShape = System.Text.RegularExpressions.Regex.Replace(locatorValue, quoted, "\"\"");
+            if (!string.Equals(originalShape, updatedShape, StringComparison.Ordinal))
+                throw new ArgumentException("ניתן לשלב משתנים בערכים בתוך מזהה CSS, לא במבנה המזהה.");
+        }
         locators[0] = original with { Value = locatorValue };
         command.Parameters.AddWithValue("$elementId", elementId);
         command.Parameters.AddWithValue("$locators", JsonSerializer.Serialize(locators));
