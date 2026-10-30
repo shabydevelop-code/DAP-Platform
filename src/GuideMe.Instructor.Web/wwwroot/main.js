@@ -845,18 +845,14 @@ async function refreshPicker() {
   box.innerHTML = '<div class="picked-target-fields" dir="rtl">' +
     '<p><strong>'+esc(candidate.label || candidate.tag || 'רכיב')+'</strong> <span class="picked-target-kind">('+esc(kindLabel)+')</span></p>'+
     (!pickingFor.completion && !pickingFor.variableSource && editableContent !== null ?
-      '<div class="field"><label for="picked-content-value">זיהוי לפי תוכן</label>' +
-      '<textarea id="picked-content-value" rows="1" maxlength="400" dir="rtl"></textarea>' +
-      '<div id="picked-content-variables"></div></div>' : '') +
+      variableValueFieldMarkup('picked-content-value', 'זיהוי לפי תוכן') : '') +
     (pickingFor.completion ? '<label for="target-condition">חוק השלמה</label>' +
       '<select id="target-condition">' +
       '<option value="target-appeared">הופיע</option>' +
       '<option value="value-contains">השדה מכיל ערך מסוים</option>' +
       '<option value="target-vanished">נעלם</option>' + '</select>' : '')+
     (pickingFor.completion ? '<div id="completion-fixed-value-fields" class="hidden">' +
-      '<label for="completion-fixed-value">ערך צפוי</label>' +
-      '<input id="completion-fixed-value" maxlength="500" autocomplete="off" />' +
-      '<div id="completion-insert-controls"></div>' +
+      variableValueFieldMarkup('completion-fixed-value', 'ערך צפוי', 500) +
       '</div>' : '') +
     (pickingFor.variableSource ? variableExtractionEditor(candidate, requestSession.runtime) : '') +
     '</div>' +
@@ -867,7 +863,7 @@ async function refreshPicker() {
   if (!pickingFor.completion && !pickingFor.variableSource) {
     const input = $('picked-content-value');
     if (input) {
-      initializeVariableField(input, $('picked-content-variables'), editableContent);
+      initializeVariableField(input, $('picked-content-value-variables'), editableContent);
     }
   }
   if (pickingFor.variableSource) {
@@ -905,7 +901,7 @@ async function refreshPicker() {
     };
     condition.addEventListener('change', updateFields);
     updateFields();
-    initializeVariableField($('completion-fixed-value'), $('completion-insert-controls'));
+    initializeVariableField($('completion-fixed-value'), $('completion-fixed-value-variables'));
   }
   const savePickedTarget = async () => {
     const saveButton = $('save-web-target');
@@ -1527,6 +1523,12 @@ function variableEditorResult(input) {
 }
 // Shared authoring field for both target identification and completion conditions.
 // It uses the same variable references and the same serialization on save.
+// The same compact value editor is used by both target selection and completion.
+function variableValueFieldMarkup(id, label, maxLength = 400) {
+  return '<div class="field"><label for="' + esc(id) + '">' + esc(label) + '</label>' +
+    '<textarea id="' + esc(id) + '" rows="1" maxlength="' + maxLength + '" dir="rtl"></textarea>' +
+    '<div id="' + esc(id + '-variables') + '"></div></div>';
+}
 function initializeVariableField(input, controls, template = '') {
   if (!input) return;
   const variables = current?.variables || [];
