@@ -13,10 +13,7 @@ public sealed record GuideVariableDefinition(
 
 public enum GuideVariableActionKind
 {
-    SetValue,
-    ReadFromTarget,
-    Clear,
-    CopyFromVariable
+    ReadFromTarget
 }
 
 /// <summary>
@@ -28,8 +25,6 @@ public sealed record GuideVariableAction(
     string VariableId,
     GuideVariableActionKind Kind,
     int Order,
-    string? Value = null,
-    string? SourceVariableId = null,
     string? TargetUsageId = null,
     string? Property = null,
     string? Pattern = null,
