@@ -104,6 +104,36 @@ public sealed class GuideVariableSession
                 $"Guide variable '{id}' has not been assigned.");
         });
     }
+    // CSS locators can contain JSON-quoted semantic text (e.g. :cell-text or
+    // :exact-text). Resolve variables inside those literals before serializing
+    // them again, so quotes and backslashes in user data cannot break selectors.
+    private static readonly Regex CssQuotedLiteral = new(
+        "\\\"(?:\\\\.|[^\\\"\\\\])*\\\"",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+    private string ResolveLocator(Locator locator)
+    {
+        if (!string.Equals(locator.Strategy, "css", StringComparison.OrdinalIgnoreCase))
+            return Resolve(locator.Value);
+        var selector = CssQuotedLiteral.Replace(locator.Value, match =>
+        {
+            if (!Reference.IsMatch(match.Value)) return match.Value;
+            string literal;
+            try
+            {
+                literal = System.Text.Json.JsonSerializer.Deserialize<string>(match.Value)
+                    ?? throw new InvalidOperationException("Null CSS locator text.");
+            }
+            catch (System.Text.Json.JsonException ex)
+            {
+                throw new InvalidOperationException("Invalid quoted CSS locator template.", ex);
+            }
+            return System.Text.Json.JsonSerializer.Serialize(Resolve(literal));
+        });
+        // Unquoted placeholders retain their existing behavior.
+        return Resolve(selector);
+    }
+
     /// <summary>Resolve variable references in all target locators, including
     /// anchors, iframe paths and additional completion conditions.</summary>
     public GuideStep Materialize(GuideStep step)
@@ -116,15 +146,15 @@ public sealed class GuideVariableSession
                 $"step={Quoted(step.Id)} locator={Quoted(step.Target.Locator.Value)}");
         TargetDescriptor Expand(TargetDescriptor target) => target with
         {
-            Locator = target.Locator with { Value = Resolve(target.Locator.Value) },
+            Locator = target.Locator with { Value = ResolveLocator(target.Locator) },
             Anchors = target.Anchors.Select(anchor => anchor with
             {
-                Locator = anchor.Locator with { Value = Resolve(anchor.Locator.Value) }
+                Locator = anchor.Locator with { Value = ResolveLocator(anchor.Locator) }
             }).ToArray(),
             FrameContext = target.FrameContext is null ? null : target.FrameContext with
             {
                 Path = target.FrameContext.Path.Select(locator =>
-                    locator with { Value = Resolve(locator.Value) }).ToArray()
+                    locator with { Value = ResolveLocator(locator) }).ToArray()
             }
         };
         var expanded = step with
