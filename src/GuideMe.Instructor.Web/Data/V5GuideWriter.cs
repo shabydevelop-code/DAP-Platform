@@ -864,7 +864,7 @@ WHERE GuideId=$guideId AND StepId=$stepId";
         if (runtime == "Windows" && (windowsLocators is null || windowsLocators.Count == 0 ||
             windowsLocators.Any(l => l.Strategy is not ("automation-id" or "name") || string.IsNullOrWhiteSpace(l.Value) || l.Value.Length > 400)))
             throw new ArgumentException("מזהה רכיב Windows אינו תקין.");
-        if (runtime == "Windows" && kind is not "value-contains")
+        if (runtime == "Windows" && kind is not ("value-contains" or "target-appeared" or "target-vanished"))
             throw new ArgumentException("תנאי זה עדיין אינו נתמך עבור Windows.");
         if (kind == "target-appeared-variable")
         {
