@@ -833,9 +833,11 @@ async function refreshPicker() {
       '<div id="completion-insert-controls"></div>' +
       '</div>' : '') +
     (pickingFor.variableSource ? variableExtractionEditor(candidate, requestSession.runtime) : '') +
-    '</div>' + (pickingFor.completion || pickingFor.variableSource
-      ? '<div class="target-actions"><button id="save-web-target" class="btn primary">אישור ושמירת רכיב</button><button id="cancel-web-target" class="btn secondary">ביטול</button></div>'
-      : '<p id="target-save-feedback" role="status">שומר רכיב...</p>');
+    '</div>' +
+    '<div class="target-actions">' +
+    '<button id="save-web-target" class="btn primary small">שמירה</button>' +
+    '<button id="cancel-web-target" class="btn secondary small">ביטול</button>' +
+    '</div>';
   if (pickingFor.variableSource) {
     const extract = $('variable-extract-choice');
     const custom = $('variable-extract-pattern')?.closest('.field');
@@ -935,8 +937,7 @@ async function refreshPicker() {
       if (cancelButton) cancelButton.disabled = false;
     }
   };
-  if ($('save-web-target')) $('save-web-target').onclick = savePickedTarget;
-  else void savePickedTarget();
+  $('save-web-target').onclick = savePickedTarget;
   if ($('cancel-web-target')) $('cancel-web-target').onclick = () => guarded(async () => {
     const cancelled = pickingFor;
     await targetAdapters[cancelled.runtime].cancel();
