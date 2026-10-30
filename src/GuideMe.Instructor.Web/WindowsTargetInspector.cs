@@ -54,23 +54,51 @@ internal static class WindowsTargetInspector
 
         var name = selected.Current.Name ?? "";
         var id = selected.Current.AutomationId ?? "";
-        var candidates = new List<Candidate>();
-        foreach (var (strategy, value, property) in new[]
-        {
-            ("automation-id", id, AutomationElement.AutomationIdProperty),
-            ("name", name, AutomationElement.NameProperty)
-        })
+        var resolver = new WindowsTargetResolver();
+        foreach (var (strategy, value) in new[] { ("automation-id", id), ("name", name) })
         {
             if (string.IsNullOrWhiteSpace(value) || value.Length > 400) continue;
-            var matches = root.FindAll(TreeScope.Descendants, new PropertyCondition(property, value));
-            if (matches.Count == 1 && Automation.Compare(matches[0], selected))
-                candidates.Add(new Candidate(strategy, value));
-        }
+            var primary = new Candidate(strategy, value);
+            var locator = new Locator(strategy, value);
+            var direct = resolver.Resolve(root, TargetDescriptor.Create(TargetRuntime.Windows, locator));
+            if (direct.Status == TargetResolutionStatus.Resolved &&
+                direct.Target is not null && Automation.Compare(direct.Target, selected))
+                return new Inspection(name, selected.Current.ControlType.ProgrammaticName,
+                    processId, new[] { primary }, null);
 
+            var walker = TreeWalker.ControlViewWalker;
+            var parent = walker.GetParent(selected);
+            if (parent is null) continue;
+            var possibleAnchors = new List<AnchorCandidate>();
+            foreach (AutomationElement sibling in parent.FindAll(TreeScope.Children, Condition.TrueCondition))
+            {
+                if (Automation.Compare(sibling, selected)) continue;
+                possibleAnchors.Add(new AnchorCandidate("name", sibling.Current.Name ?? "", "Sibling"));
+                possibleAnchors.Add(new AnchorCandidate("automation-id", sibling.Current.AutomationId ?? "", "Sibling"));
+            }
+            for (var ancestor = parent; ancestor is not null && !Automation.Compare(ancestor, root);
+                 ancestor = walker.GetParent(ancestor))
+            {
+                possibleAnchors.Add(new AnchorCandidate("name", ancestor.Current.Name ?? "", "Ancestor"));
+                possibleAnchors.Add(new AnchorCandidate("automation-id", ancestor.Current.AutomationId ?? "", "Ancestor"));
+            }
+            foreach (var anchor in possibleAnchors.Distinct().Take(100))
+            {
+                if (string.IsNullOrWhiteSpace(anchor.Value) || anchor.Value.Length > 400) continue;
+                var descriptor = TargetDescriptor.Create(TargetRuntime.Windows, locator,
+                    new[] { new Anchor(new Locator(anchor.Strategy, anchor.Value),
+                        Enum.Parse<AnchorRelation>(anchor.Relation)) });
+                var resolved = resolver.Resolve(root, descriptor);
+                if (resolved.Status == TargetResolutionStatus.Resolved &&
+                    resolved.Target is not null && Automation.Compare(resolved.Target, selected))
+                    return new Inspection(name, selected.Current.ControlType.ProgrammaticName,
+                        processId, new[] { primary }, null, new[] { anchor });
+            }
+        }
         return new Inspection(name, selected.Current.ControlType.ProgrammaticName,
-            processId, candidates, candidates.Count == 0
-                ? "לא נמצא מזהה ייחודי לרכיב. נדרש זיהוי באמצעות עוגנים לפני שמירה."
-                : null);
+            processId, Array.Empty<Candidate>(),
+            "לא נמצא זיהוי חד־משמעי לרכיב באמצעות מאפייניו ועוגני השורה.");
+
     }
 
     private static bool IsDescendantOf(AutomationElement element, AutomationElement root)
