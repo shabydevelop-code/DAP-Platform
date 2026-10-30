@@ -1231,17 +1231,19 @@ function openVariableBindingDialog({kind, step, contextId}) {
   }
   const text = step.bubble || '';
   modal('שילוב משתנים בהנחיה', [
-    {name:'sourceText', label:'טקסט להחלפה מתוך ההנחיה', value:'', max:4000,
-     help:'העתק לכאן את הטקסט המדויק שיוחלף במשתנה.'},
+    {name:'sourceText', label:'טקסט ההנחיה — סמן את המילים להחלפה', value:text, max:4000, multiline:true,
+     help:'סמן בעזרת העכבר את הטקסט שברצונך להחליף במשתנה.'},
     {name:'variableId', label:'משתנה', value:variables[0].id,
      choices:variables.map(v => ({value:v.id, text:v.name}))}
   ], async values => {
-    const source = values.sourceText;
-    if (!source || !text.includes(source)) throw new Error('הטקסט להחלפה אינו מופיע בהנחיה.');
+    const field = $('field-sourceText');
+    const source = field?.value.slice(field.selectionStart, field.selectionEnd) || '';
+    if (!source) throw new Error('יש לסמן את הטקסט שברצונך להחליף.');
+    if (field.value !== text) throw new Error('אין לערוך את ההנחיה בחלון זה. יש לסמן טקסט בלבד.');
     const variable = variables.find(v => v.id === values.variableId);
     if (!variable) throw new Error('המשתנה שנבחר אינו קיים.');
     const token = '{{var:' + variable.id + '}}';
-    const bubble = text.replace(source, token);
+    const bubble = text.slice(0, field.selectionStart) + token + text.slice(field.selectionEnd);
     if (bubble.length > 4000) throw new Error('ההנחיה ארוכה מדי.');
     await api('/guides/' + current.guide.id + '/steps/' + encodeURIComponent(step.id), {
       method:'PUT', body:JSON.stringify({
@@ -1254,6 +1256,12 @@ function openVariableBindingDialog({kind, step, contextId}) {
     if (row) row.click();
     notify('המשתנה שולב בהנחיה.');
   }, 'שילוב משתנה');
+  const sourceField = $('field-sourceText');
+  if (sourceField) {
+    sourceField.readOnly = true;
+    sourceField.setAttribute('aria-label', 'סמן את הטקסט להחלפה מתוך ההנחיה');
+    sourceField.focus();
+  }
 }
 function editStep(step, assignedContextId) {
   if (!current || !step) return;
