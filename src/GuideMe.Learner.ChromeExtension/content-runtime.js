@@ -408,7 +408,14 @@
         return "";
       });
 
-    const candidates = [...root.querySelectorAll(nativeSelector || "*")];
+    let candidates;
+    try {
+      candidates = [...root.querySelectorAll(nativeSelector || "*")];
+    } catch (error) {
+      if (error?.name !== "SyntaxError") throw error;
+      // An invalid authored selector is an unresolved target, not a fatal guide error.
+      return [];
+    }
     if (!textFilters.length && !exactFilters.length && !parsed.cell) return candidates;
 
     return candidates.filter(el => {
@@ -435,7 +442,14 @@
         return "";
       });
 
-    if (nativeSelector && !el.matches(nativeSelector)) return false;
+    if (nativeSelector) {
+      try {
+        if (!el.matches(nativeSelector)) return false;
+      } catch (error) {
+        if (error?.name !== "SyntaxError") throw error;
+        return false;
+      }
+    }
     if (!textFilters.length && !exactFilters.length && !parsed.cell) return true;
 
     const text = normalize(el.textContent).toLowerCase();
