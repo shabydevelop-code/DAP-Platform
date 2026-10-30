@@ -17,8 +17,8 @@ public sealed class AdapterWebGuideRuntime
     }
 
     public Task RunAsync(IReadOnlyList<GuideStep> guideSteps, CancellationToken cancellationToken,
-        IReadOnlyList<GuideVariableDefinition>? variables = null)
-        => new GuideExecutionEngine().RunAsync(guideSteps, CreateStepAdapter(), cancellationToken, variables);
+        IReadOnlyList<GuideVariableDefinition>? variables = null, string language = "he")
+        => new GuideExecutionEngine().RunAsync(guideSteps, CreateStepAdapter(), cancellationToken, variables, language);
 
     public IGuideStepAdapter CreateStepAdapter()
         => new DelegateGuideStepAdapter(TargetRuntime.Web, "Web",
