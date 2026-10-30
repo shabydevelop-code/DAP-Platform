@@ -290,21 +290,6 @@ function renderSteps() {
     const locatorText = locators[0]?.Value || '';
     const friendlyName = element?.DisplayName || (locatorText === 'a' ? 'קישור' : locatorText);
     const targetValue = targetBusinessValue(locators[0]);
-    // Diagnose the persisted source, not the rendered label. Never infer that
-    // different literal suffixes belong to a variable.
-    const bubbleVariableIds = [...String(step.bubble || '').matchAll(/\{\{var:([^}]+)\}\}/g)].map(m => m[1]);
-    const targetVariableIds = [...String(targetValue).matchAll(/\{\{var:([^}]+)\}\}/g)].map(m => m[1]);
-    const variableMismatch = bubbleVariableIds.length === 1 && targetVariableIds.length === 1 &&
-      bubbleVariableIds[0] !== targetVariableIds[0];
-    const bubbleLiteral = String(step.bubble || '').replace(/\{\{var:[^}]+\}\}/g, '[משתנה]');
-    const targetLiteral = String(targetValue).replace(/\{\{var:[^}]+\}\}/g, '[משתנה]');
-    const targetDiagnostic = {
-      bubbleVariableIds, targetVariableIds,
-      bubbleLiteral, targetLiteral,
-      bubblePreview: friendlyInstructionText(step.bubble || ''),
-      targetPreview: friendlyInstructionText(targetValue)
-    };
-    console.debug('Instructor target binding diagnostics', targetDiagnostic);
     const appText = context ? appLabel(context) : 'לא משויך';
 
     $('step-inspector').innerHTML =
@@ -323,7 +308,7 @@ function renderSteps() {
       '<section class="step-friendly-card"><h3>רכיב במסך</h3>' +
       '<div id="primary-target-summary">' +
       (target ? '<p><strong>' + (targetValue ? friendlyInstructionHtml(targetValue) : esc(friendlyName)) + '</strong></p>' +
-        (variableMismatch ? '<p class="target-field-label">בהנחיה וברכיב משולבים משתנים שונים.</p>' : '') :
+        '' :
         '<p>עדיין לא נבחר רכיב לשלב הזה.</p>') +
       '</div>' +
       ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') ?
