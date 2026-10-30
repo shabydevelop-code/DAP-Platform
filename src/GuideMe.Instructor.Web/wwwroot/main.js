@@ -296,7 +296,7 @@ function renderSteps() {
       : completionSubject + ' ייעלם מהמסך.';
     const locatorText = locators[0]?.Value || '';
     const friendlyName = element?.DisplayName || (locatorText === 'a' ? 'קישור' : locatorText);
-    const targetValue = targetBusinessValue(locators[0]);
+    const targetValue = targetBusinessValue(locators[0], friendlyName);
     const targetKind = /(?:^|[ >+~])h([1-6])(?=[:.#\\[ >+~]|$)/i.exec(locatorText);
     const targetType = targetKind ? 'כותרת (H' + targetKind[1] + ')' :
       /(?:^|[ >+~])button(?=[:.#\\[ >+~]|$)/i.test(locatorText) ? 'כפתור' :
@@ -841,7 +841,12 @@ async function refreshPicker() {
   const selectorText = contentMatch.length === 1
     ? (() => { try { return JSON.parse(contentMatch[0][1]); } catch { return null; } })()
     : null;
-  const editableContent = capturedChoice ? String(capturedChoice.choice.value) : selectorText;
+  const observedText = (candidate.variableSamples || [])
+    .find(sample => sample.property === 'text' && String(sample.value || '').trim());
+  const editableContent = capturedChoice ? String(capturedChoice.choice.value) :
+    selectorText !== null ? selectorText :
+    requestSession.runtime === 'Web' && !['input','textarea','select'].includes((candidate.tag || '').toLowerCase())
+      ? String(observedText?.value || '').trim() || null : null;
   box.innerHTML = '<div class="picked-target-fields" dir="rtl">' +
     '<p><strong>'+esc(candidate.label || candidate.tag || 'רכיב')+'</strong> <span class="picked-target-kind">('+esc(kindLabel)+')</span></p>'+
     (!pickingFor.completion && !pickingFor.variableSource && editableContent !== null ?
@@ -1410,37 +1415,43 @@ function friendlyInstructionHtml(value) {
 }
 // The inspector and editor share one value extraction rule; the CSS selector
 // remains a private implementation detail.
-function targetBusinessValue(locator) {
-  if (!locator?.Value) return '';
-  if (locator.Strategy !== 'css') return locator.Value;
-  const matches = [...locator.Value.matchAll(/:cell-text\(\s*\d+\s*,\s*("(?:[^"\\]|\\.)*")\s*\)/g)];
-  if (matches.length !== 1) return '';
-  try { return JSON.parse(matches[0][1]); } catch { return ''; }
+// Only a semantic text value may be edited; never expose or modify the CSS structure.
+function locatorTextBinding(locator, displayName = '') {
+  if (!locator?.Value) return null;
+  const original = locator.Value;
+  if (locator.Strategy === 'name') return {value:original, build:value=>value};
+  if (locator.Strategy !== 'css') return null;
+  const matchers = [...original.matchAll(/:(?:cell-text\(\s*\d+\s*,\s*|exact-text\(\s*)("(?:[^"\\]|\\.)*")\s*\)/g)];
+  if (matchers.length === 1) {
+    const match = matchers[0], quoted = match[1];
+    let value;
+    try { value = JSON.parse(quoted); } catch { return null; }
+    const offset = match.index + match[0].indexOf(quoted);
+    return {value, build:next=>original.slice(0, offset) + JSON.stringify(next) +
+      original.slice(offset + quoted.length)};
+  }
+  if (matchers.length || /:cell-text\(|:exact-text\(/.test(original)) return null;
+  // A captured label may serve as a semantic text discriminator for any
+  // content-bearing element, using the Web Learner's existing :exact-text rule.
+  const name = String(displayName || '').trim();
+  if (!name || name.length > 250 || /(?:^|[ >+~])(?:input|textarea|select)(?=[:.#\[\s>+~]|$)/i.test(original))
+    return null;
+  return {value:name, build:next=>original + ':exact-text(' + JSON.stringify(next) + ')'};
 }
-function openVariableBindingDialog({kind, step, locators}) {
+function targetBusinessValue(locator, displayName = '') {
+  return locatorTextBinding(locator, displayName)?.value || '';
+}
+function openVariableBindingDialog({kind, step, locators, displayName}) {
   if (!current || kind !== 'target') return;
   const locator = (locators || [])[0];
   if (!locator?.Value) {
     notify('לא נמצא מזהה רכיב שניתן לערוך.', true); return;
   }
+  const binding = locatorTextBinding(locator, displayName);
+  if (!binding) return;
   const original = locator.Value;
-  let rawValue = targetBusinessValue(locator);
-  let buildTemplate;
-  if (locator.Strategy === 'css') {
-    const matches = [...original.matchAll(/:cell-text\(\s*\d+\s*,\s*("(?:[^"\\]|\\.)*")\s*\)/g)];
-    if (matches.length === 1 && rawValue) {
-      const match = matches[0], quoted = match[1];
-      const start = match.index + match[0].indexOf(quoted);
-      buildTemplate = value => original.slice(0,start) + JSON.stringify(value) +
-        original.slice(start + quoted.length);
-    } else {
-      rawValue = original;
-      buildTemplate = value => value;
-    }
-  } else {
-    rawValue = original;
-    buildTemplate = value => value;
-  }
+  const rawValue = binding.value;
+  const buildTemplate = binding.build;
   const summary = $('primary-target-summary');
   const actions = $('bind-target-variable')?.closest('.target-action-buttons');
   if (!summary || !actions) return;
@@ -1450,7 +1461,7 @@ function openVariableBindingDialog({kind, step, locators}) {
   const edit = document.createElement('div');
   edit.className = 'field';
   const label = document.createElement('label');
-  label.textContent = rawValue === original ? 'מזהה הרכיב' : 'ערך לאיתור הרכיב';
+  label.textContent = 'ערך לזיהוי הרכיב';
   const input = document.createElement('textarea');
   input.rows = 1; input.maxLength = 400; input.dir = 'rtl';
   input.value = '';
