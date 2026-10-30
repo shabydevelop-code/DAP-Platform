@@ -38,15 +38,14 @@ internal static class V5VariableCatalog
             GuideId INTEGER NOT NULL, StepId TEXT NOT NULL, ActionId TEXT NOT NULL,
             ActionOrder INTEGER NOT NULL, VariableId TEXT NOT NULL,
             ActionKind TEXT NOT NULL CHECK (ActionKind IN
-                ('SetValue','ReadFromTarget','Clear','CopyFromVariable')),
-            LiteralValue TEXT, SourceVariableId TEXT, TargetUsageId TEXT,
+                ('ReadFromTarget')),
+            TargetUsageId TEXT,
             Property TEXT, Pattern TEXT,
             Timing TEXT NOT NULL DEFAULT 'AfterAction',
             PRIMARY KEY (GuideId,StepId,ActionId),
             UNIQUE (GuideId,StepId,ActionOrder),
             FOREIGN KEY (GuideId,StepId) REFERENCES Steps(GuideId,StepId),
             FOREIGN KEY (GuideId,VariableId) REFERENCES GuideVariables(GuideId,VariableId),
-            FOREIGN KEY (GuideId,SourceVariableId) REFERENCES GuideVariables(GuideId,VariableId),
             FOREIGN KEY (GuideId,StepId,TargetUsageId)
                 REFERENCES StepTargets(GuideId,StepId,UsageId)
         )";
@@ -128,7 +127,7 @@ internal static class V5VariableCatalog
         { throw new InvalidOperationException("לא ניתן למחוק משתנה שמשמש בשלבי הלומדה.", e); }
     }
     internal sealed record Action(string Id, int Order, string VariableId, string Kind,
-        string? LiteralValue, string? SourceVariableId, string Timing,
+        string Timing,
         string? TargetUsageId, string? Property, string? Pattern);
 
     internal static IReadOnlyList<Action> ListActions(long guideId, string stepId)
@@ -136,8 +135,8 @@ internal static class V5VariableCatalog
         using var connection = Open();
         EnsureSchema(connection);
         using var cmd = connection.CreateCommand();
-        cmd.CommandText = @"SELECT ActionId,ActionOrder,VariableId,ActionKind,LiteralValue,
-            SourceVariableId,Timing,TargetUsageId,Property,Pattern FROM StepVariableActions
+        cmd.CommandText = @"SELECT ActionId,ActionOrder,VariableId,ActionKind,
+            Timing,TargetUsageId,Property,Pattern FROM StepVariableActions
             WHERE GuideId=$guide AND StepId=$step ORDER BY ActionOrder";
         cmd.Parameters.AddWithValue("$guide", guideId);
         cmd.Parameters.AddWithValue("$step", stepId);
@@ -145,46 +144,11 @@ internal static class V5VariableCatalog
         var result = new List<Action>();
         while (reader.Read())
             result.Add(new Action(reader.GetString(0), reader.GetInt32(1), reader.GetString(2),
-                reader.GetString(3), reader.IsDBNull(4) ? null : reader.GetString(4),
-                reader.IsDBNull(5) ? null : reader.GetString(5), reader.GetString(6),
-                reader.IsDBNull(7) ? null : reader.GetString(7),
-                reader.IsDBNull(8) ? null : reader.GetString(8),
-                reader.IsDBNull(9) ? null : reader.GetString(9)));
+                reader.GetString(3), reader.GetString(4),
+                reader.IsDBNull(5) ? null : reader.GetString(5),
+                reader.IsDBNull(6) ? null : reader.GetString(6),
+                reader.IsDBNull(7) ? null : reader.GetString(7)));
         return result;
-    }
-
-    // Manual actions are stored in creation order. Element reads use
-    // AddPickedRead exclusively, so there is one authoring path.
-    internal static void AddAction(long guideId, string stepId,
-        string variableId, string kind, string? value, string? sourceVariableId)
-    {
-        if (kind is not ("SetValue" or "Clear" or "CopyFromVariable"))
-            throw new ArgumentException("סוג הפעולה אינו נתמך.");
-        if (kind == "SetValue" && (value is null || value.Length > 1000))
-            throw new ArgumentException("יש להזין ערך באורך עד 1000 תווים.");
-        if (kind == "CopyFromVariable" && string.IsNullOrWhiteSpace(sourceVariableId))
-            throw new ArgumentException("יש לבחור משתנה מקור.");
-        using var connection = Open();
-        EnsureSchema(connection);
-        using var cmd = connection.CreateCommand();
-        cmd.CommandText = @"INSERT INTO StepVariableActions
-            (GuideId,StepId,ActionId,ActionOrder,VariableId,ActionKind,
-             LiteralValue,SourceVariableId,Timing)
-            VALUES ($guide,$step,$id,
-             (SELECT COALESCE(MAX(ActionOrder),-1)+1 FROM StepVariableActions
-              WHERE GuideId=$guide AND StepId=$step),
-             $variable,$kind,$value,$source,'AfterAction')";
-        cmd.Parameters.AddWithValue("$guide", guideId);
-        cmd.Parameters.AddWithValue("$step", stepId);
-        cmd.Parameters.AddWithValue("$id", "action-" + Guid.NewGuid().ToString("N"));
-        cmd.Parameters.AddWithValue("$variable", variableId);
-        cmd.Parameters.AddWithValue("$kind", kind);
-        cmd.Parameters.AddWithValue("$value", kind == "SetValue" ? (object)value! : DBNull.Value);
-        cmd.Parameters.AddWithValue("$source", kind == "CopyFromVariable"
-            ? (object)sourceVariableId! : DBNull.Value);
-        try { cmd.ExecuteNonQuery(); }
-        catch (SqliteException ex) when (ex.SqliteErrorCode == 19)
-        { throw new InvalidOperationException("לא ניתן לשמור פעולה: בדוק את המשתנה ואת השלב.", ex); }
     }
 
     /// <summary>Persist a picked, independent source target and its read action
