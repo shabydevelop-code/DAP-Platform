@@ -457,7 +457,7 @@ function renderSteps() {
       beginTargetPicker(context.Runtime, current.guide.id, step.id, contextId, replacing, completion, context);
     const bindTarget = $('bind-target-variable');
     if (bindTarget) bindTarget.onclick = () => openVariableBindingDialog({
-      kind:'target', step, contextId, locators
+      kind:'target', step, contextId, locators, displayName:friendlyName
     });
     const targetReplace = $('replace-web-target');
     if (targetReplace) targetReplace.onclick = () => guarded(() => startElementPicker(true));
@@ -1297,7 +1297,7 @@ function friendlyInstructionHtml(value) {
   }
   return html + esc(text.slice(offset));
 }
-function openVariableBindingDialog({kind, step, contextId, locators}) {
+function openVariableBindingDialog({kind, step, contextId, locators, displayName}) {
   if (!current || (kind !== 'bubble' && kind !== 'target')) return;
   const variables = current.variables || [];
   if (!variables.length) {
@@ -1310,17 +1310,39 @@ function openVariableBindingDialog({kind, step, contextId, locators}) {
       notify('לא נמצא מזהה רכיב שניתן לערוך.', true);
       return;
     }
+    // Present only the human-readable value, never the CSS/HTML structure.
+    // The complete locator is reconstructed unchanged around the edited value.
+    const original = locator.Value;
+    let valueStart = 0, valueEnd = original.length;
+    if (locator.Strategy === 'css') {
+      const quoted = /"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)'/g;
+      const candidates = [...original.matchAll(quoted)];
+      if (!candidates.length) {
+        notify('לא נמצא ערך טקסטואלי במזהה הרכיב לשילוב משתנה.', true);
+        return;
+      }
+      // For :cell-text the quoted text is the authored business value.
+      const cell = original.indexOf(':cell-text(');
+      const selected = candidates.find(m => cell >= 0 && m.index > cell) ||
+        candidates[candidates.length - 1];
+      valueStart = selected.index + 1;
+      valueEnd = selected.index + selected[0].length - 1;
+    }
     openVariableTextEditor({
       title:'שילוב משתנים ברכיב במסך',
-      original:locator.Value, variables, maxLength:400,
-      saveLabel:'שמירת הרכיב',
-      save: async template => {
+      fieldLabel:'ערך הרכיב',
+      original:original.slice(valueStart, valueEnd),
+      variables, maxLength:400, saveLabel:'שמירת הרכיב',
+      description:'הרכיב שנבחר: ' + (displayName || 'הרכיב שנבחר'),
+      save: async value => {
+        const template = original.slice(0, valueStart) + value + original.slice(valueEnd);
+        if (template.length > 400) throw new Error('מזהה הרכיב ארוך מדי.');
         await api('/guides/' + current.guide.id + '/steps/' +
           encodeURIComponent(step.id) + '/primary-target/variable', {
           method:'POST', body:JSON.stringify({locatorValue:template})
         });
         await reloadSelectedStep(current.guide.id, step.id);
-        notify('מזהה הרכיב עודכן.');
+        notify('ערך הרכיב עודכן.');
       }
     });
     return;
@@ -1349,7 +1371,7 @@ async function reloadSelectedStep(guideId, stepId) {
     .find(b => b.dataset.step === stepId);
   row?.click();
 }
-function openVariableTextEditor({title, original, variables, maxLength, saveLabel, save}) {
+function openVariableTextEditor({title, original, variables, maxLength, saveLabel, save, fieldLabel = 'טקסט', description = ''}) {
   const references = new Map();
   const display = String(original).replace(/\{\{var:([^}]+)\}\}/g, (token, id) => {
     const variable = variables.find(v => v.id === id);
@@ -1360,7 +1382,7 @@ function openVariableTextEditor({title, original, variables, maxLength, saveLabe
     return label;
   });
   modal(title, [
-    {name:'sourceText', label:'טקסט', value:display, max:maxLength, multiline:true,
+    {name:'sourceText', label:fieldLabel, value:display, max:maxLength, multiline:true,
      help:'מקם את הסמן בטקסט ולחץ על הוסף משתנה. אפשר גם להחליף טקסט מסומן.'},
     {name:'variableId', label:'משתנה', value:variables[0].id,
      choices:variables.map(v => ({value:v.id, text:v.name}))}
@@ -1373,6 +1395,13 @@ function openVariableTextEditor({title, original, variables, maxLength, saveLabe
     if (result.length > maxLength) throw new Error('הטקסט ארוך מדי.');
     await save(result);
   }, saveLabel);
+  if (description) {
+    const textareaField = $('field-sourceText').closest('.field');
+    const detail = document.createElement('p');
+    detail.textContent = description;
+    detail.className = 'target-field-label';
+    textareaField.prepend(detail);
+  }
   const textarea = $('field-sourceText');
   const selector = $('field-variableId');
   const add = document.createElement('button');
