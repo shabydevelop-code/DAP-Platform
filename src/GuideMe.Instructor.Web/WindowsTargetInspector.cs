@@ -8,8 +8,10 @@ namespace GuideMe.Instructor.Web;
 internal static class WindowsTargetInspector
 {
     internal sealed record Candidate(string Strategy, string Value);
+    internal sealed record AnchorCandidate(string Strategy, string Value, string Relation);
     internal sealed record Inspection(string Name, string ControlType, int ProcessId,
-        IReadOnlyList<Candidate> Locators, string? Error);
+        IReadOnlyList<Candidate> Locators, string? Error,
+        IReadOnlyList<AnchorCandidate>? Anchors = null);
 
     [StructLayout(LayoutKind.Sequential)]
     private struct Point { public int X; public int Y; }
