@@ -1343,6 +1343,7 @@ function openVariableBindingDialog({kind, step, contextId, locators, displayName
       original:rawValue,
       variables, maxLength:400, saveLabel:'שמירת הרכיב',
       description:'הרכיב שנבחר: ' + (displayName || 'הרכיב שנבחר'),
+      expectedValue:displayName || '',
       save: async value => {
         const template = buildTemplate(value);
         if (template.length > 400) throw new Error('מזהה הרכיב ארוך מדי.');
@@ -1380,7 +1381,7 @@ async function reloadSelectedStep(guideId, stepId) {
     .find(b => b.dataset.step === stepId);
   row?.click();
 }
-function openVariableTextEditor({title, original, variables, maxLength, saveLabel, save, fieldLabel = 'טקסט', description = ''}) {
+function openVariableTextEditor({title, original, variables, maxLength, saveLabel, save, fieldLabel = 'טקסט', description = '', expectedValue = ''}) {
   const references = new Map();
   const display = String(original).replace(/\{\{var:([^}]+)\}\}/g, (token, id) => {
     const variable = variables.find(v => v.id === id);
@@ -1413,6 +1414,29 @@ function openVariableTextEditor({title, original, variables, maxLength, saveLabe
     textareaField.prepend(detail);
   }
   const textarea = $('field-sourceText');
+  // DisplayName and locator text are independent persisted values. When they
+  // differ, never silently discard the existing locator or its variable tokens.
+  // Offer an explicit reset, preserving the existing text until the user acts.
+  if (expectedValue && original !== expectedValue) {
+    const field = textarea.closest('.field');
+    const note = document.createElement('p');
+    note.className = 'target-field-label';
+    note.textContent = 'ערך האיתור שונה משם הרכיב. ייתכן שנשמרו בו משתנים או טקסט נוסף.';
+    field.append(note);
+    const reset = document.createElement('button');
+    reset.type = 'button';
+    reset.className = 'btn secondary small';
+    reset.textContent = 'שחזור ערך הרכיב';
+    reset.style.marginTop = '8px';
+    field.append(reset);
+    reset.addEventListener('click', () => {
+      textarea.value = expectedValue;
+      textarea.dispatchEvent(new Event('input', {bubbles:true}));
+      textarea.focus();
+      textarea.setSelectionRange(expectedValue.length, expectedValue.length);
+      caretStart = caretEnd = expectedValue.length;
+    });
+  }
   const selector = $('field-variableId');
   const add = document.createElement('button');
   add.type = 'button';
