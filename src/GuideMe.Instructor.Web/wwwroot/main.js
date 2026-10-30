@@ -386,9 +386,7 @@ function renderSteps() {
       '<h3 id="step-variables-title">משתנים</h3>' +
       (variableActions.length ? variableActions.map(action => {
         const variable = (current.variables || []).find(v => v.id === action.variableId);
-        const source = (current.variables || []).find(v => v.id === action.sourceVariableId);
-        const read = action.kind === 'ReadFromTarget';
-        const usage = read ? data.targets.find(t => t.UsageId === action.targetUsageId) : null;
+        const usage = data.targets.find(t => t.UsageId === action.targetUsageId);
         const sourceElement = usage ? (data.elements || []).find(e => e.ElementId === usage.ElementId) : null;
         const sourceLocator = parseJson(sourceElement?.LocatorsJson, [])[0]?.Value || '';
         const sourceName = sourceElement?.DisplayName || sourceLocator || 'רכיב שלא זוהה';
@@ -400,18 +398,12 @@ function renderSteps() {
             return match ? (match[1] ?? match[0]) : null;
           } catch { return null; }
         })() : sourceName;
-        const description = read
-          ? '<div class="variable-action-details"><div>מקור: <strong>טקסט הרכיב שנבחר</strong></div>' +
-            '<div>חילוץ: <strong>' + esc(extraction) + '</strong></div>' +
-            (sourceElement?.DisplayName
-              ? '<div>דוגמה מהבחירה: <strong>' + esc(sourceName) + '</strong>' +
-                (sampleMatch !== null ? ' ← <strong>' + esc(sampleMatch) + '</strong>' : '') + '</div>'
-              : '') +
-            '</div>'
-          : '<div class="variable-action-details">' + esc(
-              action.kind === 'SetValue' ? 'ערך קבוע' :
-              action.kind === 'Clear' ? 'איפוס המשתנה' :
-              'העתקה מהמשתנה ' + (source?.name || 'שנבחר')) + '</div>';
+        const description = '<div class="variable-action-details"><div>מקור: <strong>טקסט הרכיב שנבחר</strong></div>' +
+          '<div>חילוץ: <strong>' + esc(extraction) + '</strong></div>' +
+          (sourceElement?.DisplayName
+            ? '<div>דוגמה מהבחירה: <strong>' + esc(sourceName) + '</strong>' +
+              (sampleMatch !== null ? ' ← <strong>' + esc(sampleMatch) + '</strong>' : '') + '</div>'
+            : '') + '</div>';
         return '<div class="guide-variable-row"><div><strong>' + esc(variable?.name || action.variableId) +
           '</strong>' + description +
           '</div><span class="context-actions">' +
@@ -1364,37 +1356,11 @@ function editStepVariableAction(step, context) {
   const guideId = current.guide.id, stepId = step.id;
   const choices = current.variables.map(v => ({value:v.id,text:v.name}));
   modal('הוספת פעולה למשתנה — שלב ' + step.order, [
-    {name:'variableId',label:'משתנה לעדכון',value:choices[0].value,choices},
-    {name:'kind',label:'פעולה',value:'ReadFromTarget',choices:[
-      {value:'ReadFromTarget',text:'קליטת ערך מהאפליקציה'},
-      {value:'SetValue',text:'הזנת ערך קבוע'},
-      {value:'Clear',text:'איפוס משתנה'},
-      {value:'CopyFromVariable',text:'העתקה ממשתנה אחר'}]},
-    {name:'value',label:'ערך קבוע',value:'',optional:true,max:1000},
-    {name:'sourceVariableId',label:'משתנה מקור להעתקה',value:choices[0].value,choices}
+    {name:'variableId',label:'משתנה לעדכון',value:choices[0].value,choices}
   ], async values => {
-    if (values.kind === 'ReadFromTarget') {
-      await beginTargetPicker(context.Runtime, guideId, stepId, context.ContextId,
-        false, false, context, {variableId:values.variableId});
-      return;
-    }
-    await api('/guides/' + guideId + '/steps/' + encodeURIComponent(stepId) + '/variables',
-      {method:'POST',body:JSON.stringify({
-        variableId:values.variableId, kind:values.kind,
-        value:values.value, sourceVariableId:values.sourceVariableId})});
-    await openGuide(guideId);
-    const row = [...document.querySelectorAll('[data-step]')].find(x => x.dataset.step === stepId);
-    row?.click();
-    notify('פעולת המשתנה נוספה.');
+    await beginTargetPicker(context.Runtime, guideId, stepId, context.ContextId,
+      false, false, context, {variableId:values.variableId});
   },'המשך');
-  const operation = $('field-kind');
-  const updateFields = () => {
-    $('field-value').closest('.field').classList.toggle('hidden',operation.value !== 'SetValue');
-    $('field-sourceVariableId').closest('.field').classList.toggle('hidden',
-      operation.value !== 'CopyFromVariable');
-  };
-  operation.addEventListener('change',updateFields);
-  updateFields();
 }
 // Render variable references as friendly, non-editable labels in Instructor previews.
 function variablePreviewValue(variable) {
