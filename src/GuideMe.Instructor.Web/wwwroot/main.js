@@ -351,14 +351,14 @@ function renderSteps() {
         (rule ? '<button class="btn danger small" id="remove-validation">הסרת תנאי</button>' : '') +
         '</div>' : '') +
       '</section></div>' +
-      ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') && target && rule ?
+      ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') ?
         '<section class="step-friendly-card completion-card"><h3>תנאי השלמה נוסף</h3>' +
         (completionRule ? '<div class="completion-details">' +
           '<div class="completion-detail"><span class="completion-detail-label">השלב יושלם כאשר:</span>' +
           '<strong class="completion-description-preview">' + (completionRule?.Kind === 'value-contains' ? completionDescription : esc(completionDescription)) + '</strong></div>' +
           '</div><button class="btn danger small" id="remove-completion">הסרת תנאי</button>' :
-          '<p>בחר רכיב ובדוק הופעה, היעלמות או שינוי מאפיין בעקבות הפעולה.</p>' +
-          '<button class="btn secondary small" id="add-completion">בחירת רכיב לתנאי השלמה</button>') +
+          '<p>' + (!target ? 'יש לבחור תחילה רכיב ראשי לשלב.' : !rule ? 'יש להגדיר תחילה תנאי התקדמות לשלב.' : 'בחר רכיב ובדוק הופעה, היעלמות או שינוי מאפיין בעקבות הפעולה.') + '</p>' +
+          (target && rule ? '<button class="btn secondary small" id="add-completion">בחירת רכיב לתנאי השלמה</button>' : '')) +
         '<div id="completion-pick-result" class="hidden" aria-live="polite"></div>' +
         '</section>' : '') +
       '<section class="step-friendly-card completion-card" aria-labelledby="step-variables-title">' +
