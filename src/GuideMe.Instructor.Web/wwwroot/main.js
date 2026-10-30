@@ -310,7 +310,7 @@ function renderSteps() {
       ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') && target ?
         '<button class="btn secondary small" id="edit-validation">' +
         (rule ? 'עריכת תנאי ההתקדמות' : 'הגדרת תנאי התקדמות') + '</button>' +
-        (rule ? '<button class="btn danger small" id="remove-validation">הסרת תנאי התקדמות</button>' : '') : '') +
+        (rule ? '<div style="margin-top:12px"><button class="btn secondary small" id="remove-validation">הסרת תנאי</button></div>' : '') : '') +
       '</section></div>' +
       ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') && target && rule ?
         '<section class="step-friendly-card completion-card"><h3>תנאי השלמה נוסף</h3>' +
