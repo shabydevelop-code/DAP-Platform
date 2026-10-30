@@ -336,6 +336,7 @@ function renderSteps() {
           '<div class="target-action-primary">' +
           '<button class="btn secondary small" id="replace-web-target">בחירת רכיב אחר</button>' +
           '<button class="btn secondary small" id="bind-target-variable">עריכה</button>' +
+          '<button class="btn danger small" id="remove-primary-target">הסרת רכיב</button>' +
           '</div>' +
 
           '</div>' :
@@ -480,6 +481,14 @@ function renderSteps() {
     });
     const targetReplace = $('replace-web-target');
     if (targetReplace) targetReplace.onclick = () => guarded(() => startElementPicker(true));
+    const removePrimary = $('remove-primary-target');
+    if (removePrimary) removePrimary.onclick = () => guarded(async () => {
+      if (!confirm('להסיר את הרכיב מהשלב? תנאי האימות ותנאי ההשלמה התלויים בו יוסרו גם הם.')) return;
+      await api('/guides/' + current.guide.id + '/steps/' +
+        encodeURIComponent(step.id) + '/primary-target', {method:'DELETE',body:'{}'});
+      await reloadSelectedStep(current.guide.id, step.id);
+      notify('הרכיב הוסר מהשלב.');
+    });
     const conditionEditor = $('edit-validation');
     if (conditionEditor) conditionEditor.onclick = () => editValidation(step, rule);
     const removeValidation = $('remove-validation');
