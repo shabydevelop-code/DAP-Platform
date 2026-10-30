@@ -117,6 +117,7 @@ function notify(message, error = false, kind = "success") {
 async function guarded(action) { try { await action(); } catch(e) { notify(e.message || String(e), true); } }
 function showList() {
   if (!confirmDiscard()) return;
+  stepSelectionGeneration++;
   current = null; selectedStep = null;
   $('list-view').classList.remove('hidden'); $('detail-view').classList.add('hidden');
   $('new-guide').classList.remove('hidden');
