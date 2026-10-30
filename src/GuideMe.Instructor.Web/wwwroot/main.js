@@ -317,7 +317,7 @@ function renderSteps() {
         (target ? '<div class="target-action-buttons">' +
           '<div class="target-action-primary">' +
           '<button class="btn secondary small" id="replace-web-target">בחירת רכיב אחר</button>' +
-           '<button class="btn secondary small" id="bind-target-variable">שילוב משתנים</button>' +
+           '<button class="btn secondary small" id="bind-target-variable">עריכה</button>' +
           '<button class="btn danger small" id="remove-primary-target">הסרת רכיב</button>' +
           '</div>' +
 
@@ -1370,64 +1370,83 @@ function targetBusinessValue(locator) {
   if (matches.length !== 1) return '';
   try { return JSON.parse(matches[0][1]); } catch { return ''; }
 }
-function openVariableBindingDialog({kind, step, contextId, locators, displayName}) {
+function openVariableBindingDialog({kind, step, locators}) {
   if (!current || kind !== 'target') return;
+  const locator = (locators || [])[0];
+  if (!locator?.Value) {
+    notify('לא נמצא מזהה רכיב שניתן לערוך.', true); return;
+  }
+  const original = locator.Value;
+  let rawValue = targetBusinessValue(locator);
+  let buildTemplate;
+  if (locator.Strategy === 'css') {
+    const matches = [...original.matchAll(/:cell-text\(\s*\d+\s*,\s*("(?:[^"\\]|\\.)*")\s*\)/g)];
+    if (matches.length !== 1 || !rawValue) {
+      notify('לא ניתן לערוך ערך איתור ברכיב זה.', true); return;
+    }
+    const match = matches[0], quoted = match[1];
+    const start = match.index + match[0].indexOf(quoted);
+    buildTemplate = value => original.slice(0,start) + JSON.stringify(value) +
+      original.slice(start + quoted.length);
+  } else {
+    rawValue = original;
+    buildTemplate = value => value;
+  }
+  const summary = $('primary-target-summary');
+  const actions = $('bind-target-variable')?.closest('.target-action-buttons');
+  if (!summary || !actions) return;
+  const originalHtml = summary.innerHTML;
+  const previousDisplay = actions.style.display;
   const variables = current.variables || [];
-  if (!variables.length) {
-    notify('יש להגדיר תחילה משתנה בלומדה.', false, 'info');
-    return;
+  const edit = document.createElement('div');
+  edit.className = 'field';
+  const label = document.createElement('label');
+  label.textContent = 'ערך הרכיב';
+  const input = document.createElement('textarea');
+  input.rows = 2; input.maxLength = 400; input.dir = 'rtl';
+  input.value = String(rawValue).replace(/\{\{var:([^}]+)\}\}/g, (_,id) => {
+    const v = variables.find(x=>x.id===id);
+    return v ? '【'+variablePreviewValue(v)+'】' : '{{var:'+id+'}}';
+  });
+  edit.append(label,input);
+  const variableControls = document.createElement('div');
+  edit.append(variableControls);
+  setupVariableInsertion(input, variableControls, variables);
+  for (const match of String(rawValue).matchAll(/\{\{var:([^}]+)\}\}/g)) {
+    const v=variables.find(x=>x.id===match[1]);
+    if (v) input._variableReferences?.set('【'+variablePreviewValue(v)+'】',v.id);
   }
-  if (kind === 'target') {
-    const locator = (locators || [])[0];
-    if (!locator?.Value) {
-      notify('לא נמצא מזהה רכיב שניתן לערוך.', true);
-      return;
+  const buttons = document.createElement('div');
+  buttons.className = 'target-action-buttons';
+  buttons.style.marginTop = '12px';
+  const save = document.createElement('button');
+  save.type='button'; save.className='btn primary small'; save.textContent='שמירה';
+  const cancel = document.createElement('button');
+  cancel.type='button'; cancel.className='btn secondary small'; cancel.textContent='ביטול';
+  buttons.append(save,cancel);
+  const restore = () => {
+    summary.innerHTML=originalHtml;
+    actions.style.display=previousDisplay;
+  };
+  cancel.onclick=restore;
+  save.onclick=async()=>{
+    try {
+      const value=variableEditorResult(input);
+      const template=buildTemplate(value);
+      if(template.length>400)throw new Error('מזהה הרכיב ארוך מדי.');
+      save.disabled=true;cancel.disabled=true;
+      await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+'/primary-target/variable',{
+        method:'POST',body:JSON.stringify({locatorValue:template})
+      });
+      await reloadSelectedStep(current.guide.id,step.id);
+      notify('ערך הרכיב עודכן.');
+    } catch(error) {
+      save.disabled=false;cancel.disabled=false;
+      notify('השמירה נכשלה: '+error.message,true);
     }
-    // Extract the business value from the known :cell-text(column,"value")
-    // grammar. Never guess a value from arbitrary CSS quoted fragments.
-    const original = locator.Value;
-    const rawValue = targetBusinessValue(locator);
-    let buildTemplate;
-    if (locator.Strategy === 'css') {
-      const cellText = /:cell-text\(\s*\d+\s*,\s*("(?:[^"\\]|\\.)*")\s*\)/g;
-      const matches = [...original.matchAll(cellText)];
-      if (matches.length !== 1) {
-        notify('לא ניתן לזהות ערך רכיב יחיד לעריכה. יש לבחור רכיב עם זיהוי לפי ערך תא.', true);
-        return;
-      }
-      const match = matches[0];
-      const quotedValue = match[1];
-      const quoteStart = match.index + match[0].indexOf(quotedValue);
-      const quoteEnd = quoteStart + quotedValue.length;
-      if (!rawValue) {
-        notify('ערך הרכיב אינו בפורמט תקין.', true);
-        return;
-      }
-      buildTemplate = value =>
-        original.slice(0, quoteStart) + JSON.stringify(value) + original.slice(quoteEnd);
-    } else {
-      buildTemplate = value => value;
-    }
-    openVariableTextEditor({
-      title:'שילוב משתנים ברכיב במסך',
-      fieldLabel:'הערך המשמש לאיתור',
-      original:rawValue,
-      variables, maxLength:400, saveLabel:'שמירת הרכיב',
-      description:'הרכיב שנבחר: ' + (displayName || 'הרכיב שנבחר'),
-      save: async value => {
-        const template = buildTemplate(value);
-        if (template.length > 400) throw new Error('מזהה הרכיב ארוך מדי.');
-        await api('/guides/' + current.guide.id + '/steps/' +
-          encodeURIComponent(step.id) + '/primary-target/variable', {
-          method:'POST', body:JSON.stringify({locatorValue:template})
-        });
-        await reloadSelectedStep(current.guide.id, step.id);
-        notify('ערך הרכיב עודכן.');
-      }
-    });
-    return;
-  }
-
+  };
+  summary.replaceChildren(edit,buttons);
+  actions.style.display='none';
 }
 // One insertion editor for every variable-aware field. Persistence is supplied
 // by the caller; cursor handling, token rendering and validation are shared.
