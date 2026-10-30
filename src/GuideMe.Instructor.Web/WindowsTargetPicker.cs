@@ -233,7 +233,8 @@ internal sealed class WindowsTargetPicker : IDisposable
     {
         try
         {
-            var result = WindowsTargetInspector.Inspect(processId, false);
+            // Inspect the exact highlighted UIA element rather than sampling the cursor again.
+            var result = WindowsTargetInspector.Inspect(processId, false, hovered);
             if (result.Error is not null)
             {
                 lock (gate) { selection = null; error = result.Error; picking = false; }
