@@ -308,7 +308,7 @@ function renderSteps() {
       '<p>' + esc(!target ? 'יוגדר לאחר בחירת הרכיב.' : conditionText) + '</p>' +
       (rule?.ExpectedValue ? '<p>ערך צפוי: <strong>' + esc(rule.ExpectedValue) + '</strong></p>' : '') +
       ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') && target ?
-        '<div style="display:flex;flex-wrap:nowrap;align-items:center;gap:12px">' +
+        '<div class="validation-actions">' +
         '<button class="btn secondary small" id="edit-validation">' +
         (rule ? 'עריכת תנאי ההתקדמות' : 'הגדרת תנאי התקדמות') + '</button>' +
         (rule ? '<button class="btn secondary small" id="remove-validation">הסרת תנאי</button>' : '') +
