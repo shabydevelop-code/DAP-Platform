@@ -482,6 +482,11 @@ function renderSteps() {
     const removePrimary = $('remove-primary-target');
     if (removePrimary) removePrimary.onclick = () => guarded(async () => {
       if (!confirm('להסיר את הרכיב מהשלב? תנאי האימות ותנאי ההשלמה התלויים בו יוסרו גם הם.')) return;
+      if (pickingFor?.guideId === current.guide.id && pickingFor.stepId === step.id) {
+        const session = pickingFor;
+        try { await targetAdapters[session.runtime].cancel(); }
+        finally { pickerEvent(session, 'cancelled'); }
+      }
       await api('/guides/' + current.guide.id + '/steps/' +
         encodeURIComponent(step.id) + '/primary-target', {method:'DELETE',body:'{}'});
       const guideId = current.guide.id;
