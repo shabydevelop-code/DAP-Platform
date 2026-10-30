@@ -285,7 +285,8 @@ function renderSteps() {
       '<div class="step-summary"><div class="step-summary-heading"><strong>הנחיה למשתמש</strong>' +
        '<span class="chip">' + (step.enabled ? 'פעיל' : 'מושבת') + '</span></div>' +
        '<div class="step-summary-content"><p>' + esc(step.bubble || 'לא הוגדרה הנחיה') + '</p>' +
-       '<button class="btn secondary small" id="edit-step">עריכת תוכן השלב</button></div></div>' +
+       '<div class="context-actions"><button class="btn secondary small" id="edit-step">עריכת תוכן השלב</button>' +
+       '<button class="btn secondary small" id="insert-step-variable">שילוב משתנים</button></div></div></div>' +
        '<div class="step-friendly-grid">' +
       '<section class="step-friendly-card"><h3>רכיב במסך</h3>' +
       '<div id="primary-target-summary">' +
@@ -376,6 +377,7 @@ function renderSteps() {
         });
       }));
     $('edit-step').onclick = () => editStep(step, contextId);
+    $('insert-step-variable').onclick = () => openVariableBindingDialog({kind:'bubble', step, contextId});
     $('duplicate-step').onclick = () => guarded(async () => {
       if (!current || !confirmDiscard()) return;
       const guideId = current.guide.id;
@@ -1218,6 +1220,40 @@ function editStepVariableAction(step, context) {
   };
   operation.addEventListener('change',updateFields);
   updateFields();
+}
+// Shared variable-binding dialog: future field types can supply their own save handler.
+function openVariableBindingDialog({kind, step, contextId}) {
+  if (!current || kind !== 'bubble') return;
+  const variables = current.variables || [];
+  if (!variables.length) {
+    notify('יש להגדיר תחילה משתנה בלומדה.', false, 'info');
+    return;
+  }
+  const text = step.bubble || '';
+  modal('שילוב משתנים בהנחיה', [
+    {name:'sourceText', label:'טקסט להחלפה מתוך ההנחיה', value:'', max:4000,
+     help:'העתק לכאן את הטקסט המדויק שיוחלף במשתנה.'},
+    {name:'variableId', label:'משתנה', value:variables[0].id,
+     choices:variables.map(v => ({value:v.id, text:v.name}))}
+  ], async values => {
+    const source = values.sourceText;
+    if (!source || !text.includes(source)) throw new Error('הטקסט להחלפה אינו מופיע בהנחיה.');
+    const variable = variables.find(v => v.id === values.variableId);
+    if (!variable) throw new Error('המשתנה שנבחר אינו קיים.');
+    const token = '{{var:' + variable.id + '}}';
+    const bubble = text.replace(source, token);
+    if (bubble.length > 4000) throw new Error('ההנחיה ארוכה מדי.');
+    await api('/guides/' + current.guide.id + '/steps/' + encodeURIComponent(step.id), {
+      method:'PUT', body:JSON.stringify({
+        bubble, enabled:step.enabled, contextId:contextId || null
+      })
+    });
+    const guideId = current.guide.id, stepId = step.id;
+    await openGuide(guideId);
+    const row = [...document.querySelectorAll('[data-step]')].find(b => b.dataset.step === stepId);
+    if (row) row.click();
+    notify('המשתנה שולב בהנחיה.');
+  }, 'שילוב משתנה');
 }
 function editStep(step, assignedContextId) {
   if (!current || !step) return;
