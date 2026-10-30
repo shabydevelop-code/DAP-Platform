@@ -178,8 +178,8 @@ function renderSteps() {
   const steps = (current?.steps || []).filter(s => String(s.order).includes(search) || s.id.toLowerCase().includes(search) || (s.bubble || '').toLowerCase().includes(search));
   requestAnimationFrame(syncStepListHeight);
   $('step-list').innerHTML = steps.length ? steps.map(s =>
-    '<div class="step-row' + (s.enabled ? '' : ' step-disabled') + '" role="button" tabindex="0" aria-pressed="false" aria-label="' + esc('שלב ' + s.order + ': ' + (s.bubble || 'שלב ' + s.order) + (s.enabled ? '' : ', מושבת')) + '" data-step="' + esc(s.id) + '"><span class="step-num">' + s.order + '</span><span class="step-body"><strong>' +
-    esc(s.bubble || 'שלב ' + s.order) + '</strong></span>' + (s.enabled ? '' : '<span class="step-disabled-badge">מושבת</span>') + '</div>').join('')
+    '<div class="step-row' + (s.enabled ? '' : ' step-disabled') + '" role="button" tabindex="0" aria-pressed="false" aria-label="' + esc('שלב ' + s.order + ': ' + friendlyInstructionText(s.bubble || 'שלב ' + s.order) + (s.enabled ? '' : ', מושבת')) + '" data-step="' + esc(s.id) + '"><span class="step-num">' + s.order + '</span><span class="step-body"><strong>' +
+    esc(friendlyInstructionText(s.bubble || 'שלב ' + s.order)) + '</strong></span>' + (s.enabled ? '' : '<span class="step-disabled-badge">מושבת</span>') + '</div>').join('')
     : '<div class="empty">אין שלבים להצגה</div>';
   const tip = document.getElementById('step-name-tooltip') || (() => {
     const node = document.createElement('div');
@@ -1223,10 +1223,16 @@ function editStepVariableAction(step, context) {
 }
 // Shared variable-binding dialog: future field types can supply their own save handler.
 // Render variable references as friendly, non-editable labels in Instructor previews.
+function friendlyInstructionText(value) {
+  return String(value || '').replace(/\{\{var:([^}]+)\}\}/g, (_, id) => {
+    const variable = (current?.variables || []).find(v => v.id === id);
+    return variable ? '[' + variable.name + ']' : '[משתנה לא קיים]';
+  });
+}
 function friendlyInstructionHtml(value) {
   const text = String(value || '');
   const variables = current?.variables || [];
-  const re = /\\{\\{var:([^}]+)\\}\\}/g;
+  const re = /\{\{var:([^}]+)\}\}/g;
   let html = '', offset = 0, match;
   while ((match = re.exec(text)) !== null) {
     html += esc(text.slice(offset, match.index));
