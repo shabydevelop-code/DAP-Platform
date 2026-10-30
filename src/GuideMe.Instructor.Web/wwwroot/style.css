@@ -350,3 +350,6 @@ body .brand-heading strong span { font-size: 26px; }
 /* Application section uses the same unruled heading treatment as variables. */
 #contexts-panel > .panel-header{border-bottom:0;padding-bottom:10px}
 #contexts-panel > .context-cards{padding-top:10px}
+
+/* Friendly variable tokens in instruction previews; stored IDs remain unchanged. */
+.instruction-variable{display:inline-block;vertical-align:baseline;padding:2px 8px;margin:0 3px;border:1px solid #bfd2e9;border-radius:6px;background:#edf4fc;color:#244b79;font-weight:600;unicode-bidi:isolate}
