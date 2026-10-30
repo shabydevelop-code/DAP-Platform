@@ -207,7 +207,7 @@ function renderSteps() {
   requestAnimationFrame(syncStepListHeight);
   $('step-list').innerHTML = steps.length ? steps.map(s =>
     '<div class="step-row' + (s.enabled ? '' : ' step-disabled') + '" role="button" tabindex="0" aria-pressed="false" aria-label="' + esc('שלב ' + s.order + ': ' + friendlyInstructionText(s.bubble || 'שלב ' + s.order) + (s.enabled ? '' : ', מושבת')) + '" data-step="' + esc(s.id) + '"><span class="step-num">' + s.order + '</span><span class="step-body"><strong>' +
-    esc(friendlyInstructionText(s.bubble || 'שלב ' + s.order)) + '</strong></span>' + (s.enabled ? '' : '<span class="step-disabled-badge">מושבת</span>') + '</div>').join('')
+    friendlyInstructionHtml(s.bubble || 'שלב ' + s.order) + '</strong></span>' + (s.enabled ? '' : '<span class="step-disabled-badge">מושבת</span>') + '</div>').join('')
     : '<div class="empty">אין שלבים להצגה</div>';
   const tip = document.getElementById('step-name-tooltip') || (() => {
     const node = document.createElement('div');
@@ -1042,7 +1042,7 @@ function refreshStepVariablePreviews() {
     if (!step) return;
     const preview = friendlyInstructionText(step.bubble || 'שלב ' + step.order);
     const label = row.querySelector('.step-body strong');
-    if (label) label.textContent = preview;
+    if (label) label.innerHTML = friendlyInstructionHtml(step.bubble || 'שלב ' + step.order);
     row.setAttribute('aria-label', 'שלב ' + step.order + ': ' + preview +
       (step.enabled ? '' : ', מושבת'));
   });
