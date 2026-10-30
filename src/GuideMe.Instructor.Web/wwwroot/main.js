@@ -308,11 +308,7 @@ function renderSteps() {
        '<div class="step-friendly-grid">' +
       '<section class="step-friendly-card"><h3>רכיב במסך</h3>' +
       '<div id="primary-target-summary">' +
-      (target ? '<p class="target-field-label">הרכיב שנבחר</p>' +
-        '<p><strong>' + esc(friendlyName) + '</strong></p>' +
-        (targetValue && (targetHasVariables || targetValue !== friendlyName)
-          ? '<p class="target-field-label">ערך האיתור</p><p>' + friendlyInstructionHtml(targetValue) + '</p>'
-          : '') :
+      (target ? '<p><strong>' + (targetValue ? friendlyInstructionHtml(targetValue) : esc(friendlyName)) + '</strong></p>' :
         '<p>עדיין לא נבחר רכיב לשלב הזה.</p>') +
       '</div>' +
       ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') ?
