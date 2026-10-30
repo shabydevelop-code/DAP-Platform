@@ -1319,7 +1319,7 @@ function openVariableBindingDialog({kind, step, contextId, locators}) {
   // Build a readable editing surface while retaining an exact mapping back
   // to each original variable token (including variables with equal values).
   const tokens = [];
-  const readable = text.replace(/\\{\\{var:([^}]+)\\}\\}/g, (token, id) => {
+  const readable = text.replace(/\{\{var:([^}]+)\}\}/g, (token, id) => {
     const variable = variables.find(v => v.id === id);
     const label = '【' + variablePreviewValue(variable) + '】';
     tokens.push({token, label});
@@ -1341,7 +1341,7 @@ function openVariableBindingDialog({kind, step, contextId, locators}) {
     // to the stored text. Reject partial placeholder edits and ambiguous labels.
     const start = readable.indexOf(source);
     const end = start + source.length;
-    const matches = [...text.matchAll(/\\{\\{var:([^}]+)\\}\\}/g)];
+    const matches = [...text.matchAll(/\{\{var:([^}]+)\}\}/g)];
     let cursor = 0, displayCursor = 0;
     const spans = [];
     for (const match of matches) {
