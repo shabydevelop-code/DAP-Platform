@@ -1278,6 +1278,33 @@ function openVariableBindingDialog({kind, step, contextId}) {
     notify('המשתנה שולב בהנחיה.');
   }, 'שילוב משתנה');
 }
+// Edit-friendly placeholders preserve stable variable IDs on save.
+function instructionForEditing(value) {
+  return String(value || '').replace(/\{\{var:([^}]+)\}\}/g, (token, id) => {
+    const variable = (current?.variables || []).find(v => v.id === id);
+    return variable ? '【' + variable.name + '】' : token;
+  });
+}
+function instructionFromEditing(value, original) {
+  const variables = current?.variables || [];
+  const originalIds = [...String(original || '').matchAll(/\{\{var:([^}]+)\}\}/g)]
+    .map(m => m[1]);
+  const names = new Map();
+  for (const id of originalIds) {
+    const variable = variables.find(v => v.id === id);
+    if (!variable) continue;
+    const key = '【' + variable.name + '】';
+    if (names.has(key) && names.get(key) !== id)
+      throw new Error('קיימים משתנים בעלי אותו שם. יש לתת להם שמות שונים לפני העריכה.');
+    names.set(key, id);
+  }
+  let result = String(value || '');
+  for (const [placeholder, id] of names)
+    result = result.split(placeholder).join('{{var:' + id + '}}');
+  if (/【[^】]+】/.test(result))
+    throw new Error('נמצא סימון משתנה שאינו מוכר. יש לבחור משתנים דרך שילוב משתנים.');
+  return result;
+}
 function editStep(step, assignedContextId) {
   if (!current || !step) return;
   const guideId = current.guide.id;
@@ -1288,13 +1315,13 @@ function editStep(step, assignedContextId) {
   modal('עריכת שלב ' + step.order, [
     {name:'contextId',label:'אפליקציית יעד',value:selectedContext,
      choices:contexts.map(c => ({value:c.ContextId,text:appLabel(c)}))},
-    {name:'bubble', label:'טקסט הבועית', value:step.bubble || '', max:4000, multiline:true,
+    {name:'bubble', label:'טקסט הבועית', value:instructionForEditing(step.bubble || ''), max:4000, multiline:true,
      help:'השינוי ישפיע על תוכן הבועית בלבד. רכיבי יעד וכללי התקדמות אינם משתנים.'},
     {name:'enabled', label:'מצב השלב', value: step.enabled ? 'true' : 'false',
      choices:[{value:'true',text:'פעיל'},{value:'false',text:'מושבת'}]}
   ], async values => {
     await api('/guides/' + guideId + '/steps/' + encodeURIComponent(stepId), {
-      method:'PUT', body:JSON.stringify({bubble:values.bubble, enabled:values.enabled === 'true',
+      method:'PUT', body:JSON.stringify({bubble:instructionFromEditing(values.bubble, step.bubble), enabled:values.enabled === 'true',
         contextId:values.contextId || selectedContext || null})
     });
     await openGuide(guideId);
