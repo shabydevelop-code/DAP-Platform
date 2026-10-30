@@ -813,12 +813,18 @@ async function refreshPicker() {
   const kindLabel = candidate.tag === 'textarea' ? 'שדה טקסט רב־שורות' :
     candidate.tag === 'input' ? 'שדה קלט' : candidate.tag === 'select' ? 'רשימת בחירה' :
     candidate.tag === 'button' ? 'כפתור' : candidate.tag === 'a' ? 'קישור' : 'רכיב במסך';
+  const contentMatch = requestSession.runtime === 'Web' &&
+    !['input','textarea','select'].includes((candidate.tag || '').toLowerCase()) &&
+    [...(candidate.selector || '').matchAll(/:cell-text\\(\\s*\\d+\\s*,\\s*("(?:[^"\\\\]|\\\\.)*")\\s*\\)/g)];
+  const editableContent = Array.isArray(contentMatch) && contentMatch.length === 1
+    ? (() => { try { return JSON.parse(contentMatch[0][1]); } catch { return null; } })()
+    : null;
   box.innerHTML = '<div class="picked-target-fields" dir="rtl"><p class="target-field-label">הרכיב שנבחר</p>' +
     '<p><strong>'+esc(candidate.label || candidate.tag || 'רכיב')+'</strong> <span class="picked-target-kind">('+esc(kindLabel)+')</span></p>'+
-    (!pickingFor.completion && !pickingFor.variableSource ?
-      '<div class="field"><label for="picked-locator-value">זיהוי הרכיב</label>' +
-      '<textarea id="picked-locator-value" rows="1" maxlength="400" dir="rtl"></textarea>' +
-      '<div id="picked-locator-variables"></div></div>' : '') +
+    (!pickingFor.completion && !pickingFor.variableSource && editableContent !== null ?
+      '<div class="field"><label for="picked-content-value">זיהוי לפי תוכן</label>' +
+      '<textarea id="picked-content-value" rows="1" maxlength="400" dir="rtl"></textarea>' +
+      '<div id="picked-content-variables"></div></div>' : '') +
     (pickingFor.completion ? '<label for="target-condition">חוק השלמה</label>' +
       '<select id="target-condition">' +
       '<option value="target-appeared">הופיע</option>' +
@@ -836,10 +842,10 @@ async function refreshPicker() {
     '<button id="cancel-web-target" class="btn secondary small">ביטול</button>' +
     '</div>';
   if (!pickingFor.completion && !pickingFor.variableSource) {
-    const input = $('picked-locator-value');
+    const input = $('picked-content-value');
     if (input) {
-      input.value = candidate.selector || '';
-      setupVariableInsertion(input, $('picked-locator-variables'), current?.variables || []);
+      input.value = editableContent;
+      setupVariableInsertion(input, $('picked-content-variables'), current?.variables || []);
     }
   }
   if (pickingFor.variableSource) {
@@ -914,9 +920,13 @@ async function refreshPicker() {
       else if (pickedFor.completion)
         await adapter.saveCompletion(pickedFor, candidate);
       else {
-        const locatorValue = variableEditorResult($('picked-locator-value')).trim();
-        if (!locatorValue || locatorValue.length > 400)
-          throw new Error('יש להזין מזהה רכיב תקין (עד 400 תווים).');
+        const contentInput = $('picked-content-value');
+        const contentValue = contentInput ? variableEditorResult(contentInput).trim() : null;
+        if (contentInput && (!contentValue || contentValue.length > 400))
+          throw new Error('יש להזין תוכן לזיהוי הרכיב (עד 400 תווים).');
+        const locatorValue = contentInput
+          ? (candidate.selector || '').replace(contentMatch[0][1], JSON.stringify(contentValue))
+          : candidate.selector || '';
         await api('/guides/'+pickedFor.guideId+'/steps/'+encodeURIComponent(pickedFor.stepId)+'/primary-target',
           {method:'POST',body:JSON.stringify({
             condition:'',
