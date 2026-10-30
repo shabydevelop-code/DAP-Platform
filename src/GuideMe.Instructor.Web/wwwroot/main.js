@@ -419,7 +419,7 @@ function renderSteps() {
     });
     const addCompletion = $('add-completion');
     if (addCompletion) addCompletion.onclick = () => guarded(() =>
-      beginTargetPicker('Web', current.guide.id, step.id, contextId, false, true, context));
+      beginTargetPicker(context.Runtime, current.guide.id, step.id, contextId, false, true, context));
     const removeCompletion = $('remove-completion');
     if (removeCompletion) removeCompletion.onclick = () => guarded(async () => {
       if (!confirm('להסיר את תנאי ההשלמה הנוסף?')) return;
@@ -451,6 +451,7 @@ function renderSteps() {
     if (conditionEditor) conditionEditor.onclick = () => editValidation(step, rule);
     const startButton = $('pick-element');
     if (startButton) startButton.onclick = () => guarded(() => startElementPicker());
+    syncPickerButtons();
 
   })));
 }
