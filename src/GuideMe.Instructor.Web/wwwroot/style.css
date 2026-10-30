@@ -337,7 +337,6 @@ body .brand-heading strong span { font-size: 26px; }
 .target-action-identifier p{margin:0;line-height:1.5}
 .target-action-identifier .btn{width:100%;margin:0;white-space:normal;text-align:center}
 
-/* Keep step validation actions compact but visibly separated. */
-.validation-actions{display:flex;align-items:center;flex-wrap:nowrap;gap:16px;direction:rtl}
-.validation-actions .btn{flex:0 0 auto}
-.validation-actions #remove-validation{margin-inline-start:16px}
+/* Match the compact action spacing used by the target picker card. */
+.validation-actions{display:flex;align-items:center;justify-content:flex-start;flex-wrap:nowrap;gap:10px;direction:rtl}
+.validation-actions .btn{flex:0 0 auto;margin:0}
