@@ -296,7 +296,8 @@ function renderSteps() {
       : completionSubject + ' ייעלם מהמסך.';
     const locatorText = locators[0]?.Value || '';
     const friendlyName = element?.DisplayName || (locatorText === 'a' ? 'קישור' : locatorText);
-    const targetValue = targetBusinessValue(locators[0], friendlyName);
+    const editableTargetBinding = locatorTextBinding(locators[0]);
+    const targetValue = editableTargetBinding?.value || '';
     const targetKind = /(?:^|[ >+~])h([1-6])(?=[:.#\\[ >+~]|$)/i.exec(locatorText);
     const targetType = targetKind ? 'כותרת (H' + targetKind[1] + ')' :
       /(?:^|[ >+~])button(?=[:.#\\[ >+~]|$)/i.test(locatorText) ? 'כפתור' :
@@ -335,7 +336,7 @@ function renderSteps() {
         (target ? '<div class="target-action-buttons">' +
           '<div class="target-action-primary">' +
           '<button class="btn secondary small" id="replace-web-target">בחירת רכיב אחר</button>' +
-          '<button class="btn secondary small" id="bind-target-variable">עריכה</button>' +
+          (editableTargetBinding ? '<button class="btn secondary small" id="bind-target-variable">עריכה</button>' : '') +
           '<button class="btn danger small" id="remove-primary-target">הסרת רכיב</button>' +
           '</div>' +
 
@@ -1409,7 +1410,7 @@ function friendlyInstructionHtml(value) {
 function locatorTextBinding(locator, displayName = '') {
   if (!locator?.Value) return null;
   const original = locator.Value;
-  if (locator.Strategy === 'name') return {value:original, build:value=>value};
+  // A name locator is an identifier, not an editable text value.
   if (locator.Strategy !== 'css') return null;
   const matchers = [...original.matchAll(/:(?:cell-text\(\s*\d+\s*,\s*|exact-text\(\s*)("(?:[^"\\]|\\.)*")\s*\)/g)];
   if (matchers.length === 1) {
@@ -1431,15 +1432,8 @@ function locatorTextBinding(locator, displayName = '') {
         original.slice(offset + quoted.length)};
     } catch { return null; }
   }
-  // A captured label may serve as a semantic text discriminator for any
-  // content-bearing element, using the Web Learner's existing :exact-text rule.
-  const name = String(displayName || '').trim();
-  if (!name || name.length > 250 || /(?:^|[ >+~])(?:input|textarea|select)(?=[:.#\[\s>+~]|$)/i.test(original))
-    return null;
-  return {value:name, build:next=>original + ':exact-text(' + JSON.stringify(next) + ')'};
-}
-function targetBusinessValue(locator, displayName = '') {
-  return locatorTextBinding(locator, displayName)?.value || '';
+  // A display label alone does not prove that the locator uses text for identification.
+  return null;
 }
 function editPrimaryTargetValue({kind, step, locators, displayName}) {
   if (!current || kind !== 'target') return;
@@ -1447,16 +1441,11 @@ function editPrimaryTargetValue({kind, step, locators, displayName}) {
   if (!locator?.Value) {
     notify('לא נמצא מזהה רכיב שניתן לערוך.', true); return;
   }
-  const binding = locatorTextBinding(locator, displayName);
+  const binding = locatorTextBinding(locator);
+  if (!binding) return;
   const original = locator.Value;
-  // A target can always be inspected/edited. When its captured locator has no
-  // semantic value slot, an empty value preserves its automatic identification.
-  const rawValue = binding?.value || '';
-  const buildTemplate = binding?.build || (value => {
-    if (value.trim())
-      throw new Error('הממפה לא סיפק מאפיין זיהוי שניתן לשנות עבור רכיב זה. ניתן להשאיר את הערך ריק.');
-    return original;
-  });
+  const rawValue = binding.value;
+  const buildTemplate = binding.build;
   const summary = $('primary-target-summary');
   const actions = $('bind-target-variable')?.closest('.target-action-buttons');
   if (!summary || !actions) return;
