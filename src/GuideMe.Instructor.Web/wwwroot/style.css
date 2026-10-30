@@ -373,11 +373,17 @@ body .brand-heading strong span { font-size: 26px; }
 /* Give the step editor room for all three target actions on one line.
    The step list already truncates long titles and exposes their full text on hover. */
 @media (min-width:1251px){
-  #steps-panel .steps-layout{grid-template-columns:minmax(240px,280px) minmax(0,1fr)}
+  #steps-panel .steps-layout{grid-template-columns:minmax(340px,380px) minmax(0,1fr)}
+  #steps-panel .step-friendly-grid{grid-template-columns:minmax(0,1.35fr) minmax(0,1fr)}
 }
 @media (min-width:701px) and (max-width:1250px){
-  #steps-panel .steps-layout{grid-template-columns:minmax(210px,240px) minmax(0,1fr)}
+  #steps-panel .steps-layout{grid-template-columns:minmax(280px,310px) minmax(0,1fr)}
   #steps-panel .step-friendly-grid{grid-template-columns:minmax(0,1fr)}
+}
+@media (min-width:701px){
+  #steps-panel .inspector{padding-inline:20px}
+  #steps-panel .step-friendly-card{padding-inline:14px}
+  #steps-panel .target-action-primary .btn{padding-inline:8px}
 }
 @media (max-width:700px){
   #steps-panel .target-action-primary{overflow-x:auto;max-width:100%;padding-bottom:2px}
