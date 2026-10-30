@@ -1,5 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Windows.Automation;
+using GuideMe.Core.Targets;
+using GuideMe.Runtime.Windows.Targets;
 
 namespace GuideMe.Instructor.Web;
 
