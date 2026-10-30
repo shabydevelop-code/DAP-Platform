@@ -20,6 +20,7 @@ const $ = id => document.getElementById(id);
  connectWindowSession();
 
 let guides = [], current = null, selectedStep = null;
+let stepSelectionGeneration = 0;
 let modalReturnFocus = null;
 let pendingChanges = false;
 let saveInFlight = 0;
@@ -198,6 +199,8 @@ function syncStepListHeight() {
 window.addEventListener('resize', () => requestAnimationFrame(syncStepListHeight));
 
 function renderSteps() {
+  // Invalidate outstanding inspector requests from the previous step list.
+  stepSelectionGeneration++;
   selectedTargetPreviewValue = null;
   selectedValidationExpectedValue = null;
   selectedCompletionDescription = null;
@@ -255,13 +258,27 @@ function renderSteps() {
   }));
   document.querySelectorAll('[data-step]').forEach(b => b.addEventListener('click',() => guarded(async () => {
     if (!confirmDiscard()) return;
-    selectedStep = b.dataset.step;
+    const stepId = b.dataset.step;
+    const guide = current;
+    const guideId = guide.guide.id;
+    const selectionGeneration = ++stepSelectionGeneration;
+    selectedStep = stepId;
+    selectedTargetPreviewValue = null;
+    selectedValidationExpectedValue = null;
+    selectedCompletionDescription = null;
+    $('step-inspector').innerHTML = '<div class="empty-inspector" role="status">טוען את פרטי השלב...</div>';
     document.querySelectorAll('[data-step]').forEach(x => { x.classList.toggle('active', x===b); x.setAttribute('aria-pressed', String(x===b)); });
-    const data = await api('/guides/' + current.guide.id + '/step/' + encodeURIComponent(selectedStep));
-    const variableActions = await api('/guides/' + current.guide.id + '/steps/' + encodeURIComponent(selectedStep) + '/variables');
+    const [data, variableActions] = await Promise.all([
+      api('/guides/' + guideId + '/step/' + encodeURIComponent(stepId)),
+      api('/guides/' + guideId + '/steps/' + encodeURIComponent(stepId) + '/variables')
+    ]);
+    // Never let an earlier selection overwrite the active step's inspector.
+    if (selectionGeneration !== stepSelectionGeneration || current !== guide || selectedStep !== stepId)
+      return;
     current.stepContexts ??= {};
-    current.stepContexts[selectedStep] = data.step?.[0]?.ApplicationContextId || null;
-    const step = current.steps.find(x=>x.id===selectedStep);
+    current.stepContexts[stepId] = data.step?.[0]?.ApplicationContextId || null;
+    const step = current.steps.find(x=>x.id===stepId);
+    if (!step) return;
     const contextId = data.step?.[0]?.ApplicationContextId;
     const context = current.contexts.find(c => c.ContextId === contextId);
     const target = data.targets.find(x => x.Purpose === 'Primary');
