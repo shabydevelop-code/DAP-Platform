@@ -202,7 +202,8 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/primary-target",
         });
         if (!allowedProcess)
             return Results.BadRequest(new { message = "הרכיב אינו שייך לאפליקציה שהוגדרה בלומדה." });
-        locators = picked.Locators
+        // V5 compiles one primary locator; inspector candidates are alternatives, not a locator chain.
+        locators = picked.Locators.Take(1)
             .Select(l => new V5GuideWriter.TargetLocator(l.Strategy, l.Value)).ToArray();
         frames = Array.Empty<V5GuideWriter.TargetLocator>();
         displayName = picked.Name;
