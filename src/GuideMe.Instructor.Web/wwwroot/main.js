@@ -298,6 +298,7 @@ function renderSteps() {
         (target ? '<div class="target-action-buttons">' +
           '<div class="target-action-primary">' +
           '<button class="btn secondary small" id="replace-web-target">בחירת רכיב אחר</button>' +
+           '<button class="btn secondary small" id="bind-target-variable">שילוב משתנים</button>' +
           '<button class="btn danger small" id="remove-primary-target">הסרת רכיב</button>' +
           '</div>' +
 
@@ -438,6 +439,10 @@ function renderSteps() {
     });
     const startElementPicker = (replacing = false, completion = false) =>
       beginTargetPicker(context.Runtime, current.guide.id, step.id, contextId, replacing, completion, context);
+    const bindTarget = $('bind-target-variable');
+    if (bindTarget) bindTarget.onclick = () => openVariableBindingDialog({
+      kind:'target', step, contextId, locators
+    });
     const targetReplace = $('replace-web-target');
     if (targetReplace) targetReplace.onclick = () => guarded(() => startElementPicker(true));
     const removePrimary = $('remove-primary-target');
@@ -1244,11 +1249,44 @@ function friendlyInstructionHtml(value) {
   }
   return html + esc(text.slice(offset));
 }
-function openVariableBindingDialog({kind, step, contextId}) {
-  if (!current || kind !== 'bubble') return;
+function openVariableBindingDialog({kind, step, contextId, locators}) {
+  if (!current || (kind !== 'bubble' && kind !== 'target')) return;
   const variables = current.variables || [];
   if (!variables.length) {
     notify('יש להגדיר תחילה משתנה בלומדה.', false, 'info');
+    return;
+  }
+  if (kind === 'target') {
+    const locator = (locators || [])[0];
+    if (!locator?.Value) {
+      notify('לא נמצא מזהה רכיב שניתן לערוך.', true);
+      return;
+    }
+    const original = locator.Value;
+    modal('שילוב משתנים ברכיב במסך', [
+      {name:'sourceText', label:'חלק המזהה להחלפה', value:original, max:400,
+       multiline:true, help:'מחק את החלקים שאינם משתנים. השאר רק את הערך שברצונך להחליף.'},
+      {name:'variableId', label:'משתנה', value:variables[0].id,
+       choices:variables.map(v => ({value:v.id, text:v.name}))}
+    ], async values => {
+      const source = values.sourceText;
+      if (!source?.trim() || !original.includes(source))
+        throw new Error('יש להשאיר חלק מזהה שקיים ברכיב.');
+      if (source === original && locator.Strategy === 'css')
+        throw new Error('לא ניתן להחליף מזהה CSS שלם בערך משתנה. יש לבחור רק את החלק המשתנה.');
+      await api('/guides/' + current.guide.id + '/steps/' +
+        encodeURIComponent(step.id) + '/primary-target/variable', {
+          method:'POST', body:JSON.stringify({
+            sourceText:source, variableId:values.variableId
+          })
+        });
+      const guideId = current.guide.id, stepId = step.id;
+      await openGuide(guideId);
+      const row = [...document.querySelectorAll('[data-step]')]
+        .find(b => b.dataset.step === stepId);
+      row?.click();
+      notify('המשתנה שולב במזהה הרכיב.');
+    }, 'שילוב משתנה');
     return;
   }
   const text = step.bubble || '';
