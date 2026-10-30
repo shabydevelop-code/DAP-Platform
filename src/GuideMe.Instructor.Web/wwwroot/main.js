@@ -620,6 +620,10 @@ function pickerEvent(session, event, message = '') {
     if (event === 'cancelled' || event === 'failed')
       $('primary-target-summary')?.classList.remove('hidden');
   }
+  if (!session.completion && !session.variableSource) {
+    const pickButton = $('pick-element');
+    if (pickButton) pickButton.classList.toggle('hidden', event === 'selected');
+  }
   // Once a completion target has been picked, the disabled pick button
   // serves no purpose. Restore it if picking is cancelled or fails.
   if (session.completion) {
@@ -826,7 +830,7 @@ async function refreshPicker() {
   const editableContent = Array.isArray(contentMatch) && contentMatch.length === 1
     ? (() => { try { return JSON.parse(contentMatch[0][1]); } catch { return null; } })()
     : null;
-  box.innerHTML = '<div class="picked-target-fields" dir="rtl"><p class="target-field-label">הרכיב שנבחר</p>' +
+  box.innerHTML = '<div class="picked-target-fields" dir="rtl">' +
     '<p><strong>'+esc(candidate.label || candidate.tag || 'רכיב')+'</strong> <span class="picked-target-kind">('+esc(kindLabel)+')</span></p>'+
     (!pickingFor.completion && !pickingFor.variableSource && editableContent !== null ?
       '<div class="field"><label for="picked-content-value">זיהוי לפי תוכן</label>' +
