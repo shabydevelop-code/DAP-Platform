@@ -687,6 +687,59 @@ WHERE GuideId=$guideId AND StepOrder<0";
     // Runtime-neutral primary target writer. Locator discovery belongs to the
     // runtime adapter; V5 persistence and transaction semantics are shared.
     internal sealed record TargetLocator(string Strategy, string Value);
+    internal static void BindPrimaryTargetVariable(long guideId, string stepId,
+        string sourceText, string variableId)
+    {
+        if (string.IsNullOrWhiteSpace(sourceText) || sourceText.Length > 400 ||
+            string.IsNullOrWhiteSpace(variableId))
+            throw new ArgumentException("יש לבחור טקסט מזהה ומשתנה תקינים.");
+        using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = V5GuideReader.DatabasePath, Mode = SqliteOpenMode.ReadWrite,
+            Pooling = false, DefaultTimeout = 3
+        }.ToString());
+        connection.Open();
+        using var transaction = connection.BeginTransaction();
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandTimeout = 3;
+        command.Parameters.AddWithValue("$guideId", guideId);
+        command.Parameters.AddWithValue("$stepId", stepId);
+        command.Parameters.AddWithValue("$variableId", variableId);
+        command.CommandText = @"SELECT COUNT(*) FROM GuideVariables
+WHERE GuideId=$guideId AND VariableId=$variableId";
+        if (Convert.ToInt64(command.ExecuteScalar()) != 1)
+            throw new ArgumentException("המשתנה שנבחר אינו קיים בלומדה.");
+        command.CommandText = @"SELECT e.ElementId, e.LocatorsJson FROM Elements e
+JOIN StepTargets t ON t.GuideId=e.GuideId AND t.ElementId=e.ElementId
+WHERE t.GuideId=$guideId AND t.StepId=$stepId AND t.Purpose='Primary'";
+        string elementId, json;
+        using (var reader = command.ExecuteReader())
+        {
+            if (!reader.Read()) throw new InvalidOperationException("לא נמצא רכיב ראשי בשלב.");
+            elementId = reader.GetString(0);
+            json = reader.GetString(1);
+        }
+        var locators = JsonSerializer.Deserialize<List<TargetLocator>>(json)
+            ?? throw new InvalidOperationException("מזהי הרכיב אינם תקינים.");
+        var index = locators.FindIndex(l => l.Value.Contains(sourceText, StringComparison.Ordinal));
+        if (index < 0) throw new ArgumentException("הטקסט שנבחר אינו מופיע במזהה הרכיב.");
+        var original = locators[index];
+        var updated = original.Value.Replace(sourceText, "{{var:" + variableId + "}}", StringComparison.Ordinal);
+        if (updated.Length > 400) throw new ArgumentException("מזהה הרכיב ארוך מדי.");
+        locators[index] = original with { Value = updated };
+        command.Parameters.AddWithValue("$elementId", elementId);
+        command.Parameters.AddWithValue("$locators", JsonSerializer.Serialize(locators));
+        command.CommandText = @"UPDATE Elements SET LocatorsJson=$locators
+WHERE GuideId=$guideId AND ElementId=$elementId
+AND NOT EXISTS (SELECT 1 FROM StepTargets t
+WHERE t.GuideId=$guideId AND t.ElementId=$elementId
+AND (t.StepId<>$stepId OR t.Purpose<>'Primary'))";
+        if (command.ExecuteNonQuery() != 1)
+            throw new InvalidOperationException("הרכיב משותף לשלבים נוספים ולא ניתן לשנות אותו כאן.");
+        transaction.Commit();
+    }
+
     internal static void SavePrimaryTarget(long guideId, string stepId, string runtime,
         IReadOnlyList<TargetLocator> locators, IReadOnlyList<TargetLocator> frames,
         string? displayName, string condition, bool replacing)
