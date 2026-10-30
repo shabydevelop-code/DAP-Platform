@@ -309,6 +309,13 @@ app.MapPut("/api/guides/{id:long}/steps/{stepId}/validation",
     return Results.NoContent();
 });
 
+app.MapDelete("/api/guides/{id:long}/steps/{stepId}/validation",
+    (long id, string stepId) =>
+{
+    V5GuideWriter.RemovePrimaryValidation(id, stepId);
+    return Results.NoContent();
+});
+
 // The common test action needs Chrome transport only when an enabled Web step
 // will execute. Windows-only guides never depend on a browser extension.
 app.MapGet("/api/guides/{id:long}/test-requirements", (long id, string? startStepId) =>
