@@ -45,3 +45,10 @@ Do not claim full completion until updated .NET sources build on Windows, the In
 - The Instructor variable-action dialog selects the destination variable and proceeds directly to target picking; it has no operation-kind dropdown.
 - Constant assignment, clearing a variable, and copying from another variable are not supported in the Instructor API, shared action enum, or Learner execution logic. Existing records of these unsupported action kinds are not migrated or supported.
 - Both Web and Windows use the same shared action model and capture ordering.
+
+## Unassigned values in Learner (2026-10-30)
+
+- A variable with a null session value remains unassigned internally; do not write a placeholder to the database or change the session value.
+- During variable interpolation (bubble text, CSS/Windows locators, expected validation values, completion rules), the shared `GuideVariableSession.Resolve` substitutes `לא הוקצה ערך` for Hebrew and `Value not assigned` for English.
+- Language is supplied by the application host to the shared execution plan for Web, Windows, and mixed guides.
+- No exception is raised merely because a defined variable has not yet been assigned. Missing targets and unsatisfied validation rules retain their normal waiting behavior. References to nonexistent variable IDs remain errors.
