@@ -88,8 +88,9 @@ public sealed class WebGuideStepRuntime
         // is still finishing the same asynchronous render.
         // Transition rules are opt-in. Capture the opposite state before the
         // learner is invited to act; mere existence/absence is not completion.
-        var transitionRequired = step.CompletionConditions is { Count: 1 } &&
-            step.CompletionConditions[0].Kind is "target-appeared" or "target-vanished";
+        var transitionRequired = step.CompletionConditions?.Any(condition =>
+            string.Equals(condition.Kind, "target-appeared", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(condition.Kind, "target-vanished", StringComparison.OrdinalIgnoreCase)) == true;
         async Task<bool> CompletionReadyAsync(CancellationToken token)
         {
             if (!await _browser.AreCompletionConditionsSatisfiedAsync(step, token))
