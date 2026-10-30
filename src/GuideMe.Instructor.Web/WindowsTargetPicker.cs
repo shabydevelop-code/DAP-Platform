@@ -31,6 +31,7 @@ internal sealed class WindowsTargetPicker : IDisposable
     private nint keyboardHook;
     private AutomationElement? hovered;
     private bool disposed;
+    private nint returnWindow;
 
     [StructLayout(LayoutKind.Sequential)]
     private struct Point { public int X; public int Y; }
@@ -54,7 +55,7 @@ internal sealed class WindowsTargetPicker : IDisposable
         lock (gate) return new PickerStatus(picking, selection is not null, selection, error);
     }
 
-    internal PickerStatus Start(int pid)
+    internal PickerStatus Start(int pid, nint instructorWindow)
     {
         if (pid <= 0) throw new ArgumentException("לא נמצא תהליך יעד תקין.");
         Stop();
@@ -62,6 +63,7 @@ internal sealed class WindowsTargetPicker : IDisposable
         {
             if (disposed) throw new ObjectDisposedException(nameof(WindowsTargetPicker));
             processId = pid;
+            returnWindow = instructorWindow;
             selection = null;
             error = null;
             picking = true;
@@ -231,6 +233,9 @@ internal sealed class WindowsTargetPicker : IDisposable
         {
             var result = WindowsTargetInspector.Inspect(processId, false);
             lock (gate) { selection = result; picking = false; }
+            // Return to the authoring window after a successful pick, not on Escape.
+            if (returnWindow != 0)
+                GuideMe.Runtime.Windows.Targets.WindowsWindowActivation.Activate(returnWindow);
             dispatcher?.BeginInvokeShutdown(DispatcherPriority.Background);
         }
         catch (Exception ex) when (ex is COMException or ElementNotAvailableException or InvalidOperationException)
