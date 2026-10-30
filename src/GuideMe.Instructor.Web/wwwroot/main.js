@@ -867,8 +867,7 @@ async function refreshPicker() {
   if (!pickingFor.completion && !pickingFor.variableSource) {
     const input = $('picked-content-value');
     if (input) {
-      input.value = editableContent;
-      setupVariableInsertion(input, $('picked-content-variables'), current?.variables || []);
+      initializeVariableField(input, $('picked-content-variables'), editableContent);
     }
   }
   if (pickingFor.variableSource) {
@@ -906,7 +905,7 @@ async function refreshPicker() {
     };
     condition.addEventListener('change', updateFields);
     updateFields();
-    setupVariableInsertion($('completion-fixed-value'), $('completion-insert-controls'), current?.variables || []);
+    initializeVariableField($('completion-fixed-value'), $('completion-insert-controls'));
   }
   const savePickedTarget = async () => {
     const saveButton = $('save-web-target');
@@ -1458,18 +1457,11 @@ function openVariableBindingDialog({kind, step, locators}) {
   label.textContent = rawValue === original ? 'מזהה הרכיב' : 'ערך לאיתור הרכיב';
   const input = document.createElement('textarea');
   input.rows = 1; input.maxLength = 400; input.dir = 'rtl';
-  input.value = String(rawValue).replace(/\{\{var:([^}]+)\}\}/g, (_,id) => {
-    const v = variables.find(x=>x.id===id);
-    return v ? '【'+variablePreviewValue(v)+'】' : '{{var:'+id+'}}';
-  });
+  input.value = '';
   edit.append(label,input);
   const variableControls = document.createElement('div');
   edit.append(variableControls);
-  setupVariableInsertion(input, variableControls, variables);
-  for (const match of String(rawValue).matchAll(/\{\{var:([^}]+)\}\}/g)) {
-    const v=variables.find(x=>x.id===match[1]);
-    if (v) input._variableReferences?.set('【'+variablePreviewValue(v)+'】',v.id);
-  }
+  initializeVariableField(input, variableControls, rawValue);
   const buttons = document.createElement('div');
   buttons.className = 'target-action-primary';
   buttons.style.display = 'flex';
@@ -1532,6 +1524,26 @@ function variableEditorResult(input) {
     value = value.split(label).join('{{var:' + references.get(label) + '}}');
   if (/【[^】]*】/.test(value)) throw new Error('סימון משתנה לא מוכר.');
   return value;
+}
+// Shared authoring field for both target identification and completion conditions.
+// It uses the same variable references and the same serialization on save.
+function initializeVariableField(input, controls, template = '') {
+  if (!input) return;
+  const variables = current?.variables || [];
+  const refs = new Map();
+  input.value = String(template).replace(/\{\{var:([^}]+)\}\}/g, (token, id) => {
+    const variable = variables.find(v => v.id === id);
+    if (!variable) return token;
+    const label = '【' + variablePreviewValue(variable) + '】';
+    if (refs.has(label) && refs.get(label) !== id)
+      throw new Error('לשני משתנים יש אותו ערך מוצג. יש להבחין בין ערכיהם לפני העריכה.');
+    refs.set(label, id);
+    return label;
+  });
+  setupVariableInsertion(input, controls, variables);
+  if (input._variableReferences) {
+    for (const [label, id] of refs) input._variableReferences.set(label, id);
+  }
 }
 function setupVariableInsertion(input, container, variables) {
   if (!input || !container || !variables.length) return;
