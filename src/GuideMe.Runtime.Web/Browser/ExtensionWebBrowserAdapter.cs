@@ -719,6 +719,13 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             string? value = null;
             if (resolved && result.TryGetProperty("value", out var valueProperty) && valueProperty.ValueKind == JsonValueKind.String)
                 value = valueProperty.GetString();
+            // Text-only elements (h1, span, etc.) have no DOM value property.
+            // The extension reports their text separately; completion rules
+            // comparing a displayed value must use it when value is absent.
+            if (resolved && string.IsNullOrEmpty(value) && kind is "value-contains" or "value-equals"
+                && result.TryGetProperty("text", out var textProperty)
+                && textProperty.ValueKind == JsonValueKind.String)
+                value = textProperty.GetString();
             // Preserve the Web adapter's previous handling of non-resolved targets.
             if (!GuideCompletionPolicy.IsSatisfied(condition, observed, ambiguous: false, enabled, value))
                 allSatisfied = false;
