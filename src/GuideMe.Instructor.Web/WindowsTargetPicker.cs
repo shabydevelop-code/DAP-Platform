@@ -237,7 +237,10 @@ internal sealed class WindowsTargetPicker : IDisposable
             lock (gate) { selection = result; picking = false; }
             // Return to the authoring window after a successful pick, not on Escape.
             if (returnWindow != 0)
-                GuideMe.Runtime.Windows.Targets.WindowsWindowActivation.Activate(returnWindow);
+            {
+                try { GuideMe.Runtime.Windows.Targets.WindowsWindowActivation.Activate(returnWindow); }
+                catch (InvalidOperationException) { /* Selection remains saved if the authoring window closed. */ }
+            }
             dispatcher?.BeginInvokeShutdown(DispatcherPriority.Background);
         }
         catch (Exception ex) when (ex is COMException or ElementNotAvailableException or InvalidOperationException)
