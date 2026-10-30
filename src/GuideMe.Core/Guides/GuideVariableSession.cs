@@ -131,8 +131,18 @@ public sealed class GuideVariableSession
         {
             Bubble = step.Bubble with { Content = Resolve(step.Bubble.Content) },
             Target = step.Target is null ? null : Expand(step.Target),
+            Validation = step.Validation is null ? null : step.Validation with
+            {
+                ExpectedValue = step.Validation.ExpectedValue is null
+                    ? null : Resolve(step.Validation.ExpectedValue)
+            },
             CompletionConditions = step.CompletionConditions?.Select(condition =>
-                condition with { Target = Expand(condition.Target) }).ToArray(),
+                condition with
+                {
+                    Target = Expand(condition.Target),
+                    ExpectedValue = condition.ExpectedValue is null
+                        ? null : Resolve(condition.ExpectedValue)
+                }).ToArray(),
             VariableActions = step.VariableActions?.Select(action =>
                 action.SourceTarget is null ? action :
                 action with { SourceTarget = Expand(action.SourceTarget) }).ToArray()
