@@ -1394,7 +1394,10 @@ function friendlyInstructionHtml(value) {
 function locatorTextBinding(locator) {
   if (!locator?.Value) return null;
   const original = locator.Value;
-  // A name locator is an identifier, not an editable text value.
+  // Windows UIA Name is the semantic value used to locate the control.
+  // AutomationId is a technical identifier and must not be edited as text.
+  if (locator.Strategy === 'name')
+    return {value:original, build:next=>next};
   if (locator.Strategy !== 'css') return null;
   const matchers = [...original.matchAll(/:(?:cell-text\(\s*\d+\s*,\s*|exact-text\(\s*)("(?:[^"\\]|\\.)*")\s*\)/g)];
   if (matchers.length === 1) {
