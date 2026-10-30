@@ -807,12 +807,17 @@ function appLabel(c) { if(c.DisplayName) return c.DisplayName; try { const m=JSO
 function matcher(c) { try { return JSON.parse(c.MatchersJson || '[]').map(m=>m.Kind+': '+m.Value).join(', '); }catch{return '—';} }
 function renderContexts() {
   $('apps-count').textContent = '(' + current.contexts.length + ')';
-  $('contexts-list').innerHTML = current.contexts.length ? current.contexts.map((c,i) =>
-    '<div class="context-card"><div><span class="chip ' + (c.Runtime === 'Windows'?'win':'') + '">' + esc(c.Runtime) + '</span> <span class="context-name">' + esc(appLabel(c)) + '</span><div class="context-meta">' + esc(matcher(c)) + '</div></div><div class="context-actions"><button class="btn secondary small" data-context-rename="' + i + '">שינוי שם</button><button class="btn secondary small" data-context-edit="' + i + '">החלפת יעד</button><button class="btn danger small" data-context-delete="' + i + '">הסרה</button></div></div>').join('')
-    : '<div class="empty">טרם נוספו אפליקציות ללומדה.</div>';
-  document.querySelectorAll('[data-context-rename]').forEach(b=>b.onclick=()=>renameContext(current.contexts[Number(b.dataset.contextRename)]));
-  document.querySelectorAll('[data-context-edit]').forEach(b=>b.onclick=()=>editContext(current.contexts[Number(b.dataset.contextEdit)]));
-  document.querySelectorAll('[data-context-delete]').forEach(b=>b.onclick=()=>guarded(()=>deleteContext(current.contexts[Number(b.dataset.contextDelete)])));
+  $('contexts-list').innerHTML = current.contexts.length ? current.contexts.map((c,i) => {
+    const used = current.steps.some(step => current.stepContexts?.[step.id] === c.ContextId);
+    const target = matcher(c);
+    return '<div class="context-card"><div><span class="chip ' + (c.Runtime === 'Windows' ? 'win' : '') + '">' +
+      esc(c.Runtime) + '</span><div class="context-meta">' + esc(target) +
+      '</div></div><div class="context-actions"><button class="btn danger small" data-context-delete="' + i + '"' +
+      (used ? ' disabled title="האפליקציה משויכת לשלבים בלומדה"' : '') +
+      '>הסר</button></div></div>';
+  }).join('') : '<div class="empty">טרם נוספו אפליקציות ללומדה.</div>';
+  document.querySelectorAll('[data-context-delete]').forEach(b =>
+    b.onclick = () => guarded(() => deleteContext(current.contexts[Number(b.dataset.contextDelete)])));
   renderGuideVariables();
 }
 function renderGuideVariables() {
@@ -981,25 +986,24 @@ function deleteGuide() {
     notify('הלומדה "' + guide.name + '" נמחקה.');
   }, 'מחיקה לצמיתות');
 }
-async function chooseContextApplication(existing = null) {
+async function chooseContextApplication() {
   const guideId = current.guide.id;
   const { discovery, apps: discovered } = await discoverApplications();
-  const apps = discovered.filter(app => existing ||
+  const apps = discovered.filter(app =>
     !current.contexts.some(c => {
       let matcher; try { matcher = JSON.parse(c.MatchersJson || '[]')[0]; } catch {}
       return c.Runtime === app.runtime && matcher?.Value?.toLowerCase() === app.matcherValue.toLowerCase();
     }));
-  $('dialog-title').textContent = existing ? 'החלפת יעד אפליקציה' : 'הוספת אפליקציה';
-  $('submit-dialog').textContent = existing ? 'החלפת יעד' : 'הוספת אפליקציה';
+  $('dialog-title').textContent = 'הוספת אפליקציה';
+  $('submit-dialog').textContent = 'הוספת אפליקציה';
   $('dialog-fields').innerHTML =
     '<div class="fields"><div class="field"><label>בחר אפליקציה פתוחה</label>' +
     '<p>הזיהוי יישמר אוטומטית. אין צורך להזין פרטים טכניים.</p>' +
     applicationChoices(apps) +
     '<button type="button" class="btn secondary small" id="refresh-applications">רענון אפליקציות</button>' +
     (!discovery.webConnected ? '<p>תוסף Instructor אינו מחובר — רשימת אתרי Web אינה זמינה.</p>' : '') +
-    (existing ? '<p>מיפויי השלבים הקיימים לא ישונו. לאחר ההחלפה יש לוודא שהם מתאימים לאפליקציה החדשה.</p>' : '') +
     '</div></div>';
-  $('refresh-applications').onclick = () => guarded(() => chooseContextApplication(existing));
+  $('refresh-applications').onclick = () => guarded(() => chooseContextApplication());
   $('editor-form').onsubmit = event => {
     event.preventDefault();
     guarded(async () => {
@@ -1007,14 +1011,10 @@ async function chooseContextApplication(existing = null) {
       if (indexes.length !== 1) throw new Error('יש לבחור אפליקציה אחת.');
       const app = apps[indexes[0]];
       if (!app) throw new Error('האפליקציה שנבחרה אינה זמינה.');
-      if (existing && !confirm('להחליף את יעד האפליקציה? מיפויי השלבים הקיימים יישמרו ללא שינוי וייתכן שיידרש למפות אותם מחדש.')) return;
       const used = new Set(current.contexts.map(c => c.ContextId));
-      let contextId = existing?.ContextId;
-      if (!contextId) {
-        let index = 1;
-        while (used.has('app-' + index)) index++;
-        contextId = 'app-' + index;
-      }
+      let index = 1;
+      while (used.has('app-' + index)) index++;
+      const contextId = 'app-' + index;
       await api('/guides/' + guideId + '/contexts', {
         method:'POST', body:JSON.stringify({
           contextId, runtime:app.runtime,
@@ -1024,21 +1024,16 @@ async function chooseContextApplication(existing = null) {
       $('editor-dialog').close();
       await openGuide(guideId);
       selectTab('contexts');
-      notify(existing ? 'יעד האפליקציה עודכן. יש לבדוק את מיפויי השלבים.' : 'האפליקציה נוספה.');
+      notify('האפליקציה נוספה.');
     });
   };
   if (!$('editor-dialog').open) $('editor-dialog').showModal();
 }
 function addContext() { return guarded(() => chooseContextApplication()); }
-function renameContext(c) {
-  modal('שינוי שם אפליקציה',[{name:'name',label:'שם תצוגה',value:c.DisplayName||c.ContextId,max:100}],async v=>{
-    await api('/guides/'+current.guide.id+'/contexts/'+encodeURIComponent(c.ContextId)+'/name',{method:'PUT',body:JSON.stringify({name:v.name})});
-    const id=current.guide.id;await openGuide(id);selectTab('contexts');notify('שם האפליקציה עודכן.');
-  });
-}
-function editContext(c) { return guarded(() => chooseContextApplication(c)); }
+function addContext() { return guarded(() => chooseContextApplication()); }
 async function deleteContext(c) {
-  if(!confirm('להסיר את האפליקציה "'+(c.DisplayName||c.ContextId)+'"? ההסרה תתאפשר רק אם אין שלבים שתלויים בה.'))return;
+  if (current.steps.some(step => current.stepContexts?.[step.id] === c.ContextId))
+    throw new Error('האפליקציה משויכת לשלבים בלומדה.');
   await api('/guides/'+current.guide.id+'/contexts/'+encodeURIComponent(c.ContextId),{method:'DELETE',body:'{}'});
   const id=current.guide.id;await openGuide(id);selectTab('contexts');notify('האפליקציה הוסרה.');
 }
