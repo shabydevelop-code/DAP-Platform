@@ -335,7 +335,7 @@ function renderSteps() {
         (target ? '<div class="target-action-buttons">' +
           '<div class="target-action-primary">' +
           '<button class="btn secondary small" id="replace-web-target">בחירת רכיב אחר</button>' +
-           (targetValue ? '<button class="btn secondary small" id="bind-target-variable">עריכה</button>' : '') +
+           '<button class="btn secondary small" id="bind-target-variable">עריכה</button>' +
           '<button class="btn danger small" id="remove-primary-target">הסרת רכיב</button>' +
           '</div>' +
 
@@ -1448,10 +1448,15 @@ function openVariableBindingDialog({kind, step, locators, displayName}) {
     notify('לא נמצא מזהה רכיב שניתן לערוך.', true); return;
   }
   const binding = locatorTextBinding(locator, displayName);
-  if (!binding) return;
   const original = locator.Value;
-  const rawValue = binding.value;
-  const buildTemplate = binding.build;
+  // A target can always be inspected/edited. When its captured locator has no
+  // semantic value slot, an empty value preserves its automatic identification.
+  const rawValue = binding?.value || '';
+  const buildTemplate = binding?.build || (value => {
+    if (value.trim())
+      throw new Error('הממפה לא סיפק מאפיין זיהוי שניתן לשנות עבור רכיב זה. ניתן להשאיר את הערך ריק.');
+    return original;
+  });
   const summary = $('primary-target-summary');
   const actions = $('bind-target-variable')?.closest('.target-action-buttons');
   if (!summary || !actions) return;
@@ -1461,7 +1466,7 @@ function openVariableBindingDialog({kind, step, locators, displayName}) {
   const edit = document.createElement('div');
   edit.className = 'field';
   const label = document.createElement('label');
-  label.textContent = 'ערך לזיהוי הרכיב';
+  label.textContent = 'ערך לזיהוי הרכיב (לא חובה)';
   const input = document.createElement('textarea');
   input.rows = 1; input.maxLength = 400; input.dir = 'rtl';
   input.value = '';
@@ -1499,6 +1504,10 @@ function openVariableBindingDialog({kind, step, locators, displayName}) {
           !template.includes('{{var:')) {
         try { document.querySelector(template); }
         catch { throw new Error('מזהה CSS אינו תקין.'); }
+      }
+      if (template === original) {
+        restore();
+        return;
       }
       save.disabled=true;cancel.disabled=true;
       await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+'/primary-target/variable',{
