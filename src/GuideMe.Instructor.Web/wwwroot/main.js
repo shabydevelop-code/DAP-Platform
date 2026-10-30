@@ -1310,71 +1310,69 @@ function openVariableBindingDialog({kind, step, contextId, locators}) {
       notify('לא נמצא מזהה רכיב שניתן לערוך.', true);
       return;
     }
-    const original = locator.Value;
-    modal('שילוב משתנים ברכיב במסך', [
-      {name:'sourceText', label:'חלק המזהה להחלפה', value:original, max:400,
-       multiline:true, help:'מחק את החלקים שאינם משתנים. השאר רק את הערך שברצונך להחליף.'},
-      {name:'variableId', label:'משתנה', value:variables[0].id,
-       choices:variables.map(v => ({value:v.id, text:v.name}))}
-    ], async values => {
-      const source = values.sourceText;
-      if (!source?.trim() || !original.includes(source))
-        throw new Error('יש להשאיר חלק מזהה שקיים ברכיב.');
-      if (source === original && locator.Strategy === 'css')
-        throw new Error('לא ניתן להחליף מזהה CSS שלם בערך משתנה. יש לבחור רק את החלק המשתנה.');
-      await api('/guides/' + current.guide.id + '/steps/' +
-        encodeURIComponent(step.id) + '/primary-target/variable', {
-          method:'POST', body:JSON.stringify({
-            sourceText:source, variableId:values.variableId
-          })
+    openVariableTextEditor({
+      title:'שילוב משתנים ברכיב במסך',
+      original:locator.Value, variables, maxLength:400,
+      saveLabel:'שמירת הרכיב',
+      save: async template => {
+        await api('/guides/' + current.guide.id + '/steps/' +
+          encodeURIComponent(step.id) + '/primary-target/variable', {
+          method:'POST', body:JSON.stringify({locatorValue:template})
         });
-      const guideId = current.guide.id, stepId = step.id;
-      await openGuide(guideId);
-      const row = [...document.querySelectorAll('[data-step]')]
-        .find(b => b.dataset.step === stepId);
-      row?.click();
-      notify('המשתנה שולב במזהה הרכיב.');
-    }, 'שילוב משתנה');
+        await reloadSelectedStep(current.guide.id, step.id);
+        notify('מזהה הרכיב עודכן.');
+      }
+    });
     return;
   }
-  const original = step.bubble || '';
-  // The editor shows readable placeholders. Each placeholder maps to a stable
-  // variable ID; the stored guide never contains preview values.
-  const references = new Map();
-  const display = original.replace(/\{\{var:([^}]+)\}\}/g, (token, id) => {
-    const variable = variables.find(v => v.id === id);
-    const key = '【' + variablePreviewValue(variable) + '】';
-    if (references.has(key) && references.get(key) !== id)
-      throw new Error('למשתנים שונים יש אותו ערך מוצג. יש להגדיר ערכים שונים לפני העריכה.');
-    references.set(key, id);
-    return key;
+  openVariableTextEditor({
+    title:'שילוב משתנים בהנחיה',
+    original:step.bubble || '', variables, maxLength:4000,
+    saveLabel:'שמירת ההנחיה',
+    save: async bubble => {
+      await api('/guides/' + current.guide.id + '/steps/' +
+        encodeURIComponent(step.id), {
+        method:'PUT', body:JSON.stringify({
+          bubble, enabled:step.enabled, contextId:contextId || null
+        })
+      });
+      await reloadSelectedStep(current.guide.id, step.id);
+      notify('ההנחיה נשמרה.');
+    }
   });
-  modal('שילוב משתנים בהנחיה', [
-    {name:'sourceText', label:'טקסט ההנחיה', value:display, max:4000, multiline:true,
-     help:'מקם את הסמן בטקסט ולחץ על הוסף משתנה. ניתן גם להחליף טקסט מסומן.'},
+}
+// One insertion editor for every variable-aware field. Persistence is supplied
+// by the caller; cursor handling, token rendering and validation are shared.
+async function reloadSelectedStep(guideId, stepId) {
+  await openGuide(guideId);
+  const row = [...document.querySelectorAll('[data-step]')]
+    .find(b => b.dataset.step === stepId);
+  row?.click();
+}
+function openVariableTextEditor({title, original, variables, maxLength, saveLabel, save}) {
+  const references = new Map();
+  const display = String(original).replace(/\{\{var:([^}]+)\}\}/g, (token, id) => {
+    const variable = variables.find(v => v.id === id);
+    const label = '【' + variablePreviewValue(variable) + '】';
+    if (references.has(label) && references.get(label) !== id)
+      throw new Error('למשתנים שונים יש אותו ערך מוצג. יש להגדיר ערכים שונים לפני העריכה.');
+    references.set(label, id);
+    return label;
+  });
+  modal(title, [
+    {name:'sourceText', label:'טקסט', value:display, max:maxLength, multiline:true,
+     help:'מקם את הסמן בטקסט ולחץ על הוסף משתנה. אפשר גם להחליף טקסט מסומן.'},
     {name:'variableId', label:'משתנה', value:variables[0].id,
      choices:variables.map(v => ({value:v.id, text:v.name}))}
   ], async values => {
-    let bubble = values.sourceText;
-    // Translate all readable references back to stable IDs, including
-    // references inserted more than once during this editing session.
-    const placeholders = [...references.keys()].sort((a,b) => b.length - a.length);
-    for (const label of placeholders)
-      bubble = bubble.split(label).join('{{var:' + references.get(label) + '}}');
-    if (/【[^】]*】/.test(bubble))
+    let result = values.sourceText;
+    for (const label of [...references.keys()].sort((a,b) => b.length-a.length))
+      result = result.split(label).join('{{var:' + references.get(label) + '}}');
+    if (/【[^】]*】/.test(result))
       throw new Error('סימון משתנה לא מוכר. יש להוסיף משתנים באמצעות הכפתור.');
-    if (bubble.length > 4000) throw new Error('ההנחיה ארוכה מדי.');
-    await api('/guides/' + current.guide.id + '/steps/' + encodeURIComponent(step.id), {
-      method:'PUT', body:JSON.stringify({
-        bubble, enabled:step.enabled, contextId:contextId || null
-      })
-    });
-    const guideId = current.guide.id, stepId = step.id;
-    await openGuide(guideId);
-    const row = [...document.querySelectorAll('[data-step]')].find(b => b.dataset.step === stepId);
-    row?.click();
-    notify('ההנחיה נשמרה.');
-  }, 'שמירת ההנחיה');
+    if (result.length > maxLength) throw new Error('הטקסט ארוך מדי.');
+    await save(result);
+  }, saveLabel);
   const textarea = $('field-sourceText');
   const selector = $('field-variableId');
   const add = document.createElement('button');
@@ -1384,15 +1382,10 @@ function openVariableBindingDialog({kind, step, contextId, locators}) {
   add.textContent = 'הוסף משתנה';
   selector.closest('.field').append(add);
   let caretStart = textarea.selectionStart, caretEnd = textarea.selectionEnd;
-  textarea.addEventListener('select', () => {
+  const trackCaret = () => {
     caretStart = textarea.selectionStart; caretEnd = textarea.selectionEnd;
-  });
-  textarea.addEventListener('keyup', () => {
-    caretStart = textarea.selectionStart; caretEnd = textarea.selectionEnd;
-  });
-  textarea.addEventListener('click', () => {
-    caretStart = textarea.selectionStart; caretEnd = textarea.selectionEnd;
-  });
+  };
+  for (const event of ['select','keyup','click']) textarea.addEventListener(event, trackCaret);
   add.addEventListener('click', () => {
     const variable = variables.find(v => v.id === selector.value);
     if (!variable) return;
@@ -1401,19 +1394,17 @@ function openVariableBindingDialog({kind, step, contextId, locators}) {
       notify('לשני משתנים יש אותו ערך מוצג. יש להגדיר ערכים שונים לפני השילוב.', true);
       return;
     }
-    references.set(label, variable.id);
     const start = caretStart, end = caretEnd;
-    const existing = textarea.value;
-    // Do not cut through a placeholder; this would corrupt its binding.
-    const spans = [...existing.matchAll(/【[^】]*】/g)].map(m =>
-      ({start:m.index, end:m.index + m[0].length}));
+    const spans = [...textarea.value.matchAll(/【[^】]*】/g)]
+      .map(m => ({start:m.index, end:m.index+m[0].length}));
     if (spans.some(p => (start > p.start && start < p.end) ||
       (end > p.start && end < p.end))) {
       notify('יש לבחור את המשתנה בשלמותו או למקם את הסמן מחוץ לסימון.', true);
       return;
     }
+    references.set(label, variable.id);
     textarea.setRangeText(label, start, end, 'end');
-    caretStart = caretEnd = textarea.selectionStart;
+    trackCaret();
     textarea.dispatchEvent(new Event('input', {bubbles:true}));
     textarea.focus();
   });
