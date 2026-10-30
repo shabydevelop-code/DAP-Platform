@@ -201,6 +201,20 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/primary-target",
     return Results.NoContent();
 });
 
+app.MapPost("/api/guides/{id:long}/steps/{stepId}/primary-target/variable",
+    (long id, string stepId, BindPrimaryTargetVariableRequest request) =>
+{
+    try
+    {
+        V5GuideWriter.BindPrimaryTargetVariable(id, stepId, request.SourceText, request.VariableId);
+        return Results.NoContent();
+    }
+    catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+    {
+        return Results.BadRequest(new { message = ex.Message });
+    }
+});
+
 app.MapPost("/api/windows/inspect", (WindowsInspectRequest request) =>
 {
     try { return Results.Ok(WindowsTargetInspector.Inspect(request.ProcessId, request.Focused)); }
@@ -668,3 +682,5 @@ internal sealed record SaveVariableSourceRequest(string VariableId, string Prope
 
 
 internal sealed record IdentifiedActionRequest(string VariableId);
+
+internal sealed record BindPrimaryTargetVariableRequest(string SourceText, string VariableId);
