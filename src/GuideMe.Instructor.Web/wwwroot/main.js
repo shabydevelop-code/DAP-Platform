@@ -305,8 +305,7 @@ function renderSteps() {
       '<div class="step-summary"><div class="step-summary-heading"><strong>הנחיה למשתמש</strong>' +
        '<span class="chip">' + (step.enabled ? 'פעיל' : 'מושבת') + '</span></div>' +
        '<div class="step-summary-content"><p>' + friendlyInstructionHtml(step.bubble || 'לא הוגדרה הנחיה') + '</p>' +
-       '<div class="context-actions"><button class="btn secondary small" id="edit-step">עריכת תוכן השלב</button>' +
-       '<button class="btn secondary small" id="insert-step-variable">שילוב משתנים</button></div></div></div>' +
+       '<div class="context-actions"><button class="btn secondary small" id="edit-step">עריכת תוכן השלב</button></div></div></div>' +
        '<div class="step-friendly-grid">' +
       '<section class="step-friendly-card"><h3>רכיב במסך</h3>' +
       '<div id="primary-target-summary">' +
@@ -398,7 +397,6 @@ function renderSteps() {
         });
       }));
     $('edit-step').onclick = () => editStep(step, contextId);
-    $('insert-step-variable').onclick = () => openVariableBindingDialog({kind:'bubble', step, contextId});
     $('duplicate-step').onclick = () => guarded(async () => {
       if (!current || !confirmDiscard()) return;
       const guideId = current.guide.id;
@@ -1373,7 +1371,7 @@ function targetBusinessValue(locator) {
   try { return JSON.parse(matches[0][1]); } catch { return ''; }
 }
 function openVariableBindingDialog({kind, step, contextId, locators, displayName}) {
-  if (!current || (kind !== 'bubble' && kind !== 'target')) return;
+  if (!current || kind !== 'target') return;
   const variables = current.variables || [];
   if (!variables.length) {
     notify('יש להגדיר תחילה משתנה בלומדה.', false, 'info');
@@ -1429,21 +1427,7 @@ function openVariableBindingDialog({kind, step, contextId, locators, displayName
     });
     return;
   }
-  openVariableTextEditor({
-    title:'שילוב משתנים בהנחיה',
-    original:step.bubble || '', variables, maxLength:4000,
-    saveLabel:'שמירת ההנחיה',
-    save: async bubble => {
-      await api('/guides/' + current.guide.id + '/steps/' +
-        encodeURIComponent(step.id), {
-        method:'PUT', body:JSON.stringify({
-          bubble, enabled:step.enabled, contextId:contextId || null
-        })
-      });
-      await reloadSelectedStep(current.guide.id, step.id);
-      notify('ההנחיה נשמרה.');
-    }
-  });
+
 }
 // One insertion editor for every variable-aware field. Persistence is supplied
 // by the caller; cursor handling, token rendering and validation are shared.
@@ -1569,32 +1553,6 @@ function openVariableTextEditor({title, original, variables, maxLength, saveLabe
   });
 }
 // Edit-friendly placeholders preserve stable variable IDs on save.
-function instructionForEditing(value) {
-  return String(value || '').replace(/\{\{var:([^}]+)\}\}/g, (token, id) => {
-    const variable = (current?.variables || []).find(v => v.id === id);
-    return variable ? '【' + variablePreviewValue(variable) + '】' : token;
-  });
-}
-function instructionFromEditing(value, original) {
-  const variables = current?.variables || [];
-  const originalIds = [...String(original || '').matchAll(/\{\{var:([^}]+)\}\}/g)]
-    .map(m => m[1]);
-  const names = new Map();
-  for (const id of originalIds) {
-    const variable = variables.find(v => v.id === id);
-    if (!variable) continue;
-    const key = '【' + variablePreviewValue(variable) + '】';
-    if (names.has(key) && names.get(key) !== id)
-      throw new Error('קיימים משתנים בעלי אותו ערך מוצג. יש להבחין ביניהם לפני העריכה.');
-    names.set(key, id);
-  }
-  let result = String(value || '');
-  for (const [placeholder, id] of names)
-    result = result.split(placeholder).join('{{var:' + id + '}}');
-  if (/【[^】]+】/.test(result))
-    throw new Error('נמצא סימון משתנה שאינו מוכר. יש לבחור משתנים דרך שילוב משתנים.');
-  return result;
-}
 function editStep(step, assignedContextId) {
   if (!current || !step) return;
   const guideId = current.guide.id;
@@ -1605,13 +1563,16 @@ function editStep(step, assignedContextId) {
   modal('עריכת שלב ' + step.order, [
     {name:'contextId',label:'אפליקציית יעד',value:selectedContext,
      choices:contexts.map(c => ({value:c.ContextId,text:appLabel(c)}))},
-    {name:'bubble', label:'טקסט הבועית', value:instructionForEditing(step.bubble || ''), max:4000, multiline:true,
+    {name:'bubble', label:'טקסט הבועית', value:String(step.bubble || '').replace(/\{\{var:([^}]+)\}\}/g, (_, id) => {
+       const variable=(current.variables || []).find(v=>v.id===id);
+       return variable ? '【'+variablePreviewValue(variable)+'】' : '{{var:'+id+'}}';
+     }), max:4000, multiline:true,
      help:'השינוי ישפיע על תוכן הבועית בלבד. רכיבי יעד וכללי התקדמות אינם משתנים.'},
     {name:'enabled', label:'מצב השלב', value: step.enabled ? 'true' : 'false',
      choices:[{value:'true',text:'פעיל'},{value:'false',text:'מושבת'}]}
   ], async values => {
     await api('/guides/' + guideId + '/steps/' + encodeURIComponent(stepId), {
-      method:'PUT', body:JSON.stringify({bubble:instructionFromEditing(values.bubble, step.bubble), enabled:values.enabled === 'true',
+      method:'PUT', body:JSON.stringify({bubble:variableEditorResult($('field-bubble')), enabled:values.enabled === 'true',
         contextId:values.contextId || selectedContext || null})
     });
     await openGuide(guideId);
@@ -1619,6 +1580,16 @@ function editStep(step, assignedContextId) {
     if (row) row.click();
     notify('פרטי השלב נשמרו.');
   });
+  const input = $('field-bubble');
+  const container = document.createElement('div');
+  input?.closest('.field')?.append(container);
+  setupVariableInsertion(input, container, current.variables || []);
+  if (input?._variableReferences) {
+    for (const match of String(step.bubble || '').matchAll(/\{\{var:([^}]+)\}\}/g)) {
+      const variable=(current.variables || []).find(v=>v.id===match[1]);
+      if (variable) input._variableReferences.set('【'+variablePreviewValue(variable)+'】', variable.id);
+    }
+  }
 }
 // Connection is automatic. No standalone pairing or recording controls.
 async function refreshExtensionStatus() {
