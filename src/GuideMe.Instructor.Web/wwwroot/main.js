@@ -498,8 +498,26 @@ function editValidation(step, rule) {
 }
 
 let pickingFor = null;
+let pickerStarting = false;
+// All runtimes share the same authoring lifecycle. Adapters only handle native capture.
+function pickerEvent(session, event, message = '') {
+  if (event === 'started') {
+    pickingFor = session;
+  } else if (event === 'selected') {
+    session.phase = 'selected';
+  } else if (event === 'cancelled' || event === 'failed' || event === 'saved') {
+    if (pickingFor === session) pickingFor = null;
+    if (event === 'cancelled' || event === 'failed')
+      $('primary-target-summary')?.classList.remove('hidden');
+  }
+  syncPickerButtons();
+  if (message) {
+    const box = pickerResultBox(session);
+    if (box) box.textContent = message;
+  }
+}
 function syncPickerButtons() {
-  const busy = !!pickingFor;
+  const busy = !!pickingFor || pickerStarting;
   for (const id of ['pick-element','replace-web-target','add-completion','pick-variable-source']) {
     const button = $(id);
     if (button) button.disabled = busy;
@@ -607,7 +625,9 @@ async function beginTargetPicker(runtime, guideId, stepId, contextId, replacing=
   if (!adapter) throw new Error('סביבת היעד אינה נתמכת.');
   if (completion && !adapter.saveCompletion)
     throw new Error('תנאי השלמה נוסף אינו נתמך כרגע בסביבת יעד זו.');
-  if (pickingFor) return;
+  if (pickingFor || pickerStarting) return;
+  pickerStarting = true;
+  syncPickerButtons();
   const session = {runtime,guideId,stepId,contextId,replacing,completion,context,variableSource,startedAt:Date.now()};
   const box = pickerResultBox(session);
   if (!box) throw new Error('אזור אישור הרכיב חסר בממשק.');
@@ -616,21 +636,23 @@ async function beginTargetPicker(runtime, guideId, stepId, contextId, replacing=
   box.textContent = 'מפעיל ממפה רכיבים…';
   try {
     await adapter.start(session);
-    pickingFor = session;
-    syncPickerButtons();
+    pickerStarting = false;
+    pickerEvent(session, 'started');
     await refreshPicker();
     if (runtime === 'Windows' && session.activated === false)
       notify('Windows לא אישר העברת פוקוס אוטומטית. הממפה פעיל; עבור לחלון האפליקציה כדי לבחור רכיב.', true);
   } catch (error) {
-    box.textContent = error.message || String(error);
+    pickerStarting = false;
+    pickerEvent(session, 'failed', error.message || String(error));
     throw error;
   }
 }
 async function refreshPicker() {
   if (!pickingFor) return;
   if (current?.guide?.id !== pickingFor.guideId || selectedStep !== pickingFor.stepId) {
-    pickingFor = null;
-    syncPickerButtons();
+    const abandoned = pickingFor;
+    await targetAdapters[abandoned.runtime].cancel();
+    pickerEvent(abandoned, 'cancelled');
     return;
   }
   const requestSession = pickingFor;
@@ -642,14 +664,11 @@ async function refreshPicker() {
   if (!box) return;
   if (!state.picked) {
     if (state.error || state.pickerError) {
-      box.textContent = 'לא ניתן להפעיל את ממפה הרכיבים: ' + (state.error || state.pickerError);
+      pickerEvent(requestSession, 'failed', 'לא ניתן להפעיל את ממפה הרכיבים: ' + (state.error || state.pickerError));
       return;
     }
     if (!state.picking) {
-      pickingFor = null;
-      syncPickerButtons();
-      markClean();
-      box.textContent = 'איתור הרכיב בוטל. ניתן להפעיל שוב את הממפה.';
+      pickerEvent(requestSession, 'cancelled', 'איתור הרכיב בוטל. ניתן להפעיל שוב את הממפה.');
       return;
     }
     if (requestSession.runtime === 'Web' && !state.connected) {
@@ -663,6 +682,7 @@ async function refreshPicker() {
     box.textContent = (requestSession.runtime === 'Windows' || state.pickReady) ? 'ממפה פעיל: העבר עכבר מעל רכיב ולחץ Ctrl+Shift+Space לבחירה (Esc לביטול).' : 'מפעיל בחירת רכיב…';
     return;
   }
+  pickerEvent(requestSession, 'selected');
   const candidate = adapter.selected(state);
   if (!requestSession.completion && !requestSession.variableSource)
     $('primary-target-summary')?.classList.add('hidden');
@@ -782,8 +802,7 @@ async function refreshPicker() {
             condition:'',
             replacing:pickedFor.replacing,gridChoice:gridChoiceIndex,
             processId:pickedFor.processId || null})});
-      pickingFor = null;
-      syncPickerButtons();
+      pickerEvent(pickedFor, 'saved');
       result.textContent = 'הרכיב נשמר בהצלחה.';
       await openGuide(pickedFor.guideId);
       const item = [...document.querySelectorAll('[data-step]')]
@@ -805,9 +824,7 @@ async function refreshPicker() {
   else void savePickedTarget();
   if ($('cancel-web-target')) $('cancel-web-target').onclick = () => guarded(async () => {
     await targetAdapters[pickingFor.runtime].cancel();
-    pickingFor = null;
-    syncPickerButtons();
-    $('primary-target-summary')?.classList.remove('hidden');
+    pickerEvent(pickingFor, 'cancelled');
     markClean();
     box.textContent = 'הבחירה בוטלה.';
   });
