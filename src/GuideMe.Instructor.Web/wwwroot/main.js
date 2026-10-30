@@ -478,7 +478,7 @@ function renderSteps() {
     const startElementPicker = (replacing = false, completion = false) =>
       beginTargetPicker(context.Runtime, current.guide.id, step.id, contextId, replacing, completion, context);
     const bindTarget = $('bind-target-variable');
-    if (bindTarget) bindTarget.onclick = () => openVariableBindingDialog({
+    if (bindTarget) bindTarget.onclick = () => editPrimaryTargetValue({
       kind:'target', step, contextId, locators, displayName:friendlyName
     });
     const targetReplace = $('replace-web-target');
@@ -1388,7 +1388,6 @@ function editStepVariableAction(step, context) {
   operation.addEventListener('change',updateFields);
   updateFields();
 }
-// Shared variable-binding dialog: future field types can supply their own save handler.
 // Render variable references as friendly, non-editable labels in Instructor previews.
 function variablePreviewValue(variable) {
   const value = variable?.initialValue;
@@ -1453,7 +1452,7 @@ function locatorTextBinding(locator, displayName = '') {
 function targetBusinessValue(locator, displayName = '') {
   return locatorTextBinding(locator, displayName)?.value || '';
 }
-function openVariableBindingDialog({kind, step, locators, displayName}) {
+function editPrimaryTargetValue({kind, step, locators, displayName}) {
   if (!current || kind !== 'target') return;
   const locator = (locators || [])[0];
   if (!locator?.Value) {
