@@ -18,7 +18,9 @@ internal static class WindowsTargetInspector
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool GetCursorPos(out Point point);
 
-    internal static Inspection Inspect(int processId, bool focused)
+    internal static Inspection Inspect(int processId, bool focused) => Inspect(processId, focused, null);
+
+    internal static Inspection Inspect(int processId, bool focused, AutomationElement? capturedElement)
     {
         if (!OperatingSystem.IsWindows() || processId <= 0)
             throw new ArgumentException("תהליך Windows אינו תקין.");
@@ -32,7 +34,9 @@ internal static class WindowsTargetInspector
 
         var root = roots[0];
         AutomationElement? selected;
-        if (focused)
+        if (capturedElement is not null)
+            selected = capturedElement;
+        else if (focused)
             selected = AutomationElement.FocusedElement;
         else
         {
