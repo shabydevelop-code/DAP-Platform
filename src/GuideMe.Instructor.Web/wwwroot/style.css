@@ -340,3 +340,9 @@ body .brand-heading strong span { font-size: 26px; }
 /* Match the compact action spacing used by the target picker card. */
 .validation-actions{display:flex;align-items:center;justify-content:flex-start;flex-wrap:nowrap;gap:10px;direction:rtl}
 .validation-actions .btn{flex:0 0 auto;margin:0}
+
+/* Shared visual treatment for creation actions; keep all add buttons consistent. */
+.btn.btn-add{background:#195bc1;color:#fff;border-color:transparent;box-shadow:0 6px 14px #3271ee20;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn.btn-add:hover{background:#104b9f;color:#fff}
+.btn.btn-add:focus-visible{outline:2px solid #195bc1;outline-offset:3px}
+.btn.btn-add:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}
