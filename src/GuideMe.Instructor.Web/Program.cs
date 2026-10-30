@@ -151,7 +151,22 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/primary-target",
     if (runtime == "Web")
     {
         var target = capture.GetApprovedTarget(id, contextId, request.GridChoice);
-        locators = new[] { new V5GuideWriter.TargetLocator("css", target.Selector) };
+        var selector = target.Selector;
+        if (request.ContentValue is not null)
+        {
+            if (string.IsNullOrWhiteSpace(request.ContentValue) || request.ContentValue.Length > 400)
+                return Results.BadRequest(new { message = "ערך הזיהוי חייב להכיל 1 עד 400 תווים." });
+            // Replace only the captured content matcher, never the technical selector.
+            var match = System.Text.RegularExpressions.Regex.Match(selector,
+                """:cell-text\(\s*\d+\s*,\s*("(?:[^"\\]|\\.)*")\s*\)""");
+            if (!match.Success)
+                return Results.BadRequest(new { message = "לא זוהה רכיב שתומך בעריכת תוכן." });
+            var quoted = match.Groups[1];
+            selector = string.Concat(selector.AsSpan(0, quoted.Index),
+                JsonSerializer.Serialize(request.ContentValue),
+                selector.AsSpan(quoted.Index + quoted.Length));
+        }
+        locators = new[] { new V5GuideWriter.TargetLocator("css", selector) };
         frames = target.FramePath.Select(f => new V5GuideWriter.TargetLocator("css", f)).ToArray();
         displayName = target.DisplayName;
     }
@@ -663,7 +678,7 @@ internal sealed record NewManualStep(string ContextId, string Bubble, string Pla
 
 internal sealed record WindowsInspectRequest(int ProcessId, bool Focused = false);
 internal sealed record SavePrimaryTargetRequest(string Condition, bool Replacing = false,
-    int? ProcessId = null, int? GridChoice = null);
+    int? ProcessId = null, int? GridChoice = null, string? ContentValue = null);
 internal sealed record PickStart(long GuideId, string ContextId);
 internal sealed record SaveCompletionTargetRequest(string Kind, int? StateAttributeIndex = null,
     string? VariableId = null, string? SelectedTag = null, string? ExpectedValue = null,
