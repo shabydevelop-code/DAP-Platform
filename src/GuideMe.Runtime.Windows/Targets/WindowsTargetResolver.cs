@@ -19,30 +19,17 @@ public sealed class WindowsTargetResolver
         var process = Process.GetCurrentProcess();
         var cpuStarted = process.TotalProcessorTime;
 
-        // An unanchored exact locator is the Guide's declaration that the locator itself is
-        // sufficient to identify the target. Use FindFirst so UIA can stop walking large
-        // descendant trees (for example, a screen containing a large DataGrid).
+        // Never assume a repeated name or AutomationId identifies a unique grid cell.
+        // An unanchored locator must resolve to exactly one element.
         if (descriptor.Anchors.Count == 0 && IsUniqueExactLocator(descriptor.Locator))
         {
-            var findStopwatch = Stopwatch.StartNew();
-            var findCpuStarted = process.TotalProcessorTime;
-            var candidate = FindFirst(root, descriptor.Locator);
-            findStopwatch.Stop();
-            var findCpu = process.TotalProcessorTime - findCpuStarted;
-            stopwatch.Stop();
-
-            if (stopwatch.ElapsedMilliseconds >= 100)
+            var matches = Find(root, descriptor.Locator).Take(2).ToArray();
+            return matches.Length switch
             {
-                Console.Error.WriteLine(
-                    $"[GuideMe Windows resolver timing] locator={descriptor.Locator.Strategy}='{descriptor.Locator.Value}', " +
-                    $"fast-path=exact-unanchored, final={(candidate is null ? 0 : 1)}, " +
-                    $"findWall={findStopwatch.ElapsedMilliseconds} ms, findCpu={findCpu.TotalMilliseconds:F0} ms, " +
-                    $"elapsed={stopwatch.ElapsedMilliseconds} ms, cpu={(process.TotalProcessorTime - cpuStarted).TotalMilliseconds:F0} ms.");
-            }
-
-            return candidate is null
-                ? TargetResolution<AutomationElement>.NotFound()
-                : TargetResolution<AutomationElement>.Resolved(candidate);
+                0 => TargetResolution<AutomationElement>.NotFound(),
+                1 => TargetResolution<AutomationElement>.Resolved(matches[0]),
+                _ => TargetResolution<AutomationElement>.Ambiguous(matches.Length)
+            };
         }
 
         // Self anchors describe properties of the target itself. Push native exact
