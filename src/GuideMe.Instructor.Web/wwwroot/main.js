@@ -335,8 +335,6 @@ function renderSteps() {
         (target ? '<div class="target-action-buttons">' +
           '<div class="target-action-primary">' +
           '<button class="btn secondary small" id="replace-web-target">בחירת רכיב אחר</button>' +
-           '<button class="btn secondary small" id="bind-target-variable">עריכה</button>' +
-          '<button class="btn danger small" id="remove-primary-target">הסרת רכיב</button>' +
           '</div>' +
 
           '</div>' :
@@ -475,29 +473,8 @@ function renderSteps() {
     });
     const startElementPicker = (replacing = false, completion = false) =>
       beginTargetPicker(context.Runtime, current.guide.id, step.id, contextId, replacing, completion, context);
-    const bindTarget = $('bind-target-variable');
-    if (bindTarget) bindTarget.onclick = () => editPrimaryTargetValue({
-      kind:'target', step, contextId, locators, displayName:friendlyName
-    });
     const targetReplace = $('replace-web-target');
     if (targetReplace) targetReplace.onclick = () => guarded(() => startElementPicker(true));
-    const removePrimary = $('remove-primary-target');
-    if (removePrimary) removePrimary.onclick = () => guarded(async () => {
-      if (!confirm('להסיר את הרכיב מהשלב? תנאי האימות ותנאי ההשלמה התלויים בו יוסרו גם הם.')) return;
-      if (pickingFor?.guideId === current.guide.id && pickingFor.stepId === step.id) {
-        const session = pickingFor;
-        try { await targetAdapters[session.runtime].cancel(); }
-        finally { pickerEvent(session, 'cancelled'); }
-      }
-      await api('/guides/' + current.guide.id + '/steps/' +
-        encodeURIComponent(step.id) + '/primary-target', {method:'DELETE',body:'{}'});
-      const guideId = current.guide.id;
-      await openGuide(guideId);
-      const item = [...document.querySelectorAll('[data-step]')]
-        .find(x => x.dataset.step === step.id);
-      if (item) item.click();
-      notify('הרכיב הוסר מהשלב.');
-    });
     const conditionEditor = $('edit-validation');
     if (conditionEditor) conditionEditor.onclick = () => editValidation(step, rule);
     const removeValidation = $('remove-validation');
@@ -1449,88 +1426,6 @@ function locatorTextBinding(locator, displayName = '') {
 }
 function targetBusinessValue(locator, displayName = '') {
   return locatorTextBinding(locator, displayName)?.value || '';
-}
-function editPrimaryTargetValue({kind, step, locators, displayName}) {
-  if (!current || kind !== 'target') return;
-  const locator = (locators || [])[0];
-  if (!locator?.Value) {
-    notify('לא נמצא מזהה רכיב שניתן לערוך.', true); return;
-  }
-  const binding = locatorTextBinding(locator, displayName);
-  const original = locator.Value;
-  // A target can always be inspected/edited. When its captured locator has no
-  // semantic value slot, an empty value preserves its automatic identification.
-  const rawValue = binding?.value || '';
-  const buildTemplate = binding?.build || (value => {
-    if (value.trim())
-      throw new Error('הממפה לא סיפק מאפיין זיהוי שניתן לשנות עבור רכיב זה. ניתן להשאיר את הערך ריק.');
-    return original;
-  });
-  const summary = $('primary-target-summary');
-  const actions = $('bind-target-variable')?.closest('.target-action-buttons');
-  if (!summary || !actions) return;
-  const originalHtml = summary.innerHTML;
-  const previousDisplay = actions.style.display;
-  const variables = current.variables || [];
-  const edit = document.createElement('div');
-  edit.className = 'field';
-  const label = document.createElement('label');
-  label.textContent = 'ערך לזיהוי הרכיב (לא חובה)';
-  const input = document.createElement('textarea');
-  input.rows = 1; input.maxLength = 400; input.dir = 'rtl';
-  input.value = '';
-  edit.append(label,input);
-  const variableControls = document.createElement('div');
-  edit.append(variableControls);
-  initializeVariableField(input, variableControls, rawValue);
-  const buttons = document.createElement('div');
-  buttons.className = 'target-action-primary';
-  buttons.style.display = 'flex';
-  buttons.style.flexDirection = 'row';
-  buttons.style.justifyContent = 'flex-start';
-  buttons.style.alignItems = 'center';
-  buttons.style.gap = '10px';
-  buttons.style.marginTop = '12px';
-  const save = document.createElement('button');
-  save.type='button'; save.className='btn primary small'; save.textContent='שמירה';
-  const cancel = document.createElement('button');
-  cancel.type='button'; cancel.className='btn secondary small'; cancel.textContent='ביטול';
-  save.style.width = 'auto'; save.style.flex = '0 0 auto';
-  cancel.style.width = 'auto'; cancel.style.flex = '0 0 auto';
-  buttons.append(save,cancel);
-  const restore = () => {
-    summary.innerHTML=originalHtml;
-    actions.style.display=previousDisplay;
-  };
-  cancel.onclick=restore;
-  save.onclick=async()=>{
-    try {
-      const value=variableEditorResult(input);
-      const template=buildTemplate(value);
-      if (!template.trim()) throw new Error('יש להזין מזהה רכיב.');
-      if (template.length>400) throw new Error('מזהה הרכיב ארוך מדי.');
-      if (locator.Strategy === 'css' && rawValue === original &&
-          !template.includes('{{var:')) {
-        try { document.querySelector(template); }
-        catch { throw new Error('מזהה CSS אינו תקין.'); }
-      }
-      if (template === original) {
-        restore();
-        return;
-      }
-      save.disabled=true;cancel.disabled=true;
-      await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+'/primary-target/variable',{
-        method:'POST',body:JSON.stringify({locatorValue:template})
-      });
-      await reloadSelectedStep(current.guide.id,step.id);
-      notify('ערך הרכיב עודכן.');
-    } catch(error) {
-      save.disabled=false;cancel.disabled=false;
-      notify('השמירה נכשלה: '+error.message,true);
-    }
-  };
-  summary.replaceChildren(edit,buttons);
-  actions.style.display='none';
 }
 // One insertion editor for every variable-aware field. Persistence is supplied
 // by the caller; cursor handling, token rendering and validation are shared.
