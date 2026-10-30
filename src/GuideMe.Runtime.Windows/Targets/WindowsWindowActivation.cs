@@ -1,3 +1,4 @@
+using System.Windows.Automation;
 using System.Runtime.InteropServices;
 
 namespace GuideMe.Runtime.Windows.Targets;
@@ -37,6 +38,18 @@ public static class WindowsWindowActivation
 
         if (SetForegroundWindow(target) && GetForegroundWindow() == target)
             return true;
+
+        // The Instructor previously used UIA window focus before Win32 fallbacks.
+        // This was lost when activation was consolidated into the shared service.
+        // Focus the top-level window only, never an input control.
+        try
+        {
+            AutomationElement.FromHandle(target)?.SetFocus();
+            if (GetForegroundWindow() == target) return true;
+        }
+        catch (ElementNotAvailableException) { }
+        catch (InvalidOperationException) { }
+        catch (COMException) { }
 
         var foreground = GetForegroundWindow();
         if (foreground == 0 || foreground == target) return GetForegroundWindow() == target;
