@@ -815,13 +815,10 @@ async function refreshPicker() {
     candidate.tag === 'button' ? 'כפתור' : candidate.tag === 'a' ? 'קישור' : 'רכיב במסך';
   box.innerHTML = '<div class="picked-target-fields" dir="rtl"><p class="target-field-label">הרכיב שנבחר</p>' +
     '<p><strong>'+esc(candidate.label || candidate.tag || 'רכיב')+'</strong> <span class="picked-target-kind">('+esc(kindLabel)+')</span></p>'+
-    (!pickingFor.completion &&
-     !['button','a','input','select','textarea'].includes(candidate.tag) &&
-     candidate.gridChoices?.length ?
-      '<label for="grid-row-choice">זיהוי שורה לפי תוכן בעמודה</label>'+
-      '<select id="grid-row-choice"><option value="">בחירת הרכיב הרגילה (לפי מיקום)</option>'+
-      candidate.gridChoices.map((choice,i)=>'<option value="'+i+'">'+esc(choice.header)+': '+esc(choice.value)+'</option>').join('')+
-      '</select><p>בחירה לפי ערך תישאר תקפה גם לאחר מיון הטבלה. אם הערך אינו ייחודי, הוא לא יוצע.</p>' : '')+
+    (!pickingFor.completion && !pickingFor.variableSource ?
+      '<div class="field"><label for="picked-locator-value">זיהוי הרכיב</label>' +
+      '<textarea id="picked-locator-value" rows="1" maxlength="400" dir="rtl"></textarea>' +
+      '<div id="picked-locator-variables"></div></div>' : '') +
     (pickingFor.completion ? '<label for="target-condition">חוק השלמה</label>' +
       '<select id="target-condition">' +
       '<option value="target-appeared">הופיע</option>' +
@@ -838,6 +835,13 @@ async function refreshPicker() {
     '<button id="save-web-target" class="btn primary small">שמירה</button>' +
     '<button id="cancel-web-target" class="btn secondary small">ביטול</button>' +
     '</div>';
+  if (!pickingFor.completion && !pickingFor.variableSource) {
+    const input = $('picked-locator-value');
+    if (input) {
+      input.value = candidate.selector || '';
+      setupVariableInsertion(input, $('picked-locator-variables'), current?.variables || []);
+    }
+  }
   if (pickingFor.variableSource) {
     const extract = $('variable-extract-choice');
     const custom = $('variable-extract-pattern')?.closest('.field');
@@ -894,11 +898,7 @@ async function refreshPicker() {
     }
     result.textContent = '';
     try {
-      const gridChoice = $('grid-row-choice')?.value;
-      const gridChoiceIndex = gridChoice === undefined || gridChoice === ''
-        ? (!pickedFor.completion && !pickedFor.variableSource && pickedFor.runtime === 'Web'
-          ? candidate.selectedGridChoice ?? null : null)
-        : Number(gridChoice);
+      const gridChoiceIndex = null;
       const adapter = targetAdapters[pickedFor.runtime];
       if (pickedFor.variableSource) {
         const mode = $('variable-extract-choice')?.value || 'full';
@@ -913,12 +913,19 @@ async function refreshPicker() {
       }
       else if (pickedFor.completion)
         await adapter.saveCompletion(pickedFor, candidate);
-      else
+      else {
+        const locatorValue = variableEditorResult($('picked-locator-value')).trim();
+        if (!locatorValue || locatorValue.length > 400)
+          throw new Error('יש להזין מזהה רכיב תקין (עד 400 תווים).');
         await api('/guides/'+pickedFor.guideId+'/steps/'+encodeURIComponent(pickedFor.stepId)+'/primary-target',
           {method:'POST',body:JSON.stringify({
             condition:'',
             replacing:pickedFor.replacing,gridChoice:gridChoiceIndex,
             processId:pickedFor.processId || null})});
+        if (locatorValue !== (candidate.selector || '').trim())
+          await api('/guides/'+pickedFor.guideId+'/steps/'+encodeURIComponent(pickedFor.stepId)+'/primary-target/variable',
+            {method:'POST',body:JSON.stringify({locatorValue})});
+      }
       pickerEvent(pickedFor, 'saved');
       result.textContent = 'הרכיב נשמר בהצלחה.';
       await openGuide(pickedFor.guideId);
