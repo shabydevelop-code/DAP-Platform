@@ -939,19 +939,6 @@ WHERE GuideId=$guideId AND StepId=$stepId";
             throw new ArgumentException("מזהה רכיב Windows אינו תקין.");
         if (runtime == "Windows" && kind is not ("value-contains" or "target-appeared" or "target-vanished"))
             throw new ArgumentException("תנאי זה עדיין אינו נתמך עבור Windows.");
-        if (kind == "target-appeared-variable")
-        {
-            if (string.IsNullOrWhiteSpace(variableId) ||
-                !System.Text.RegularExpressions.Regex.IsMatch(variableId, @"^[a-zA-Z0-9_-]{1,120}$"))
-                throw new ArgumentException("יש לבחור משתנה תקין.");
-            if (string.IsNullOrWhiteSpace(selectedTag) ||
-                !System.Text.RegularExpressions.Regex.IsMatch(selectedTag, @"^[a-z][a-z0-9-]{0,40}$"))
-                throw new ArgumentException("יש לבחור רכיב טקסט תקין.");
-            // Keep the text check scoped to the explicitly picked element type.
-            // The variable is substituted by the shared runtime before lookup.
-            selector = selectedTag + ":has-text(\"{{var:" + variableId + "}}\")";
-            kind = "target-appeared";
-        }
         if (kind is not ("target-appeared" or "target-vanished" or "attribute-equals" or "value-contains"))
             throw new ArgumentException("חוק השלמה לא נתמך.");
         if (kind == "value-contains" && (string.IsNullOrWhiteSpace(expectedValue) || expectedValue.Length > 500))
@@ -973,14 +960,26 @@ WHERE GuideId=$guideId AND StepId=$stepId";
         }.ToString());
         connection.Open();
         EnsureElementDisplayNameColumn(connection);
-        if (variableId is not null)
+        // Validate every variable reference in the unified expected-value template.
+        if (kind == "value-contains" && expectedValue is not null)
         {
+            var tokens = System.Text.RegularExpressions.Regex.Matches(
+                expectedValue, @"\\{\\{var:(?<id>[^{}:]+)\\}\\}");
+            var plain = System.Text.RegularExpressions.Regex.Replace(
+                expectedValue, @"\\{\\{var:[^{}:]+\\}\\}", "");
+            if (plain.Contains("{{", StringComparison.Ordinal) ||
+                plain.Contains("}}", StringComparison.Ordinal))
+                throw new ArgumentException("סימון משתנה לא תקין.");
             using var variableCheck = connection.CreateCommand();
             variableCheck.CommandText = "SELECT COUNT(*) FROM GuideVariables WHERE GuideId=$guide AND VariableId=$variable";
             variableCheck.Parameters.AddWithValue("$guide", guideId);
-            variableCheck.Parameters.AddWithValue("$variable", variableId);
-            if (Convert.ToInt64(variableCheck.ExecuteScalar()) != 1)
-                throw new ArgumentException("המשתנה אינו מוגדר בלומדה.");
+            var parameter = variableCheck.Parameters.Add("$variable", SqliteType.Text);
+            foreach (System.Text.RegularExpressions.Match token in tokens)
+            {
+                parameter.Value = token.Groups["id"].Value;
+                if (Convert.ToInt64(variableCheck.ExecuteScalar()) != 1)
+                    throw new ArgumentException("המשתנה אינו מוגדר בלומדה.");
+            }
         }
         using var transaction = connection.BeginTransaction();
         using var check = connection.CreateCommand();
