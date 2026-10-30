@@ -1323,7 +1323,8 @@ function openVariableBindingDialog({kind, step, contextId, locators, displayName
     // Extract the business value from the known :cell-text(column,"value")
     // grammar. Never guess a value from arbitrary CSS quoted fragments.
     const original = locator.Value;
-    let rawValue, buildTemplate;
+    const rawValue = targetBusinessValue(locator);
+    let buildTemplate;
     if (locator.Strategy === 'css') {
       const cellText = /:cell-text\(\s*\d+\s*,\s*("(?:[^"\\]|\\.)*")\s*\)/g;
       const matches = [...original.matchAll(cellText)];
@@ -1335,16 +1336,13 @@ function openVariableBindingDialog({kind, step, contextId, locators, displayName
       const quotedValue = match[1];
       const quoteStart = match.index + match[0].indexOf(quotedValue);
       const quoteEnd = quoteStart + quotedValue.length;
-      try {
-        rawValue = JSON.parse(quotedValue);
-      } catch {
+      if (!rawValue) {
         notify('ערך הרכיב אינו בפורמט תקין.', true);
         return;
       }
       buildTemplate = value =>
         original.slice(0, quoteStart) + JSON.stringify(value) + original.slice(quoteEnd);
     } else {
-      rawValue = original;
       buildTemplate = value => value;
     }
     openVariableTextEditor({
