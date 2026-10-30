@@ -288,6 +288,12 @@ function renderSteps() {
     const locatorText = locators[0]?.Value || '';
     const friendlyName = element?.DisplayName || (locatorText === 'a' ? 'קישור' : locatorText);
     const targetValue = targetBusinessValue(locators[0]);
+    const targetKind = /(?:^|[ >+~])h([1-6])(?=[:.#\\[ >+~]|$)/i.exec(locatorText);
+    const targetType = targetKind ? 'כותרת (H' + targetKind[1] + ')' :
+      /(?:^|[ >+~])button(?=[:.#\\[ >+~]|$)/i.test(locatorText) ? 'כפתור' :
+      /(?:^|[ >+~])input(?=[:.#\\[ >+~]|$)/i.test(locatorText) ? 'שדה קלט' :
+      /(?:^|[ >+~])a(?=[:.#\\[ >+~]|$)/i.test(locatorText) ? 'קישור' : 'רכיב';
+    const targetHasEditableValue = !!targetValue;
     selectedTargetPreviewValue = targetValue || null;
     selectedValidationExpectedValue = rule?.ExpectedValue || null;
     selectedCompletionDescription = completionRule?.Kind === 'value-contains'
@@ -309,7 +315,9 @@ function renderSteps() {
        '<div class="step-friendly-grid">' +
       '<section class="step-friendly-card"><h3>רכיב במסך</h3>' +
       '<div id="primary-target-summary">' +
-      (target ? '<p><strong>' + (targetValue ? friendlyInstructionHtml(targetValue) : esc(friendlyName)) + '</strong></p>' +
+      (target ? '<p><strong>' + esc(friendlyName) + '</strong></p>' +
+        '<p class="field-help">סוג רכיב: ' + esc(targetType) + '</p>' +
+        (targetValue ? '<p>ערך איתור: <strong>' + friendlyInstructionHtml(targetValue) + '</strong></p>' : '') +
         '' :
         '<p>עדיין לא נבחר רכיב לשלב הזה.</p>') +
       '</div>' +
@@ -317,7 +325,7 @@ function renderSteps() {
         (target ? '<div class="target-action-buttons">' +
           '<div class="target-action-primary">' +
           '<button class="btn secondary small" id="replace-web-target">בחירת רכיב אחר</button>' +
-           '<button class="btn secondary small" id="bind-target-variable">עריכה</button>' +
+           (targetHasEditableValue ? '<button class="btn secondary small" id="bind-target-variable">עריכה</button>' : '') +
           '<button class="btn danger small" id="remove-primary-target">הסרת רכיב</button>' +
           '</div>' +
 
@@ -1381,17 +1389,13 @@ function openVariableBindingDialog({kind, step, locators}) {
   let buildTemplate;
   if (locator.Strategy === 'css') {
     const matches = [...original.matchAll(/:cell-text\(\s*\d+\s*,\s*("(?:[^"\\]|\\.)*")\s*\)/g)];
-    if (matches.length === 1 && rawValue) {
-      const match = matches[0], quoted = match[1];
-      const start = match.index + match[0].indexOf(quoted);
-      buildTemplate = value => original.slice(0,start) + JSON.stringify(value) +
-        original.slice(start + quoted.length);
-    } else {
-      // Ordinary CSS targets do not contain a cell-text business value.
-      // Edit their locator as-is instead of incorrectly rejecting the target.
-      rawValue = original;
-      buildTemplate = value => value;
+    if (matches.length !== 1 || !rawValue) {
+      notify('לרכיב זה אין ערך עסקי שניתן לערוך.', false, 'info'); return;
     }
+    const match = matches[0], quoted = match[1];
+    const start = match.index + match[0].indexOf(quoted);
+    buildTemplate = value => original.slice(0,start) + JSON.stringify(value) +
+      original.slice(start + quoted.length);
   } else {
     rawValue = original;
     buildTemplate = value => value;
@@ -1405,9 +1409,9 @@ function openVariableBindingDialog({kind, step, locators}) {
   const edit = document.createElement('div');
   edit.className = 'field';
   const label = document.createElement('label');
-  label.textContent = locator.Strategy === 'css' && rawValue === original ? 'מזהה הרכיב' : 'ערך הרכיב';
+  label.textContent = 'ערך לאיתור הרכיב';
   const input = document.createElement('textarea');
-  input.rows = 2; input.maxLength = 400; input.dir = 'rtl';
+  input.rows = 1; input.maxLength = 400; input.dir = 'rtl';
   input.value = String(rawValue).replace(/\{\{var:([^}]+)\}\}/g, (_,id) => {
     const v = variables.find(x=>x.id===id);
     return v ? '【'+variablePreviewValue(v)+'】' : '{{var:'+id+'}}';
