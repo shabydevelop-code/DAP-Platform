@@ -228,7 +228,8 @@ public sealed class GuideExecutionEngine
         IReadOnlyList<GuideStep> steps,
         IGuideStepAdapter adapter,
         CancellationToken cancellationToken,
-        IReadOnlyList<GuideVariableDefinition>? variables = null)
+        IReadOnlyList<GuideVariableDefinition>? variables = null,
+        string language = "he")
     {
         ArgumentNullException.ThrowIfNull(steps);
         ArgumentNullException.ThrowIfNull(adapter);
