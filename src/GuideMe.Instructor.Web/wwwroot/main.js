@@ -190,6 +190,7 @@ window.addEventListener('resize', () => requestAnimationFrame(syncStepListHeight
 
 function renderSteps() {
   selectedTargetPreviewValue = null;
+  selectedValidationExpectedValue = null;
   selectedStep = null; $('step-inspector').innerHTML = '<div class="empty-inspector">בחר שלב להצגת הפרטים שלו</div>';
   const search = $('step-search').value.trim().toLowerCase();
   const steps = (current?.steps || []).filter(s => String(s.order).includes(search) || s.id.toLowerCase().includes(search) || (s.bubble || '').toLowerCase().includes(search));
@@ -292,6 +293,7 @@ function renderSteps() {
     const friendlyName = element?.DisplayName || (locatorText === 'a' ? 'קישור' : locatorText);
     const targetValue = targetBusinessValue(locators[0]);
     selectedTargetPreviewValue = targetValue || null;
+    selectedValidationExpectedValue = rule?.ExpectedValue || null;
     const appText = context ? appLabel(context) : 'לא משויך';
 
     $('step-inspector').innerHTML =
@@ -327,7 +329,7 @@ function renderSteps() {
       '</section>' +
       '<section class="step-friendly-card"><h3>מתי ממשיכים לשלב הבא?</h3>' +
       '<p>' + esc(!target ? 'יוגדר לאחר בחירת הרכיב.' : conditionText) + '</p>' +
-      (rule?.ExpectedValue ? '<p>ערך צפוי: <strong>' + esc(rule.ExpectedValue) + '</strong></p>' : '') +
+      (rule?.ExpectedValue ? '<p>ערך צפוי: <strong class="validation-expected-preview">' + friendlyInstructionHtml(rule.ExpectedValue) + '</strong></p>' : '') +
       ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') && target ?
         '<div class="validation-actions">' +
         '<button class="btn secondary small" id="edit-validation">' +
@@ -510,30 +512,73 @@ function validationLabel(kind) {
 }
 function editValidation(step, rule) {
   const kind = validationChoices.some(x=>x.value===rule?.Kind) ? rule.Kind : 'clicked';
+  const variables = current?.variables || [];
+  const references = new Map();
+  const display = String(rule?.ExpectedValue || '').replace(/\{\{var:([^}]+)\}\}/g, (token, id) => {
+    const variable = variables.find(v => v.id === id);
+    const label = '【' + variablePreviewValue(variable) + '】';
+    references.set(label, id);
+    return label;
+  });
   modal('עריכת תנאי התקדמות — שלב ' + step.order, [
     {name:'kind',label:'מתי המערכת תעבור לשלב הבא?',value:kind,choices:validationChoices},
-    {name:'expectedValue',label:'ערך צפוי (רק עבור ״השדה מכיל ערך מסוים״)',
-      value:rule?.ExpectedValue || '',max:500,optional:true,
-      help:'הזנת ערך נדרשת רק כאשר בוחרים התאמה לערך מסוים. אין להשתמש כאן בסיסמאות או במידע אישי.'}
+    {name:'expectedValue',label:'ערך צפוי',value:display,max:500,optional:true,
+      help:'אפשר לשלב טקסט ומשתנים בערך הצפוי.'}
   ],async values=>{
+    let expected = values.expectedValue;
+    for (const label of [...references.keys()].sort((a,b)=>b.length-a.length))
+      expected = expected.split(label).join('{{var:' + references.get(label) + '}}');
+    if (/【[^】]*】/.test(expected)) throw new Error('סימון משתנה לא מוכר.');
+    if (values.kind === 'value-equals' && !expected.trim())
+      throw new Error('יש להזין ערך צפוי.');
     await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+'/validation',
       {method:'PUT',body:JSON.stringify({kind:values.kind,
-        expectedValue:values.kind === 'value-equals' ? values.expectedValue : null})});
-    const guideId=current.guide.id, stepId=step.id;
-    await openGuide(guideId);
-    document.querySelectorAll('[data-step]').forEach(b=>{
-      if(b.dataset.step===stepId)b.click();
-    });
+        expectedValue:values.kind === 'value-equals' ? expected : null})});
+    await reloadSelectedStep(current.guide.id,step.id);
     notify('תנאי ההתקדמות עודכן.');
   });
   const kindControl = $('field-kind');
-  const valueContainer = $('field-expectedValue')?.closest('.field');
+  const input = $('field-expectedValue');
+  const valueContainer = input?.closest('.field');
+  let caretStart = input?.selectionStart || 0, caretEnd = input?.selectionEnd || 0;
+  const trackCaret = () => { caretStart=input.selectionStart; caretEnd=input.selectionEnd; };
+  ['click','keyup','select'].forEach(event=>input?.addEventListener(event,trackCaret));
+  if (variables.length && valueContainer) {
+    const selector = document.createElement('select');
+    selector.setAttribute('aria-label','משתנה');
+    variables.forEach(v => {
+      const option = document.createElement('option');
+      option.value=v.id; option.textContent=v.name; selector.append(option);
+    });
+    const add = document.createElement('button');
+    add.type='button'; add.className='btn secondary small';
+    add.textContent='הוסף משתנה';
+    add.addEventListener('click',()=>{
+      const variable=variables.find(v=>v.id===selector.value);
+      if (!variable) return;
+      const label='【'+variablePreviewValue(variable)+'】';
+      if (references.has(label) && references.get(label)!==variable.id) {
+        notify('לשני משתנים יש אותו ערך מוצג.',true); return;
+      }
+      const spans=[...input.value.matchAll(/【[^】]*】/g)]
+        .map(m=>({start:m.index,end:m.index+m[0].length}));
+      if(spans.some(p=>(caretStart>p.start&&caretStart<p.end)||(caretEnd>p.start&&caretEnd<p.end))) {
+        notify('יש לבחור משתנה בשלמותו או למקם את הסמן מחוץ לסימון.',true);return;
+      }
+      references.set(label,variable.id);
+      input.setRangeText(label,caretStart,caretEnd,'end');
+      trackCaret();
+      input.dispatchEvent(new Event('input',{bubbles:true}));
+      input.focus();
+    });
+    valueContainer.append(selector,add);
+  }
   const updateValueVisibility = () => {
-    if (valueContainer) valueContainer.classList.toggle('hidden',kindControl?.value !== 'value-equals');
-    const valueInput = $('field-expectedValue');
-    if (valueInput) valueInput.required = kindControl?.value === 'value-equals';
+    const visible=kindControl?.value==='value-equals';
+    valueContainer?.classList.toggle('hidden',!visible);
+    if(input) input.required=visible;
   };
-  kindControl?.addEventListener('change', updateValueVisibility);
+  kindControl?.addEventListener('change',updateValueVisibility);
   updateValueVisibility();
 }
 
@@ -932,6 +977,7 @@ function renderGuideVariables() {
     }));
 }
 let selectedTargetPreviewValue = null;
+let selectedValidationExpectedValue = null;
 function refreshStepVariablePreviews() {
   if (!current) return;
   // Update the existing list in place so the selected step and scroll position
@@ -956,6 +1002,9 @@ function refreshStepVariablePreviews() {
   const targetPreview = document.querySelector('#primary-target-summary strong');
   if (targetPreview && selectedTargetPreviewValue != null)
     targetPreview.innerHTML = friendlyInstructionHtml(selectedTargetPreviewValue);
+  const validationPreview = document.querySelector('.validation-expected-preview');
+  if (validationPreview && selectedValidationExpectedValue != null)
+    validationPreview.innerHTML = friendlyInstructionHtml(selectedValidationExpectedValue);
 }
 function editGuideVariable(variable = null) {
   if (!current) return;
