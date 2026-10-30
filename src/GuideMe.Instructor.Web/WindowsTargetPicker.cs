@@ -32,6 +32,8 @@ internal sealed class WindowsTargetPicker : IDisposable
     private AutomationElement? hovered;
     private bool disposed;
     private nint returnWindow;
+    [DllImport("user32.dll")] private static extern nint GetForegroundWindow();
+    internal static nint CaptureInstructorWindow() => GetForegroundWindow();
 
     [StructLayout(LayoutKind.Sequential)]
     private struct Point { public int X; public int Y; }
