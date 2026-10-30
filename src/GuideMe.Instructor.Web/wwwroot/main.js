@@ -189,6 +189,7 @@ function syncStepListHeight() {
 window.addEventListener('resize', () => requestAnimationFrame(syncStepListHeight));
 
 function renderSteps() {
+  selectedTargetPreviewValue = null;
   selectedStep = null; $('step-inspector').innerHTML = '<div class="empty-inspector">בחר שלב להצגת הפרטים שלו</div>';
   const search = $('step-search').value.trim().toLowerCase();
   const steps = (current?.steps || []).filter(s => String(s.order).includes(search) || s.id.toLowerCase().includes(search) || (s.bubble || '').toLowerCase().includes(search));
@@ -290,6 +291,7 @@ function renderSteps() {
     const locatorText = locators[0]?.Value || '';
     const friendlyName = element?.DisplayName || (locatorText === 'a' ? 'קישור' : locatorText);
     const targetValue = targetBusinessValue(locators[0]);
+    selectedTargetPreviewValue = targetValue || null;
     const appText = context ? appLabel(context) : 'לא משויך';
 
     $('step-inspector').innerHTML =
@@ -929,6 +931,7 @@ function renderGuideVariables() {
       notify('המשתנה נמחק.');
     }));
 }
+let selectedTargetPreviewValue = null;
 function refreshStepVariablePreviews() {
   if (!current) return;
   // Update the existing list in place so the selected step and scroll position
@@ -948,6 +951,11 @@ function refreshStepVariablePreviews() {
   const step = current.steps.find(s => s.id === selectedStep);
   if (inspector && step) inspector.innerHTML =
     friendlyInstructionHtml(step.bubble || 'לא הוגדרה הנחיה');
+  // Keep the selected target preview in sync with the same variable updates.
+  // Its locator template is retained from the step fetch, not rewritten.
+  const targetPreview = document.querySelector('#primary-target-summary strong');
+  if (targetPreview && selectedTargetPreviewValue != null)
+    targetPreview.innerHTML = friendlyInstructionHtml(selectedTargetPreviewValue);
 }
 function editGuideVariable(variable = null) {
   if (!current) return;
