@@ -908,8 +908,29 @@ function renderGuideVariables() {
         {method:'DELETE',body:'{}'});
       current.variables = await api('/guides/' + current.guide.id + '/variables');
       renderGuideVariables();
+      refreshStepVariablePreviews();
       notify('המשתנה נמחק.');
     }));
+}
+function refreshStepVariablePreviews() {
+  if (!current) return;
+  // Update the existing list in place so the selected step and scroll position
+  // remain intact. Both text and accessible labels use the current variable values.
+  document.querySelectorAll('#step-list [data-step]').forEach(row => {
+    const step = current.steps.find(s => s.id === row.dataset.step);
+    if (!step) return;
+    const preview = friendlyInstructionText(step.bubble || 'שלב ' + step.order);
+    const label = row.querySelector('.step-body strong');
+    if (label) label.textContent = preview;
+    row.setAttribute('aria-label', 'שלב ' + step.order + ': ' + preview +
+      (step.enabled ? '' : ', מושבת'));
+  });
+  // The inspector uses the same current variables; update its instruction
+  // without recreating the step editor or discarding the active selection.
+  const inspector = document.querySelector('#step-inspector .step-summary-content > p');
+  const step = current.steps.find(s => s.id === selectedStep);
+  if (inspector && step) inspector.innerHTML =
+    friendlyInstructionHtml(step.bubble || 'לא הוגדרה הנחיה');
 }
 function editGuideVariable(variable = null) {
   if (!current) return;
@@ -926,6 +947,7 @@ function editGuideVariable(variable = null) {
       body:JSON.stringify({name:values.name,initialValue:values.initialValue || null})});
     current.variables = await api('/guides/' + guideId + '/variables');
     renderGuideVariables();
+    refreshStepVariablePreviews();
     notify(variable ? 'המשתנה עודכן.' : 'המשתנה נוסף ללומדה.');
   });
 }
