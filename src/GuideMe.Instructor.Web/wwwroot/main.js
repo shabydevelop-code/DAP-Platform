@@ -1316,19 +1316,56 @@ function openVariableBindingDialog({kind, step, contextId, locators}) {
     return;
   }
   const text = step.bubble || '';
+  // Build a readable editing surface while retaining an exact mapping back
+  // to each original variable token (including variables with equal values).
+  const tokens = [];
+  const readable = text.replace(/\\{\\{var:([^}]+)\\}\\}/g, (token, id) => {
+    const variable = variables.find(v => v.id === id);
+    const label = '【' + variablePreviewValue(variable) + '】';
+    tokens.push({token, label});
+    return label;
+  });
   modal('שילוב משתנים בהנחיה', [
-    {name:'sourceText', label:'טקסט להחלפה מתוך ההנחיה', value:text, max:4000, multiline:true,
+    {name:'sourceText', label:'טקסט להחלפה מתוך ההנחיה', value:readable, max:4000, multiline:true,
      help:'מחק את הטקסט שאינך רוצה להחליף והשאר רק את הטקסט שיוחלף במשתנה.'},
     {name:'variableId', label:'משתנה', value:variables[0].id,
      choices:variables.map(v => ({value:v.id, text:v.name}))}
   ], async values => {
     const source = values.sourceText;
     if (!source.trim()) throw new Error('יש להשאיר בתיבה את הטקסט שברצונך להחליף.');
-    if (!text.includes(source)) throw new Error('הטקסט שהושאר אינו מופיע בהנחיה המקורית.');
+    if (!readable.includes(source)) throw new Error('הטקסט שהושאר אינו מופיע בהנחיה המקורית.');
     const variable = variables.find(v => v.id === values.variableId);
     if (!variable) throw new Error('המשתנה שנבחר אינו קיים.');
     const token = '{{var:' + variable.id + '}}';
-    const bubble = text.replace(source, token);
+    // Locate the selected span in the readable text, then map its boundaries
+    // to the stored text. Reject partial placeholder edits and ambiguous labels.
+    const start = readable.indexOf(source);
+    const end = start + source.length;
+    const matches = [...text.matchAll(/\\{\\{var:([^}]+)\\}\\}/g)];
+    let cursor = 0, displayCursor = 0;
+    const spans = [];
+    for (const match of matches) {
+      const plain = text.slice(cursor, match.index);
+      displayCursor += plain.length;
+      const label = tokens[spans.length].label;
+      spans.push({displayStart:displayCursor, displayEnd:displayCursor + label.length,
+        rawStart:match.index, rawEnd:match.index + match[0].length});
+      displayCursor += label.length;
+      cursor = match.index + match[0].length;
+    }
+    if (spans.some(span => (start > span.displayStart && start < span.displayEnd) ||
+      (end > span.displayStart && end < span.displayEnd)))
+      throw new Error('יש לבחור את סימון המשתנה בשלמותו, ללא חיתוך חלקי.');
+    const toRaw = position => {
+      let delta = 0;
+      for (const span of spans) {
+        if (position >= span.displayEnd)
+          delta += (span.rawEnd - span.rawStart) - (span.displayEnd - span.displayStart);
+      }
+      return position + delta;
+    };
+    const rawStart = toRaw(start), rawEnd = toRaw(end);
+    const bubble = text.slice(0, rawStart) + token + text.slice(rawEnd);
     if (bubble.length > 4000) throw new Error('ההנחיה ארוכה מדי.');
     await api('/guides/' + current.guide.id + '/steps/' + encodeURIComponent(step.id), {
       method:'PUT', body:JSON.stringify({
