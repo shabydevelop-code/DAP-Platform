@@ -631,7 +631,9 @@ function syncPickerButtons() {
   const busy = !!pickingFor || pickerStarting;
   for (const id of ['pick-element','replace-web-target','add-completion','pick-variable-source']) {
     const button = $(id);
-    if (button) button.disabled = busy;
+    if (!button) continue;
+    button.disabled = busy;
+    if (id === 'replace-web-target') button.classList.toggle('hidden', busy);
   }
 }
 // Target lifecycle is shared. Only runtime-specific discovery and transport
