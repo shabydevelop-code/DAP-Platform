@@ -206,7 +206,7 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/primary-target/variable",
 {
     try
     {
-        V5GuideWriter.BindPrimaryTargetVariable(id, stepId, request.SourceText, request.VariableId);
+        V5GuideWriter.SavePrimaryTargetLocatorTemplate(id, stepId, request.LocatorValue);
         return Results.NoContent();
     }
     catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
@@ -683,4 +683,4 @@ internal sealed record SaveVariableSourceRequest(string VariableId, string Prope
 
 internal sealed record IdentifiedActionRequest(string VariableId);
 
-internal sealed record BindPrimaryTargetVariableRequest(string SourceText, string VariableId);
+internal sealed record BindPrimaryTargetVariableRequest(string LocatorValue);
