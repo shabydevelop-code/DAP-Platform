@@ -309,7 +309,8 @@ function renderSteps() {
       (rule?.ExpectedValue ? '<p>ערך צפוי: <strong>' + esc(rule.ExpectedValue) + '</strong></p>' : '') +
       ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') && target ?
         '<button class="btn secondary small" id="edit-validation">' +
-        (rule ? 'עריכת תנאי ההתקדמות' : 'הגדרת תנאי התקדמות') + '</button>' : '') +
+        (rule ? 'עריכת תנאי ההתקדמות' : 'הגדרת תנאי התקדמות') + '</button>' +
+        (rule ? '<button class="btn danger small" id="remove-validation">הסרת תנאי התקדמות</button>' : '') : '') +
       '</section></div>' +
       ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') && target && rule ?
         '<section class="step-friendly-card completion-card"><h3>תנאי השלמה נוסף</h3>' +
@@ -449,6 +450,17 @@ function renderSteps() {
     });
     const conditionEditor = $('edit-validation');
     if (conditionEditor) conditionEditor.onclick = () => editValidation(step, rule);
+    const removeValidation = $('remove-validation');
+    if (removeValidation) removeValidation.onclick = () => guarded(async () => {
+      if (!confirm('להסיר את תנאי ההתקדמות מהשלב?')) return;
+      const guideId = current.guide.id, stepId = step.id;
+      await api('/guides/' + guideId + '/steps/' + encodeURIComponent(stepId) + '/validation',
+        {method:'DELETE',body:'{}'});
+      await openGuide(guideId);
+      const item = [...document.querySelectorAll('[data-step]')].find(x => x.dataset.step === stepId);
+      if (item) item.click();
+      notify('תנאי ההתקדמות הוסר.');
+    });
     const startButton = $('pick-element');
     if (startButton) startButton.onclick = () => guarded(() => startElementPicker());
     syncPickerButtons();
