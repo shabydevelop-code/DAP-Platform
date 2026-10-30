@@ -616,8 +616,15 @@ public sealed class WindowsGuideRuntime
                 string? observedValue = null;
                 if (resolved && kind == "target-enabled")
                     enabled = resolution.Target!.Current.IsEnabled;
-                if (resolved && (kind is "value-equals" or "value-contains") && resolution.Target!.TryGetCurrentPattern(ValuePattern.Pattern, out var valuePattern))
-                    observedValue = ((ValuePattern)valuePattern).Current.Value;
+                if (resolved && kind is "value-equals" or "value-contains")
+                {
+                    // Static text and grid labels expose their content through UIA Name,
+                    // not ValuePattern. Prefer ValuePattern for editable controls.
+                    var observedTarget = resolution.Target!;
+                    observedValue = observedTarget.TryGetCurrentPattern(ValuePattern.Pattern, out var valuePattern)
+                        ? ((ValuePattern)valuePattern).Current.Value
+                        : observedTarget.Current.Name;
+                }
                 if (!GuideCompletionPolicy.IsSatisfied(condition, resolved, ambiguous, enabled, observedValue))
                     return false;
                 continue;
