@@ -1380,6 +1380,7 @@ function openVariableBindingDialog({kind, step, contextId, locators}) {
   const add = document.createElement('button');
   add.type = 'button';
   add.className = 'btn secondary small';
+  add.style.marginTop = '8px';
   add.textContent = 'הוסף משתנה';
   selector.closest('.field').append(add);
   let caretStart = textarea.selectionStart, caretEnd = textarea.selectionEnd;
