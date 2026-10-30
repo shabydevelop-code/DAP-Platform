@@ -86,7 +86,7 @@ public static class GuideV5VariableReader
         }
         await using var cmd = db.CreateCommand();
         cmd.CommandText = @"SELECT StepId,ActionId,ActionOrder,VariableId,ActionKind,
-            LiteralValue,SourceVariableId,TargetUsageId,Property,Pattern,Timing
+            TargetUsageId,Property,Pattern,Timing
             FROM StepVariableActions WHERE GuideId=$guide ORDER BY StepId,ActionOrder";
         cmd.Parameters.AddWithValue("$guide", guideId);
         await using var reader = await cmd.ExecuteReaderAsync(token);
@@ -97,14 +97,13 @@ public static class GuideV5VariableReader
             var variableId = reader.GetString(3);
             if (!ids.Contains(variableId)
                 || !Enum.TryParse<GuideVariableActionKind>(reader.GetString(4), out var kind)
-                || reader.IsDBNull(10))
+                || kind != GuideVariableActionKind.ReadFromTarget
+                || reader.IsDBNull(8))
                 throw new InvalidOperationException($"Invalid variable action for step '{stepId}'.");
             string? Nullable(int index) => reader.IsDBNull(index) ? null : reader.GetString(index);
             var action = new GuideVariableAction(reader.GetString(1), variableId, kind,
-                reader.GetInt32(2), Nullable(5), Nullable(6), Nullable(7),
-                Nullable(8), Nullable(9), StepCaptureTiming.AfterAction);
-            if (action.SourceVariableId is { } source && !ids.Contains(source))
-                throw new InvalidOperationException($"Unknown source variable '{source}'.");
+                reader.GetInt32(2), Nullable(5),
+                Nullable(6), Nullable(7), StepCaptureTiming.AfterAction);
             if (!byStep.TryGetValue(stepId, out var actions))
                 byStep[stepId] = actions = new List<GuideVariableAction>();
             if (actions.Any(x => x.Order == action.Order || x.Id == action.Id))
