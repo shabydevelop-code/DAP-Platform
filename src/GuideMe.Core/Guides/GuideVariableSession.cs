@@ -41,10 +41,13 @@ public sealed class GuideVariableSession
             ? value[..2048] + "...(truncated)" : value);
 
     private readonly Dictionary<string, string?> _values;
+    private readonly string _unassignedDisplayValue;
 
-    public GuideVariableSession(IReadOnlyList<GuideVariableDefinition> definitions)
+    public GuideVariableSession(IReadOnlyList<GuideVariableDefinition> definitions, string language = "he")
     {
         ArgumentNullException.ThrowIfNull(definitions);
+        _unassignedDisplayValue = string.Equals(language, "en", StringComparison.OrdinalIgnoreCase)
+            ? "Value not assigned" : "לא הוקצה ערך";
         _values = new Dictionary<string, string?>(StringComparer.Ordinal);
         foreach (var variable in definitions)
         {
@@ -84,8 +87,7 @@ public sealed class GuideVariableSession
         return Reference.Replace(expression, match =>
         {
             var id = match.Groups["id"].Value;
-            return Read(id) ?? throw new InvalidOperationException(
-                $"Guide variable '{id}' has not been assigned.");
+            return Read(id) ?? _unassignedDisplayValue;
         });
     }
     // CSS locators can contain JSON-quoted semantic text (e.g. :cell-text or
