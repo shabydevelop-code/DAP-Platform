@@ -1389,43 +1389,25 @@ function friendlyInstructionHtml(value) {
   }
   return html + esc(text.slice(offset));
 }
-// The inspector and editor share one value extraction rule; the CSS selector
-// remains a private implementation detail.
-// Only a semantic text value may be edited; never expose or modify the CSS structure.
-function locatorTextBinding(locator, displayName = '') {
-  if (!locator?.Value) return null;
-  const original = locator.Value;
-  if (locator.Strategy === 'name') return {value:original, build:value=>value};
-  if (locator.Strategy !== 'css') return null;
-  const matchers = [...original.matchAll(/:(?:cell-text\(\s*\d+\s*,\s*|exact-text\(\s*)("(?:[^"\\]|\\.)*")\s*\)/g)];
-  if (matchers.length === 1) {
-    const match = matchers[0], quoted = match[1];
-    let value;
-    try { value = JSON.parse(quoted); } catch { return null; }
-    const offset = match.index + match[0].indexOf(quoted);
-    return {value, build:next=>original.slice(0, offset) + JSON.stringify(next) +
-      original.slice(offset + quoted.length)};
-  }
-  if (matchers.length || /:cell-text\(|:exact-text\(/.test(original)) return null;
-  const attributes = [...original.matchAll(/\[(?:aria-label|placeholder|name|title|data-[\w-]+)\s*=\s*("(?:[^"\\]|\\.)*")\]/g)];
-  if (attributes.length === 1) {
-    const match = attributes[0], quoted = match[1];
-    try {
-      const value = JSON.parse(quoted);
-      const offset = match.index + match[0].indexOf(quoted);
-      return {value, build:next=>original.slice(0,offset) + JSON.stringify(next) +
-        original.slice(offset + quoted.length)};
-    } catch { return null; }
-  }
-  // A captured label may serve as a semantic text discriminator for any
-  // content-bearing element, using the Web Learner's existing :exact-text rule.
-  const name = String(displayName || '').trim();
-  if (!name || name.length > 250 || /(?:^|[ >+~])(?:input|textarea|select)(?=[:.#\[\s>+~]|$)/i.test(original))
-    return null;
-  return {value:name, build:next=>original + ':exact-text(' + JSON.stringify(next) + ')'};
-}
+// Extract a readable value for the selected target without exposing its locator.
 function targetBusinessValue(locator, displayName = '') {
-  return locatorTextBinding(locator, displayName)?.value || '';
+  if (!locator?.Value) return '';
+  const selector = locator.Value;
+  if (locator.Strategy === 'name') return selector;
+  if (locator.Strategy !== 'css') return '';
+  const semantic = [...selector.matchAll(/:(?:cell-text\(\s*\d+\s*,\s*|exact-text\(\s*)("(?:[^"\\]|\\.)*")\s*\)/g)];
+  if (semantic.length === 1) {
+    try { return JSON.parse(semantic[0][1]); } catch { return ''; }
+  }
+  if (semantic.length || /:cell-text\(|:exact-text\(/.test(selector)) return '';
+  const attributes = [...selector.matchAll(/\[(?:aria-label|placeholder|name|title|data-[\w-]+)\s*=\s*("(?:[^"\\]|\\.)*")\]/g)];
+  if (attributes.length === 1) {
+    try { return JSON.parse(attributes[0][1]); } catch { return ''; }
+  }
+  const name = String(displayName || '').trim();
+  return name && name.length <= 250 &&
+    !/(?:^|[ >+~])(?:input|textarea|select)(?=[:.#\[\s>+~]|$)/i.test(selector)
+    ? name : '';
 }
 // One insertion editor for every variable-aware field. Persistence is supplied
 // by the caller; cursor handling, token rendering and validation are shared.
