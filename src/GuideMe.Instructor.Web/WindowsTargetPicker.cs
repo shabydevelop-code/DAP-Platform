@@ -252,7 +252,8 @@ internal sealed class WindowsTargetPicker : IDisposable
         }
         catch (Exception ex) when (ex is COMException or ElementNotAvailableException or InvalidOperationException)
         {
-            lock (gate) error = ex.Message;
+            lock (gate) { selection = null; error = ex.Message; picking = false; }
+            dispatcher?.BeginInvokeShutdown(DispatcherPriority.Background);
         }
     }
 
