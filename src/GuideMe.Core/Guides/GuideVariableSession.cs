@@ -129,6 +129,7 @@ public sealed class GuideVariableSession
         };
         var expanded = step with
         {
+            Bubble = step.Bubble with { Content = Resolve(step.Bubble.Content) },
             Target = step.Target is null ? null : Expand(step.Target),
             CompletionConditions = step.CompletionConditions?.Select(condition =>
                 condition with { Target = Expand(condition.Target) }).ToArray(),
