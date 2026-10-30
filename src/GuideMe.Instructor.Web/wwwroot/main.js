@@ -278,7 +278,7 @@ function renderSteps() {
     const completionSubject = hasFriendlyCompletionName
       ? 'הרכיב "' + completionElementName + '"' : 'הרכיב שנבחר';
     const completionDescription = completionRule?.Kind === 'value-contains'
-      ? 'השדה ' + completionSubject + ' מכיל את הערך "' + friendlyInstructionText(completionRule.ExpectedValue || '') + '".'
+      ? completionSubject + ' מכיל את הערך ' + friendlyInstructionHtml(completionRule.ExpectedValue || '') + '.'
       : completionRule?.Kind === 'target-appeared'
         ? completionSubject + ' יופיע במסך.'
       : completionRule?.Kind === 'attribute-equals'
@@ -291,7 +291,7 @@ function renderSteps() {
     selectedTargetPreviewValue = targetValue || null;
     selectedValidationExpectedValue = rule?.ExpectedValue || null;
     selectedCompletionDescription = completionRule?.Kind === 'value-contains'
-      ? () => 'השדה ' + completionSubject + ' מכיל את הערך "' + friendlyInstructionText(completionRule.ExpectedValue || '') + '".'
+      ? () => completionSubject + ' מכיל את הערך ' + friendlyInstructionHtml(completionRule.ExpectedValue || '') + '.'
       : null;
     const appText = context ? appLabel(context) : 'לא משויך';
 
@@ -340,7 +340,7 @@ function renderSteps() {
         '<section class="step-friendly-card completion-card"><h3>תנאי השלמה נוסף</h3>' +
         (completionRule ? '<div class="completion-details">' +
           '<div class="completion-detail"><span class="completion-detail-label">השלב יושלם כאשר:</span>' +
-          '<strong class="completion-description-preview">' + esc(completionDescription) + '</strong></div>' +
+          '<strong class="completion-description-preview">' + (completionRule?.Kind === 'value-contains' ? completionDescription : esc(completionDescription)) + '</strong></div>' +
           '</div><button class="btn danger small" id="remove-completion">הסרת תנאי</button>' :
           '<p>בחר רכיב ובדוק הופעה, היעלמות או שינוי מאפיין בעקבות הפעולה.</p>' +
           '<button class="btn secondary small" id="add-completion">בחירת רכיב לתנאי השלמה</button>') +
@@ -1009,7 +1009,7 @@ function refreshStepVariablePreviews() {
     targetPreview.innerHTML = friendlyInstructionHtml(selectedTargetPreviewValue);
   const completionPreview = document.querySelector('.completion-description-preview');
   if (completionPreview && selectedCompletionDescription != null)
-    completionPreview.textContent = selectedCompletionDescription();
+    completionPreview.innerHTML = selectedCompletionDescription();
   const validationPreview = document.querySelector('.validation-expected-preview');
   if (validationPreview && selectedValidationExpectedValue != null)
     validationPreview.innerHTML = friendlyInstructionHtml(selectedValidationExpectedValue);
