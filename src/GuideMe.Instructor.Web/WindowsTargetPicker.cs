@@ -204,6 +204,12 @@ internal sealed class WindowsTargetPicker : IDisposable
         if (code >= 0 && (message == 0x100 || message == 0x104))
         {
             var key = Marshal.PtrToStructure<KeyboardHookData>(data);
+            if (key.VkCode == 0x1B) // Escape cancels the active Windows picker.
+            {
+                lock (gate) picking = false;
+                dispatcher?.BeginInvokeShutdown(DispatcherPriority.Normal);
+                return 1;
+            }
             if (key.VkCode == 0x20 &&
                 (GetAsyncKeyState(0x11) & 0x8000) != 0 &&
                 (GetAsyncKeyState(0x10) & 0x8000) != 0 &&
