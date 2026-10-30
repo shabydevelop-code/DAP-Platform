@@ -737,6 +737,8 @@ WHERE GuideId=$guideId AND VariableId=$variableId";
                 throw new ArgumentException("משתנה במזהה אינו קיים בלומדה.");
             command.Parameters.RemoveAt("$variableId");
         }
+        if (original.Strategy is not ("css" or "name"))
+            throw new ArgumentException("מזהה טכני אינו ניתן לעריכת תוכן.");
         if (original.Strategy == "css")
         {
             // Variables may change quoted CSS values (including :cell-text),
