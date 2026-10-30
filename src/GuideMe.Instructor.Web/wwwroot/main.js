@@ -311,7 +311,7 @@ function renderSteps() {
         '<div class="validation-actions">' +
         '<button class="btn secondary small" id="edit-validation">' +
         (rule ? 'עריכת תנאי ההתקדמות' : 'הגדרת תנאי התקדמות') + '</button>' +
-        (rule ? '<button class="btn secondary small" id="remove-validation">הסרת תנאי</button>' : '') +
+        (rule ? '<button class="btn danger small" id="remove-validation">הסרת תנאי</button>' : '') +
         '</div>' : '') +
       '</section></div>' +
       ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') && target && rule ?
@@ -319,7 +319,7 @@ function renderSteps() {
         (completionRule ? '<div class="completion-details">' +
           '<div class="completion-detail"><span class="completion-detail-label">השלב יושלם כאשר:</span>' +
           '<strong>' + esc(completionDescription) + '</strong></div>' +
-          '</div><button class="btn secondary small" id="remove-completion">הסרת תנאי</button>' :
+          '</div><button class="btn danger small" id="remove-completion">הסרת תנאי</button>' :
           '<p>בחר רכיב ובדוק הופעה, היעלמות או שינוי מאפיין בעקבות הפעולה.</p>' +
           '<button class="btn secondary small" id="add-completion">בחירת רכיב לתנאי השלמה</button>') +
         '<div id="completion-pick-result" class="hidden" aria-live="polite"></div>' +
