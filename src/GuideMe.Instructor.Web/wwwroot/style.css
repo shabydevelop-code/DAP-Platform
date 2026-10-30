@@ -354,3 +354,15 @@ body .brand-heading strong span { font-size: 26px; }
 
 /* Friendly variable tokens in instruction previews; stored IDs remain unchanged. */
 .instruction-variable{display:inline-block;vertical-align:baseline;padding:2px 8px;margin:0 3px;border:1px solid #bfd2e9;border-radius:6px;background:#edf4fc;color:#244b79;font-weight:600;unicode-bidi:isolate}
+
+/* Step-list actions belong to the list column, not the full-width panel heading. */
+#steps-panel .steps-list-pane{display:flex;flex-direction:column;min-width:0;min-height:0;border-left:1px solid var(--gm-divider,#eaf0f6)}
+#steps-panel .steps-list-pane .steps-toolbar{display:flex;flex-wrap:nowrap;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--gm-divider,#eaf0f6);min-width:0}
+#steps-panel .steps-list-pane .steps-toolbar .btn{flex:0 0 auto;white-space:nowrap}
+#steps-panel .steps-list-pane .steps-toolbar .search{flex:1 1 0;width:0;min-width:0;max-width:none}
+#steps-panel .steps-list-pane .step-list{flex:1 1 auto;min-height:0;border-left:0}
+@media(max-width:700px){
+  #steps-panel .steps-list-pane{border-left:0}
+  #steps-panel .steps-list-pane .steps-toolbar{padding:10px 12px}
+  #steps-panel .steps-list-pane .step-list{flex:none}
+}
