@@ -79,7 +79,7 @@ internal sealed class WindowsTargetPicker : IDisposable
     internal PickerStatus Stop()
     {
         Dispatcher? toStop;
-        lock (gate) { picking = false; toStop = dispatcher; }
+        lock (gate) { picking = false; selection = null; hovered = null; toStop = dispatcher; }
         if (toStop is not null)
             try { toStop.BeginInvokeShutdown(DispatcherPriority.Normal); }
             catch (TaskCanceledException) { }
