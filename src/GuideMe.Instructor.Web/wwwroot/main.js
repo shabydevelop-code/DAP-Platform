@@ -290,7 +290,10 @@ function renderSteps() {
     const locatorText = locators[0]?.Value || '';
     const friendlyName = element?.DisplayName || (locatorText === 'a' ? 'קישור' : locatorText);
     const targetValue = targetBusinessValue(locators[0]);
-    const targetHasVariables = /\\{\\{var:[^}]+\\}\\}/.test(targetValue);
+    const bubbleVariableIds = [...String(step.bubble || '').matchAll(/\{\{var:([^}]+)\}\}/g)].map(m => m[1]);
+    const targetVariableIds = [...String(targetValue).matchAll(/\{\{var:([^}]+)\}\}/g)].map(m => m[1]);
+    const variableMismatch = bubbleVariableIds.length === 1 && targetVariableIds.length === 1 &&
+      bubbleVariableIds[0] !== targetVariableIds[0];
     const appText = context ? appLabel(context) : 'לא משויך';
 
     $('step-inspector').innerHTML =
@@ -308,7 +311,8 @@ function renderSteps() {
        '<div class="step-friendly-grid">' +
       '<section class="step-friendly-card"><h3>רכיב במסך</h3>' +
       '<div id="primary-target-summary">' +
-      (target ? '<p><strong>' + (targetValue ? friendlyInstructionHtml(targetValue) : esc(friendlyName)) + '</strong></p>' :
+      (target ? '<p><strong>' + (targetValue ? friendlyInstructionHtml(targetValue) : esc(friendlyName)) + '</strong></p>' +
+        (variableMismatch ? '<p class="target-field-label">שימו לב: בהנחיה וברכיב משולבים שני משתנים שונים. יש לבחור ברכיב את המשתנה המתאים.</p>' : '') :
         '<p>עדיין לא נבחר רכיב לשלב הזה.</p>') +
       '</div>' +
       ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') ?
