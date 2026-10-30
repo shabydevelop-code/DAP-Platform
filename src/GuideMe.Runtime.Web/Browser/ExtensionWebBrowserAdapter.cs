@@ -646,8 +646,10 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
     public async Task<bool> AreCompletionConditionsSatisfiedAsync(GuideStep step, CancellationToken cancellationToken = default)
     {
         if (step.CompletionConditions is null || step.CompletionConditions.Count == 0) return true;
-        foreach (var condition in step.CompletionConditions)
+        var allSatisfied = true;
+        for (var conditionIndex = 0; conditionIndex < step.CompletionConditions.Count; conditionIndex++)
         {
+            var condition = step.CompletionConditions[conditionIndex];
             if (condition.Target.Runtime != TargetRuntime.Web)
                 throw new InvalidOperationException($"Web Guide Step '{step.Id}' contains a non-Web completion target.");
             var kind = condition.Kind.Trim().ToLowerInvariant();
@@ -673,7 +675,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
                 // A captured post-action state is a predicate, not a transition.
                 // The primary validation independently requires the learner action.
                 if (!resolved || !string.Equals(actual, attributeExpected, StringComparison.Ordinal))
-                    return false;
+                    allSatisfied = false;
                 continue;
             }
             if (!GuideCompletionPolicy.IsSupportedObservationKind(kind))
@@ -685,7 +687,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             {
                 var visible = resolved && result.TryGetProperty("visible", out var visibleProperty)
                     && visibleProperty.ValueKind == JsonValueKind.True;
-                var key = step.Id + ":" + kind;
+                var key = step.Id + ":" + conditionIndex + ":" + kind;
                 var token = resolved && result.TryGetProperty("documentToken", out var tokenProperty)
                     ? tokenProperty.GetString() : null;
                 var revision = resolved && result.TryGetProperty("mutationRevision", out var revisionProperty)
@@ -694,7 +696,8 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
                 {
                     _completionTransitions[key] = (visible, !visible, token, revision, false);
                     // A transition cannot be established by the first sample.
-                    return false;
+                    allSatisfied = false;
+                    continue;
                 }
                 var changed = token is not null &&
                     (state.DocumentToken != token || state.Revision != revision);
@@ -706,7 +709,10 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
                 _completionTransitions[key] = (state.InitialVisible, sawHidden,
                     token ?? state.DocumentToken, revision, transitioned);
                 if (!transitioned || (kind == "target-appeared" ? !visible : visible))
-                    return false;
+                {
+                    allSatisfied = false;
+                    continue;
+                }
                 observed = visible;
             }
             var enabled = resolved && result.TryGetProperty("enabled", out var enabledProperty) && enabledProperty.GetBoolean();
@@ -715,9 +721,9 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
                 value = valueProperty.GetString();
             // Preserve the Web adapter's previous handling of non-resolved targets.
             if (!GuideCompletionPolicy.IsSatisfied(condition, observed, ambiguous: false, enabled, value))
-                return false;
+                allSatisfied = false;
         }
-        return true;
+        return allSatisfied;
     }
     public async Task<WebBubblePresentation> EnsureBubbleShownAsync(GuideStep step, int stepNumber, int totalSteps, bool visible = true, CancellationToken cancellationToken = default, string? automaticStepLabel = null)
     {
