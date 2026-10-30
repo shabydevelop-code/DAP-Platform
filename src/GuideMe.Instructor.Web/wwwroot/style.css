@@ -346,3 +346,6 @@ body .brand-heading strong span { font-size: 26px; }
 .btn.btn-add:hover{background:#104b9f;color:#fff}
 .btn.btn-add:focus-visible{outline:2px solid #195bc1;outline-offset:3px}
 .btn.btn-add:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}
+
+/* Application section uses the same unruled heading treatment as variables. */
+#contexts-panel > .panel-header{border-bottom:0}
