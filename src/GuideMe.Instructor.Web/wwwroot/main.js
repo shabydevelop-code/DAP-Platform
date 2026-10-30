@@ -308,9 +308,11 @@ function renderSteps() {
       '<p>' + esc(!target ? 'יוגדר לאחר בחירת הרכיב.' : conditionText) + '</p>' +
       (rule?.ExpectedValue ? '<p>ערך צפוי: <strong>' + esc(rule.ExpectedValue) + '</strong></p>' : '') +
       ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') && target ?
+        '<div style="display:flex;flex-wrap:nowrap;align-items:center;gap:12px">' +
         '<button class="btn secondary small" id="edit-validation">' +
         (rule ? 'עריכת תנאי ההתקדמות' : 'הגדרת תנאי התקדמות') + '</button>' +
-        (rule ? '<span style="display:inline-block;width:12px" aria-hidden="true"></span><button class="btn secondary small" id="remove-validation">הסרת תנאי</button>' : '') : '') +
+        (rule ? '<button class="btn secondary small" id="remove-validation">הסרת תנאי</button>' : '') +
+        '</div>' : '') +
       '</section></div>' +
       ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') && target && rule ?
         '<section class="step-friendly-card completion-card"><h3>תנאי השלמה נוסף</h3>' +
