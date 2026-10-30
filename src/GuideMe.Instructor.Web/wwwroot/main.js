@@ -70,6 +70,22 @@ function clearNotice() {
   el.replaceChildren();
 }
 function notify(message, error = false, kind = "success") {
+  const dialog = $('editor-dialog');
+  if (dialog?.open && (error || kind === 'warning')) {
+    let inline = $('dialog-notice');
+    if (!inline) {
+      inline = document.createElement('div');
+      inline.id = 'dialog-notice';
+      inline.setAttribute('role', 'alert');
+      inline.dir = 'rtl';
+      inline.style.cssText = 'margin:12px 0;padding:10px 12px;border:1px solid #dba5a5;border-radius:8px;background:#fff1f1;color:#842626;white-space:pre-wrap;overflow-wrap:anywhere;text-align:right;';
+      const fields = $('dialog-fields');
+      fields?.parentNode?.insertBefore(inline, fields);
+    }
+    inline.textContent = String(message);
+    inline.hidden = false;
+    return;
+  }
   clearNotice();
   const el = $('notice');
   const type = error ? 'error' : (['success', 'info', 'warning'].includes(kind) ? kind : 'info');
@@ -955,6 +971,7 @@ $('add-guide-variable').onclick = () => editGuideVariable();
 function modal(title, fields, submit, buttonText='שמירה') {
   modalReturnFocus = document.activeElement;
   $('dialog-title').textContent=title;
+  $('dialog-notice')?.remove();
   $('dialog-fields').innerHTML='<div class="fields">' + fields.map(f=>{
     const label='<label for="field-'+f.name+'">'+esc(f.label)+'</label>';
     const helpId='help-'+f.name;
@@ -966,7 +983,12 @@ function modal(title, fields, submit, buttonText='שמירה') {
   }).join('')+'</div>';
   $('submit-dialog').textContent=buttonText;
   const form=$('editor-form');
-  form.onsubmit=e=>{e.preventDefault();const values=Object.fromEntries(new FormData(form).entries());guarded(async()=>{await submit(values);$('editor-dialog').close();});};
+  form.onsubmit=e=>{
+    e.preventDefault();
+    $('dialog-notice')?.remove();
+    const values=Object.fromEntries(new FormData(form).entries());
+    guarded(async()=>{await submit(values);$('editor-dialog').close();});
+  };
   const baseline = new URLSearchParams(new FormData(form)).toString();
   const onChange = () => {
     if (new URLSearchParams(new FormData(form)).toString() !== baseline) markDirty();
