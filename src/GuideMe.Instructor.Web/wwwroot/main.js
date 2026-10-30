@@ -836,7 +836,7 @@ async function refreshPicker() {
     : [];
   const capturedChoice = matchingChoices.length === 1 ? matchingChoices[0] : null;
   const contentMatch = requestSession.runtime === 'Web'
-    ? [...(candidate.selector || '').matchAll(/:cell-text\\(\\s*\\d+\\s*,\\s*("(?:[^"\\\\]|\\\\.)*")\\s*\\)/g)]
+    ? [...(candidate.selector || '').matchAll(/:cell-text\(\s*\d+\s*,\s*("(?:[^"\\]|\\.)*")\s*\)/g)]
     : [];
   const selectorText = contentMatch.length === 1
     ? (() => { try { return JSON.parse(contentMatch[0][1]); } catch { return null; } })()
