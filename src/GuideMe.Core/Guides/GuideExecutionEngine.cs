@@ -155,7 +155,8 @@ public sealed class GuideExecutionEngine
         CancellationToken cancellationToken,
         IReadOnlyList<GuideApplicationContext>? applicationContexts = null,
         Func<GuideStep, TargetRuntime, CancellationToken, Task>? onRuntimeTransition = null,
-        IReadOnlyList<GuideVariableDefinition>? variables = null)
+        IReadOnlyList<GuideVariableDefinition>? variables = null,
+        string language = "he")
     {
         ArgumentNullException.ThrowIfNull(steps);
         ArgumentNullException.ThrowIfNull(adapters);
@@ -175,7 +176,7 @@ public sealed class GuideExecutionEngine
         if (!byRuntime.ContainsKey(defaultRuntime))
             throw new InvalidOperationException($"Missing default runtime adapter '{defaultRuntime}'.");
 
-        var plan = new GuideRunPlan(steps, variables);
+        var plan = new GuideRunPlan(steps, variables, language);
         // Step.Order is the persisted guide position. A start-step run contains
         // only a suffix of the guide, so its count is not the display total.
         var displayTotal = plan.Steps.Count == 0 ? 0 : Math.Max(plan.Steps.Count, plan.Steps.Max(step => step.Order));
@@ -234,7 +235,7 @@ public sealed class GuideExecutionEngine
         var runtime = adapter.Runtime;
         var diagnosticName = adapter.DiagnosticName;
 
-        var plan = new GuideRunPlan(steps, variables);
+        var plan = new GuideRunPlan(steps, variables, language);
         // Step.Order is the persisted guide position. A start-step run contains
         // only a suffix of the guide, so its count is not the display total.
         var displayTotal = plan.Steps.Count == 0 ? 0 : Math.Max(plan.Steps.Count, plan.Steps.Max(step => step.Order));
