@@ -118,8 +118,6 @@ function showList() {
   if (!confirmDiscard()) return;
   current = null; selectedStep = null;
   $('list-view').classList.remove('hidden'); $('detail-view').classList.add('hidden');
-  $('back').classList.add('hidden');
-  $('brand-title').classList.remove('hidden');
   $('new-guide').classList.remove('hidden');
   clearNotice();
   $('library-title').focus();
@@ -145,8 +143,6 @@ async function openGuide(id) {
   current.variables = await api('/guides/' + id + '/variables');
   const g = current.guide;
   $('list-view').classList.add('hidden'); $('detail-view').classList.remove('hidden');
-  $('back').classList.remove('hidden');
-  $('brand-title').classList.add('hidden');
   $('new-guide').classList.add('hidden');
   $('detail-name').textContent = g.name;
   $('steps-count').textContent = current.steps.length;
