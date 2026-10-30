@@ -129,6 +129,27 @@ public sealed class WindowsGuideRuntime
         var textTargetCommitted = 0;
         AutomationElement? subscribedTextTarget = null;
         AutomationPropertyChangedEventHandler? textEditPropertyChangedHandler = null;
+        // Per-session, file-backed diagnostics: stdout is not available for GUI launches.
+        // Record state transitions only, not every reconciliation poll.
+        var diagnosticPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "GuideMe", "Logs", $"windows-step-{Environment.ProcessId}.log");
+        string? lastDiagnosticState = null;
+        void Diagnose(string state)
+        {
+            if (string.Equals(lastDiagnosticState, state, StringComparison.Ordinal))
+                return;
+            lastDiagnosticState = state;
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(diagnosticPath)!);
+                File.AppendAllText(diagnosticPath,
+                    $"{DateTimeOffset.UtcNow:O} step={step.Order} id={step.Id} {state}{Environment.NewLine}");
+            }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+        }
+        Diagnose($"started validation={step.Validation?.Kind ?? "none"} conditions={step.CompletionConditions?.Count ?? 0}");
         var clickCompleted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         AutomationEventHandler? clickHandler = null;
         AutomationElement? subscribedTarget = null;
@@ -163,6 +184,7 @@ public sealed class WindowsGuideRuntime
                 if (sharedEngine.ObserveContext(activeState, IsTargetWindowInteractive(windowRoot))
                     == GuideStepReconciliationResult.WaitingForContext)
                 {
+                    Diagnose($"window-not-foreground clickObserved={clickCompleted.Task.IsCompleted}");
                     ReportBubbleAvailable(false);
                     await _bubbles.HideAsync();
                     return await GuideActiveStepState.WaitAsync(
@@ -180,6 +202,8 @@ public sealed class WindowsGuideRuntime
                 }
 
                 var stepContextActive = IsStepContextActive(windowRoot, step);
+                if (!stepContextActive)
+                    Diagnose($"step-context-inactive clickObserved={clickCompleted.Task.IsCompleted}");
 
                 if (sharedEngine.ObserveContext(activeState, stepContextActive)
                     == GuideStepReconciliationResult.WaitingForContext)
@@ -212,6 +236,7 @@ public sealed class WindowsGuideRuntime
 
                 if (resolution.Status != TargetResolutionStatus.Resolved || resolution.Target is null)
                 {
+                    Diagnose($"target={resolution.Status} clickObserved={clickCompleted.Task.IsCompleted}");
                     ReportBubbleAvailable(false);
                     await _bubbles.HideAsync();
                     if (IsDisappearedTargetStepComplete())
@@ -223,6 +248,8 @@ public sealed class WindowsGuideRuntime
                 }
 
                 var target = resolution.Target;
+                if (clicked)
+                    Diagnose($"target-resolved clickObserved={clickCompleted.Task.IsCompleted}");
                 activeState.ObserveTarget(true);
                 targetWasResolved = true;
 
@@ -377,7 +404,7 @@ public sealed class WindowsGuideRuntime
                         catch (ElementNotAvailableException) { }
                     }
 
-                    clickHandler = (_, _) => clickCompleted.TrySetResult();
+                    clickHandler = (_, _) => { Diagnose("invoke-event"); clickCompleted.TrySetResult(); };
 
                     Automation.AddAutomationEventHandler(
                         InvokePattern.InvokedEvent,
@@ -386,6 +413,7 @@ public sealed class WindowsGuideRuntime
                         clickHandler);
 
                     subscribedTarget = target;
+                    Diagnose("invoke-subscribed");
                 }
 
                 if (clicked)
@@ -406,11 +434,12 @@ public sealed class WindowsGuideRuntime
                                 SelectionItemPattern.ElementSelectedEvent, subscribedSelectionTarget, clickHandler); }
                             catch (ElementNotAvailableException) { }
                         }
-                        clickHandler ??= (_, _) => clickCompleted.TrySetResult();
+                        clickHandler ??= (_, _) => { Diagnose("selection-event"); clickCompleted.TrySetResult(); };
                         Automation.AddAutomationEventHandler(
                             SelectionItemPattern.ElementSelectedEvent, selectionTarget,
                             TreeScope.Element, clickHandler);
                         subscribedSelectionTarget = selectionTarget;
+                        Diagnose("selection-subscribed");
                     }
                 }
 
@@ -465,6 +494,8 @@ public sealed class WindowsGuideRuntime
 
                 if (clicked)
                 {
+                    if (clickCompleted.Task.IsCompleted)
+                        Diagnose($"click-observed conditions={AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction)}");
                     // A clicked Step completes only from observed activation of the
                     // resolved target. Target disappearance by itself is not enough:
                     // asynchronous WPF rerenders can replace a Button without any
