@@ -964,9 +964,9 @@ WHERE GuideId=$guideId AND StepId=$stepId";
         if (kind == "value-contains" && expectedValue is not null)
         {
             var tokens = System.Text.RegularExpressions.Regex.Matches(
-                expectedValue, @"\\{\\{var:(?<id>[^{}:]+)\\}\\}");
+                expectedValue, @"\{\{var:(?<id>[^{}:]+)\}\}");
             var plain = System.Text.RegularExpressions.Regex.Replace(
-                expectedValue, @"\\{\\{var:[^{}:]+\\}\\}", "");
+                expectedValue, @"\{\{var:[^{}:]+\}\}", "");
             if (plain.Contains("{{", StringComparison.Ordinal) ||
                 plain.Contains("}}", StringComparison.Ordinal))
                 throw new ArgumentException("סימון משתנה לא תקין.");
