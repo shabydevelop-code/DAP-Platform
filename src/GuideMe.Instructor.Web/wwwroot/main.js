@@ -1425,12 +1425,19 @@ function openVariableBindingDialog({kind, step, locators}) {
     if (v) input._variableReferences?.set('【'+variablePreviewValue(v)+'】',v.id);
   }
   const buttons = document.createElement('div');
-  buttons.className = 'target-action-buttons';
+  buttons.className = 'target-action-primary';
+  buttons.style.display = 'flex';
+  buttons.style.flexDirection = 'row';
+  buttons.style.justifyContent = 'flex-start';
+  buttons.style.alignItems = 'center';
+  buttons.style.gap = '10px';
   buttons.style.marginTop = '12px';
   const save = document.createElement('button');
   save.type='button'; save.className='btn primary small'; save.textContent='שמירה';
   const cancel = document.createElement('button');
   cancel.type='button'; cancel.className='btn secondary small'; cancel.textContent='ביטול';
+  save.style.width = 'auto'; save.style.flex = '0 0 auto';
+  cancel.style.width = 'auto'; cancel.style.flex = '0 0 auto';
   buttons.append(save,cancel);
   const restore = () => {
     summary.innerHTML=originalHtml;
