@@ -1381,13 +1381,17 @@ function openVariableBindingDialog({kind, step, locators}) {
   let buildTemplate;
   if (locator.Strategy === 'css') {
     const matches = [...original.matchAll(/:cell-text\(\s*\d+\s*,\s*("(?:[^"\\]|\\.)*")\s*\)/g)];
-    if (matches.length !== 1 || !rawValue) {
-      notify('לא ניתן לערוך ערך איתור ברכיב זה.', true); return;
+    if (matches.length === 1 && rawValue) {
+      const match = matches[0], quoted = match[1];
+      const start = match.index + match[0].indexOf(quoted);
+      buildTemplate = value => original.slice(0,start) + JSON.stringify(value) +
+        original.slice(start + quoted.length);
+    } else {
+      // Ordinary CSS targets do not contain a cell-text business value.
+      // Edit their locator as-is instead of incorrectly rejecting the target.
+      rawValue = original;
+      buildTemplate = value => value;
     }
-    const match = matches[0], quoted = match[1];
-    const start = match.index + match[0].indexOf(quoted);
-    buildTemplate = value => original.slice(0,start) + JSON.stringify(value) +
-      original.slice(start + quoted.length);
   } else {
     rawValue = original;
     buildTemplate = value => value;
@@ -1401,7 +1405,7 @@ function openVariableBindingDialog({kind, step, locators}) {
   const edit = document.createElement('div');
   edit.className = 'field';
   const label = document.createElement('label');
-  label.textContent = 'ערך הרכיב';
+  label.textContent = locator.Strategy === 'css' && rawValue === original ? 'מזהה הרכיב' : 'ערך הרכיב';
   const input = document.createElement('textarea');
   input.rows = 2; input.maxLength = 400; input.dir = 'rtl';
   input.value = String(rawValue).replace(/\{\{var:([^}]+)\}\}/g, (_,id) => {
