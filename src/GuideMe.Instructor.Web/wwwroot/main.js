@@ -544,7 +544,13 @@ function editValidation(step, rule) {
   const trackCaret = () => { caretStart=input.selectionStart; caretEnd=input.selectionEnd; };
   ['click','keyup','select'].forEach(event=>input?.addEventListener(event,trackCaret));
   if (variables.length && valueContainer) {
+    const variableControls = document.createElement('div');
+    variableControls.style.display = 'grid';
+    variableControls.style.gap = '8px';
+    variableControls.style.marginTop = '12px';
+    variableControls.style.justifyItems = 'start';
     const selector = document.createElement('select');
+    selector.style.width = '100%';
     selector.setAttribute('aria-label','משתנה');
     variables.forEach(v => {
       const option = document.createElement('option');
@@ -571,7 +577,8 @@ function editValidation(step, rule) {
       input.dispatchEvent(new Event('input',{bubbles:true}));
       input.focus();
     });
-    valueContainer.append(selector,add);
+    variableControls.append(selector,add);
+    valueContainer.append(variableControls);
   }
   const updateValueVisibility = () => {
     const visible=kindControl?.value==='value-equals';
