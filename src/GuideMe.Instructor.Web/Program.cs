@@ -202,7 +202,7 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/primary-target",
 });
 
 app.MapPost("/api/guides/{id:long}/steps/{stepId}/primary-target/variable",
-    (long id, string stepId, BindPrimaryTargetVariableRequest request) =>
+    (long id, string stepId, SavePrimaryTargetLocatorTemplateRequest request) =>
 {
     try
     {
@@ -683,4 +683,4 @@ internal sealed record SaveVariableSourceRequest(string VariableId, string Prope
 
 internal sealed record IdentifiedActionRequest(string VariableId);
 
-internal sealed record BindPrimaryTargetVariableRequest(string LocatorValue);
+internal sealed record SavePrimaryTargetLocatorTemplateRequest(string LocatorValue);
