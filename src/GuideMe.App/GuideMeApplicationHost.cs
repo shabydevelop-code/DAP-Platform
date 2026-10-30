@@ -549,8 +549,6 @@ public static class GuideMeApplicationHost
             AttachThreadInput(targetThread, foregroundThread, true);
         try
         {
-            if (foregroundThread != callerThread && !callerAttached)
-            if (foregroundThread != targetThread && !targetAttached)
             if ((foregroundThread != callerThread && !callerAttached) ||
                 (foregroundThread != targetThread && !targetAttached))
                 return false;
