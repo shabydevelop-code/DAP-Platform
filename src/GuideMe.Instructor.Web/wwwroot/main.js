@@ -1228,10 +1228,14 @@ function editStepVariableAction(step, context) {
 }
 // Shared variable-binding dialog: future field types can supply their own save handler.
 // Render variable references as friendly, non-editable labels in Instructor previews.
+function variablePreviewValue(variable) {
+  const value = variable?.initialValue;
+  return value == null || String(value).trim() === '' ? variable?.name || 'משתנה לא קיים' : String(value);
+}
 function friendlyInstructionText(value) {
   return String(value || '').replace(/\{\{var:([^}]+)\}\}/g, (_, id) => {
     const variable = (current?.variables || []).find(v => v.id === id);
-    return variable ? '[' + variable.name + ']' : '[משתנה לא קיים]';
+    return '[' + variablePreviewValue(variable) + ']';
   });
 }
 function friendlyInstructionHtml(value) {
@@ -1244,7 +1248,7 @@ function friendlyInstructionHtml(value) {
     const variable = variables.find(v => v.id === match[1]);
     html += '<span class="instruction-variable" title="' +
       esc(variable ? 'משתנה: ' + variable.name : 'משתנה לא קיים') +
-      '">' + esc(variable ? variable.name : 'משתנה לא קיים') + '</span>';
+      '">' + esc(variablePreviewValue(variable)) + '</span>';
     offset = re.lastIndex;
   }
   return html + esc(text.slice(offset));
@@ -1320,7 +1324,7 @@ function openVariableBindingDialog({kind, step, contextId, locators}) {
 function instructionForEditing(value) {
   return String(value || '').replace(/\{\{var:([^}]+)\}\}/g, (token, id) => {
     const variable = (current?.variables || []).find(v => v.id === id);
-    return variable ? '【' + variable.name + '】' : token;
+    return variable ? '【' + variablePreviewValue(variable) + '】' : token;
   });
 }
 function instructionFromEditing(value, original) {
@@ -1331,9 +1335,9 @@ function instructionFromEditing(value, original) {
   for (const id of originalIds) {
     const variable = variables.find(v => v.id === id);
     if (!variable) continue;
-    const key = '【' + variable.name + '】';
+    const key = '【' + variablePreviewValue(variable) + '】';
     if (names.has(key) && names.get(key) !== id)
-      throw new Error('קיימים משתנים בעלי אותו שם. יש לתת להם שמות שונים לפני העריכה.');
+      throw new Error('קיימים משתנים בעלי אותו ערך מוצג. יש להבחין ביניהם לפני העריכה.');
     names.set(key, id);
   }
   let result = String(value || '');
