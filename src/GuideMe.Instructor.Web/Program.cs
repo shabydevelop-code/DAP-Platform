@@ -556,8 +556,19 @@ app.MapDelete("/api/guides/{id:long}", (long id, [FromBody] DeleteGuideConfirmat
 app.MapDelete("/api/guides/{id:long}/contexts/{contextId}",
     (long id, string contextId) =>
 {
-    V5GuideWriter.DeleteApplication(id, contextId);
-    return Results.NoContent();
+    // A referenced application is a conflict, not an internal server error.
+    // Keep the database-side transactional guard authoritative.
+    if (V5GuideWriter.CountApplicationSteps(id, contextId) > 0)
+        return Results.Conflict(new { message = "האפליקציה משויכת לשלבים בלומדה. יש להסיר תחילה את השיוכים." });
+    try
+    {
+        V5GuideWriter.DeleteApplication(id, contextId);
+        return Results.NoContent();
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.Conflict(new { message = ex.Message });
+    }
 });
 
 // The token is emitted only into this same-origin document, not the API.
