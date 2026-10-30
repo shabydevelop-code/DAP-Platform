@@ -377,7 +377,7 @@ public static class GuideMeApplicationHost
                         }
                         await Task.Delay(250, token);
                     }
-                }, variables);
+                }, variables, texts.Language);
         }
         catch (OperationCanceledException) when (stopped.IsCancellationRequested)
         {
@@ -468,7 +468,7 @@ public static class GuideMeApplicationHost
         try
         {
             StartupMark(startup, "Windows guide runtime starting");
-            await runtime.RunAsync(window, steps, runCancellation.Token, variables);
+            await runtime.RunAsync(window, steps, runCancellation.Token, variables, texts.Language);
         }
         catch (OperationCanceledException) when (userStopped.IsCancellationRequested)
         {
@@ -649,7 +649,7 @@ public static class GuideMeApplicationHost
         try
         {
             StartupMark(startup, "Web adapter guide runtime starting");
-            await guideRuntime.RunAsync(steps, runCancellation.Token, variables);
+            await guideRuntime.RunAsync(steps, runCancellation.Token, variables, texts.Language);
             Console.Error.WriteLine("[GuideMe diagnostic] Web guide runtime completed normally.");
         }
         catch (OperationCanceledException) when (webUserStopped.IsCancellationRequested)
