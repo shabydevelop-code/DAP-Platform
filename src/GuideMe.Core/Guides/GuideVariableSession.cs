@@ -74,9 +74,8 @@ public sealed class GuideVariableSession
         ArgumentNullException.ThrowIfNull(action);
         if (action.Kind != GuideVariableActionKind.ReadFromTarget)
             throw new ArgumentOutOfRangeException(nameof(action.Kind));
-        Set(action.VariableId, observedValue ??
-            throw new InvalidOperationException(
-                $"Target value for '{action.VariableId}' was not observed."));
+        Set(action.VariableId, string.IsNullOrWhiteSpace(observedValue)
+            ? _unassignedDisplayValue : observedValue);
         Trace("variable-action",
             $"id={Quoted(action.Id)} kind={action.Kind} variable={Quoted(action.VariableId)} value={Quoted(Read(action.VariableId))}");
     }
@@ -190,9 +189,6 @@ public sealed class GuideVariableSession
             var value = await readTarget(action, cancellationToken);
             Trace("variable-observation",
                 $"id={Quoted(action.Id)} variable={Quoted(action.VariableId)} timing={timing} observed={Quoted(value)}");
-            if (value is null)
-                throw new InvalidOperationException(
-                    $"Variable action '{action.Id}' could not read its target.");
             Execute(action, value);
         }
     }
