@@ -158,13 +158,25 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/primary-target",
                 return Results.BadRequest(new { message = "ערך הזיהוי חייב להכיל 1 עד 400 תווים." });
             // Replace only the captured content matcher, never the technical selector.
             var match = System.Text.RegularExpressions.Regex.Match(selector,
-                """:cell-text\(\s*\d+\s*,\s*("(?:[^"\\]|\\.)*")\s*\)""");
-            if (!match.Success)
-                return Results.BadRequest(new { message = "לא זוהה רכיב שתומך בעריכת תוכן." });
-            var quoted = match.Groups[1];
-            selector = string.Concat(selector.AsSpan(0, quoted.Index),
-                JsonSerializer.Serialize(request.ContentValue),
-                selector.AsSpan(quoted.Index + quoted.Length));
+                """:(?:cell-text\(\s*\d+\s*,\s*|exact-text\(\s*)("(?:[^"\\]|\\.)*")\s*\)""");
+            if (match.Success)
+            {
+                var quoted = match.Groups[1];
+                selector = string.Concat(selector.AsSpan(0, quoted.Index),
+                    JsonSerializer.Serialize(request.ContentValue),
+                    selector.AsSpan(quoted.Index + quoted.Length));
+            }
+            else
+            {
+                // The Web Learner already supports :exact-text on any CSS target.
+                // Keep the captured selector and add only a semantic text check.
+                if (selector.Contains(":cell-text(", StringComparison.Ordinal) ||
+                    selector.Contains(":exact-text(", StringComparison.Ordinal))
+                    return Results.BadRequest(new { message = "מזהה התוכן אינו תקין." });
+                selector += ":exact-text(" + JsonSerializer.Serialize(request.ContentValue) + ")";
+            }
+            if (selector.Length > 400)
+                return Results.BadRequest(new { message = "מזהה הרכיב ארוך מדי." });
         }
         locators = new[] { new V5GuideWriter.TargetLocator("css", selector) };
         frames = target.FramePath.Select(f => new V5GuideWriter.TargetLocator("css", f)).ToArray();
