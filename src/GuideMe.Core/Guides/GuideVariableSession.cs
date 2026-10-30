@@ -108,7 +108,7 @@ public sealed class GuideVariableSession
     // :exact-text). Resolve variables inside those literals before serializing
     // them again, so quotes and backslashes in user data cannot break selectors.
     private static readonly Regex CssLocatorParts = new(
-        @"(?<quoted>""(?:\\.|[^""\\])*"")|(?<reference>\\{\\{var:[^{}:]+\\}\\})",
+        @"(?<quoted>""(?:\\.|[^""\\])*"")|(?<reference>\{\{var:[^{}:]+\}\})",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     private string ResolveLocator(Locator locator)
