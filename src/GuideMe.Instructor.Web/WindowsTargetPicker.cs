@@ -234,7 +234,13 @@ internal sealed class WindowsTargetPicker : IDisposable
         try
         {
             var result = WindowsTargetInspector.Inspect(processId, false);
-            lock (gate) { selection = result; picking = false; }
+            if (result.Error is not null)
+            {
+                lock (gate) { selection = null; error = result.Error; picking = false; }
+                dispatcher?.BeginInvokeShutdown(DispatcherPriority.Background);
+                return;
+            }
+            lock (gate) { selection = result; error = null; picking = false; }
             // Return to the authoring window after a successful pick, not on Escape.
             if (returnWindow != 0)
             {
