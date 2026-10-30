@@ -1341,10 +1341,11 @@ function openVariableBindingDialog({kind, step, contextId, locators}) {
   // The editor shows readable placeholders. Each placeholder maps to a stable
   // variable ID; the stored guide never contains preview values.
   const references = new Map();
-  let sequence = 0;
   const display = original.replace(/\{\{var:([^}]+)\}\}/g, (token, id) => {
     const variable = variables.find(v => v.id === id);
     const key = '【' + variablePreviewValue(variable) + '】';
+    if (references.has(key) && references.get(key) !== id)
+      throw new Error('למשתנים שונים יש אותו ערך מוצג. יש להגדיר ערכים שונים לפני העריכה.');
     references.set(key, id);
     return key;
   });
