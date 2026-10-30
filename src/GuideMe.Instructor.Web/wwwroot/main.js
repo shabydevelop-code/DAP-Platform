@@ -284,7 +284,7 @@ function renderSteps() {
       '<button class="btn primary small" id="test-from-step"' + (step.enabled ? '' : ' disabled') + '>בדיקה משלב זה</button></div></div>' +
       '<div class="step-summary"><div class="step-summary-heading"><strong>הנחיה למשתמש</strong>' +
        '<span class="chip">' + (step.enabled ? 'פעיל' : 'מושבת') + '</span></div>' +
-       '<div class="step-summary-content"><p>' + esc(step.bubble || 'לא הוגדרה הנחיה') + '</p>' +
+       '<div class="step-summary-content"><p>' + friendlyInstructionHtml(step.bubble || 'לא הוגדרה הנחיה') + '</p>' +
        '<div class="context-actions"><button class="btn secondary small" id="edit-step">עריכת תוכן השלב</button>' +
        '<button class="btn secondary small" id="insert-step-variable">שילוב משתנים</button></div></div></div>' +
        '<div class="step-friendly-grid">' +
@@ -1222,6 +1222,22 @@ function editStepVariableAction(step, context) {
   updateFields();
 }
 // Shared variable-binding dialog: future field types can supply their own save handler.
+// Render variable references as friendly, non-editable labels in Instructor previews.
+function friendlyInstructionHtml(value) {
+  const text = String(value || '');
+  const variables = current?.variables || [];
+  const re = /\\{\\{var:([^}]+)\\}\\}/g;
+  let html = '', offset = 0, match;
+  while ((match = re.exec(text)) !== null) {
+    html += esc(text.slice(offset, match.index));
+    const variable = variables.find(v => v.id === match[1]);
+    html += '<span class="instruction-variable" title="' +
+      esc(variable ? 'משתנה: ' + variable.name : 'משתנה לא קיים') +
+      '">' + esc(variable ? variable.name : 'משתנה לא קיים') + '</span>';
+    offset = re.lastIndex;
+  }
+  return html + esc(text.slice(offset));
+}
 function openVariableBindingDialog({kind, step, contextId}) {
   if (!current || kind !== 'bubble') return;
   const variables = current.variables || [];
