@@ -602,6 +602,12 @@ function pickerEvent(session, event, message = '') {
     if (event === 'cancelled' || event === 'failed')
       $('primary-target-summary')?.classList.remove('hidden');
   }
+  // Once a completion target has been picked, the disabled pick button
+  // serves no purpose. Restore it if picking is cancelled or fails.
+  if (session.completion) {
+    const pickButton = $('add-completion');
+    if (pickButton) pickButton.classList.toggle('hidden', event === 'selected');
+  }
   syncPickerButtons();
   if (message) {
     const box = pickerResultBox(session);
