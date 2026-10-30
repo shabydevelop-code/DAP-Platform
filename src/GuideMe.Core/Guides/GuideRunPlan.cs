@@ -10,10 +10,10 @@ public sealed class GuideRunPlan
     public GuideVariableSession Variables { get; }
 
     public GuideRunPlan(IReadOnlyList<GuideStep> steps,
-        IReadOnlyList<GuideVariableDefinition>? variables = null)
+        IReadOnlyList<GuideVariableDefinition>? variables = null, string language = "he")
     {
         _steps = steps.OrderBy(step => step.Order).ToArray();
-        Variables = new GuideVariableSession(variables ?? Array.Empty<GuideVariableDefinition>());
+        Variables = new GuideVariableSession(variables ?? Array.Empty<GuideVariableDefinition>(), language);
     }
 
     public int NextEnabledIndex(int currentIndex) =>
