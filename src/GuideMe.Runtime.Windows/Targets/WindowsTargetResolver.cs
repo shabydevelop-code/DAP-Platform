@@ -260,14 +260,23 @@ public sealed class WindowsTargetResolver
         type = ControlType.Custom;
         if (string.IsNullOrWhiteSpace(programmaticName))
             return false;
-        var property = typeof(ControlType).GetProperties(System.Reflection.BindingFlags.Public |
-            System.Reflection.BindingFlags.Static)
-            .FirstOrDefault(p => p.PropertyType == typeof(ControlType)
-                && string.Equals("ControlType." + p.Name, programmaticName, StringComparison.Ordinal));
-        if (property?.GetValue(null) is not ControlType found)
-            return false;
-        type = found;
-        return true;
+        var memberName = programmaticName.StartsWith("ControlType.", StringComparison.Ordinal)
+            ? programmaticName.Substring("ControlType.".Length)
+            : programmaticName;
+        var flags = System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static;
+        var field = typeof(ControlType).GetField(memberName, flags);
+        if (field?.GetValue(null) is ControlType fieldType)
+        {
+            type = fieldType;
+            return true;
+        }
+        var property = typeof(ControlType).GetProperty(memberName, flags);
+        if (property?.GetValue(null) is ControlType propertyType)
+        {
+            type = propertyType;
+            return true;
+        }
+        return false;
     }
 
     private static IEnumerable<AutomationElement> FilterCapturedType(
