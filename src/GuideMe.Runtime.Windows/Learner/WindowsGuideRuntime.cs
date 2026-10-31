@@ -18,6 +18,7 @@ public sealed class WindowsGuideRuntime
     private readonly WindowsValidationEvaluator _validation;
     private readonly TimeSpan _pollInterval;
     private readonly Action<bool>? _bubbleAvailabilityChanged;
+    private readonly Dictionary<string, string> _completionConditionDiagnostics = new(StringComparer.Ordinal);
     private bool? _lastBubbleAvailable;
 
     private void ReportBubbleAvailable(bool available)
@@ -593,6 +594,27 @@ public sealed class WindowsGuideRuntime
 
         foreach (var condition in step.CompletionConditions)
         {
+            void DiagnoseCondition(string state)
+            {
+                var key = step.Id + "|" + condition.Kind + "|" +
+                    condition.Target.Locator.Strategy + "|" + condition.Target.Locator.Value;
+                if (_completionConditionDiagnostics.TryGetValue(key, out var previous) && previous == state)
+                    return;
+                _completionConditionDiagnostics[key] = state;
+                try
+                {
+                    var path = Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                        "GuideMe", "Logs", $"windows-step-{Environment.ProcessId}.log");
+                    Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                    File.AppendAllText(path,
+                        $"{DateTimeOffset.UtcNow:O} step={step.Order} id={step.Id} completion-kind={condition.Kind} " +
+                        $"locator={condition.Target.Locator.Strategy}:'{condition.Target.Locator.Value}' " +
+                        $"anchors={condition.Target.Anchors.Count} result={state}{Environment.NewLine}");
+                }
+                catch (IOException) { }
+                catch (UnauthorizedAccessException) { }
+            }
             if (condition.Target.Runtime != TargetRuntime.Windows)
                 throw new InvalidOperationException(
                     $"Windows Guide Step '{step.Id}' contains a non-Windows completion target.");
@@ -625,7 +647,10 @@ public sealed class WindowsGuideRuntime
                         ? ((ValuePattern)valuePattern).Current.Value
                         : observedTarget.Current.Name;
                 }
-                if (!GuideCompletionPolicy.IsSatisfied(condition, resolved, ambiguous, enabled, observedValue))
+                var satisfied = GuideCompletionPolicy.IsSatisfied(condition, resolved, ambiguous, enabled, observedValue);
+                DiagnoseCondition($"status={resolution.Status} satisfied={satisfied}" +
+                    (resolved ? $" controlType={resolution.Target!.Current.ControlType.ProgrammaticName} name='{resolution.Target.Current.Name}'" : ""));
+                if (!satisfied)
                     return false;
                 continue;
             }
