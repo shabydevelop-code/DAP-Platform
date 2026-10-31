@@ -25,6 +25,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
 
     private static void TracePresentation(GuideStep step, string stage, string status, JsonElement? response = null)
     {
+        if (Environment.GetEnvironmentVariable("GUIDEME_VARIABLE_DIAGNOSTICS") != "1") return;
         var key = step.Id + ":" + stage;
         var now = DateTimeOffset.UtcNow;
         lock (PresentationDiagnosticGate)
@@ -272,7 +273,8 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
         var browserEvent = payload.TryGetProperty("browserEvent", out var be) ? be.GetString() : null;
         var hasFocus = payload.TryGetProperty("documentHasFocus", out var dhf) && dhf.ValueKind == JsonValueKind.True;
         var targetIsActive = payload.TryGetProperty("targetIsActive", out var tia) && tia.ValueKind == JsonValueKind.True;
-        Console.WriteLine($"[GuideMe validation event] step={stepId} kind={kind} browserEvent={browserEvent ?? "unknown"} documentHasFocus={hasFocus} targetIsActive={targetIsActive}");
+        if (Environment.GetEnvironmentVariable("GUIDEME_VARIABLE_DIAGNOSTICS") == "1")
+            Console.WriteLine($"[GuideMe validation event] step={stepId} kind={kind} browserEvent={browserEvent ?? "unknown"} documentHasFocus={hasFocus} targetIsActive={targetIsActive}");
 
         lock (_validationGate)
         {
@@ -320,11 +322,13 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
                     command
                 },
                 json);
-            Console.Error.WriteLine($"[GuideMe transport] sending request={requestId}");
+            if (Environment.GetEnvironmentVariable("GUIDEME_VARIABLE_DIAGNOSTICS") == "1")
+                Console.Error.WriteLine($"[GuideMe transport] sending request={requestId}");
             try
             {
                 await WritePipeLineAsync(line, commandToken);
-                Console.Error.WriteLine($"[GuideMe transport] sent request={requestId}");
+                if (Environment.GetEnvironmentVariable("GUIDEME_VARIABLE_DIAGNOSTICS") == "1")
+                    Console.Error.WriteLine($"[GuideMe transport] sent request={requestId}");
             }
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
@@ -340,7 +344,8 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
                 var count = diagnosticResult.ValueKind == JsonValueKind.Object && diagnosticResult.TryGetProperty("count", out var countValue) ? countValue.ToString() : "-";
                 var stable = diagnosticResult.ValueKind == JsonValueKind.Object && diagnosticResult.TryGetProperty("stable", out var stableValue) ? stableValue.ToString() : "-";
                 var interactable = diagnosticResult.ValueKind == JsonValueKind.Object && diagnosticResult.TryGetProperty("interactable", out var interactableValue) ? interactableValue.ToString() : "-";
-                Console.Error.WriteLine($"[GuideMe transport] response request={requestId} status={status} count={count} stable={stable} interactable={interactable}");
+                if (Environment.GetEnvironmentVariable("GUIDEME_VARIABLE_DIAGNOSTICS") == "1")
+                    Console.Error.WriteLine($"[GuideMe transport] response request={requestId} status={status} count={count} stable={stable} interactable={interactable}");
                 if (response.TryGetProperty("ok", out var ok) && !ok.GetBoolean())
                     throw new InvalidOperationException(
                         response.TryGetProperty("error", out var error)
@@ -350,7 +355,8 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             }
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
-                Console.Error.WriteLine($"[GuideMe transport] response timeout request={requestId}");
+                if (Environment.GetEnvironmentVariable("GUIDEME_VARIABLE_DIAGNOSTICS") == "1")
+                    Console.Error.WriteLine($"[GuideMe transport] response timeout request={requestId}");
                 var suffix = _pendingErrors.TryGetValue(requestId, out var lastError)
                     ? $" Last browser-host response: {lastError}"
                     : string.Empty;
@@ -379,8 +385,10 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
                     PipeTransmissionMode.Byte,
                     PipeOptions.Asynchronous);
 
+                if (Environment.GetEnvironmentVariable("GUIDEME_VARIABLE_DIAGNOSTICS") == "1")
                 Console.Error.WriteLine($"[GuideMe runtime] Web pipe server waiting: {PipeName}");
                 await server.WaitForConnectionAsync(cancellationToken);
+                if (Environment.GetEnvironmentVariable("GUIDEME_VARIABLE_DIAGNOSTICS") == "1")
                 Console.Error.WriteLine($"[GuideMe runtime] Web pipe client connected: {PipeName}");
 
                 lock (_pipeGate)
@@ -477,7 +485,8 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
                         if (!ReferenceEquals(selected, stream))
                             continue;
 
-                        Console.Error.WriteLine("[GuideMe runtime] selected browser extension host.");
+                        if (Environment.GetEnvironmentVariable("GUIDEME_VARIABLE_DIAGNOSTICS") == "1")
+                Console.Error.WriteLine("[GuideMe runtime] selected browser extension host.");
                         completion.TrySetResult(responseClone);
                         continue;
                     }
@@ -511,7 +520,8 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
                 if (ReferenceEquals(_selectedPipe, stream))
                 {
                     _selectedPipe = null;
-                    Console.Error.WriteLine("[GuideMe runtime] selected browser extension host disconnected.");
+                    if (Environment.GetEnvironmentVariable("GUIDEME_VARIABLE_DIAGNOSTICS") == "1")
+                Console.Error.WriteLine("[GuideMe runtime] selected browser extension host disconnected.");
                 }
             }
 
@@ -756,7 +766,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
         var result = response.GetProperty("result");
         var status = result.GetProperty("status").GetString();
         var count = result.TryGetProperty("count", out var n) ? n.GetInt32() : 0;
-        if (stepNumber == 1)
+        if (stepNumber == 1 && Environment.GetEnvironmentVariable("GUIDEME_VARIABLE_DIAGNOSTICS") == "1")
             Console.Error.WriteLine($"[GuideMe first bubble diagnostic] step={step.Id}, context={step.ApplicationContextKey}, visible={visible}, status={status}, count={count}.");
         return new(status switch
         {
