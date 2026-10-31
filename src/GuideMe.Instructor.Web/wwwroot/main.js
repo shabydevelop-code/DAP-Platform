@@ -313,7 +313,7 @@ function renderSteps() {
     const completionSubject = hasFriendlyCompletionName
       ? 'הרכיב "' + completionElementName + '"' : 'הרכיב שנבחר';
     const completionDescription = completionRule?.Kind === 'value-contains'
-      ? (completionElement?.ControlType === 'ControlType.Text' ? 'רכיב הטקסט' : completionSubject) +
+      ? 'רכיב הטקסט' +
         ' מכיל את הערך ' + friendlyInstructionHtml(completionRule.ExpectedValue || '') + '.'
       : completionRule?.Kind === 'target-appeared'
         ? completionSubject + ' יופיע במסך.'
