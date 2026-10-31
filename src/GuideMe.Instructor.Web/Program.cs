@@ -148,6 +148,7 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/primary-target",
     IReadOnlyList<V5GuideWriter.TargetLocator> locators;
     IReadOnlyList<V5GuideWriter.TargetLocator> frames;
     string? displayName;
+    string? controlType;
     IReadOnlyList<(V5GuideWriter.TargetLocator Locator, string Relation)>? anchors = null;
     if (runtime == "Web")
     {
@@ -182,6 +183,8 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/primary-target",
         locators = new[] { new V5GuideWriter.TargetLocator("css", selector) };
         frames = target.FramePath.Select(f => new V5GuideWriter.TargetLocator("css", f)).ToArray();
         displayName = target.DisplayName;
+        controlType = request.SelectedTag is "button" or "input" or "textarea" or "select" or "a"
+            ? request.SelectedTag : null;
     }
     else if (runtime == "Windows")
     {
@@ -208,6 +211,7 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/primary-target",
             .Select(l => new V5GuideWriter.TargetLocator(l.Strategy, l.Value)).ToArray();
         frames = Array.Empty<V5GuideWriter.TargetLocator>();
         displayName = picked.Name;
+        controlType = picked.ControlType;
         anchors = picked.Anchors?.Select(a =>
             (new V5GuideWriter.TargetLocator(a.Strategy, a.Value), a.Relation)).ToArray();
     }
@@ -216,7 +220,7 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/primary-target",
     try
     {
         V5GuideWriter.SavePrimaryTarget(id, stepId, runtime, locators, frames,
-            displayName, request.Condition, request.Replacing, anchors);
+            displayName, request.Condition, request.Replacing, anchors, controlType);
     }
     catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
     {
@@ -687,7 +691,8 @@ internal sealed record NewManualStep(string ContextId, string Bubble, string Pla
 
 internal sealed record WindowsInspectRequest(int ProcessId, bool Focused = false);
 internal sealed record SavePrimaryTargetRequest(string Condition, bool Replacing = false,
-    int? ProcessId = null, int? GridChoice = null, string? ContentValue = null);
+    int? ProcessId = null, int? GridChoice = null, string? ContentValue = null,
+    string? SelectedTag = null);
 internal sealed record PickStart(long GuideId, string ContextId);
 internal sealed record SaveCompletionTargetRequest(string Kind, int? StateAttributeIndex = null,
     string? VariableId = null, string? SelectedTag = null, string? ExpectedValue = null,
