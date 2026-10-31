@@ -61,11 +61,12 @@ internal static class WindowsTargetInspector
             var primary = new Candidate(strategy, value);
             var locator = new Locator(strategy, value);
             var direct = resolver.Resolve(root, TargetDescriptor.Create(TargetRuntime.Windows, locator));
-            if (direct.Status == TargetResolutionStatus.Resolved &&
-                direct.Target is not null && Automation.Compare(direct.Target, selected))
-                return new Inspection(name, selected.Current.ControlType.ProgrammaticName,
-                    processId, new[] { primary }, null);
+            var directUnique = direct.Status == TargetResolutionStatus.Resolved &&
+                direct.Target is not null && Automation.Compare(direct.Target, selected);
 
+            // Capture a stable contextual anchor even when the primary locator is
+            // currently unique. A later screen can contain another element with
+            // the same name or AutomationId.
             var walker = TreeWalker.ControlViewWalker;
             var parent = walker.GetParent(selected);
             if (parent is null) continue;
@@ -82,7 +83,15 @@ internal static class WindowsTargetInspector
                 possibleAnchors.Add(new AnchorCandidate("name", ancestor.Current.Name ?? "", "Ancestor"));
                 possibleAnchors.Add(new AnchorCandidate("automation-id", ancestor.Current.AutomationId ?? "", "Ancestor"));
             }
-            foreach (var anchor in possibleAnchors.Distinct().Take(100))
+            // Prefer stable ancestor IDs, then ancestor names, before siblings.
+            // Sibling labels often change when the screen is refreshed.
+            var orderedAnchors = possibleAnchors
+                .Where(a => !string.IsNullOrWhiteSpace(a.Value) && a.Value.Length <= 400)
+                .Distinct()
+                .OrderBy(a => a.Relation == "Ancestor" ? 0 : 1)
+                .ThenBy(a => a.Strategy == "automation-id" ? 0 : 1)
+                .Take(100);
+            foreach (var anchor in orderedAnchors)
             {
                 if (string.IsNullOrWhiteSpace(anchor.Value) || anchor.Value.Length > 400) continue;
                 var descriptor = TargetDescriptor.Create(TargetRuntime.Windows, locator,
@@ -94,6 +103,9 @@ internal static class WindowsTargetInspector
                     return new Inspection(name, selected.Current.ControlType.ProgrammaticName,
                         processId, new[] { primary }, null, new[] { anchor });
             }
+            if (directUnique)
+                return new Inspection(name, selected.Current.ControlType.ProgrammaticName,
+                    processId, new[] { primary }, null);
         }
         return new Inspection(name, selected.Current.ControlType.ProgrammaticName,
             processId, Array.Empty<Candidate>(),
