@@ -1571,7 +1571,7 @@ function friendlyInstructionText(value) {
 }
 function stepListInstructionHtml(value) {
   // Explicit newlines alone create rows; each row truncates independently.
-  return String(value || '').split(/\\r?\\n/).slice(0, 2)
+  return String(value || '').split(/\r?\n/).slice(0, 2)
     .map(line => '<span class="step-instruction-line">' + friendlyInstructionHtml(line) + '</span>')
     .join('');
 }
