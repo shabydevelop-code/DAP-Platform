@@ -667,6 +667,26 @@ public sealed class WindowsGuideRuntime
             }
 
             var kind = condition.Kind.Trim().ToLowerInvariant();
+            if (Environment.GetEnvironmentVariable("GUIDEME_VARIABLE_DIAGNOSTICS") == "1")
+            {
+                try
+                {
+                    var diagnosticPath = Path.Combine(Path.GetTempPath(), "GuideMe-variable-diagnostic.log");
+                    var expected = condition.ExpectedValue ?? "<null>";
+                    var fallbackEligible = resolution.Status == TargetResolutionStatus.NotFound
+                        && (kind is "value-contains" or "value-equals")
+                        && !string.IsNullOrEmpty(condition.ExpectedValue);
+                    File.AppendAllText(diagnosticPath,
+                        $"{DateTimeOffset.UtcNow:O} event=windows-completion-entry step={step.Order} " +
+                        $"process={Environment.ProcessId} expected='{expected}' kind='{kind}' " +
+                        $"initialStatus={resolution.Status} fallbackEligible={fallbackEligible} " +
+                        $"targetType='{condition.Target.ControlType}' " +
+                        $"locator='{condition.Target.Locator.Strategy}:{condition.Target.Locator.Value}'" +
+                        Environment.NewLine);
+                }
+                catch (IOException) { }
+                catch (UnauthorizedAccessException) { }
+            }
             if (resolution.Status == TargetResolutionStatus.NotFound
                 && kind is "value-contains" or "value-equals"
                 && !string.IsNullOrEmpty(condition.ExpectedValue))
