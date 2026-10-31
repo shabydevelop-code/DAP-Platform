@@ -325,7 +325,7 @@ function renderSteps() {
     const dynamicWindowsControl = context?.Runtime === 'Windows' &&
       ['ControlType.Button','ControlType.Hyperlink','ControlType.Text','ControlType.DataItem',
        'ControlType.ListItem'].includes(element?.ControlType);
-    const targetClassification = classifyTarget(element, locators);
+    const targetClassification = classifyTarget(context?.Runtime, element, locators);
     const dataEntryTarget = targetClassification.dataEntry;
     const editableTargetBinding = dataEntryTarget ? null : (locatorTextBinding(locators[0]) ||
       (dynamicWindowsControl && locators[0]?.Strategy === 'automation-id' &&
@@ -1407,33 +1407,46 @@ function friendlyInstructionHtml(value) {
 // Only a semantic text value may be edited; never expose or modify the CSS structure.
 // Single runtime-neutral classification for Inspector target-value editing.
 // Extend these categories here when additional UI control types are introduced.
-function classifyTarget(element, locators) {
-  const type = String(element?.ControlType || '').toLowerCase();
+// Runtime adapters only identify the control. Inspector policy is shared.
+function classifyWebTarget(element, locators) {
+  const tag = String(element?.ControlType || '').toLowerCase();
   const selector = String(locators?.[0]?.Value || '');
-  const hasTag = tag => new RegExp('(?:^|[\\s>+~])' + tag + '(?=[:.#\\[\\s>+~]|$)', 'i').test(selector);
-  const known = {
-    'controltype.edit': ['שדה קלט', true],
-    'controltype.document': ['שדה טקסט רב־שורות', true],
-    'controltype.combobox': ['רשימת בחירה', true],
-    'controltype.button': ['כפתור', false],
-    'controltype.hyperlink': ['קישור', false],
-    'controltype.text': ['רכיב טקסט', false],
-    'textarea': ['שדה טקסט רב־שורות', true],
-    'select': ['רשימת בחירה', true],
-    'button': ['כפתור', false],
-    'a': ['קישור', false]
-  };
-  if (known[type]) return {label:known[type][0], dataEntry:known[type][1]};
-  if (type === 'textarea' || hasTag('textarea'))
+  const hasTag = name => new RegExp('(?:^|[\\s>+~])' + name +
+    '(?=[:.#\\[\\s>+~]|$)', 'i').test(selector);
+  if (tag === 'textarea' || hasTag('textarea'))
     return {label:'שדה טקסט רב־שורות', dataEntry:true};
-  if (type === 'select' || hasTag('select'))
+  if (tag === 'select' || hasTag('select'))
     return {label:'רשימת בחירה', dataEntry:true};
-  if (type === 'input' || hasTag('input')) {
+  if (tag === 'input' || hasTag('input')) {
     const buttonInput = /\[type\s*=\s*["']?(?:button|submit|reset|image)["']?\s*\]/i.test(selector);
     return buttonInput ? {label:'כפתור', dataEntry:false}
       : {label:'שדה קלט', dataEntry:true};
   }
-  return {label:null, dataEntry:false};
+  const labels = {button:'כפתור',a:'קישור'};
+  for (const [name,label] of Object.entries(labels))
+    if (tag === name || hasTag(name)) return {label,dataEntry:false};
+  return {label:null,dataEntry:false};
+}
+function classifyWindowsTarget(element) {
+  const type = String(element?.ControlType || '').toLowerCase();
+  const types = {
+    'controltype.edit':['שדה קלט',true],
+    'controltype.document':['שדה טקסט רב־שורות',true],
+    'controltype.combobox':['רשימת בחירה',true],
+    'controltype.button':['כפתור',false],
+    'controltype.hyperlink':['קישור',false],
+    'controltype.text':['רכיב טקסט',false],
+    'controltype.dataitem':['פריט נתונים',false],
+    'controltype.listitem':['פריט ברשימה',false]
+  };
+  const match = types[type];
+  return match ? {label:match[0],dataEntry:match[1]}
+    : {label:null,dataEntry:false};
+}
+function classifyTarget(runtime, element, locators) {
+  return runtime === 'Windows'
+    ? classifyWindowsTarget(element)
+    : classifyWebTarget(element, locators);
 }
 
 function locatorTextBinding(locator) {
