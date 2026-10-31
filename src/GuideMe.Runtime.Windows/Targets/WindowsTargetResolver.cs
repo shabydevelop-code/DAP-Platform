@@ -179,35 +179,64 @@ public sealed class WindowsTargetResolver
         if (string.IsNullOrEmpty(expectedValue) || !TryGetControlType(descriptor.ControlType, out var type))
             return TargetResolution<AutomationElement>.NotFound();
 
+        var diagnose = Environment.GetEnvironmentVariable("GUIDEME_VARIABLE_DIAGNOSTICS") == "1";
+        var inspected = 0;
+        var valueMatched = 0;
+        var anchorsRejected = 0;
+        var sample = new List<string>();
+        var structuralAnchors = descriptor.Anchors.Where(anchor =>
+            !(anchor.Relation == AnchorRelation.Self
+              && string.Equals(anchor.Locator.Strategy, "name", StringComparison.OrdinalIgnoreCase)
+              && string.Equals(anchor.Locator.Value, descriptor.Locator.Value, StringComparison.Ordinal)))
+            .ToArray();
         var candidates = root.FindAll(TreeScope.Descendants,
             new PropertyCondition(AutomationElement.ControlTypeProperty, type))
             .Cast<AutomationElement>();
         AutomationElement? match = null;
+        var ambiguous = false;
         foreach (var candidate in candidates)
         {
             try
             {
+                inspected++;
                 var value = candidate.TryGetCurrentPattern(ValuePattern.Pattern, out var pattern)
                     ? ((ValuePattern)pattern).Current.Value
                     : candidate.Current.Name;
                 var valueMatches = contains
                     ? value?.Contains(expectedValue, StringComparison.Ordinal) == true
                     : string.Equals(value, expectedValue, StringComparison.Ordinal);
-                // A self-name anchor captured from the same dynamic label is stale
-                // when the value changes. The observed-value check replaces only
-                // that redundant constraint; preserve all independent anchors.
-                var structuralAnchors = descriptor.Anchors.Where(anchor =>
-                    !(anchor.Relation == AnchorRelation.Self
-                      && string.Equals(anchor.Locator.Strategy, "name", StringComparison.OrdinalIgnoreCase)
-                      && string.Equals(anchor.Locator.Value, descriptor.Locator.Value, StringComparison.Ordinal)));
-                if (!valueMatches || !structuralAnchors.All(anchor => MatchesAnchor(candidate, anchor)))
+                if (!valueMatches)
+                {
+                    if (diagnose && sample.Count < 5 && !string.IsNullOrEmpty(value))
+                        sample.Add(value.Length > 80 ? value[..80] : value);
                     continue;
+                }
+                valueMatched++;
+                if (!structuralAnchors.All(anchor => MatchesAnchor(candidate, anchor)))
+                {
+                    anchorsRejected++;
+                    continue;
+                }
                 if (match is not null)
-                    return TargetResolution<AutomationElement>.Ambiguous(2);
+                {
+                    ambiguous = true;
+                    break;
+                }
                 match = candidate;
             }
             catch (ElementNotAvailableException) { }
         }
+        if (diagnose)
+        {
+            try
+            {
+                File.AppendAllText(Path.Combine(Path.GetTempPath(), "GuideMe-variable-diagnostic.log"),
+                    $"{DateTimeOffset.UtcNow:O} event=windows-completion-value expected='{expectedValue}' contains={contains} type='{descriptor.ControlType}' root='{root.Current.Name}' inspected={inspected} valueMatches={valueMatched} anchorRejected={anchorsRejected} anchors={descriptor.Anchors.Count} structuralAnchors={structuralAnchors.Length} ambiguous={ambiguous} sample=[{string.Join("; ", sample)}]{Environment.NewLine}");
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ElementNotAvailableException or System.Runtime.InteropServices.COMException) { }
+        }
+        if (ambiguous)
+            return TargetResolution<AutomationElement>.Ambiguous(2);
         return match is null
             ? TargetResolution<AutomationElement>.NotFound()
             : TargetResolution<AutomationElement>.Resolved(match);
