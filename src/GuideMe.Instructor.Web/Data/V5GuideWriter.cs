@@ -1227,4 +1227,38 @@ WHERE GuideId=$guideId AND StepId=$stepId
             throw new InvalidOperationException("השלב לא נמצא.");
     }
 
+    internal static void ReorderSteps(long guideId, IReadOnlyList<string> stepIds)
+    {
+        using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = V5GuideReader.DatabasePath, Mode = SqliteOpenMode.ReadWrite,
+            Pooling = false, DefaultTimeout = 3
+        }.ToString());
+        connection.Open();
+        using var transaction = connection.BeginTransaction();
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandTimeout = 3;
+        command.CommandText = "SELECT StepId FROM Steps WHERE GuideId=$guideId";
+        command.Parameters.AddWithValue("$guideId", guideId);
+        var existing = new HashSet<string>(StringComparer.Ordinal);
+        using (var reader = command.ExecuteReader())
+            while (reader.Read()) existing.Add(reader.GetString(0));
+        if (stepIds is null || stepIds.Count != existing.Count ||
+            stepIds.Distinct(StringComparer.Ordinal).Count() != existing.Count ||
+            stepIds.Any(id => !existing.Contains(id)))
+            throw new ArgumentException("רשימת השלבים אינה תואמת ללומדה.");
+        command.CommandText = "UPDATE Steps SET StepOrder=$order WHERE GuideId=$guideId AND StepId=$stepId";
+        command.Parameters.Add("$order", Microsoft.Data.Sqlite.SqliteType.Integer);
+        command.Parameters.Add("$stepId", Microsoft.Data.Sqlite.SqliteType.Text);
+        for (var i = 0; i < stepIds.Count; i++)
+        {
+            command.Parameters["$order"].Value = i + 1;
+            command.Parameters["$stepId"].Value = stepIds[i];
+            if (command.ExecuteNonQuery() != 1)
+                throw new InvalidOperationException("עדכון סדר השלבים נכשל.");
+        }
+        transaction.Commit();
+    }
+
 }
