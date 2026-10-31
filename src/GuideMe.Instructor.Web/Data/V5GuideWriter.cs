@@ -1001,7 +1001,8 @@ WHERE GuideId=$guideId AND StepId=$stepId";
         string? attributeName = null, string? attributeValue = null,
         string? variableId = null, string? selectedTag = null, string? expectedValue = null,
         string runtime = "Web", IReadOnlyList<TargetLocator>? windowsLocators = null,
-        IReadOnlyList<TargetAnchor>? windowsAnchors = null, bool replacing = false)
+        IReadOnlyList<TargetAnchor>? windowsAnchors = null, bool replacing = false,
+        string? controlType = null)
     {
         if (runtime is not ("Web" or "Windows"))
             throw new ArgumentException("סביבת יעד לא נתמכת.");
@@ -1108,8 +1109,8 @@ AND (a.ElementId=Elements.ElementId OR a.AnchorElementId=Elements.ElementId))";
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = @"INSERT INTO Elements
-(GuideId, ElementId, Runtime, LocatorsJson, FrameContextJson, DisplayName)
-VALUES ($guideId, $elementId, $runtime, $locators, $frame, $name)";
+(GuideId, ElementId, Runtime, LocatorsJson, FrameContextJson, DisplayName, ControlType)
+VALUES ($guideId, $elementId, $runtime, $locators, $frame, $name, $controlType)";
         command.Parameters.AddWithValue("$guideId", guideId);
         command.Parameters.AddWithValue("$stepId", stepId);
         command.Parameters.AddWithValue("$runtime", runtime);
@@ -1119,6 +1120,7 @@ VALUES ($guideId, $elementId, $runtime, $locators, $frame, $name)";
         command.Parameters.AddWithValue("$frame", framePath.Count == 0 ? DBNull.Value :
             JsonSerializer.Serialize(framePath.Select(p => new { Strategy="css", Value=p })));
         command.Parameters.AddWithValue("$name", (object?)CleanDisplayName(displayName) ?? DBNull.Value);
+        command.Parameters.AddWithValue("$controlType", (object?)controlType ?? DBNull.Value);
         command.ExecuteNonQuery();
         if (windowsAnchors is { Count: > 0 })
         {
