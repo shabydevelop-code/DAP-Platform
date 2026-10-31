@@ -348,9 +348,10 @@ function renderSteps() {
       '<div class="step-editor-head"><div><h2>שלב ' + step.order + '</h2>' +
       '<p>אפליקציה: ' + esc(appText) + '</p></div>' +
       '<div class="step-editor-actions">' +
-      '<label class="step-enabled-control"><span id="step-enabled-label">' + (step.enabled ? 'פעיל' : 'מושבת') + '</span>' +
-       '<input id="step-enabled-toggle" type="checkbox" role="switch" aria-label="הפעלת שלב" ' + (step.enabled ? 'checked ' : '') + '/>' +
-       '<span class="step-switch-track" aria-hidden="true"></span></label>' +
+      '<button type="button" id="step-enabled-button" class="btn small step-state-button ' +
+       (step.enabled ? 'is-enabled' : 'is-disabled') +
+       '" aria-pressed="' + (step.enabled ? 'true' : 'false') + '">' +
+       (step.enabled ? 'שלב פעיל' : 'שלב מושבת') + '</button>' +
        '<button class="btn secondary small" id="duplicate-step">שכפל שלב</button>' +
       '<button class="btn danger small" id="delete-step">מחיקת שלב</button>' +
       '<button class="btn primary small" id="test-from-step"' + (step.enabled ? '' : ' disabled') + '>בדיקה משלב זה</button></div></div>' +
@@ -443,10 +444,10 @@ function renderSteps() {
         });
       }));
     $('edit-step').onclick = () => editStep(step, contextId);
-    $('step-enabled-toggle').onchange = () => guarded(async () => {
-      const toggle = $('step-enabled-toggle');
-      const enabled = toggle.checked;
-      toggle.disabled = true;
+    $('step-enabled-button').onclick = () => guarded(async () => {
+      const button = $('step-enabled-button');
+      const enabled = !step.enabled;
+      button.disabled = true;
       try {
         await api('/guides/' + current.guide.id + '/steps/' + encodeURIComponent(step.id), {
           method:'PUT', body:JSON.stringify({
@@ -454,7 +455,10 @@ function renderSteps() {
           })
         });
         step.enabled = enabled;
-        $('step-enabled-label').textContent = enabled ? 'פעיל' : 'מושבת';
+        button.textContent = enabled ? 'שלב פעיל' : 'שלב מושבת';
+        button.classList.toggle('is-enabled', enabled);
+        button.classList.toggle('is-disabled', !enabled);
+        button.setAttribute('aria-pressed', String(enabled));
         $('test-from-step').disabled = !enabled;
         const row = [...document.querySelectorAll('[data-step]')]
           .find(item => item.dataset.step === step.id);
@@ -472,10 +476,9 @@ function renderSteps() {
           }
         }
       } catch (error) {
-        if (toggle.isConnected) toggle.checked = !enabled;
         throw error;
       } finally {
-        if (toggle.isConnected) toggle.disabled = false;
+        if (button.isConnected) button.disabled = false;
       }
     });
     $('duplicate-step').onclick = () => guarded(async () => {
