@@ -790,6 +790,29 @@ WHERE t.GuideId=$guideId AND t.ElementId=$elementId
 AND (t.StepId<>$stepId OR t.Purpose<>'Primary'))";
         if (command.ExecuteNonQuery() != 1)
             throw new InvalidOperationException("הרכיב משותף לשלבים נוספים ולא ניתן לשנות אותו כאן.");
+        // A captured Windows row can have a redundant ancestor whose name is
+        // the same number as the original cell. When the primary locator becomes
+        // variable-driven, that literal anchor would pin resolution to the old row.
+        // Remove only this exact redundant anchor; the resolver still requires
+        // the dynamic primary locator to identify a unique element.
+        if ((convertToName || original.Strategy == "name") &&
+            locatorValue.Contains("{{var:", StringComparison.Ordinal) &&
+            !string.IsNullOrWhiteSpace(displayName))
+        {
+            using var removeStaleAnchor = connection.CreateCommand();
+            removeStaleAnchor.Transaction = transaction;
+            removeStaleAnchor.CommandText = @"DELETE FROM ElementAnchors
+WHERE GuideId=$guideId AND ElementId=$elementId AND Relation='Ancestor'
+AND AnchorElementId IN (
+  SELECT ElementId FROM Elements
+  WHERE GuideId=$guideId AND LocatorsJson=$capturedNameLocator
+)";
+            removeStaleAnchor.Parameters.AddWithValue("$guideId", guideId);
+            removeStaleAnchor.Parameters.AddWithValue("$elementId", elementId);
+            removeStaleAnchor.Parameters.AddWithValue("$capturedNameLocator",
+                JsonSerializer.Serialize(new[] { new TargetLocator("name", displayName) }));
+            removeStaleAnchor.ExecuteNonQuery();
+        }
         transaction.Commit();
     }
 
