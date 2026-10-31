@@ -13,6 +13,22 @@ namespace GuideMe.Runtime.Windows.Learner;
 
 public sealed class WindowsGuideRuntime
 {
+    private static readonly object FocusDiagnosticLock = new();
+
+    public static void WriteFocusDiagnostic(string message)
+    {
+        if (Environment.GetEnvironmentVariable("GUIDEME_DIAGNOSTICS") != "1")
+            return;
+
+        var path = Path.Combine(Path.GetTempPath(), $"GuideMe-Windows-Focus-{Environment.ProcessId}.log");
+        try
+        {
+            lock (FocusDiagnosticLock)
+                File.AppendAllText(path, $"[{DateTime.UtcNow:O}] {message}{Environment.NewLine}");
+        }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
+    }
     private readonly WindowsTargetResolver _resolver;
     private readonly WindowsBubblePresenter _bubbles;
     private readonly WindowsValidationEvaluator _validation;
@@ -521,12 +537,12 @@ public sealed class WindowsGuideRuntime
                     initialInputFocusApplied = true;
                     var diagnoseInputFocus = Environment.GetEnvironmentVariable("GUIDEME_DIAGNOSTICS") == "1";
                     if (diagnoseInputFocus)
-                        Console.Error.WriteLine($"[GuideMe Windows focus] input before SetFocus step={step.Order} foreground={GetForegroundWindow()} utc={DateTime.UtcNow:O}");
+                        WriteFocusDiagnostic($"input before SetFocus step={step.Order} foreground={GetForegroundWindow()}");
                     try { target.SetFocus(); }
                     catch (ElementNotAvailableException) { }
                     catch (InvalidOperationException) { }
                     if (diagnoseInputFocus)
-                        Console.Error.WriteLine($"[GuideMe Windows focus] input after SetFocus step={step.Order} foreground={GetForegroundWindow()} utc={DateTime.UtcNow:O}");
+                        WriteFocusDiagnostic($"input after SetFocus step={step.Order} foreground={GetForegroundWindow()}");
 
                     if (Environment.GetEnvironmentVariable("GUIDEME_DIAGNOSTICS") == "1")
                         Console.Error.WriteLine(
