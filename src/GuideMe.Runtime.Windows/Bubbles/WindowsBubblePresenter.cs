@@ -510,7 +510,7 @@ public sealed class WindowsBubblePresenter
 
         _highlightBorder = new Border
         {
-            BorderBrush = new SolidColorBrush(Color.FromRgb(45, 156, 219)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(255, 223, 0)),
             BorderThickness = new Thickness(3),
             CornerRadius = new CornerRadius(4),
             Background = Brushes.Transparent,
