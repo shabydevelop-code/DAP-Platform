@@ -218,7 +218,7 @@ function renderSteps() {
   const steps = (current?.steps || []).filter(s => String(s.order).includes(search) || s.id.toLowerCase().includes(search) || (s.bubble || '').toLowerCase().includes(search));
   requestAnimationFrame(syncStepListHeight);
   $('step-list').innerHTML = steps.length ? steps.map(s =>
-    '<div class="step-row' + (s.enabled ? '' : ' step-disabled') + '" role="button" tabindex="0" aria-pressed="false" aria-label="' + esc('שלב ' + s.order + ': ' + friendlyInstructionText(s.bubble || 'שלב ' + s.order) + (s.enabled ? '' : ', מושבת')) + '" data-step="' + esc(s.id) + '"><span class="step-num">' + s.order + '</span><span class="step-body"><strong>' +
+    '<div class="step-row' + (s.enabled ? '' : ' step-disabled') + '" role="button" tabindex="0" aria-pressed="false" aria-label="' + esc('שלב ' + s.order + ': ' + friendlyInstructionText(s.bubble || 'שלב ' + s.order) + (s.enabled ? '' : ', מושבת')) + '" data-step="' + esc(s.id) + '"><span class="step-drag-handle" draggable="true" role="img" aria-label="גרירת שלב לשינוי סדר" title="גרור לשינוי סדר">⠿</span><span class="step-num">' + s.order + '</span><span class="step-body"><strong>' +
     friendlyInstructionHtml(s.bubble || 'שלב ' + s.order) + '</strong></span>' + (s.enabled ? '' : '<span class="step-disabled-badge">מושבת</span>') + '</div>').join('')
     : '<div class="empty">אין שלבים להצגה</div>';
   const tip = document.getElementById('step-name-tooltip') || (() => {
@@ -260,6 +260,65 @@ function renderSteps() {
     row.addEventListener('focus', () => showTip(row));
     row.addEventListener('blur', () => { if (activeTipRow === row) hideTip(); });
     row.addEventListener('keydown', e => { if (e.key === 'Escape') hideTip(); });
+  });
+
+  let draggingStepId = null;
+  document.querySelectorAll('.step-drag-handle').forEach(handle => {
+    const row = handle.closest('[data-step]');
+    handle.addEventListener('dragstart', event => {
+      if ($('step-search').value.trim()) { event.preventDefault(); return; }
+      draggingStepId = row.dataset.step;
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', draggingStepId);
+      row.classList.add('step-dragging');
+      hideTip();
+    });
+    handle.addEventListener('dragend', () => {
+      draggingStepId = null;
+      document.querySelectorAll('.step-drop-before,.step-drop-after,.step-dragging')
+        .forEach(item => item.classList.remove('step-drop-before','step-drop-after','step-dragging'));
+    });
+  });
+  document.querySelectorAll('[data-step]').forEach(row => {
+    row.addEventListener('dragover', event => {
+      if (!draggingStepId || draggingStepId === row.dataset.step) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'move';
+      row.classList.toggle('step-drop-before', event.clientY < row.getBoundingClientRect().top + row.offsetHeight / 2);
+      row.classList.toggle('step-drop-after', event.clientY >= row.getBoundingClientRect().top + row.offsetHeight / 2);
+    });
+    row.addEventListener('dragleave', () => row.classList.remove('step-drop-before','step-drop-after'));
+    row.addEventListener('drop', event => {
+      event.preventDefault();
+      const sourceId = draggingStepId;
+      draggingStepId = null;
+      document.querySelectorAll('.step-drop-before,.step-drop-after')
+        .forEach(item => item.classList.remove('step-drop-before','step-drop-after'));
+      if (!sourceId || sourceId === row.dataset.step || !confirmDiscard()) return;
+      const original = [...current.steps];
+      const from = original.findIndex(step => step.id === sourceId);
+      const target = original.findIndex(step => step.id === row.dataset.step);
+      if (from < 0 || target < 0) return;
+      const after = event.clientY >= row.getBoundingClientRect().top + row.offsetHeight / 2;
+      const ordered = [...original];
+      const [moved] = ordered.splice(from, 1);
+      let index = ordered.findIndex(step => step.id === row.dataset.step);
+      if (after) index++;
+      ordered.splice(index, 0, moved);
+      if (ordered.every((step,i) => step.id === original[i].id)) return;
+      guarded(async () => {
+        await api('/guides/' + current.guide.id + '/steps/order', {
+          method:'PUT', body:JSON.stringify({stepIds:ordered.map(step => step.id)})
+        });
+        ordered.forEach((step,i) => { step.order = i + 1; });
+        current.steps = ordered;
+        const keepSelected = selectedStep;
+        renderSteps();
+        if (keepSelected) document.querySelectorAll('[data-step]').forEach(item => {
+          if (item.dataset.step === keepSelected) item.click();
+        });
+      });
+    });
   });
   $('step-list').addEventListener('scroll', hideTip, {passive:true});
   document.querySelectorAll('[data-step]').forEach(b => b.addEventListener('keydown', e => {
