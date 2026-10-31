@@ -2,6 +2,7 @@ using System.Data;
 using System.Net.WebSockets;
 using System.Diagnostics;
 using System.Net;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text.Json;
 using Microsoft.Extensions.FileProviders;
@@ -21,6 +22,7 @@ if (instanceMutex is null)
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.UseKestrel(options => options.Listen(IPAddress.Loopback, 53922));
 var app = builder.Build();
+
 app.UseWebSockets();
 // Resolve assets from the executable in both dotnet run and published deployment.
 // The current working directory is not necessarily the application's directory.
@@ -465,6 +467,14 @@ app.MapPost("/api/guides/{id:long}/test", (long id, string? startStepId) =>
         using var process = Process.Start(launch);
         if (process is null)
             return Results.Problem("לא ניתן להפעיל את ה־Learner.", statusCode: 500);
+        // Windows allows a foreground-authorized launcher to grant its child
+        // permission to activate another window. A background server may not
+        // have this right; the API result is therefore diagnostic, not a guarantee.
+        var foregroundGrant = LearnerForegroundPermission.AllowSetForegroundWindow(process.Id);
+        if (Environment.GetEnvironmentVariable("GUIDEME_DIAGNOSTICS") == "1")
+            app.Logger.LogInformation(
+                "Learner foreground permission grant: pid={ProcessId} granted={Granted} win32Error={Error}",
+                process.Id, foregroundGrant, foregroundGrant ? 0 : Marshal.GetLastWin32Error());
         return Results.Ok(new { started = true, guideId = id });
     }
     catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
@@ -728,3 +738,9 @@ internal sealed record IdentifiedActionRequest(string VariableId);
 internal sealed record SavePrimaryTargetLocatorTemplateRequest(string LocatorValue, string? LocatorStrategy = null);
 
 internal sealed record ReorderStepsRequest(List<string> StepIds);
+
+internal static partial class LearnerForegroundPermission
+{
+    [DllImport("user32.dll", SetLastError = true)]
+    internal static extern bool AllowSetForegroundWindow(int processId);
+}
