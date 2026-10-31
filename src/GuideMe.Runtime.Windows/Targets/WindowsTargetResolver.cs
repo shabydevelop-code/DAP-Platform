@@ -85,7 +85,7 @@ public sealed class WindowsTargetResolver
         // An unanchored locator must resolve to exactly one element.
         if (descriptor.Anchors.Count == 0 && IsUniqueExactLocator(descriptor.Locator))
         {
-            var matches = FilterCapturedType(Find(root, descriptor.Locator), descriptor.ControlType).Take(2).ToArray();
+            var matches = FindForCapturedType(root, descriptor.Locator, descriptor.ControlType).Take(2).ToArray();
             DiagnoseExactLookup(root, descriptor.Locator, matches.Length);
             return matches.Length switch
             {
@@ -112,8 +112,10 @@ public sealed class WindowsTargetResolver
                 conditions.Add(condition);
             }
             var combined = new AndCondition(conditions.ToArray());
-            var matched = FilterCapturedType(root.FindAll(TreeScope.Descendants, combined)
-                .Cast<AutomationElement>(), descriptor.ControlType)
+            var matched = FilterCapturedType(root.FindAll(TreeScope.Descendants,
+                TryGetControlType(descriptor.ControlType, out var nativeType)
+                    ? new AndCondition(combined, new PropertyCondition(AutomationElement.ControlTypeProperty, nativeType))
+                    : combined).Cast<AutomationElement>(), descriptor.ControlType)
                 .Where(candidate => descriptor.Anchors
                     .Where(anchor => !nativeSelfAnchors.Contains(anchor))
                     .All(anchor => MatchesAnchor(candidate, anchor)))
@@ -133,7 +135,7 @@ public sealed class WindowsTargetResolver
 
         var primaryFindStopwatch = Stopwatch.StartNew();
         var primaryFindCpuStarted = process.TotalProcessorTime;
-        var candidates = FilterCapturedType(Find(root, descriptor.Locator), descriptor.ControlType).ToList();
+        var candidates = FindForCapturedType(root, descriptor.Locator, descriptor.ControlType).ToList();
         primaryFindStopwatch.Stop();
         var primaryFindCpu = process.TotalProcessorTime - primaryFindCpuStarted;
         var primaryCandidateCount = candidates.Count;
@@ -171,6 +173,34 @@ public sealed class WindowsTargetResolver
             1 => TargetResolution<AutomationElement>.Resolved(candidates[0]),
             _ => TargetResolution<AutomationElement>.Ambiguous(candidates.Count)
         };
+    }
+
+    private static IEnumerable<AutomationElement> FindForCapturedType(
+        AutomationElement root, Locator locator, string? capturedType)
+    {
+        if (TryGetControlType(capturedType, out var type)
+            && TryCreateNativeCondition(locator, out var locatorCondition))
+        {
+            var condition = new AndCondition(locatorCondition,
+                new PropertyCondition(AutomationElement.ControlTypeProperty, type));
+            return root.FindAll(TreeScope.Descendants, condition).Cast<AutomationElement>();
+        }
+        return FilterCapturedType(Find(root, locator), capturedType);
+    }
+
+    private static bool TryGetControlType(string? programmaticName, out ControlType type)
+    {
+        type = ControlType.Custom;
+        if (string.IsNullOrWhiteSpace(programmaticName))
+            return false;
+        var property = typeof(ControlType).GetProperties(System.Reflection.BindingFlags.Public |
+            System.Reflection.BindingFlags.Static)
+            .FirstOrDefault(p => p.PropertyType == typeof(ControlType)
+                && string.Equals("ControlType." + p.Name, programmaticName, StringComparison.Ordinal));
+        if (property?.GetValue(null) is not ControlType found)
+            return false;
+        type = found;
+        return true;
     }
 
     private static IEnumerable<AutomationElement> FilterCapturedType(
