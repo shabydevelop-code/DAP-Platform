@@ -122,11 +122,18 @@ function showList() {
   $('list-view').classList.remove('hidden'); $('detail-view').classList.add('hidden');
   $('new-guide').classList.remove('hidden');
   clearNotice();
+  document.querySelectorAll('.tab').forEach(t => {
+    const active = t.dataset.tab === 'library';
+    t.classList.toggle('active', active);
+    t.setAttribute('aria-selected', String(active));
+    t.tabIndex = active ? 0 : -1;
+  });
   $('library-title').focus();
 }
 async function loadGuides() {
   guides = await api('/guides');
   $('total-guides').textContent = guides.length;
+  $('library-count').textContent = guides.length;
   renderGuides();
 }
 function renderGuides() {
@@ -167,6 +174,7 @@ function selectTab(tab) {
     t.setAttribute('aria-selected',String(active));
     t.tabIndex=active?0:-1;
   });
+  if (tab === 'library') { showList(); return; }
   $('steps-panel').classList.toggle('hidden',tab!=='steps');
   $('contexts-panel').classList.toggle('hidden',tab!=='contexts');
 }
