@@ -348,11 +348,14 @@ function renderSteps() {
       '<div class="step-editor-head"><div><h2>שלב ' + step.order + '</h2>' +
       '<p>אפליקציה: ' + esc(appText) + '</p></div>' +
       '<div class="step-editor-actions">' +
-      '<button class="btn secondary small" id="duplicate-step">שכפל שלב</button>' +
+      '<label class="step-enabled-control"><span id="step-enabled-label">' + (step.enabled ? 'פעיל' : 'מושבת') + '</span>' +
+       '<input id="step-enabled-toggle" type="checkbox" role="switch" aria-label="הפעלת שלב" ' + (step.enabled ? 'checked ' : '') + '/>' +
+       '<span class="step-switch-track" aria-hidden="true"></span></label>' +
+       '<button class="btn secondary small" id="duplicate-step">שכפל שלב</button>' +
       '<button class="btn danger small" id="delete-step">מחיקת שלב</button>' +
       '<button class="btn primary small" id="test-from-step"' + (step.enabled ? '' : ' disabled') + '>בדיקה משלב זה</button></div></div>' +
       '<div class="step-summary"><div class="step-summary-heading"><strong>הנחיה למשתמש</strong>' +
-       '<span class="chip">' + (step.enabled ? 'פעיל' : 'מושבת') + '</span></div>' +
+       '</div>' +
        '<div class="step-summary-content"><p>' + friendlyInstructionHtml(step.bubble || 'לא הוגדרה הנחיה') + '</p>' +
        '<div class="context-actions"><button class="btn secondary small" id="edit-step">עריכת תוכן השלב</button></div></div></div>' +
        '<div class="step-friendly-grid">' +
@@ -440,6 +443,25 @@ function renderSteps() {
         });
       }));
     $('edit-step').onclick = () => editStep(step, contextId);
+    $('step-enabled-toggle').onchange = () => guarded(async () => {
+      const toggle = $('step-enabled-toggle');
+      const enabled = toggle.checked;
+      toggle.disabled = true;
+      try {
+        await api('/guides/' + current.guide.id + '/steps/' + encodeURIComponent(step.id), {
+          method:'PUT', body:JSON.stringify({
+            bubble:step.bubble, enabled, contextId:contextId || null
+          })
+        });
+        await openGuide(current.guide.id);
+        const row = [...document.querySelectorAll('[data-step]')]
+          .find(item => item.dataset.step === step.id);
+        if (row) row.click();
+      } catch (error) {
+        if (toggle.isConnected) { toggle.checked = !enabled; toggle.disabled = false; }
+        throw error;
+      }
+    });
     $('duplicate-step').onclick = () => guarded(async () => {
       if (!current || !confirmDiscard()) return;
       const guideId = current.guide.id;
@@ -1726,7 +1748,7 @@ function editStep(step, assignedContextId) {
      choices:[{value:'true',text:'פעיל'},{value:'false',text:'מושבת'}]}
   ], async values => {
     await api('/guides/' + guideId + '/steps/' + encodeURIComponent(stepId), {
-      method:'PUT', body:JSON.stringify({bubble:variableEditorResult($('field-bubble')), enabled:values.enabled === 'true',
+      method:'PUT', body:JSON.stringify({bubble:variableEditorResult($('field-bubble')), enabled:step.enabled,
         contextId:values.contextId || selectedContext || null})
     });
     await openGuide(guideId);
