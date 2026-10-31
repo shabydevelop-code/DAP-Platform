@@ -448,7 +448,7 @@ public static class GuideMeApplicationHost
         var windowsTargetHandle = new IntPtr(window.Current.NativeWindowHandle);
         var diagnoseWindowsFocus = Environment.GetEnvironmentVariable("GUIDEME_DIAGNOSTICS") == "1";
         if (diagnoseWindowsFocus)
-            Console.Error.WriteLine($"[GuideMe Windows focus] startup before UIA focus target={windowsTargetHandle} foreground={GetForegroundWindow()} utc={DateTime.UtcNow:O}");
+            WindowsGuideRuntime.WriteFocusDiagnostic($"startup before UIA focus target={windowsTargetHandle} foreground={GetForegroundWindow()}");
         if (GetForegroundWindow() != windowsTargetHandle)
         {
             try { window.SetFocus(); }
@@ -457,7 +457,7 @@ public static class GuideMeApplicationHost
             catch (System.Runtime.InteropServices.COMException) { }
         }
         if (diagnoseWindowsFocus)
-            Console.Error.WriteLine($"[GuideMe Windows focus] startup after UIA focus target={windowsTargetHandle} foreground={GetForegroundWindow()} utc={DateTime.UtcNow:O}");
+            WindowsGuideRuntime.WriteFocusDiagnostic($"startup after UIA focus target={windowsTargetHandle} foreground={GetForegroundWindow()}");
         StartupMark(startup, "Windows target window focus requested");
 
         // Observe the native window independently of UI Automation: UIA providers
