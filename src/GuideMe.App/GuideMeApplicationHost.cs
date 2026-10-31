@@ -445,13 +445,19 @@ public static class GuideMeApplicationHost
         // Win32 foreground requests from that process can flash the taskbar.
         // UIA focus is the proven Windows fallback; do not follow it with a
         // competing SetForegroundWindow request during initial guide startup.
-        if (GetForegroundWindow() != new IntPtr(window.Current.NativeWindowHandle))
+        var windowsTargetHandle = new IntPtr(window.Current.NativeWindowHandle);
+        var diagnoseWindowsFocus = Environment.GetEnvironmentVariable("GUIDEME_DIAGNOSTICS") == "1";
+        if (diagnoseWindowsFocus)
+            Console.Error.WriteLine($"[GuideMe Windows focus] startup before UIA focus target={windowsTargetHandle} foreground={GetForegroundWindow()} utc={DateTime.UtcNow:O}");
+        if (GetForegroundWindow() != windowsTargetHandle)
         {
             try { window.SetFocus(); }
             catch (ElementNotAvailableException) { }
             catch (InvalidOperationException) { }
             catch (System.Runtime.InteropServices.COMException) { }
         }
+        if (diagnoseWindowsFocus)
+            Console.Error.WriteLine($"[GuideMe Windows focus] startup after UIA focus target={windowsTargetHandle} foreground={GetForegroundWindow()} utc={DateTime.UtcNow:O}");
         StartupMark(startup, "Windows target window focus requested");
 
         // Observe the native window independently of UI Automation: UIA providers
