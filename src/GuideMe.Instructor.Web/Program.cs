@@ -570,6 +570,11 @@ app.MapGet("/api/guides/{id:long}/step/{stepId}", (long id, string stepId) =>
 app.MapPost("/api/guides/{id:long}/steps", (long id, NewManualStep request) =>
     Results.Ok(new { stepId = V5GuideWriter.CreateManualStep(id,
         request.ContextId, request.Bubble, request.Placement) }));
+app.MapPut("/api/guides/{id:long}/steps/order", (long id, ReorderStepsRequest body) =>
+{
+    V5GuideWriter.ReorderSteps(id, body.StepIds);
+    return Results.NoContent();
+});
 app.MapPost("/api/guides/{id:long}/steps/{stepId}/duplicate", (long id, string stepId) =>
 {
     if (V5GuideReader.ListSteps(id).All(step => step.Id != stepId))
@@ -709,3 +714,5 @@ internal sealed record SaveVariableSourceRequest(string VariableId, string Prope
 internal sealed record IdentifiedActionRequest(string VariableId);
 
 internal sealed record SavePrimaryTargetLocatorTemplateRequest(string LocatorValue, string? LocatorStrategy = null);
+
+internal sealed record ReorderStepsRequest(List<string> StepIds);
