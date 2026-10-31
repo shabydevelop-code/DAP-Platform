@@ -1158,8 +1158,20 @@ AND StepId=$stepId AND RuleType='AdditionalCompletionCondition' AND TargetUsageI
 AND StepId=$stepId AND UsageId='completion' AND Purpose='Completion'";
         command.ExecuteNonQuery();
         command.Parameters.AddWithValue("$elementId", elementId);
+        // Completion targets may own Windows UIA anchors. Remove their links
+        // before deleting the target element, then collect unreferenced anchors.
+        command.CommandText = @"DELETE FROM ElementAnchors
+WHERE GuideId=$guideId AND ElementId=$elementId";
+        command.ExecuteNonQuery();
         command.CommandText = @"DELETE FROM Elements WHERE GuideId=$guideId AND ElementId=$elementId
 AND NOT EXISTS (SELECT 1 FROM StepTargets WHERE GuideId=$guideId AND ElementId=$elementId)";
+        command.ExecuteNonQuery();
+        command.CommandText = @"DELETE FROM Elements WHERE GuideId=$guideId
+AND NOT EXISTS (SELECT 1 FROM StepTargets t
+    WHERE t.GuideId=Elements.GuideId AND t.ElementId=Elements.ElementId)
+AND NOT EXISTS (SELECT 1 FROM ElementAnchors a
+    WHERE a.GuideId=Elements.GuideId
+      AND (a.ElementId=Elements.ElementId OR a.AnchorElementId=Elements.ElementId))";
         command.ExecuteNonQuery();
         transaction.Commit();
     }
