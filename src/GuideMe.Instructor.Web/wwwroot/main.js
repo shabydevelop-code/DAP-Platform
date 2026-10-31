@@ -433,7 +433,7 @@ function renderSteps() {
           '<div class="target-action-primary">' +
           '<button class="btn secondary small" id="replace-web-target">בחירת רכיב אחר</button>' +
           (editableTargetBinding ? '<button class="btn secondary small" id="bind-target-variable">עריכה</button>' : '') +
-          '<button class="btn danger small" id="remove-primary-target">הסרת רכיב</button>' +
+          '<button class="btn danger small" id="remove-primary-target">הסרה</button>' +
           '</div>' +
 
           '</div>' :
@@ -446,8 +446,8 @@ function renderSteps() {
       ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') && target ?
         '<div class="validation-actions">' +
         '<button class="btn secondary small" id="edit-validation">' +
-        (rule ? 'עריכת תנאי ההתקדמות' : 'הגדרת תנאי התקדמות') + '</button>' +
-        (rule ? '<button class="btn danger small" id="remove-validation">הסרת תנאי</button>' : '') +
+        (rule ? 'עריכה' : 'הגדרת תנאי התקדמות') + '</button>' +
+        (rule ? '<button class="btn danger small" id="remove-validation">הסרה</button>' : '') +
         '</div>' : '') +
       '</section></div>' +
       ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') ?
@@ -455,9 +455,11 @@ function renderSteps() {
         (completionRule ? '<div class="completion-details">' +
           '<div class="completion-detail"><span class="completion-detail-label">השלב יושלם כאשר:</span>' +
           '<strong class="completion-description-preview">' + (completionRule?.Kind === 'value-contains' ? completionDescription : esc(completionDescription)) + '</strong></div>' +
-          '</div><div class="validation-actions"><button class="btn secondary small" id="edit-completion">עריכת תנאי</button>' +
+          '</div><div class="target-action-buttons"><div class="target-action-primary">' +
           '<button class="btn secondary small" id="replace-completion">בחירת רכיב אחר</button>' +
-          '<button class="btn danger small" id="remove-completion">הסרת תנאי</button></div>' :
+          '<button class="btn secondary small" id="edit-completion">עריכה</button>' +
+          '<button class="btn danger small" id="remove-completion">הסרה</button>' +
+          '</div></div>' :
           '<p>' + (!target ? 'יש לבחור תחילה רכיב ראשי לשלב.' : !rule ? 'יש להגדיר תחילה תנאי התקדמות לשלב.' : 'בחר רכיב ובדוק הופעה, היעלמות או שינוי מאפיין בעקבות הפעולה.') + '</p>' +
           (target && rule ? '<button class="btn secondary small" id="add-completion">בחירת רכיב לתנאי השלמה</button>' : '')) +
         '<div id="completion-pick-result" class="hidden" aria-live="polite"></div>' +
