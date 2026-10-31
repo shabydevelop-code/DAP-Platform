@@ -441,24 +441,12 @@ public static class GuideMeApplicationHost
         else
             throw new InvalidOperationException("Windows Guide requires a persisted application context or --window-automation-id.");
         StartupMark(startup, "Windows target window resolved");
-        // The Instructor launches this Learner from a background server process.
-        // Win32 foreground requests from that process can flash the taskbar.
-        // UIA focus is the proven Windows fallback; do not follow it with a
-        // competing SetForegroundWindow request during initial guide startup.
-        var windowsTargetHandle = new IntPtr(window.Current.NativeWindowHandle);
-        var diagnoseWindowsFocus = Environment.GetEnvironmentVariable("GUIDEME_DIAGNOSTICS") == "1";
-        if (diagnoseWindowsFocus)
-            WindowsGuideRuntime.WriteFocusDiagnostic($"startup before UIA focus target={windowsTargetHandle} foreground={GetForegroundWindow()}");
-        if (GetForegroundWindow() != windowsTargetHandle)
-        {
-            try { window.SetFocus(); }
-            catch (ElementNotAvailableException) { }
-            catch (InvalidOperationException) { }
-            catch (System.Runtime.InteropServices.COMException) { }
-        }
-        if (diagnoseWindowsFocus)
-            WindowsGuideRuntime.WriteFocusDiagnostic($"startup after UIA focus target={windowsTargetHandle} foreground={GetForegroundWindow()}");
-        StartupMark(startup, "Windows target window focus requested");
+        // Let the Windows step runtime focus its first input target once.
+        // Do not focus the application window separately at startup.
+        if (Environment.GetEnvironmentVariable("GUIDEME_DIAGNOSTICS") == "1")
+            WindowsGuideRuntime.WriteFocusDiagnostic(
+                $"startup window focus skipped target={new IntPtr(window.Current.NativeWindowHandle)} foreground={GetForegroundWindow()}");
+        StartupMark(startup, "Windows target window focus deferred to step runtime");
 
         // Observe the native window independently of UI Automation: UIA providers
         // can throw while their owning application is shutting down.
