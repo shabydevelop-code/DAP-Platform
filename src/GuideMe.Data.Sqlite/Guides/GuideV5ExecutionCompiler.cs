@@ -65,7 +65,7 @@ public static class GuideV5ExecutionCompiler
                 frame = new FrameContext(path);
             }
             var main = element.Locators[0];
-            return TargetDescriptor.Create(runtime, new Locator(main.Strategy, main.Value), anchors, frame);
+            return TargetDescriptor.Create(runtime, new Locator(main.Strategy, main.Value), anchors, frame, element.ControlType);
         }
 
         var steps = new List<GuideStep>();
