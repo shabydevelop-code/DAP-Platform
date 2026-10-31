@@ -455,7 +455,8 @@ function renderSteps() {
         (completionRule ? '<div class="completion-details">' +
           '<div class="completion-detail"><span class="completion-detail-label">השלב יושלם כאשר:</span>' +
           '<strong class="completion-description-preview">' + (completionRule?.Kind === 'value-contains' ? completionDescription : esc(completionDescription)) + '</strong></div>' +
-          '</div><button class="btn danger small" id="remove-completion">הסרת תנאי</button>' :
+          '</div><div class="validation-actions"><button class="btn secondary small" id="edit-completion">עריכת תנאי</button>' +
+          '<button class="btn danger small" id="remove-completion">הסרת תנאי</button></div>' :
           '<p>' + (!target ? 'יש לבחור תחילה רכיב ראשי לשלב.' : !rule ? 'יש להגדיר תחילה תנאי התקדמות לשלב.' : 'בחר רכיב ובדוק הופעה, היעלמות או שינוי מאפיין בעקבות הפעולה.') + '</p>' +
           (target && rule ? '<button class="btn secondary small" id="add-completion">בחירת רכיב לתנאי השלמה</button>' : '')) +
         '<div id="completion-pick-result" class="hidden" aria-live="polite"></div>' +
@@ -588,6 +589,10 @@ function renderSteps() {
     const addCompletion = $('add-completion');
     if (addCompletion) addCompletion.onclick = () => guarded(() =>
       beginTargetPicker(context.Runtime, current.guide.id, step.id, contextId, false, true, context));
+    const editCompletion = $('edit-completion');
+    if (editCompletion) editCompletion.onclick = () => guarded(() =>
+      beginTargetPicker(context.Runtime, current.guide.id, step.id, contextId, true, true, context, null,
+        {kind:completionRule.Kind, expectedValue:completionRule.ExpectedValue || ''}));
     const removeCompletion = $('remove-completion');
     if (removeCompletion) removeCompletion.onclick = () => guarded(async () => {
       if (!confirm('להסיר את תנאי ההשלמה הנוסף?')) return;
@@ -799,7 +804,8 @@ const targetAdapters = {
             ? Number($('completion-state-choice').value) : null,
           selectedTag:candidate.tag,
           expectedValue:$('target-condition').value === 'value-contains'
-            ? variableEditorResult($('completion-fixed-value')) : null})});
+            ? variableEditorResult($('completion-fixed-value')) : null,
+          replacing:session.replacing})});
     }
   },
   Windows: {
@@ -835,7 +841,7 @@ const targetAdapters = {
     async saveCompletion(session) {
       return api('/guides/'+session.guideId+'/steps/'+encodeURIComponent(session.stepId)+'/completion-target',
         {method:'POST',body:JSON.stringify({kind:$('target-condition').value,
-          expectedValue:$('target-condition').value === 'value-contains' ? variableEditorResult($('completion-fixed-value')) : null,processId:session.processId})});
+          expectedValue:$('target-condition').value === 'value-contains' ? variableEditorResult($('completion-fixed-value')) : null,processId:session.processId,replacing:session.replacing})});
     },
   }
 };
@@ -865,7 +871,7 @@ function pickerResultBox(session) {
   return $(session.variableSource ? 'variable-pick-result' :
     session.completion ? 'completion-pick-result' : 'pick-result');
 }
-async function beginTargetPicker(runtime, guideId, stepId, contextId, replacing=false, completion=false, context=null, variableSource=null) {
+async function beginTargetPicker(runtime, guideId, stepId, contextId, replacing=false, completion=false, context=null, variableSource=null, completionEdit=null) {
   const adapter = targetAdapters[runtime];
   if (!adapter) throw new Error('סביבת היעד אינה נתמכת.');
   if (completion && !adapter.saveCompletion)
@@ -873,7 +879,7 @@ async function beginTargetPicker(runtime, guideId, stepId, contextId, replacing=
   if (pickingFor || pickerStarting) return;
   pickerStarting = true;
   syncPickerButtons();
-  const session = {runtime,guideId,stepId,contextId,replacing,completion,context,variableSource,startedAt:Date.now()};
+  const session = {runtime,guideId,stepId,contextId,replacing,completion,context,variableSource,completionEdit,startedAt:Date.now()};
   const box = pickerResultBox(session);
   if (!box) {
     pickerStarting = false;
@@ -1022,6 +1028,11 @@ async function refreshPicker() {
       $('completion-fixed-value-fields').classList.toggle('hidden', condition.value !== 'value-contains');
     };
     condition.addEventListener('change', updateFields);
+    if (pickingFor.completionEdit) {
+      condition.value = pickingFor.completionEdit.kind;
+      const expected = $('completion-fixed-value');
+      if (expected) expected.value = pickingFor.completionEdit.expectedValue;
+    }
     updateFields();
     initializeVariableField($('completion-fixed-value'), $('completion-fixed-value-variables'));
   }
@@ -1078,6 +1089,7 @@ async function refreshPicker() {
         .find(x => x.dataset.step === pickedFor.stepId);
       if (item) await item.click();
       notify(pickedFor.variableSource ? 'רכיב מקור המשתנה נשמר ללא שינוי רכיב הפעולה.'
+        : pickedFor.completion && pickedFor.replacing ? 'תנאי ההשלמה עודכן.'
         : pickedFor.replacing
         ? 'הרכיב הוחלף בהצלחה. יש להגדיר מחדש מתי ממשיכים לשלב הבא.'
         : pickedFor.completion ? 'תנאי ההשלמה נשמר.' : 'רכיב היעד נשמר. ניתן להגדיר תנאי התקדמות בנפרד.');
