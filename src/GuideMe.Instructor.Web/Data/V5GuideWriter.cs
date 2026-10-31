@@ -1038,6 +1038,7 @@ WHERE GuideId=$guideId AND StepId=$stepId";
         }.ToString());
         connection.Open();
         EnsureElementDisplayNameColumn(connection);
+        EnsureElementTypeColumn(connection);
         // Validate every variable reference in the unified expected-value template.
         if (kind == "value-contains" && expectedValue is not null)
         {
