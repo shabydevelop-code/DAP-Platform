@@ -52,9 +52,9 @@ public sealed class WindowsGuideRuntime
         AutomationElement windowRoot,
         IReadOnlyList<GuideStep> guideSteps,
         CancellationToken cancellationToken,
-        IReadOnlyList<GuideVariableDefinition>? variables = null, string language = "he")
+        IReadOnlyList<GuideVariableDefinition>? variables = null, string language = "he", Action<int, int>? onStepStarted = null)
     {
-        return new GuideExecutionEngine().RunAsync(guideSteps, CreateStepAdapter(windowRoot), cancellationToken, variables, language);
+        return new GuideExecutionEngine().RunAsync(guideSteps, CreateStepAdapter(windowRoot), cancellationToken, variables, language, onStepStarted);
     }
 
     public IGuideStepAdapter CreateStepAdapter(AutomationElement windowRoot)
