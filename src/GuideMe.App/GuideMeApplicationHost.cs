@@ -252,8 +252,8 @@ public static class GuideMeApplicationHost
                 }, TaskScheduler.Default);
         };
 
-        var web = new AdapterWebGuideRuntime(new WebGuideStepRuntime(browser, bubbleAvailabilityChanged: indicator.SetBubbleAvailable), browser);
-        var windows = new WindowsGuideRuntime(new WindowsTargetResolver(), bubbles, bubbleAvailabilityChanged: indicator.SetBubbleAvailable);
+        var web = new AdapterWebGuideRuntime(new WebGuideStepRuntime(browser, bubbleAvailabilityChanged: null), browser);
+        var windows = new WindowsGuideRuntime(new WindowsTargetResolver(), bubbles, bubbleAvailabilityChanged: null);
 
         AutomationElement ResolveWindow(GuideMe.Core.Guides.GuideStep step)
         {
@@ -377,7 +377,7 @@ public static class GuideMeApplicationHost
                         }
                         await Task.Delay(250, token);
                     }
-                }, variables, texts.Language);
+                }, variables, texts.Language, indicator.SetProgress);
         }
         catch (OperationCanceledException) when (stopped.IsCancellationRequested)
         {
@@ -463,12 +463,12 @@ public static class GuideMeApplicationHost
             _ = bubbles.HideAsync();
         });
         using var stopRegistration = userStopped.Token.Register(() => runCancellation.Cancel());
-        var runtime = new WindowsGuideRuntime(resolver, bubbles, bubbleAvailabilityChanged: indicator.SetBubbleAvailable);
+        var runtime = new WindowsGuideRuntime(resolver, bubbles, bubbleAvailabilityChanged: null);
 
         try
         {
             StartupMark(startup, "Windows guide runtime starting");
-            await runtime.RunAsync(window, steps, runCancellation.Token, variables, texts.Language);
+            await runtime.RunAsync(window, steps, runCancellation.Token, variables, texts.Language, indicator.SetProgress);
         }
         catch (OperationCanceledException) when (userStopped.IsCancellationRequested)
         {
@@ -640,7 +640,7 @@ public static class GuideMeApplicationHost
             targetClosed.Cancel();
         };
         browserAdapter.TargetWindowActivationRequested += title => _ = Task.Run(() => ActivateChromeWindowAsync(title, runCancellation.Token));
-        var stepRuntime = new WebGuideStepRuntime(browserAdapter, bubbleAvailabilityChanged: indicator.SetBubbleAvailable);
+        var stepRuntime = new WebGuideStepRuntime(browserAdapter, bubbleAvailabilityChanged: null);
         var guideRuntime = new AdapterWebGuideRuntime(stepRuntime, browserAdapter);
         StartupMark(startup, "Web extension adapter composition root created");
 
