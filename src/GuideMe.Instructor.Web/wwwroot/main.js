@@ -363,7 +363,6 @@ function renderSteps() {
     const completionClassification = classifyTarget(context?.Runtime, completionElement, completionLocators);
     const completionType = completionClassification.label ||
       (/^h[1-6](?=:|$)/i.test(completionSelector) ? 'כותרת במסך' : null);
-    const completionLocatorBinding = locatorTextBinding(completionLocators[0]);
     const completionDisplayName = (completionElement?.DisplayName || '').trim();
     const completionElementName = completionDisplayName &&
       !/^[#.[>:+~]/.test(completionDisplayName) &&
@@ -373,18 +372,13 @@ function renderSteps() {
       : 'הרכיב שנבחר';
     const completionAttribute = completionRule?.Kind === 'attribute-equals'
       ? parseJson(completionRule.ExpectedValue, {}) : {};
-    const hasFriendlyCompletionName = completionElementName !== 'הרכיב שנבחר';
-    const completionSubject = hasFriendlyCompletionName
-      ? 'הרכיב "' + completionElementName + '"' : 'הרכיב שנבחר';
     const completionDescription = completionRule?.Kind === 'value-contains'
-      ? 'רכיב הטקסט' +
-        ' מכיל את הערך ' + friendlyInstructionHtml(completionRule.ExpectedValue || '') + '.'
-      : completionRule?.Kind === 'target-appeared'
-        ? completionSubject + ' יופיע במסך.'
+      ? 'מכיל את הערך ' + friendlyInstructionHtml(completionRule.ExpectedValue || '')
+      : completionRule?.Kind === 'target-appeared' ? 'מופיע במסך'
       : completionRule?.Kind === 'attribute-equals'
-        ? 'המאפיין "' + (completionAttribute.name || 'הנבחר') + '" של ' +
-          completionSubject + ' יהיה שווה ל־"' + (completionAttribute.value ?? '') + '".'
-      : completionSubject + ' ייעלם מהמסך.';
+        ? 'המאפיין "' + esc(completionAttribute.name || 'הנבחר') +
+          '" שווה ל־"' + esc(completionAttribute.value ?? '') + '"'
+      : 'נעלם מהמסך';
     const locatorText = locators[0]?.Value || '';
     const friendlyName = element?.DisplayName || (locatorText === 'a' ? 'קישור' : locatorText);
     const dynamicWindowsControl = context?.Runtime === 'Windows' &&
@@ -458,15 +452,12 @@ function renderSteps() {
       ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') ?
         '<section class="step-friendly-card completion-card"><h3>תנאי השלמה נוסף</h3>' +
         (completionRule ? '<div class="completion-details">' +
-          '<div class="completion-target-summary">' +
-           '<p><strong>' + esc(completionElementName) + '</strong></p>' +
-           (completionType ? '<p class="field-help">סוג רכיב: ' + esc(completionType) + '</p>' : '') +
-           (completionLocatorBinding?.value
-             ? '<p>ערך איתור: <strong class="target-business-value-preview">' +
-               friendlyInstructionHtml(completionLocatorBinding.value) + '</strong></p>' : '') +
-           '</div>' +
-           '<div class="completion-detail"><span class="completion-detail-label">השלב יושלם כאשר:</span>' +
-          '<strong class="completion-description-preview">' + (completionRule?.Kind === 'value-contains' ? completionDescription : esc(completionDescription)) + '</strong></div>' +
+          '<div class="completion-target-summary"><p><strong>' +
+          esc(completionElementName) + '</strong>' +
+          (completionType ? ' <span class="field-help">(' + esc(completionType) + ')</span>' : '') +
+          '</p></div>' +
+          '<div class="completion-detail"><span class="completion-detail-label">תנאי:</span>' +
+          '<strong class="completion-description-preview">' + completionDescription + '</strong></div>' +
           '</div><div class="target-action-buttons"><div class="target-action-primary">' +
           '<button class="btn secondary small" id="replace-completion">בחירת רכיב אחר</button>' +
           '<button class="btn secondary small" id="edit-completion">עריכה</button>' +
