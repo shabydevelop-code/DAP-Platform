@@ -702,7 +702,7 @@ WHERE GuideId=$guideId AND StepOrder<0";
     // runtime adapter; V5 persistence and transaction semantics are shared.
     internal sealed record TargetLocator(string Strategy, string Value);
     internal static void SavePrimaryTargetLocatorTemplate(long guideId, string stepId,
-        string locatorValue)
+        string locatorValue, string? locatorStrategy = null)
     {
         if (string.IsNullOrWhiteSpace(locatorValue) || locatorValue.Length > 400 ||
             locatorValue.Contains((char)0))
@@ -723,11 +723,14 @@ WHERE GuideId=$guideId AND StepOrder<0";
 JOIN StepTargets t ON t.GuideId=e.GuideId AND t.ElementId=e.ElementId
 WHERE t.GuideId=$guideId AND t.StepId=$stepId AND t.Purpose='Primary'";
         string elementId, json;
+        string? controlType, displayName;
         using (var reader = command.ExecuteReader())
         {
             if (!reader.Read()) throw new InvalidOperationException("לא נמצא רכיב ראשי בשלב.");
             elementId = reader.GetString(0);
             json = reader.GetString(1);
+            controlType = reader.IsDBNull(2) ? null : reader.GetString(2);
+            displayName = reader.IsDBNull(3) ? null : reader.GetString(3);
         }
         var locators = JsonSerializer.Deserialize<List<TargetLocator>>(json)
             ?? throw new InvalidOperationException("מזהי הרכיב אינם תקינים.");
@@ -751,7 +754,15 @@ WHERE GuideId=$guideId AND VariableId=$variableId";
                 throw new ArgumentException("משתנה במזהה אינו קיים בלומדה.");
             command.Parameters.RemoveAt("$variableId");
         }
-        if (original.Strategy is not ("css" or "name"))
+        var convertToName = locatorStrategy == "name" && original.Strategy == "automation-id";
+        if (locatorStrategy is not null && !convertToName)
+            throw new ArgumentException("שינוי אסטרטגיית הזיהוי אינו נתמך.");
+        if (convertToName &&
+            (controlType is not ("ControlType.Button" or "ControlType.Hyperlink" or
+                "ControlType.Text" or "ControlType.DataItem" or "ControlType.ListItem") ||
+             string.IsNullOrWhiteSpace(displayName)))
+            throw new ArgumentException("לא ניתן להגדיר זיהוי דינמי לרכיב זה.");
+        if (!convertToName && original.Strategy is not ("css" or "name"))
             throw new ArgumentException("מזהה טכני אינו ניתן לעריכת תוכן.");
         if (original.Strategy == "css")
         {
@@ -768,7 +779,7 @@ WHERE GuideId=$guideId AND VariableId=$variableId";
             if (!string.Equals(originalShape, updatedShape, StringComparison.Ordinal) && !appendedTextFilter)
                 throw new ArgumentException("ניתן לערוך את ערך התוכן בלבד, לא את מבנה מזהה הרכיב.");
         }
-        locators[0] = original with { Value = locatorValue };
+        locators[0] = original with { Strategy = convertToName ? "name" : original.Strategy, Value = locatorValue };
         command.Parameters.AddWithValue("$elementId", elementId);
         command.Parameters.AddWithValue("$locators", JsonSerializer.Serialize(locators));
         command.CommandText = @"UPDATE Elements SET LocatorsJson=$locators
