@@ -519,9 +519,14 @@ public sealed class WindowsGuideRuntime
                     // pass from re-focusing the first editor after Hybrid has already
                     // committed it with TAB.
                     initialInputFocusApplied = true;
+                    var diagnoseInputFocus = Environment.GetEnvironmentVariable("GUIDEME_DIAGNOSTICS") == "1";
+                    if (diagnoseInputFocus)
+                        Console.Error.WriteLine($"[GuideMe Windows focus] input before SetFocus step={step.Order} foreground={GetForegroundWindow()} utc={DateTime.UtcNow:O}");
                     try { target.SetFocus(); }
                     catch (ElementNotAvailableException) { }
                     catch (InvalidOperationException) { }
+                    if (diagnoseInputFocus)
+                        Console.Error.WriteLine($"[GuideMe Windows focus] input after SetFocus step={step.Order} foreground={GetForegroundWindow()} utc={DateTime.UtcNow:O}");
 
                     if (Environment.GetEnvironmentVariable("GUIDEME_DIAGNOSTICS") == "1")
                         Console.Error.WriteLine(
