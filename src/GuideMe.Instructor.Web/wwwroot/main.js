@@ -1476,7 +1476,7 @@ function classifyWindowsTarget(element) {
     'controltype.combobox':['רשימת בחירה',true],
     'controltype.button':['כפתור',false],
     'controltype.hyperlink':['קישור',false],
-    'controltype.text':['רכיב טקסט',false],
+    'controltype.text':['טקסט',false],
     'controltype.dataitem':['פריט נתונים',false],
     'controltype.listitem':['פריט ברשימה',false]
   };
