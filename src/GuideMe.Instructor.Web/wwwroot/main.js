@@ -314,7 +314,14 @@ function renderSteps() {
       : completionSubject + ' ייעלם מהמסך.';
     const locatorText = locators[0]?.Value || '';
     const friendlyName = element?.DisplayName || (locatorText === 'a' ? 'קישור' : locatorText);
-    const editableTargetBinding = locatorTextBinding(locators[0]);
+    const dynamicWindowsControl = context?.Runtime === 'Windows' &&
+      ['ControlType.Button','ControlType.Hyperlink','ControlType.Text','ControlType.DataItem',
+       'ControlType.ListItem'].includes(element?.ControlType);
+    const editableTargetBinding = locatorTextBinding(locators[0]) ||
+      (dynamicWindowsControl && locators[0]?.Strategy === 'automation-id' &&
+       element?.DisplayName
+        ? {value:element.DisplayName, build:next=>next, strategy:'name'}
+        : null);
     const targetValue = editableTargetBinding?.value || '';
     const targetKind = /(?:^|[ >+~])h([1-6])(?=[:.#\\[ >+~]|$)/i.exec(locatorText);
     const storedControlType = ({'ControlType.Button':'כפתור','ControlType.Edit':'שדה קלט',
@@ -328,7 +335,7 @@ function renderSteps() {
       /(?:^|[ >+~])a(?=[:.#\\[ >+~]|$)/i.test(locatorText) ? 'קישור' :
       /(?:^|[ >+~])(?:td|th)(?=[:.#\\[ >+~]|$)/i.test(locatorText) ? 'תא בטבלה' :
       targetValue ? 'רכיב טקסט' : 'רכיב במסך');
-    selectedTargetPreviewValue = targetValue || null;
+    selectedTargetPreviewValue = editableTargetBinding?.value || targetValue || null;
     selectedValidationExpectedValue = rule?.ExpectedValue || null;
     selectedCompletionDescription = completionRule?.Kind === 'value-contains'
       ? () => completionSubject + ' מכיל את הערך ' + friendlyInstructionHtml(completionRule.ExpectedValue || '') + '.'
@@ -351,7 +358,7 @@ function renderSteps() {
       '<div id="primary-target-summary">' +
       (target ? '<p><strong>' + esc(friendlyName) + '</strong></p>' +
         '<p class="field-help">סוג רכיב: ' + esc(targetType) + '</p>' +
-        (targetValue ? '<p>ערך איתור: <strong class="target-business-value-preview">' + friendlyInstructionHtml(targetValue) + '</strong></p>' : '') +
+        (editableTargetBinding?.value ? '<p>ערך איתור: <strong class="target-business-value-preview">' + friendlyInstructionHtml(editableTargetBinding.value) + '</strong></p>' : '') +
         '' :
         '<p>עדיין לא נבחר רכיב לשלב הזה.</p>') +
       '</div>' +
@@ -493,7 +500,7 @@ function renderSteps() {
       beginTargetPicker(context.Runtime, current.guide.id, step.id, contextId, replacing, completion, context);
     const bindTarget = $('bind-target-variable');
     if (bindTarget) bindTarget.onclick = () => editPrimaryTargetValue({
-      kind:'target', step, locators
+      kind:'target', step, locators, binding:editableTargetBinding
     });
     const targetReplace = $('replace-web-target');
     if (targetReplace) targetReplace.onclick = () => guarded(() => startElementPicker(true));
@@ -1427,13 +1434,13 @@ function locatorTextBinding(locator) {
   // A display label alone does not prove that the locator uses text for identification.
   return null;
 }
-function editPrimaryTargetValue({kind, step, locators}) {
+function editPrimaryTargetValue({kind, step, locators, binding:preparedBinding}) {
   if (!current || kind !== 'target') return;
   const locator = (locators || [])[0];
   if (!locator?.Value) {
     notify('לא נמצא מזהה רכיב שניתן לערוך.', true); return;
   }
-  const binding = locatorTextBinding(locator);
+  const binding = preparedBinding || locatorTextBinding(locator);
   if (!binding) return;
   const original = locator.Value;
   const rawValue = binding.value;
@@ -1492,7 +1499,7 @@ function editPrimaryTargetValue({kind, step, locators}) {
       }
       save.disabled=true;cancel.disabled=true;
       await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+'/primary-target/variable',{
-        method:'POST',body:JSON.stringify({locatorValue:template})
+        method:'POST',body:JSON.stringify({locatorValue:template, locatorStrategy:binding.strategy || null})
       });
       await reloadSelectedStep(current.guide.id,step.id);
       notify('ערך הרכיב עודכן.');
