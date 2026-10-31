@@ -345,8 +345,7 @@ function renderSteps() {
     const appText = context ? appLabel(context) : 'לא משויך';
 
     $('step-inspector').innerHTML =
-      '<div class="step-editor-head"><div><h2>שלב ' + step.order + '</h2>' +
-      '<p>אפליקציה: ' + esc(appText) + '</p></div>' +
+      '<div class="step-editor-head"><div><h2>שלב ' + step.order + '</h2></div>' +
       '<div class="step-editor-actions">' +
       '<button type="button" id="step-enabled-button" class="btn small step-state-button ' +
        (step.enabled ? 'is-enabled' : 'is-disabled') +
@@ -355,6 +354,7 @@ function renderSteps() {
        '<button class="btn secondary small" id="duplicate-step">שכפל שלב</button>' +
       '<button class="btn danger small" id="delete-step">מחיקת שלב</button>' +
       '<button class="btn primary small" id="test-from-step"' + (step.enabled ? '' : ' disabled') + '>בדיקה משלב זה</button></div></div>' +
+      '<div class="step-application"><strong>אפליקציית יעד</strong><span title="' + esc(appText) + '">' + esc(appText) + '</span></div>' +
       '<div class="step-summary"><div class="step-summary-heading"><strong>הנחיה למשתמש</strong>' +
        '</div>' +
        '<div class="step-summary-content"><p>' + friendlyInstructionHtml(step.bubble || 'לא הוגדרה הנחיה') + '</p>' +
