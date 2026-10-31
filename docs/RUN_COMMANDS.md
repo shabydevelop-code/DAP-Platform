@@ -76,7 +76,15 @@ dotnet run --project demos\Windows\Launcher\GuideMe.SampleApp.Windows.Host.cspro
 sampleapp-mixed-smoke-guide
 ```
 
-## 5. מצב אימות נוכחי
+## 5. הפעלת Instructor המקומפל
+
+להפעלת ה־Instructor מתוך תיקיית הפרסום (ללא `dotnet run`):
+
+```powershell
+& "C:\GuideMe\InstructorWeb\GuideMe.Instructor.Web.exe"
+```
+
+## 6. מצב אימות נוכחי
 
 - מדריך Web (`sampleapp-web-guide`): **55/55 שלבים — תקין**.
 - מדריך Windows (`sampleapp-windows-guide`): **55/55 שלבים — תקין**.
@@ -84,7 +92,7 @@ sampleapp-mixed-smoke-guide
 - סך הכול **116/116 שלבים** אומתו בהפעלה ישירה של ה-Learner המותקן מול אפליקציות הדוגמה.
 - במדריך Web, רכיב `testcrm-header-home::primary` משתמש בנתיב המסגרת `iframe[name='guideMe-header']`. מזהי `testcrm-*` משמשים כמפתחות פנימיים, לרבות הפניות `capture`, ואין לשנותם באופן גורף.
 
-## 6. כללי עבודה
+## 7. כללי עבודה
 
 - אין להפעיל את המדריכים באמצעות `--learner-web`, `--learner-windows` או מזהי מדריכים מספריים.
 - הפקודות לעיל מפעילות את גרסת הייצור מתוך `C:\GuideMe`, לא עותק ישן מתיקיית `bin`.
