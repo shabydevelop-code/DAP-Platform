@@ -441,12 +441,15 @@ public static class GuideMeApplicationHost
         else
             throw new InvalidOperationException("Windows Guide requires a persisted application context or --window-automation-id.");
         StartupMark(startup, "Windows target window resolved");
-        // Let the Windows step runtime focus its first input target once.
-        // Do not focus the application window separately at startup.
-        if (Environment.GetEnvironmentVariable("GUIDEME_DIAGNOSTICS") == "1")
-            WindowsGuideRuntime.WriteFocusDiagnostic(
-                $"startup window focus skipped target={new IntPtr(window.Current.NativeWindowHandle)} foreground={GetForegroundWindow()}");
-        StartupMark(startup, "Windows target window focus deferred to step runtime");
+        // Request foreground activation once through the existing native Windows
+        // activation path; do not issue a separate UIA window-focus request.
+        var startupTargetHandle = new IntPtr(window.Current.NativeWindowHandle);
+        WindowsGuideRuntime.WriteFocusDiagnostic(
+            $"startup before native activation target={startupTargetHandle} foreground={GetForegroundWindow()}");
+        await ActivateWindowsTargetAsync(window, cancellationToken);
+        WindowsGuideRuntime.WriteFocusDiagnostic(
+            $"startup after native activation target={startupTargetHandle} foreground={GetForegroundWindow()}");
+        StartupMark(startup, "Windows target window native activation requested");
 
         // Observe the native window independently of UI Automation: UIA providers
         // can throw while their owning application is shutting down.
