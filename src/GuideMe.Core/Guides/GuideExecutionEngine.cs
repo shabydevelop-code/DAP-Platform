@@ -156,7 +156,7 @@ public sealed class GuideExecutionEngine
         IReadOnlyList<GuideApplicationContext>? applicationContexts = null,
         Func<GuideStep, TargetRuntime, CancellationToken, Task>? onRuntimeTransition = null,
         IReadOnlyList<GuideVariableDefinition>? variables = null,
-        string language = "he")
+        string language = "he", Action<int, int>? onStepStarted = null)
     {
         ArgumentNullException.ThrowIfNull(steps);
         ArgumentNullException.ThrowIfNull(adapters);
@@ -210,6 +210,7 @@ public sealed class GuideExecutionEngine
                 await onRuntimeTransition(step, runtime, cancellationToken);
             previousRuntime = runtime;
 
+            onStepStarted?.Invoke(step.Order, displayTotal);
             Console.Error.WriteLine($"[GuideMe {adapter.DiagnosticName} guide] starting Step {step.Order}/{displayTotal} '{step.Id}'.");
             async Task<string?> Read(GuideVariableAction action, CancellationToken token)
                 => await adapter.ReadVariableAsync(step, action, token);
@@ -256,7 +257,7 @@ public sealed class GuideExecutionEngine
             },
             cancellationToken,
             onSkipped: step => Console.Error.WriteLine($"[GuideMe {diagnosticName} guide] skipped disabled Step {step.Order}/{plan.Steps.Count} '{step.Id}'."),
-            onStarting: step => Console.Error.WriteLine($"[GuideMe {diagnosticName} guide] starting Step {step.Order}/{plan.Steps.Count} '{step.Id}'."),
+            onStarting: step => { onStepStarted?.Invoke(step.Order, displayTotal); Console.Error.WriteLine($"[GuideMe {diagnosticName} guide] starting Step {step.Order}/{plan.Steps.Count} '{step.Id}'."); },
             onCompleted: step => Console.Error.WriteLine($"[GuideMe {diagnosticName} guide] completed Step {step.Order}/{plan.Steps.Count} '{step.Id}'."));
         Console.Error.WriteLine($"[GuideMe {diagnosticName} guide] Guide finished.");
     }
