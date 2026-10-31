@@ -7,6 +7,50 @@ namespace GuideMe.Runtime.Windows.Targets;
 
 public sealed class WindowsTargetResolver
 {
+    private static readonly object DiagnosticGate = new();
+    private static readonly HashSet<string> DiagnosedLocators = new(StringComparer.Ordinal);
+
+    private static void DiagnoseExactLookup(AutomationElement root, Locator locator, int matchCount)
+    {
+        if (Environment.GetEnvironmentVariable("GUIDEME_VARIABLE_DIAGNOSTICS") != "1")
+            return;
+        var key = locator.Strategy + ":" + locator.Value + ":" + matchCount;
+        lock (DiagnosticGate)
+        {
+            if (!DiagnosedLocators.Add(key)) return;
+        }
+
+        try
+        {
+            var nearby = new List<string>();
+            if (matchCount == 0)
+            {
+                // One bounded diagnostic snapshot per missing locator, never on every poll.
+                foreach (AutomationElement element in root.FindAll(TreeScope.Descendants, Condition.TrueCondition))
+                {
+                    try
+                    {
+                        var name = element.Current.Name ?? "";
+                        if (name.Contains(locator.Value, StringComparison.OrdinalIgnoreCase)
+                            || name.Contains("פניה", StringComparison.Ordinal))
+                        {
+                            nearby.Add($"name='{name}' type='{element.Current.ControlType.ProgrammaticName}' automationId='{element.Current.AutomationId}'");
+                            if (nearby.Count == 12) break;
+                        }
+                    }
+                    catch (ElementNotAvailableException) { }
+                }
+            }
+            var rootName = root.Current.Name;
+            var message = $"{DateTimeOffset.UtcNow:O} event=windows-target-lookup strategy='{locator.Strategy}' value='{locator.Value}' matches={matchCount} root='{rootName}' nearby=[{string.Join("; ", nearby)}]{Environment.NewLine}";
+            File.AppendAllText(Path.Combine(Path.GetTempPath(), "GuideMe-variable-diagnostic.log"), message);
+        }
+        catch (Exception ex) when (ex is ElementNotAvailableException or InvalidOperationException or System.Runtime.InteropServices.COMException or IOException)
+        {
+            // Diagnostics must never interrupt the learner.
+        }
+    }
+
     public TargetResolution<AutomationElement> Resolve(AutomationElement root, TargetDescriptor descriptor)
     {
         ArgumentNullException.ThrowIfNull(root);
@@ -24,6 +68,7 @@ public sealed class WindowsTargetResolver
         if (descriptor.Anchors.Count == 0 && IsUniqueExactLocator(descriptor.Locator))
         {
             var matches = Find(root, descriptor.Locator).Take(2).ToArray();
+            DiagnoseExactLookup(root, descriptor.Locator, matches.Length);
             return matches.Length switch
             {
                 0 => TargetResolution<AutomationElement>.NotFound(),
