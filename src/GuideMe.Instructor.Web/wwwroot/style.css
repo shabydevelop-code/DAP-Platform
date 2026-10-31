@@ -320,7 +320,8 @@ body .brand-heading strong span { font-size: 26px; }
 .picked-target-fields .target-technical{overflow-wrap:anywhere}
 
 /* Compact, readable additional completion condition summary. */
-.completion-details{display:grid;gap:8px;margin:0 0 10px;direction:rtl;text-align:right}
+.completion-details{display:grid;gap:4px;margin:0 0 10px;direction:rtl;text-align:right}
+.completion-target-summary p{margin:0;line-height:1.5}
 .completion-detail{display:grid;gap:3px;min-width:0}
 .completion-detail-label{color:#657d96;font-size:15px;line-height:1.5}
 .completion-detail strong{font-size:15px;line-height:1.5;font-weight:600;overflow-wrap:anywhere}
