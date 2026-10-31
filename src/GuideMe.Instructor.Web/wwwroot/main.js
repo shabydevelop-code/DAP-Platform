@@ -358,7 +358,12 @@ function renderSteps() {
     const completionRule = data.rules.find(x => x.RuleType === 'AdditionalCompletionCondition');
     const completionTarget = data.targets.find(x => x.UsageId === completionRule?.TargetUsageId);
     const completionElement = data.elements.find(x => x.ElementId === completionTarget?.ElementId);
-    const completionSelector = parseJson(completionElement?.LocatorsJson, [])[0]?.Value || '';
+    const completionLocators = parseJson(completionElement?.LocatorsJson, []);
+    const completionSelector = completionLocators[0]?.Value || '';
+    const completionClassification = classifyTarget(context?.Runtime, completionElement, completionLocators);
+    const completionType = completionClassification.label ||
+      (/^h[1-6](?=:|$)/i.test(completionSelector) ? 'כותרת במסך' : 'רכיב במסך');
+    const completionLocatorBinding = locatorTextBinding(completionLocators[0]);
     const completionDisplayName = (completionElement?.DisplayName || '').trim();
     const completionElementName = completionDisplayName &&
       !/^[#.[>:+~]/.test(completionDisplayName) &&
@@ -453,7 +458,14 @@ function renderSteps() {
       ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') ?
         '<section class="step-friendly-card completion-card"><h3>תנאי השלמה נוסף</h3>' +
         (completionRule ? '<div class="completion-details">' +
-          '<div class="completion-detail"><span class="completion-detail-label">השלב יושלם כאשר:</span>' +
+          '<div class="completion-target-summary">' +
+           '<p><strong>' + esc(completionElementName) + '</strong></p>' +
+           '<p class="field-help">סוג רכיב: ' + esc(completionType) + '</p>' +
+           (completionLocatorBinding?.value
+             ? '<p>ערך איתור: <strong class="target-business-value-preview">' +
+               friendlyInstructionHtml(completionLocatorBinding.value) + '</strong></p>' : '') +
+           '</div>' +
+           '<div class="completion-detail"><span class="completion-detail-label">השלב יושלם כאשר:</span>' +
           '<strong class="completion-description-preview">' + (completionRule?.Kind === 'value-contains' ? completionDescription : esc(completionDescription)) + '</strong></div>' +
           '</div><div class="target-action-buttons"><div class="target-action-primary">' +
           '<button class="btn secondary small" id="replace-completion">בחירת רכיב אחר</button>' +
