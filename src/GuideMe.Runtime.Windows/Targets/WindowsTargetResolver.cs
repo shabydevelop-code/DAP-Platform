@@ -193,7 +193,14 @@ public sealed class WindowsTargetResolver
                 var valueMatches = contains
                     ? value?.Contains(expectedValue, StringComparison.Ordinal) == true
                     : string.Equals(value, expectedValue, StringComparison.Ordinal);
-                if (!valueMatches || !MatchesAnchors(candidate, descriptor.Anchors))
+                // A self-name anchor captured from the same dynamic label is stale
+                // when the value changes. The observed-value check replaces only
+                // that redundant constraint; preserve all independent anchors.
+                var structuralAnchors = descriptor.Anchors.Where(anchor =>
+                    !(anchor.Relation == AnchorRelation.Self
+                      && string.Equals(anchor.Locator.Strategy, "name", StringComparison.OrdinalIgnoreCase)
+                      && string.Equals(anchor.Locator.Value, descriptor.Locator.Value, StringComparison.Ordinal)));
+                if (!valueMatches || !structuralAnchors.All(anchor => MatchesAnchor(candidate, anchor)))
                     continue;
                 if (match is not null)
                     return TargetResolution<AutomationElement>.Ambiguous(2);
