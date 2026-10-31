@@ -139,7 +139,7 @@ public sealed class WindowsGuideRuntime
         string? lastDiagnosticState = null;
         void Diagnose(string state)
         {
-            if (Environment.GetEnvironmentVariable("GUIDEME_VARIABLE_DIAGNOSTICS") != "1")
+            if (Environment.GetEnvironmentVariable("GUIDEME_DIAGNOSTICS") != "1")
                 return;
             if (string.Equals(lastDiagnosticState, state, StringComparison.Ordinal))
                 return;
@@ -161,7 +161,7 @@ public sealed class WindowsGuideRuntime
 
         void DiagnoseTiming(string phase, long elapsedMs)
         {
-            if (Environment.GetEnvironmentVariable("GUIDEME_VARIABLE_DIAGNOSTICS") != "1")
+            if (Environment.GetEnvironmentVariable("GUIDEME_DIAGNOSTICS") != "1")
                 return;
             try
             {
@@ -406,7 +406,7 @@ public sealed class WindowsGuideRuntime
 
                     if (scrollSucceeded)
                     {
-                        if (Environment.GetEnvironmentVariable("GUIDEME_VARIABLE_DIAGNOSTICS") == "1")
+                        if (Environment.GetEnvironmentVariable("GUIDEME_DIAGNOSTICS") == "1")
                             Console.Error.WriteLine(
                             $"[GuideMe Windows guide] Step '{step.Id}' centered initial target in its scroll viewport.");
                         return await GuideActiveStepState.WaitAsync(
@@ -523,7 +523,7 @@ public sealed class WindowsGuideRuntime
                     catch (ElementNotAvailableException) { }
                     catch (InvalidOperationException) { }
 
-                    if (Environment.GetEnvironmentVariable("GUIDEME_VARIABLE_DIAGNOSTICS") == "1")
+                    if (Environment.GetEnvironmentVariable("GUIDEME_DIAGNOSTICS") == "1")
                         Console.Error.WriteLine(
                         $"[GuideMe Windows guide] input ready Step {step.Order} '{step.Id}'.");
                 }
@@ -637,7 +637,7 @@ public sealed class WindowsGuideRuntime
         {
             void DiagnoseCondition(string state)
             {
-                if (Environment.GetEnvironmentVariable("GUIDEME_VARIABLE_DIAGNOSTICS") != "1")
+                if (Environment.GetEnvironmentVariable("GUIDEME_DIAGNOSTICS") != "1")
                     return;
                 var key = step.Id + "|" + condition.Kind + "|" +
                     condition.Target.Locator.Strategy + "|" + condition.Target.Locator.Value;
@@ -673,7 +673,7 @@ public sealed class WindowsGuideRuntime
             }
 
             var kind = condition.Kind.Trim().ToLowerInvariant();
-            if (Environment.GetEnvironmentVariable("GUIDEME_VARIABLE_DIAGNOSTICS") == "1")
+            if (Environment.GetEnvironmentVariable("GUIDEME_DIAGNOSTICS") == "1")
             {
                 try
                 {
