@@ -139,6 +139,8 @@ public sealed class WindowsGuideRuntime
         string? lastDiagnosticState = null;
         void Diagnose(string state)
         {
+            if (Environment.GetEnvironmentVariable("GUIDEME_VARIABLE_DIAGNOSTICS") != "1")
+                return;
             if (string.Equals(lastDiagnosticState, state, StringComparison.Ordinal))
                 return;
             lastDiagnosticState = state;
@@ -633,6 +635,8 @@ public sealed class WindowsGuideRuntime
         {
             void DiagnoseCondition(string state)
             {
+                if (Environment.GetEnvironmentVariable("GUIDEME_VARIABLE_DIAGNOSTICS") != "1")
+                    return;
                 var key = step.Id + "|" + condition.Kind + "|" +
                     condition.Target.Locator.Strategy + "|" + condition.Target.Locator.Value;
                 if (_completionConditionDiagnostics.TryGetValue(key, out var previous) && previous == state)
