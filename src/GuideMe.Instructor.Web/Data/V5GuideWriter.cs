@@ -680,6 +680,20 @@ WHERE GuideId=$guideId AND StepOrder<0";
         migration.ExecuteNonQuery();
     }
 
+    private static void EnsureElementTypeColumn(SqliteConnection connection)
+    {
+        using var check = connection.CreateCommand();
+        check.CommandText = "PRAGMA table_info(Elements)";
+        using var reader = check.ExecuteReader();
+        while (reader.Read())
+            if (string.Equals(reader.GetString(1), "ControlType", StringComparison.OrdinalIgnoreCase))
+                return;
+        reader.Close();
+        using var migration = connection.CreateCommand();
+        migration.CommandText = "ALTER TABLE Elements ADD COLUMN ControlType TEXT";
+        migration.ExecuteNonQuery();
+    }
+
     private static string? CleanDisplayName(string? name) =>
         string.IsNullOrWhiteSpace(name) ? null : name.Trim()[..Math.Min(name.Trim().Length, 120)];
 
@@ -770,7 +784,8 @@ AND (t.StepId<>$stepId OR t.Purpose<>'Primary'))";
     internal static void SavePrimaryTarget(long guideId, string stepId, string runtime,
         IReadOnlyList<TargetLocator> locators, IReadOnlyList<TargetLocator> frames,
         string? displayName, string condition, bool replacing,
-        IReadOnlyList<(TargetLocator Locator, string Relation)>? anchors = null)
+        IReadOnlyList<(TargetLocator Locator, string Relation)>? anchors = null,
+        string? controlType = null)
     {
         if (runtime is not ("Web" or "Windows") || locators.Count is < 1 or > 12 ||
             locators.Any(l => string.IsNullOrWhiteSpace(l.Value) || l.Value.Length > 400 ||
@@ -794,6 +809,7 @@ AND (t.StepId<>$stepId OR t.Purpose<>'Primary'))";
         }.ToString());
         connection.Open();
         EnsureElementDisplayNameColumn(connection);
+        EnsureElementTypeColumn(connection);
         using (var fk = connection.CreateCommand())
         {
             fk.CommandText = "PRAGMA foreign_keys=ON";
@@ -833,6 +849,7 @@ WHERE GuideId=$guideId AND StepId=$stepId";
         command.Parameters.AddWithValue("$frame", frames.Count == 0
             ? (object)DBNull.Value : JsonSerializer.Serialize(frames));
         command.Parameters.AddWithValue("$displayName", (object?)CleanDisplayName(displayName) ?? DBNull.Value);
+        command.Parameters.AddWithValue("$controlType", (object?)controlType ?? DBNull.Value);
         if (replacing)
         {
             // A new primary control invalidates the old primary validation.
@@ -846,7 +863,7 @@ WHERE GuideId=$guideId AND StepId=$stepId AND RuleType='PrimaryValidation'";
                 WHERE GuideId=$guideId AND ElementId=$elementId";
             command.ExecuteNonQuery();
             command.CommandText = @"UPDATE Elements SET LocatorsJson=$locators,
-FrameContextJson=$frame, DisplayName=$displayName
+FrameContextJson=$frame, DisplayName=$displayName, ControlType=$controlType
 WHERE GuideId=$guideId AND ElementId=$elementId AND Runtime=$runtime";
             if (command.ExecuteNonQuery() != 1)
                 throw new InvalidOperationException("עדכון הרכיב נכשל.");
@@ -854,8 +871,8 @@ WHERE GuideId=$guideId AND ElementId=$elementId AND Runtime=$runtime";
         else
         {
             command.CommandText = @"INSERT INTO Elements
-(GuideId, ElementId, Runtime, LocatorsJson, FrameContextJson, DisplayName)
-VALUES ($guideId, $elementId, $runtime, $locators, $frame, $displayName)";
+(GuideId, ElementId, Runtime, LocatorsJson, FrameContextJson, DisplayName, ControlType)
+VALUES ($guideId, $elementId, $runtime, $locators, $frame, $displayName, $controlType)";
             command.ExecuteNonQuery();
             command.CommandText = @"INSERT INTO StepTargets
 (GuideId, StepId, UsageId, ElementId, Purpose)
