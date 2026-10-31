@@ -453,13 +453,29 @@ function renderSteps() {
             bubble:step.bubble, enabled, contextId:contextId || null
           })
         });
-        await openGuide(current.guide.id);
+        step.enabled = enabled;
+        $('step-enabled-label').textContent = enabled ? 'פעיל' : 'מושבת';
+        $('test-from-step').disabled = !enabled;
         const row = [...document.querySelectorAll('[data-step]')]
           .find(item => item.dataset.step === step.id);
-        if (row) row.click();
+        if (row) {
+          row.classList.toggle('step-disabled', !enabled);
+          row.setAttribute('aria-label', 'שלב ' + step.order + ': ' +
+            friendlyInstructionText(step.bubble || 'שלב ' + step.order) +
+            (enabled ? '' : ', מושבת'));
+          row.querySelector('.step-disabled-badge')?.remove();
+          if (!enabled) {
+            const badge = document.createElement('span');
+            badge.className = 'step-disabled-badge';
+            badge.textContent = 'מושבת';
+            row.append(badge);
+          }
+        }
       } catch (error) {
-        if (toggle.isConnected) { toggle.checked = !enabled; toggle.disabled = false; }
+        if (toggle.isConnected) toggle.checked = !enabled;
         throw error;
+      } finally {
+        if (toggle.isConnected) toggle.disabled = false;
       }
     });
     $('duplicate-step').onclick = () => guarded(async () => {
