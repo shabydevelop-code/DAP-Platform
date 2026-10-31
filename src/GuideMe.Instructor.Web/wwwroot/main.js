@@ -658,23 +658,64 @@ function validationLabel(kind) {
     'תנאי מתקדם שהוגדר במערכת';
 }
 function editCompletionCondition(step, rule) {
-  const choices = [
-    {value:'target-appeared',text:'הרכיב מופיע במסך'},
-    {value:'target-vanished',text:'הרכיב נעלם מהמסך'},
-    {value:'value-contains',text:'הרכיב מכיל ערך מסוים'}
-  ];
-  modal('עריכת תנאי השלמה — שלב ' + step.order, [
-    {name:'kind',label:'השלב יושלם כאשר',value:rule.Kind,choices},
-    {name:'expectedValue',label:'ערך צפוי',value:rule.ExpectedValue || '',max:500,optional:true}
-  ], async values => {
-    if (values.kind === 'value-contains' && !values.expectedValue?.trim())
-      throw new Error('יש להזין ערך צפוי.');
-    await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+'/completion-target',
-      {method:'PUT',body:JSON.stringify({kind:values.kind,
-        expectedValue:values.kind === 'value-contains' ? values.expectedValue : null})});
-    await reloadSelectedStep(current.guide.id,step.id);
-    notify('תנאי ההשלמה עודכן.');
-  });
+  const card = $('edit-completion')?.closest('.completion-card');
+  const details = card?.querySelector('.completion-details');
+  const actions = card?.querySelector('.target-action-buttons');
+  if (!card || !details || !actions) return;
+  details.classList.add('hidden');
+  actions.classList.add('hidden');
+  const editor = document.createElement('form');
+  editor.className = 'completion-inline-editor';
+  editor.innerHTML =
+    '<div class="field"><label for="completion-edit-kind">השלב יושלם כאשר</label>' +
+    '<select id="completion-edit-kind">' +
+    '<option value="target-appeared">הרכיב מופיע במסך</option>' +
+    '<option value="target-vanished">הרכיב נעלם מהמסך</option>' +
+    '<option value="value-contains">הרכיב מכיל ערך מסוים</option></select></div>' +
+    '<div id="completion-edit-value">' +
+    variableValueFieldMarkup('completion-edit-expected', 'ערך צפוי', 500) + '</div>' +
+    '<div class="target-action-buttons"><div class="target-action-primary">' +
+    '<button class="btn primary small" type="submit">שמירה</button>' +
+    '<button class="btn secondary small" type="button" id="completion-edit-cancel">ביטול</button>' +
+    '</div></div>';
+  card.append(editor);
+  const kind = $('completion-edit-kind');
+  const value = $('completion-edit-expected');
+  const valueGroup = $('completion-edit-value');
+  kind.value = rule.Kind;
+  initializeVariableField(value, $('completion-edit-expected-variables'), rule.ExpectedValue || '');
+  const refresh = () => {
+    const required = kind.value === 'value-contains';
+    valueGroup.classList.toggle('hidden', !required);
+    value.required = required;
+  };
+  kind.addEventListener('change', refresh);
+  refresh();
+  const cancel = () => {
+    editor.remove();
+    details.classList.remove('hidden');
+    actions.classList.remove('hidden');
+  };
+  $('completion-edit-cancel').onclick = cancel;
+  editor.onsubmit = event => {
+    event.preventDefault();
+    guarded(async () => {
+      const expected = kind.value === 'value-contains' ? variableEditorResult(value).trim() : null;
+      if (kind.value === 'value-contains' && !expected)
+        throw new Error('יש להזין ערך צפוי.');
+      const buttons = [...editor.querySelectorAll('button')];
+      buttons.forEach(b => b.disabled = true);
+      try {
+        await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+'/completion-target',
+          {method:'PUT',body:JSON.stringify({kind:kind.value,expectedValue:expected})});
+        await reloadSelectedStep(current.guide.id, step.id);
+        notify('תנאי ההשלמה עודכן.');
+      } catch (error) {
+        buttons.forEach(b => b.disabled = false);
+        throw error;
+      }
+    });
+  };
 }
 function editValidation(step, rule) {
   const kind = validationChoices.some(x=>x.value===rule?.Kind) ? rule.Kind : 'clicked';
