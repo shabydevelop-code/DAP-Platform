@@ -999,13 +999,20 @@ WHERE GuideId=$guideId AND StepId=$stepId";
         IReadOnlyList<string> framePath, string kind, string? displayName,
         string? attributeName = null, string? attributeValue = null,
         string? variableId = null, string? selectedTag = null, string? expectedValue = null,
-        string runtime = "Web", IReadOnlyList<TargetLocator>? windowsLocators = null)
+        string runtime = "Web", IReadOnlyList<TargetLocator>? windowsLocators = null,
+        IReadOnlyList<TargetAnchor>? windowsAnchors = null)
     {
         if (runtime is not ("Web" or "Windows"))
             throw new ArgumentException("סביבת יעד לא נתמכת.");
         if (runtime == "Windows" && (windowsLocators is null || windowsLocators.Count == 0 ||
             windowsLocators.Any(l => l.Strategy is not ("automation-id" or "name") || string.IsNullOrWhiteSpace(l.Value) || l.Value.Length > 400)))
             throw new ArgumentException("מזהה רכיב Windows אינו תקין.");
+        if (windowsAnchors is { Count: > 0 } &&
+            (runtime != "Windows" || windowsAnchors.Count > 12 ||
+             windowsAnchors.Any(a => a.Relation is not ("Sibling" or "Ancestor") ||
+                 a.Locator.Strategy is not ("name" or "automation-id") ||
+                 string.IsNullOrWhiteSpace(a.Locator.Value) || a.Locator.Value.Length > 400)))
+            throw new ArgumentException("עוגני רכיב ההשלמה אינם תקינים.");
         if (runtime == "Windows" && kind is not ("value-contains" or "target-appeared" or "target-vanished"))
             throw new ArgumentException("תנאי זה עדיין אינו נתמך עבור Windows.");
         if (kind is not ("target-appeared" or "target-vanished" or "attribute-equals" or "value-contains"))
@@ -1086,6 +1093,31 @@ VALUES ($guideId, $elementId, $runtime, $locators, $frame, $name)";
             JsonSerializer.Serialize(framePath.Select(p => new { Strategy="css", Value=p })));
         command.Parameters.AddWithValue("$name", (object?)CleanDisplayName(displayName) ?? DBNull.Value);
         command.ExecuteNonQuery();
+        if (windowsAnchors is { Count: > 0 })
+        {
+            for (var index = 0; index < windowsAnchors.Count; index++)
+            {
+                var anchor = windowsAnchors[index];
+                var anchorId = "element-" + Guid.NewGuid().ToString("N");
+                using var insert = connection.CreateCommand();
+                insert.Transaction = transaction;
+                insert.CommandText = @"INSERT INTO Elements
+(GuideId,ElementId,Runtime,LocatorsJson,FrameContextJson,DisplayName)
+VALUES ($guideId,$anchorId,$runtime,$locators,NULL,NULL)";
+                insert.Parameters.AddWithValue("$guideId", guideId);
+                insert.Parameters.AddWithValue("$anchorId", anchorId);
+                insert.Parameters.AddWithValue("$runtime", runtime);
+                insert.Parameters.AddWithValue("$locators", JsonSerializer.Serialize(new[] { anchor.Locator }));
+                insert.ExecuteNonQuery();
+                insert.CommandText = @"INSERT INTO ElementAnchors
+(GuideId,ElementId,AnchorElementId,Relation,AnchorOrder)
+VALUES ($guideId,$elementId,$anchorId,$relation,$order)";
+                insert.Parameters.AddWithValue("$elementId", elementId);
+                insert.Parameters.AddWithValue("$relation", anchor.Relation);
+                insert.Parameters.AddWithValue("$order", index);
+                insert.ExecuteNonQuery();
+            }
+        }
         command.CommandText = @"INSERT INTO StepTargets
 (GuideId, StepId, UsageId, ElementId, Purpose)
 VALUES ($guideId, $stepId, 'completion', $elementId, 'Completion')";
