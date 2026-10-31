@@ -1415,20 +1415,23 @@ function friendlyInstructionHtml(value) {
 // Single runtime-neutral classification for Inspector target-value editing.
 // Extend these categories here when additional UI control types are introduced.
 function isDataEntryTarget(element, locators) {
-  const type = String(element?.ControlType || '').toLowerCase();
+  const controlType = String(element?.ControlType || '').toLowerCase();
   const selector = String(locators?.[0]?.Value || '');
   const entryTypes = new Set([
     'controltype.edit', 'controltype.document', 'controltype.combobox',
     'textarea', 'select'
   ]);
-  if (entryTypes.has(type)) return true;
-  const inputSelector = type === 'input' ||
+  if (entryTypes.has(controlType)) return true;
+  // Captured CSS may contain a nested element path; detect the target tag
+  // at the beginning of the last compound selector, not its attribute name.
+  const isTextarea = /(?:^|[ >+~])textarea(?=[:.#\\[ >+~]|$)/i.test(selector);
+  const isSelect = /(?:^|[ >+~])select(?=[:.#\\[ >+~]|$)/i.test(selector);
+  if (isTextarea || isSelect) return true;
+  const isInput = controlType === 'input' ||
     /(?:^|[ >+~])input(?=[:.#\\[ >+~]|$)/i.test(selector);
-  if (!inputSelector) return false;
-  // HTML input elements may be buttons. Classify by their actual type.
-  if (/\\[type\\s*=\\s*["']?(?:button|submit|reset|image)["']?\\s*\\]/i.test(selector))
-    return false;
-  return true;
+  if (!isInput) return false;
+  // Button-like input types remain editable as dynamic targets.
+  return !/\\[type\\s*=\\s*["']?(?:button|submit|reset|image)["']?\\s*\\]/i.test(selector);
 }
 function locatorTextBinding(locator) {
   if (!locator?.Value) return null;
