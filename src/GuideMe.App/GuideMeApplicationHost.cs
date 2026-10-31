@@ -441,20 +441,18 @@ public static class GuideMeApplicationHost
         else
             throw new InvalidOperationException("Windows Guide requires a persisted application context or --window-automation-id.");
         StartupMark(startup, "Windows target window resolved");
-        // A Learner started by the browser-based Instructor does not necessarily
-        // have foreground activation permission. A rejected Win32 request flashes
-        // the taskbar; UIA focus on the resolved top-level window is the fallback.
-        // Do not retry SetForegroundWindow when Windows rejects the request.
-        try
-        {
-            if (GetForegroundWindow() != new IntPtr(window.Current.NativeWindowHandle))
-                window.SetFocus();
-        }
-        catch (ElementNotAvailableException) { }
-        catch (InvalidOperationException) { }
+        // The Instructor launches this Learner from a background server process.
+        // Win32 foreground requests from that process can flash the taskbar.
+        // UIA focus is the proven Windows fallback; do not follow it with a
+        // competing SetForegroundWindow request during initial guide startup.
         if (GetForegroundWindow() != new IntPtr(window.Current.NativeWindowHandle))
-            await ActivateWindowsTargetAsync(window, cancellationToken);
-        StartupMark(startup, "Windows target window activation attempted");
+        {
+            try { window.SetFocus(); }
+            catch (ElementNotAvailableException) { }
+            catch (InvalidOperationException) { }
+            catch (System.Runtime.InteropServices.COMException) { }
+        }
+        StartupMark(startup, "Windows target window focus requested");
 
         // Observe the native window independently of UI Automation: UIA providers
         // can throw while their owning application is shutting down.
