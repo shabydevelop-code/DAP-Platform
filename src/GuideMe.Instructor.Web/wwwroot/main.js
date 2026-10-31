@@ -1410,7 +1410,7 @@ function friendlyInstructionHtml(value) {
 function classifyTarget(element, locators) {
   const type = String(element?.ControlType || '').toLowerCase();
   const selector = String(locators?.[0]?.Value || '');
-  const hasTag = tag => new RegExp('(?:^|[\\\\s>+~])' + tag + '(?=[:.#\\\\[\\\\s>+~]|$)', 'i').test(selector);
+  const hasTag = tag => new RegExp('(?:^|[\\s>+~])' + tag + '(?=[:.#\\[\\s>+~]|$)', 'i').test(selector);
   const known = {
     'controltype.edit': ['שדה קלט', true],
     'controltype.document': ['שדה טקסט רב־שורות', true],
@@ -1429,7 +1429,7 @@ function classifyTarget(element, locators) {
   if (type === 'select' || hasTag('select'))
     return {label:'רשימת בחירה', dataEntry:true};
   if (type === 'input' || hasTag('input')) {
-    const buttonInput = /\\[type\\s*=\\s*["']?(?:button|submit|reset|image)["']?\\s*\\]/i.test(selector);
+    const buttonInput = /\[type\s*=\s*["']?(?:button|submit|reset|image)["']?\s*\]/i.test(selector);
     return buttonInput ? {label:'כפתור', dataEntry:false}
       : {label:'שדה קלט', dataEntry:true};
   }
