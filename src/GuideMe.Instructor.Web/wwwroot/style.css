@@ -402,3 +402,9 @@ body .brand-heading strong span { font-size: 26px; }
 #steps-panel .step-application{display:flex;align-items:center;gap:10px;min-width:0;padding:9px 13px;margin-bottom:12px;border:1px solid #e5edf7;border-radius:10px;background:#f8fbff;font-size:12px;color:#52657a}
 #steps-panel .step-application strong{color:#243d58;white-space:nowrap}
 #steps-panel .step-application span{min-width:0;overflow-wrap:anywhere;direction:ltr}
+
+.step-drag-handle{display:inline-flex;align-items:center;justify-content:center;flex:none;width:20px;cursor:grab;color:#8196b1;font-size:19px;user-select:none;touch-action:none}
+.step-drag-handle:active{cursor:grabbing}
+.step-dragging{opacity:.45}
+.step-drop-before{box-shadow:inset 0 3px #205bc2}
+.step-drop-after{box-shadow:inset 0 -3px #205bc2}
