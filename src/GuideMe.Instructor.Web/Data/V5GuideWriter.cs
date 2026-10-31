@@ -1160,6 +1160,35 @@ VALUES ($guideId, $stepId, 'AdditionalCompletionCondition', 'completion', $kind,
         transaction.Commit();
     }
 
+    internal static void UpdateCompletionCondition(long guideId, string stepId, string kind, string? expectedValue)
+    {
+        if (kind is not ("target-appeared" or "target-vanished" or "value-contains"))
+            throw new ArgumentException("חוק השלמה לא נתמך.");
+        if (kind == "value-contains" && (string.IsNullOrWhiteSpace(expectedValue) || expectedValue.Length > 500))
+            throw new ArgumentException("יש להזין ערך צפוי לתנאי ההשלמה.");
+        using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = V5GuideReader.DatabasePath, Mode = SqliteOpenMode.ReadWrite,
+            Pooling = false, DefaultTimeout = 3
+        }.ToString());
+        connection.Open();
+        using var transaction = connection.BeginTransaction();
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.Parameters.AddWithValue("$guideId", guideId);
+        command.Parameters.AddWithValue("$stepId", stepId);
+        command.Parameters.AddWithValue("$kind", kind);
+        command.Parameters.AddWithValue("$expected", kind == "value-contains" ? expectedValue! : DBNull.Value);
+        command.CommandText = @"UPDATE StepRules SET Kind=$kind, ExpectedValue=$expected
+WHERE GuideId=$guideId AND StepId=$stepId AND RuleType='AdditionalCompletionCondition'
+AND TargetUsageId='completion' AND EXISTS
+(SELECT 1 FROM StepTargets t WHERE t.GuideId=$guideId AND t.StepId=$stepId
+AND t.UsageId='completion' AND t.Purpose='Completion')";
+        if (command.ExecuteNonQuery() != 1)
+            throw new InvalidOperationException("לא נמצא תנאי השלמה נוסף לעריכה.");
+        transaction.Commit();
+    }
+
     internal static void RemoveWebCompletionTarget(long guideId, string stepId)
     {
         using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
