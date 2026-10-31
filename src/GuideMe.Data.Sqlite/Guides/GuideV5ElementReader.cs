@@ -13,7 +13,8 @@ public static class GuideV5ElementReader
     public sealed record ElementDefinition(
         string ElementId, string? Runtime, string? FrameContextJson,
         IReadOnlyList<LocatorDefinition> Locators,
-        IReadOnlyList<AnchorDefinition> Anchors);
+        IReadOnlyList<AnchorDefinition> Anchors,
+        string? ControlType);
     public sealed record ElementUsage(string StepId, string UsageId, string ElementId, string Purpose);
     public sealed record ElementCatalog(
         long GuideId, IReadOnlyDictionary<string, ElementDefinition> Elements,
@@ -47,7 +48,7 @@ public static class GuideV5ElementReader
         var elements = new Dictionary<string, ElementDefinition>(StringComparer.Ordinal);
         await using (var command = connection.CreateCommand())
         {
-            command.CommandText = "SELECT ElementId,Runtime,FrameContextJson,LocatorsJson FROM Elements WHERE GuideId=$guideId ORDER BY ElementId";
+            command.CommandText = "SELECT ElementId,Runtime,FrameContextJson,LocatorsJson,ControlType FROM Elements WHERE GuideId=$guideId ORDER BY ElementId";
             command.Parameters.AddWithValue("$guideId", guideId);
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
             while (await reader.ReadAsync(cancellationToken))
@@ -60,7 +61,8 @@ public static class GuideV5ElementReader
                     id, runtime,
                     reader.IsDBNull(2) ? null : reader.GetString(2),
                     ParseLocators(reader.GetString(3)),
-                    Array.Empty<AnchorDefinition>())))
+                    Array.Empty<AnchorDefinition>(),
+                    reader.IsDBNull(4) ? null : reader.GetString(4))))
                     throw new InvalidOperationException($"Duplicate V5 element '{id}'.");
             }
         }
