@@ -113,7 +113,8 @@ public sealed class WindowsTargetResolver
                     .All(anchor => MatchesAnchor(candidate, anchor)))
                 .ToList();
             stopwatch.Stop();
-            if (stopwatch.ElapsedMilliseconds >= 100)
+            if (Environment.GetEnvironmentVariable("GUIDEME_VARIABLE_DIAGNOSTICS") == "1"
+                && stopwatch.ElapsedMilliseconds >= 100)
                 Console.Error.WriteLine(
                     $"[GuideMe Windows resolver timing] locator={descriptor.Locator.Strategy}='{descriptor.Locator.Value}', " +
                     $"fast-path=native-self-anchors, final={matched.Count}, elapsed={stopwatch.ElapsedMilliseconds} ms.");
@@ -147,7 +148,8 @@ public sealed class WindowsTargetResolver
         }
 
         stopwatch.Stop();
-        if (stopwatch.ElapsedMilliseconds >= 100 || primaryCandidateCount >= 100)
+        if (Environment.GetEnvironmentVariable("GUIDEME_VARIABLE_DIAGNOSTICS") == "1"
+            && (stopwatch.ElapsedMilliseconds >= 100 || primaryCandidateCount >= 100))
         {
             var anchors = anchorDiagnostics.Count == 0
                 ? "none"
