@@ -14,8 +14,7 @@ internal sealed class GuideSessionIndicator : IDisposable
 {
     private readonly Window _window;
     private bool _disposed;
-    private readonly TextBlock _waitingText;
-    private bool _waiting;
+    private readonly TextBlock _progressText;
 
     public GuideSessionIndicator(IUiTextProvider texts, string guideName, Action stop)
     {
@@ -38,8 +37,8 @@ internal sealed class GuideSessionIndicator : IDisposable
         var caption = new TextBlock
         {
             Text = string.IsNullOrWhiteSpace(guideName)
-                ? texts.Get("Learner.ActiveStatus")
-                : $"{texts.Get("Learner.ActiveStatus")} — {guideName}",
+                ? texts.Get("Learner.WindowTitle")
+                : guideName,
             MaxWidth = 340,
             TextTrimming = TextTrimming.CharacterEllipsis,
             ToolTip = guideName,
@@ -48,20 +47,18 @@ internal sealed class GuideSessionIndicator : IDisposable
             FontWeight = FontWeights.SemiBold,
             VerticalAlignment = VerticalAlignment.Center
         };
-        _waitingText = new TextBlock
+        _progressText = new TextBlock
         {
-            Text = texts.Get("Learner.WaitingForStep"),
             Foreground = new SolidColorBrush(Color.FromRgb(183, 200, 212)),
             FontSize = 12,
             FlowDirection = rtl,
-            TextAlignment = texts.IsRightToLeft ? TextAlignment.Right : TextAlignment.Left,
-            Visibility = Visibility.Collapsed
+            TextAlignment = texts.IsRightToLeft ? TextAlignment.Right : TextAlignment.Left
         };
         caption.FlowDirection = rtl;
         caption.TextAlignment = texts.IsRightToLeft ? TextAlignment.Right : TextAlignment.Left;
         var captionStack = new StackPanel { Orientation = Orientation.Vertical, FlowDirection = rtl };
         captionStack.Children.Add(caption);
-        captionStack.Children.Add(_waitingText);
+        captionStack.Children.Add(_progressText);
         var row = new StackPanel { Orientation = Orientation.Horizontal, FlowDirection = rtl };
         row.Children.Add(captionStack);
         row.Children.Add(stopButton);
@@ -110,16 +107,15 @@ internal sealed class GuideSessionIndicator : IDisposable
         Reposition();
     }
 
-    // Called only when the learner's existing target/presentation state changes.
-    // No extra UIA/DOM queries, polling, or timers.
-    public void SetBubbleAvailable(bool available)
+    public void SetProgress(int step, int total)
     {
         if (_disposed) return;
         void Apply()
         {
-            if (_disposed || _waiting == !available) return;
-            _waiting = !available;
-            _waitingText.Visibility = _waiting ? Visibility.Visible : Visibility.Collapsed;
+            if (!_disposed)
+                _progressText.Text = _progressText.FlowDirection == FlowDirection.RightToLeft
+                    ? $"שלב {step} מתוך {total}"
+                    : $"Step {step} of {total}";
         }
         if (_window.Dispatcher.CheckAccess()) Apply();
         else _ = _window.Dispatcher.BeginInvoke((Action)Apply);
