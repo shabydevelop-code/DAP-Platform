@@ -453,6 +453,9 @@ app.MapPost("/api/guides/{id:long}/test", (long id, string? startStepId) =>
             UseShellExecute = false,
             WorkingDirectory = Path.GetDirectoryName(learnerExe)!
         };
+        // Instructor-initiated test runs always enable variable diagnostics in
+        // the child Learner; no PowerShell environment setup is required.
+        launch.Environment["GUIDEME_VARIABLE_DIAGNOSTICS"] = "1";
         launch.ArgumentList.Add("--guide");
         launch.ArgumentList.Add(guide.Key);
         if (startStepId is not null)
