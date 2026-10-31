@@ -399,7 +399,7 @@ function renderSteps() {
     selectedTargetPreviewValue = editableTargetBinding?.value || targetValue || null;
     selectedValidationExpectedValue = rule?.ExpectedValue || null;
     selectedCompletionDescription = completionRule?.Kind === 'value-contains'
-      ? () => completionSubject + ' מכיל את הערך ' + friendlyInstructionHtml(completionRule.ExpectedValue || '') + '.'
+      ? () => esc(completionElementName) + ' מכיל את הערך ' + friendlyInstructionHtml(completionRule.ExpectedValue || '') + '.'
       : null;
     const appText = context ? appLabel(context) : 'לא משויך';
 
