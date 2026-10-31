@@ -455,6 +455,8 @@ app.MapPost("/api/guides/{id:long}/test", (long id, string? startStepId) =>
         };
         // Inherit GUIDEME_DIAGNOSTICS from the Instructor environment only when
         // explicitly enabled; normal test runs must not force diagnostic logging.
+        var captureLearnerDiagnostics = Environment.GetEnvironmentVariable("GUIDEME_DIAGNOSTICS") == "1";
+        launch.RedirectStandardError = captureLearnerDiagnostics;
         launch.ArgumentList.Add("--guide");
         launch.ArgumentList.Add(guide.Key);
         if (startStepId is not null)
@@ -465,6 +467,29 @@ app.MapPost("/api/guides/{id:long}/test", (long id, string? startStepId) =>
         using var process = Process.Start(launch);
         if (process is null)
             return Results.Problem("לא ניתן להפעיל את ה־Learner.", statusCode: 500);
+        if (captureLearnerDiagnostics)
+        {
+            var learnerProcessId = process.Id;
+            var diagnosticPath = Path.Combine(Path.GetTempPath(), $"GuideMe-Learner-{learnerProcessId}.log");
+            var standardError = process.StandardError;
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await using var output = new FileStream(diagnosticPath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
+                    await standardError.BaseStream.CopyToAsync(output);
+                }
+                catch (Exception ex)
+                {
+                    app.Logger.LogError(ex, "Could not capture Learner diagnostics for process {ProcessId}", learnerProcessId);
+                }
+                finally
+                {
+                    standardError.Dispose();
+                }
+            });
+            app.Logger.LogInformation("Learner diagnostics for process {ProcessId}: {Path}", learnerProcessId, diagnosticPath);
+        }
         return Results.Ok(new { started = true, guideId = id });
     }
     catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
