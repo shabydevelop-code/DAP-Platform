@@ -13,7 +13,7 @@ public sealed class WindowsTargetResolver
 
     private static void DiagnoseExactLookup(AutomationElement root, Locator locator, int matchCount)
     {
-        if (Environment.GetEnvironmentVariable("GUIDEME_VARIABLE_DIAGNOSTICS") != "1")
+        if (Environment.GetEnvironmentVariable("GUIDEME_DIAGNOSTICS") != "1")
             return;
         var key = locator.Strategy + ":" + locator.Value + ":" + matchCount;
         lock (DiagnosticGate)
@@ -69,7 +69,7 @@ public sealed class WindowsTargetResolver
         {
             var matches = FindForCapturedType(root, descriptor.Locator, descriptor.ControlType).Take(2).ToArray();
             stopwatch.Stop();
-            if (Environment.GetEnvironmentVariable("GUIDEME_VARIABLE_DIAGNOSTICS") == "1")
+            if (Environment.GetEnvironmentVariable("GUIDEME_DIAGNOSTICS") == "1")
             {
                 try
                 {
@@ -113,7 +113,7 @@ public sealed class WindowsTargetResolver
                     .All(anchor => MatchesAnchor(candidate, anchor)))
                 .ToList();
             stopwatch.Stop();
-            if (Environment.GetEnvironmentVariable("GUIDEME_VARIABLE_DIAGNOSTICS") == "1"
+            if (Environment.GetEnvironmentVariable("GUIDEME_DIAGNOSTICS") == "1"
                 && stopwatch.ElapsedMilliseconds >= 100)
                 Console.Error.WriteLine(
                     $"[GuideMe Windows resolver timing] locator={descriptor.Locator.Strategy}='{descriptor.Locator.Value}', " +
@@ -148,7 +148,7 @@ public sealed class WindowsTargetResolver
         }
 
         stopwatch.Stop();
-        if (Environment.GetEnvironmentVariable("GUIDEME_VARIABLE_DIAGNOSTICS") == "1"
+        if (Environment.GetEnvironmentVariable("GUIDEME_DIAGNOSTICS") == "1"
             && (stopwatch.ElapsedMilliseconds >= 100 || primaryCandidateCount >= 100))
         {
             var anchors = anchorDiagnostics.Count == 0
@@ -181,7 +181,7 @@ public sealed class WindowsTargetResolver
         if (string.IsNullOrEmpty(expectedValue) || !TryGetControlType(descriptor.ControlType, out var type))
             return TargetResolution<AutomationElement>.NotFound();
 
-        var diagnose = Environment.GetEnvironmentVariable("GUIDEME_VARIABLE_DIAGNOSTICS") == "1";
+        var diagnose = Environment.GetEnvironmentVariable("GUIDEME_DIAGNOSTICS") == "1";
         var inspected = 0;
         var valueMatched = 0;
         var anchorsRejected = 0;
