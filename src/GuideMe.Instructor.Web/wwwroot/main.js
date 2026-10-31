@@ -219,7 +219,7 @@ function renderSteps() {
   requestAnimationFrame(syncStepListHeight);
   $('step-list').innerHTML = steps.length ? steps.map(s =>
     '<div class="step-row' + (s.enabled ? '' : ' step-disabled') + '" role="button" tabindex="0" aria-pressed="false" aria-label="' + esc('שלב ' + s.order + ': ' + friendlyInstructionText(s.bubble || 'שלב ' + s.order) + (s.enabled ? '' : ', מושבת')) + '" data-step="' + esc(s.id) + '"><span class="step-drag-handle" draggable="true" role="img" aria-label="גרירת שלב לשינוי סדר" title="גרור לשינוי סדר">⠿</span><span class="step-num">' + s.order + '</span><span class="step-body"><strong>' +
-    friendlyInstructionHtml(s.bubble || 'שלב ' + s.order) + '</strong></span>' + (s.enabled ? '' : '<span class="step-disabled-badge">מושבת</span>') + '</div>').join('')
+    stepListInstructionHtml(s.bubble || 'שלב ' + s.order) + '</strong></span>' + (s.enabled ? '' : '<span class="step-disabled-badge">מושבת</span>') + '</div>').join('')
     : '<div class="empty">אין שלבים להצגה</div>';
   const tip = document.getElementById('step-name-tooltip') || (() => {
     const node = document.createElement('div');
@@ -241,7 +241,7 @@ function renderSteps() {
     if (!name) return;
     hideTip();
     // Show the full text only when the two-line label is clipped.
-    if (name.scrollWidth <= name.clientWidth + 1 &&
+    if (![...name.querySelectorAll('.step-instruction-line')].some(line => line.scrollWidth > line.clientWidth + 1) &&
         name.scrollHeight <= name.clientHeight + 1) return;
     activeTipRow = row;
     const step = (current?.steps || []).find(s => s.id === row.dataset.step);
@@ -1240,7 +1240,7 @@ function refreshStepVariablePreviews() {
     if (!step) return;
     const preview = friendlyInstructionText(step.bubble || 'שלב ' + step.order);
     const label = row.querySelector('.step-body strong');
-    if (label) label.innerHTML = friendlyInstructionHtml(step.bubble || 'שלב ' + step.order);
+    if (label) label.innerHTML = stepListInstructionHtml(step.bubble || 'שלב ' + step.order);
     row.setAttribute('aria-label', 'שלב ' + step.order + ': ' + preview +
       (step.enabled ? '' : ', מושבת'));
   });
@@ -1568,6 +1568,12 @@ function friendlyInstructionText(value) {
     const variable = (current?.variables || []).find(v => v.id === id);
     return '[' + variablePreviewValue(variable) + ']';
   });
+}
+function stepListInstructionHtml(value) {
+  // Explicit newlines alone create rows; each row truncates independently.
+  return String(value || '').split(/\\r?\\n/).slice(0, 2)
+    .map(line => '<span class="step-instruction-line">' + friendlyInstructionHtml(line) + '</span>')
+    .join('');
 }
 function friendlyInstructionHtml(value) {
   const text = String(value || '');
