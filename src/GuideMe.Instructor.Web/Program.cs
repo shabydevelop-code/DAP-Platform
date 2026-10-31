@@ -316,7 +316,7 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/completion-target",
                     .Select(l => new V5GuideWriter.TargetLocator(l.Strategy, l.Value)).ToArray(),
                 windowsAnchors: picked.Anchors?.Select(a => new V5GuideWriter.TargetAnchor(
                     new V5GuideWriter.TargetLocator(a.Strategy, a.Value), a.Relation)).ToArray(),
-                replacing: request.Replacing);
+                replacing: request.Replacing, controlType: picked.ControlType);
             windowsPicker.Stop();
             return Results.NoContent();
         }
