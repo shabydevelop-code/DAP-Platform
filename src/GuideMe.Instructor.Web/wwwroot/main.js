@@ -362,7 +362,7 @@ function renderSteps() {
     const completionSelector = completionLocators[0]?.Value || '';
     const completionClassification = classifyTarget(context?.Runtime, completionElement, completionLocators);
     const completionType = completionClassification.label ||
-      (/^h[1-6](?=:|$)/i.test(completionSelector) ? 'כותרת במסך' : 'רכיב במסך');
+      (/^h[1-6](?=:|$)/i.test(completionSelector) ? 'כותרת במסך' : null);
     const completionLocatorBinding = locatorTextBinding(completionLocators[0]);
     const completionDisplayName = (completionElement?.DisplayName || '').trim();
     const completionElementName = completionDisplayName &&
@@ -460,7 +460,7 @@ function renderSteps() {
         (completionRule ? '<div class="completion-details">' +
           '<div class="completion-target-summary">' +
            '<p><strong>' + esc(completionElementName) + '</strong></p>' +
-           '<p class="field-help">סוג רכיב: ' + esc(completionType) + '</p>' +
+           (completionType ? '<p class="field-help">סוג רכיב: ' + esc(completionType) + '</p>' : '') +
            (completionLocatorBinding?.value
              ? '<p>ערך איתור: <strong class="target-business-value-preview">' +
                friendlyInstructionHtml(completionLocatorBinding.value) + '</strong></p>' : '') +
