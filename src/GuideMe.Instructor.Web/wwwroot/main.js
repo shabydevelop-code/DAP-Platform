@@ -456,6 +456,7 @@ function renderSteps() {
           '<div class="completion-detail"><span class="completion-detail-label">השלב יושלם כאשר:</span>' +
           '<strong class="completion-description-preview">' + (completionRule?.Kind === 'value-contains' ? completionDescription : esc(completionDescription)) + '</strong></div>' +
           '</div><div class="validation-actions"><button class="btn secondary small" id="edit-completion">עריכת תנאי</button>' +
+          '<button class="btn secondary small" id="replace-completion">בחירת רכיב אחר</button>' +
           '<button class="btn danger small" id="remove-completion">הסרת תנאי</button></div>' :
           '<p>' + (!target ? 'יש לבחור תחילה רכיב ראשי לשלב.' : !rule ? 'יש להגדיר תחילה תנאי התקדמות לשלב.' : 'בחר רכיב ובדוק הופעה, היעלמות או שינוי מאפיין בעקבות הפעולה.') + '</p>' +
           (target && rule ? '<button class="btn secondary small" id="add-completion">בחירת רכיב לתנאי השלמה</button>' : '')) +
@@ -590,7 +591,9 @@ function renderSteps() {
     if (addCompletion) addCompletion.onclick = () => guarded(() =>
       beginTargetPicker(context.Runtime, current.guide.id, step.id, contextId, false, true, context));
     const editCompletion = $('edit-completion');
-    if (editCompletion) editCompletion.onclick = () => guarded(() =>
+    if (editCompletion) editCompletion.onclick = () => editCompletionCondition(step, completionRule);
+    const replaceCompletion = $('replace-completion');
+    if (replaceCompletion) replaceCompletion.onclick = () => guarded(() =>
       beginTargetPicker(context.Runtime, current.guide.id, step.id, contextId, true, true, context, null,
         {kind:completionRule.Kind, expectedValue:completionRule.ExpectedValue || ''}));
     const removeCompletion = $('remove-completion');
@@ -651,6 +654,25 @@ const validationChoices = [
 function validationLabel(kind) {
   return validationChoices.find(x=>x.value===kind)?.text ||
     'תנאי מתקדם שהוגדר במערכת';
+}
+function editCompletionCondition(step, rule) {
+  const choices = [
+    {value:'target-appeared',text:'הרכיב מופיע במסך'},
+    {value:'target-vanished',text:'הרכיב נעלם מהמסך'},
+    {value:'value-contains',text:'הרכיב מכיל ערך מסוים'}
+  ];
+  modal('עריכת תנאי השלמה — שלב ' + step.order, [
+    {name:'kind',label:'השלב יושלם כאשר',value:rule.Kind,choices},
+    {name:'expectedValue',label:'ערך צפוי',value:rule.ExpectedValue || '',max:500,optional:true}
+  ], async values => {
+    if (values.kind === 'value-contains' && !values.expectedValue?.trim())
+      throw new Error('יש להזין ערך צפוי.');
+    await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+'/completion-target',
+      {method:'PUT',body:JSON.stringify({kind:values.kind,
+        expectedValue:values.kind === 'value-contains' ? values.expectedValue : null})});
+    await reloadSelectedStep(current.guide.id,step.id);
+    notify('תנאי ההשלמה עודכן.');
+  });
 }
 function editValidation(step, rule) {
   const kind = validationChoices.some(x=>x.value===rule?.Kind) ? rule.Kind : 'clicked';
