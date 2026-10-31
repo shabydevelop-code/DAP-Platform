@@ -667,6 +667,24 @@ public sealed class WindowsGuideRuntime
             }
 
             var kind = condition.Kind.Trim().ToLowerInvariant();
+            if (resolution.Status == TargetResolutionStatus.NotFound
+                && kind is "value-contains" or "value-equals"
+                && !string.IsNullOrEmpty(condition.ExpectedValue))
+            {
+                // A captured label can change after navigation. Match its live
+                // value using the captured control type and structural anchors.
+                // Preserve ambiguity and require the value policy to pass.
+                try
+                {
+                    resolution = _resolver.ResolveByObservedValue(
+                        GetActiveResolutionRoot(windowRoot), condition.Target,
+                        condition.ExpectedValue, kind == "value-contains");
+                }
+                catch (ElementNotAvailableException)
+                {
+                    resolution = TargetResolution<AutomationElement>.NotFound();
+                }
+            }
             if (GuideCompletionPolicy.IsSupportedObservationKind(kind))
             {
                 var resolved = resolution.Status == TargetResolutionStatus.Resolved && resolution.Target is not null;
