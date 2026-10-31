@@ -317,12 +317,17 @@ function renderSteps() {
     const editableTargetBinding = locatorTextBinding(locators[0]);
     const targetValue = editableTargetBinding?.value || '';
     const targetKind = /(?:^|[ >+~])h([1-6])(?=[:.#\\[ >+~]|$)/i.exec(locatorText);
-    const targetType = targetKind ? 'כותרת (H' + targetKind[1] + ')' :
+    const storedControlType = ({'ControlType.Button':'כפתור','ControlType.Edit':'שדה קלט',
+      'ControlType.Document':'שדה טקסט רב־שורות','ControlType.ComboBox':'רשימת בחירה',
+      'ControlType.Hyperlink':'קישור','ControlType.Text':'רכיב טקסט',
+      'button':'כפתור','input':'שדה קלט','textarea':'שדה טקסט רב־שורות',
+      'select':'רשימת בחירה','a':'קישור'})[element?.ControlType];
+    const targetType = storedControlType || (targetKind ? 'כותרת (H' + targetKind[1] + ')' :
       /(?:^|[ >+~])button(?=[:.#\\[ >+~]|$)/i.test(locatorText) ? 'כפתור' :
       /(?:^|[ >+~])input(?=[:.#\\[ >+~]|$)/i.test(locatorText) ? 'שדה קלט' :
       /(?:^|[ >+~])a(?=[:.#\\[ >+~]|$)/i.test(locatorText) ? 'קישור' :
       /(?:^|[ >+~])(?:td|th)(?=[:.#\\[ >+~]|$)/i.test(locatorText) ? 'תא בטבלה' :
-      targetValue ? 'רכיב טקסט' : 'רכיב במסך';
+      targetValue ? 'רכיב טקסט' : 'רכיב במסך');
     selectedTargetPreviewValue = targetValue || null;
     selectedValidationExpectedValue = rule?.ExpectedValue || null;
     selectedCompletionDescription = completionRule?.Kind === 'value-contains'
@@ -954,7 +959,7 @@ async function refreshPicker() {
           {method:'POST',body:JSON.stringify({
             condition:'',
             replacing:pickedFor.replacing,gridChoice:gridChoiceIndex,
-            contentValue,processId:pickedFor.processId || null})});
+            contentValue,selectedTag:candidate.tag,processId:pickedFor.processId || null})});
       }
       pickerEvent(pickedFor, 'saved');
       result.textContent = 'הרכיב נשמר בהצלחה.';
