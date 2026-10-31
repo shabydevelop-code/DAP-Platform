@@ -647,7 +647,7 @@ public static class GuideMeApplicationHost
         try
         {
             StartupMark(startup, "Web adapter guide runtime starting");
-            await guideRuntime.RunAsync(steps, runCancellation.Token, variables, texts.Language);
+            await guideRuntime.RunAsync(steps, runCancellation.Token, variables, texts.Language, indicator.SetProgress);
             Console.Error.WriteLine("[GuideMe diagnostic] Web guide runtime completed normally.");
         }
         catch (OperationCanceledException) when (webUserStopped.IsCancellationRequested)
