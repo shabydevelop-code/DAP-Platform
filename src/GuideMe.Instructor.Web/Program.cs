@@ -313,7 +313,9 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/completion-target",
             V5GuideWriter.SaveWebCompletionTarget(id, stepId, "", Array.Empty<string>(),
                 request.Kind, picked.Name, expectedValue: request.ExpectedValue,
                 runtime: "Windows", windowsLocators: picked.Locators
-                    .Select(l => new V5GuideWriter.TargetLocator(l.Strategy, l.Value)).ToArray());
+                    .Select(l => new V5GuideWriter.TargetLocator(l.Strategy, l.Value)).ToArray(),
+                windowsAnchors: picked.Anchors?.Select(a => new V5GuideWriter.TargetAnchor(
+                    new V5GuideWriter.TargetLocator(a.Strategy, a.Value), a.Relation)).ToArray());
             windowsPicker.Stop();
             return Results.NoContent();
         }
