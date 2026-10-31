@@ -70,6 +70,8 @@ public sealed class WindowsTargetResolver
         {
             var matches = Find(root, descriptor.Locator).Take(2).ToArray();
             DiagnoseExactLookup(root, descriptor.Locator, matches.Length);
+            if (matches.Length == 2 && TryCollapseNestedMatches(matches[0], matches[1], out var single))
+                return TargetResolution<AutomationElement>.Resolved(single);
             return matches.Length switch
             {
                 0 => TargetResolution<AutomationElement>.NotFound(),
@@ -154,6 +156,40 @@ public sealed class WindowsTargetResolver
             1 => TargetResolution<AutomationElement>.Resolved(candidates[0]),
             _ => TargetResolution<AutomationElement>.Ambiguous(candidates.Count)
         };
+    }
+
+    // WPF can expose a grid cell and its text child with the same UIA Name.
+    // They are one selectable target only when one is a real ancestor of the other.
+    // Distinct cells remain ambiguous, even if their names or bounds match.
+    private static bool TryCollapseNestedMatches(
+        AutomationElement first, AutomationElement second, out AutomationElement selected)
+    {
+        selected = first;
+        try
+        {
+            if (IsRawAncestor(first, second))
+            {
+                selected = first;
+                return true;
+            }
+            if (IsRawAncestor(second, first))
+            {
+                selected = second;
+                return true;
+            }
+        }
+        catch (ElementNotAvailableException) { }
+        catch (System.Runtime.InteropServices.COMException) { }
+        return false;
+    }
+
+    private static bool IsRawAncestor(AutomationElement ancestor, AutomationElement child)
+    {
+        var walker = TreeWalker.RawViewWalker;
+        for (var current = walker.GetParent(child); current is not null; current = walker.GetParent(current))
+            if (Automation.Compare(current, ancestor))
+                return true;
+        return false;
     }
 
     private static AutomationElement? FindRawAncestor(AutomationElement candidate, Locator locator)
