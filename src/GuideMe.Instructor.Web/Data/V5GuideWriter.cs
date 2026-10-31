@@ -1251,13 +1251,16 @@ WHERE GuideId=$guideId AND StepId=$stepId
         command.CommandText = "UPDATE Steps SET StepOrder=$order WHERE GuideId=$guideId AND StepId=$stepId";
         command.Parameters.Add("$order", Microsoft.Data.Sqlite.SqliteType.Integer);
         command.Parameters.Add("$stepId", Microsoft.Data.Sqlite.SqliteType.Text);
-        for (var i = 0; i < stepIds.Count; i++)
-        {
-            command.Parameters["$order"].Value = i + 1;
-            command.Parameters["$stepId"].Value = stepIds[i];
-            if (command.ExecuteNonQuery() != 1)
-                throw new InvalidOperationException("עדכון סדר השלבים נכשל.");
-        }
+        // The schema enforces UNIQUE (GuideId, StepOrder). Move all rows to
+        // temporary negative positions before assigning the final positive order.
+        for (var pass = 0; pass < 2; pass++)
+            for (var i = 0; i < stepIds.Count; i++)
+            {
+                command.Parameters["$order"].Value = pass == 0 ? -(i + 1) : i + 1;
+                command.Parameters["$stepId"].Value = stepIds[i];
+                if (command.ExecuteNonQuery() != 1)
+                    throw new InvalidOperationException("עדכון סדר השלבים נכשל.");
+            }
         transaction.Commit();
     }
 
