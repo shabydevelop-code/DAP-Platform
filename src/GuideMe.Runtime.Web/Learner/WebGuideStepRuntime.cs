@@ -12,6 +12,7 @@ public sealed class WebGuideStepRuntime
     private static readonly string ReferenceDiagnosticPath = Path.Combine(Path.GetTempPath(), "GuideMe-reference-diagnostic.log");
     private static void ReferenceDiagnostic(string message)
     {
+        if (Environment.GetEnvironmentVariable("GUIDEME_VARIABLE_DIAGNOSTICS") != "1") return;
         try
         {
             lock (ReferenceDiagnosticGate)
@@ -67,7 +68,8 @@ public sealed class WebGuideStepRuntime
         }
 
         ReportBubbleAvailable(false);
-        var diagnoseReference = step.Id.StartsWith("reference-", StringComparison.Ordinal);
+        var diagnoseReference = Environment.GetEnvironmentVariable("GUIDEME_VARIABLE_DIAGNOSTICS") == "1"
+            && step.Id.StartsWith("reference-", StringComparison.Ordinal);
         if (diagnoseReference) ReferenceDiagnostic($"[GuideMe reference diagnostic] Starting Web Step {stepNumber}/{totalSteps} '{step.Id}'.");
         var automatic = GuideStepExecutionPolicy.IsAutomaticValidationStep(step);
         var clicked = GuideStepExecutionPolicy.IsClickValidationStep(step);
@@ -121,7 +123,7 @@ public sealed class WebGuideStepRuntime
                 if (!initialObservationRecorded)
                 {
                     initialObservationRecorded = true;
-                    if (satisfied)
+                    if (satisfied && Environment.GetEnvironmentVariable("GUIDEME_VARIABLE_DIAGNOSTICS") == "1")
                         Console.Error.WriteLine($"[GuideMe state observation] Step {stepNumber}/{totalSteps} '{step.Id}': completion condition already true; waiting for it to become false and then true.");
                 }
                 if (!satisfied)
