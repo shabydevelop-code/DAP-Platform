@@ -244,7 +244,8 @@ function renderSteps() {
     if (name.scrollWidth <= name.clientWidth + 1 &&
         name.scrollHeight <= name.clientHeight + 1) return;
     activeTipRow = row;
-    tip.textContent = name.textContent;
+    const step = (current?.steps || []).find(s => s.id === row.dataset.step);
+    tip.innerHTML = friendlyInstructionHtml(step?.bubble || name.textContent);
     tip.hidden = false;
     row.setAttribute('aria-describedby', tip.id);
     const rect = row.getBoundingClientRect();
