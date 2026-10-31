@@ -315,7 +315,8 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/completion-target",
                 runtime: "Windows", windowsLocators: picked.Locators
                     .Select(l => new V5GuideWriter.TargetLocator(l.Strategy, l.Value)).ToArray(),
                 windowsAnchors: picked.Anchors?.Select(a => new V5GuideWriter.TargetAnchor(
-                    new V5GuideWriter.TargetLocator(a.Strategy, a.Value), a.Relation)).ToArray());
+                    new V5GuideWriter.TargetLocator(a.Strategy, a.Value), a.Relation)).ToArray(),
+                replacing: request.Replacing);
             windowsPicker.Stop();
             return Results.NoContent();
         }
@@ -333,7 +334,8 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/completion-target",
         V5GuideWriter.SaveWebCompletionTarget(id, stepId,
             capturedState?.Selector ?? selected.Selector,
             selected.FramePath, request.Kind, selected.DisplayName,
-            capturedState?.Name, capturedState?.Value, request.VariableId, request.SelectedTag, request.ExpectedValue);
+            capturedState?.Name, capturedState?.Value, request.VariableId, request.SelectedTag, request.ExpectedValue,
+            replacing: request.Replacing);
         capture.CancelPicking();
         return Results.NoContent();
     }
@@ -703,7 +705,7 @@ internal sealed record SavePrimaryTargetRequest(string Condition, bool Replacing
 internal sealed record PickStart(long GuideId, string ContextId);
 internal sealed record SaveCompletionTargetRequest(string Kind, int? StateAttributeIndex = null,
     string? VariableId = null, string? SelectedTag = null, string? ExpectedValue = null,
-    int? ProcessId = null);
+    int? ProcessId = null, bool Replacing = false);
 
 internal sealed record EditWebValidation(string Kind, string? ExpectedValue);
 
