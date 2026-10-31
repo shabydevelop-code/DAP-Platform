@@ -24,7 +24,24 @@ public sealed class WindowsTargetResolver
         try
         {
             var nearby = new List<string>();
-            if (matchCount == 0)
+            if (matchCount > 1)
+            {
+                // Inspect the actual matching elements without changing resolution behavior.
+                foreach (var element in Find(root, locator).Take(4))
+                {
+                    try
+                    {
+                        var rect = element.Current.BoundingRectangle;
+                        var parent = TreeWalker.RawViewWalker.GetParent(element);
+                        var parentName = parent?.Current.Name ?? "";
+                        var parentType = parent?.Current.ControlType.ProgrammaticName ?? "";
+                        nearby.Add($"name='{element.Current.Name}' type='{element.Current.ControlType.ProgrammaticName}' automationId='{element.Current.AutomationId}' offscreen={element.Current.IsOffscreen} bounds='{rect}' parentName='{parentName}' parentType='{parentType}'");
+                    }
+                    catch (ElementNotAvailableException) { }
+                    catch (System.Runtime.InteropServices.COMException) { }
+                }
+            }
+            else if (matchCount == 0)
             {
                 // One bounded diagnostic snapshot per missing locator, never on every poll.
                 foreach (AutomationElement element in root.FindAll(TreeScope.Descendants, Condition.TrueCondition))
