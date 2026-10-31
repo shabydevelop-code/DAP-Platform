@@ -570,8 +570,15 @@ public sealed class WindowsGuideRuntime
                 // terminating the session. Explicit manual advancement requires a
                 // separate learner navigation action and must not be fabricated here.
 
+                // Once the target is stable and its bubble is visible, reduce expensive
+                // full-tree UIA reconciliation. Keep a bounded refresh to detect grid
+                // rerenders, target replacement, and viewport changes without caching
+                // an element indefinitely. Pending clicks retain the fast poll interval.
+                var stablePollInterval = clicked && clickCompleted.Task.IsCompleted
+                    ? _pollInterval
+                    : TimeSpan.FromMilliseconds(Math.Max(_pollInterval.TotalMilliseconds, 750));
                 return await GuideActiveStepState.WaitAsync(
-                    GuideStepReconciliationResult.WaitingForAction, _pollInterval, cancellationToken);
+                    GuideStepReconciliationResult.WaitingForAction, stablePollInterval, cancellationToken);
             }
 
             await sharedEngine.RunAsync(activeState, (_, token) => ReconcileAsync(token), cancellationToken);
