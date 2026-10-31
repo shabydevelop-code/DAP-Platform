@@ -360,6 +360,12 @@ app.MapDelete("/api/guides/{id:long}/steps/{stepId}/primary-target",
     return Results.NoContent();
 });
 
+app.MapPut("/api/guides/{id:long}/steps/{stepId}/completion-target",
+    (long id, string stepId, EditWebValidation request) =>
+{
+    V5GuideWriter.UpdateCompletionCondition(id, stepId, request.Kind, request.ExpectedValue);
+    return Results.NoContent();
+});
 app.MapDelete("/api/guides/{id:long}/steps/{stepId}/completion-target",
     (long id, string stepId) =>
 {
