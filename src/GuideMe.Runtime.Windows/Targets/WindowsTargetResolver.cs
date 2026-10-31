@@ -167,6 +167,45 @@ public sealed class WindowsTargetResolver
         };
     }
 
+    // Value-based completion targets may have a dynamic UIA Name (for example,
+    // a case heading containing a newly allocated number). Resolve by the
+    // observed value and captured structural anchors, never by an old name.
+    // More than one match remains ambiguous rather than selecting arbitrarily.
+    public TargetResolution<AutomationElement> ResolveByObservedValue(
+        AutomationElement root, TargetDescriptor descriptor, string expectedValue, bool contains)
+    {
+        if (descriptor.Runtime != TargetRuntime.Windows)
+            throw new InvalidOperationException("WindowsTargetResolver can resolve only Windows targets.");
+        if (string.IsNullOrEmpty(expectedValue) || !TryGetControlType(descriptor.ControlType, out var type))
+            return TargetResolution<AutomationElement>.NotFound();
+
+        var candidates = root.FindAll(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.ControlTypeProperty, type))
+            .Cast<AutomationElement>();
+        AutomationElement? match = null;
+        foreach (var candidate in candidates)
+        {
+            try
+            {
+                var value = candidate.TryGetCurrentPattern(ValuePattern.Pattern, out var pattern)
+                    ? ((ValuePattern)pattern).Current.Value
+                    : candidate.Current.Name;
+                var valueMatches = contains
+                    ? value?.Contains(expectedValue, StringComparison.Ordinal) == true
+                    : string.Equals(value, expectedValue, StringComparison.Ordinal);
+                if (!valueMatches || !MatchesAnchors(candidate, descriptor.Anchors))
+                    continue;
+                if (match is not null)
+                    return TargetResolution<AutomationElement>.Ambiguous(2);
+                match = candidate;
+            }
+            catch (ElementNotAvailableException) { }
+        }
+        return match is null
+            ? TargetResolution<AutomationElement>.NotFound()
+            : TargetResolution<AutomationElement>.Resolved(match);
+    }
+
     private static IEnumerable<AutomationElement> FindForCapturedType(
         AutomationElement root, Locator locator, string? capturedType)
     {
