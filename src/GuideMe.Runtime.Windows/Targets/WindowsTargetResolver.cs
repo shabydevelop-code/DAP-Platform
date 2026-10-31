@@ -85,7 +85,7 @@ public sealed class WindowsTargetResolver
         // An unanchored locator must resolve to exactly one element.
         if (descriptor.Anchors.Count == 0 && IsUniqueExactLocator(descriptor.Locator))
         {
-            var matches = Find(root, descriptor.Locator).Take(2).ToArray();
+            var matches = FilterCapturedType(Find(root, descriptor.Locator), descriptor.ControlType).Take(2).ToArray();
             DiagnoseExactLookup(root, descriptor.Locator, matches.Length);
             return matches.Length switch
             {
@@ -112,8 +112,8 @@ public sealed class WindowsTargetResolver
                 conditions.Add(condition);
             }
             var combined = new AndCondition(conditions.ToArray());
-            var matched = root.FindAll(TreeScope.Descendants, combined)
-                .Cast<AutomationElement>()
+            var matched = FilterCapturedType(root.FindAll(TreeScope.Descendants, combined)
+                .Cast<AutomationElement>(), descriptor.ControlType)
                 .Where(candidate => descriptor.Anchors
                     .Where(anchor => !nativeSelfAnchors.Contains(anchor))
                     .All(anchor => MatchesAnchor(candidate, anchor)))
@@ -133,7 +133,7 @@ public sealed class WindowsTargetResolver
 
         var primaryFindStopwatch = Stopwatch.StartNew();
         var primaryFindCpuStarted = process.TotalProcessorTime;
-        var candidates = Find(root, descriptor.Locator).ToList();
+        var candidates = FilterCapturedType(Find(root, descriptor.Locator), descriptor.ControlType).ToList();
         primaryFindStopwatch.Stop();
         var primaryFindCpu = process.TotalProcessorTime - primaryFindCpuStarted;
         var primaryCandidateCount = candidates.Count;
@@ -171,6 +171,18 @@ public sealed class WindowsTargetResolver
             1 => TargetResolution<AutomationElement>.Resolved(candidates[0]),
             _ => TargetResolution<AutomationElement>.Ambiguous(candidates.Count)
         };
+    }
+
+    private static IEnumerable<AutomationElement> FilterCapturedType(
+        IEnumerable<AutomationElement> candidates, string? controlType)
+    {
+        if (string.IsNullOrWhiteSpace(controlType))
+            return candidates;
+        return candidates.Where(element =>
+        {
+            try { return string.Equals(element.Current.ControlType.ProgrammaticName, controlType, StringComparison.Ordinal); }
+            catch (ElementNotAvailableException) { return false; }
+        });
     }
 
     private static AutomationElement? FindRawAncestor(AutomationElement candidate, Locator locator)
