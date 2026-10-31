@@ -212,11 +212,19 @@ public sealed class WindowsGuideRuntime
                 // Completion is evaluated before the source context. A valid learner
                 // action may navigate away from that context while persisted
                 // post-action conditions become true on the destination screen.
-                if (clicked && clickCompleted.Task.IsCompleted && sharedEngine.EvaluateCompletion(activeState, 
-                            true,
-                            AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction)) == GuideStepReconciliationResult.Completed)
+                if (clicked && clickCompleted.Task.IsCompleted)
                 {
-                    return GuideStepReconciliationResult.Completed;
+                    // Once activation was observed, the source control may have been
+                    // removed by navigation. Only the destination completion conditions
+                    // matter now; never re-resolve the obsolete source or its context.
+                    var conditionsSatisfied = AreCompletionConditionsSatisfied(
+                        windowRoot, step, completionTargetsBeforeAction);
+                    if (sharedEngine.EvaluateCompletion(activeState, true, conditionsSatisfied)
+                        == GuideStepReconciliationResult.Completed)
+                        return GuideStepReconciliationResult.Completed;
+
+                    return await GuideActiveStepState.WaitAsync(
+                        GuideStepReconciliationResult.WaitingForAction, _pollInterval, cancellationToken);
                 }
 
                 var contextWatch = Stopwatch.StartNew();
