@@ -325,11 +325,12 @@ function renderSteps() {
     const dynamicWindowsControl = context?.Runtime === 'Windows' &&
       ['ControlType.Button','ControlType.Hyperlink','ControlType.Text','ControlType.DataItem',
        'ControlType.ListItem'].includes(element?.ControlType);
-    const editableTargetBinding = locatorTextBinding(locators[0]) ||
+    const dataEntryTarget = isDataEntryTarget(element, locators);
+    const editableTargetBinding = dataEntryTarget ? null : (locatorTextBinding(locators[0]) ||
       (dynamicWindowsControl && locators[0]?.Strategy === 'automation-id' &&
        element?.DisplayName
         ? {value:element.DisplayName, build:next=>next, strategy:'name'}
-        : null);
+        : null));
     const targetValue = editableTargetBinding?.value || '';
     const targetKind = /(?:^|[ >+~])h([1-6])(?=[:.#\\[ >+~]|$)/i.exec(locatorText);
     const storedControlType = ({'ControlType.Button':'כפתור','ControlType.Edit':'שדה קלט',
@@ -1411,6 +1412,24 @@ function friendlyInstructionHtml(value) {
 // The inspector and editor share one value extraction rule; the CSS selector
 // remains a private implementation detail.
 // Only a semantic text value may be edited; never expose or modify the CSS structure.
+// Single runtime-neutral classification for Inspector target-value editing.
+// Extend these categories here when additional UI control types are introduced.
+function isDataEntryTarget(element, locators) {
+  const type = String(element?.ControlType || '').toLowerCase();
+  const selector = String(locators?.[0]?.Value || '');
+  const entryTypes = new Set([
+    'controltype.edit', 'controltype.document', 'controltype.combobox',
+    'textarea', 'select'
+  ]);
+  if (entryTypes.has(type)) return true;
+  const inputSelector = type === 'input' ||
+    /(?:^|[ >+~])input(?=[:.#\\[ >+~]|$)/i.test(selector);
+  if (!inputSelector) return false;
+  // HTML input elements may be buttons. Classify by their actual type.
+  if (/\\[type\\s*=\\s*["']?(?:button|submit|reset|image)["']?\\s*\\]/i.test(selector))
+    return false;
+  return true;
+}
 function locatorTextBinding(locator) {
   if (!locator?.Value) return null;
   const original = locator.Value;
