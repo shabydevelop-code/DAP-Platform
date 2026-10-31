@@ -701,6 +701,7 @@ WHERE GuideId=$guideId AND StepOrder<0";
     // Runtime-neutral primary target writer. Locator discovery belongs to the
     // runtime adapter; V5 persistence and transaction semantics are shared.
     internal sealed record TargetLocator(string Strategy, string Value);
+    internal sealed record TargetAnchor(TargetLocator Locator, string Relation);
     internal static void SavePrimaryTargetLocatorTemplate(long guideId, string stepId,
         string locatorValue, string? locatorStrategy = null)
     {
