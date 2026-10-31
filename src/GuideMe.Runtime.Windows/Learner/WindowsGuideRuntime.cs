@@ -406,7 +406,8 @@ public sealed class WindowsGuideRuntime
 
                     if (scrollSucceeded)
                     {
-                        Console.Error.WriteLine(
+                        if (Environment.GetEnvironmentVariable("GUIDEME_VARIABLE_DIAGNOSTICS") == "1")
+                            Console.Error.WriteLine(
                             $"[GuideMe Windows guide] Step '{step.Id}' centered initial target in its scroll viewport.");
                         return await GuideActiveStepState.WaitAsync(
                             GuideStepReconciliationResult.WaitingForAction, _pollInterval, cancellationToken);
@@ -522,7 +523,8 @@ public sealed class WindowsGuideRuntime
                     catch (ElementNotAvailableException) { }
                     catch (InvalidOperationException) { }
 
-                    Console.Error.WriteLine(
+                    if (Environment.GetEnvironmentVariable("GUIDEME_VARIABLE_DIAGNOSTICS") == "1")
+                        Console.Error.WriteLine(
                         $"[GuideMe Windows guide] input ready Step {step.Order} '{step.Id}'.");
                 }
 
