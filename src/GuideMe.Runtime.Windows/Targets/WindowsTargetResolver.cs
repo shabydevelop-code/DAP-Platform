@@ -41,24 +41,6 @@ public sealed class WindowsTargetResolver
                     catch (System.Runtime.InteropServices.COMException) { }
                 }
             }
-            else if (matchCount == 0)
-            {
-                // One bounded diagnostic snapshot per missing locator, never on every poll.
-                foreach (AutomationElement element in root.FindAll(TreeScope.Descendants, Condition.TrueCondition))
-                {
-                    try
-                    {
-                        var name = element.Current.Name ?? "";
-                        if (name.Contains(locator.Value, StringComparison.OrdinalIgnoreCase)
-                            || name.Contains("פניה", StringComparison.Ordinal))
-                        {
-                            nearby.Add($"name='{name}' type='{element.Current.ControlType.ProgrammaticName}' automationId='{element.Current.AutomationId}'");
-                            if (nearby.Count == 12) break;
-                        }
-                    }
-                    catch (ElementNotAvailableException) { }
-                }
-            }
             var rootName = root.Current.Name;
             var message = $"{DateTimeOffset.UtcNow:O} event=windows-target-lookup strategy='{locator.Strategy}' value='{locator.Value}' matches={matchCount} root='{rootName}' nearby=[{string.Join("; ", nearby)}]{Environment.NewLine}";
             File.AppendAllText(Path.Combine(Path.GetTempPath(), "GuideMe-variable-diagnostic.log"), message);
@@ -86,6 +68,16 @@ public sealed class WindowsTargetResolver
         if (descriptor.Anchors.Count == 0 && IsUniqueExactLocator(descriptor.Locator))
         {
             var matches = FindForCapturedType(root, descriptor.Locator, descriptor.ControlType).Take(2).ToArray();
+            stopwatch.Stop();
+            if (Environment.GetEnvironmentVariable("GUIDEME_VARIABLE_DIAGNOSTICS") == "1")
+            {
+                try
+                {
+                    File.AppendAllText(Path.Combine(Path.GetTempPath(), "GuideMe-variable-diagnostic.log"),
+                        $"{DateTimeOffset.UtcNow:O} event=windows-target-timing strategy='{descriptor.Locator.Strategy}' value='{descriptor.Locator.Value}' controlType='{descriptor.ControlType}' matches={matches.Length} elapsedMs={stopwatch.ElapsedMilliseconds}{Environment.NewLine}");
+                }
+                catch (IOException) { }
+            }
             DiagnoseExactLookup(root, descriptor.Locator, matches.Length);
             return matches.Length switch
             {
