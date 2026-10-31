@@ -358,8 +358,6 @@ body .brand-heading strong span { font-size: 26px; }
 
 /* Compact RTL steps header: title and explanation together, actions underneath on the right. */
 #steps-panel .steps-panel-header{display:flex;flex-direction:column;align-items:stretch;gap:10px;direction:rtl;text-align:right}
-#steps-panel .steps-heading-line{display:flex;align-items:baseline;justify-content:flex-start;flex-wrap:wrap;column-gap:12px;row-gap:2px;min-width:0}
-#steps-panel .steps-heading-line h2,#steps-panel .steps-heading-line p{margin:0}
 #steps-panel .steps-panel-header>.steps-toolbar{display:flex;align-self:flex-start;align-items:center;justify-content:flex-start;flex-wrap:nowrap;gap:8px;max-width:100%;width:min(440px,100%);direction:rtl}
 #steps-panel .steps-panel-header>.steps-toolbar .btn{flex:0 0 auto;white-space:nowrap}
 #steps-panel .steps-panel-header>.steps-toolbar .search{flex:1 1 0;width:0;min-width:90px;max-width:none}
@@ -390,3 +388,5 @@ body .brand-heading strong span { font-size: 26px; }
 }
 
 #steps-panel .steps-panel-header{padding-top:14px;padding-bottom:10px;gap:8px}
+
+#steps-panel .steps-panel-header{padding-top:10px;padding-bottom:10px;gap:0}
