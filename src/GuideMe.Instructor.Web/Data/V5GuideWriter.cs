@@ -1001,7 +1001,7 @@ WHERE GuideId=$guideId AND StepId=$stepId";
         string? attributeName = null, string? attributeValue = null,
         string? variableId = null, string? selectedTag = null, string? expectedValue = null,
         string runtime = "Web", IReadOnlyList<TargetLocator>? windowsLocators = null,
-        IReadOnlyList<TargetAnchor>? windowsAnchors = null)
+        IReadOnlyList<TargetAnchor>? windowsAnchors = null, bool replacing = false)
     {
         if (runtime is not ("Web" or "Windows"))
             throw new ArgumentException("סביבת יעד לא נתמכת.");
@@ -1075,8 +1075,34 @@ AND r.StepId=s.StepId AND r.RuleType='PrimaryValidation')";
             throw new InvalidOperationException("יש להגדיר קודם רכיב פעולה ותנאי ראשי.");
         check.CommandText = @"SELECT COUNT(*) FROM StepRules WHERE GuideId=$guideId
 AND StepId=$stepId AND RuleType='AdditionalCompletionCondition'";
-        if (Convert.ToInt64(check.ExecuteScalar()) != 0)
-            throw new InvalidOperationException("כבר קיים תנאי השלמה נוסף. יש להסיר אותו לפני בחירת אחר.");
+        var existing = Convert.ToInt64(check.ExecuteScalar());
+        if (replacing ? existing != 1 : existing != 0)
+            throw new InvalidOperationException(replacing
+                ? "לא נמצא תנאי השלמה קיים לעריכה."
+                : "כבר קיים תנאי השלמה נוסף.");
+        if (replacing)
+        {
+            check.CommandText = @"SELECT ElementId FROM StepTargets WHERE GuideId=$guideId
+AND StepId=$stepId AND UsageId='completion' AND Purpose='Completion'";
+            var oldElementId = check.ExecuteScalar()?.ToString()
+                ?? throw new InvalidOperationException("רכיב ההשלמה הקיים חסר.");
+            check.Parameters.AddWithValue("$oldElementId", oldElementId);
+            check.CommandText = @"DELETE FROM StepRules WHERE GuideId=$guideId
+AND StepId=$stepId AND RuleType='AdditionalCompletionCondition'";
+            check.ExecuteNonQuery();
+            check.CommandText = @"DELETE FROM StepTargets WHERE GuideId=$guideId
+AND StepId=$stepId AND UsageId='completion' AND Purpose='Completion'";
+            check.ExecuteNonQuery();
+            check.CommandText = @"DELETE FROM ElementAnchors WHERE GuideId=$guideId AND ElementId=$oldElementId";
+            check.ExecuteNonQuery();
+            check.CommandText = @"DELETE FROM Elements WHERE GuideId=$guideId AND ElementId=$oldElementId";
+            check.ExecuteNonQuery();
+            check.CommandText = @"DELETE FROM Elements WHERE GuideId=$guideId
+AND NOT EXISTS (SELECT 1 FROM StepTargets t WHERE t.GuideId=Elements.GuideId AND t.ElementId=Elements.ElementId)
+AND NOT EXISTS (SELECT 1 FROM ElementAnchors a WHERE a.GuideId=Elements.GuideId
+AND (a.ElementId=Elements.ElementId OR a.AnchorElementId=Elements.ElementId))";
+            check.ExecuteNonQuery();
+        }
 
         var elementId = "element-" + Guid.NewGuid().ToString("N");
         using var command = connection.CreateCommand();
