@@ -719,7 +719,7 @@ WHERE GuideId=$guideId AND StepOrder<0";
         command.CommandTimeout = 3;
         command.Parameters.AddWithValue("$guideId", guideId);
         command.Parameters.AddWithValue("$stepId", stepId);
-        command.CommandText = @"SELECT e.ElementId, e.LocatorsJson FROM Elements e
+        command.CommandText = @"SELECT e.ElementId, e.LocatorsJson, e.ControlType, e.DisplayName FROM Elements e
 JOIN StepTargets t ON t.GuideId=e.GuideId AND t.ElementId=e.ElementId
 WHERE t.GuideId=$guideId AND t.StepId=$stepId AND t.Purpose='Primary'";
         string elementId, json;
