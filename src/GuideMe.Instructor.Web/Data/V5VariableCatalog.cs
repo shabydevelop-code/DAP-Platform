@@ -191,6 +191,28 @@ internal static class V5VariableCatalog
         cmd.Parameters.AddWithValue("$runtime", runtime);
         if (Convert.ToInt64(cmd.ExecuteScalar()) != 1)
             throw new InvalidOperationException("הרכיב או המשתנה אינם שייכים לשלב באפליקציית היעד.");
+        // When a Windows variable is read from Name, the captured Name may
+        // contain the very value being extracted (e.g. "פניה 119"). Do not
+        // persist that sample number as an exact locator. Retain the literal
+        // surrounding text and match only the extracted portion dynamically.
+        // The Windows resolver still rejects zero or multiple matches.
+        if (runtime == "Windows" && property == "name" &&
+            !string.IsNullOrWhiteSpace(pattern) && locators[0].Strategy == "name")
+        {
+            var capturedName = locators[0].Value;
+            var match = Regex.Match(capturedName, pattern, RegexOptions.CultureInvariant,
+                TimeSpan.FromMilliseconds(250));
+            if (match.Success)
+            {
+                var extracted = match.Groups.Count > 1 ? match.Groups[1] : match.Groups[0];
+                if (extracted.Success && extracted.Length > 0)
+                {
+                    var dynamicName = "^" + Regex.Escape(capturedName[..extracted.Index]) +
+                        "(?:" + pattern + ")" + Regex.Escape(capturedName[(extracted.Index + extracted.Length)..]) + "$";
+                    locators = new[] { new V5GuideWriter.TargetLocator("name-regex", dynamicName) };
+                }
+            }
+        }
         var usageId = "variable-" + Guid.NewGuid().ToString("N");
         var elementId = "element-" + Guid.NewGuid().ToString("N");
         cmd.Parameters.AddWithValue("$usage", usageId);
