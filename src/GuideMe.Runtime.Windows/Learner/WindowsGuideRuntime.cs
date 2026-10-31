@@ -157,12 +157,28 @@ public sealed class WindowsGuideRuntime
         AutomationElement? subscribedTarget = null;
         AutomationElement? subscribedSelectionTarget = null;
 
+        void DiagnoseTiming(string phase, long elapsedMs)
+        {
+            if (Environment.GetEnvironmentVariable("GUIDEME_VARIABLE_DIAGNOSTICS") != "1")
+                return;
+            try
+            {
+                File.AppendAllText(Path.Combine(Path.GetTempPath(), "GuideMe-variable-diagnostic.log"),
+                    $"{DateTimeOffset.UtcNow:O} event=windows-step-phase step={step.Order} phase={phase} elapsedMs={elapsedMs}{Environment.NewLine}");
+            }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+        }
+
         var resolutionAttempt = 0;
 
         var initialVisibilityChecked = false;
         var initialInputFocusApplied = false;
 
+        var baselineWatch = Stopwatch.StartNew();
         var completionTargetsBeforeAction = CaptureReplacementBaselines(windowRoot, step);
+        baselineWatch.Stop();
+        DiagnoseTiming("completion-baselines", baselineWatch.ElapsedMilliseconds);
 
 
         // Authoritative target resolution below already checks the exact scoped
@@ -203,7 +219,10 @@ public sealed class WindowsGuideRuntime
                     return GuideStepReconciliationResult.Completed;
                 }
 
+                var contextWatch = Stopwatch.StartNew();
                 var stepContextActive = IsStepContextActive(windowRoot, step);
+                contextWatch.Stop();
+                DiagnoseTiming("step-context", contextWatch.ElapsedMilliseconds);
                 if (!stepContextActive)
                     Diagnose($"step-context-inactive clickObserved={clickCompleted.Task.IsCompleted}");
 
@@ -223,7 +242,10 @@ public sealed class WindowsGuideRuntime
                 {
                     // Re-resolve against the live UIA tree after every grid refresh.
                     // Reusing a cached element could bind to a stale or different row.
+                    var lookupWatch = Stopwatch.StartNew();
                     resolution = _resolver.Resolve(GetActiveResolutionRoot(windowRoot), step.Target);
+                    lookupWatch.Stop();
+                    DiagnoseTiming("target-resolution", lookupWatch.ElapsedMilliseconds);
 
                 }
                 catch (ElementNotAvailableException)
