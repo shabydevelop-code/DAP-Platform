@@ -174,7 +174,7 @@ internal sealed class WindowsTargetPicker : IDisposable
         if (!GetCursorPos(out var cursor)) return;
         try
         {
-            var element = AutomationElement.FromPoint(new System.Windows.Point(cursor.X, cursor.Y));
+            var element = WindowsTargetInspector.ElementAtPoint(processId, cursor.X, cursor.Y);
             if (element is null || !WindowsTargetInspector.BelongsToProcess(element, processId))
             {
                 hovered = null;
