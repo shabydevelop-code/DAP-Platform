@@ -292,7 +292,10 @@ public sealed class WindowsGuideRuntime
 
                 if (resolution.Status != TargetResolutionStatus.Resolved || resolution.Target is null)
                 {
-                    Diagnose($"target={resolution.Status} clickObserved={clickCompleted.Task.IsCompleted}");
+                    Diagnose($"target={resolution.Status} clickObserved={clickCompleted.Task.IsCompleted} " +
+                        $"locator={step.Target.Locator.Strategy}:'{step.Target.Locator.Value}' " +
+                        $"type='{step.Target.ControlType}' anchors={step.Target.Anchors.Count} " +
+                        $"root='{GetActiveResolutionRoot(windowRoot).Current.Name}'");
                     ReportBubbleAvailable(false);
                     await _bubbles.HideAsync();
                     if (IsDisappearedTargetStepComplete())
