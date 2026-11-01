@@ -534,7 +534,8 @@ public sealed class WindowsGuideRuntime
                 // Some WinUI ListItems navigate and disappear without delivering
                 // SelectionItem events. Observe a real click on the exact item,
                 // rather than treating disappearance as successful selection.
-                if (clicked && target.Current.ControlType == ControlType.ListItem &&
+                if (clicked && (target.Current.ControlType == ControlType.ListItem ||
+                    target.Current.ControlType == ControlType.MenuItem) &&
                     (observedListItem is null || !SameElement(observedListItem, target)))
                 {
                     listItemClickObserver?.Dispose();
