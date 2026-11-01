@@ -41,10 +41,11 @@ internal static class InstructorApplicationDiscovery
         return windows.OrderBy(w => w.Title, StringComparer.CurrentCultureIgnoreCase).ToArray();
     }
 
-    // Shell hosts are not stable application identities.
+    // ApplicationFrameHost owns visible top-level windows for packaged Windows apps
+    // (including some Calculator versions). Excluding it hides those applications
+    // entirely; keep the actual window PID for consistent picker and runtime matching.
     private static bool IsShellInfrastructure(string name) =>
-        name.Equals("TextInputHost", StringComparison.OrdinalIgnoreCase) ||
-        name.Equals("ApplicationFrameHost", StringComparison.OrdinalIgnoreCase);
+        name.Equals("TextInputHost", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsCloaked(nint hwnd)
     {
