@@ -86,6 +86,9 @@ internal sealed class WindowsTargetPicker : IDisposable
     [DllImport("user32.dll")] private static extern uint GetDpiForWindow(nint hwnd);
     [DllImport("user32.dll")] private static extern nint GetWindowLongPtr(nint hwnd, int index);
     [DllImport("user32.dll")] private static extern nint SetWindowLongPtr(nint hwnd, int index, nint value);
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetWindowPos(nint hwnd, nint insertAfter, int x, int y, int width, int height, uint flags);
 
     internal PickerStatus Status()
     {
@@ -239,6 +242,21 @@ internal sealed class WindowsTargetPicker : IDisposable
                 hovered = null;
                 outline!.Visibility = Visibility.Collapsed;
                 return;
+            }
+            // Native popup menus can be raised above a Topmost WPF overlay after opening.
+            // Reassert its z-order without activating it or consuming mouse input.
+            var cursorWindow = WindowFromPoint(cursor);
+            if (cursorWindow != 0)
+            {
+                var windowClass = new System.Text.StringBuilder(64);
+                GetClassName(cursorWindow, windowClass, windowClass.Capacity);
+                if (string.Equals(windowClass.ToString(), "#32768", StringComparison.Ordinal) && overlay is not null)
+                {
+                    var overlayHandle = new WindowInteropHelper(overlay).Handle;
+                    const uint noMove = 0x0002, noSize = 0x0001, noActivate = 0x0010;
+                    if (overlayHandle != 0)
+                        SetWindowPos(overlayHandle, (nint)(-1), 0, 0, 0, 0, noMove | noSize | noActivate);
+                }
             }
             hovered = element;
             DiagnoseHover($"selected-bounds name='{element.Current.Name}' " +
