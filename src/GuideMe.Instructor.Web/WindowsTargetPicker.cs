@@ -241,6 +241,9 @@ internal sealed class WindowsTargetPicker : IDisposable
                 return;
             }
             hovered = element;
+            DiagnoseHover($"selected-bounds name='{element.Current.Name}' " +
+                $"left={bounds.Left:F1} top={bounds.Top:F1} width={bounds.Width:F1} height={bounds.Height:F1} " +
+                $"overlayVisible={overlay?.IsVisible} overlayTopmost={overlay?.Topmost}");
             var a = transform.Transform(new System.Windows.Point(bounds.Left, bounds.Top));
             var b = transform.Transform(new System.Windows.Point(bounds.Right, bounds.Bottom));
             Canvas.SetLeft(outline!, a.X - origin.X);
@@ -248,6 +251,8 @@ internal sealed class WindowsTargetPicker : IDisposable
             outline!.Width = b.X - a.X;
             outline.Height = b.Y - a.Y;
             outline.Visibility = Visibility.Visible;
+            DiagnoseHover($"outline-visible left={a.X - origin.X:F1} top={a.Y - origin.Y:F1} " +
+                $"width={outline.Width:F1} height={outline.Height:F1}");
             if (Environment.GetEnvironmentVariable("GUIDEME_DIAGNOSTICS") == "1")
                 DiagnoseHover($"outline-visible name='{element.Current.Name}' left={Canvas.GetLeft(outline):F1} top={Canvas.GetTop(outline):F1} width={outline.Width:F1} height={outline.Height:F1}");
         }
