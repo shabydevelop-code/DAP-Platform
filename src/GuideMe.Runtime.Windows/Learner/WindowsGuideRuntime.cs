@@ -312,10 +312,22 @@ public sealed class WindowsGuideRuntime
                 activeState.ObserveTarget(true);
                 targetWasResolved = true;
 
-                var isTextEditTarget = target.Current.ControlType == ControlType.Edit
+                var isTextEditTarget = (target.Current.ControlType == ControlType.Edit ||
+                    target.Current.ControlType == ControlType.Document)
                     && GuideStepExecutionPolicy.IsAutomaticValidationStep(step)
                     && !clicked
                     && !targetDisappeared;
+
+                // Document editors commonly have TextPattern but no ValuePattern.
+                // Treat leaving the document as the commit; do not advance while
+                // the learner is still typing or continuously validate keystrokes.
+                if (isTextEditTarget && target.Current.ControlType == ControlType.Document)
+                {
+                    if (target.Current.HasKeyboardFocus)
+                        Volatile.Write(ref textTargetObservedFocused, 1);
+                    else if (Volatile.Read(ref textTargetObservedFocused) == 1)
+                        Volatile.Write(ref textTargetCommitted, 1);
+                }
 
                 if (isTextEditTarget && target.TryGetCurrentPattern(ValuePattern.Pattern, out var textValuePattern))
                 {
