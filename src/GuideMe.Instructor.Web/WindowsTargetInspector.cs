@@ -22,6 +22,42 @@ internal static class WindowsTargetInspector
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool GetCursorPos(out Point point);
 
+    [DllImport("user32.dll")]
+    private static extern nint WindowFromPoint(Point point);
+    [DllImport("user32.dll")]
+    private static extern nint GetAncestor(nint hwnd, uint flags);
+    [DllImport("user32.dll")]
+    private static extern nint GetWindow(nint hwnd, uint command);
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(nint hwnd, out uint processId);
+
+    // Native Win32 popup menus (#32768) can live outside the application's
+    // UIA window subtree. Check the HWND owner chain rather than UIA ancestry
+    // alone; never accept an unrelated foreground application.
+    internal static bool BelongsToProcess(AutomationElement element, int processId)
+    {
+        try
+        {
+            for (var current = element; current is not null;
+                 current = TreeWalker.RawViewWalker.GetParent(current))
+            {
+                if (current.Current.ProcessId == processId &&
+                    current.Current.NativeWindowHandle != 0)
+                    return true;
+            }
+            if (!GetCursorPos(out var point)) return false;
+            var hwnd = GetAncestor(WindowFromPoint(point), 2); // GA_ROOT
+            for (var i = 0; hwnd != 0 && i < 16; i++, hwnd = GetWindow(hwnd, 4)) // GW_OWNER
+            {
+                GetWindowThreadProcessId(hwnd, out var pid);
+                if (pid == processId) return true;
+            }
+        }
+        catch (ElementNotAvailableException) { }
+        catch (COMException) { }
+        return false;
+    }
+
     internal static Inspection Inspect(int processId, bool focused) => Inspect(processId, focused, null);
 
     internal static Inspection Inspect(int processId, bool focused, AutomationElement? capturedElement)
@@ -58,9 +94,21 @@ internal static class WindowsTargetInspector
         {
             var matchingRoots = roots.Cast<AutomationElement>()
                 .Where(candidate => IsDescendantOf(selected, candidate)).Take(2).ToArray();
-            if (matchingRoots.Length != 1)
+            if (matchingRoots.Length == 1)
+                root = matchingRoots[0];
+            else if (matchingRoots.Length == 0 && BelongsToProcess(selected, processId))
+            {
+                // A native menu can be represented as a separate UIA tree.
+                // Resolve against its actual top-level ancestor.
+                root = selected;
+                var walker = TreeWalker.RawViewWalker;
+                for (var parent = walker.GetParent(root); parent is not null &&
+                     !Automation.Compare(parent, AutomationElement.RootElement);
+                     parent = walker.GetParent(root))
+                    root = parent;
+            }
+            else
                 throw new InvalidOperationException("לא נמצא חלון תפריט חד־משמעי של האפליקציה.");
-            root = matchingRoots[0];
         }
 
         var name = selected.Current.Name ?? "";
