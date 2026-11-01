@@ -49,8 +49,21 @@ internal static class WindowsTargetInspector
             selected = AutomationElement.FromPoint(new System.Windows.Point(point.X, point.Y));
         }
 
-        if (selected is null || selected.Current.ProcessId != processId || !IsDescendantOf(selected, root))
-            throw new InvalidOperationException("הרכיב שנבחר אינו שייך לחלון היעד.");
+        if (selected is null || selected.Current.ProcessId != processId)
+            throw new InvalidOperationException("הרכיב שנבחר אינו שייך לאפליקציה שנבחרה.");
+
+        // Popup menus can be separate top-level UIA windows of the same process.
+        // Resolve against the selected popup itself, never against an unrelated app.
+        if (!IsDescendantOf(selected, root))
+        {
+            var popupRoots = AutomationElement.RootElement.FindAll(TreeScope.Children,
+                new PropertyCondition(AutomationElement.ProcessIdProperty, processId));
+            var matchingRoots = popupRoots.Cast<AutomationElement>()
+                .Where(candidate => IsDescendantOf(selected, candidate)).Take(2).ToArray();
+            if (matchingRoots.Length != 1)
+                throw new InvalidOperationException("לא נמצא חלון תפריט חד־משמעי של האפליקציה.");
+            root = matchingRoots[0];
+        }
 
         var name = selected.Current.Name ?? "";
         var id = selected.Current.AutomationId ?? "";
