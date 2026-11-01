@@ -31,12 +31,12 @@ internal static class WindowsTargetInspector
 
         var roots = AutomationElement.RootElement.FindAll(TreeScope.Children,
             new PropertyCondition(AutomationElement.ProcessIdProperty, processId));
-        if (roots.Count != 1)
-            throw new InvalidOperationException(roots.Count == 0
-                ? "לא נמצא חלון פעיל של האפליקציה שנבחרה."
-                : "נמצאו מספר חלונות של אותו תהליך. יש לבחור חלון חד־משמעי.");
+        if (roots.Count == 0)
+            throw new InvalidOperationException("לא נמצא חלון פעיל של האפליקציה שנבחרה.");
 
-        var root = roots[0];
+        // A menu popup can add another top-level UIA window. Determine the
+        // owning root from the captured element instead of assuming one window.
+        AutomationElement? root = roots.Count == 1 ? roots[0] : null;
         AutomationElement? selected;
         if (capturedElement is not null)
             selected = capturedElement;
@@ -54,11 +54,9 @@ internal static class WindowsTargetInspector
 
         // Popup menus can be separate top-level UIA windows of the same process.
         // Resolve against the selected popup itself, never against an unrelated app.
-        if (!IsDescendantOf(selected, root))
+        if (root is null || !IsDescendantOf(selected, root))
         {
-            var popupRoots = AutomationElement.RootElement.FindAll(TreeScope.Children,
-                new PropertyCondition(AutomationElement.ProcessIdProperty, processId));
-            var matchingRoots = popupRoots.Cast<AutomationElement>()
+            var matchingRoots = roots.Cast<AutomationElement>()
                 .Where(candidate => IsDescendantOf(selected, candidate)).Take(2).ToArray();
             if (matchingRoots.Length != 1)
                 throw new InvalidOperationException("לא נמצא חלון תפריט חד־משמעי של האפליקציה.");
