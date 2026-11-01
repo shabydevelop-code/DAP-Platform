@@ -174,6 +174,7 @@ public sealed class WindowsGuideRuntime
         AutomationEventHandler? clickHandler = null;
         AutomationElement? subscribedTarget = null;
         AutomationElement? subscribedSelectionTarget = null;
+        AutomationPropertyChangedEventHandler? selectionPropertyHandler = null;
         AutomationElement? subscribedExpandTarget = null;
         AutomationPropertyChangedEventHandler? expandHandler = null;
 
@@ -481,6 +482,13 @@ public sealed class WindowsGuideRuntime
                         (subscribedSelectionTarget is null ||
                          !SameElement(subscribedSelectionTarget, selectionTarget)))
                     {
+                        if (subscribedSelectionTarget is not null && selectionPropertyHandler is not null)
+                        {
+                            try { Automation.RemoveAutomationPropertyChangedEventHandler(
+                                subscribedSelectionTarget, selectionPropertyHandler); }
+                            catch (ElementNotAvailableException) { }
+                            selectionPropertyHandler = null;
+                        }
                         if (subscribedSelectionTarget is not null && clickHandler is not null)
                         {
                             try { Automation.RemoveAutomationEventHandler(
@@ -494,6 +502,27 @@ public sealed class WindowsGuideRuntime
                         subscribedSelectionTarget = selectionTarget;
                         Diagnose("selection-subscribed");
                     }
+                }
+
+                // WinUI navigation items may change IsSelected without raising
+                // SelectionItem.ElementSelected. Only a false-to-true transition
+                // on the selected UIA item counts as an explicit user selection.
+                if (clicked && subscribedSelectionTarget is not null &&
+                    selectionPropertyHandler is null)
+                {
+                    selectionPropertyHandler = (_, args) =>
+                    {
+                        if (args.Property == SelectionItemPattern.IsSelectedProperty &&
+                            args.OldValue is bool wasSelected && !wasSelected &&
+                            args.NewValue is bool isSelected && isSelected)
+                        {
+                            Diagnose("selection-property-changed");
+                            clickCompleted.TrySetResult();
+                        }
+                    };
+                    Automation.AddAutomationPropertyChangedEventHandler(
+                        subscribedSelectionTarget, TreeScope.Element, selectionPropertyHandler,
+                        SelectionItemPattern.IsSelectedProperty);
                 }
 
                 // Menu headers often expand without raising Invoke or SelectionItem.
@@ -666,6 +695,12 @@ public sealed class WindowsGuideRuntime
             if (subscribedTarget is not null && clickHandler is not null)
             {
                 try { Automation.RemoveAutomationEventHandler(InvokePattern.InvokedEvent, subscribedTarget, clickHandler); }
+                catch (ElementNotAvailableException) { }
+            }
+            if (subscribedSelectionTarget is not null && selectionPropertyHandler is not null)
+            {
+                try { Automation.RemoveAutomationPropertyChangedEventHandler(
+                    subscribedSelectionTarget, selectionPropertyHandler); }
                 catch (ElementNotAvailableException) { }
             }
             if (subscribedSelectionTarget is not null && clickHandler is not null)
