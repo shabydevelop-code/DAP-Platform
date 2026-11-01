@@ -95,8 +95,7 @@ internal sealed class WindowsListItemClickObserver : IDisposable
                 pressedAt = null;
                 if (start is not null &&
                     Math.Abs(start.Value.X - position.X) <= 8 &&
-                    Math.Abs(start.Value.Y - position.Y) <= 8 &&
-                    IsTargetAt(position))
+                    Math.Abs(start.Value.Y - position.Y) <= 8)
                 {
                     diagnose("list-item-mouse-click");
                     onClick();
