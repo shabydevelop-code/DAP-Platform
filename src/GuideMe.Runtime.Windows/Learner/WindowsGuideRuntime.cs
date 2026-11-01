@@ -1087,7 +1087,13 @@ public sealed class WindowsGuideRuntime
             if (popup == IntPtr.Zero || popup == handle)
                 return windowRoot;
 
-            return AutomationElement.FromHandle(popup) ?? windowRoot;
+            var popupRoot = AutomationElement.FromHandle(popup);
+            // GW_ENABLEDPOPUP can return a native menu (#32768). Menu popups
+            // are not modal content roots: keep document/edit steps scoped to
+            // the application's main window while the menu is open.
+            if (popupRoot?.Current.ControlType == ControlType.Menu)
+                return windowRoot;
+            return popupRoot ?? windowRoot;
         }
         catch (ElementNotAvailableException)
         {
