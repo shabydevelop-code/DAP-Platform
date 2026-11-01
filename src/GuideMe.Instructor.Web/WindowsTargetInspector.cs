@@ -31,6 +31,60 @@ internal static class WindowsTargetInspector
     [DllImport("user32.dll")]
     private static extern uint GetWindowThreadProcessId(nint hwnd, out uint processId);
 
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern int GetClassName(nint hwnd, System.Text.StringBuilder className, int capacity);
+
+    private static bool IsNativeMenu(nint hwnd)
+    {
+        if (hwnd == 0) return false;
+        var name = new System.Text.StringBuilder(64);
+        return GetClassName(hwnd, name, name.Capacity) > 0 &&
+            string.Equals(name.ToString(), "#32768", StringComparison.Ordinal);
+    }
+
+    private static bool IsOwnedByProcess(nint hwnd, int processId)
+    {
+        for (var i = 0; hwnd != 0 && i < 16; i++, hwnd = GetWindow(hwnd, 4))
+        {
+            GetWindowThreadProcessId(hwnd, out var pid);
+            if (pid == processId) return true;
+        }
+        return false;
+    }
+
+    // Win32 menu items may not be returned by UIA's desktop hit testing.
+    // Query the popup HWND directly and choose the deepest menu item whose
+    // UIA bounds contain the pointer. Never invent a menu item from coordinates.
+    internal static AutomationElement? ElementAtPoint(int processId, double x, double y)
+    {
+        var point = new Point { X = (int)x, Y = (int)y };
+        var hwnd = WindowFromPoint(point);
+        if (IsNativeMenu(hwnd) && IsOwnedByProcess(hwnd, processId))
+        {
+            try
+            {
+                var popup = AutomationElement.FromHandle(hwnd);
+                AutomationElement? best = null;
+                var bestArea = double.MaxValue;
+                foreach (AutomationElement candidate in popup.FindAll(TreeScope.Descendants,
+                    new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.MenuItem)))
+                {
+                    var bounds = candidate.Current.BoundingRectangle;
+                    if (!bounds.IsEmpty && bounds.Contains(x, y) &&
+                        bounds.Width * bounds.Height < bestArea)
+                    {
+                        best = candidate;
+                        bestArea = bounds.Width * bounds.Height;
+                    }
+                }
+                if (best is not null) return best;
+            }
+            catch (ElementNotAvailableException) { }
+            catch (COMException) { }
+        }
+        return AutomationElement.FromPoint(new System.Windows.Point(x, y));
+    }
+
     // Native Win32 popup menus (#32768) can live outside the application's
     // UIA window subtree. Check the HWND owner chain rather than UIA ancestry
     // alone; never accept an unrelated foreground application.
@@ -46,12 +100,10 @@ internal static class WindowsTargetInspector
                     return true;
             }
             if (!GetCursorPos(out var point)) return false;
-            var hwnd = GetAncestor(WindowFromPoint(point), 2); // GA_ROOT
-            for (var i = 0; hwnd != 0 && i < 16; i++, hwnd = GetWindow(hwnd, 4)) // GW_OWNER
-            {
-                GetWindowThreadProcessId(hwnd, out var pid);
-                if (pid == processId) return true;
-            }
+            var hwnd = WindowFromPoint(point);
+            if (IsNativeMenu(hwnd) && IsOwnedByProcess(hwnd, processId)) return true;
+            hwnd = GetAncestor(hwnd, 2); // GA_ROOT
+            if (IsOwnedByProcess(hwnd, processId)) return true;
         }
         catch (ElementNotAvailableException) { }
         catch (COMException) { }
@@ -82,7 +134,7 @@ internal static class WindowsTargetInspector
         {
             if (!GetCursorPos(out var point))
                 throw new InvalidOperationException("לא ניתן לקרוא את מיקום העכבר.");
-            selected = AutomationElement.FromPoint(new System.Windows.Point(point.X, point.Y));
+            selected = ElementAtPoint(processId, point.X, point.Y);
         }
 
         if (selected is null)
