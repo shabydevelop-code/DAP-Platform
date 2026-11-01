@@ -230,6 +230,9 @@ internal sealed class WindowsTargetPicker : IDisposable
                 return;
             }
             var bounds = element.Current.BoundingRectangle;
+            if (Environment.GetEnvironmentVariable("GUIDEME_DIAGNOSTICS") == "1")
+                DiagnoseHover($"bounds name='{element.Current.Name}' left={bounds.Left:F1} top={bounds.Top:F1} width={bounds.Width:F1} height={bounds.Height:F1} " +
+                    $"overlayVisible={overlay?.IsVisible} overlayTopmost={overlay?.Topmost}");
             if (bounds.IsEmpty || bounds.Width < 2 || bounds.Height < 2)
             {
                 DiagnoseHover($"bounds-rejected width={bounds.Width} height={bounds.Height}");
@@ -245,6 +248,8 @@ internal sealed class WindowsTargetPicker : IDisposable
             outline!.Width = b.X - a.X;
             outline.Height = b.Y - a.Y;
             outline.Visibility = Visibility.Visible;
+            if (Environment.GetEnvironmentVariable("GUIDEME_DIAGNOSTICS") == "1")
+                DiagnoseHover($"outline-visible name='{element.Current.Name}' left={Canvas.GetLeft(outline):F1} top={Canvas.GetTop(outline):F1} width={outline.Width:F1} height={outline.Height:F1}");
         }
         catch (ElementNotAvailableException ex) { DiagnoseHover($"uia-unavailable {ex.Message}"); hovered = null; outline!.Visibility = Visibility.Collapsed; }
         catch (COMException ex) { DiagnoseHover($"uia-com-error 0x{ex.HResult:X8}"); hovered = null; outline!.Visibility = Visibility.Collapsed; }
