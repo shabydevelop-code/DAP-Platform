@@ -344,6 +344,13 @@ public sealed class WindowsGuideRuntime
                         && foregroundWindow != documentWindow
                         && IsTargetWindowInteractive(windowRoot))
                         Volatile.Write(ref textTargetCommitted, 1);
+
+                    // Native menu headers (e.g. Help) can open a menu while
+                    // the foreground HWND and document focus remain unchanged.
+                    // Detect the visible menu as an explicit leave-editor action.
+                    if (Volatile.Read(ref textTargetObservedFocused) == 1
+                        && IsNativeMenuOpen(windowRoot))
+                        Volatile.Write(ref textTargetCommitted, 1);
                 }
 
                 if (isTextEditTarget && target.TryGetCurrentPattern(ValuePattern.Pattern, out var textValuePattern))
@@ -1129,6 +1136,31 @@ public sealed class WindowsGuideRuntime
             return windowRoot;
         }
     }
+
+    private static bool IsNativeMenuOpen(AutomationElement windowRoot)
+    {
+        try
+        {
+            var handle = new IntPtr(windowRoot.Current.NativeWindowHandle);
+            if (handle == IntPtr.Zero)
+                return false;
+
+            var popup = GetWindow(handle, GwEnabledPopup);
+            if (popup == IntPtr.Zero || popup == handle || !IsWindowVisible(popup))
+                return false;
+
+            var popupRoot = AutomationElement.FromHandle(popup);
+            return popupRoot?.Current.ControlType == ControlType.Menu;
+        }
+        catch (ElementNotAvailableException)
+        {
+            return false;
+        }
+    }
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool IsWindowVisible(IntPtr hWnd);
 
     private const uint GwOwner = 4;
     private const uint GwEnabledPopup = 6;
