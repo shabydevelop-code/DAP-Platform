@@ -174,6 +174,8 @@ public sealed class WindowsGuideRuntime
         AutomationEventHandler? clickHandler = null;
         AutomationElement? subscribedTarget = null;
         AutomationElement? subscribedSelectionTarget = null;
+        WindowsListItemClickObserver? listItemClickObserver = null;
+        AutomationElement? observedListItem = null;
         AutomationPropertyChangedEventHandler? selectionPropertyHandler = null;
         AutomationElement? subscribedExpandTarget = null;
         AutomationPropertyChangedEventHandler? expandHandler = null;
@@ -529,6 +531,19 @@ public sealed class WindowsGuideRuntime
                     }
                 }
 
+                // Some WinUI ListItems navigate and disappear without delivering
+                // SelectionItem events. Observe a real click on the exact item,
+                // rather than treating disappearance as successful selection.
+                if (clicked && target.Current.ControlType == ControlType.ListItem &&
+                    (observedListItem is null || !SameElement(observedListItem, target)))
+                {
+                    listItemClickObserver?.Dispose();
+                    listItemClickObserver = new WindowsListItemClickObserver(
+                        target, () => clickCompleted.TrySetResult(), Diagnose);
+                    observedListItem = target;
+                    Diagnose("list-item-click-observer-started");
+                }
+
                 // WinUI navigation items may change IsSelected without raising
                 // SelectionItem.ElementSelected. Only a false-to-true transition
                 // on the selected UIA item counts as an explicit user selection.
@@ -701,6 +716,7 @@ public sealed class WindowsGuideRuntime
         }
         finally
         {
+            listItemClickObserver?.Dispose();
             if (subscribedTextTarget is not null && textEditPropertyChangedHandler is not null)
             {
                 try
