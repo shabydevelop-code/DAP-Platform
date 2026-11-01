@@ -240,6 +240,7 @@ public sealed class WindowsGuideRuntime
                     // matter now; never re-resolve the obsolete source or its context.
                     var conditionsSatisfied = AreCompletionConditionsSatisfied(
                         windowRoot, step, completionTargetsBeforeAction);
+                    Diagnose($"click-event-observed conditionsSatisfied={conditionsSatisfied}");
                     if (sharedEngine.EvaluateCompletion(activeState, true, conditionsSatisfied)
                         == GuideStepReconciliationResult.Completed)
                         return GuideStepReconciliationResult.Completed;
@@ -450,6 +451,20 @@ public sealed class WindowsGuideRuntime
                         GuideStepReconciliationResult.WaitingForAction, _pollInterval, cancellationToken);
                 }
 
+                if (clicked && Environment.GetEnvironmentVariable("GUIDEME_DIAGNOSTICS") == "1")
+                {
+                    try
+                    {
+                        Diagnose($"click-target name='{target.Current.Name}' type={target.Current.ControlType.ProgrammaticName} " +
+                            $"pid={target.Current.ProcessId} id='{target.Current.AutomationId}' " +
+                            $"invoke={target.TryGetCurrentPattern(InvokePattern.Pattern, out _)} " +
+                            $"selection={target.TryGetCurrentPattern(SelectionItemPattern.Pattern, out _)} " +
+                            $"expand={target.TryGetCurrentPattern(ExpandCollapsePattern.Pattern, out _)}");
+                    }
+                    catch (ElementNotAvailableException) { Diagnose("click-target-unavailable"); }
+                    catch (System.Runtime.InteropServices.COMException) { Diagnose("click-target-uia-error"); }
+                }
+
                 if (clicked && (subscribedTarget is null || !SameElement(subscribedTarget, target)))
                 {
                     if (subscribedTarget is not null && clickHandler is not null)
@@ -500,7 +515,17 @@ public sealed class WindowsGuideRuntime
                             SelectionItemPattern.ElementSelectedEvent, selectionTarget,
                             TreeScope.Element, clickHandler);
                         subscribedSelectionTarget = selectionTarget;
-                        Diagnose("selection-subscribed");
+                        if (Environment.GetEnvironmentVariable("GUIDEME_DIAGNOSTICS") == "1")
+                        {
+                            try
+                            {
+                                var item = (SelectionItemPattern)selectionTarget.GetCurrentPattern(SelectionItemPattern.Pattern);
+                                Diagnose($"selection-subscribed name='{selectionTarget.Current.Name}' " +
+                                    $"type={selectionTarget.Current.ControlType.ProgrammaticName} selected={item.Current.IsSelected}");
+                            }
+                            catch (ElementNotAvailableException) { Diagnose("selection-target-unavailable"); }
+                            catch (System.Runtime.InteropServices.COMException) { Diagnose("selection-target-uia-error"); }
+                        }
                     }
                 }
 
@@ -512,6 +537,8 @@ public sealed class WindowsGuideRuntime
                 {
                     selectionPropertyHandler = (_, args) =>
                     {
+                        if (Environment.GetEnvironmentVariable("GUIDEME_DIAGNOSTICS") == "1")
+                            Diagnose($"selection-property-event old={args.OldValue} new={args.NewValue}");
                         if (args.Property == SelectionItemPattern.IsSelectedProperty &&
                             args.OldValue is bool wasSelected && !wasSelected &&
                             args.NewValue is bool isSelected && isSelected)
