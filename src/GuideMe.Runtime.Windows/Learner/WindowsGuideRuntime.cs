@@ -174,6 +174,8 @@ public sealed class WindowsGuideRuntime
         AutomationEventHandler? clickHandler = null;
         AutomationElement? subscribedTarget = null;
         AutomationElement? subscribedSelectionTarget = null;
+        AutomationElement? subscribedExpandTarget = null;
+        AutomationPropertyChangedEventHandler? expandHandler = null;
 
         void DiagnoseTiming(string phase, long elapsedMs)
         {
@@ -494,6 +496,31 @@ public sealed class WindowsGuideRuntime
                     }
                 }
 
+                // Menu headers often expand without raising Invoke or SelectionItem.
+                // Observe the target's UIA expand state as a click-equivalent action.
+                if (clicked && target.TryGetCurrentPattern(ExpandCollapsePattern.Pattern, out _) &&
+                    (subscribedExpandTarget is null || !SameElement(subscribedExpandTarget, target)))
+                {
+                    if (subscribedExpandTarget is not null && expandHandler is not null)
+                    {
+                        try { Automation.RemoveAutomationPropertyChangedEventHandler(subscribedExpandTarget, expandHandler); }
+                        catch (ElementNotAvailableException) { }
+                    }
+                    expandHandler = (_, args) =>
+                    {
+                        if (args.Property == ExpandCollapsePattern.ExpandCollapseStateProperty &&
+                            args.NewValue is ExpandCollapseState state &&
+                            state == ExpandCollapseState.Expanded)
+                        {
+                            Diagnose("menu-expanded");
+                            clickCompleted.TrySetResult();
+                        }
+                    };
+                    Automation.AddAutomationPropertyChangedEventHandler(target, TreeScope.Element,
+                        expandHandler, ExpandCollapsePattern.ExpandCollapseStateProperty);
+                    subscribedExpandTarget = target;
+                }
+
                 try
                 {
                     await _bubbles.ShowAsync(
@@ -631,6 +658,11 @@ public sealed class WindowsGuideRuntime
                 }
             }
 
+            if (subscribedExpandTarget is not null && expandHandler is not null)
+            {
+                try { Automation.RemoveAutomationPropertyChangedEventHandler(subscribedExpandTarget, expandHandler); }
+                catch (ElementNotAvailableException) { }
+            }
             if (subscribedTarget is not null && clickHandler is not null)
             {
                 try { Automation.RemoveAutomationEventHandler(InvokePattern.InvokedEvent, subscribedTarget, clickHandler); }
