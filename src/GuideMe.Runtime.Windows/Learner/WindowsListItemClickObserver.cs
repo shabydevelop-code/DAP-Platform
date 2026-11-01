@@ -41,6 +41,10 @@ internal sealed class WindowsListItemClickObserver : IDisposable
     private static extern bool UnhookWindowsHookEx(nint handle);
     [DllImport("user32.dll")]
     private static extern nint CallNextHookEx(nint handle, int code, nuint message, nint data);
+    [DllImport("user32.dll")]
+    private static extern nint WindowFromPoint(Point point);
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(nint hwnd, out uint processId);
 
     public WindowsListItemClickObserver(AutomationElement target, Action onClick, Action<string> diagnose)
     {
@@ -114,6 +118,23 @@ internal sealed class WindowsListItemClickObserver : IDisposable
                  current = TreeWalker.RawViewWalker.GetParent(current))
                 if (Automation.Compare(current, target))
                     return true;
+        }
+        catch (ElementNotAvailableException) { }
+        catch (COMException) { }
+
+        // Classic Win32 menu headers are not always returned by UIA hit testing.
+        // Accept only a press within the captured MenuItem's own bounds, on a
+        // window belonging to that same process. Never infer a click from a
+        // popup appearing or from a target disappearing.
+        try
+        {
+            if (target.Current.ControlType != ControlType.MenuItem ||
+                !target.Current.BoundingRectangle.Contains(point.X, point.Y))
+                return false;
+            var hwnd = WindowFromPoint(point);
+            if (hwnd == 0) return false;
+            GetWindowThreadProcessId(hwnd, out var pid);
+            return pid == target.Current.ProcessId;
         }
         catch (ElementNotAvailableException) { }
         catch (COMException) { }
