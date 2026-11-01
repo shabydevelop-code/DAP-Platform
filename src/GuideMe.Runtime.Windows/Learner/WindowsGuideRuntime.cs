@@ -724,13 +724,16 @@ public sealed class WindowsGuideRuntime
                     if (isTextEditTarget
                         && GuideStepExecutionPolicy.ShouldConsumeInvalidCommit(
                             step, Volatile.Read(ref textTargetCommitted) == 1, primaryValidationSatisfied)
-                        && target.TryGetCurrentPattern(ValuePattern.Pattern, out var committedValuePattern))
+                        )
                     {
-                        // A text commit is one blur attempt. If that committed
-                        // value is invalid, consume the attempt and establish a
-                        // fresh baseline. Further typing must not advance until
-                        // the learner leaves the field again.
-                        initialTextValue = ((ValuePattern)committedValuePattern).Current.Value;
+                        // A failed commit must be consumed for both Edit and Document.
+                        // Document providers may expose TextPattern only, so do not
+                        // require ValuePattern to reset the commit state.
+                        if (target.TryGetCurrentPattern(ValuePattern.Pattern, out var committedValuePattern))
+                            initialTextValue = ((ValuePattern)committedValuePattern).Current.Value;
+                        else if (target.Current.ControlType == ControlType.Document &&
+                            target.TryGetCurrentPattern(TextPattern.Pattern, out var committedTextPattern))
+                            initialTextValue = ((TextPattern)committedTextPattern).DocumentRange.GetText(-1);
                         Volatile.Write(ref textTargetObservedFocused, 0);
                         Volatile.Write(ref textTargetChanged, 0);
                         Volatile.Write(ref textTargetCommitted, 0);
