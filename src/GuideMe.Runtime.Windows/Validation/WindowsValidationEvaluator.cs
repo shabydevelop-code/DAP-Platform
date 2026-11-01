@@ -10,9 +10,16 @@ public sealed class WindowsValidationEvaluator
         if (!GuideValidationPolicy.IsValueValidation(validation))
             throw new NotSupportedException($"Unsupported Windows validation kind '{validation.Kind}'.");
 
-        if (!target.TryGetCurrentPattern(ValuePattern.Pattern, out var pattern))
-            return false;
+        if (target.TryGetCurrentPattern(ValuePattern.Pattern, out var pattern))
+            return GuideValidationPolicy.IsValueSatisfied(validation, ((ValuePattern)pattern).Current.Value);
 
-        return GuideValidationPolicy.IsValueSatisfied(validation, ((ValuePattern)pattern).Current.Value);
+        // Document editors such as Notepad expose their content through TextPattern.
+        // Read it only when the normal step validation is requested.
+        if (target.Current.ControlType == ControlType.Document &&
+            target.TryGetCurrentPattern(TextPattern.Pattern, out var textPattern))
+            return GuideValidationPolicy.IsValueSatisfied(validation,
+                ((TextPattern)textPattern).DocumentRange.GetText(-1));
+
+        return false;
     }
 }
