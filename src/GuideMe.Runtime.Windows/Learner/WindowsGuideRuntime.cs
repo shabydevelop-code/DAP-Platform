@@ -275,7 +275,13 @@ public sealed class WindowsGuideRuntime
                     // Re-resolve against the live UIA tree after every grid refresh.
                     // Reusing a cached element could bind to a stale or different row.
                     var lookupWatch = Stopwatch.StartNew();
-                    resolution = _resolver.Resolve(GetActiveResolutionRoot(windowRoot), step.Target);
+                    resolution = _resolver.Resolve(windowRoot, step.Target);
+                    if (resolution.Status == TargetResolutionStatus.NotFound)
+                    {
+                        var popupRoot = GetActiveResolutionRoot(windowRoot);
+                        if (!SameElement(popupRoot, windowRoot))
+                            resolution = _resolver.Resolve(popupRoot, step.Target);
+                    }
                     lookupWatch.Stop();
                     DiagnoseTiming("target-resolution", lookupWatch.ElapsedMilliseconds);
 
