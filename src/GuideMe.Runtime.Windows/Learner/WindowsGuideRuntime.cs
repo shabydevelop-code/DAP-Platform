@@ -333,6 +333,17 @@ public sealed class WindowsGuideRuntime
                         Volatile.Write(ref textTargetObservedFocused, 1);
                     else if (Volatile.Read(ref textTargetObservedFocused) == 1)
                         Volatile.Write(ref textTargetCommitted, 1);
+
+                    // A native menu or owned dialog may leave the document's UIA
+                    // HasKeyboardFocus flag unchanged. Its foreground HWND still
+                    // represents an explicit action outside the document.
+                    var documentWindow = new IntPtr(windowRoot.Current.NativeWindowHandle);
+                    var foregroundWindow = GetForegroundWindow();
+                    if (Volatile.Read(ref textTargetObservedFocused) == 1
+                        && foregroundWindow != IntPtr.Zero
+                        && foregroundWindow != documentWindow
+                        && IsTargetWindowInteractive(windowRoot))
+                        Volatile.Write(ref textTargetCommitted, 1);
                 }
 
                 if (isTextEditTarget && target.TryGetCurrentPattern(ValuePattern.Pattern, out var textValuePattern))
