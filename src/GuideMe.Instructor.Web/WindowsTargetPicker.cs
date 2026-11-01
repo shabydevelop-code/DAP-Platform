@@ -243,20 +243,18 @@ internal sealed class WindowsTargetPicker : IDisposable
                 outline!.Visibility = Visibility.Collapsed;
                 return;
             }
-            // Native popup menus can be raised above a Topmost WPF overlay after opening.
-            // Reassert its z-order without activating it or consuming mouse input.
-            var cursorWindow = WindowFromPoint(cursor);
-            if (cursorWindow != 0)
+            // A native popup can overtake the overlay in the topmost z-order.
+            // Keep the highlight above the currently accepted target, even when
+            // WindowFromPoint returns a child HWND instead of the #32768 popup.
+            // SWP_NOACTIVATE preserves focus and WS_EX_TRANSPARENT preserves clicks.
+            if (overlay is not null)
             {
-                var windowClass = new System.Text.StringBuilder(64);
-                GetClassName(cursorWindow, windowClass, windowClass.Capacity);
-                if (string.Equals(windowClass.ToString(), "#32768", StringComparison.Ordinal) && overlay is not null)
-                {
-                    var overlayHandle = new WindowInteropHelper(overlay).Handle;
-                    const uint noMove = 0x0002, noSize = 0x0001, noActivate = 0x0010;
-                    if (overlayHandle != 0)
-                        SetWindowPos(overlayHandle, (nint)(-1), 0, 0, 0, 0, noMove | noSize | noActivate);
-                }
+                var overlayHandle = new WindowInteropHelper(overlay).Handle;
+                const uint noMove = 0x0002, noSize = 0x0001, noActivate = 0x0010;
+                if (overlayHandle != 0 &&
+                    !SetWindowPos(overlayHandle, (nint)(-1), 0, 0, 0, 0,
+                        noMove | noSize | noActivate))
+                    DiagnoseHover($"overlay-zorder-failed error={Marshal.GetLastWin32Error()}");
             }
             hovered = element;
             DiagnoseHover($"selected-bounds name='{element.Current.Name}' " +
