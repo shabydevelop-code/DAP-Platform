@@ -32,6 +32,28 @@ internal sealed class WindowsTargetPicker : IDisposable
     private AutomationElement? hovered;
     private bool disposed;
     private nint returnWindow;
+    private string? lastHoverDiagnostic;
+    private readonly string hoverDiagnosticPath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "GuideMe", "Logs", $"instructor-picker-{Environment.ProcessId}.log");
+
+    private void DiagnoseHover(string state)
+    {
+        if (Environment.GetEnvironmentVariable("GUIDEME_DIAGNOSTICS") != "1" ||
+            string.Equals(lastHoverDiagnostic, state, StringComparison.Ordinal))
+            return;
+        lastHoverDiagnostic = state;
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(hoverDiagnosticPath)!);
+            File.AppendAllText(hoverDiagnosticPath,
+                $"{DateTimeOffset.UtcNow:O} pid={processId} {state}{Environment.NewLine}");
+        }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
+    }
+
+
     [DllImport("user32.dll")] private static extern nint GetForegroundWindow();
     internal static nint CaptureInstructorWindow() => GetForegroundWindow();
 
@@ -41,6 +63,19 @@ internal sealed class WindowsTargetPicker : IDisposable
     private struct MouseHookData { public Point Point; public uint MouseData; public uint Flags; public uint Time; public nuint ExtraInfo; }
     private delegate nint HookProc(int code, nuint message, nint data);
     [DllImport("user32.dll")] private static extern bool GetCursorPos(out Point point);
+    [DllImport("user32.dll")] private static extern nint WindowFromPoint(Point point);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern int GetClassName(nint hwnd, System.Text.StringBuilder buffer, int capacity);
+    [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(nint hwnd, out uint pid);
+    private string HoverWindowInfo(Point cursor)
+    {
+        var hwnd = WindowFromPoint(cursor);
+        var name = new System.Text.StringBuilder(128);
+        if (hwnd != 0) GetClassName(hwnd, name, name.Capacity);
+        GetWindowThreadProcessId(hwnd, out var pid);
+        return $"hwnd=0x{hwnd.ToInt64():X} class='{name}' windowPid={pid}";
+    }
+
     [DllImport("user32.dll")] private static extern nint SetWindowsHookEx(int id, HookProc callback, nint module, uint threadId);
     [DllImport("user32.dll")] private static extern bool UnhookWindowsHookEx(nint handle);
     [DllImport("user32.dll")] private static extern nint CallNextHookEx(nint handle, int code, nuint message, nint data);
@@ -175,7 +210,20 @@ internal sealed class WindowsTargetPicker : IDisposable
         try
         {
             var element = WindowsTargetInspector.ElementAtPoint(processId, cursor.X, cursor.Y);
-            if (element is null || !WindowsTargetInspector.BelongsToProcess(element, processId))
+            var accepted = element is not null &&
+                WindowsTargetInspector.BelongsToProcess(element, processId);
+            if (Environment.GetEnvironmentVariable("GUIDEME_DIAGNOSTICS") == "1")
+            {
+                var info = HoverWindowInfo(cursor);
+                if (element is null)
+                    DiagnoseHover($"{info} uia=null accepted=false");
+                else
+                    DiagnoseHover($"{info} uiaName='{element.Current.Name}' " +
+                        $"uiaType={element.Current.ControlType.ProgrammaticName} " +
+                        $"uiaPid={element.Current.ProcessId} " +
+                        $"uiaId='{element.Current.AutomationId}' accepted={accepted}");
+            }
+            if (!accepted)
             {
                 hovered = null;
                 outline!.Visibility = Visibility.Collapsed;
@@ -184,6 +232,7 @@ internal sealed class WindowsTargetPicker : IDisposable
             var bounds = element.Current.BoundingRectangle;
             if (bounds.IsEmpty || bounds.Width < 2 || bounds.Height < 2)
             {
+                DiagnoseHover($"bounds-rejected width={bounds.Width} height={bounds.Height}");
                 hovered = null;
                 outline!.Visibility = Visibility.Collapsed;
                 return;
@@ -197,8 +246,8 @@ internal sealed class WindowsTargetPicker : IDisposable
             outline.Height = b.Y - a.Y;
             outline.Visibility = Visibility.Visible;
         }
-        catch (ElementNotAvailableException) { hovered = null; outline!.Visibility = Visibility.Collapsed; }
-        catch (COMException) { hovered = null; outline!.Visibility = Visibility.Collapsed; }
+        catch (ElementNotAvailableException ex) { DiagnoseHover($"uia-unavailable {ex.Message}"); hovered = null; outline!.Visibility = Visibility.Collapsed; }
+        catch (COMException ex) { DiagnoseHover($"uia-com-error 0x{ex.HResult:X8}"); hovered = null; outline!.Visibility = Visibility.Collapsed; }
     }
 
     // The keyboard shortcut selects the hovered element without activating it.
