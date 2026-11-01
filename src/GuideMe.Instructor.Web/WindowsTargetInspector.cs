@@ -49,8 +49,8 @@ internal static class WindowsTargetInspector
             selected = AutomationElement.FromPoint(new System.Windows.Point(point.X, point.Y));
         }
 
-        if (selected is null || selected.Current.ProcessId != processId)
-            throw new InvalidOperationException("הרכיב שנבחר אינו שייך לאפליקציה שנבחרה.");
+        if (selected is null)
+            throw new InvalidOperationException("לא נבחר רכיב Windows.");
 
         // Popup menus can be separate top-level UIA windows of the same process.
         // Resolve against the selected popup itself, never against an unrelated app.
