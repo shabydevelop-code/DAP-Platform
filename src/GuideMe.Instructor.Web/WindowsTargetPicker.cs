@@ -175,7 +175,7 @@ internal sealed class WindowsTargetPicker : IDisposable
         try
         {
             var element = AutomationElement.FromPoint(new System.Windows.Point(cursor.X, cursor.Y));
-            if (element is null || !BelongsToSelectedWindow(element))
+            if (element is null || !WindowsTargetInspector.BelongsToProcess(element, processId))
             {
                 hovered = null;
                 outline!.Visibility = Visibility.Collapsed;
@@ -199,23 +199,6 @@ internal sealed class WindowsTargetPicker : IDisposable
         }
         catch (ElementNotAvailableException) { hovered = null; outline!.Visibility = Visibility.Collapsed; }
         catch (COMException) { hovered = null; outline!.Visibility = Visibility.Collapsed; }
-    }
-
-    private bool BelongsToSelectedWindow(AutomationElement element)
-    {
-        try
-        {
-            for (var current = element; current is not null;
-                 current = TreeWalker.RawViewWalker.GetParent(current))
-            {
-                if (current.Current.ProcessId != processId) continue;
-                if (current.Current.NativeWindowHandle != 0)
-                    return true;
-            }
-        }
-        catch (ElementNotAvailableException) { }
-        catch (COMException) { }
-        return false;
     }
 
     // The keyboard shortcut selects the hovered element without activating it.
