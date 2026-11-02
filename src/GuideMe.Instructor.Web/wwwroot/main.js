@@ -1331,7 +1331,6 @@ function showInstructorFieldError(field, message) {
   error.textContent = message;
   field.insertAdjacentElement('afterend', error);
   field.focus();
-  field.reportValidity();
   return false;
 }
 class InstructorFieldValidationError extends Error {}
