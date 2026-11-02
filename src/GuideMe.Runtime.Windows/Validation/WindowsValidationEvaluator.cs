@@ -15,7 +15,9 @@ public sealed class WindowsValidationEvaluator
 
         // Document editors such as Notepad expose their content through TextPattern.
         // Read it only when the normal step validation is requested.
-        if (target.Current.ControlType == ControlType.Document &&
+        if ((target.Current.ControlType == ControlType.Document ||
+             (target.Current.ControlType == ControlType.Edit &&
+              target.Current.AutomationId.StartsWith("UIA_AutomationId_Word_Content_Page_", StringComparison.Ordinal))) &&
             target.TryGetCurrentPattern(TextPattern.Pattern, out var textPattern))
             return GuideValidationPolicy.IsValueSatisfied(validation,
                 ((TextPattern)textPattern).DocumentRange.GetText(-1));
