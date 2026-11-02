@@ -744,9 +744,9 @@ function editValidation(step, rule) {
     for (const label of [...references.keys()].sort((a,b)=>b.length-a.length))
       expected = expected.split(label).join('{{var:' + references.get(label) + '}}');
     if (/【[^】]*】/.test(expected))
-      return showInstructorFieldError($('field-expectedValue'), 'סימון משתנה לא מוכר.');
+      showInstructorFieldError($('field-expectedValue'), 'סימון משתנה לא מוכר.');
     if (values.kind === 'value-equals' && !expected.trim())
-      return showInstructorFieldError($('field-expectedValue'), 'יש להזין ערך צפוי.');
+      showInstructorFieldError($('field-expectedValue'), 'יש להזין ערך צפוי.');
     await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+'/validation',
       {method:'PUT',body:JSON.stringify({kind:values.kind,
         expectedValue:values.kind === 'value-equals' ? expected : null})});
@@ -1339,8 +1339,9 @@ function showInstructorFieldError(field, message) {
   field.insertAdjacentElement('afterend', error);
   field.focus();
   field.reportValidity();
-  return false;
+  throw new InstructorFieldValidationError(message);
 }
+class InstructorFieldValidationError extends Error {}
 function validateInstructorForm(form) {
   for (const field of form.querySelectorAll('input[required], textarea[required], select[required]')) {
     if (field.disabled || field.closest('.hidden,[hidden]')) continue;
@@ -1387,7 +1388,9 @@ function modal(title, fields, submit, buttonText='שמירה') {
     $('dialog-notice')?.remove();
     if (!validateInstructorForm(form)) return;
     const values=Object.fromEntries(new FormData(form).entries());
-    guarded(async()=>{await submit(values);$('editor-dialog').close();});
+    guarded(async()=>{try { await submit(values); $('editor-dialog').close(); }
+      catch (error) { if (!(error instanceof InstructorFieldValidationError)) throw error; }
+    });
   };
   const baseline = new URLSearchParams(new FormData(form)).toString();
   const onChange = () => {
@@ -1813,12 +1816,12 @@ function editPrimaryTargetValue({kind, step, locators, binding:preparedBinding})
     try {
       const value=variableEditorResult(input);
       const template=buildTemplate(value);
-      if (!template.trim()) return showInstructorFieldError(input, 'יש להזין מזהה רכיב.');
-      if (template.length>400) return showInstructorFieldError(input, 'מזהה הרכיב ארוך מדי.');
+      if (!template.trim()) showInstructorFieldError(input, 'יש להזין מזהה רכיב.');
+      if (template.length>400) showInstructorFieldError(input, 'מזהה הרכיב ארוך מדי.');
       if (locator.Strategy === 'css' && rawValue === original &&
           !template.includes('{{var:')) {
         try { document.querySelector(template); }
-        catch { return showInstructorFieldError(input, 'מזהה CSS אינו תקין.'); }
+        catch { showInstructorFieldError(input, 'מזהה CSS אינו תקין.'); }
       }
       if (template === original) {
         restore();
@@ -1939,9 +1942,9 @@ function openVariableTextEditor({title, original, variables, maxLength, saveLabe
     for (const label of [...references.keys()].sort((a,b) => b.length-a.length))
       result = result.split(label).join('{{var:' + references.get(label) + '}}');
     if (/【[^】]*】/.test(result))
-      return showInstructorFieldError($('field-sourceText'), 'סימון משתנה לא מוכר. יש להוסיף משתנים באמצעות הכפתור.');
+      showInstructorFieldError($('field-sourceText'), 'סימון משתנה לא מוכר. יש להוסיף משתנים באמצעות הכפתור.');
     if (result.length > maxLength)
-      return showInstructorFieldError($('field-sourceText'), 'הטקסט ארוך מדי.');
+      showInstructorFieldError($('field-sourceText'), 'הטקסט ארוך מדי.');
     await save(result);
   }, saveLabel);
   if (description) {
