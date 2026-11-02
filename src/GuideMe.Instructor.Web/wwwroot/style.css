@@ -415,3 +415,6 @@ body .brand-heading strong span { font-size: 26px; }
 /* Consistent inline validation for modal, capture and step editors. */
 .instructor-field-error { color: #9b2424; font-size: 0.85rem; margin: 5px 0 0; text-align: right; }
 [aria-invalid="true"] { border-color: #b33434 !important; }
+
+/* Preserve line breaks in saved expected-value previews. */
+.validation-expected-preview { white-space: pre-wrap; overflow-wrap: anywhere; unicode-bidi: plaintext; }
