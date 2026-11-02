@@ -23,6 +23,35 @@ builder.WebHost.UseKestrel(options => options.Listen(IPAddress.Loopback, 53922))
 var app = builder.Build();
 
 app.UseWebSockets();
+// Translate authoring validation failures to actionable client errors, not HTTP 500.
+app.Use(async (context, next) =>
+{
+    if (!context.Request.Path.StartsWithSegments("/api"))
+    {
+        await next();
+        return;
+    }
+    try
+    {
+        await next();
+    }
+    catch (ArgumentException ex)
+    {
+        if (context.Response.HasStarted) throw;
+        context.Response.Clear();
+        context.Response.StatusCode = StatusCodes.Status400BadRequest;
+        await context.Response.WriteAsJsonAsync(new { message = ex.Message });
+    }
+    catch (InvalidOperationException ex)
+    {
+        if (context.Response.HasStarted) throw;
+        context.Response.Clear();
+        context.Response.StatusCode = StatusCodes.Status409Conflict;
+        await context.Response.WriteAsJsonAsync(new { message = ex.Message });
+    }
+});
+
+
 // Resolve assets from the executable in both dotnet run and published deployment.
 // The current working directory is not necessarily the application's directory.
 var webRoot = Path.Combine(AppContext.BaseDirectory, "wwwroot");
