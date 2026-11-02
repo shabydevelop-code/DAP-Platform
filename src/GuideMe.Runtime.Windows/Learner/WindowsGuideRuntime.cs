@@ -1429,7 +1429,9 @@ public sealed class WindowsGuideRuntime
         try
         {
             var rect = WindowsBubblePresenter.GetPresentationBounds(target);
-            return !target.Current.IsOffscreen
+            var wordPage = target.Current.ControlType == ControlType.Edit &&
+                target.Current.AutomationId.StartsWith("UIA_AutomationId_Word_Content_Page_", StringComparison.Ordinal);
+            return (wordPage || !target.Current.IsOffscreen)
                    && !rect.IsEmpty
                    && rect.Width > 0
                    && rect.Height > 0;
