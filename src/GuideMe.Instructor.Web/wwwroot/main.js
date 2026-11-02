@@ -1149,7 +1149,7 @@ async function refreshPicker() {
           mode === 'custom' ? $('variable-extract-pattern')?.value : null;
         if (mode === 'custom' && !pattern?.trim()) {
           showInstructorFieldError($('variable-extract-pattern'), 'יש להזין ביטוי לחילוץ מותאם אישית.');
-          return;
+          throw new Error('instructor-field-invalid');
         }
         await api('/guides/'+pickedFor.guideId+'/steps/'+encodeURIComponent(pickedFor.stepId)+'/variable-source',
           {method:'POST',body:JSON.stringify({
@@ -1163,7 +1163,7 @@ async function refreshPicker() {
         const contentValue = contentInput ? variableEditorResult(contentInput).trim() : null;
         if (contentInput && (!contentValue || contentValue.length > 400)) {
           showInstructorFieldError(contentInput, 'יש להזין תוכן לזיהוי הרכיב (עד 400 תווים).');
-          return;
+          throw new Error('instructor-field-invalid');
         }
         await api('/guides/'+pickedFor.guideId+'/steps/'+encodeURIComponent(pickedFor.stepId)+'/primary-target',
           {method:'POST',body:JSON.stringify({
@@ -1183,8 +1183,10 @@ async function refreshPicker() {
         ? 'הרכיב הוחלף בהצלחה. יש להגדיר מחדש מתי ממשיכים לשלב הבא.'
         : pickedFor.completion ? 'תנאי ההשלמה נשמר.' : 'רכיב היעד נשמר. ניתן להגדיר תנאי התקדמות בנפרד.');
     } catch (error) {
-      result.textContent = 'השמירה נכשלה: ' + (error.message || String(error));
-      result.classList.add('save-error');
+      if (error.message !== 'instructor-field-invalid') {
+        result.textContent = 'השמירה נכשלה: ' + (error.message || String(error));
+        result.classList.add('save-error');
+      }
       pickedFor.autoSaving = false;
       if (saveButton) { saveButton.disabled = false; saveButton.textContent = originalLabel; }
       if (cancelButton) cancelButton.disabled = false;
