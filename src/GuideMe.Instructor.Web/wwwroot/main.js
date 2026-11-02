@@ -1302,8 +1302,9 @@ function modal(title, fields, submit, buttonText='שמירה') {
     const label='<label for="field-'+f.name+'">'+esc(f.label)+'</label>';
     const helpId='help-'+f.name;
     const helpAttr=f.help?' aria-describedby="'+helpId+'"':'';
-    const field=f.choices?'<select id="field-'+f.name+'" name="'+f.name+'"'+helpAttr+'>'+f.choices.map(v=>'<option value="'+esc(v.value)+'" '+(v.value===f.value?'selected':'')+'>'+esc(v.text)+'</option>').join('')+'</select>'
-    :f.multiline?'<textarea id="field-'+f.name+'" name="'+f.name+'"'+helpAttr+' maxlength="'+(f.max||4000)+'" rows="3">'+esc(f.value||'')+'</textarea>'
+    const requiredAttr=f.optional?'':' required';
+    const field=f.choices?'<select id="field-'+f.name+'" name="'+f.name+'"'+helpAttr+requiredAttr+'>'+f.choices.map(v=>'<option value="'+esc(v.value)+'" '+(v.value===f.value?'selected':'')+'>'+esc(v.text)+'</option>').join('')+'</select>'
+    :f.multiline?'<textarea id="field-'+f.name+'" name="'+f.name+'"'+helpAttr+requiredAttr+' maxlength="'+(f.max||4000)+'" rows="3">'+esc(f.value||'')+'</textarea>'
     :'<input id="field-'+f.name+'" name="'+f.name+'"'+helpAttr+' value="'+esc(f.value||'')+'" maxlength="'+(f.max||256)+'" '+(f.optional?'':'required')+'>';
     return '<div class="field">'+label+field+(f.help?'<div class="field-help" id="'+helpId+'">'+esc(f.help)+'</div>':'')+'</div>';
   }).join('')+'</div>';
@@ -1312,6 +1313,16 @@ function modal(title, fields, submit, buttonText='שמירה') {
   form.onsubmit=e=>{
     e.preventDefault();
     $('dialog-notice')?.remove();
+    const requiredFields = [...form.querySelectorAll('[required]')];
+    for (const field of requiredFields) {
+      if (!String(field.value || '').trim()) {
+        field.setCustomValidity('יש למלא שדה זה לפני השמירה.');
+        field.reportValidity();
+        field.focus();
+        return;
+      }
+      field.setCustomValidity('');
+    }
     const values=Object.fromEntries(new FormData(form).entries());
     guarded(async()=>{await submit(values);$('editor-dialog').close();});
   };
@@ -1320,8 +1331,14 @@ function modal(title, fields, submit, buttonText='שמירה') {
     if (new URLSearchParams(new FormData(form)).toString() !== baseline) markDirty();
     else markClean();
   };
-  form.oninput = onChange;
-  form.onchange = onChange;
+  form.oninput = event => {
+    if (event.target?.required) event.target.setCustomValidity('');
+    onChange();
+  };
+  form.onchange = event => {
+    if (event.target?.required) event.target.setCustomValidity('');
+    onChange();
+  };
   $('editor-dialog').showModal();
   form.querySelector('input,textarea,select')?.focus();
 }
