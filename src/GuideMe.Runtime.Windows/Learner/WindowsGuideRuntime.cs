@@ -313,6 +313,17 @@ public sealed class WindowsGuideRuntime
                 }
 
                 var target = resolution.Target;
+                if (Environment.GetEnvironmentVariable("GUIDEME_DIAGNOSTICS") == "1" &&
+                    target.Current.AutomationId.StartsWith("UIA_AutomationId_Word_Content_Page_", StringComparison.Ordinal))
+                {
+                    var rect = target.Current.BoundingRectangle;
+                    var value = target.TryGetCurrentPattern(ValuePattern.Pattern, out var vp)
+                        ? ((ValuePattern)vp).Current.Value : "<unavailable>";
+                    var text = target.TryGetCurrentPattern(TextPattern.Pattern, out var tp)
+                        ? ((TextPattern)tp).DocumentRange.GetText(-1) : "<unavailable>";
+                    static string Brief(string? input) => (input ?? "<null>").Replace("\r", "\\r").Replace("\n", "\\n") is var clean && clean.Length > 100 ? clean[..100] : clean;
+                    Diagnose($"word-edit focus={target.Current.HasKeyboardFocus} observed={Volatile.Read(ref textTargetObservedFocused)} committed={Volatile.Read(ref textTargetCommitted)} bounds={rect} value='{Brief(value)}' text='{Brief(text)}'");
+                }
                 if (clicked)
                     Diagnose($"target-resolved clickObserved={clickCompleted.Task.IsCompleted}");
                 activeState.ObserveTarget(true);
@@ -715,6 +726,9 @@ public sealed class WindowsGuideRuntime
                     step, isTextEditTarget, Volatile.Read(ref textTargetCommitted) == 1))
                 {
                     var primaryValidationSatisfied = _validation.IsSatisfied(target, step.Validation!);
+                    if (Environment.GetEnvironmentVariable("GUIDEME_DIAGNOSTICS") == "1" &&
+                        target.Current.AutomationId.StartsWith("UIA_AutomationId_Word_Content_Page_", StringComparison.Ordinal))
+                        Diagnose($"word-validation satisfied={primaryValidationSatisfied} committed={Volatile.Read(ref textTargetCommitted)}");
                     if (sharedEngine.EvaluateCompletion(activeState, 
                             primaryValidationSatisfied,
                             AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction),
