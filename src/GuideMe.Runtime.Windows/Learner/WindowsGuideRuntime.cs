@@ -145,6 +145,7 @@ public sealed class WindowsGuideRuntime
         var textTargetObservedFocused = 0;
         var textTargetChanged = 0;
         var textTargetCommitted = 0;
+        string? initialWordRibbonTab = null;
         AutomationElement? subscribedTextTarget = null;
         AutomationPropertyChangedEventHandler? textEditPropertyChangedHandler = null;
         // Per-session, file-backed diagnostics: stdout is not available for GUI launches.
@@ -345,6 +346,23 @@ public sealed class WindowsGuideRuntime
                         Volatile.Write(ref textTargetObservedFocused, 1);
                     else if (Volatile.Read(ref textTargetObservedFocused) == 1)
                         Volatile.Write(ref textTargetCommitted, 1);
+
+                    // Word can retain document UIA focus when the user selects a ribbon tab.
+                    // A change of the selected ribbon tab is an explicit leave-editor
+                    // action, not a keystroke in the document.
+                    if (target.Current.AutomationId.StartsWith("UIA_AutomationId_Word_Content_Page_", StringComparison.Ordinal))
+                    {
+                        var selectedRibbonTab = GetSelectedWordRibbonTab(windowRoot);
+                        if (initialWordRibbonTab is null && Volatile.Read(ref textTargetObservedFocused) == 1)
+                            initialWordRibbonTab = selectedRibbonTab;
+                        else if (initialWordRibbonTab is not null &&
+                                 selectedRibbonTab is not null &&
+                                 !string.Equals(initialWordRibbonTab, selectedRibbonTab, StringComparison.Ordinal))
+                        {
+                            Diagnose($"word-ribbon-changed from='{initialWordRibbonTab}' to='{selectedRibbonTab}'");
+                            Volatile.Write(ref textTargetCommitted, 1);
+                        }
+                    }
 
                     // A native menu or owned dialog may leave the document's UIA
                     // HasKeyboardFocus flag unchanged. Its foreground HWND still
@@ -1098,6 +1116,24 @@ public sealed class WindowsGuideRuntime
         {
             return false;
         }
+    }
+
+    private static string? GetSelectedWordRibbonTab(AutomationElement windowRoot)
+    {
+        try
+        {
+            var tabs = windowRoot.FindAll(TreeScope.Descendants,
+                new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.TabItem));
+            foreach (AutomationElement tab in tabs)
+            {
+                if (tab.TryGetCurrentPattern(SelectionItemPattern.Pattern, out var raw) &&
+                    ((SelectionItemPattern)raw).Current.IsSelected)
+                    return tab.Current.AutomationId + "|" + tab.Current.Name;
+            }
+        }
+        catch (ElementNotAvailableException) { }
+        catch (InvalidOperationException) { }
+        return null;
     }
 
     private static bool IsTargetWindowInteractive(AutomationElement windowRoot)
