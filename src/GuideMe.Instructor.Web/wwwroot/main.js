@@ -121,9 +121,10 @@ function showList() {
   current = null; selectedStep = null;
   $('list-view').classList.remove('hidden'); $('detail-view').classList.add('hidden');
   $('new-guide').classList.remove('hidden');
+  $('back').classList.add('hidden');
   clearNotice();
   document.querySelectorAll('.tab').forEach(t => {
-    const active = t.dataset.tab === 'library';
+    const active = false;
     t.classList.toggle('active', active);
     t.setAttribute('aria-selected', String(active));
     t.tabIndex = active ? 0 : -1;
@@ -133,7 +134,6 @@ function showList() {
 async function loadGuides() {
   guides = await api('/guides');
   $('total-guides').textContent = guides.length;
-  $('library-count').textContent = guides.length;
   renderGuides();
 }
 function renderGuides() {
@@ -153,6 +153,7 @@ async function openGuide(id) {
   const g = current.guide;
   $('list-view').classList.add('hidden'); $('detail-view').classList.remove('hidden');
   $('new-guide').classList.add('hidden');
+  $('back').classList.remove('hidden');
   $('detail-name').textContent = g.name;
   $('steps-count').textContent = current.steps.length;
   selectTab('steps');
@@ -174,7 +175,6 @@ function selectTab(tab) {
     t.setAttribute('aria-selected',String(active));
     t.tabIndex=active?0:-1;
   });
-  if (tab === 'library') { showList(); return; }
   $('steps-panel').classList.toggle('hidden',tab!=='steps');
   $('contexts-panel').classList.toggle('hidden',tab!=='contexts');
 }
