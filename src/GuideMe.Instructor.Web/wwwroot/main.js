@@ -736,7 +736,7 @@ function editValidation(step, rule) {
   });
   modal('עריכת תנאי התקדמות — שלב ' + step.order, [
     {name:'kind',label:'מתי המערכת תעבור לשלב הבא?',value:kind,choices:validationChoices},
-    {name:'expectedValue',label:'ערך צפוי',value:display,max:500,optional:true,
+    {name:'expectedValue',label:'ערך צפוי',value:display,max:500,multiline:true,optional:true,
       help:'אפשר לשלב טקסט ומשתנים בערך הצפוי.'}
   ],async values=>{
     let expected = values.expectedValue;
