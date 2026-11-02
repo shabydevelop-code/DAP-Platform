@@ -692,6 +692,7 @@ function editCompletionCondition(step, rule) {
     const required = kind.value === 'value-contains';
     valueGroup.classList.toggle('hidden', !required);
     value.required = required;
+    if (!required) clearInstructorFieldError(value);
   };
   kind.addEventListener('change', refresh);
   refresh();
@@ -707,10 +708,8 @@ function editCompletionCondition(step, rule) {
     if (!validateInstructorForm(editor)) return;
     guarded(async () => {
       const expected = kind.value === 'value-contains' ? variableEditorResult(value).trim() : null;
-      if (kind.value === 'value-contains' && !expected) {
-        showInstructorFieldError(value, 'יש להזין ערך צפוי.');
-        return;
-      }
+      if (kind.value === 'value-contains' && !expected)
+        return showInstructorFieldError(value, 'יש להזין ערך צפוי.');
       const buttons = [...editor.querySelectorAll('button')];
       buttons.forEach(b => b.disabled = true);
       try {
