@@ -1128,6 +1128,19 @@ async function refreshPicker() {
     const cancelButton = $('cancel-web-target');
     const pickedFor = pickingFor;
     if (!pickedFor || pickedFor.autoSaving || saveButton?.disabled) return;
+    const requiredCaptureFields = [];
+    if (pickedFor.variableSource && $('variable-extract-choice')?.value === 'custom')
+      requiredCaptureFields.push($('variable-extract-pattern'));
+    if (pickedFor.completion && $('target-condition')?.value === 'value-contains')
+      requiredCaptureFields.push($('completion-fixed-value'));
+    if (!pickedFor.completion && !pickedFor.variableSource && $('picked-content-value'))
+      requiredCaptureFields.push($('picked-content-value'));
+    for (const field of requiredCaptureFields) {
+      if (field && !String(variableEditorResult(field) || '').trim()) {
+        showInstructorFieldError(field, 'יש למלא שדה זה לפני השמירה.');
+        return;
+      }
+    }
     pickedFor.autoSaving = true;
     if (saveButton) saveButton.disabled = true;
     if (cancelButton) cancelButton.disabled = true;
