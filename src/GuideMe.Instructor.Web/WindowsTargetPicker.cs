@@ -237,8 +237,7 @@ internal sealed class WindowsTargetPicker : IDisposable
             // Keep the actual Edit as the captured target, but highlight its
             // enclosing document surface so the user can see the selection.
             if (element.Current.ControlType == ControlType.Edit &&
-                element.Current.AutomationId.StartsWith("UIA_AutomationId_Word_Content_Page_", StringComparison.Ordinal) &&
-                true)
+                element.Current.AutomationId.StartsWith("UIA_AutomationId_Word_Content_Page_", StringComparison.Ordinal))
             {
                 var parent = TreeWalker.RawViewWalker.GetParent(element);
                 for (var depth = 0; parent is not null && depth < 6; depth++,
