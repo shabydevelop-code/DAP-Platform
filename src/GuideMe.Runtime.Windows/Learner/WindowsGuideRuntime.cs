@@ -729,11 +729,16 @@ public sealed class WindowsGuideRuntime
                     if (Environment.GetEnvironmentVariable("GUIDEME_DIAGNOSTICS") == "1" &&
                         target.Current.AutomationId.StartsWith("UIA_AutomationId_Word_Content_Page_", StringComparison.Ordinal))
                         Diagnose($"word-validation satisfied={primaryValidationSatisfied} committed={Volatile.Read(ref textTargetCommitted)}");
-                    if (sharedEngine.EvaluateCompletion(activeState, 
-                            primaryValidationSatisfied,
-                            AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction),
-                        isTextEditTarget, Volatile.Read(ref textTargetCommitted) == 1) == GuideStepReconciliationResult.Completed)
+                    var additionalConditionsSatisfied = AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction);
+                    var completionResult = sharedEngine.EvaluateCompletion(activeState,
+                        primaryValidationSatisfied, additionalConditionsSatisfied,
+                        isTextEditTarget, Volatile.Read(ref textTargetCommitted) == 1);
+                    if (Environment.GetEnvironmentVariable("GUIDEME_DIAGNOSTICS") == "1" &&
+                        target.Current.AutomationId.StartsWith("UIA_AutomationId_Word_Content_Page_", StringComparison.Ordinal))
+                        Diagnose($"word-completion result={completionResult} primary={primaryValidationSatisfied} additional={additionalConditionsSatisfied} textEdit={isTextEditTarget} committed={Volatile.Read(ref textTargetCommitted)}");
+                    if (completionResult == GuideStepReconciliationResult.Completed)
                     {
+                        Diagnose("step-completed");
                         return GuideStepReconciliationResult.Completed;
                     }
 
