@@ -48,7 +48,7 @@ public sealed class WindowsBubblePresenter
         string? automaticStepLabel = null)
     {
         var physicalRect = target.Current.BoundingRectangle;
-        if (target.Current.ControlType == ControlType.Edit && target.Current.AutomationId.StartsWith("UIA_AutomationId_Word_Content_Page_", StringComparison.Ordinal) && physicalRect.Width < 12)
+        if (target.Current.ControlType == ControlType.Edit && target.Current.AutomationId.StartsWith("UIA_AutomationId_Word_Content_Page_", StringComparison.Ordinal))
         {
             var parent = TreeWalker.RawViewWalker.GetParent(target);
             for (var i = 0; parent is not null && i < 6; i++, parent = TreeWalker.RawViewWalker.GetParent(parent))
