@@ -233,6 +233,28 @@ internal sealed class WindowsTargetPicker : IDisposable
                 return;
             }
             var bounds = element.Current.BoundingRectangle;
+            // Word exposes its editable page as a narrow caret-sized Edit rectangle.
+            // Keep the actual Edit as the captured target, but highlight its
+            // enclosing document surface so the user can see the selection.
+            if (element.Current.ControlType == ControlType.Edit &&
+                element.Current.AutomationId.StartsWith("UIA_AutomationId_Word_Content_Page_", StringComparison.Ordinal) &&
+                !bounds.IsEmpty && bounds.Width < 12)
+            {
+                var parent = TreeWalker.RawViewWalker.GetParent(element);
+                for (var depth = 0; parent is not null && depth < 6; depth++,
+                     parent = TreeWalker.RawViewWalker.GetParent(parent))
+                {
+                    if (parent.Current.ProcessId != processId) break;
+                    var parentBounds = parent.Current.BoundingRectangle;
+                    if (!parentBounds.IsEmpty && parentBounds.Width >= 150 &&
+                        parentBounds.Height >= 100 &&
+                        parentBounds.Contains(bounds.Left, bounds.Top))
+                    {
+                        bounds = parentBounds;
+                        break;
+                    }
+                }
+            }
             if (Environment.GetEnvironmentVariable("GUIDEME_DIAGNOSTICS") == "1")
                 DiagnoseHover($"bounds name='{element.Current.Name}' left={bounds.Left:F1} top={bounds.Top:F1} width={bounds.Width:F1} height={bounds.Height:F1} " +
                     $"overlayVisible={overlay?.IsVisible} overlayTopmost={overlay?.Topmost}");
