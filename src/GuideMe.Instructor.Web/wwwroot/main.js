@@ -899,6 +899,7 @@ const targetAdapters = {
     selected(state) {
       return {selector:state.selection?.locators?.[0]?.value || '',
         label:state.selection?.name || state.selection?.controlType,
+        capturedValue:state.selection?.capturedValue,
         tag:({
           'ControlType.Edit':'input',
           'ControlType.Document':'textarea',
@@ -1039,8 +1040,17 @@ async function refreshPicker() {
     selectorText !== null ? selectorText :
     requestSession.runtime === 'Web' && !['input','textarea','select'].includes((candidate.tag || '').toLowerCase())
       ? String(observedText?.value || '').trim() || null : null;
+  const capturedSample = requestSession.runtime === 'Windows'
+    ? candidate.capturedValue
+    : (candidate.variableSamples || []).find(sample => sample.property === 'value')?.value ??
+      (candidate.variableSamples || []).find(sample => sample.property === 'text')?.value ??
+      candidate.label;
   box.innerHTML = '<div class="picked-target-fields" dir="rtl">' +
     '<p><strong>'+esc(candidate.label || candidate.tag || 'רכיב')+'</strong> <span class="picked-target-kind">('+esc(kindLabel)+')</span></p>'+
+    (!pickingFor.completion && !pickingFor.variableSource ?
+      '<div class="field"><label for="captured-object-value">הערך שנקלט</label>' +
+      '<textarea id="captured-object-value" rows="2" readonly dir="auto" ' +
+      'placeholder="לא נקלט ערך"></textarea></div>' : '') +
     (!pickingFor.completion && !pickingFor.variableSource && editableContent !== null ?
       variableValueFieldMarkup('picked-content-value', 'זיהוי לפי תוכן') : '') +
     (pickingFor.completion ? '<label for="target-condition">חוק השלמה</label>' +
@@ -1058,6 +1068,8 @@ async function refreshPicker() {
     '<button id="cancel-web-target" class="btn secondary small">ביטול</button>' +
     '</div>';
   if (!pickingFor.completion && !pickingFor.variableSource) {
+    const capturedField = $('captured-object-value');
+    if (capturedField) capturedField.value = String(capturedSample ?? '');
     const input = $('picked-content-value');
     if (input) {
       initializeVariableField(input, $('picked-content-value-variables'), editableContent);
