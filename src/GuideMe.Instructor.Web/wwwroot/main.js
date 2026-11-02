@@ -442,7 +442,7 @@ function renderSteps() {
       '</section>' +
       '<section class="step-friendly-card"><h3>מתי ממשיכים לשלב הבא?</h3>' +
       '<p>' + esc(!target ? 'יוגדר לאחר בחירת הרכיב.' : conditionText) + '</p>' +
-      (rule?.ExpectedValue ? '<p>ערך צפוי: <strong class="validation-expected-preview">' + friendlyInstructionHtml(rule.ExpectedValue) + '</strong></p>' : '') +
+      (rule?.ExpectedValue ? '<div class="validation-expected-block"><span class="validation-expected-label">ערך צפוי:</span><strong class="validation-expected-preview" dir="auto">' + friendlyInstructionHtml(rule.ExpectedValue) + '</strong></div>' : '') +
       ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') && target ?
         '<div class="validation-actions">' +
         '<button class="btn secondary small" id="edit-validation">' +
