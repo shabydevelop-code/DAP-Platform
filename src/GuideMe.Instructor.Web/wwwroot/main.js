@@ -1340,6 +1340,20 @@ function rejectInstructorField(field, message) {
   showInstructorFieldError(field, message);
   throw new InstructorFieldValidationError(message);
 }
+function validateInstructorSelection(container, selector, message) {
+  if (container.querySelector(selector)) {
+    container.querySelectorAll('.instructor-selection-error').forEach(el => el.remove());
+    return true;
+  }
+  container.querySelectorAll('.instructor-selection-error').forEach(el => el.remove());
+  const error = document.createElement('p');
+  error.className = 'instructor-field-error instructor-selection-error';
+  error.setAttribute('role', 'alert');
+  error.textContent = message;
+  container.append(error);
+  container.querySelector('input[name="app"]')?.focus();
+  return false;
+}
 function validateInstructorForm(form) {
   for (const field of form.querySelectorAll('input[required], textarea[required], select[required]')) {
     if (field.disabled || field.closest('.hidden,[hidden]')) continue;
@@ -1450,17 +1464,16 @@ async function newGuide() {
     '<button type="button" class="btn secondary small" id="refresh-applications">רענון אפליקציות</button>' +
     (!discovery.webConnected ? '<p>תוסף Instructor אינו מחובר — רשימת אתרי Web אינה זמינה.</p>' : '') +
     '</div></div>';
+  $('editor-form').noValidate = true;
   $('refresh-applications').onclick = () => guarded(newGuide);
   $('editor-form').onsubmit = event => {
     event.preventDefault();
+    if (!validateInstructorForm(event.currentTarget)) return;
     guarded(async () => {
       const name = $('guide-new-name').value.trim();
       const selected = [...document.querySelectorAll('input[name="app"]:checked')]
         .map(el => apps[Number(el.value)]);
-      if (!selected.length) {
-        showInstructorFieldError($('guide-new-name'), 'יש לבחור לפחות אפליקציה אחת.');
-        return;
-      }
+      if (!validateInstructorSelection($('dialog-fields'), 'input[name="app"]:checked', 'יש לבחור לפחות אפליקציה אחת.')) return;
       const applications = selected.map((app, index) => ({
         contextId:'app-' + (index + 1), runtime:app.runtime,
         matcherProperty:app.matcherProperty,matcherValue:app.matcherValue
@@ -1517,16 +1530,13 @@ async function chooseContextApplication() {
     '<button type="button" class="btn secondary small" id="refresh-applications">רענון אפליקציות</button>' +
     (!discovery.webConnected ? '<p>תוסף Instructor אינו מחובר — רשימת אתרי Web אינה זמינה.</p>' : '') +
     '</div></div>';
+  $('editor-form').noValidate = true;
   $('refresh-applications').onclick = () => guarded(() => chooseContextApplication());
   $('editor-form').onsubmit = event => {
     event.preventDefault();
     guarded(async () => {
       const indexes = [...document.querySelectorAll('input[name="app"]:checked')].map(el => Number(el.value));
-      if (indexes.length !== 1) {
-        notify('יש לבחור אפליקציה אחת.', true);
-        document.querySelector('input[name="app"]')?.focus();
-        return;
-      }
+      if (!validateInstructorSelection($('dialog-fields'), 'input[name="app"]:checked', 'יש לבחור אפליקציה אחת.')) return;
       const app = apps[indexes[0]];
       if (!app) throw new Error('האפליקציה שנבחרה אינה זמינה.');
       const used = new Set(current.contexts.map(c => c.ContextId));
