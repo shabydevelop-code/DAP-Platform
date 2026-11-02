@@ -1294,6 +1294,36 @@ function editGuideVariable(variable = null) {
   });
 }
 $('add-guide-variable').onclick = () => editGuideVariable();
+function validateInstructorForm(form) {
+  for (const field of form.querySelectorAll('input[required], textarea[required], select[required]')) {
+    if (field.disabled || field.closest('.hidden,[hidden]')) continue;
+    const empty = field.type === 'checkbox' || field.type === 'radio'
+      ? ![...form.querySelectorAll('[name="' + CSS.escape(field.name) + '"]')].some(item => item.checked)
+      : !String(field.value ?? '').trim();
+    if (!empty) { field.setCustomValidity(''); continue; }
+    field.setCustomValidity('יש למלא שדה זה לפני השמירה.');
+    field.reportValidity();
+    field.focus();
+    return false;
+  }
+  return true;
+}
+function showInstructorFieldError(field, message) {
+  if (!field) return;
+  field.setCustomValidity(message);
+  field.reportValidity();
+  field.focus();
+}
+document.addEventListener('input', event => {
+  if (event.target?.matches?.('input,textarea,select')) event.target.setCustomValidity('');
+}, true);
+document.addEventListener('change', event => {
+  if (event.target?.matches?.('input,textarea,select')) event.target.setCustomValidity('');
+}, true);
+document.addEventListener('submit', event => {
+  if (!validateInstructorForm(event.target)) event.preventDefault();
+}, true);
+
 function modal(title, fields, submit, buttonText='שמירה') {
   modalReturnFocus = document.activeElement;
   $('dialog-title').textContent=title;
@@ -1313,16 +1343,7 @@ function modal(title, fields, submit, buttonText='שמירה') {
   form.onsubmit=e=>{
     e.preventDefault();
     $('dialog-notice')?.remove();
-    const requiredFields = [...form.querySelectorAll('[required]')];
-    for (const field of requiredFields) {
-      if (!String(field.value || '').trim()) {
-        field.setCustomValidity('יש למלא שדה זה לפני השמירה.');
-        field.reportValidity();
-        field.focus();
-        return;
-      }
-      field.setCustomValidity('');
-    }
+    if (!validateInstructorForm(form)) return;
     const values=Object.fromEntries(new FormData(form).entries());
     guarded(async()=>{await submit(values);$('editor-dialog').close();});
   };
@@ -1399,7 +1420,10 @@ async function newGuide() {
       const name = $('guide-new-name').value.trim();
       const selected = [...document.querySelectorAll('input[name="app"]:checked')]
         .map(el => apps[Number(el.value)]);
-      if (!selected.length) throw new Error('יש לבחור לפחות אפליקציה אחת.');
+      if (!selected.length) {
+        showInstructorFieldError($('guide-new-name'), 'יש לבחור לפחות אפליקציה אחת.');
+        return;
+      }
       const applications = selected.map((app, index) => ({
         contextId:'app-' + (index + 1), runtime:app.runtime,
         matcherProperty:app.matcherProperty,matcherValue:app.matcherValue
@@ -1461,7 +1485,11 @@ async function chooseContextApplication() {
     event.preventDefault();
     guarded(async () => {
       const indexes = [...document.querySelectorAll('input[name="app"]:checked')].map(el => Number(el.value));
-      if (indexes.length !== 1) throw new Error('יש לבחור אפליקציה אחת.');
+      if (indexes.length !== 1) {
+        notify('יש לבחור אפליקציה אחת.', true);
+        document.querySelector('input[name="app"]')?.focus();
+        return;
+      }
       const app = apps[indexes[0]];
       if (!app) throw new Error('האפליקציה שנבחרה אינה זמינה.');
       const used = new Set(current.contexts.map(c => c.ContextId));
