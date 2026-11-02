@@ -238,7 +238,7 @@ internal sealed class WindowsTargetPicker : IDisposable
             // enclosing document surface so the user can see the selection.
             if (element.Current.ControlType == ControlType.Edit &&
                 element.Current.AutomationId.StartsWith("UIA_AutomationId_Word_Content_Page_", StringComparison.Ordinal) &&
-                !bounds.IsEmpty && bounds.Width < 12)
+                true)
             {
                 var parent = TreeWalker.RawViewWalker.GetParent(element);
                 for (var depth = 0; parent is not null && depth < 6; depth++,
@@ -248,7 +248,7 @@ internal sealed class WindowsTargetPicker : IDisposable
                     var parentBounds = parent.Current.BoundingRectangle;
                     if (!parentBounds.IsEmpty && parentBounds.Width >= 150 &&
                         parentBounds.Height >= 100 &&
-                        parentBounds.Contains(bounds.Left, bounds.Top))
+                        (bounds.IsEmpty || bounds.Width < 12 || parentBounds.IntersectsWith(bounds)))
                     {
                         bounds = parentBounds;
                         break;
