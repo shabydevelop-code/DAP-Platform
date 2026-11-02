@@ -47,21 +47,7 @@ public sealed class WindowsBubblePresenter
         CancellationToken cancellationToken,
         string? automaticStepLabel = null)
     {
-        var physicalRect = target.Current.BoundingRectangle;
-        if (target.Current.ControlType == ControlType.Edit && target.Current.AutomationId.StartsWith("UIA_AutomationId_Word_Content_Page_", StringComparison.Ordinal))
-        {
-            var parent = TreeWalker.RawViewWalker.GetParent(target);
-            for (var i = 0; parent is not null && i < 6; i++, parent = TreeWalker.RawViewWalker.GetParent(parent))
-            {
-                if (parent.Current.ProcessId != target.Current.ProcessId) break;
-                var bounds = parent.Current.BoundingRectangle;
-                if (!bounds.IsEmpty && bounds.Width >= 150 && bounds.Height >= 100 && bounds.Contains(physicalRect.Left, physicalRect.Top))
-                {
-                    physicalRect = bounds;
-                    break;
-                }
-            }
-        }
+        var physicalRect = GetPresentationBounds(target);
         if (physicalRect.IsEmpty || physicalRect.Width <= 0 || physicalRect.Height <= 0)
             throw new InvalidOperationException($"Windows target '{step.Id}' has no visible bounds.");
 
@@ -150,6 +136,30 @@ public sealed class WindowsBubblePresenter
             Console.Error.WriteLine($"[GuideMe Windows bubble viewport] Step '{step.Id}' restored; viewportCheck={viewportTimer.ElapsedMilliseconds} ms, presentation={presentationTimer.ElapsedMilliseconds} ms.");
         }
         cancellationToken.ThrowIfCancellationRequested();
+    }
+
+    public static Rect GetPresentationBounds(AutomationElement target)
+    {
+        var bounds = target.Current.BoundingRectangle;
+        if (target.Current.ControlType != ControlType.Edit ||
+            !target.Current.AutomationId.StartsWith("UIA_AutomationId_Word_Content_Page_", StringComparison.Ordinal))
+            return bounds;
+
+        // Word's Edit bounds represent its text/caret, and are empty on a blank page.
+        // Use the nearest page-sized UIA ancestor even before the first keystroke.
+        var processId = target.Current.ProcessId;
+        var parent = TreeWalker.RawViewWalker.GetParent(target);
+        for (var depth = 0; parent is not null && depth < 8; depth++,
+             parent = TreeWalker.RawViewWalker.GetParent(parent))
+        {
+            if (parent.Current.ProcessId != processId)
+                break;
+            var candidate = parent.Current.BoundingRectangle;
+            if (!candidate.IsEmpty && candidate.Width >= 150 && candidate.Height >= 100 &&
+                (bounds.IsEmpty || candidate.Contains(bounds.Left, bounds.Top)))
+                return candidate;
+        }
+        return bounds;
     }
 
     public Task WaitForGuideCompletedDismissalAsync(
