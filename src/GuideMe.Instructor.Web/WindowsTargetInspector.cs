@@ -13,7 +13,7 @@ internal static class WindowsTargetInspector
     internal sealed record AnchorCandidate(string Strategy, string Value, string Relation);
     internal sealed record Inspection(string Name, string ControlType, int ProcessId,
         IReadOnlyList<Candidate> Locators, string? Error,
-        IReadOnlyList<AnchorCandidate>? Anchors = null);
+        IReadOnlyList<AnchorCandidate>? Anchors = null, string? CapturedValue = null);
 
     [StructLayout(LayoutKind.Sequential)]
     private struct Point { public int X; public int Y; }
@@ -194,6 +194,7 @@ internal static class WindowsTargetInspector
                 throw new InvalidOperationException("לא נמצא חלון תפריט חד־משמעי של האפליקציה.");
         }
 
+        var capturedValue = ReadCapturedValue(selected);
         var name = selected.Current.Name ?? "";
         var id = selected.Current.AutomationId ?? "";
         var resolver = new WindowsTargetResolver();
@@ -243,16 +244,31 @@ internal static class WindowsTargetInspector
                 if (resolved.Status == TargetResolutionStatus.Resolved &&
                     resolved.Target is not null && Automation.Compare(resolved.Target, selected))
                     return new Inspection(name, selected.Current.ControlType.ProgrammaticName,
-                        processId, new[] { primary }, null, new[] { anchor });
+                        processId, new[] { primary }, null, new[] { anchor }, capturedValue);
             }
             if (directUnique)
                 return new Inspection(name, selected.Current.ControlType.ProgrammaticName,
-                    processId, new[] { primary }, null);
+                    processId, new[] { primary }, null, CapturedValue: capturedValue);
         }
         return new Inspection(name, selected.Current.ControlType.ProgrammaticName,
             processId, Array.Empty<Candidate>(),
-            "לא נמצא זיהוי חד־משמעי לרכיב באמצעות מאפייניו ועוגני השורה.");
+            "לא נמצא זיהוי חד־משמעי לרכיב באמצעות מאפייניו ועוגני השורה.", CapturedValue: capturedValue);
 
+    }
+
+    private static string? ReadCapturedValue(AutomationElement element)
+    {
+        try
+        {
+            if (element.TryGetCurrentPattern(ValuePattern.Pattern, out var valuePattern))
+                return ((ValuePattern)valuePattern).Current.Value;
+            if (element.TryGetCurrentPattern(TextPattern.Pattern, out var textPattern))
+                return ((TextPattern)textPattern).DocumentRange.GetText(4096).TrimEnd('\r', '\n');
+            return element.Current.Name;
+        }
+        catch (ElementNotAvailableException) { return null; }
+        catch (InvalidOperationException) { return null; }
+        catch (COMException) { return null; }
     }
 
     private static bool IsDescendantOf(AutomationElement element, AutomationElement root)
