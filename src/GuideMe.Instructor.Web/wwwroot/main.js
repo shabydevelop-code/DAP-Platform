@@ -705,8 +705,10 @@ function editCompletionCondition(step, rule) {
     event.preventDefault();
     guarded(async () => {
       const expected = kind.value === 'value-contains' ? variableEditorResult(value).trim() : null;
-      if (kind.value === 'value-contains' && !expected)
-        throw new Error('יש להזין ערך צפוי.');
+      if (kind.value === 'value-contains' && !expected) {
+        showInstructorFieldError(value, 'יש להזין ערך צפוי.');
+        return;
+      }
       const buttons = [...editor.querySelectorAll('button')];
       buttons.forEach(b => b.disabled = true);
       try {
@@ -740,8 +742,10 @@ function editValidation(step, rule) {
     for (const label of [...references.keys()].sort((a,b)=>b.length-a.length))
       expected = expected.split(label).join('{{var:' + references.get(label) + '}}');
     if (/【[^】]*】/.test(expected)) throw new Error('סימון משתנה לא מוכר.');
-    if (values.kind === 'value-equals' && !expected.trim())
-      throw new Error('יש להזין ערך צפוי.');
+    if (values.kind === 'value-equals' && !expected.trim()) {
+      showInstructorFieldError($('field-expectedValue'), 'יש להזין ערך צפוי.');
+      return;
+    }
     await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+'/validation',
       {method:'PUT',body:JSON.stringify({kind:values.kind,
         expectedValue:values.kind === 'value-equals' ? expected : null})});
@@ -794,7 +798,7 @@ function editValidation(step, rule) {
   const updateValueVisibility = () => {
     const visible=kindControl?.value==='value-equals';
     valueContainer?.classList.toggle('hidden',!visible);
-    if(input) input.required=visible;
+    if(input) { input.required=visible; if (!visible) clearInstructorFieldError(input); }
   };
   kindControl?.addEventListener('change',updateValueVisibility);
   updateValueVisibility();
@@ -1143,8 +1147,10 @@ async function refreshPicker() {
         const mode = $('variable-extract-choice')?.value || 'full';
         const pattern = mode === 'number' ? '([0-9]+)' :
           mode === 'custom' ? $('variable-extract-pattern')?.value : null;
-        if (mode === 'custom' && !pattern?.trim())
-          throw new Error('יש להזין ביטוי לחילוץ מותאם אישית.');
+        if (mode === 'custom' && !pattern?.trim()) {
+          showInstructorFieldError($('variable-extract-pattern'), 'יש להזין ביטוי לחילוץ מותאם אישית.');
+          return;
+        }
         await api('/guides/'+pickedFor.guideId+'/steps/'+encodeURIComponent(pickedFor.stepId)+'/variable-source',
           {method:'POST',body:JSON.stringify({
             ...pickedFor.variableSource,pattern,
@@ -1155,8 +1161,10 @@ async function refreshPicker() {
       else {
         const contentInput = $('picked-content-value');
         const contentValue = contentInput ? variableEditorResult(contentInput).trim() : null;
-        if (contentInput && (!contentValue || contentValue.length > 400))
-          throw new Error('יש להזין תוכן לזיהוי הרכיב (עד 400 תווים).');
+        if (contentInput && (!contentValue || contentValue.length > 400)) {
+          showInstructorFieldError(contentInput, 'יש להזין תוכן לזיהוי הרכיב (עד 400 תווים).');
+          return;
+        }
         await api('/guides/'+pickedFor.guideId+'/steps/'+encodeURIComponent(pickedFor.stepId)+'/primary-target',
           {method:'POST',body:JSON.stringify({
             condition:'',
@@ -1294,34 +1302,49 @@ function editGuideVariable(variable = null) {
   });
 }
 $('add-guide-variable').onclick = () => editGuideVariable();
+// One validation policy for dialog forms, inline editors and capture confirmations.
+function clearInstructorFieldError(field) {
+  if (!field) return;
+  field.setCustomValidity('');
+  field.removeAttribute('aria-invalid');
+  field.parentElement?.querySelector('.instructor-field-error')?.remove();
+}
+function showInstructorFieldError(field, message) {
+  if (!field) return false;
+  clearInstructorFieldError(field);
+  field.setCustomValidity(message);
+  field.setAttribute('aria-invalid', 'true');
+  const error = document.createElement('p');
+  error.className = 'instructor-field-error';
+  error.setAttribute('role', 'alert');
+  error.textContent = message;
+  field.insertAdjacentElement('afterend', error);
+  field.focus();
+  field.reportValidity();
+  return false;
+}
 function validateInstructorForm(form) {
   for (const field of form.querySelectorAll('input[required], textarea[required], select[required]')) {
     if (field.disabled || field.closest('.hidden,[hidden]')) continue;
     const empty = field.type === 'checkbox' || field.type === 'radio'
-      ? ![...form.querySelectorAll('[name="' + CSS.escape(field.name) + '"]')].some(item => item.checked)
+      ? ![...form.elements].some(item => item.name === field.name && item.checked)
       : !String(field.value ?? '').trim();
-    if (!empty) { field.setCustomValidity(''); continue; }
-    field.setCustomValidity('יש למלא שדה זה לפני השמירה.');
-    field.reportValidity();
-    field.focus();
-    return false;
+    if (empty) return showInstructorFieldError(field, 'יש למלא שדה זה לפני השמירה.');
+    clearInstructorFieldError(field);
   }
   return true;
 }
-function showInstructorFieldError(field, message) {
-  if (!field) return;
-  field.setCustomValidity(message);
-  field.reportValidity();
-  field.focus();
-}
 document.addEventListener('input', event => {
-  if (event.target?.matches?.('input,textarea,select')) event.target.setCustomValidity('');
+  if (event.target?.matches?.('input,textarea,select')) clearInstructorFieldError(event.target);
 }, true);
 document.addEventListener('change', event => {
-  if (event.target?.matches?.('input,textarea,select')) event.target.setCustomValidity('');
+  if (event.target?.matches?.('input,textarea,select')) clearInstructorFieldError(event.target);
 }, true);
 document.addEventListener('submit', event => {
-  if (!validateInstructorForm(event.target)) event.preventDefault();
+  if (!validateInstructorForm(event.target)) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }
 }, true);
 
 function modal(title, fields, submit, buttonText='שמירה') {
@@ -1352,14 +1375,8 @@ function modal(title, fields, submit, buttonText='שמירה') {
     if (new URLSearchParams(new FormData(form)).toString() !== baseline) markDirty();
     else markClean();
   };
-  form.oninput = event => {
-    if (event.target?.required) event.target.setCustomValidity('');
-    onChange();
-  };
-  form.onchange = event => {
-    if (event.target?.required) event.target.setCustomValidity('');
-    onChange();
-  };
+  form.oninput = onChange;
+  form.onchange = onChange;
   $('editor-dialog').showModal();
   form.querySelector('input,textarea,select')?.focus();
 }
