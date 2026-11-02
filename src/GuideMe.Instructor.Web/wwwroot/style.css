@@ -417,4 +417,6 @@ body .brand-heading strong span { font-size: 26px; }
 [aria-invalid="true"] { border-color: #b33434 !important; }
 
 /* Preserve line breaks in saved expected-value previews. */
-.validation-expected-preview { white-space: pre-wrap; overflow-wrap: anywhere; unicode-bidi: plaintext; }
+.validation-expected-block { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 6px; margin: 8px 0; direction: rtl; text-align: right; }
+.validation-expected-label { white-space: nowrap; color: #64748b; }
+.validation-expected-preview { display: block; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; text-align: right; direction: rtl; unicode-bidi: plaintext; }
