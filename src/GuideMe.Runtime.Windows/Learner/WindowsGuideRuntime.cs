@@ -574,7 +574,8 @@ public sealed class WindowsGuideRuntime
                 // SelectionItem events. Observe a real click on the exact item,
                 // rather than treating disappearance as successful selection.
                 if (clicked && (target.Current.ControlType == ControlType.ListItem ||
-                    target.Current.ControlType == ControlType.MenuItem) &&
+                    target.Current.ControlType == ControlType.MenuItem ||
+                    target.Current.ControlType == ControlType.Button) &&
                     (observedListItem is null || !SameElement(observedListItem, target)))
                 {
                     listItemClickObserver?.Dispose();
