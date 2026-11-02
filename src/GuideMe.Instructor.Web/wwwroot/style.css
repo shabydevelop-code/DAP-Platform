@@ -411,3 +411,7 @@ body .brand-heading strong span { font-size: 26px; }
 .step-dragging{opacity:.45}
 .step-drop-before{box-shadow:inset 0 3px #205bc2}
 .step-drop-after{box-shadow:inset 0 -3px #205bc2}
+
+/* Consistent inline validation for modal, capture and step editors. */
+.instructor-field-error { color: #9b2424; font-size: 0.85rem; margin: 5px 0 0; text-align: right; }
+[aria-invalid="true"] { border-color: #b33434 !important; }
