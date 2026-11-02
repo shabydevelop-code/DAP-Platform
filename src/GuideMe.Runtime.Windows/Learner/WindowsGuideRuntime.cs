@@ -776,6 +776,7 @@ public sealed class WindowsGuideRuntime
             }
 
             await sharedEngine.RunAsync(activeState, (_, token) => ReconcileAsync(token), cancellationToken);
+            Diagnose("step-engine-returned");
         }
         finally
         {
@@ -815,7 +816,9 @@ public sealed class WindowsGuideRuntime
                     SelectionItemPattern.ElementSelectedEvent, subscribedSelectionTarget, clickHandler); }
                 catch (ElementNotAvailableException) { }
             }
+            Diagnose("cleanup-hide-start");
             await _bubbles.HideAsync();
+            Diagnose("cleanup-hide-finished");
         }
     }
 
