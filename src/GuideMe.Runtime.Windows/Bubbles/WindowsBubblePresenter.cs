@@ -739,8 +739,31 @@ public sealed class WindowsBubblePresenter
     {
         try
         {
+            // Word reports its empty Edit/caret as offscreen until the first
+            // character is entered, even while the containing page is visible.
+            // For that provider, the visible page ancestor determines presentation.
             if (target.Current.IsOffscreen)
-                return false;
+            {
+                if (target.Current.ControlType != ControlType.Edit ||
+                    !target.Current.AutomationId.StartsWith("UIA_AutomationId_Word_Content_Page_", StringComparison.Ordinal) ||
+                    targetRect.IsEmpty)
+                    return false;
+                var pageVisible = false;
+                for (var parent = TreeWalker.RawViewWalker.GetParent(target), depth = 0;
+                     parent is not null && depth < 8;
+                     parent = TreeWalker.RawViewWalker.GetParent(parent), depth++)
+                {
+                    var bounds = parent.Current.BoundingRectangle;
+                    if (!bounds.IsEmpty && bounds.Width >= 150 && bounds.Height >= 100 &&
+                        !parent.Current.IsOffscreen)
+                    {
+                        pageVisible = true;
+                        break;
+                    }
+                }
+                if (!pageVisible)
+                    return false;
+            }
 
             var walker = TreeWalker.ControlViewWalker;
             for (var ancestor = walker.GetParent(target);
