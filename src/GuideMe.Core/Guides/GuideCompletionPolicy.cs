@@ -15,7 +15,7 @@ public static class GuideCompletionPolicy
             "target-not-exists" or "target-vanished" => !resolved && !ambiguous,
             "target-enabled" => resolved && enabled,
             "value-contains" => resolved && !string.IsNullOrEmpty(condition.ExpectedValue) &&
-                GuideValidationPolicy.NormalizeLineEndings(value)?.Contains(GuideValidationPolicy.NormalizeLineEndings(condition.ExpectedValue)!, StringComparison.Ordinal) == true,
+                GuideValidationPolicy.NormalizeExpectedText(value)?.Contains(GuideValidationPolicy.NormalizeExpectedText(condition.ExpectedValue)!, StringComparison.Ordinal) == true,
             "value-equals" => resolved && condition.ExpectedValue is not null
                 && GuideValidationPolicy.IsValueSatisfied(new ValidationDefinition("value-equals", condition.ExpectedValue), value),
             _ => throw new NotSupportedException($"Unsupported completion condition kind '{condition.Kind}'.")
