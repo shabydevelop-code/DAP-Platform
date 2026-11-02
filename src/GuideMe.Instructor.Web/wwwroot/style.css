@@ -420,3 +420,9 @@ body .brand-heading strong span { font-size: 26px; }
 .validation-expected-block { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 6px; margin: 8px 0; direction: rtl; text-align: right; }
 .validation-expected-label { white-space: nowrap; color: #64748b; }
 .validation-expected-preview { display: block; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; text-align: right; direction: rtl; unicode-bidi: plaintext; }
+
+/* Library navigation belongs to the application header, not guide tabs. */
+.header-library-back { border: 1px solid #cbd9ed; background: #fff; color: #285a9d; border-radius: 10px; padding: 9px 13px; min-height: 40px; font-weight: 650; white-space: nowrap; }
+.header-library-back:hover { background: #f3f7ff; border-color: #9bb9e6; }
+.header-library-back:focus-visible { outline: 3px solid #76a7ff; outline-offset: 2px; }
+.header-library-back.hidden { display: none !important; }
