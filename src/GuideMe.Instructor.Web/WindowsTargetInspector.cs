@@ -82,7 +82,38 @@ internal static class WindowsTargetInspector
             catch (ElementNotAvailableException) { }
             catch (COMException) { }
         }
-        return AutomationElement.FromPoint(new System.Windows.Point(x, y));
+        var hit = AutomationElement.FromPoint(new System.Windows.Point(x, y));
+        if (hit is not null && BelongsToProcess(hit, processId))
+            return hit;
+
+        // Office document surfaces can be exposed in the UIA control tree even
+        // when desktop hit testing returns an unrelated host/provider element.
+        // Restrict fallback to the actual window under the pointer and to a
+        // Document whose own bounds contain the pointer.
+        if (!IsOwnedByProcess(GetAncestor(hwnd, 2), processId))
+            return hit;
+        try
+        {
+            var window = AutomationElement.FromHandle(GetAncestor(hwnd, 2));
+            AutomationElement? document = null;
+            var smallestArea = double.MaxValue;
+            foreach (AutomationElement candidate in window.FindAll(TreeScope.Descendants,
+                new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Document)))
+            {
+                var bounds = candidate.Current.BoundingRectangle;
+                if (bounds.IsEmpty || !bounds.Contains(x, y)) continue;
+                var area = bounds.Width * bounds.Height;
+                if (area < smallestArea)
+                {
+                    document = candidate;
+                    smallestArea = area;
+                }
+            }
+            if (document is not null) return document;
+        }
+        catch (ElementNotAvailableException) { }
+        catch (COMException) { }
+        return hit;
     }
 
     // Native Win32 popup menus (#32768) can live outside the application's
