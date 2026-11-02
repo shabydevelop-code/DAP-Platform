@@ -327,7 +327,8 @@ public sealed class WindowsGuideRuntime
                 // Document editors commonly have TextPattern but no ValuePattern.
                 // Treat leaving the document as the commit; do not advance while
                 // the learner is still typing or continuously validate keystrokes.
-                if (isTextEditTarget && target.Current.ControlType == ControlType.Document)
+                if (isTextEditTarget && (target.Current.ControlType == ControlType.Document ||
+                    target.Current.AutomationId.StartsWith("UIA_AutomationId_Word_Content_Page_", StringComparison.Ordinal)))
                 {
                     if (target.Current.HasKeyboardFocus)
                         Volatile.Write(ref textTargetObservedFocused, 1);
@@ -732,8 +733,7 @@ public sealed class WindowsGuideRuntime
                         // require ValuePattern to reset the commit state.
                         if (target.TryGetCurrentPattern(ValuePattern.Pattern, out var committedValuePattern))
                             initialTextValue = ((ValuePattern)committedValuePattern).Current.Value;
-                        else if (target.Current.ControlType == ControlType.Document &&
-                            target.TryGetCurrentPattern(TextPattern.Pattern, out var committedTextPattern))
+                        else if (target.TryGetCurrentPattern(TextPattern.Pattern, out var committedTextPattern))
                             initialTextValue = ((TextPattern)committedTextPattern).DocumentRange.GetText(-1);
                         Volatile.Write(ref textTargetObservedFocused, 0);
                         Volatile.Write(ref textTargetChanged, 0);
