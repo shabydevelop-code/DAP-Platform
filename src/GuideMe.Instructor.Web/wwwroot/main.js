@@ -701,8 +701,10 @@ function editCompletionCondition(step, rule) {
     actions.classList.remove('hidden');
   };
   $('completion-edit-cancel').onclick = cancel;
+  editor.noValidate = true;
   editor.onsubmit = event => {
     event.preventDefault();
+    if (!validateInstructorForm(editor)) return;
     guarded(async () => {
       const expected = kind.value === 'value-contains' ? variableEditorResult(value).trim() : null;
       if (kind.value === 'value-contains' && !expected) {
@@ -742,10 +744,8 @@ function editValidation(step, rule) {
     for (const label of [...references.keys()].sort((a,b)=>b.length-a.length))
       expected = expected.split(label).join('{{var:' + references.get(label) + '}}');
     if (/【[^】]*】/.test(expected)) throw new Error('סימון משתנה לא מוכר.');
-    if (values.kind === 'value-equals' && !expected.trim()) {
-      showInstructorFieldError($('field-expectedValue'), 'יש להזין ערך צפוי.');
-      return;
-    }
+    if (values.kind === 'value-equals' && !expected.trim())
+      throw new Error('יש להזין ערך צפוי.');
     await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+'/validation',
       {method:'PUT',body:JSON.stringify({kind:values.kind,
         expectedValue:values.kind === 'value-equals' ? expected : null})});
@@ -1111,6 +1111,8 @@ async function refreshPicker() {
     const condition = $('target-condition');
     const updateFields = () => {
       $('completion-fixed-value-fields').classList.toggle('hidden', condition.value !== 'value-contains');
+      const expected = $('completion-fixed-value');
+      if (expected) expected.required = condition.value === 'value-contains';
     };
     condition.addEventListener('change', updateFields);
     if (pickingFor.completionEdit) {
@@ -1365,6 +1367,7 @@ function modal(title, fields, submit, buttonText='שמירה') {
   }).join('')+'</div>';
   $('submit-dialog').textContent=buttonText;
   const form=$('editor-form');
+  form.noValidate = true;
   form.onsubmit=e=>{
     e.preventDefault();
     $('dialog-notice')?.remove();
