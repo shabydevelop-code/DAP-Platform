@@ -743,9 +743,10 @@ function editValidation(step, rule) {
     let expected = values.expectedValue;
     for (const label of [...references.keys()].sort((a,b)=>b.length-a.length))
       expected = expected.split(label).join('{{var:' + references.get(label) + '}}');
-    if (/【[^】]*】/.test(expected)) throw new Error('סימון משתנה לא מוכר.');
+    if (/【[^】]*】/.test(expected))
+      return showInstructorFieldError($('field-expectedValue'), 'סימון משתנה לא מוכר.');
     if (values.kind === 'value-equals' && !expected.trim())
-      throw new Error('יש להזין ערך צפוי.');
+      return showInstructorFieldError($('field-expectedValue'), 'יש להזין ערך צפוי.');
     await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+'/validation',
       {method:'PUT',body:JSON.stringify({kind:values.kind,
         expectedValue:values.kind === 'value-equals' ? expected : null})});
@@ -1812,12 +1813,12 @@ function editPrimaryTargetValue({kind, step, locators, binding:preparedBinding})
     try {
       const value=variableEditorResult(input);
       const template=buildTemplate(value);
-      if (!template.trim()) throw new Error('יש להזין מזהה רכיב.');
-      if (template.length>400) throw new Error('מזהה הרכיב ארוך מדי.');
+      if (!template.trim()) return showInstructorFieldError(input, 'יש להזין מזהה רכיב.');
+      if (template.length>400) return showInstructorFieldError(input, 'מזהה הרכיב ארוך מדי.');
       if (locator.Strategy === 'css' && rawValue === original &&
           !template.includes('{{var:')) {
         try { document.querySelector(template); }
-        catch { throw new Error('מזהה CSS אינו תקין.'); }
+        catch { return showInstructorFieldError(input, 'מזהה CSS אינו תקין.'); }
       }
       if (template === original) {
         restore();
@@ -1938,8 +1939,9 @@ function openVariableTextEditor({title, original, variables, maxLength, saveLabe
     for (const label of [...references.keys()].sort((a,b) => b.length-a.length))
       result = result.split(label).join('{{var:' + references.get(label) + '}}');
     if (/【[^】]*】/.test(result))
-      throw new Error('סימון משתנה לא מוכר. יש להוסיף משתנים באמצעות הכפתור.');
-    if (result.length > maxLength) throw new Error('הטקסט ארוך מדי.');
+      return showInstructorFieldError($('field-sourceText'), 'סימון משתנה לא מוכר. יש להוסיף משתנים באמצעות הכפתור.');
+    if (result.length > maxLength)
+      return showInstructorFieldError($('field-sourceText'), 'הטקסט ארוך מדי.');
     await save(result);
   }, saveLabel);
   if (description) {
