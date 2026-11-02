@@ -749,9 +749,8 @@ public sealed class WindowsBubblePresenter
                     targetRect.IsEmpty)
                     return false;
                 var pageVisible = false;
-                for (var parent = TreeWalker.RawViewWalker.GetParent(target), depth = 0;
-                     parent is not null && depth < 8;
-                     parent = TreeWalker.RawViewWalker.GetParent(parent), depth++)
+                for (var parent = TreeWalker.RawViewWalker.GetParent(target); parent is not null;
+                     parent = TreeWalker.RawViewWalker.GetParent(parent))
                 {
                     var bounds = parent.Current.BoundingRectangle;
                     if (!bounds.IsEmpty && bounds.Width >= 150 && bounds.Height >= 100 &&
