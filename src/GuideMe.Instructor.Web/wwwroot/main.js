@@ -744,9 +744,9 @@ function editValidation(step, rule) {
     for (const label of [...references.keys()].sort((a,b)=>b.length-a.length))
       expected = expected.split(label).join('{{var:' + references.get(label) + '}}');
     if (/【[^】]*】/.test(expected))
-      showInstructorFieldError($('field-expectedValue'), 'סימון משתנה לא מוכר.');
+      rejectInstructorField($('field-expectedValue'), 'סימון משתנה לא מוכר.');
     if (values.kind === 'value-equals' && !expected.trim())
-      showInstructorFieldError($('field-expectedValue'), 'יש להזין ערך צפוי.');
+      rejectInstructorField($('field-expectedValue'), 'יש להזין ערך צפוי.');
     await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+'/validation',
       {method:'PUT',body:JSON.stringify({kind:values.kind,
         expectedValue:values.kind === 'value-equals' ? expected : null})});
@@ -1339,9 +1339,13 @@ function showInstructorFieldError(field, message) {
   field.insertAdjacentElement('afterend', error);
   field.focus();
   field.reportValidity();
-  throw new InstructorFieldValidationError(message);
+  return false;
 }
 class InstructorFieldValidationError extends Error {}
+function rejectInstructorField(field, message) {
+  showInstructorFieldError(field, message);
+  throw new InstructorFieldValidationError(message);
+}
 function validateInstructorForm(form) {
   for (const field of form.querySelectorAll('input[required], textarea[required], select[required]')) {
     if (field.disabled || field.closest('.hidden,[hidden]')) continue;
@@ -1942,9 +1946,9 @@ function openVariableTextEditor({title, original, variables, maxLength, saveLabe
     for (const label of [...references.keys()].sort((a,b) => b.length-a.length))
       result = result.split(label).join('{{var:' + references.get(label) + '}}');
     if (/【[^】]*】/.test(result))
-      showInstructorFieldError($('field-sourceText'), 'סימון משתנה לא מוכר. יש להוסיף משתנים באמצעות הכפתור.');
+      rejectInstructorField($('field-sourceText'), 'סימון משתנה לא מוכר. יש להוסיף משתנים באמצעות הכפתור.');
     if (result.length > maxLength)
-      showInstructorFieldError($('field-sourceText'), 'הטקסט ארוך מדי.');
+      rejectInstructorField($('field-sourceText'), 'הטקסט ארוך מדי.');
     await save(result);
   }, saveLabel);
   if (description) {
