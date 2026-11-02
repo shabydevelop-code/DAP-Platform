@@ -87,6 +87,22 @@ public sealed class WindowsTargetResolver
             };
         }
 
+        // Word's page editor has a stable AutomationId, but its surrounding
+        // accessibility hierarchy changes as the document receives focus.
+        // Resolve this exact typed target uniquely without stale ancestor anchors.
+        if (descriptor.Locator.Strategy.Equals("automation-id", StringComparison.OrdinalIgnoreCase) &&
+            descriptor.Locator.Value.StartsWith("UIA_AutomationId_Word_Content_Page_", StringComparison.Ordinal) &&
+            string.Equals(descriptor.ControlType, "ControlType.Edit", StringComparison.Ordinal))
+        {
+            var matches = FindForCapturedType(root, descriptor.Locator, descriptor.ControlType).Take(2).ToArray();
+            return matches.Length switch
+            {
+                0 => TargetResolution<AutomationElement>.NotFound(),
+                1 => TargetResolution<AutomationElement>.Resolved(matches[0]),
+                _ => TargetResolution<AutomationElement>.Ambiguous(matches.Length)
+            };
+        }
+
         // Self anchors describe properties of the target itself. Push native exact
         // predicates into UIA instead of enumerating every primary match first.
         // Keep all non-self anchors for the existing validation pass.
