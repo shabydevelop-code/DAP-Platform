@@ -1389,7 +1389,7 @@ public sealed class WindowsGuideRuntime
     {
         try
         {
-            var rect = target.Current.BoundingRectangle;
+            var rect = WindowsBubblePresenter.GetPresentationBounds(target);
             return !target.Current.IsOffscreen
                    && !rect.IsEmpty
                    && rect.Width > 0
