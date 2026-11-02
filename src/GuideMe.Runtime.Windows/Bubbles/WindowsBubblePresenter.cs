@@ -156,7 +156,7 @@ public sealed class WindowsBubblePresenter
                 break;
             var candidate = parent.Current.BoundingRectangle;
             if (!candidate.IsEmpty && candidate.Width >= 150 && candidate.Height >= 100 &&
-                (bounds.IsEmpty || candidate.Contains(bounds.Left, bounds.Top)))
+                (bounds.IsEmpty || bounds.Width < 12 || candidate.IntersectsWith(bounds)))
                 return candidate;
         }
         return bounds;
