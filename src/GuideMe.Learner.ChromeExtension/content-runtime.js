@@ -685,7 +685,7 @@
     if(step.advanceMode!==1 && step.advanceMode!=="Manual")return;
     const button=bubble.ownerDocument.createElement("button");
     button.type="button";
-    button.textContent=presentation.actionText||"אישור";
+    button.textContent=presentation.actionText||"";
     button.dataset.guideMeAttachedConfirm="1";
     Object.assign(button.style,{
       display:"block",margin:"12px auto 0",padding:"6px 18px",
