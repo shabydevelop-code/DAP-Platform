@@ -1245,7 +1245,10 @@ function renderContexts() {
   $('contexts-list').innerHTML = current.contexts.length ? current.contexts.map((c,i) => {
     const used = current.steps.some(step => current.stepContexts?.[step.id] === c.ContextId);
     const target = matcher(c);
-    return '<div class="context-card"><div><span class="chip ' + (c.Runtime === 'Windows' ? 'win' : '') + '">' +
+    const title = (c.DiscoveredTitle || c.DisplayName || '').trim();
+    return '<div class="context-card"><div>' +
+      (title ? '<strong class="context-title">' + esc(title) + '</strong>' : '') +
+      '<span class="chip ' + (c.Runtime === 'Windows' ? 'win' : '') + '">' +
       esc(c.Runtime) + '</span><div class="context-meta">' + esc(target) +
       '</div></div><div class="context-actions"><button class="btn danger small" data-context-delete="' + i + '"' +
       (used ? ' disabled title="האפליקציה משויכת לשלבים בלומדה"' : '') +
