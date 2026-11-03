@@ -121,13 +121,7 @@ public sealed class WindowsBubblePresenter
 
             _window.UpdateLayout();
 
-            if (_manuallyPositioned)
-                _pointer!.Visibility = Visibility.Collapsed;
-            else
-            {
-                _pointer!.Visibility = Visibility.Collapsed;
-                // Pointer removed: target highlight already provides orientation.
-            }
+            // No directional arrow; the target highlight remains visible.
         });
 
         if (returningFromViewport)
@@ -439,79 +433,6 @@ public sealed class WindowsBubblePresenter
                 target.Left + (target.Width - width) / 2,
                 target.Bottom + TargetGap)
         };
-
-    private void UpdatePointer()
-    {
-        if (_window is null || _pointer is null || _bubble is null || _targetRect.IsEmpty)
-            return;
-
-        var targetCenter = new Point(
-            _targetRect.Left + _targetRect.Width / 2,
-            _targetRect.Top + _targetRect.Height / 2);
-
-        const double size = 10d;
-        Point p1;
-        Point p2;
-        Point tip;
-
-        switch (_activePlacement)
-        {
-            case BubblePlacement.Left:
-            {
-                var x = PointerSpace + _bubble.ActualWidth;
-                var targetY = targetCenter.Y - _window.Top;
-                var y = Math.Clamp(
-                    targetY,
-                    PointerSpace + size,
-                    PointerSpace + _bubble.ActualHeight - size);
-                p1 = new Point(x, y - size);
-                p2 = new Point(x, y + size);
-                tip = new Point(x + PointerSpace, y);
-                break;
-            }
-            case BubblePlacement.Right:
-            {
-                var x = PointerSpace;
-                var targetY = targetCenter.Y - _window.Top;
-                var y = Math.Clamp(
-                    targetY,
-                    PointerSpace + size,
-                    PointerSpace + _bubble.ActualHeight - size);
-                p1 = new Point(x, y - size);
-                p2 = new Point(x, y + size);
-                tip = new Point(0, y);
-                break;
-            }
-            case BubblePlacement.Top:
-            {
-                var y = PointerSpace + _bubble.ActualHeight;
-                var targetX = targetCenter.X - _window.Left;
-                var x = Math.Clamp(
-                    targetX,
-                    PointerSpace + size,
-                    PointerSpace + _bubble.ActualWidth - size);
-                p1 = new Point(x - size, y);
-                p2 = new Point(x + size, y);
-                tip = new Point(x, y + PointerSpace);
-                break;
-            }
-            default:
-            {
-                var y = PointerSpace;
-                var targetX = targetCenter.X - _window.Left;
-                var x = Math.Clamp(
-                    targetX,
-                    PointerSpace + size,
-                    PointerSpace + _bubble.ActualWidth - size);
-                p1 = new Point(x - size, y);
-                p2 = new Point(x + size, y);
-                tip = new Point(x, 0);
-                break;
-            }
-        }
-
-        _pointer.Points = new PointCollection { p1, p2, tip };
-    }
 
     private void UpdateTargetHighlight(Rect target)
     {
