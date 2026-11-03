@@ -76,3 +76,12 @@
 - דוגמה מחייבת: שילוב משתנים בהנחיה, ברכיב במסך, בתנאי התקדמות ובתנאי השלמה ישתמש באותו רכיב עריכה/הוספה ובאותם כללי טיפול במשתנים. רק פעולת השמירה והאימות המיוחדים לשדה יהיו שונים.
 - לפני הכרזה על השלמה יש לבדוק את כל מסלולי הקריאה למנגנון, לבצע Build ובדיקות רלוונטיות לשתי הפלטפורמות כשאפשר, ולדווח במפורש על בדיקות שלא ניתן היה להריץ. Commit או העלאת קוד לבדם אינם הוכחת תקינות.
 - אין להוסיף פתרון מקומי מהיר אם הוא יוצר כפילות. במקרה שנדרש שינוי ארכיטקטוני כדי לשמור על אחידות, מבצעים אותו כחלק מהתיקון.
+
+## Manual confirmation for target-attached steps (Web and Windows)
+
+- No primary target and no validation: show centered information with manual confirmation.
+- Primary target and no primary validation: highlight the target, attach the bubble, and advance only after the learner presses Confirm.
+- Primary target and primary validation: advance according to the configured validation and completion conditions.
+- Instructor must not require a validation merely because a primary target exists. No additional GUI mode selector is needed.
+- The V5 compiler derives Manual from absence of primary validation. A target-attached step cannot use centered placement; Center is normalized to Auto for such steps.
+- Web and Windows must follow the same shared policy. Do not silently complete a manual step without learner confirmation.
