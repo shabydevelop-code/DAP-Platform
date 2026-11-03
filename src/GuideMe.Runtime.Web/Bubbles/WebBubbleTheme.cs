@@ -19,20 +19,20 @@ public sealed record WebBubbleTheme(
     int PointerSize)
 {
     public static WebBubbleTheme Default { get; } = new(
-        BackgroundColor: "#312E5A",
-        TextColor: "#FFFFFF",
-        BorderColor: "#8B83C7",
-        BorderWidth: 1,
-        BorderRadius: 8,
+        BackgroundColor: "#FFFFFF",
+        TextColor: "#1F2D3D",
+        BorderColor: "#F4C542",
+        BorderWidth: 2,
+        BorderRadius: 18,
         MaxWidth: 320,
         Padding: "12px 16px",
-        BoxShadow: "0 10px 28px rgba(32,29,67,.28)",
+        BoxShadow: "0 10px 28px rgba(31,45,61,.14)",
         FontFamily: "Arial,sans-serif",
         FontSize: 14,
         LineHeight: 1.4,
         Direction: "rtl",
-        TargetHighlightColor: "#A99FE8",
-        TargetHighlightWidth: 2,
-        TargetHighlightShadow: "0 0 0 3px rgba(169,159,232,.22)",
-        PointerSize: 9);
+        TargetHighlightColor: "#FFDF00",
+        TargetHighlightWidth: 3,
+        TargetHighlightShadow: "0 0 0 2px #111827",
+        PointerSize: 0);
 }
