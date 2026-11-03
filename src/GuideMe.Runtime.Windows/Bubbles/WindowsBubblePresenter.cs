@@ -13,7 +13,7 @@ namespace GuideMe.Runtime.Windows.Bubbles;
 
 public sealed class WindowsBubblePresenter
 {
-    private const double PointerSpace = 16d;
+    private const double BubbleWindowInset = 16d;
     private const double TargetGap = 10d;
 
     private readonly IUiTextProvider _texts;
@@ -96,8 +96,8 @@ public sealed class WindowsBubblePresenter
 
             var bubbleWidth = _bubble!.ActualWidth;
             var bubbleHeight = _bubble.ActualHeight;
-            var windowWidth = Math.Max(_window.ActualWidth, bubbleWidth + PointerSpace * 2);
-            var windowHeight = Math.Max(_window.ActualHeight, bubbleHeight + PointerSpace * 2);
+            var windowWidth = Math.Max(_window.ActualWidth, bubbleWidth + BubbleWindowInset * 2);
+            var windowHeight = Math.Max(_window.ActualHeight, bubbleHeight + BubbleWindowInset * 2);
 
             if (!_manuallyPositioned && !_dragging)
             {
@@ -583,7 +583,7 @@ public sealed class WindowsBubblePresenter
             BorderThickness = new Thickness(2),
             CornerRadius = new CornerRadius(18),
             Padding = new Thickness(14),
-            Margin = new Thickness(PointerSpace),
+            Margin = new Thickness(BubbleWindowInset),
             Child = stack
         };
 
