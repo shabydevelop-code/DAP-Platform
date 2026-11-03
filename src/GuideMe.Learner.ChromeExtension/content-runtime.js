@@ -776,29 +776,6 @@
       };
     };
 
-    const pointerFor=side=>{
-      pointer.style.display="none";
-      return;
-      const n=theme.pointerSize;
-      pointer.style.cssText=
-        "position:absolute;width:0;height:0;cursor:default;"+
-        "border-left:"+n+"px solid transparent;"+
-        "border-right:"+n+"px solid transparent;"+
-        "border-top:"+n+"px solid transparent;"+
-        "border-bottom:"+n+"px solid transparent";
-      if(side==="Bottom"){
-        pointer.style.left="50%";
-        pointer.style.top=(-2*n)+"px";
-        pointer.style.transform="translateX(-50%)";
-        pointer.style.borderBottomColor=theme.backgroundColor;
-      }else{
-        pointer.style.left="50%";
-        pointer.style.bottom=(-2*n)+"px";
-        pointer.style.transform="translateX(-50%)";
-        pointer.style.borderTopColor=theme.backgroundColor;
-      }
-    };
-
     const place=()=>{
       // Reconciliation can update the target many times per second. While the
       // learner is actively dragging, never let automatic placement overwrite
