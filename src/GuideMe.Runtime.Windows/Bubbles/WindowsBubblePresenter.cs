@@ -80,7 +80,7 @@ public sealed class WindowsBubblePresenter
             {
                 _activeStepId = step.Id;
                 _manuallyPositioned = false;
-                _pointer!.Visibility = Visibility.Visible;
+                _pointer!.Visibility = Visibility.Collapsed;
             }
 
             _targetRect = rect;
@@ -125,8 +125,8 @@ public sealed class WindowsBubblePresenter
                 _pointer!.Visibility = Visibility.Collapsed;
             else
             {
-                _pointer!.Visibility = Visibility.Visible;
-                UpdatePointer();
+                _pointer!.Visibility = Visibility.Collapsed;
+                // Pointer removed: target highlight already provides orientation.
             }
         });
 
@@ -211,7 +211,7 @@ public sealed class WindowsBubblePresenter
                 Text = content,
                 TextWrapping = TextWrapping.Wrap,
                 FontSize = 15,
-                Foreground = Brushes.White,
+                Foreground = new SolidColorBrush(Color.FromRgb(31, 45, 61)),
                 MaxWidth = 360,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 TextAlignment = TextAlignment.Center,
@@ -232,7 +232,7 @@ public sealed class WindowsBubblePresenter
             {
                 Text = "⠿",
                 FontSize = 17,
-                Foreground = new SolidColorBrush(Color.FromRgb(220, 228, 236)),
+                Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139)),
                 Cursor = Cursors.SizeAll,
                 ToolTip = _texts.Get("Learner.DragBubble"),
                 HorizontalAlignment = HorizontalAlignment.Center,
@@ -250,7 +250,7 @@ public sealed class WindowsBubblePresenter
                     Text = progressText,
                     Margin = new Thickness(0, 8, 0, 0),
                     FontSize = 11,
-                    Foreground = new SolidColorBrush(Color.FromRgb(220, 228, 236)),
+                    Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139)),
                     HorizontalAlignment = HorizontalAlignment.Center,
                     FlowDirection = _texts.IsRightToLeft
                         ? FlowDirection.RightToLeft
@@ -262,10 +262,10 @@ public sealed class WindowsBubblePresenter
 
             var border = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(39, 67, 91)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(27, 48, 66)),
-                BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(8),
+                Background = new SolidColorBrush(Color.FromRgb(255, 255, 255)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(244, 197, 66)),
+                BorderThickness = new Thickness(2),
+                CornerRadius = new CornerRadius(18),
                 Padding = new Thickness(14),
                 Child = stack
             };
@@ -605,7 +605,7 @@ public sealed class WindowsBubblePresenter
         {
             TextWrapping = TextWrapping.Wrap,
             FontSize = 15,
-            Foreground = Brushes.White,
+            Foreground = new SolidColorBrush(Color.FromRgb(31, 45, 61)),
             MaxWidth = 360,
             FlowDirection = FlowDirection.RightToLeft
         };
@@ -614,7 +614,7 @@ public sealed class WindowsBubblePresenter
         {
             FontSize = 12,
             FontWeight = FontWeights.Bold,
-            Foreground = Brushes.White,
+            Foreground = new SolidColorBrush(Color.FromRgb(31, 45, 61)),
             FlowDirection = FlowDirection.RightToLeft
         };
 
@@ -634,7 +634,7 @@ public sealed class WindowsBubblePresenter
         {
             Margin = new Thickness(0, 8, 0, 0),
             FontSize = 15,
-            Foreground = new SolidColorBrush(Color.FromRgb(220, 228, 236)),
+            Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139)),
             FlowDirection = _texts.IsRightToLeft ? FlowDirection.RightToLeft : FlowDirection.LeftToRight
         };
 
@@ -642,7 +642,7 @@ public sealed class WindowsBubblePresenter
         {
             Text = "⠿",
             FontSize = 17,
-            Foreground = new SolidColorBrush(Color.FromRgb(220, 228, 236)),
+            Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139)),
             Cursor = Cursors.Hand,
             ToolTip = _texts.Get("Learner.DragBubble"),
             HorizontalAlignment = HorizontalAlignment.Center,
@@ -657,10 +657,10 @@ public sealed class WindowsBubblePresenter
 
         _bubble = new Border
         {
-            Background = new SolidColorBrush(Color.FromRgb(39, 67, 91)),
-            BorderBrush = new SolidColorBrush(Color.FromRgb(27, 48, 66)),
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(8),
+            Background = new SolidColorBrush(Color.FromRgb(255, 255, 255)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(244, 197, 66)),
+            BorderThickness = new Thickness(2),
+            CornerRadius = new CornerRadius(18),
             Padding = new Thickness(14),
             Margin = new Thickness(PointerSpace),
             Child = stack
@@ -668,21 +668,21 @@ public sealed class WindowsBubblePresenter
 
         _pointer = new Polygon
         {
-            Fill = new SolidColorBrush(Color.FromRgb(39, 67, 91)),
-            Stroke = new SolidColorBrush(Color.FromRgb(27, 48, 66)),
+            Fill = new SolidColorBrush(Color.FromRgb(255, 255, 255)),
+            Stroke = new SolidColorBrush(Color.FromRgb(244, 197, 66)),
             StrokeThickness = 1,
             IsHitTestVisible = false
         };
 
         var canvas = new Canvas();
-        canvas.Children.Add(_pointer);
+        _pointer.Visibility = Visibility.Collapsed;
 
         var root = new Grid
         {
             Background = Brushes.Transparent
         };
         root.Children.Add(_bubble);
-        root.Children.Add(canvas);
+        // No pointer overlay; preserve drag handle and placement.
 
         _window = new Window
         {
@@ -721,7 +721,7 @@ public sealed class WindowsBubblePresenter
         _window.LocationChanged += (_, _) =>
         {
             if (!_manuallyPositioned && (_dragging || _window.IsVisible))
-                UpdatePointer();
+                // Pointer removed: target highlight already provides orientation.
         };
 
         _window.SourceInitialized += (_, _) =>
