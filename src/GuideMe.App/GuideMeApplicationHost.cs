@@ -170,9 +170,23 @@ public static class GuideMeApplicationHost
             return 5;
         }
 
+        // A centered information step has no target. Resolve its runtime from
+        // the persisted application context, just as the execution engine does.
+        var contextsByKey = applicationContexts.ToDictionary(
+            context => context.Key, StringComparer.Ordinal);
         var enabledTargetRuntimes = steps
-            .Where(step => step.IsEnabled && step.Target is not null)
-            .Select(step => step.Target!.Runtime)
+            .Where(step => step.IsEnabled)
+            .Select(step =>
+            {
+                if (string.IsNullOrWhiteSpace(step.ApplicationContextKey) ||
+                    !contextsByKey.TryGetValue(step.ApplicationContextKey, out var context))
+                    throw new InvalidOperationException(
+                        $"Enabled Guide Step '{step.Id}' requires a valid application context.");
+                if (step.Target is not null && step.Target.Runtime != context.Runtime)
+                    throw new InvalidOperationException(
+                        $"Guide Step '{step.Id}' target runtime does not match its application context.");
+                return context.Runtime;
+            })
             .Distinct()
             .ToArray();
 
@@ -183,7 +197,7 @@ public static class GuideMeApplicationHost
 
         if (enabledTargetRuntimes.Length != 1)
             throw new InvalidOperationException(
-                $"Guide '{options.GuideId}' must currently contain enabled targets for exactly one Runtime; found {enabledTargetRuntimes.Length}.");
+                $"Guide '{options.GuideId}' must contain enabled steps for at least one Runtime; found {enabledTargetRuntimes.Length}.");
 
         return enabledTargetRuntimes[0] switch
         {
