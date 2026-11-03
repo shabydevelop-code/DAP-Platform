@@ -931,6 +931,7 @@
     }
     b.appendChild(content);
     if(stepNumber&&totalSteps){const p=root.createElement("div");p.textContent=presentation.progressText||"";Object.assign(p.style,{fontSize:theme.fontSize+"px",opacity:".78",marginTop:"8px",fontWeight:"400",cursor:"default"});b.appendChild(p);}
+    appendManualTargetConfirm(b,step,presentation);
     Object.assign(b.style,{position:"fixed",zIndex:"2147483646",maxWidth:theme.maxWidth+"px",padding:theme.padding,background:theme.backgroundColor,color:theme.textColor,border:theme.borderWidth+"px solid "+theme.borderColor,borderRadius:theme.borderRadius+"px",boxShadow:theme.boxShadow,fontFamily:theme.fontFamily,fontSize:theme.fontSize+"px",lineHeight:String(theme.lineHeight),direction:presentation.direction||"rtl",visibility:"hidden",touchAction:"none",userSelect:"none"});b.style.setProperty("cursor","default","important");if(presentation.visible===false)b.style.setProperty("display","none","important");root.body.appendChild(b);
     let manual=false,drag=null;const margin=8;
     const clamp=(x,y)=>{const q=b.getBoundingClientRect();return{x:Math.max(margin,Math.min(x,innerWidth-q.width-margin)),y:Math.max(margin,Math.min(y,innerHeight-q.height-margin))}};
