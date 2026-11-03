@@ -71,6 +71,11 @@ public sealed class WebGuideStepRuntime
         var diagnoseReference = Environment.GetEnvironmentVariable("GUIDEME_DIAGNOSTICS") == "1"
             && step.Id.StartsWith("reference-", StringComparison.Ordinal);
         if (diagnoseReference) ReferenceDiagnostic($"[GuideMe reference diagnostic] Starting Web Step {stepNumber}/{totalSteps} '{step.Id}'.");
+        // Arm confirmation before the first bubble is rendered to avoid losing
+        // a fast learner click. Only target-attached manual steps use this gate.
+        var manualDismissal = step.AdvanceMode == StepAdvanceMode.Manual && showPresentation
+            ? _browser.WaitForAttachedStepDismissalAsync(step, cancellationToken)
+            : null;
         var automatic = GuideStepExecutionPolicy.IsAutomaticValidationStep(step);
         var clicked = GuideStepExecutionPolicy.IsClickValidationStep(step);
         // Opt-in observation-only steps do not arm browser input listeners.
@@ -110,6 +115,12 @@ public sealed class WebGuideStepRuntime
 
         async Task<GuideStepReconciliationResult> ReconcileAsync(CancellationToken cancellationToken)
         {
+            if (manualDismissal?.IsCompletedSuccessfully == true)
+            {
+                await _browser.HideBubbleAsync(cancellationToken);
+                return GuideStepReconciliationResult.Completed;
+            }
+
             if (stateValue && activeState.PresentationReady
                 && await _browser.IsPrimaryValidationSatisfiedAsync(step, cancellationToken)
                 && await CompletionReadyAsync(cancellationToken))
