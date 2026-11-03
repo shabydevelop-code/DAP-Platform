@@ -203,6 +203,7 @@ public sealed class WindowsBubblePresenter
             var message = new TextBlock
             {
                 Text = content,
+                FontWeight = FontWeights.SemiBold,
                 TextWrapping = TextWrapping.Wrap,
                 FontSize = 15,
                 Foreground = new SolidColorBrush(Color.FromRgb(31, 45, 61)),
@@ -524,6 +525,7 @@ public sealed class WindowsBubblePresenter
 
         _content = new TextBlock
         {
+            FontWeight = FontWeights.SemiBold,
             TextWrapping = TextWrapping.Wrap,
             FontSize = 15,
             Foreground = new SolidColorBrush(Color.FromRgb(31, 45, 61)),
@@ -553,6 +555,7 @@ public sealed class WindowsBubblePresenter
 
         _progress = new TextBlock
         {
+            FontWeight = FontWeights.Normal,
             Margin = new Thickness(0, 8, 0, 0),
             FontSize = 15,
             Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139)),
