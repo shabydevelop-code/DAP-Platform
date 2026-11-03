@@ -23,6 +23,7 @@ public interface IWebBrowserAdapter
     Task<bool> AreCompletionConditionsSatisfiedAsync(GuideStep step, CancellationToken cancellationToken = default);
     Task<WebBubblePresentation> EnsureBubbleShownAsync(GuideStep step, int stepNumber, int totalSteps, bool visible = true, CancellationToken cancellationToken = default, string? automaticStepLabel = null);
     Task HideBubbleAsync(CancellationToken cancellationToken = default);
+    Task WaitForAttachedStepDismissalAsync(GuideStep step, CancellationToken cancellationToken = default);
     Task WaitForCenteredStepDismissalAsync(GuideStep step, int stepNumber, int totalSteps, CancellationToken cancellationToken = default);
     Task<string?> ReadVariableAsync(GuideStep step, GuideVariableAction action, CancellationToken cancellationToken = default);
 }
