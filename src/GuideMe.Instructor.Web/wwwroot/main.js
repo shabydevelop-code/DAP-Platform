@@ -150,6 +150,20 @@ async function openGuide(id) {
   if (!confirmDiscard()) return;
   current = await api('/guides/' + id);
   current.variables = await api('/guides/' + id + '/variables');
+  // Resolve the friendly title from live application discovery. Contexts
+  // persist their runtime/matcher, not the transient window title.
+  try {
+    const { apps } = await discoverApplications();
+    for (const context of current.contexts) {
+      const identity = JSON.parse(context.MatchersJson || '[]')[0];
+      const match = apps.find(app => app.runtime === context.Runtime &&
+        app.matcherProperty.toLowerCase() === String(identity?.Kind || '').toLowerCase() &&
+        app.matcherValue.toLowerCase() === String(identity?.Value || '').toLowerCase());
+      if (match) context.DiscoveredTitle = match.title;
+    }
+  } catch {
+    // Discovery is optional; persisted matcher labels remain available.
+  }
   const g = current.guide;
   $('list-view').classList.add('hidden'); $('detail-view').classList.remove('hidden');
   $('new-guide').classList.add('hidden');
@@ -1216,7 +1230,15 @@ setInterval(() => {
   pickerPolling = true;
   void guarded(refreshPicker).finally(() => { pickerPolling = false; });
 }, 1500);
-function appLabel(c) { if(c.DisplayName) return c.DisplayName; try { const m=JSON.parse(c.MatchersJson || '[]')[0]; return m?.Value ? c.Runtime + ' · ' + m.Value : c.ContextId; } catch { return c.ContextId; } }
+function appLabel(c) {
+  const title = (c.DiscoveredTitle || c.DisplayName || '').trim();
+  let technical = c.ContextId;
+  try {
+    const match = JSON.parse(c.MatchersJson || '[]')[0];
+    if (match?.Value) technical = c.Runtime + ' · ' + match.Value;
+  } catch {}
+  return title ? title + ' — ' + technical : technical;
+}
 function matcher(c) { try { return JSON.parse(c.MatchersJson || '[]').map(m=>m.Kind+': '+m.Value).join(', '); }catch{return '—';} }
 function renderContexts() {
   $('apps-count').textContent = '(' + current.contexts.length + ')';
