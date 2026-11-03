@@ -136,6 +136,7 @@ public sealed class WindowsGuideRuntime
                 $"Target-attached Guide Step '{step.Id}' must define a target.");
 
         ReportBubbleAvailable(false);
+        _bubbles.ResetManualConfirmation();
         var activeState = new GuideActiveStepState(step);
         var sharedEngine = new UnifiedGuideStepEngine();
         var clicked = GuideStepExecutionPolicy.IsClickValidationStep(step);
@@ -777,10 +778,13 @@ public sealed class WindowsGuideRuntime
                         Volatile.Write(ref textTargetCommitted, 0);
                     }
                 }
-                // A manually advanced, target-attached step has no automatic completion
-                // signal. Keep its resolved target and bubble visible instead of
-                // terminating the session. Explicit manual advancement requires a
-                // separate learner navigation action and must not be fabricated here.
+                // Manual target steps advance only after the learner confirms.
+                if (step.AdvanceMode == StepAdvanceMode.Manual &&
+                    _bubbles.IsManualStepConfirmed(step.Id))
+                {
+                    await _bubbles.HideAsync();
+                    return GuideStepReconciliationResult.Completed;
+                }
 
                 // Once the target is stable and its bubble is visible, reduce expensive
                 // full-tree UIA reconciliation. Keep a bounded refresh to detect grid
