@@ -1604,7 +1604,7 @@ $('test-guide').onclick=()=>guarded(async()=>{
   try {
     await verifyTestTransport(current.guide.id);
     await api('/guides/'+current.guide.id+'/test',{method:'POST',body:'{}'});
-    notify('ה־Learner הופעל לבדיקת הלומדה מתחילתה. יש להכין את אפליקציית היעד למצב ההתחלתי.', false, 'info');
+    notify('ה־Learner הופעל לבדיקת הלומדה. יש להכין את אפליקציית היעד.', false, 'info');
   } finally { button.disabled=false; }
 });
 $('rename-guide').onclick=renameGuide;
