@@ -468,7 +468,7 @@ app.MapPost("/api/guides/{id:long}/test", (long id, string? startStepId) =>
         var primaryCount = targets.GetValueOrDefault(stepKey);
         var validationCount = validations.GetValueOrDefault(stepKey);
         if (primaryCount == 0 && validationCount == 0) continue;
-        if (primaryCount != 1 || validationCount != 1)
+        if (primaryCount != 1 || validationCount > 1)
             return Results.Problem("לא ניתן לבדוק את שלב " + row["StepOrder"] +
                 ": נבחר רכיב במסך אך לא הוגדר תנאי התקדמות תקין. יש להשלים את ההגדרה לפני הבדיקה.",
                 statusCode: 409);
