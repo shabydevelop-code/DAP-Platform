@@ -36,12 +36,17 @@ public static class GuideV5GuideReader
 
             var primary = step.Signals.Count(signal =>
                 string.Equals(signal.Role, "PrimaryValidation", StringComparison.Ordinal));
-            var hasPrimaryTarget = catalog.Usages.Any(usage =>
-                string.Equals(usage.StepId, step.StepId, StringComparison.Ordinal)
-                && string.Equals(usage.Purpose, "Primary", StringComparison.Ordinal));
-            if (hasPrimaryTarget && step.IsEnabled && primary != 1)
+            // Zero primary validations means explicit learner confirmation,
+            // whether the step has a target-attached or centered bubble.
+            // More than one primary validation is always ambiguous.
+            if (primary > 1)
                 throw new InvalidOperationException(
-                    $"Automatic V5 step '{step.StepId}' requires exactly one primary validation; found {primary}.");
+                    $"V5 step '{step.StepId}' has multiple primary validations ({primary}).");
+            if (primary == 1 && !catalog.Usages.Any(usage =>
+                string.Equals(usage.StepId, step.StepId, StringComparison.Ordinal)
+                && string.Equals(usage.Purpose, "Primary", StringComparison.Ordinal)))
+                throw new InvalidOperationException(
+                    $"V5 step '{step.StepId}' has primary validation without a primary target.");
 
             foreach (var signal in step.Signals)
             {
