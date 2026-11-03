@@ -23,6 +23,8 @@ public sealed class WindowsBubblePresenter
     private Border? _bubble;
     private TextBlock? _content;
     private TextBlock? _progress;
+    private Button? _manualConfirm;
+    private string? _manualConfirmedStepId;
     private Border? _automaticBadge;
     private TextBlock? _automaticBadgeText;
     private Rect _targetRect;
@@ -88,6 +90,8 @@ public sealed class WindowsBubblePresenter
                 ? Visibility.Collapsed
                 : Visibility.Visible;
             _progress!.Text = _texts.Format("Learner.StepProgress", stepNumber, totalSteps);
+            _manualConfirm!.Visibility = step.AdvanceMode == StepAdvanceMode.Manual
+                ? Visibility.Visible : Visibility.Collapsed;
             AutomationProperties.SetName(_window!, step.Bubble.Content);
 
             _window!.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
@@ -128,6 +132,11 @@ public sealed class WindowsBubblePresenter
         }
         cancellationToken.ThrowIfCancellationRequested();
     }
+
+    public bool IsManualStepConfirmed(string stepId) =>
+        string.Equals(_manualConfirmedStepId, stepId, StringComparison.Ordinal);
+
+    public void ResetManualConfirmation() => _manualConfirmedStepId = null;
 
     public static Rect GetPresentationBounds(AutomationElement target)
     {
@@ -575,6 +584,17 @@ public sealed class WindowsBubblePresenter
         stack.Children.Add(_automaticBadge);
         stack.Children.Add(_content);
         stack.Children.Add(_progress);
+        _manualConfirm = new Button
+        {
+            Content = _texts.Get("Learner.Confirm"),
+            Margin = new Thickness(0, 12, 0, 0),
+            Padding = new Thickness(18, 6, 18, 6),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Visibility = Visibility.Collapsed
+        };
+        AutomationProperties.SetAutomationId(_manualConfirm, "GuideMeLearnerAttachedConfirm");
+        _manualConfirm.Click += (_, _) => _manualConfirmedStepId = _activeStepId;
+        stack.Children.Add(_manualConfirm);
 
         _bubble = new Border
         {
