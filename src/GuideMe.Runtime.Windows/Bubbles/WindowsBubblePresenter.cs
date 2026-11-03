@@ -718,12 +718,6 @@ public sealed class WindowsBubblePresenter
             }
         };
 
-        _window.LocationChanged += (_, _) =>
-        {
-            if (!_manuallyPositioned && (_dragging || _window.IsVisible))
-                // Pointer removed: target highlight already provides orientation.
-        };
-
         _window.SourceInitialized += (_, _) =>
         {
             var hwnd = new WindowInteropHelper(_window).Handle;
