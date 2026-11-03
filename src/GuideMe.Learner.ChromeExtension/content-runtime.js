@@ -681,6 +681,30 @@
   }
 
 
+  function appendManualTargetConfirm(bubble,step,presentation){
+    if(step.advanceMode!==1 && step.advanceMode!=="Manual")return;
+    const button=bubble.ownerDocument.createElement("button");
+    button.type="button";
+    button.textContent=presentation.actionText||"אישור";
+    button.dataset.guideMeAttachedConfirm="1";
+    Object.assign(button.style,{
+      display:"block",margin:"12px auto 0",padding:"6px 18px",
+      cursor:"pointer",font:"inherit",borderRadius:"6px",
+      border:theme.borderWidth+"px solid "+theme.borderColor,
+      background:theme.textColor,color:theme.backgroundColor
+    });
+    button.addEventListener("click",event=>{
+      event.preventDefault();
+      event.stopPropagation();
+      button.disabled=true;
+      void chrome.runtime.sendMessage({
+        type:"guideMe-adapter-event",
+        payload:{type:"attached-dismissed",stepId:step.id}
+      }).catch(()=>{button.disabled=false;});
+    });
+    bubble.appendChild(button);
+  }
+
   function showBubbleProxy(step,stepNumber,totalSteps,targetRect,presentation={}){
     if (presentation.topFrameLocator && presentation.localTargetRect) {
       try {
@@ -743,6 +767,7 @@
       });
       bubble.appendChild(progress);
     }
+    appendManualTargetConfirm(bubble,step,presentation);
 
     Object.assign(bubble.style,{
       position:"fixed",zIndex:"2147483647",maxWidth:theme.maxWidth+"px",
