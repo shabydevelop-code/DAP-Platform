@@ -547,7 +547,7 @@
     };
   }
 
-  const theme={backgroundColor:"#FFFFFF",textColor:"#1F2D3D",borderColor:"#F4C542",borderWidth:2,borderRadius:18,maxWidth:320,padding:"12px 16px",boxShadow:"0 10px 28px rgba(31,45,61,.14)",fontFamily:"Arial, sans-serif",fontSize:14,lineHeight:1.4,targetHighlightColor:"#ffdf00",targetHighlightWidth:3,targetHighlightShadow:"0 0 0 2px #111827",pointerSize:9};
+  const theme={backgroundColor:"#FFFFFF",textColor:"#1F2D3D",borderColor:"#F4C542",borderWidth:2,borderRadius:18,maxWidth:320,padding:"12px 16px",boxShadow:"0 10px 28px rgba(31,45,61,.14)",fontFamily:"Arial, sans-serif",fontSize:14,lineHeight:1.4,targetHighlightColor:"#ffdf00",targetHighlightWidth:3,targetHighlightShadow:"0 0 0 2px #111827",pointerSize:0};
   let bubbleState=null;
   let validationState=null;
   function hideBubble(){
@@ -743,11 +743,6 @@
       });
       bubble.appendChild(progress);
     }
-
-    const pointer=document.createElement("div");
-    pointer.dataset.guideMePointer="1";
-    Object.assign(pointer.style,{position:"absolute",width:"0",height:"0",cursor:"default"});
-    bubble.appendChild(pointer);
 
     Object.assign(bubble.style,{
       position:"fixed",zIndex:"2147483647",maxWidth:theme.maxWidth+"px",
