@@ -69,6 +69,8 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
     private NamedPipeServerStream? _selectedPipe;
     private readonly Task _acceptLoop;
     private TaskCompletionSource<bool>? _centeredDismissal;
+    private TaskCompletionSource<bool>? _attachedDismissal;
+    private string? _attachedDismissalStepId;
     private bool _disposed;
     public event Action? TargetTabClosed;
     public event Action? StopRequested;
@@ -247,6 +249,14 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
         if (eventType == "stop-assistance")
         {
             StopRequested?.Invoke();
+            return;
+        }
+
+        if (eventType == "attached-dismissed")
+        {
+            if (payload.TryGetProperty("stepId", out var attachedStepId) &&
+                string.Equals(attachedStepId.GetString(), _attachedDismissalStepId, StringComparison.Ordinal))
+                _attachedDismissal?.TrySetResult(true);
             return;
         }
 
@@ -759,6 +769,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             visible,
             progressText = _texts?.Format("Learner.StepProgress", stepNumber, totalSteps) ?? string.Empty,
             dragText = _texts?.Get("Learner.DragBubble") ?? string.Empty,
+            actionText = _texts?.Get("Learner.Confirm") ?? string.Empty,
             automaticStepLabel,
             direction = _texts?.IsRightToLeft == false ? "ltr" : "rtl",
             framePath = step.Target.FrameContext?.Path
@@ -779,6 +790,22 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
     {
         await SendCommandAsync(ActiveContextualCommand(new { type = "hideBubble" }), cancellationToken);
     }
+    public async Task WaitForAttachedStepDismissalAsync(
+        GuideStep step, CancellationToken cancellationToken = default)
+    {
+        _attachedDismissalStepId = step.Id;
+        _attachedDismissal = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        try
+        {
+            await _attachedDismissal.Task.WaitAsync(cancellationToken);
+        }
+        finally
+        {
+            _attachedDismissal = null;
+            _attachedDismissalStepId = null;
+        }
+    }
+
     public async Task WaitForCenteredStepDismissalAsync(
         GuideStep step,
         int stepNumber,
