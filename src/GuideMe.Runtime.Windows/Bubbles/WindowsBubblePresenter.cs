@@ -6,7 +6,6 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
-using System.Windows.Shapes;
 using GuideMe.Core.Guides;
 using GuideMe.Core.Localization;
 
@@ -22,7 +21,6 @@ public sealed class WindowsBubblePresenter
     private Window? _highlightWindow;
     private Border? _highlightBorder;
     private Border? _bubble;
-    private Polygon? _pointer;
     private TextBlock? _content;
     private TextBlock? _progress;
     private Border? _automaticBadge;
@@ -80,7 +78,6 @@ public sealed class WindowsBubblePresenter
             {
                 _activeStepId = step.Id;
                 _manuallyPositioned = false;
-                _pointer!.Visibility = Visibility.Collapsed;
             }
 
             _targetRect = rect;
@@ -590,23 +587,11 @@ public sealed class WindowsBubblePresenter
             Child = stack
         };
 
-        _pointer = new Polygon
-        {
-            Fill = new SolidColorBrush(Color.FromRgb(255, 255, 255)),
-            Stroke = new SolidColorBrush(Color.FromRgb(244, 197, 66)),
-            StrokeThickness = 1,
-            IsHitTestVisible = false
-        };
-
-        var canvas = new Canvas();
-        _pointer.Visibility = Visibility.Collapsed;
-
         var root = new Grid
         {
             Background = Brushes.Transparent
         };
         root.Children.Add(_bubble);
-        // No pointer overlay; preserve drag handle and placement.
 
         _window = new Window
         {
@@ -628,7 +613,6 @@ public sealed class WindowsBubblePresenter
 
             _dragging = true;
             _manuallyPositioned = true;
-            _pointer!.Visibility = Visibility.Collapsed;
             dragHandle.Cursor = Cursors.SizeAll;
             try
             {
@@ -638,7 +622,6 @@ public sealed class WindowsBubblePresenter
             {
                 _dragging = false;
                 dragHandle.Cursor = Cursors.Hand;
-                _pointer!.Visibility = Visibility.Collapsed;
             }
         };
 
