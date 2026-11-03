@@ -547,7 +547,7 @@
     };
   }
 
-  const theme={backgroundColor:"#312E5A",textColor:"#FFFFFF",borderColor:"#8B83C7",borderWidth:1,borderRadius:8,maxWidth:320,padding:"12px 16px",boxShadow:"0 10px 28px rgba(32,29,67,.28)",fontFamily:"Arial, sans-serif",fontSize:14,lineHeight:1.4,targetHighlightColor:"#ffdf00",targetHighlightWidth:3,targetHighlightShadow:"0 0 0 2px #111827",pointerSize:9};
+  const theme={backgroundColor:"#FFFFFF",textColor:"#1F2D3D",borderColor:"#F4C542",borderWidth:2,borderRadius:18,maxWidth:320,padding:"12px 16px",boxShadow:"0 10px 28px rgba(31,45,61,.14)",fontFamily:"Arial, sans-serif",fontSize:14,lineHeight:1.4,targetHighlightColor:"#ffdf00",targetHighlightWidth:3,targetHighlightShadow:"0 0 0 2px #111827",pointerSize:9};
   let bubbleState=null;
   let validationState=null;
   function hideBubble(){
@@ -777,6 +777,8 @@
     };
 
     const pointerFor=side=>{
+      pointer.style.display="none";
+      return;
       const n=theme.pointerSize;
       pointer.style.cssText=
         "position:absolute;width:0;height:0;cursor:default;"+
@@ -844,7 +846,7 @@
       bubble.style.left=left+"px";
       bubble.style.top=Math.max(margin,Math.min(top,innerHeight-q.height-margin))+"px";
       pointer.style.display="";
-      pointerFor(canPlaceBelow?"Bottom":"Top");
+      pointer.style.display="none";
       bubble.style.visibility="visible";
       bubble.dataset.actualPlacement=canPlaceBelow?"Bottom":"Top";
     };
