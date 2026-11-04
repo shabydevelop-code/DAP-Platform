@@ -1030,18 +1030,36 @@
   }
   function inputValue(el){return "value" in el ? String(el.value ?? "") : "";}
   function validationKind(step){return String(step?.validation?.kind??step?.validation?.Kind??"").toLowerCase();}
+  // A reloaded/updated extension invalidates this page's old content-script
+  // context. Stop sending events from that context until the page is reloaded.
+  let adapterContextInvalidated = false;
   function emitAdapterEvent(type,step,armId,extra={}){
-    return chrome.runtime.sendMessage({
-      type:"guideMe-adapter-event",
-      payload:{
-        type,
-        stepId:step?.id??null,
-        armId:armId??null,
-        documentHasFocus:document.hasFocus(),
-        targetIsActive:document.activeElement===validationState?.element,
-        ...extra
-      }
-    });
+    if (adapterContextInvalidated)
+      return Promise.reject(new Error("GuideMe extension context is no longer active."));
+    try {
+      const pending = chrome.runtime.sendMessage({
+        type:"guideMe-adapter-event",
+        payload:{
+          type,
+          stepId:step?.id??null,
+          armId:armId??null,
+          documentHasFocus:document.hasFocus(),
+          targetIsActive:document.activeElement===validationState?.element,
+          ...extra
+        }
+      });
+      return Promise.resolve(pending).catch(error => {
+        if (/Extension context invalidated/i.test(String(error?.message || error)))
+          adapterContextInvalidated = true;
+        throw error;
+      });
+    } catch (error) {
+      if (/Extension context invalidated/i.test(String(error?.message || error)))
+        adapterContextInvalidated = true;
+      // Always return a promise: validation listeners call .catch() on this
+      // result, so a synchronous Chrome exception must never escape a DOM event.
+      return Promise.reject(error);
+    }
   }
 
   function armValidationTarget(step, element, armId) {
