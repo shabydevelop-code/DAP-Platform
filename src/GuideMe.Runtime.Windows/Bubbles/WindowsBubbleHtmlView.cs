@@ -70,7 +70,9 @@ internal sealed class WindowsBubbleHtmlView : Grid
 
     internal void ShowHtml(string? value)
     {
-        _content = value ?? string.Empty;
+        var next = value ?? string.Empty;
+        if (string.Equals(_content, next, StringComparison.Ordinal) && (_ready || _initialization is not null)) return;
+        _content = next;
         _fallback.Text = Regex.Replace(WebUtility.HtmlDecode(_content), "<[^>]*>", string.Empty);
         if (_ready) Navigate();
         else if (IsLoaded) _ = EnsureReadyAsync();
@@ -115,7 +117,7 @@ internal sealed class WindowsBubbleHtmlView : Grid
 
     private void Navigate()
     {
-        _browser.NavigateToString(BuildDocument(_content));
+        _browser.CoreWebView2.NavigateToString(BuildDocument(_content));
     }
 
     private static string BuildDocument(string raw)
