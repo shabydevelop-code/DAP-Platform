@@ -1445,30 +1445,125 @@ function setupBubbleFormattingEditor() {
     const range = selection.getRangeAt(0);
     return editor.contains(range.commonAncestorContainer) ? range : null;
   };
+  const buttons = new Map();
+  const formatAt = (node, tag) => {
+    for (let parent = node.parentNode; parent && parent !== editor; parent = parent.parentNode) {
+      if (parent.nodeType === Node.ELEMENT_NODE && parent.tagName.toLowerCase() === tag) return true;
+    }
+    return false;
+  };
+  const snapshot = () => {
+    const entries = [];
+    const walk = node => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        const styles = new Set(['strong','em','u'].filter(tag => formatAt(node,tag)));
+        for (const char of node.textContent) entries.push({char, styles:new Set(styles)});
+      } else if (node.nodeType === Node.ELEMENT_NODE) {
+        if (node.tagName === 'BR') entries.push({char:'\\n', styles:new Set()});
+        else for (const child of node.childNodes) walk(child);
+      }
+    };
+    for (const child of editor.childNodes) walk(child);
+    return entries;
+  };
+  const selectionOffsets = () => {
+    const selection = window.getSelection();
+    if (!selection?.rangeCount || selection.isCollapsed) return null;
+    const range = selection.getRangeAt(0);
+    if (!editor.contains(range.startContainer) || !editor.contains(range.endContainer)) return null;
+    const before = range.cloneRange();
+    before.selectNodeContents(editor);
+    before.setEnd(range.startContainer, range.startOffset);
+    const end = range.cloneRange();
+    end.selectNodeContents(editor);
+    end.setEnd(range.endContainer, range.endOffset);
+    const length = fragment => {
+      const box = document.createElement('div');
+      box.append(fragment);
+      return box.textContent.length + box.querySelectorAll('br').length;
+    };
+    return [length(before.cloneContents()),length(end.cloneContents())];
+  };
+  const updateButtons = () => {
+    const offsets = selectionOffsets();
+    const entries = offsets ? snapshot().slice(offsets[0],offsets[1]).filter(x => x.char !== '\\n') : [];
+    for (const [tag,button] of buttons) {
+      const active = entries.length > 0 && entries.every(x => x.styles.has(tag));
+      button.classList.toggle('active',active);
+      button.setAttribute('aria-pressed',String(active));
+    }
+  };
+  const renderEntries = (entries, start, end) => {
+    editor.replaceChildren();
+    const positions = [];
+    let current = null;
+    let lastKey = null;
+    for (const entry of entries) {
+      if (entry.char === '\\n') {
+        editor.append(document.createElement('br'));
+        current = null;
+        lastKey = null;
+        positions.push({node:editor,offset:editor.childNodes.length});
+        continue;
+      }
+      const key = ['strong','em','u'].filter(tag=>entry.styles.has(tag)).join(',');
+      if (!current || key !== lastKey) {
+        let host = editor;
+        for (const tag of ['strong','em','u']) {
+          if (entry.styles.has(tag)) {
+            const wrapper = document.createElement(tag);
+            host.append(wrapper);
+            host = wrapper;
+          }
+        }
+        current = document.createTextNode('');
+        host.append(current);
+        lastKey = key;
+      }
+      current.textContent += entry.char;
+      positions.push({node:current,offset:current.textContent.length});
+    }
+    const locate = offset => offset === 0
+      ? {node:editor,offset:0}
+      : positions[Math.min(offset,positions.length)-1] || {node:editor,offset:0};
+    const from = locate(start), to = locate(end);
+    const range = document.createRange();
+    range.setStart(from.node,from.offset);
+    range.setEnd(to.node,to.offset);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+  };
   for (const [label, tag] of [['B','strong'],['I','em'],['U','u']]) {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'btn secondary small';
     button.textContent = label;
     button.title = {strong:'מודגש',em:'נטוי',u:'קו תחתון'}[tag];
+    button.setAttribute('aria-pressed','false');
     button.addEventListener('mousedown', event => event.preventDefault());
     button.addEventListener('click', () => {
-      const range = selectionRange();
-      if (!range) return;
-      const wrapper = document.createElement(tag);
-      try { range.surroundContents(wrapper); }
-      catch {
-        const selected = range.extractContents();
-        wrapper.append(selected);
-        range.insertNode(wrapper);
+      const offsets = selectionOffsets();
+      if (!offsets) return;
+      const entries = snapshot();
+      const selected = entries.slice(offsets[0],offsets[1]).filter(x => x.char !== '\\n');
+      if (!selected.length) return;
+      const remove = selected.every(x => x.styles.has(tag));
+      for (const entry of selected) {
+        if (remove) entry.styles.delete(tag);
+        else entry.styles.add(tag);
       }
-      const selection = window.getSelection();
-      selection.removeAllRanges();
+      renderEntries(entries,offsets[0],offsets[1]);
       sync();
+      updateButtons();
       editor.focus();
     });
+    buttons.set(tag,button);
     toolbar.append(button);
   }
+  document.addEventListener('selectionchange', () => {
+    if (editor.isConnected) updateButtons();
+  });
   editor.addEventListener('input', sync);
   editor.addEventListener('paste', event => {
     event.preventDefault();
