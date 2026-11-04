@@ -547,6 +547,7 @@ public sealed class WindowsBubblePresenter
         Brush? background = null;
         var lists = new Stack<(string Kind, int Count)>();
         var lineHasContent = false;
+        string? pendingListMarker = null;
         var defaultForeground = block.Foreground ?? new SolidColorBrush(Color.FromRgb(31, 45, 61));
 
         void NewLine()
@@ -607,6 +608,11 @@ public sealed class WindowsBubblePresenter
                         else lists.Push((name, 0));
                         break;
                     case "li":
+                        if (closing && pendingListMarker is not null)
+                        {
+                            block.Inlines.Add(new Run(pendingListMarker) { Foreground = defaultForeground, FlowDirection = FlowDirection.RightToLeft });
+                            pendingListMarker = null;
+                        }
                         if (!closing)
                         {
                             if (block.Inlines.Count > 0) NewLine();
@@ -615,11 +621,9 @@ public sealed class WindowsBubblePresenter
                                 var list = lists.Pop();
                                 list.Count++;
                                 lists.Push(list);
-                                // Keep the marker and the first text run together.
-                                block.Inlines.Add(new Run(list.Kind == "ol" ? $"{list.Count}. " : "• ")
-                                {
-                                    Foreground = defaultForeground
-                                });
+                                // Prefix the first text run instead of inserting a separate
+                                // marker run: WPF bidi reorders independent inline runs.
+                                pendingListMarker = list.Kind == "ol" ? $"{list.Count}. " : "• ";
                             }
                         }
                         break;
@@ -631,15 +635,17 @@ public sealed class WindowsBubblePresenter
 
             var value = WebUtility.HtmlDecode(token);
             if (value.Length == 0) continue;
-            var run = new Run(value)
+            var run = new Run((pendingListMarker ?? string.Empty) + value)
             {
                 FontWeight = bold > 0 ? FontWeights.Bold : FontWeights.SemiBold,
                 FontStyle = italic > 0 ? FontStyles.Italic : FontStyles.Normal,
                 TextDecorations = underline > 0 ? TextDecorations.Underline : null,
                 Foreground = foreground ?? defaultForeground,
-                Background = background
+                Background = background,
+                FlowDirection = FlowDirection.RightToLeft
             };
             block.Inlines.Add(run);
+            pendingListMarker = null;
             lineHasContent = true;
         }
     }
