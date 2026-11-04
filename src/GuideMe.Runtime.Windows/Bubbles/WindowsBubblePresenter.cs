@@ -532,47 +532,63 @@ public sealed class WindowsBubblePresenter
     private static void SetFormattedBubble(TextBlock block, string? content)
     {
         block.Inlines.Clear();
+        var raw = content ?? string.Empty;
+        // HTML authored by Instructor is a fragment, not a complete XML document.
+        // HtmlDecode is applied to text nodes only, never to the markup itself.
+        var tokens = Regex.Split(raw, @"(<[^>]*>)");
         var bold = 0;
         var italic = 0;
         var underline = 0;
-        var spans = new Stack<(System.Windows.Media.Brush? Foreground, System.Windows.Media.Brush? Background)>();
-        System.Windows.Media.Brush? foreground = null;
-        System.Windows.Media.Brush? background = null;
-        var listStack = new Stack<(string Kind, int Index)>();
-        foreach (var token in Regex.Split(content ?? string.Empty, @"(<[^>]*>)"))
+        var spanStack = new Stack<(Brush? Foreground, Brush? Background)>();
+        Brush? foreground = null;
+        Brush? background = null;
+        var lists = new Stack<(string Kind, int Count)>();
+        var lineHasContent = false;
+        var pendingListItem = false;
+
+        void NewLine()
+        {
+            if (block.Inlines.Count > 0) block.Inlines.Add(new LineBreak());
+            lineHasContent = false;
+        }
+
+        foreach (var token in tokens)
         {
             if (token.Length == 0) continue;
-            var tag = Regex.Match(token, @"^<\s*(/?)\s*(strong|b|em|i|u|br|span|ul|ol|li)\b[^>]*>$", RegexOptions.IgnoreCase);
+            var tag = Regex.Match(token, @"^<\s*(/?)\s*(strong|b|em|i|u|br|span|ul|ol|li|div|p)\b[^>]*>$", RegexOptions.IgnoreCase);
             if (tag.Success)
             {
                 var closing = tag.Groups[1].Value == "/";
+                var name = tag.Groups[2].Value.ToLowerInvariant();
                 var delta = closing ? -1 : 1;
-                switch (tag.Groups[2].Value.ToLowerInvariant())
+                switch (name)
                 {
                     case "strong":
                     case "b": bold = Math.Max(0, bold + delta); break;
                     case "em":
                     case "i": italic = Math.Max(0, italic + delta); break;
                     case "u": underline = Math.Max(0, underline + delta); break;
-                    case "br": block.Inlines.Add(new LineBreak()); break;
+                    case "br": NewLine(); break;
+                    case "div":
+                    case "p":
+                        if (closing && lineHasContent) NewLine();
+                        break;
                     case "span":
                         if (closing)
                         {
-                            if (spans.Count > 0) (foreground, background) = spans.Pop();
+                            if (spanStack.Count > 0) (foreground, background) = spanStack.Pop();
                         }
                         else
                         {
-                            spans.Push((foreground, background));
+                            spanStack.Push((foreground, background));
                             var style = Regex.Match(token, "style\\s*=\\s*[\"']([^\"']*)[\"']", RegexOptions.IgnoreCase);
                             if (style.Success)
                             {
                                 foreach (var declaration in style.Groups[1].Value.Split(';'))
                                 {
                                     var pair = declaration.Split(':', 2);
-                                    if (pair.Length != 2) continue;
-                                    var color = pair[1].Trim();
-                                    if (!Regex.IsMatch(color, @"^#[0-9a-fA-F]{6}$")) continue;
-                                    var brush = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(color));
+                                    if (pair.Length != 2 || !Regex.IsMatch(pair[1].Trim(), @"^#[0-9a-fA-F]{6}$")) continue;
+                                    var brush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(pair[1].Trim()));
                                     if (pair[0].Trim().Equals("color", StringComparison.OrdinalIgnoreCase)) foreground = brush;
                                     if (pair[0].Trim().Equals("background-color", StringComparison.OrdinalIgnoreCase)) background = brush;
                                 }
@@ -581,35 +597,51 @@ public sealed class WindowsBubblePresenter
                         break;
                     case "ul":
                     case "ol":
-                        if (closing) { if (listStack.Count > 0) listStack.Pop(); }
-                        else listStack.Push((tag.Groups[2].Value.ToLowerInvariant(), 0));
+                        if (closing)
+                        {
+                            if (lists.Count > 0) lists.Pop();
+                        }
+                        else lists.Push((name, 0));
                         break;
                     case "li":
                         if (!closing)
                         {
-                            if (block.Inlines.Count > 0) block.Inlines.Add(new LineBreak());
-                            if (listStack.Count > 0)
+                            if (block.Inlines.Count > 0) NewLine();
+                            pendingListItem = true;
+                            if (lists.Count > 0)
                             {
-                                var item = listStack.Pop();
-                                item.Index++;
-                                listStack.Push(item);
-                                block.Inlines.Add(new Run(item.Kind == "ol" ? item.Index + ". " : "• "));
+                                var list = lists.Pop();
+                                list.Count++;
+                                lists.Push(list);
+                                // Keep the marker and the first text run together.
+                                block.Inlines.Add(new Run(list.Kind == "ol" ? $"{list.Count}. " : "• ")
+                                {
+                                    FlowDirection = FlowDirection.RightToLeft
+                                });
                             }
                         }
+                        else pendingListItem = false;
                         break;
                 }
                 continue;
             }
             if (token.StartsWith("<", StringComparison.Ordinal) && token.EndsWith(">", StringComparison.Ordinal))
                 continue;
-            block.Inlines.Add(new Run(WebUtility.HtmlDecode(token))
+
+            var value = WebUtility.HtmlDecode(token);
+            if (value.Length == 0) continue;
+            var run = new Run(value)
             {
                 FontWeight = bold > 0 ? FontWeights.Bold : FontWeights.SemiBold,
                 FontStyle = italic > 0 ? FontStyles.Italic : FontStyles.Normal,
                 TextDecorations = underline > 0 ? TextDecorations.Underline : null,
                 Foreground = foreground,
-                Background = background
-            });
+                Background = background,
+                FlowDirection = FlowDirection.RightToLeft
+            };
+            block.Inlines.Add(run);
+            lineHasContent = true;
+            pendingListItem = false;
         }
     }
 
