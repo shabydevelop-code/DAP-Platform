@@ -1404,7 +1404,12 @@ document.addEventListener('submit', event => {
 
 function bubbleRichMarkup(value) {
   const host = document.createElement('div');
-  const raw = String(value || '');
+  let raw = String(value || '');
+  if (/&lt;\/?(?:b|strong|i|em|u|p|div|br|ul|ol|li|h2|h3|a|span)\b/i.test(raw)) {
+    const decode = document.createElement('textarea');
+    decode.innerHTML = raw;
+    raw = decode.value;
+  }
   if (/<(?:b|strong|i|em|u|p|div|br|ul|ol|li|h2|h3|a|span)\\b/i.test(raw)) host.innerHTML = raw;
   else host.textContent = raw;
   const allowed = new Set(['B','STRONG','I','EM','U','P','DIV','BR','UL','OL','LI','H2','H3','A','SPAN']);
@@ -1419,8 +1424,8 @@ function bubbleRichMarkup(value) {
     const element = document.createElement(node.tagName.toLowerCase());
     if (node.tagName === 'A') {
       try {
-        const url = new URL(node.getAttribute('href') || '', location.href);
-        if (['https:','http:','mailto:'].includes(url.protocol)) {
+        const url = new URL(node.getAttribute('href') || '');
+        if (['https:','http:','mailto:'].includes(url.protocol) && (url.protocol === 'mailto:' ? /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(url.pathname) : !!url.hostname && url.hostname.includes('.'))) {
           element.setAttribute('href', url.href);
           element.setAttribute('target', '_blank');
           element.setAttribute('rel', 'noopener noreferrer');
@@ -1430,7 +1435,7 @@ function bubbleRichMarkup(value) {
     if (node.tagName === 'SPAN') {
       const color = node.style.color;
       if (/^#[0-9a-f]{6}$/i.test(color)) element.style.color = color;
-      else if (/^rgb\\(\\d{1,3}, \\d{1,3}, \\d{1,3}\\)$/.test(color)) element.style.color = color;
+      else if (/^rgb\\(\d{1,3}, \\d{1,3}, \\d{1,3}\\)$/.test(color)) element.style.color = color;
     }
     for (const child of [...node.childNodes]) element.append(clean(child));
     return element;
@@ -1455,7 +1460,7 @@ function setupBubbleRichEditor() {
   editor.innerHTML = bubbleRichMarkup(input.value);
   const toolbar = document.createElement('div');
   toolbar.style.cssText = 'display:flex;flex-wrap:wrap;gap:5px;margin-bottom:7px';
-  const commands = [['B','bold'],['I','italic'],['U','underline'],['•','insertUnorderedList'],['1.','insertOrderedList'],['קישור','createLink']];
+  const commands = [['B','bold'],['I','italic'],['U','underline'],['•','insertUnorderedList'],['1.','insertOrderedList'],['קישור','createLink'],['הסר קישור','unlink']];
   for (const [label, command, argument] of commands) {
     const button = document.createElement('button');
     button.type = 'button';
@@ -1467,7 +1472,12 @@ function setupBubbleRichEditor() {
       let value = argument;
       if (command === 'createLink') {
         value = prompt('כתובת קישור (https://)') || '';
-        if (!/^https?:\/\//i.test(value) && !/^mailto:/i.test(value)) return;
+        try {
+          const url = new URL(value);
+          if (!['https:', 'http:', 'mailto:'].includes(url.protocol) ||
+              (url.protocol === 'mailto:' ? !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(url.pathname) : !url.hostname.includes('.'))) throw new Error();
+          value = url.href;
+        } catch { notify('יש להזין כתובת קישור תקינה.', true); return; }
       }
       document.execCommand(command, false, value);
       sync();
@@ -1476,10 +1486,15 @@ function setupBubbleRichEditor() {
   }
   const color = document.createElement('input');
   color.type = 'color';
+  color.style.cssText = 'width:36px;height:36px;cursor:pointer';
+  const colorLabel = document.createElement('label');
+  colorLabel.textContent = 'צבע טקסט A';
+  colorLabel.style.cssText = 'display:flex;align-items:center;gap:5px';
   color.title = 'צבע טקסט';
   color.setAttribute('aria-label', 'צבע טקסט');
   color.addEventListener('input', () => { editor.focus(); document.execCommand('foreColor', false, color.value); sync(); });
-  toolbar.append(color);
+  colorLabel.append(color);
+  toolbar.append(colorLabel);
   input.hidden = true;
   input.style.display = 'none';
   input.tabIndex = -1;
@@ -1815,7 +1830,7 @@ function friendlyInstructionHtml(value) {
       '">' + esc(variablePreviewValue(variable)) + '</span>';
     offset = re.lastIndex;
   }
-  return html + esc(text.slice(offset));
+  return bubbleRichMarkup(html + esc(text.slice(offset)));
 }
 // The inspector and editor share one value extraction rule; the CSS selector
 // remains a private implementation detail.
