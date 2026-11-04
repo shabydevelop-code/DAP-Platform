@@ -1401,6 +1401,100 @@ document.addEventListener('submit', event => {
   }
 }, true);
 
+
+function bubbleRichMarkup(value) {
+  const host = document.createElement('div');
+  host.innerHTML = String(value || '');
+  const allowed = new Set(['B','STRONG','I','EM','U','P','DIV','BR','UL','OL','LI','H2','H3','A','SPAN']);
+  function clean(node) {
+    if (node.nodeType === Node.TEXT_NODE) return document.createTextNode(node.textContent);
+    if (node.nodeType !== Node.ELEMENT_NODE) return document.createDocumentFragment();
+    if (!allowed.has(node.tagName)) {
+      const fragment = document.createDocumentFragment();
+      for (const child of [...node.childNodes]) fragment.append(clean(child));
+      return fragment;
+    }
+    const element = document.createElement(node.tagName.toLowerCase());
+    if (node.tagName === 'A') {
+      try {
+        const url = new URL(node.getAttribute('href') || '', location.href);
+        if (['https:','http:','mailto:'].includes(url.protocol)) {
+          element.setAttribute('href', url.href);
+          element.setAttribute('target', '_blank');
+          element.setAttribute('rel', 'noopener noreferrer');
+        }
+      } catch {}
+    }
+    if (node.tagName === 'SPAN') {
+      const color = node.style.color;
+      if (/^#[0-9a-f]{6}$/i.test(color)) element.style.color = color;
+      else if (/^rgb\\(\\d{1,3}, \\d{1,3}, \\d{1,3}\\)$/.test(color)) element.style.color = color;
+    }
+    for (const child of [...node.childNodes]) element.append(clean(child));
+    return element;
+  }
+  const output = document.createElement('div');
+  for (const child of [...host.childNodes]) output.append(clean(child));
+  return output.innerHTML;
+}
+function setupBubbleRichEditor() {
+  const input = $('field-bubble');
+  if (!input) return;
+  const field = input.closest('.field');
+  const editor = document.createElement('div');
+  editor.contentEditable = 'true';
+  editor.dir = 'auto';
+  editor.className = 'bubble-rich-editor';
+  editor.setAttribute('role', 'textbox');
+  editor.setAttribute('aria-label', 'תוכן הבועית');
+  editor.setAttribute('aria-multiline', 'true');
+  editor.style.cssText = 'min-height:105px;max-height:260px;overflow:auto;border:1px solid #cbd5e1;border-radius:6px;padding:10px;white-space:pre-wrap';
+  editor.innerHTML = bubbleRichMarkup(input.value);
+  const toolbar = document.createElement('div');
+  toolbar.style.cssText = 'display:flex;flex-wrap:wrap;gap:5px;margin-bottom:7px';
+  const commands = [['B','bold'],['I','italic'],['U','underline'],['כותרת','formatBlock','h3'],['•','insertUnorderedList'],['1.','insertOrderedList'],['קישור','createLink']];
+  for (const [label, command, argument] of commands) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'btn secondary small';
+    button.textContent = label;
+    button.addEventListener('mousedown', e => e.preventDefault());
+    button.addEventListener('click', () => {
+      editor.focus();
+      let value = argument;
+      if (command === 'createLink') {
+        value = prompt('כתובת קישור (https://)') || '';
+        if (!/^https?:\\/\\//i.test(value) && !/^mailto:/i.test(value)) return;
+      }
+      document.execCommand(command, false, value);
+      sync();
+    });
+    toolbar.append(button);
+  }
+  const color = document.createElement('input');
+  color.type = 'color';
+  color.title = 'צבע טקסט';
+  color.setAttribute('aria-label', 'צבע טקסט');
+  color.addEventListener('input', () => { editor.focus(); document.execCommand('foreColor', false, color.value); sync(); });
+  toolbar.append(color);
+  input.hidden = true;
+  input.required = false;
+  input.removeAttribute('maxlength');
+  field.insertBefore(toolbar, input);
+  field.insertBefore(editor, input);
+  function sync() {
+    input.value = bubbleRichMarkup(editor.innerHTML);
+    input.dispatchEvent(new Event('input', {bubbles:true}));
+  }
+  editor.addEventListener('input', sync);
+  editor.addEventListener('paste', e => {
+    e.preventDefault();
+    document.execCommand('insertText', false, e.clipboardData.getData('text/plain'));
+    sync();
+  });
+  input._bubbleRichSync = sync;
+}
+
 function modal(title, fields, submit, buttonText='שמירה') {
   modalReturnFocus = document.activeElement;
   $('dialog-title').textContent=title;
@@ -1427,6 +1521,7 @@ function modal(title, fields, submit, buttonText='שמירה') {
       catch (error) { if (!(error instanceof InstructorFieldValidationError)) throw error; }
     });
   };
+  if (fields.some(f => f.name === 'bubble')) setupBubbleRichEditor();
   const baseline = new URLSearchParams(new FormData(form)).toString();
   const onChange = () => {
     if (new URLSearchParams(new FormData(form)).toString() !== baseline) markDirty();
@@ -1660,7 +1755,7 @@ function newStep() {
   modal('הוספת שלב', [
     {name:'contextId',label:'אפליקציית יעד',value:defaultContext,
      choices:contexts.map(c => ({value:c.ContextId,text:appLabel(c)}))},
-    {name:'bubble',label:'מה להציג ללומד?',value:'',multiline:true,max:4000,
+    {name:'bubble',label:'מה להציג ללומד?',value:'',multiline:true,max:12000,
      help:'לאחר יצירת השלב ניתן לבחור רכיב יעד ולהגדיר תנאי התקדמות.'}
   ],async v=>{
     const created=await api('/guides/' + guideId + '/steps', {
@@ -2036,7 +2131,7 @@ function editStep(step, assignedContextId) {
     {name:'bubble', label:'טקסט הבועית', value:String(step.bubble || '').replace(/\{\{var:([^}]+)\}\}/g, (_, id) => {
        const variable=(current.variables || []).find(v=>v.id===id);
        return variable ? '【'+variablePreviewValue(variable)+'】' : '{{var:'+id+'}}';
-     }), max:4000, multiline:true,
+     }), max:12000, multiline:true,
      help:'השינוי ישפיע על תוכן הבועית בלבד. רכיבי יעד וכללי התקדמות אינם משתנים.'},
     {name:'enabled', label:'מצב השלב', value: step.enabled ? 'true' : 'false',
      choices:[{value:'true',text:'פעיל'},{value:'false',text:'מושבת'}]}
