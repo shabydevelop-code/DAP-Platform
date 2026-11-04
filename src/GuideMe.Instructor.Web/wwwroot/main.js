@@ -1405,7 +1405,18 @@ document.addEventListener('submit', event => {
 function bubbleFormattingHtml(value) {
   const root = document.createElement('template');
   root.innerHTML = String(value || '');
-  const safeColor = value => { const v = String(value || ''); if (/^#[0-9a-f]{6}$/i.test(v)) return v; const rgb = /^rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)$/i.exec(v); return rgb && rgb.slice(1).every(x => Number(x) <= 255) ? '#' + rgb.slice(1).map(x => Number(x).toString(16).padStart(2,'0')).join('') : null; };
+  const safeColor = value => {
+    const v = String(value || '').trim();
+    if (/^#[0-9a-f]{6}$/i.test(v)) return v;
+    if (/^#[0-9a-f]{3}$/i.test(v))
+      return '#' + [...v.slice(1)].map(x => x + x).join('');
+    // Browsers serialize input[type=color] values as rgb(...) when assigned to
+    // span.style.color. Accept both legacy comma syntax and modern CSS syntax.
+    const rgb = /^rgba?\\(\\s*(\\d{1,3})(?:\\s*,\\s*|\\s+)(\\d{1,3})(?:\\s*,\\s*|\\s+)(\\d{1,3})(?:\\s*[,/]\\s*(?:1(?:\\.0+)?|0?\\.\\d+))?\\s*\\)$/i.exec(v);
+    return rgb && rgb.slice(1).every(x => Number(x) <= 255)
+      ? '#' + rgb.slice(1).map(x => Number(x).toString(16).padStart(2, '0')).join('')
+      : null;
+  };
   function clean(node) {
     if (node.nodeType === Node.TEXT_NODE) return document.createTextNode(node.textContent);
     const fragment = document.createDocumentFragment();
