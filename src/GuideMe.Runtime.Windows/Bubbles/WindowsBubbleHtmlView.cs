@@ -96,7 +96,10 @@ internal static class WindowsBubbleHtmlView
                     : "<span style=\"" + safeStyle + "\">");
                 continue;
             }
-            output.Append('<').Append(name).Append('>');
+            if (name is "ul" or "ol")
+                output.Append('<').Append(name).Append(" dir=\"rtl\" style=\"direction:rtl;text-align:right;list-style-position:inside;padding:0;margin:4px 0;\">");
+            else
+                output.Append('<').Append(name).Append('>');
         }
         return output.ToString();
     }
