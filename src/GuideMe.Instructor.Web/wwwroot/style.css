@@ -426,3 +426,9 @@ body .brand-heading strong span { font-size: 26px; }
 .header-library-back:hover { background: #f3f7ff; border-color: #9bb9e6; }
 .header-library-back:focus-visible { outline: 3px solid #76a7ff; outline-offset: 2px; }
 .header-library-back.hidden { display: none !important; }
+
+/* Minimal bubble formatting: one compact toolbar and a visual-only editor. */
+.bubble-format-toolbar{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.bubble-format-toolbar .btn{min-width:36px;padding:5px 10px}
+.bubble-format-editor{min-height:108px;max-height:260px;overflow:auto;width:100%;border:1px solid #dce5ef;border-radius:9px;padding:12px;background:#fff;color:#1b334d;white-space:pre-wrap;overflow-wrap:anywhere;text-align:start}
+.bubble-format-editor:focus{outline:2px solid #3678e8;outline-offset:1px}
