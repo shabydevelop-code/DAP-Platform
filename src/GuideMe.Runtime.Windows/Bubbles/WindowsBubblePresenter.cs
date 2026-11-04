@@ -25,6 +25,8 @@ public sealed class WindowsBubblePresenter
     private Border? _highlightBorder;
     private Border? _bubble;
     private TextBlock? _content;
+    private StackPanel? _formattedContent;
+
     private TextBlock? _progress;
     private Button? _manualConfirm;
     private string? _manualConfirmedStepId;
@@ -87,7 +89,7 @@ public sealed class WindowsBubblePresenter
 
             _targetRect = rect;
             UpdateTargetHighlight(rect);
-            SetFormattedBubble(_content!, step.Bubble.Content);
+            SetStructuredBubble(_formattedContent!, step.Bubble.Content);
             _automaticBadgeText!.Text = automaticStepLabel ?? string.Empty;
             _automaticBadge!.Visibility = string.IsNullOrWhiteSpace(automaticStepLabel)
                 ? Visibility.Collapsed
@@ -97,7 +99,7 @@ public sealed class WindowsBubblePresenter
                 ? Visibility.Visible : Visibility.Collapsed;
             AutomationProperties.SetName(_window!, step.Bubble.Content);
 
-            _content!.InvalidateMeasure();
+            _formattedContent!.InvalidateMeasure();
             _bubble!.InvalidateMeasure();
             _window!.InvalidateMeasure();
             _window!.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
@@ -532,6 +534,94 @@ public sealed class WindowsBubblePresenter
     private static extern IntPtr SetWindowLongPtr(IntPtr hwnd, int index, IntPtr newLong);
 
 
+    private static void SetStructuredBubble(StackPanel container, string? content)
+    {
+        container.Children.Clear();
+        var raw = content ?? string.Empty;
+        var tokens = Regex.Split(raw, @"(<[^>]*>)");
+        var paragraph = new System.Text.StringBuilder();
+        var listItem = new System.Text.StringBuilder();
+        var listType = string.Empty;
+        var listIndex = 0;
+        var inItem = false;
+
+        TextBlock CreateText(string html)
+        {
+            var text = new TextBlock
+            {
+                TextWrapping = TextWrapping.Wrap,
+                TextAlignment = TextAlignment.Right,
+                FlowDirection = FlowDirection.RightToLeft,
+                FontSize = 15,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(31, 45, 61))
+            };
+            SetFormattedBubble(text, html);
+            return text;
+        }
+
+        void FlushParagraph()
+        {
+            if (paragraph.Length == 0) return;
+            container.Children.Add(CreateText(paragraph.ToString()));
+            paragraph.Clear();
+        }
+
+        void FlushItem()
+        {
+            if (!inItem) return;
+            var marker = new TextBlock
+            {
+                Text = listType == "ol" ? $"{++listIndex}." : "•",
+                FontSize = 15,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(31, 45, 61)),
+                FlowDirection = FlowDirection.RightToLeft,
+                TextAlignment = TextAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Top,
+                Margin = new Thickness(0, 0, 0, 0)
+            };
+            var grid = new Grid { FlowDirection = FlowDirection.RightToLeft, Margin = new Thickness(0, 2, 0, 2) };
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            Grid.SetColumn(marker, 0);
+            var text = CreateText(listItem.ToString());
+            text.Margin = new Thickness(0, 0, 8, 0);
+            Grid.SetColumn(text, 1);
+            grid.Children.Add(marker);
+            grid.Children.Add(text);
+            container.Children.Add(grid);
+            listItem.Clear();
+            inItem = false;
+        }
+
+        foreach (var token in tokens)
+        {
+            var tag = Regex.Match(token, @"^<\s*(/?)\s*(ul|ol|li)\b[^>]*>$", RegexOptions.IgnoreCase);
+            if (tag.Success)
+            {
+                var closing = tag.Groups[1].Value == "/";
+                switch (tag.Groups[2].Value.ToLowerInvariant())
+                {
+                    case "ul":
+                    case "ol":
+                        if (closing) { FlushItem(); listType = string.Empty; }
+                        else { FlushParagraph(); listType = tag.Groups[2].Value.ToLowerInvariant(); listIndex = 0; }
+                        break;
+                    case "li":
+                        if (closing) FlushItem();
+                        else { FlushParagraph(); FlushItem(); inItem = true; }
+                        break;
+                }
+                continue;
+            }
+            if (inItem) listItem.Append(token);
+            else paragraph.Append(token);
+        }
+        FlushItem();
+        FlushParagraph();
+    }
+
     private static void SetFormattedBubble(TextBlock block, string? content)
     {
         block.Inlines.Clear();
@@ -710,7 +800,8 @@ public sealed class WindowsBubblePresenter
         var stack = new StackPanel();
         stack.Children.Add(dragHandle);
         stack.Children.Add(_automaticBadge);
-        stack.Children.Add(_content);
+        _formattedContent = new StackPanel { MinWidth = 230, MaxWidth = 360, FlowDirection = FlowDirection.RightToLeft };
+        stack.Children.Add(_formattedContent);
         stack.Children.Add(_progress);
         _manualConfirm = new Button
         {
