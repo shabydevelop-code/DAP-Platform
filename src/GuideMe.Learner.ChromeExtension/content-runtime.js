@@ -574,7 +574,9 @@
 
   function renderBubbleRichContent(container, value) {
     const source=document.createElement("template");
-    source.innerHTML=String(value||"");
+    const raw=String(value||"");
+    if(/<(?:b|strong|i|em|u|p|div|br|ul|ol|li|h2|h3|a|span)\\b/i.test(raw))source.innerHTML=raw;
+    else source.content.textContent=raw;
     const allowed=new Set(["B","STRONG","I","EM","U","P","DIV","BR","UL","OL","LI","H2","H3","A","SPAN"]);
     function safe(node) {
       if(node.nodeType===Node.TEXT_NODE)return document.createTextNode(node.textContent);
