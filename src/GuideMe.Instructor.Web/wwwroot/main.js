@@ -1563,28 +1563,45 @@ function setupBubbleFormattingEditor() {
   document.addEventListener('selectionchange', () => {
     if (editor.isConnected) updateButtons();
   });
+  // Keep a stable copy of the selected text before the native color picker takes focus.
   let lastEditorRange = null;
   const retainRange = () => {
     const range = selectionRange();
-    if (range) lastEditorRange = range.cloneRange();
+    if (range && range.toString().length) lastEditorRange = range.cloneRange();
   };
   editor.addEventListener('keyup', retainRange);
   editor.addEventListener('mouseup', retainRange);
   document.addEventListener('selectionchange', () => {
     if (editor.isConnected) retainRange();
   });
-  const applySpanStyle = (property, value, range) => {
-    if (!range || range.collapsed || !editor.contains(range.commonAncestorContainer)) return false;
-    const span = document.createElement('span');
-    span.style[property] = value;
-    span.append(range.extractContents());
-    range.insertNode(span);
-    const selected = document.createRange();
-    selected.selectNodeContents(span);
+  const applySpanStyle = (property, value, savedRange) => {
+    if (!savedRange || savedRange.collapsed || !editor.contains(savedRange.commonAncestorContainer)) return false;
+    // Work on the actual text nodes, not a fragment extracted from a potentially
+    // stale native-picker selection. This also preserves existing bold/list markup.
+    const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+    const selected = [];
+    while (walker.nextNode()) {
+      const node = walker.currentNode;
+      if (!node.length || !savedRange.intersectsNode(node)) continue;
+      const start = savedRange.startContainer === node ? savedRange.startOffset : 0;
+      const end = savedRange.endContainer === node ? savedRange.endOffset : node.length;
+      if (start < end) selected.push({node,start,end});
+    }
+    if (!selected.length) return false;
+    const isolated = selected.reverse().map(isolateText).reverse();
+    for (const node of isolated) {
+      const span = document.createElement('span');
+      span.style[property] = value;
+      node.replaceWith(span);
+      span.append(node);
+    }
+    const range = document.createRange();
+    range.setStart(isolated[0], 0);
+    range.setEnd(isolated[isolated.length - 1], isolated[isolated.length - 1].length);
     const selection = window.getSelection();
     selection.removeAllRanges();
-    selection.addRange(selected);
-    lastEditorRange = selected.cloneRange();
+    selection.addRange(range);
+    lastEditorRange = range.cloneRange();
     sync();
     updateButtons();
     return true;
@@ -1601,9 +1618,9 @@ function setupBubbleFormattingEditor() {
       retainRange();
       pickerRange = lastEditorRange?.cloneRange() || null;
     };
-    color.addEventListener('pointerdown', capture);
-    color.addEventListener('mousedown', capture);
-    color.addEventListener('click', capture);
+    color.addEventListener('pointerdown', capture, true);
+    color.addEventListener('mousedown', capture, true);
+    color.addEventListener('keydown', capture, true);
     color.addEventListener('focus', () => {
       if (!pickerRange) capture();
     });
@@ -1614,6 +1631,7 @@ function setupBubbleFormattingEditor() {
     };
     color.addEventListener('input', applyColor);
     color.addEventListener('change', applyColor);
+    color.addEventListener('blur', () => { pickerRange = null; });
     toolbar.append(color);
   }
   for (const [label,tag] of [['• רשימה','ul'],['1. רשימה','ol']]) {
