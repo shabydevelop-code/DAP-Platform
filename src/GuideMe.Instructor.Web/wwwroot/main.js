@@ -1460,30 +1460,89 @@ function setupBubbleRichEditor() {
   editor.innerHTML = bubbleRichMarkup(input.value);
   const toolbar = document.createElement('div');
   toolbar.style.cssText = 'display:flex;flex-wrap:wrap;gap:5px;margin-bottom:7px';
-  const commands = [['B','bold'],['I','italic'],['U','underline'],['•','insertUnorderedList'],['1.','insertOrderedList'],['קישור','createLink'],['הסר קישור','unlink']];
-  for (const [label, command, argument] of commands) {
+  const selectionInside = () => {
+    const selection = window.getSelection();
+    if (!selection || !selection.rangeCount) return null;
+    const range = selection.getRangeAt(0);
+    return editor.contains(range.commonAncestorContainer) ? range : null;
+  };
+  const activeAnchor = () => {
+    const selection = window.getSelection();
+    let node = selection?.anchorNode;
+    while (node && node !== editor) {
+      if (node.nodeType === Node.ELEMENT_NODE && node.tagName === 'A') return node;
+      node = node.parentNode;
+    }
+    return null;
+  };
+  const validLink = value => {
+    try {
+      const url = new URL(value.trim());
+      if (!['https:', 'http:', 'mailto:'].includes(url.protocol)) return null;
+      if (url.protocol === 'mailto:') {
+        if (!/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(url.pathname)) return null;
+      } else if (!url.hostname.includes('.') || /\\s/.test(value)) return null;
+      return url.href;
+    } catch { return null; }
+  };
+  const commands = [['B','bold'],['I','italic'],['U','underline'],['•','insertUnorderedList'],['1.','insertOrderedList']];
+  for (const [label, command] of commands) {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'btn secondary small';
     button.textContent = label;
     button.addEventListener('mousedown', e => e.preventDefault());
-    button.addEventListener('click', () => {
-      editor.focus();
-      let value = argument;
-      if (command === 'createLink') {
-        value = prompt('כתובת קישור (https://)') || '';
-        try {
-          const url = new URL(value);
-          if (!['https:', 'http:', 'mailto:'].includes(url.protocol) ||
-              (url.protocol === 'mailto:' ? !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(url.pathname) : !url.hostname.includes('.'))) throw new Error();
-          value = url.href;
-        } catch { notify('יש להזין כתובת קישור תקינה.', true); return; }
-      }
-      document.execCommand(command, false, value);
-      sync();
-    });
+    button.addEventListener('click', () => { editor.focus(); document.execCommand(command, false); sync(); });
     toolbar.append(button);
   }
+  const linkButton = document.createElement('button');
+  const unlinkButton = document.createElement('button');
+  for (const [button, label, symbol] of [[linkButton,'הוספת קישור','🔗'],[unlinkButton,'הסרת קישור','⊘']]) {
+    button.type = 'button';
+    button.className = 'btn secondary small';
+    button.textContent = symbol;
+    button.title = label;
+    button.setAttribute('aria-label', label);
+    button.addEventListener('mousedown', e => e.preventDefault());
+    toolbar.append(button);
+  }
+  const updateLinkButtons = () => {
+    if (!editor.isConnected) return;
+    const range = selectionInside();
+    const anchor = activeAnchor();
+    linkButton.disabled = !anchor && (!range || range.collapsed || !range.toString().trim());
+    unlinkButton.disabled = !anchor;
+  };
+  linkButton.addEventListener('click', () => {
+    const anchor = activeAnchor();
+    const range = selectionInside();
+    if (!anchor && (!range || range.collapsed || !range.toString().trim())) return;
+    const original = anchor?.getAttribute('href') || 'https://';
+    const entered = prompt('כתובת הקישור', original);
+    if (entered === null) return;
+    const url = validLink(entered);
+    if (!url) { notify('יש להזין כתובת קישור תקינה.', true); return; }
+    if (anchor) anchor.setAttribute('href', url);
+    else {
+      editor.focus();
+      document.execCommand('createLink', false, url);
+    }
+    sync();
+    updateLinkButtons();
+  });
+  unlinkButton.addEventListener('click', () => {
+    const anchor = activeAnchor();
+    if (!anchor) return;
+    anchor.replaceWith(...anchor.childNodes);
+    sync();
+    updateLinkButtons();
+  });
+  editor.addEventListener('keyup', updateLinkButtons);
+  editor.addEventListener('mouseup', updateLinkButtons);
+  editor.addEventListener('focus', updateLinkButtons);
+  document.addEventListener('selectionchange', updateLinkButtons);
+  $('editor-dialog').addEventListener('close', () => document.removeEventListener('selectionchange', updateLinkButtons), {once:true});
+  updateLinkButtons();
   const color = document.createElement('input');
   color.type = 'color';
   color.style.cssText = 'width:36px;height:36px;cursor:pointer';
