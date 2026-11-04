@@ -97,6 +97,9 @@ public sealed class WindowsBubblePresenter
                 ? Visibility.Visible : Visibility.Collapsed;
             AutomationProperties.SetName(_window!, step.Bubble.Content);
 
+            _content!.InvalidateMeasure();
+            _bubble!.InvalidateMeasure();
+            _window!.InvalidateMeasure();
             _window!.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
             _window.SizeToContent = SizeToContent.WidthAndHeight;
             _window.UpdateLayout();
@@ -652,7 +655,9 @@ public sealed class WindowsBubblePresenter
             TextWrapping = TextWrapping.Wrap,
             FontSize = 15,
             Foreground = new SolidColorBrush(Color.FromRgb(31, 45, 61)),
+            MinWidth = 230,
             MaxWidth = 360,
+            TextAlignment = TextAlignment.Right,
             FlowDirection = FlowDirection.RightToLeft
         };
 
