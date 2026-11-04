@@ -572,29 +572,6 @@
   }
 
 
-  function renderFormattedBubble(element, value) {
-    const template = document.createElement('template');
-    template.innerHTML = String(value || '');
-    function clean(node) {
-      if (node.nodeType === Node.TEXT_NODE) return document.createTextNode(node.textContent);
-      const fragment = document.createDocumentFragment();
-      if (node.nodeType !== Node.ELEMENT_NODE) return fragment;
-      const tag = node.tagName.toLowerCase();
-      const target = ['strong','b','em','i','u','br','span','ul','ol','li'].includes(tag)
-        ? document.createElement(({b:'strong',i:'em'})[tag] || tag) : fragment;
-      if (tag === 'span') {
-        const valid = v => /^#[0-9a-f]{6}$/i.test(v) || /^rgb\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*\)$/i.test(v);
-        for (const prop of ['color','backgroundColor']) {
-          if (valid(node.style[prop])) target.style[prop] = node.style[prop];
-        }
-      }
-      if (tag === 'br') return target;
-      for (const child of [...node.childNodes]) target.append(clean(child));
-      return target;
-    }
-    element.replaceChildren();
-    for (const child of [...template.content.childNodes]) element.append(clean(child));
-  }
   function showCenteredMessage(options){
     hideBubble();
     const bubble=document.createElement("div");
@@ -614,7 +591,7 @@
     bubble.appendChild(handle);
 
     const content=document.createElement("div");
-    renderFormattedBubble(content,options.content);
+    content.textContent=String(options.content||'');
     Object.assign(content.style,{cursor:"default",whiteSpace:"pre-wrap",overflowWrap:"break-word",fontWeight:"600"});
     bubble.appendChild(content);
 
@@ -778,7 +755,7 @@
     bubble.appendChild(handle);
 
     const content=document.createElement("div");
-    renderFormattedBubble(content,step.bubble?.content||"");
+    content.textContent=String(step.bubble?.content||"");
     Object.assign(content.style,{cursor:"default",whiteSpace:"pre-wrap",overflowWrap:"break-word",fontWeight:"600"});
     bubble.appendChild(content);
 
@@ -949,7 +926,7 @@
     el.style.outline=theme.targetHighlightWidth+"px solid "+theme.targetHighlightColor;el.style.outlineOffset="2px";el.style.boxShadow=theme.targetHighlightShadow;
     const b=root.createElement("div");b.id="guideMe-guide-bubble";b.dataset.guideMeStepId=step.id;b.dataset.placement=String(step.bubble?.placement||"Auto");b.__guideMeTarget=el;b.setAttribute("role","status");
     const handle=root.createElement("div");handle.dataset.guideMeDragHandle="1";handle.setAttribute("aria-label",presentation.dragText||"");handle.textContent="⠿";handle.title=presentation.dragText||"";Object.assign(handle.style,{display:"block",width:"fit-content",marginLeft:"auto",marginRight:"auto",textAlign:"center",fontSize:"18px",lineHeight:"14px",opacity:".72",marginBottom:"6px",cursor:"grab",touchAction:"none"});
-    const content=root.createElement("div");renderFormattedBubble(content,step.bubble?.content||"");Object.assign(content.style,{cursor:"default",whiteSpace:"pre-wrap",overflowWrap:"break-word",fontWeight:"600"});b.append(handle);
+    const content=root.createElement("div");content.textContent=String(step.bubble?.content||"");Object.assign(content.style,{cursor:"default",whiteSpace:"pre-wrap",overflowWrap:"break-word",fontWeight:"600"});b.append(handle);
     if(presentation.automaticStepLabel){
       const badge=root.createElement("div");badge.dataset.guideMeAutomaticStep="true";badge.textContent=String(presentation.automaticStepLabel);Object.assign(badge.style,{display:"inline-block",fontSize:"12px",fontWeight:"700",padding:"2px 8px",marginBottom:"8px",border:"1px solid currentColor",borderRadius:"999px"});b.appendChild(badge);
     }
