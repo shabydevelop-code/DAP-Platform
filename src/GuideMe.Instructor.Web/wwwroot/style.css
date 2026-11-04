@@ -444,3 +444,11 @@ body .brand-heading strong span { font-size: 26px; }
 #editor-dialog #dialog-fields .bubble-format-editor{width:100%;min-width:0;max-width:100%}
 
 #editor-dialog .bubble-format-action svg{display:block;flex:none;width:18px;height:18px}
+
+/* Rich instruction preview: preserve lists and keep the action separate. */
+#editor-dialog .step-summary-rich,.step-summary .step-summary-rich{flex:1 1 auto;min-width:0;direction:rtl;text-align:right;overflow-wrap:anywhere;white-space:normal;line-height:1.65}
+.step-summary .step-summary-content{align-items:flex-start;gap:16px}
+.step-summary .step-summary-rich ul,.step-summary .step-summary-rich ol{direction:rtl;text-align:right;list-style-position:outside;padding-inline-start:0;padding-inline-end:22px;margin:6px 0}
+.step-summary .step-summary-rich li{padding:0;margin:2px 0}
+.step-summary .step-summary-rich>br{display:block}
+.step-summary .step-summary-content>.context-actions{flex:0 0 auto;align-self:center}
