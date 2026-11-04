@@ -1605,6 +1605,32 @@ function setupBubbleFormattingEditor() {
     });
     toolbar.append(color);
   }
+  for (const [label,tag] of [['• רשימה','ul'],['1. רשימה','ol']]) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'btn secondary small';
+    button.textContent = label;
+    button.addEventListener('mousedown', event => event.preventDefault());
+    button.addEventListener('click', () => {
+      const range = selectionRange();
+      if (!range) return;
+      const text = range.toString();
+      if (!text.trim()) return;
+      const list = document.createElement(tag);
+      for (const line of text.split(/\\r?\\n/)) {
+        const item = document.createElement('li');
+        item.textContent = line;
+        list.append(item);
+      }
+      range.deleteContents();
+      range.insertNode(list);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      sync();
+      editor.focus();
+    });
+    toolbar.append(button);
+  }
   const clear = document.createElement('button');
   clear.type = 'button';
   clear.className = 'btn secondary small';
