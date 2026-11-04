@@ -1619,6 +1619,34 @@ function setupBubbleFormattingEditor() {
     updateButtons();
     return true;
   };
+  // Reflect the saved formatting at the caret/selection in the native color controls.
+  // The controls must not always revert to their creation-time defaults.
+  const colorControls = new Map();
+  const selectedInlineColor = property => {
+    const range = selectionRange();
+    if (!range) return null;
+    let node = range.startContainer;
+    if (node.nodeType !== Node.ELEMENT_NODE) node = node.parentElement;
+    while (node && node !== editor) {
+      if (node.nodeType === Node.ELEMENT_NODE && node.tagName === 'SPAN' && node.style[property]) {
+        const rgb = getComputedStyle(node)[property].match(/^rgba?\\(\\s*(\\d+),\\s*(\\d+),\\s*(\\d+)/i);
+        if (rgb) return '#' + rgb.slice(1, 4).map(n => Number(n).toString(16).padStart(2, '0')).join('');
+        if (/^#[0-9a-f]{6}$/i.test(node.style[property])) return node.style[property];
+      }
+      node = node.parentElement;
+    }
+    return null;
+  };
+  const refreshColorControls = () => {
+    if (!editor.isConnected || !selectionRange()) return;
+    for (const [property, control] of colorControls) {
+      if (document.activeElement === control.input) continue;
+      control.input.value = selectedInlineColor(property) || control.initial;
+    }
+  };
+  editor.addEventListener('mouseup', refreshColorControls);
+  editor.addEventListener('keyup', refreshColorControls);
+  document.addEventListener('selectionchange', refreshColorControls);
   for (const [label,property,initial] of [['צבע','color','#c62828'],['מרקר','backgroundColor','#fff176']]) {
     const color = document.createElement('input');
     color.type = 'color';
@@ -1626,6 +1654,7 @@ function setupBubbleFormattingEditor() {
     color.title = label;
     color.className = 'bubble-format-color';
     color.setAttribute('aria-label',label);
+    colorControls.set(property, {input:color, initial});
     let pickerRange = null;
     const capture = () => {
       retainRange();
