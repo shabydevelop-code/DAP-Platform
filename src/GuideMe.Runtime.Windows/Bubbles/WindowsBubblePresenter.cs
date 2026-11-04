@@ -1,6 +1,4 @@
-using System.Net;
-using System.Text.RegularExpressions;
-using System.Windows.Documents;
+using TheArtOfDev.HtmlRenderer.WPF;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -24,8 +22,7 @@ public sealed class WindowsBubblePresenter
     private Window? _highlightWindow;
     private Border? _highlightBorder;
     private Border? _bubble;
-    private TextBlock? _content;
-    private StackPanel? _formattedContent;
+    private HtmlLabel? _htmlContent;
 
     private TextBlock? _progress;
     private Button? _manualConfirm;
@@ -89,7 +86,7 @@ public sealed class WindowsBubblePresenter
 
             _targetRect = rect;
             UpdateTargetHighlight(rect);
-            SetStructuredBubble(_formattedContent!, step.Bubble.Content);
+            WindowsBubbleHtmlView.SetContent(_htmlContent!, step.Bubble.Content);
             _automaticBadgeText!.Text = automaticStepLabel ?? string.Empty;
             _automaticBadge!.Visibility = string.IsNullOrWhiteSpace(automaticStepLabel)
                 ? Visibility.Collapsed
@@ -99,7 +96,7 @@ public sealed class WindowsBubblePresenter
                 ? Visibility.Visible : Visibility.Collapsed;
             AutomationProperties.SetName(_window!, step.Bubble.Content);
 
-            _formattedContent!.InvalidateMeasure();
+            _htmlContent!.InvalidateMeasure();
             _bubble!.InvalidateMeasure();
             _window!.InvalidateMeasure();
             _window!.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
@@ -214,19 +211,7 @@ public sealed class WindowsBubblePresenter
             if (_highlightWindow?.IsVisible == true)
                 _highlightWindow.Hide();
 
-            var message = new TextBlock
-            {
-                FontWeight = FontWeights.SemiBold,
-                TextWrapping = TextWrapping.Wrap,
-                FontSize = 15,
-                Foreground = new SolidColorBrush(Color.FromRgb(31, 45, 61)),
-                MaxWidth = 360,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                TextAlignment = TextAlignment.Center,
-                FlowDirection = _texts.IsRightToLeft ? FlowDirection.RightToLeft : FlowDirection.LeftToRight
-            };
-
-            SetFormattedBubble(message, content);
+            var message = WindowsBubbleHtmlView.Create(content);
 
             var actionButton = new Button
             {
@@ -534,237 +519,10 @@ public sealed class WindowsBubblePresenter
     private static extern IntPtr SetWindowLongPtr(IntPtr hwnd, int index, IntPtr newLong);
 
 
-    private static void SetStructuredBubble(StackPanel container, string? content)
-    {
-        container.Children.Clear();
-        var raw = content ?? string.Empty;
-        var tokens = Regex.Split(raw, @"(<[^>]*>)");
-        var paragraph = new System.Text.StringBuilder();
-        var listItem = new System.Text.StringBuilder();
-        var listType = string.Empty;
-        var listIndex = 0;
-        var inItem = false;
-
-        TextBlock CreateText(string html)
-        {
-            var text = new TextBlock
-            {
-                TextWrapping = TextWrapping.Wrap,
-                TextAlignment = TextAlignment.Right,
-                FlowDirection = FlowDirection.RightToLeft,
-                FontSize = 15,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = new SolidColorBrush(Color.FromRgb(31, 45, 61))
-            };
-            SetFormattedBubble(text, html);
-            return text;
-        }
-
-        void FlushParagraph()
-        {
-            if (paragraph.Length == 0) return;
-            container.Children.Add(CreateText(paragraph.ToString()));
-            paragraph.Clear();
-        }
-
-        void FlushItem()
-        {
-            if (!inItem) return;
-            var marker = new TextBlock
-            {
-                Text = listType == "ol" ? $"{++listIndex}." : "•",
-                FontSize = 15,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = new SolidColorBrush(Color.FromRgb(31, 45, 61)),
-                FlowDirection = FlowDirection.RightToLeft,
-                TextAlignment = TextAlignment.Right,
-                VerticalAlignment = VerticalAlignment.Top,
-                Margin = new Thickness(0, 0, 0, 0)
-            };
-            // Auto-sized columns keep the text immediately beside its RTL marker.
-            // Align the row to the right instead of stretching it across the bubble.
-            var grid = new Grid
-            {
-                FlowDirection = FlowDirection.RightToLeft,
-                HorizontalAlignment = HorizontalAlignment.Stretch,
-                Margin = new Thickness(0, 2, 0, 2)
-            };
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            Grid.SetColumn(marker, 0);
-            var text = CreateText(listItem.ToString());
-            text.MaxWidth = 330;
-            text.Margin = new Thickness(0, 0, 8, 0);
-            Grid.SetColumn(text, 1);
-            grid.Children.Add(marker);
-            grid.Children.Add(text);
-            container.Children.Add(grid);
-            listItem.Clear();
-            inItem = false;
-        }
-
-        foreach (var token in tokens)
-        {
-            var tag = Regex.Match(token, @"^<\s*(/?)\s*(ul|ol|li)\b[^>]*>$", RegexOptions.IgnoreCase);
-            if (tag.Success)
-            {
-                var closing = tag.Groups[1].Value == "/";
-                switch (tag.Groups[2].Value.ToLowerInvariant())
-                {
-                    case "ul":
-                    case "ol":
-                        if (closing) { FlushItem(); listType = string.Empty; }
-                        else { FlushParagraph(); listType = tag.Groups[2].Value.ToLowerInvariant(); listIndex = 0; }
-                        break;
-                    case "li":
-                        if (closing) FlushItem();
-                        else { FlushParagraph(); FlushItem(); inItem = true; }
-                        break;
-                }
-                continue;
-            }
-            if (inItem) listItem.Append(token);
-            else paragraph.Append(token);
-        }
-        FlushItem();
-        FlushParagraph();
-    }
-
-    private static void SetFormattedBubble(TextBlock block, string? content)
-    {
-        block.Inlines.Clear();
-        var raw = content ?? string.Empty;
-        // HTML authored by Instructor is a fragment, not a complete XML document.
-        // HtmlDecode is applied to text nodes only, never to the markup itself.
-        var tokens = Regex.Split(raw, @"(<[^>]*>)");
-        var bold = 0;
-        var italic = 0;
-        var underline = 0;
-        var spanStack = new Stack<(Brush? Foreground, Brush? Background)>();
-        Brush? foreground = null;
-        Brush? background = null;
-        var lists = new Stack<(string Kind, int Count)>();
-        var lineHasContent = false;
-        string? pendingListMarker = null;
-        var defaultForeground = block.Foreground ?? new SolidColorBrush(Color.FromRgb(31, 45, 61));
-
-        void NewLine()
-        {
-            if (block.Inlines.Count > 0) block.Inlines.Add(new LineBreak());
-            lineHasContent = false;
-        }
-
-        foreach (var token in tokens)
-        {
-            if (token.Length == 0) continue;
-            var tag = Regex.Match(token, @"^<\s*(/?)\s*(strong|b|em|i|u|br|span|ul|ol|li|div|p)\b[^>]*>$", RegexOptions.IgnoreCase);
-            if (tag.Success)
-            {
-                var closing = tag.Groups[1].Value == "/";
-                var name = tag.Groups[2].Value.ToLowerInvariant();
-                var delta = closing ? -1 : 1;
-                switch (name)
-                {
-                    case "strong":
-                    case "b": bold = Math.Max(0, bold + delta); break;
-                    case "em":
-                    case "i": italic = Math.Max(0, italic + delta); break;
-                    case "u": underline = Math.Max(0, underline + delta); break;
-                    case "br": NewLine(); break;
-                    case "div":
-                    case "p":
-                        if (closing && lineHasContent) NewLine();
-                        break;
-                    case "span":
-                        if (closing)
-                        {
-                            if (spanStack.Count > 0) (foreground, background) = spanStack.Pop();
-                        }
-                        else
-                        {
-                            spanStack.Push((foreground, background));
-                            var style = Regex.Match(token, "style\\s*=\\s*[\"']([^\"']*)[\"']", RegexOptions.IgnoreCase);
-                            if (style.Success)
-                            {
-                                foreach (var declaration in style.Groups[1].Value.Split(';'))
-                                {
-                                    var pair = declaration.Split(':', 2);
-                                    if (pair.Length != 2 || !Regex.IsMatch(pair[1].Trim(), @"^#[0-9a-fA-F]{6}$")) continue;
-                                    var brush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(pair[1].Trim()));
-                                    if (pair[0].Trim().Equals("color", StringComparison.OrdinalIgnoreCase)) foreground = brush;
-                                    if (pair[0].Trim().Equals("background-color", StringComparison.OrdinalIgnoreCase)) background = brush;
-                                }
-                            }
-                        }
-                        break;
-                    case "ul":
-                    case "ol":
-                        if (closing)
-                        {
-                            if (lists.Count > 0) lists.Pop();
-                        }
-                        else lists.Push((name, 0));
-                        break;
-                    case "li":
-                        if (closing && pendingListMarker is not null)
-                        {
-                            block.Inlines.Add(new Run(pendingListMarker) { Foreground = defaultForeground, FlowDirection = FlowDirection.RightToLeft });
-                            pendingListMarker = null;
-                        }
-                        if (!closing)
-                        {
-                            if (block.Inlines.Count > 0) NewLine();
-                            if (lists.Count > 0)
-                            {
-                                var list = lists.Pop();
-                                list.Count++;
-                                lists.Push(list);
-                                // Prefix the first text run instead of inserting a separate
-                                // marker run: WPF bidi reorders independent inline runs.
-                                pendingListMarker = list.Kind == "ol" ? $"{list.Count}. " : "• ";
-                            }
-                        }
-                        break;
-                }
-                continue;
-            }
-            if (token.StartsWith("<", StringComparison.Ordinal) && token.EndsWith(">", StringComparison.Ordinal))
-                continue;
-
-            var value = WebUtility.HtmlDecode(token);
-            if (value.Length == 0) continue;
-            var run = new Run((pendingListMarker ?? string.Empty) + value)
-            {
-                FontWeight = bold > 0 ? FontWeights.Bold : FontWeights.SemiBold,
-                FontStyle = italic > 0 ? FontStyles.Italic : FontStyles.Normal,
-                TextDecorations = underline > 0 ? TextDecorations.Underline : null,
-                Foreground = foreground ?? defaultForeground,
-                Background = background,
-                FlowDirection = FlowDirection.RightToLeft
-            };
-            block.Inlines.Add(run);
-            pendingListMarker = null;
-            lineHasContent = true;
-        }
-    }
-
     private void EnsureWindow()
     {
         if (_window is not null)
             return;
-
-        _content = new TextBlock
-        {
-            FontWeight = FontWeights.SemiBold,
-            TextWrapping = TextWrapping.Wrap,
-            FontSize = 15,
-            Foreground = new SolidColorBrush(Color.FromRgb(31, 45, 61)),
-            MinWidth = 230,
-            MaxWidth = 360,
-            TextAlignment = TextAlignment.Right,
-            FlowDirection = FlowDirection.RightToLeft
-        };
 
         _automaticBadgeText = new TextBlock
         {
@@ -809,8 +567,8 @@ public sealed class WindowsBubblePresenter
         var stack = new StackPanel();
         stack.Children.Add(dragHandle);
         stack.Children.Add(_automaticBadge);
-        _formattedContent = new StackPanel { MinWidth = 230, MaxWidth = 360, FlowDirection = FlowDirection.RightToLeft };
-        stack.Children.Add(_formattedContent);
+        _htmlContent = WindowsBubbleHtmlView.Create(string.Empty);
+        stack.Children.Add(_htmlContent);
         stack.Children.Add(_progress);
         _manualConfirm = new Button
         {
