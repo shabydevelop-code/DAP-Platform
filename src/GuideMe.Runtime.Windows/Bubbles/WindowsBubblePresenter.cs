@@ -542,7 +542,7 @@ public sealed class WindowsBubblePresenter
 
         void EndLine()
         {
-            if (result.Length > 0 && result[^1] != '\\n') result.Append('\\n');
+            if (result.Length > 0 && result[^1] != '\n') result.Append('\n');
         }
 
         foreach (var token in Regex.Split(source, @"(<[^>]*>)"))
@@ -590,7 +590,7 @@ public sealed class WindowsBubblePresenter
                     }
                     break;
                 case "br":
-                    result.Append('\\n');
+                    result.Append('\n');
                     break;
                 case "p":
                 case "div":
@@ -598,7 +598,7 @@ public sealed class WindowsBubblePresenter
                     break;
             }
         }
-        return result.ToString().TrimEnd('\\r', '\\n');
+        return result.ToString().TrimEnd('\r', '\n');
     }
 
     private void EnsureWindow()
