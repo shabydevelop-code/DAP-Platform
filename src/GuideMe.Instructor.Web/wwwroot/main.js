@@ -1458,7 +1458,8 @@ function setupBubbleFormattingEditor() {
     }
     return false;
   };
-  const colorsAt = node => { const colors = {}; for (let p = node.parentNode; p && p !== editor; p = p.parentNode) { if (p.nodeType === Node.ELEMENT_NODE && p.tagName === 'SPAN') { for (const key of ['color','backgroundColor']) if (!colors[key] && p.style[key]) colors[key] = p.style[key]; } } return colors; };\n  const snapshot = () => {
+  const colorsAt = node => { const colors = {}; for (let p = node.parentNode; p && p !== editor; p = p.parentNode) { if (p.nodeType === Node.ELEMENT_NODE && p.tagName === 'SPAN') { for (const key of ['color','backgroundColor']) if (!colors[key] && p.style[key]) colors[key] = p.style[key]; } } return colors; };
+  const snapshot = () => {
     const entries = [];
     const walk = node => {
       if (node.nodeType === Node.TEXT_NODE) {
