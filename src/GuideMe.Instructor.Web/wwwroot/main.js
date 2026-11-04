@@ -1405,7 +1405,7 @@ document.addEventListener('submit', event => {
 function bubbleFormattingHtml(value) {
   const root = document.createElement('template');
   root.innerHTML = String(value || '');
-  const safeColor = value => /^#[0-9a-f]{6}$/i.test(value || '') ? value : null;
+  const safeColor = value => { const v = String(value || ''); if (/^#[0-9a-f]{6}$/i.test(v)) return v; const rgb = /^rgb\\(\\s*(\\d{1,3})\\s*,\\s*(\\d{1,3})\\s*,\\s*(\\d{1,3})\\s*\\)$/i.exec(v); return rgb && rgb.slice(1).every(x => Number(x) <= 255) ? '#' + rgb.slice(1).map(x => Number(x).toString(16).padStart(2,'0')).join('') : null; };
   function clean(node) {
     if (node.nodeType === Node.TEXT_NODE) return document.createTextNode(node.textContent);
     const fragment = document.createDocumentFragment();
@@ -1570,6 +1570,56 @@ function setupBubbleFormattingEditor() {
   document.addEventListener('selectionchange', () => {
     if (editor.isConnected) updateButtons();
   });
+  const applySpanStyle = (property, value) => {
+    const range = selectionRange();
+    if (!range) return;
+    const span = document.createElement('span');
+    span.style[property] = value;
+    const fragment = range.extractContents();
+    span.append(fragment);
+    range.insertNode(span);
+    const selection = window.getSelection();
+    const selected = document.createRange();
+    selected.selectNodeContents(span);
+    selection.removeAllRanges();
+    selection.addRange(selected);
+    sync();
+    editor.focus();
+  };
+  for (const [label,property,initial] of [['צבע','color','#c62828'],['מרקר','backgroundColor','#fff176']]) {
+    const color = document.createElement('input');
+    color.type = 'color';
+    color.value = initial;
+    color.title = label;
+    color.setAttribute('aria-label',label);
+    let savedRange = null;
+    color.addEventListener('pointerdown', () => { savedRange = selectionRange()?.cloneRange() || null; });
+    color.addEventListener('input', () => {
+      if (savedRange && editor.contains(savedRange.commonAncestorContainer)) {
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(savedRange);
+        applySpanStyle(property,color.value);
+        savedRange = selectionRange()?.cloneRange() || null;
+      }
+    });
+    toolbar.append(color);
+  }
+  const clear = document.createElement('button');
+  clear.type = 'button';
+  clear.className = 'btn secondary small';
+  clear.textContent = 'ניקוי עיצוב';
+  clear.addEventListener('mousedown',event => event.preventDefault());
+  clear.addEventListener('click', () => {
+    const offsets = selectionOffsets();
+    if (!offsets) return;
+    const entries = snapshot();
+    for (const entry of entries.slice(offsets[0],offsets[1])) entry.styles.clear();
+    renderEntries(entries,offsets[0],offsets[1]);
+    sync();
+    updateButtons();
+  });
+  toolbar.append(clear);
   editor.addEventListener('input', sync);
   editor.addEventListener('paste', event => {
     event.preventDefault();
