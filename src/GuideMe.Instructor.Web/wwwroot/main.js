@@ -1403,16 +1403,22 @@ document.addEventListener('submit', event => {
 
 
 function bubbleFormattingHtml(value) {
-  const raw = String(value || '');
   const root = document.createElement('template');
-  root.innerHTML = raw;
+  root.innerHTML = String(value || '');
+  const safeColor = value => /^#[0-9a-f]{6}$/i.test(value || '') ? value : null;
   function clean(node) {
     if (node.nodeType === Node.TEXT_NODE) return document.createTextNode(node.textContent);
     const fragment = document.createDocumentFragment();
     if (node.nodeType !== Node.ELEMENT_NODE) return fragment;
     const tag = node.tagName.toLowerCase();
-    const target = ['b','strong','i','em','u','br'].includes(tag)
-      ? document.createElement(({b:'strong',i:'em'})[tag] || tag) : fragment;
+    const allowed = ['b','strong','i','em','u','br','span','ul','ol','li'];
+    const target = allowed.includes(tag) ? document.createElement(({b:'strong',i:'em'})[tag] || tag) : fragment;
+    if (tag === 'span') {
+      const color = safeColor(node.style.color);
+      const background = safeColor(node.style.backgroundColor);
+      if (color) target.style.color = color;
+      if (background) target.style.backgroundColor = background;
+    }
     if (tag === 'br') return target;
     for (const child of [...node.childNodes]) target.append(clean(child));
     return target;
