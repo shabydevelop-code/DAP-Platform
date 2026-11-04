@@ -128,7 +128,7 @@ internal sealed class WindowsBubbleHtmlView : Grid
             "<style>html,body{margin:0;padding:0;background:transparent;overflow:hidden}" +
             "body{font:600 15px/1.45 'Segoe UI',Arial,sans-serif;color:#1f2d3d;direction:rtl;text-align:right}" +
             "#content{box-sizing:border-box;width:100%;overflow-wrap:anywhere;white-space:pre-wrap}" +
-            "ul,ol{direction:rtl;text-align:right;white-space:normal;margin:4px 0;padding-inline-start:0;padding-inline-end:24px}" +
+            "ul,ol{direction:rtl;text-align:right;white-space:normal;margin:4px 0;padding-inline-start:24px;padding-inline-end:0}" +
             "li{padding:0;margin:2px 0}p,div{margin:0}strong,b{font-weight:700}" +
             "</style></head><body><main id='content'>" + safe + "</main>" +
             "<script>function report(){window.chrome.webview.postMessage(String(document.documentElement.scrollHeight));}" +
