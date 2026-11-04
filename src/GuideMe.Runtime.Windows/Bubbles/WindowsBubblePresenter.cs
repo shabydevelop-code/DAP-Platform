@@ -581,11 +581,19 @@ public sealed class WindowsBubblePresenter
                 VerticalAlignment = VerticalAlignment.Top,
                 Margin = new Thickness(0, 0, 0, 0)
             };
-            var grid = new Grid { FlowDirection = FlowDirection.RightToLeft, Margin = new Thickness(0, 2, 0, 2) };
+            // Auto-sized columns keep the text immediately beside its RTL marker.
+            // Align the row to the right instead of stretching it across the bubble.
+            var grid = new Grid
+            {
+                FlowDirection = FlowDirection.RightToLeft,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(0, 2, 0, 2)
+            };
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             Grid.SetColumn(marker, 0);
             var text = CreateText(listItem.ToString());
+            text.MaxWidth = 330;
             text.Margin = new Thickness(0, 0, 8, 0);
             Grid.SetColumn(text, 1);
             grid.Children.Add(marker);
