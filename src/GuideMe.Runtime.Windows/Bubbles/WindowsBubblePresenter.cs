@@ -544,7 +544,6 @@ public sealed class WindowsBubblePresenter
         Brush? background = null;
         var lists = new Stack<(string Kind, int Count)>();
         var lineHasContent = false;
-        var pendingListItem = false;
 
         void NewLine()
         {
@@ -607,7 +606,6 @@ public sealed class WindowsBubblePresenter
                         if (!closing)
                         {
                             if (block.Inlines.Count > 0) NewLine();
-                            pendingListItem = true;
                             if (lists.Count > 0)
                             {
                                 var list = lists.Pop();
@@ -620,7 +618,6 @@ public sealed class WindowsBubblePresenter
                                 });
                             }
                         }
-                        else pendingListItem = false;
                         break;
                 }
                 continue;
@@ -641,7 +638,6 @@ public sealed class WindowsBubblePresenter
             };
             block.Inlines.Add(run);
             lineHasContent = true;
-            pendingListItem = false;
         }
     }
 
