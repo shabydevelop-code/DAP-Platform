@@ -226,7 +226,7 @@ internal sealed class WindowsTargetPicker : IDisposable
                         $"uiaPid={element.Current.ProcessId} " +
                         $"uiaId='{element.Current.AutomationId}' accepted={accepted}");
             }
-            if (!accepted)
+            if (!accepted || element is null)
             {
                 hovered = null;
                 outline!.Visibility = Visibility.Collapsed;
