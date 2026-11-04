@@ -1404,15 +1404,13 @@ document.addEventListener('submit', event => {
 
 // Older guides may contain formatted HTML. Display and edit them as plain text.
 function plainBubbleText(value) {
-  const template = document.createElement('template');
-  template.innerHTML = String(value || '');
   const raw = String(value || '');
-  if (!/<\\/?(?:span|strong|b|em|i|u|br|ul|ol|li)(?:\\s|>|\\/)/i.test(raw)) return raw;
-  const output = document.createElement('div');
-  for (const node of [...template.content.childNodes]) output.append(node.cloneNode(true));
-  output.querySelectorAll('br').forEach(node => node.replaceWith(document.createTextNode('\\n')));
-  output.querySelectorAll('li').forEach(node => node.append(document.createTextNode('\\n')));
-  return output.textContent || '';
+  if (!/<\/?(?:span|strong|b|em|i|u|br|ul|ol|li)(?:\s|>|\/)/i.test(raw)) return raw;
+  const template = document.createElement('template');
+  template.innerHTML = raw;
+  template.content.querySelectorAll('br').forEach(node => node.replaceWith(document.createTextNode('\n')));
+  template.content.querySelectorAll('li').forEach(node => node.append(document.createTextNode('\n')));
+  return template.content.textContent || '';
 }
 
 function modal(title, fields, submit, buttonText='שמירה') {
@@ -1705,19 +1703,19 @@ function variablePreviewValue(variable) {
   return value == null || String(value).trim() === '' ? variable?.name || 'משתנה לא קיים' : String(value);
 }
 function friendlyInstructionText(value) {
-  return String(value || '').replace(/\{\{var:([^}]+)\}\}/g, (_, id) => {
+  return plainBubbleText(value).replace(/\{\{var:([^}]+)\}\}/g, (_, id) => {
     const variable = (current?.variables || []).find(v => v.id === id);
     return '[' + variablePreviewValue(variable) + ']';
   });
 }
 function stepListInstructionHtml(value) {
   // Explicit newlines alone create rows; each row truncates independently.
-  return String(value || '').split(/\r?\n/).slice(0, 2)
+  return plainBubbleText(value).split(/\r?\n/).slice(0, 2)
     .map(line => '<span class="step-instruction-line">' + friendlyInstructionHtml(line) + '</span>')
     .join('');
 }
 function friendlyInstructionHtml(value) {
-  const text = String(value || '').replace(/\{\{var:([^}]+)\}\}/g, (_, id) => {
+  const text = plainBubbleText(value).replace(/\{\{var:([^}]+)\}\}/g, (_, id) => {
     const variable = (current?.variables || []).find(v => v.id === id);
     return variablePreviewValue(variable);
   });
@@ -2039,7 +2037,7 @@ function editStep(step, assignedContextId) {
   modal('עריכת שלב ' + step.order, [
     {name:'contextId',label:'אפליקציית יעד',value:selectedContext,
      choices:contexts.map(c => ({value:c.ContextId,text:appLabel(c)}))},
-    {name:'bubble', label:'טקסט הבועית', value:String(step.bubble || '').replace(/\{\{var:([^}]+)\}\}/g, (_, id) => {
+    {name:'bubble', label:'טקסט הבועית', value:plainBubbleText(step.bubble || '').replace(/\{\{var:([^}]+)\}\}/g, (_, id) => {
        const variable=(current.variables || []).find(v=>v.id===id);
        return variable ? '【'+variablePreviewValue(variable)+'】' : '{{var:'+id+'}}';
      }), max:4000, multiline:true,
