@@ -306,7 +306,11 @@ public sealed class WindowsBubblePresenter
             };
 
             message.ContentSizeChanged += () => centeredWindow?.UpdateLayout();
-            centeredWindow.Closed += (_, _) => dismissed.TrySetResult();
+            centeredWindow.Closed += (_, _) =>
+            {
+                message.Release();
+                dismissed.TrySetResult();
+            };
             centeredWindow.Show();
         });
 
