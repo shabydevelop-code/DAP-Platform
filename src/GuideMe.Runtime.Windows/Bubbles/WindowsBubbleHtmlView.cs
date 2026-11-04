@@ -3,7 +3,6 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
-using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.Wpf;
 
 namespace GuideMe.Runtime.Windows.Bubbles;
@@ -65,8 +64,9 @@ internal sealed class WindowsBubbleHtmlView : Grid
                 e.Cancel = true;
         };
         Loaded += (_, _) => _ = EnsureReadyAsync();
-        Unloaded += (_, _) => { };
     }
+
+    internal void Release() => _browser.Dispose();
 
     internal void ShowHtml(string? value)
     {
