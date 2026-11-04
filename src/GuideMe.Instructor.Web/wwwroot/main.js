@@ -1797,7 +1797,7 @@ function stepListInstructionHtml(value) {
     .join('');
 }
 function friendlyInstructionHtml(value) {
-  const text = String(value || '').replace(/\\{\\{var:([^}]+)\\}\\}/g, (_, id) => {
+  const text = String(value || '').replace(/\{\{var:([^}]+)\}\}/g, (_, id) => {
     const variable = (current?.variables || []).find(v => v.id === id);
     return variablePreviewValue(variable);
   });
