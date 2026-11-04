@@ -1455,7 +1455,7 @@ function setupBubbleRichEditor() {
   editor.innerHTML = bubbleRichMarkup(input.value);
   const toolbar = document.createElement('div');
   toolbar.style.cssText = 'display:flex;flex-wrap:wrap;gap:5px;margin-bottom:7px';
-  const commands = [['B','bold'],['I','italic'],['U','underline'],['כותרת','formatBlock','h3'],['•','insertUnorderedList'],['1.','insertOrderedList'],['קישור','createLink']];
+  const commands = [['B','bold'],['I','italic'],['U','underline'],['•','insertUnorderedList'],['1.','insertOrderedList'],['קישור','createLink']];
   for (const [label, command, argument] of commands) {
     const button = document.createElement('button');
     button.type = 'button';
@@ -1481,6 +1481,8 @@ function setupBubbleRichEditor() {
   color.addEventListener('input', () => { editor.focus(); document.execCommand('foreColor', false, color.value); sync(); });
   toolbar.append(color);
   input.hidden = true;
+  input.style.display = 'none';
+  input.tabIndex = -1;
   input.required = false;
   input.removeAttribute('maxlength');
   field.insertBefore(toolbar, input);
