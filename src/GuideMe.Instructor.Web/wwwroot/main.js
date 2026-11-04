@@ -1401,6 +1401,99 @@ document.addEventListener('submit', event => {
   }
 }, true);
 
+
+function bubbleFormattingHtml(value) {
+  const raw = String(value || '');
+  const root = document.createElement('template');
+  root.innerHTML = raw;
+  function clean(node) {
+    if (node.nodeType === Node.TEXT_NODE) return document.createTextNode(node.textContent);
+    const fragment = document.createDocumentFragment();
+    if (node.nodeType !== Node.ELEMENT_NODE) return fragment;
+    const tag = node.tagName.toLowerCase();
+    const target = ['b','strong','i','em','u','br'].includes(tag)
+      ? document.createElement(({b:'strong',i:'em'})[tag] || tag) : fragment;
+    if (tag === 'br') return target;
+    for (const child of [...node.childNodes]) target.append(clean(child));
+    return target;
+  }
+  const output = document.createElement('div');
+  for (const child of [...root.content.childNodes]) output.append(clean(child));
+  return output.innerHTML;
+}
+function setupBubbleFormattingEditor() {
+  const input = $('field-bubble');
+  if (!input) return;
+  const field = input.closest('.field');
+  const toolbar = document.createElement('div');
+  toolbar.className = 'bubble-format-toolbar';
+  const editor = document.createElement('div');
+  editor.className = 'bubble-format-editor';
+  editor.contentEditable = 'true';
+  editor.dir = 'auto';
+  editor.setAttribute('role', 'textbox');
+  editor.setAttribute('aria-label', 'טקסט הבועית');
+  editor.setAttribute('aria-multiline', 'true');
+  editor.innerHTML = bubbleFormattingHtml(input.value);
+  const sync = () => {
+    input.value = bubbleFormattingHtml(editor.innerHTML);
+    input.dispatchEvent(new Event('input', {bubbles:true}));
+  };
+  const selectionRange = () => {
+    const selection = window.getSelection();
+    if (!selection || !selection.rangeCount || selection.isCollapsed) return null;
+    const range = selection.getRangeAt(0);
+    return editor.contains(range.commonAncestorContainer) ? range : null;
+  };
+  for (const [label, tag] of [['B','strong'],['I','em'],['U','u']]) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'btn secondary small';
+    button.textContent = label;
+    button.title = {strong:'מודגש',em:'נטוי',u:'קו תחתון'}[tag];
+    button.addEventListener('mousedown', event => event.preventDefault());
+    button.addEventListener('click', () => {
+      const range = selectionRange();
+      if (!range) return;
+      const wrapper = document.createElement(tag);
+      try { range.surroundContents(wrapper); }
+      catch {
+        const selected = range.extractContents();
+        wrapper.append(selected);
+        range.insertNode(wrapper);
+      }
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      sync();
+      editor.focus();
+    });
+    toolbar.append(button);
+  }
+  editor.addEventListener('input', sync);
+  editor.addEventListener('paste', event => {
+    event.preventDefault();
+    const selection = window.getSelection();
+    if (!selection?.rangeCount) return;
+    const range = selection.getRangeAt(0);
+    if (!editor.contains(range.commonAncestorContainer)) return;
+    range.deleteContents();
+    const node = document.createTextNode(event.clipboardData.getData('text/plain'));
+    range.insertNode(node);
+    range.setStartAfter(node);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    sync();
+  });
+  input.style.display = 'none';
+  input.required = false;
+  input.tabIndex = -1;
+  field.insertBefore(toolbar, input);
+  field.insertBefore(editor, input);
+  input._formatEditor = editor;
+  input._formatSync = sync;
+}
+
 function modal(title, fields, submit, buttonText='שמירה') {
   modalReturnFocus = document.activeElement;
   $('dialog-title').textContent=title;
@@ -1427,6 +1520,7 @@ function modal(title, fields, submit, buttonText='שמירה') {
       catch (error) { if (!(error instanceof InstructorFieldValidationError)) throw error; }
     });
   };
+  if (fields.some(field => field.name === 'bubble')) setupBubbleFormattingEditor();
   const baseline = new URLSearchParams(new FormData(form)).toString();
   const onChange = () => {
     if (new URLSearchParams(new FormData(form)).toString() !== baseline) markDirty();
@@ -1715,7 +1809,7 @@ function friendlyInstructionHtml(value) {
       '">' + esc(variablePreviewValue(variable)) + '</span>';
     offset = re.lastIndex;
   }
-  return html + esc(text.slice(offset));
+  return bubbleFormattingHtml(html + esc(text.slice(offset)));
 }
 // The inspector and editor share one value extraction rule; the CSS selector
 // remains a private implementation detail.
