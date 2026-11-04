@@ -1404,7 +1404,9 @@ document.addEventListener('submit', event => {
 
 function bubbleRichMarkup(value) {
   const host = document.createElement('div');
-  host.innerHTML = String(value || '');
+  const raw = String(value || '');
+  if (/<(?:b|strong|i|em|u|p|div|br|ul|ol|li|h2|h3|a|span)\\b/i.test(raw)) host.innerHTML = raw;
+  else host.textContent = raw;
   const allowed = new Set(['B','STRONG','I','EM','U','P','DIV','BR','UL','OL','LI','H2','H3','A','SPAN']);
   function clean(node) {
     if (node.nodeType === Node.TEXT_NODE) return document.createTextNode(node.textContent);
@@ -1443,6 +1445,7 @@ function setupBubbleRichEditor() {
   const field = input.closest('.field');
   const editor = document.createElement('div');
   editor.contentEditable = 'true';
+  input._bubbleRichEditor = editor;
   editor.dir = 'auto';
   editor.className = 'bubble-rich-editor';
   editor.setAttribute('role', 'textbox');
@@ -2044,6 +2047,12 @@ function setupVariableInsertion(input, container, variables) {
       notify('יש לבחור משתנה בשלמותו או למקם את הסמן מחוץ לסימון.',true);return;
     }
     references.set(label,variable.id);
+    if (input._bubbleRichEditor) {
+      input._bubbleRichEditor.focus();
+      document.execCommand('insertText', false, label);
+      input._bubbleRichSync();
+      return;
+    }
     input.setRangeText(label,start,end,'end');
     track();input.dispatchEvent(new Event('input',{bubbles:true}));input.focus();
   };
