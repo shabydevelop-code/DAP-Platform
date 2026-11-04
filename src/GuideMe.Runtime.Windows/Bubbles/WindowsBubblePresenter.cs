@@ -1,3 +1,6 @@
+using System.Net;
+using System.Text.RegularExpressions;
+using System.Windows.Documents;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -84,7 +87,7 @@ public sealed class WindowsBubblePresenter
 
             _targetRect = rect;
             UpdateTargetHighlight(rect);
-            _content!.Text = step.Bubble.Content;
+            SetFormattedBubble(_content!, step.Bubble.Content);
             _automaticBadgeText!.Text = automaticStepLabel ?? string.Empty;
             _automaticBadge!.Visibility = string.IsNullOrWhiteSpace(automaticStepLabel)
                 ? Visibility.Collapsed
@@ -208,7 +211,6 @@ public sealed class WindowsBubblePresenter
 
             var message = new TextBlock
             {
-                Text = content,
                 FontWeight = FontWeights.SemiBold,
                 TextWrapping = TextWrapping.Wrap,
                 FontSize = 15,
@@ -218,6 +220,8 @@ public sealed class WindowsBubblePresenter
                 TextAlignment = TextAlignment.Center,
                 FlowDirection = _texts.IsRightToLeft ? FlowDirection.RightToLeft : FlowDirection.LeftToRight
             };
+
+            SetFormattedBubble(message, content);
 
             var actionButton = new Button
             {
@@ -523,6 +527,43 @@ public sealed class WindowsBubblePresenter
 
     [DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW")]
     private static extern IntPtr SetWindowLongPtr(IntPtr hwnd, int index, IntPtr newLong);
+
+
+    private static void SetFormattedBubble(TextBlock block, string? content)
+    {
+        block.Inlines.Clear();
+        var bold = 0;
+        var italic = 0;
+        var underline = 0;
+        foreach (var token in Regex.Split(content ?? string.Empty, @"(<[^>]*>)"))
+        {
+            if (token.Length == 0) continue;
+            var tag = Regex.Match(token, @"^<\s*(/?)\s*(strong|b|em|i|u|br)\s*/?\s*>$", RegexOptions.IgnoreCase);
+            if (tag.Success)
+            {
+                var delta = tag.Groups[1].Value == "/" ? -1 : 1;
+                switch (tag.Groups[2].Value.ToLowerInvariant())
+                {
+                    case "strong":
+                    case "b": bold = Math.Max(0, bold + delta); break;
+                    case "em":
+                    case "i": italic = Math.Max(0, italic + delta); break;
+                    case "u": underline = Math.Max(0, underline + delta); break;
+                    case "br": block.Inlines.Add(new LineBreak()); break;
+                }
+                continue;
+            }
+            // Ignore unsupported markup rather than executing or displaying it.
+            if (token.StartsWith("<", StringComparison.Ordinal) && token.EndsWith(">", StringComparison.Ordinal))
+                continue;
+            block.Inlines.Add(new Run(WebUtility.HtmlDecode(token))
+            {
+                FontWeight = bold > 0 ? FontWeights.Bold : FontWeights.SemiBold,
+                FontStyle = italic > 0 ? FontStyles.Italic : FontStyles.Normal,
+                TextDecorations = underline > 0 ? TextDecorations.Underline : null
+            });
+        }
+    }
 
     private void EnsureWindow()
     {
