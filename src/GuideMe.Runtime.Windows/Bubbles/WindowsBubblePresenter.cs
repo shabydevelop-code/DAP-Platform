@@ -1,3 +1,6 @@
+using System.Net;
+using System.Text;
+using System.Text.RegularExpressions;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -21,7 +24,7 @@ public sealed class WindowsBubblePresenter
     private Window? _highlightWindow;
     private Border? _highlightBorder;
     private Border? _bubble;
-    private StackPanel? _htmlContent;
+    private TextBlock? _instructionText;
 
     private TextBlock? _progress;
     private Button? _manualConfirm;
@@ -85,7 +88,7 @@ public sealed class WindowsBubblePresenter
 
             _targetRect = rect;
             UpdateTargetHighlight(rect);
-            WindowsBubbleHtmlView.SetContent(_htmlContent!, step.Bubble.Content);
+            _instructionText!.Text = ToPlainInstruction(step.Bubble.Content);
             _automaticBadgeText!.Text = automaticStepLabel ?? string.Empty;
             _automaticBadge!.Visibility = string.IsNullOrWhiteSpace(automaticStepLabel)
                 ? Visibility.Collapsed
@@ -95,7 +98,7 @@ public sealed class WindowsBubblePresenter
                 ? Visibility.Visible : Visibility.Collapsed;
             AutomationProperties.SetName(_window!, step.Bubble.Content);
 
-            _htmlContent!.InvalidateMeasure();
+            _instructionText!.InvalidateMeasure();
             _bubble!.InvalidateMeasure();
             _window!.InvalidateMeasure();
             _window!.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
@@ -210,7 +213,7 @@ public sealed class WindowsBubblePresenter
             if (_highlightWindow?.IsVisible == true)
                 _highlightWindow.Hide();
 
-            var message = WindowsBubbleHtmlView.Create(content);
+            var message = CreateInstructionText(content);
 
             var actionButton = new Button
             {
@@ -518,6 +521,86 @@ public sealed class WindowsBubblePresenter
     private static extern IntPtr SetWindowLongPtr(IntPtr hwnd, int index, IntPtr newLong);
 
 
+    private static TextBlock CreateInstructionText(string? html) => new()
+    {
+        Text = ToPlainInstruction(html),
+        Width = 260,
+        MaxWidth = 260,
+        TextWrapping = TextWrapping.Wrap,
+        TextAlignment = TextAlignment.Right,
+        FlowDirection = FlowDirection.RightToLeft,
+        FontSize = 15,
+        FontWeight = FontWeights.SemiBold,
+        Foreground = new SolidColorBrush(Color.FromRgb(31, 45, 61))
+    };
+
+    private static string ToPlainInstruction(string? html)
+    {
+        var source = html ?? string.Empty;
+        var result = new StringBuilder();
+        var lists = new Stack<(string Kind, int Number)>();
+
+        void EndLine()
+        {
+            if (result.Length > 0 && result[^1] != '\\n') result.Append('\\n');
+        }
+
+        foreach (var token in Regex.Split(source, @"(<[^>]*>)"))
+        {
+            if (token.Length == 0) continue;
+            var tag = Regex.Match(token,
+                @"^<\\s*(/?)\\s*([a-zA-Z][a-zA-Z0-9]*)\\b[^>]*>$");
+            if (!tag.Success)
+            {
+                // Preserve literal text and decode HTML entities once.
+                result.Append(WebUtility.HtmlDecode(token));
+                continue;
+            }
+
+            var closing = tag.Groups[1].Value == "/";
+            switch (tag.Groups[2].Value.ToLowerInvariant())
+            {
+                case "ul":
+                case "ol":
+                    if (closing)
+                    {
+                        EndLine();
+                        if (lists.Count > 0) lists.Pop();
+                    }
+                    else
+                    {
+                        EndLine();
+                        lists.Push((tag.Groups[2].Value.ToLowerInvariant(), 0));
+                    }
+                    break;
+                case "li":
+                    if (closing) EndLine();
+                    else
+                    {
+                        EndLine();
+                        var marker = "•";
+                        if (lists.Count > 0)
+                        {
+                            var list = lists.Pop();
+                            list.Number++;
+                            marker = list.Kind == "ol" ? list.Number.ToString() + "." : "•";
+                            lists.Push(list);
+                        }
+                        result.Append(marker).Append(' ');
+                    }
+                    break;
+                case "br":
+                    result.Append('\\n');
+                    break;
+                case "p":
+                case "div":
+                    if (closing) EndLine();
+                    break;
+            }
+        }
+        return result.ToString().TrimEnd('\\r', '\\n');
+    }
+
     private void EnsureWindow()
     {
         if (_window is not null)
@@ -566,8 +649,8 @@ public sealed class WindowsBubblePresenter
         var stack = new StackPanel();
         stack.Children.Add(dragHandle);
         stack.Children.Add(_automaticBadge);
-        _htmlContent = WindowsBubbleHtmlView.Create(string.Empty);
-        stack.Children.Add(_htmlContent);
+        _instructionText = CreateInstructionText(string.Empty);
+        stack.Children.Add(_instructionText);
         stack.Children.Add(_progress);
         _manualConfirm = new Button
         {
