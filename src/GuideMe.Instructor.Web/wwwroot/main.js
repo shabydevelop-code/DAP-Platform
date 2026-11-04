@@ -1797,19 +1797,11 @@ function stepListInstructionHtml(value) {
     .join('');
 }
 function friendlyInstructionHtml(value) {
-  const text = String(value || '');
-  const variables = current?.variables || [];
-  const re = /\{\{var:([^}]+)\}\}/g;
-  let html = '', offset = 0, match;
-  while ((match = re.exec(text)) !== null) {
-    html += esc(text.slice(offset, match.index));
-    const variable = variables.find(v => v.id === match[1]);
-    html += '<span class="instruction-variable" title="' +
-      esc(variable ? 'משתנה: ' + variable.name : 'משתנה לא קיים') +
-      '">' + esc(variablePreviewValue(variable)) + '</span>';
-    offset = re.lastIndex;
-  }
-  return bubbleFormattingHtml(html + esc(text.slice(offset)));
+  const text = String(value || '').replace(/\\{\\{var:([^}]+)\\}\\}/g, (_, id) => {
+    const variable = (current?.variables || []).find(v => v.id === id);
+    return variablePreviewValue(variable);
+  });
+  return bubbleFormattingHtml(text);
 }
 // The inspector and editor share one value extraction rule; the CSS selector
 // remains a private implementation detail.
@@ -2043,6 +2035,23 @@ function setupVariableInsertion(input, container, variables) {
       notify('יש לבחור משתנה בשלמותו או למקם את הסמן מחוץ לסימון.',true);return;
     }
     references.set(label,variable.id);
+    if (input._formatEditor) {
+      const editor = input._formatEditor;
+      const selection = window.getSelection();
+      editor.focus();
+      if (selection?.rangeCount && editor.contains(selection.getRangeAt(0).commonAncestorContainer)) {
+        const range = selection.getRangeAt(0);
+        range.deleteContents();
+        const node = document.createTextNode(label);
+        range.insertNode(node);
+        range.setStartAfter(node);
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      } else editor.append(document.createTextNode(label));
+      input._formatSync();
+      return;
+    }
     input.setRangeText(label,start,end,'end');
     track();input.dispatchEvent(new Event('input',{bubbles:true}));input.focus();
   };
