@@ -547,6 +547,7 @@ public sealed class WindowsBubblePresenter
         Brush? background = null;
         var lists = new Stack<(string Kind, int Count)>();
         var lineHasContent = false;
+        var defaultForeground = block.Foreground ?? new SolidColorBrush(Color.FromRgb(31, 45, 61));
 
         void NewLine()
         {
@@ -617,7 +618,7 @@ public sealed class WindowsBubblePresenter
                                 // Keep the marker and the first text run together.
                                 block.Inlines.Add(new Run(list.Kind == "ol" ? $"{list.Count}. " : "• ")
                                 {
-                                    FlowDirection = FlowDirection.RightToLeft
+                                    Foreground = defaultForeground
                                 });
                             }
                         }
@@ -635,9 +636,8 @@ public sealed class WindowsBubblePresenter
                 FontWeight = bold > 0 ? FontWeights.Bold : FontWeights.SemiBold,
                 FontStyle = italic > 0 ? FontStyles.Italic : FontStyles.Normal,
                 TextDecorations = underline > 0 ? TextDecorations.Underline : null,
-                Foreground = foreground,
-                Background = background,
-                FlowDirection = FlowDirection.RightToLeft
+                Foreground = foreground ?? defaultForeground,
+                Background = background
             };
             block.Inlines.Add(run);
             lineHasContent = true;
