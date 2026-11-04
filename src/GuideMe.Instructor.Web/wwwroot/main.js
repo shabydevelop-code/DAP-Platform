@@ -1613,7 +1613,7 @@ function setupBubbleFormattingEditor() {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'btn secondary small';
-    button.textContent = tag === 'ul' ? '☷' : '1≡';
+    button.innerHTML = tag === 'ul' ? '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h12M9 12h12M9 18h12"/><path d="M4 6h.01M4 12h.01M4 18h.01" stroke-width="3"/></svg>' : '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 6h11M10 12h11M10 18h11"/><path d="M3 5h2v4M3 9h4M3 14c0-2 4-2 4 0s-4 3-4 5h4"/></svg>';
     button.classList.add('bubble-format-action');
     button.title = label;
     button.setAttribute('aria-label',label);
@@ -1641,7 +1641,7 @@ function setupBubbleFormattingEditor() {
   const clear = document.createElement('button');
   clear.type = 'button';
   clear.className = 'btn secondary small';
-  clear.textContent = 'Tx';
+  clear.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M12 6v12M7 18h10M3 3l18 18"/></svg>';
   clear.classList.add('bubble-format-action');
   clear.title = 'ניקוי עיצוב';
   clear.setAttribute('aria-label','ניקוי עיצוב');
