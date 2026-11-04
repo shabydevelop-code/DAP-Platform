@@ -1629,7 +1629,7 @@ function setupBubbleFormattingEditor() {
     if (node.nodeType !== Node.ELEMENT_NODE) node = node.parentElement;
     while (node && node !== editor) {
       if (node.nodeType === Node.ELEMENT_NODE && node.tagName === 'SPAN' && node.style[property]) {
-        const rgb = getComputedStyle(node)[property].match(/^rgba?\\(\\s*(\\d+),\\s*(\\d+),\\s*(\\d+)/i);
+        const rgb = getComputedStyle(node)[property].match(/^rgba?\(\s*(\d+),\s*(\d+),\s*(\d+)/i);
         if (rgb) return '#' + rgb.slice(1, 4).map(n => Number(n).toString(16).padStart(2, '0')).join('');
         if (/^#[0-9a-f]{6}$/i.test(node.style[property])) return node.style[property];
       }
