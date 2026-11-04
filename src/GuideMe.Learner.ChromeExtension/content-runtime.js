@@ -574,7 +574,10 @@
 
   function renderBubbleRichContent(container, value) {
     const source=document.createElement("template");
-    const raw=String(value||"");
+    let raw=String(value||"");
+    if(/&lt;\/?(?:b|strong|i|em|u|p|div|br|ul|ol|li|h2|h3|a|span)\b/i.test(raw)){
+      const decoder=document.createElement('textarea');decoder.innerHTML=raw;raw=decoder.value;
+    }
     if(/<(?:b|strong|i|em|u|p|div|br|ul|ol|li|h2|h3|a|span)\\b/i.test(raw))source.innerHTML=raw;
     else source.content.textContent=raw;
     const allowed=new Set(["B","STRONG","I","EM","U","P","DIV","BR","UL","OL","LI","H2","H3","A","SPAN"]);
@@ -590,7 +593,7 @@
       if(node.tagName==="A"){
         try{
           const url=new URL(node.getAttribute("href")||"");
-          if(["https:","http:","mailto:"].includes(url.protocol)){
+          if(["https:","http:","mailto:"].includes(url.protocol) && (url.protocol==="mailto:" ? /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(url.pathname) : !!url.hostname && url.hostname.includes("."))){
             element.href=url.href;element.target="_blank";element.rel="noopener noreferrer";
           }
         }catch{}
