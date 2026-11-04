@@ -432,3 +432,5 @@ body .brand-heading strong span { font-size: 26px; }
 .bubble-format-toolbar .btn{min-width:36px;padding:5px 10px}
 .bubble-format-editor{min-height:108px;max-height:260px;overflow:auto;width:100%;border:1px solid #dce5ef;border-radius:9px;padding:12px;background:#fff;color:#1b334d;white-space:pre-wrap;overflow-wrap:anywhere;text-align:start}
 .bubble-format-editor:focus{outline:2px solid #3678e8;outline-offset:1px}
+
+.bubble-format-toolbar .btn[aria-pressed="true"]{background:#dbeafe;border-color:#2563eb;color:#1d4ed8}
