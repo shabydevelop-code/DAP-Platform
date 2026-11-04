@@ -1442,7 +1442,9 @@ function setupBubbleFormattingEditor() {
   editor.setAttribute('aria-multiline', 'true');
   editor.innerHTML = bubbleFormattingHtml(input.value);
   const sync = () => {
-    input.value = bubbleFormattingHtml(editor.innerHTML);
+    // Preserve authored inline colors while serializing the live editor DOM.
+    // The HTML sanitizer is for untrusted display, not the authoring source.
+    input.value = editor.innerHTML;
     input.dispatchEvent(new Event('input', {bubbles:true}));
   };
   const selectionRange = () => {
@@ -2175,7 +2177,8 @@ async function reloadSelectedStep(guideId, stepId) {
 // Shared token insertion for inline expected-value fields.
 function variableEditorResult(input) {
   if (!input) return '';
-  let value = input.value;
+  // Always read the current rich-text DOM, including span color styles.
+  let value = input._formatEditor ? input._formatEditor.innerHTML : input.value;
   const references = input._variableReferences || new Map();
   for (const label of [...references.keys()].sort((a,b)=>b.length-a.length))
     value = value.split(label).join('{{var:' + references.get(label) + '}}');
