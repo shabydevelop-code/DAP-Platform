@@ -1458,12 +1458,12 @@ function setupBubbleFormattingEditor() {
     }
     return false;
   };
-  const snapshot = () => {
+  const colorsAt = node => { const colors = {}; for (let p = node.parentNode; p && p !== editor; p = p.parentNode) { if (p.nodeType === Node.ELEMENT_NODE && p.tagName === 'SPAN') { for (const key of ['color','backgroundColor']) if (!colors[key] && p.style[key]) colors[key] = p.style[key]; } } return colors; };\n  const snapshot = () => {
     const entries = [];
     const walk = node => {
       if (node.nodeType === Node.TEXT_NODE) {
         const styles = new Set(['strong','em','u'].filter(tag => formatAt(node,tag)));
-        for (const char of node.textContent) entries.push({char, styles:new Set(styles)});
+        for (const char of node.textContent) entries.push({char, styles:new Set(styles), colors:colorsAt(node)});
       } else if (node.nodeType === Node.ELEMENT_NODE) {
         if (node.tagName === 'BR') entries.push({char:'\\n', styles:new Set()});
         else for (const child of node.childNodes) walk(child);
@@ -1512,7 +1512,7 @@ function setupBubbleFormattingEditor() {
         positions.push({node:editor,offset:editor.childNodes.length});
         continue;
       }
-      const key = ['strong','em','u'].filter(tag=>entry.styles.has(tag)).join(',');
+      const key = ['strong','em','u'].filter(tag=>entry.styles.has(tag)).join(',') + '|' + JSON.stringify(entry.colors || {});
       if (!current || key !== lastKey) {
         let host = editor;
         for (const tag of ['strong','em','u']) {
@@ -1522,7 +1522,7 @@ function setupBubbleFormattingEditor() {
             host = wrapper;
           }
         }
-        current = document.createTextNode('');
+        if (entry.colors && Object.keys(entry.colors).length) { const span = document.createElement('span'); for (const [property,value] of Object.entries(entry.colors)) span.style[property] = value; host.append(span); host = span; }\n        current = document.createTextNode('');
         host.append(current);
         lastKey = key;
       }
@@ -1614,7 +1614,7 @@ function setupBubbleFormattingEditor() {
     const offsets = selectionOffsets();
     if (!offsets) return;
     const entries = snapshot();
-    for (const entry of entries.slice(offsets[0],offsets[1])) entry.styles.clear();
+    for (const entry of entries.slice(offsets[0],offsets[1])) { entry.styles.clear(); entry.colors = {}; }
     renderEntries(entries,offsets[0],offsets[1]);
     sync();
     updateButtons();
