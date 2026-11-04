@@ -546,7 +546,7 @@ public sealed class WindowsBubblePresenter
             if (token.Length == 0) continue;
             if (token.StartsWith("<", StringComparison.Ordinal))
             {
-                var tag = Regex.Match(token, @"^<\\s*(/?)\\s*([a-zA-Z0-9]+)\\b", RegexOptions.CultureInvariant);
+                var tag = Regex.Match(token, @"^<\s*(/?)\s*([a-zA-Z0-9]+)\b", RegexOptions.CultureInvariant);
                 if (!tag.Success) continue;
                 var closing = tag.Groups[1].Value == "/";
                 switch (tag.Groups[2].Value.ToLowerInvariant())
@@ -571,7 +571,7 @@ public sealed class WindowsBubblePresenter
                         break;
                     case "span":
                         if (closing) { color = null; break; }
-                        var match = Regex.Match(token, @"color:\\s*(#[0-9a-fA-F]{6})", RegexOptions.IgnoreCase);
+                        var match = Regex.Match(token, @"color:\s*(#[0-9a-fA-F]{6})", RegexOptions.IgnoreCase);
                         if (match.Success)
                         {
                             try { color = (Brush)new BrushConverter().ConvertFromString(match.Groups[1].Value)!; }
