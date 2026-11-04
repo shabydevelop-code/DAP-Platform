@@ -15,40 +15,133 @@ namespace GuideMe.Runtime.Windows.Bubbles;
 /// </summary>
 internal static class WindowsBubbleHtmlView
 {
-    internal static HtmlLabel Create(string? html)
+    internal static StackPanel Create(string? html)
     {
-        var view = new HtmlLabel
+        var panel = new StackPanel
         {
             Width = 260,
             MaxWidth = 260,
-            Background = Brushes.Transparent,
             FlowDirection = FlowDirection.LeftToRight,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            IsHitTestVisible = false,
-            Focusable = false
+            HorizontalAlignment = HorizontalAlignment.Right
         };
-        SetContent(view, html);
-        return view;
+        SetContent(panel, html);
+        return panel;
     }
 
-    internal static void SetContent(HtmlLabel view, string? html)
+    internal static void SetContent(StackPanel panel, string? html)
     {
-        var safeContent = Sanitize(html ?? string.Empty);
-        try
+        panel.Children.Clear();
+        var safe = Sanitize(html ?? string.Empty);
+        var pieces = Regex.Split(safe, @"(<\s*/?\s*(?:ul|ol|li)\b[^>]*>)",
+            RegexOptions.IgnoreCase);
+        var paragraph = new StringBuilder();
+        var item = new StringBuilder();
+        var lists = new Stack<(string Kind, int Number)>();
+        var inItem = false;
+
+        HtmlLabel MakeText(string markup)
         {
-            view.Text = "<div style=\"text-align:right;" +
-                        "font-family:Segoe UI,Arial;font-size:15px;line-height:1.45;" +
-                        "font-weight:600;color:#1f2d3d;overflow-wrap:break-word;\">" +
-                        safeContent + "</div>";
+            var label = new HtmlLabel
+            {
+                Width = 260,
+                MaxWidth = 260,
+                Background = Brushes.Transparent,
+                FlowDirection = FlowDirection.LeftToRight,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                IsHitTestVisible = false,
+                Focusable = false
+            };
+            try
+            {
+                label.Text = "<div style=\"text-align:right;font-family:Segoe UI,Arial;" +
+                             "font-size:15px;line-height:1.45;font-weight:600;color:#1f2d3d;\">" +
+                             markup + "</div>";
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"[GuideMe Windows bubble HTML] Render error: {ex}");
+                label.Text = WebUtility.HtmlEncode(Regex.Replace(markup, "<[^>]*>", string.Empty));
+            }
+            return label;
         }
-        catch (Exception ex)
+
+        void FlushParagraph()
         {
-            Console.Error.WriteLine($"[GuideMe Windows bubble HTML] Render error: {ex}");
-            // Bad formatting must not make a learner step impossible to read.
-            view.Text = "<div style=\"text-align:right\">" +
-                        WebUtility.HtmlEncode(Regex.Replace(html ?? string.Empty, "<[^>]*>", string.Empty)) +
-                        "</div>";
+            if (paragraph.Length == 0) return;
+            panel.Children.Add(MakeText(paragraph.ToString()));
+            paragraph.Clear();
         }
+
+        void FlushItem()
+        {
+            if (!inItem) return;
+            var marker = "•";
+            if (lists.Count > 0)
+            {
+                var list = lists.Pop();
+                list.Number++;
+                marker = list.Kind == "ol"
+                    ? list.Number.ToString(System.Globalization.CultureInfo.InvariantCulture) + "."
+                    : "•";
+                lists.Push(list);
+            }
+            var row = new Grid { FlowDirection = FlowDirection.RightToLeft, Margin = new Thickness(0, 2, 0, 2) };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(22) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            var bullet = new TextBlock
+            {
+                Text = marker,
+                FlowDirection = FlowDirection.RightToLeft,
+                TextAlignment = TextAlignment.Right,
+                FontSize = 15,
+                Foreground = new SolidColorBrush(Color.FromRgb(31, 45, 61))
+            };
+            Grid.SetColumn(bullet, 0);
+            var text = MakeText(item.ToString());
+            text.Width = 238;
+            text.MaxWidth = 238;
+            Grid.SetColumn(text, 1);
+            row.Children.Add(bullet);
+            row.Children.Add(text);
+            panel.Children.Add(row);
+            item.Clear();
+            inItem = false;
+        }
+
+        foreach (var part in pieces)
+        {
+            var tag = Regex.Match(part, @"^<\s*(/?)\s*(ul|ol|li)\b[^>]*>$", RegexOptions.IgnoreCase);
+            if (!tag.Success)
+            {
+                if (inItem) item.Append(part);
+                else paragraph.Append(part);
+                continue;
+            }
+            var closing = tag.Groups[1].Value == "/";
+            var name = tag.Groups[2].Value.ToLowerInvariant();
+            if (name is "ul" or "ol")
+            {
+                if (closing)
+                {
+                    FlushItem();
+                    if (lists.Count > 0) lists.Pop();
+                }
+                else
+                {
+                    FlushParagraph();
+                    lists.Push((name, 0));
+                }
+            }
+            else if (closing) FlushItem();
+            else
+            {
+                FlushParagraph();
+                FlushItem();
+                inItem = true;
+            }
+        }
+        FlushItem();
+        FlushParagraph();
     }
 
     private static string Sanitize(string html)
@@ -59,7 +152,6 @@ internal static class WindowsBubbleHtmlView
             @"<\s*(script|style|iframe|object|embed|svg|math|template|form)\b[^>]*>[\s\S]*?<\s*/\s*\1\s*>",
             string.Empty, RegexOptions.IgnoreCase);
         var output = new StringBuilder();
-        var lists = new Stack<(string Kind, int Number)>();
         foreach (var part in Regex.Split(html, @"(<[^>]*>)"))
         {
             if (part.Length == 0) continue;
@@ -78,34 +170,6 @@ internal static class WindowsBubbleHtmlView
             if (name == "br")
             {
                 output.Append("<br>");
-                continue;
-            }
-            if (name is "ul" or "ol")
-            {
-                if (closing)
-                {
-                    if (lists.Count > 0) lists.Pop();
-                }
-                else lists.Push((name, 0));
-                continue;
-            }
-            if (name == "li")
-            {
-                if (closing) output.Append("</div>");
-                else
-                {
-                    var marker = "•";
-                    if (lists.Count > 0)
-                    {
-                        var list = lists.Pop();
-                        list.Number++;
-                        marker = list.Kind == "ol" ? list.Number.ToString(System.Globalization.CultureInfo.InvariantCulture) + "." : "•";
-                        lists.Push(list);
-                    }
-                    output.Append("<div style=\"text-align:right;margin:2px 0;\">")
-                          .Append("&#x200F;").Append(WebUtility.HtmlEncode(marker))
-                          .Append("&#x00A0;&#x00A0;");
-                }
                 continue;
             }
             if (closing)
