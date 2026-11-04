@@ -85,3 +85,13 @@
 - Instructor must not require a validation merely because a primary target exists. No additional GUI mode selector is needed.
 - The V5 compiler derives Manual from absence of primary validation. A target-attached step cannot use centered placement; Center is normalized to Auto for such steps.
 - Web and Windows must follow the same shared policy. Do not silently complete a manual step without learner confirmation.
+
+## Rich-text bubbles — implementation boundary (2026-11-04)
+
+- The failed experimental `contenteditable`/`execCommand` rich-text editor and its learner renderers were reverted. Do not reintroduce that implementation.
+- Rich-text authoring must use a maintained, packaged editor library, not browser `execCommand` or runtime CDN dependencies.
+- Canonical bubble content must be saved once, without HTML-entity encoding on persistence. Encode only when displaying as plain text; sanitize HTML through an allowlist when displaying rich content.
+- Allowed content for the first release: bold, italic, underline, text color, paragraphs, ordered/unordered lists, and validated HTTP(S)/mailto links. No images, embeds, iframes, or executable scripts.
+- A single persisted representation must have equivalent Web and Windows learner rendering; preserve variable placeholders and existing bubble positioning/advance behavior.
+- No automatic repair, migration, or decoding of previously corrupted bubble content is requested. Existing records must not be rewritten as part of the rich-text feature.
+- Do not ship the new editor until edit/save/reopen, links, colors, variables, and both learners have passed regression checks.
