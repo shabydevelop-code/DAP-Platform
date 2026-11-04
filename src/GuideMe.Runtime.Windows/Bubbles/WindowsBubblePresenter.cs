@@ -549,7 +549,7 @@ public sealed class WindowsBubblePresenter
         {
             if (token.Length == 0) continue;
             var tag = Regex.Match(token,
-                @"^<\\s*(/?)\\s*([a-zA-Z][a-zA-Z0-9]*)\\b[^>]*>$");
+                @"^<\s*(/?)\s*([a-zA-Z][a-zA-Z0-9]*)\b[^>]*>$");
             if (!tag.Success)
             {
                 // Preserve literal text and decode HTML entities once.
