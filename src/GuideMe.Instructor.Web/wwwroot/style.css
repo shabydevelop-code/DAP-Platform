@@ -452,3 +452,8 @@ body .brand-heading strong span { font-size: 26px; }
 .step-summary .step-summary-rich li{padding:0;margin:2px 0}
 .step-summary .step-summary-rich>br{display:block}
 .step-summary .step-summary-content>.context-actions{flex:0 0 auto;align-self:center}
+
+/* Keep RTL list bullets inside the instruction preview, away from the card edge. */
+.step-summary .step-summary-rich{padding-inline-start:12px;padding-inline-end:12px;box-sizing:border-box}
+.step-summary .step-summary-rich ul,.step-summary .step-summary-rich ol{list-style-position:inside;padding:0;margin:6px 0}
+.step-summary .step-summary-rich li{padding-inline-end:4px}
