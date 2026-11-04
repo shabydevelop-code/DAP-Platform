@@ -1412,7 +1412,7 @@ function bubbleFormattingHtml(value) {
       return '#' + [...v.slice(1)].map(x => x + x).join('');
     // Browsers serialize input[type=color] values as rgb(...) when assigned to
     // span.style.color. Accept both legacy comma syntax and modern CSS syntax.
-    const rgb = /^rgba?\\(\\s*(\\d{1,3})(?:\\s*,\\s*|\\s+)(\\d{1,3})(?:\\s*,\\s*|\\s+)(\\d{1,3})(?:\\s*[,/]\\s*(?:1(?:\\.0+)?|0?\\.\\d+))?\\s*\\)$/i.exec(v);
+    const rgb = /^rgba?\(\s*(\d{1,3})(?:\s*,\s*|\s+)(\d{1,3})(?:\s*,\s*|\s+)(\d{1,3})(?:\s*[,/]\s*(?:1(?:\.0+)?|0?\.\d+))?\s*\)$/i.exec(v);
     return rgb && rgb.slice(1).every(x => Number(x) <= 255)
       ? '#' + rgb.slice(1).map(x => Number(x).toString(16).padStart(2, '0')).join('')
       : null;
