@@ -580,9 +580,9 @@
       const fragment = document.createDocumentFragment();
       if (node.nodeType !== Node.ELEMENT_NODE) return fragment;
       const tag = node.tagName.toLowerCase();
-      const target = ['strong','b','em','i','u','br'].includes(tag)
+      const target = ['strong','b','em','i','u','br','span','ul','ol','li'].includes(tag)
         ? document.createElement(({b:'strong',i:'em'})[tag] || tag) : fragment;
-      if (tag === 'br') return target;
+      if (tag === 'span') {\n        const valid = v => /^#[0-9a-f]{6}$/i.test(v) || /^rgb\\(\\s*\\d{1,3}\\s*,\\s*\\d{1,3}\\s*,\\s*\\d{1,3}\\s*\\)$/i.test(v);\n        for (const prop of ['color','backgroundColor']) if (valid(node.style[prop])) target.style[prop] = node.style[prop];\n      }\n      if (tag === 'br') return target;
       for (const child of [...node.childNodes]) target.append(clean(child));
       return target;
     }
