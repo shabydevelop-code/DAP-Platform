@@ -1424,7 +1424,9 @@ function bubbleFormattingHtml(value) {
     const tag = node.tagName.toLowerCase();
     const allowed = ['b','strong','i','em','u','br','span','ul','ol','li'];
     const target = allowed.includes(tag) ? document.createElement(({b:'strong',i:'em'})[tag] || tag) : fragment;
-    if (tag === 'span') {
+    // Preserve authored colors on any supported inline formatting element.
+    // Do not copy font-family or font-size: the bubble's default typography wins.
+    if (target.nodeType === Node.ELEMENT_NODE) {
       const color = safeColor(node.style.color);
       const background = safeColor(node.style.backgroundColor);
       if (color) target.style.color = color;
