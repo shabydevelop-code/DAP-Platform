@@ -431,7 +431,7 @@ function renderSteps() {
       '<div class="step-application"><strong>אפליקציית יעד</strong><span title="' + esc(appText) + '">' + esc(appText) + '</span></div>' +
       '<div class="step-summary"><div class="step-summary-heading"><strong>הנחיה למשתמש</strong>' +
        '</div>' +
-       '<div class="step-summary-content"><p>' + friendlyInstructionHtml(step.bubble || 'לא הוגדרה הנחיה') + '</p>' +
+       '<div class="step-summary-content"><div class="step-summary-rich" dir="rtl">' + friendlyInstructionHtml(step.bubble || 'לא הוגדרה הנחיה') + '</div>' +
        '<div class="context-actions"><button class="btn secondary small" id="edit-step">עריכת תוכן השלב</button></div></div></div>' +
        '<div class="step-friendly-grid">' +
       '<section class="step-friendly-card"><h3>רכיב במסך</h3>' +
