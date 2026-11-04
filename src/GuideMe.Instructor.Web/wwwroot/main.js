@@ -1466,11 +1466,9 @@ function setupBubbleFormattingEditor() {
     while (walker.nextNode()) {
       const node = walker.currentNode;
       if (!node.textContent.length || !range.intersectsNode(node)) continue;
-      const part = document.createRange();
-      part.selectNodeContents(node);
-      if (range.compareBoundaryPoints(Range.START_TO_START,part) > 0) part.setStart(range.startContainer,range.startOffset);
-      if (range.compareBoundaryPoints(Range.END_TO_END,part) < 0) part.setEnd(range.endContainer,range.endOffset);
-      if (!part.collapsed) nodes.push({node,start:part.startOffset,end:part.endOffset});
+      const start = range.startContainer === node ? range.startOffset : 0;
+      const end = range.endContainer === node ? range.endOffset : node.length;
+      if (start < end) nodes.push({node,start,end});
     }
     return nodes;
   };
