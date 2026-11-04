@@ -1547,6 +1547,7 @@ function setupBubbleFormattingEditor() {
     button.type = 'button';
     button.className = 'btn secondary small';
     button.textContent = label;
+    button.classList.add('bubble-format-action');
     button.title = {strong:'מודגש',em:'נטוי',u:'קו תחתון'}[tag];
     button.setAttribute('aria-pressed','false');
     button.addEventListener('mousedown', event => event.preventDefault());
@@ -1593,6 +1594,7 @@ function setupBubbleFormattingEditor() {
     color.type = 'color';
     color.value = initial;
     color.title = label;
+    color.className = 'bubble-format-color';
     color.setAttribute('aria-label',label);
     let savedRange = null;
     color.addEventListener('pointerdown', () => { savedRange = selectionRange()?.cloneRange() || null; });
@@ -1611,7 +1613,10 @@ function setupBubbleFormattingEditor() {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'btn secondary small';
-    button.textContent = label;
+    button.textContent = tag === 'ul' ? '☷' : '1≡';
+    button.classList.add('bubble-format-action');
+    button.title = label;
+    button.setAttribute('aria-label',label);
     button.addEventListener('mousedown', event => event.preventDefault());
     button.addEventListener('click', () => {
       const range = selectionRange();
@@ -1636,7 +1641,10 @@ function setupBubbleFormattingEditor() {
   const clear = document.createElement('button');
   clear.type = 'button';
   clear.className = 'btn secondary small';
-  clear.textContent = 'ניקוי עיצוב';
+  clear.textContent = 'Tx';
+  clear.classList.add('bubble-format-action');
+  clear.title = 'ניקוי עיצוב';
+  clear.setAttribute('aria-label','ניקוי עיצוב');
   clear.addEventListener('mousedown',event => event.preventDefault());
   clear.addEventListener('click', () => {
     const offsets = selectionOffsets();
