@@ -427,33 +427,8 @@ body .brand-heading strong span { font-size: 26px; }
 .header-library-back:focus-visible { outline: 3px solid #76a7ff; outline-offset: 2px; }
 .header-library-back.hidden { display: none !important; }
 
-/* Compact, responsive RTL formatting toolbar inside the step dialog. */
-#dialog-fields .field:has(.bubble-format-toolbar){min-width:0;max-width:100%;overflow:hidden}
-.bubble-format-toolbar{display:flex;direction:rtl;flex-wrap:wrap;align-items:center;justify-content:flex-start;gap:6px;width:100%;min-width:0;max-width:100%;margin:0 0 8px;box-sizing:border-box}
-.bubble-format-toolbar .btn.bubble-format-action{display:inline-flex;align-items:center;justify-content:center;flex:0 0 34px;width:34px;min-width:34px;max-width:34px;height:34px;min-height:34px;padding:0;margin:0;border-radius:7px;font-size:14px;line-height:1;white-space:nowrap}
-.bubble-format-toolbar .btn[aria-pressed="true"]{background:#dbeafe;border-color:#2563eb;color:#1d4ed8}
-.bubble-format-toolbar .bubble-format-color{display:block;flex:0 0 34px;width:34px;min-width:34px;max-width:34px;height:34px;min-height:34px;padding:3px;border:1px solid #b7c9e2;border-radius:7px;box-sizing:border-box;background:#fff;cursor:pointer}
-.bubble-format-editor{box-sizing:border-box;display:block;min-width:0;max-width:100%;height:108px;min-height:108px;max-height:108px;overflow-y:auto;overflow-x:hidden;width:100%;border:1px solid #dce5ef;border-radius:9px;padding:12px;background:#fff;color:#1b334d;white-space:pre-wrap;overflow-wrap:anywhere;text-align:start}
-.bubble-format-editor:focus{outline:2px solid #3678e8;outline-offset:1px}
-
-/* Step dialog: override generic .field input sizing for native color controls. */
+/* Plain step instruction: keep authored line breaks and default typography. */
 #editor-dialog #dialog-fields .field{min-width:0;max-width:100%;box-sizing:border-box}
-#editor-dialog #dialog-fields .bubble-format-toolbar{min-width:0;max-width:100%;overflow:visible}
-#editor-dialog #dialog-fields .bubble-format-toolbar input[type="color"].bubble-format-color{appearance:auto;display:inline-block;flex:0 0 34px;width:34px;min-width:34px;max-width:34px;height:34px;padding:3px}
-#editor-dialog #dialog-fields .bubble-format-toolbar button.bubble-format-action{flex:0 0 34px;width:34px;min-width:34px;max-width:34px;padding:0}
-#editor-dialog #dialog-fields .bubble-format-editor{width:100%;min-width:0;max-width:100%}
-
-#editor-dialog .bubble-format-action svg{display:block;flex:none;width:18px;height:18px}
-
-/* Rich instruction preview: preserve lists and keep the action separate. */
-#editor-dialog .step-summary-rich,.step-summary .step-summary-rich{flex:1 1 auto;min-width:0;direction:rtl;text-align:right;overflow-wrap:anywhere;white-space:normal;line-height:1.65}
+.step-summary .step-summary-rich{flex:1 1 auto;min-width:0;direction:rtl;text-align:right;overflow-wrap:anywhere;white-space:pre-wrap;line-height:1.65}
 .step-summary .step-summary-content{align-items:flex-start;gap:16px}
-.step-summary .step-summary-rich ul,.step-summary .step-summary-rich ol{direction:rtl;text-align:right;list-style-position:outside;padding-inline-start:0;padding-inline-end:22px;margin:6px 0}
-.step-summary .step-summary-rich li{padding:0;margin:2px 0}
-.step-summary .step-summary-rich>br{display:block}
 .step-summary .step-summary-content>.context-actions{flex:0 0 auto;align-self:center}
-
-/* Keep RTL list bullets inside the instruction preview, away from the card edge. */
-.step-summary .step-summary-rich{padding-inline-start:12px;padding-inline-end:12px;box-sizing:border-box}
-.step-summary .step-summary-rich ul,.step-summary .step-summary-rich ol{list-style-position:inside;padding:0;margin:6px 0}
-.step-summary .step-summary-rich li{padding-inline-end:4px}
