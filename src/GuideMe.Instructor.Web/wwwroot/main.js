@@ -1563,21 +1563,31 @@ function setupBubbleFormattingEditor() {
   document.addEventListener('selectionchange', () => {
     if (editor.isConnected) updateButtons();
   });
-  const applySpanStyle = (property, value) => {
+  let lastEditorRange = null;
+  const retainRange = () => {
     const range = selectionRange();
-    if (!range) return;
+    if (range) lastEditorRange = range.cloneRange();
+  };
+  editor.addEventListener('keyup', retainRange);
+  editor.addEventListener('mouseup', retainRange);
+  document.addEventListener('selectionchange', () => {
+    if (editor.isConnected) retainRange();
+  });
+  const applySpanStyle = (property, value, range) => {
+    if (!range || range.collapsed || !editor.contains(range.commonAncestorContainer)) return false;
     const span = document.createElement('span');
     span.style[property] = value;
-    const fragment = range.extractContents();
-    span.append(fragment);
+    span.append(range.extractContents());
     range.insertNode(span);
-    const selection = window.getSelection();
     const selected = document.createRange();
     selected.selectNodeContents(span);
+    const selection = window.getSelection();
     selection.removeAllRanges();
     selection.addRange(selected);
+    lastEditorRange = selected.cloneRange();
     sync();
-    editor.focus();
+    updateButtons();
+    return true;
   };
   for (const [label,property,initial] of [['צבע','color','#c62828'],['מרקר','backgroundColor','#fff176']]) {
     const color = document.createElement('input');
@@ -1586,17 +1596,21 @@ function setupBubbleFormattingEditor() {
     color.title = label;
     color.className = 'bubble-format-color';
     color.setAttribute('aria-label',label);
-    let savedRange = null;
-    color.addEventListener('pointerdown', () => { savedRange = selectionRange()?.cloneRange() || null; });
-    color.addEventListener('input', () => {
-      if (savedRange && editor.contains(savedRange.commonAncestorContainer)) {
-        const selection = window.getSelection();
-        selection.removeAllRanges();
-        selection.addRange(savedRange);
-        applySpanStyle(property,color.value);
-        savedRange = selectionRange()?.cloneRange() || null;
-      }
+    let pickerRange = null;
+    const capture = () => {
+      retainRange();
+      pickerRange = lastEditorRange?.cloneRange() || null;
+    };
+    color.addEventListener('pointerdown', capture);
+    color.addEventListener('focus', () => {
+      if (!pickerRange) capture();
     });
+    const applyColor = () => {
+      if (applySpanStyle(property, color.value, pickerRange || lastEditorRange))
+        pickerRange = lastEditorRange?.cloneRange() || null;
+    };
+    color.addEventListener('input', applyColor);
+    color.addEventListener('change', applyColor);
     toolbar.append(color);
   }
   for (const [label,tag] of [['• רשימה','ul'],['1. רשימה','ol']]) {
