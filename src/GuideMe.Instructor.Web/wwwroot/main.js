@@ -1466,7 +1466,7 @@ function setupBubbleFormattingEditor() {
         const styles = new Set(['strong','em','u'].filter(tag => formatAt(node,tag)));
         for (const char of node.textContent) entries.push({char, styles:new Set(styles), colors:colorsAt(node)});
       } else if (node.nodeType === Node.ELEMENT_NODE) {
-        if (node.tagName === 'BR') entries.push({char:'\\n', styles:new Set()});
+        if (node.tagName === 'BR') entries.push({char:'\n', styles:new Set()});
         else for (const child of node.childNodes) walk(child);
       }
     };
@@ -1493,7 +1493,7 @@ function setupBubbleFormattingEditor() {
   };
   const updateButtons = () => {
     const offsets = selectionOffsets();
-    const entries = offsets ? snapshot().slice(offsets[0],offsets[1]).filter(x => x.char !== '\\n') : [];
+    const entries = offsets ? snapshot().slice(offsets[0],offsets[1]).filter(x => x.char !== '\n') : [];
     for (const [tag,button] of buttons) {
       const active = entries.length > 0 && entries.every(x => x.styles.has(tag));
       button.classList.toggle('active',active);
@@ -1506,7 +1506,7 @@ function setupBubbleFormattingEditor() {
     let current = null;
     let lastKey = null;
     for (const entry of entries) {
-      if (entry.char === '\\n') {
+      if (entry.char === '\n') {
         editor.append(document.createElement('br'));
         current = null;
         lastKey = null;
@@ -1523,7 +1523,8 @@ function setupBubbleFormattingEditor() {
             host = wrapper;
           }
         }
-        if (entry.colors && Object.keys(entry.colors).length) { const span = document.createElement('span'); for (const [property,value] of Object.entries(entry.colors)) span.style[property] = value; host.append(span); host = span; }\n        current = document.createTextNode('');
+        if (entry.colors && Object.keys(entry.colors).length) { const span = document.createElement('span'); for (const [property,value] of Object.entries(entry.colors)) span.style[property] = value; host.append(span); host = span; }
+        current = document.createTextNode('');
         host.append(current);
         lastKey = key;
       }
@@ -1553,7 +1554,7 @@ function setupBubbleFormattingEditor() {
       const offsets = selectionOffsets();
       if (!offsets) return;
       const entries = snapshot();
-      const selected = entries.slice(offsets[0],offsets[1]).filter(x => x.char !== '\\n');
+      const selected = entries.slice(offsets[0],offsets[1]).filter(x => x.char !== '\n');
       if (!selected.length) return;
       const remove = selected.every(x => x.styles.has(tag));
       for (const entry of selected) {
@@ -1618,7 +1619,7 @@ function setupBubbleFormattingEditor() {
       const text = range.toString();
       if (!text.trim()) return;
       const list = document.createElement(tag);
-      for (const line of text.split(/\\r?\\n/)) {
+      for (const line of text.split(/\r?\n/)) {
         const item = document.createElement('li');
         item.textContent = line;
         list.append(item);
