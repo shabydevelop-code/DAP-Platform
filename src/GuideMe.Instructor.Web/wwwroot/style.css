@@ -427,10 +427,11 @@ body .brand-heading strong span { font-size: 26px; }
 .header-library-back:focus-visible { outline: 3px solid #76a7ff; outline-offset: 2px; }
 .header-library-back.hidden { display: none !important; }
 
-/* Minimal bubble formatting: one compact toolbar and a visual-only editor. */
-.bubble-format-toolbar{display:flex;align-items:center;gap:6px;margin-bottom:8px}
-.bubble-format-toolbar .btn{min-width:36px;padding:5px 10px}
-.bubble-format-editor{min-height:108px;max-height:260px;overflow:auto;width:100%;border:1px solid #dce5ef;border-radius:9px;padding:12px;background:#fff;color:#1b334d;white-space:pre-wrap;overflow-wrap:anywhere;text-align:start}
-.bubble-format-editor:focus{outline:2px solid #3678e8;outline-offset:1px}
-
+/* Compact, responsive RTL formatting toolbar inside the step dialog. */
+#dialog-fields .field:has(.bubble-format-toolbar){min-width:0;max-width:100%;overflow:hidden}
+.bubble-format-toolbar{display:flex;direction:rtl;flex-wrap:wrap;align-items:center;justify-content:flex-start;gap:6px;width:100%;min-width:0;max-width:100%;margin:0 0 8px;box-sizing:border-box}
+.bubble-format-toolbar .btn.bubble-format-action{display:inline-flex;align-items:center;justify-content:center;flex:0 0 34px;width:34px;min-width:34px;max-width:34px;height:34px;min-height:34px;padding:0;margin:0;border-radius:7px;font-size:14px;line-height:1;white-space:nowrap}
 .bubble-format-toolbar .btn[aria-pressed="true"]{background:#dbeafe;border-color:#2563eb;color:#1d4ed8}
+.bubble-format-toolbar .bubble-format-color{display:block;flex:0 0 34px;width:34px;min-width:34px;max-width:34px;height:34px;min-height:34px;padding:3px;border:1px solid #b7c9e2;border-radius:7px;box-sizing:border-box;background:#fff;cursor:pointer}
+.bubble-format-editor{box-sizing:border-box;display:block;min-width:0;max-width:100%;min-height:108px;max-height:260px;overflow:auto;width:100%;border:1px solid #dce5ef;border-radius:9px;padding:12px;background:#fff;color:#1b334d;white-space:pre-wrap;overflow-wrap:anywhere;text-align:start}
+.bubble-format-editor:focus{outline:2px solid #3678e8;outline-offset:1px}
