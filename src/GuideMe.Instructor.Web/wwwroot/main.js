@@ -1401,179 +1401,6 @@ document.addEventListener('submit', event => {
   }
 }, true);
 
-
-function bubbleRichMarkup(value) {
-  const host = document.createElement('div');
-  let raw = String(value || '');
-  if (/&lt;\/?(?:b|strong|i|em|u|p|div|br|ul|ol|li|h2|h3|a|span)\b/i.test(raw)) {
-    const decode = document.createElement('textarea');
-    decode.innerHTML = raw;
-    raw = decode.value;
-  }
-  if (/<(?:b|strong|i|em|u|p|div|br|ul|ol|li|h2|h3|a|span)\\b/i.test(raw)) host.innerHTML = raw;
-  else host.textContent = raw;
-  const allowed = new Set(['B','STRONG','I','EM','U','P','DIV','BR','UL','OL','LI','H2','H3','A','SPAN']);
-  function clean(node) {
-    if (node.nodeType === Node.TEXT_NODE) return document.createTextNode(node.textContent);
-    if (node.nodeType !== Node.ELEMENT_NODE) return document.createDocumentFragment();
-    if (!allowed.has(node.tagName)) {
-      const fragment = document.createDocumentFragment();
-      for (const child of [...node.childNodes]) fragment.append(clean(child));
-      return fragment;
-    }
-    const element = document.createElement(node.tagName.toLowerCase());
-    if (node.tagName === 'A') {
-      try {
-        const url = new URL(node.getAttribute('href') || '');
-        if (['https:','http:','mailto:'].includes(url.protocol) && (url.protocol === 'mailto:' ? /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(url.pathname) : !!url.hostname && url.hostname.includes('.'))) {
-          element.setAttribute('href', url.href);
-          element.setAttribute('target', '_blank');
-          element.setAttribute('rel', 'noopener noreferrer');
-        }
-      } catch {}
-    }
-    if (node.tagName === 'SPAN') {
-      const color = node.style.color;
-      if (/^#[0-9a-f]{6}$/i.test(color)) element.style.color = color;
-      else if (/^rgb\\(\d{1,3}, \\d{1,3}, \\d{1,3}\\)$/.test(color)) element.style.color = color;
-    }
-    for (const child of [...node.childNodes]) element.append(clean(child));
-    return element;
-  }
-  const output = document.createElement('div');
-  for (const child of [...host.childNodes]) output.append(clean(child));
-  return output.innerHTML;
-}
-function setupBubbleRichEditor() {
-  const input = $('field-bubble');
-  if (!input) return;
-  const field = input.closest('.field');
-  const editor = document.createElement('div');
-  editor.contentEditable = 'true';
-  input._bubbleRichEditor = editor;
-  editor.dir = 'auto';
-  editor.className = 'bubble-rich-editor';
-  editor.setAttribute('role', 'textbox');
-  editor.setAttribute('aria-label', 'תוכן הבועית');
-  editor.setAttribute('aria-multiline', 'true');
-  editor.style.cssText = 'min-height:105px;max-height:260px;overflow:auto;border:1px solid #cbd5e1;border-radius:6px;padding:10px;white-space:pre-wrap';
-  editor.innerHTML = bubbleRichMarkup(input.value);
-  const toolbar = document.createElement('div');
-  toolbar.style.cssText = 'display:flex;flex-wrap:wrap;gap:5px;margin-bottom:7px';
-  const selectionInside = () => {
-    const selection = window.getSelection();
-    if (!selection || !selection.rangeCount) return null;
-    const range = selection.getRangeAt(0);
-    return editor.contains(range.commonAncestorContainer) ? range : null;
-  };
-  const activeAnchor = () => {
-    const selection = window.getSelection();
-    let node = selection?.anchorNode;
-    while (node && node !== editor) {
-      if (node.nodeType === Node.ELEMENT_NODE && node.tagName === 'A') return node;
-      node = node.parentNode;
-    }
-    return null;
-  };
-  const validLink = value => {
-    try {
-      const url = new URL(value.trim());
-      if (!['https:', 'http:', 'mailto:'].includes(url.protocol)) return null;
-      if (url.protocol === 'mailto:') {
-        if (!/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(url.pathname)) return null;
-      } else if (!url.hostname.includes('.') || /\\s/.test(value)) return null;
-      return url.href;
-    } catch { return null; }
-  };
-  const commands = [['B','bold'],['I','italic'],['U','underline'],['•','insertUnorderedList'],['1.','insertOrderedList']];
-  for (const [label, command] of commands) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'btn secondary small';
-    button.textContent = label;
-    button.addEventListener('mousedown', e => e.preventDefault());
-    button.addEventListener('click', () => { editor.focus(); document.execCommand(command, false); sync(); });
-    toolbar.append(button);
-  }
-  const linkButton = document.createElement('button');
-  const unlinkButton = document.createElement('button');
-  for (const [button, label, symbol] of [[linkButton,'הוספת קישור','🔗'],[unlinkButton,'הסרת קישור','⊘']]) {
-    button.type = 'button';
-    button.className = 'btn secondary small';
-    button.textContent = symbol;
-    button.title = label;
-    button.setAttribute('aria-label', label);
-    button.addEventListener('mousedown', e => e.preventDefault());
-    toolbar.append(button);
-  }
-  const updateLinkButtons = () => {
-    if (!editor.isConnected) return;
-    const range = selectionInside();
-    const anchor = activeAnchor();
-    linkButton.disabled = !anchor && (!range || range.collapsed || !range.toString().trim());
-    unlinkButton.disabled = !anchor;
-  };
-  linkButton.addEventListener('click', () => {
-    const anchor = activeAnchor();
-    const range = selectionInside();
-    if (!anchor && (!range || range.collapsed || !range.toString().trim())) return;
-    const original = anchor?.getAttribute('href') || 'https://';
-    const entered = prompt('כתובת הקישור', original);
-    if (entered === null) return;
-    const url = validLink(entered);
-    if (!url) { notify('יש להזין כתובת קישור תקינה.', true); return; }
-    if (anchor) anchor.setAttribute('href', url);
-    else {
-      editor.focus();
-      document.execCommand('createLink', false, url);
-    }
-    sync();
-    updateLinkButtons();
-  });
-  unlinkButton.addEventListener('click', () => {
-    const anchor = activeAnchor();
-    if (!anchor) return;
-    anchor.replaceWith(...anchor.childNodes);
-    sync();
-    updateLinkButtons();
-  });
-  editor.addEventListener('keyup', updateLinkButtons);
-  editor.addEventListener('mouseup', updateLinkButtons);
-  editor.addEventListener('focus', updateLinkButtons);
-  document.addEventListener('selectionchange', updateLinkButtons);
-  $('editor-dialog').addEventListener('close', () => document.removeEventListener('selectionchange', updateLinkButtons), {once:true});
-  updateLinkButtons();
-  const color = document.createElement('input');
-  color.type = 'color';
-  color.style.cssText = 'width:36px;height:36px;cursor:pointer';
-  const colorLabel = document.createElement('label');
-  colorLabel.textContent = 'צבע טקסט A';
-  colorLabel.style.cssText = 'display:flex;align-items:center;gap:5px';
-  color.title = 'צבע טקסט';
-  color.setAttribute('aria-label', 'צבע טקסט');
-  color.addEventListener('input', () => { editor.focus(); document.execCommand('foreColor', false, color.value); sync(); });
-  colorLabel.append(color);
-  toolbar.append(colorLabel);
-  input.hidden = true;
-  input.style.display = 'none';
-  input.tabIndex = -1;
-  input.required = false;
-  input.removeAttribute('maxlength');
-  field.insertBefore(toolbar, input);
-  field.insertBefore(editor, input);
-  function sync() {
-    input.value = bubbleRichMarkup(editor.innerHTML);
-    input.dispatchEvent(new Event('input', {bubbles:true}));
-  }
-  editor.addEventListener('input', sync);
-  editor.addEventListener('paste', e => {
-    e.preventDefault();
-    document.execCommand('insertText', false, e.clipboardData.getData('text/plain'));
-    sync();
-  });
-  input._bubbleRichSync = sync;
-}
-
 function modal(title, fields, submit, buttonText='שמירה') {
   modalReturnFocus = document.activeElement;
   $('dialog-title').textContent=title;
@@ -1600,7 +1427,6 @@ function modal(title, fields, submit, buttonText='שמירה') {
       catch (error) { if (!(error instanceof InstructorFieldValidationError)) throw error; }
     });
   };
-  if (fields.some(f => f.name === 'bubble')) setupBubbleRichEditor();
   const baseline = new URLSearchParams(new FormData(form)).toString();
   const onChange = () => {
     if (new URLSearchParams(new FormData(form)).toString() !== baseline) markDirty();
@@ -1834,7 +1660,7 @@ function newStep() {
   modal('הוספת שלב', [
     {name:'contextId',label:'אפליקציית יעד',value:defaultContext,
      choices:contexts.map(c => ({value:c.ContextId,text:appLabel(c)}))},
-    {name:'bubble',label:'מה להציג ללומד?',value:'',multiline:true,max:12000,
+    {name:'bubble',label:'מה להציג ללומד?',value:'',multiline:true,max:4000,
      help:'לאחר יצירת השלב ניתן לבחור רכיב יעד ולהגדיר תנאי התקדמות.'}
   ],async v=>{
     const created=await api('/guides/' + guideId + '/steps', {
@@ -1889,7 +1715,7 @@ function friendlyInstructionHtml(value) {
       '">' + esc(variablePreviewValue(variable)) + '</span>';
     offset = re.lastIndex;
   }
-  return bubbleRichMarkup(html + esc(text.slice(offset)));
+  return html + esc(text.slice(offset));
 }
 // The inspector and editor share one value extraction rule; the CSS selector
 // remains a private implementation detail.
@@ -2123,12 +1949,6 @@ function setupVariableInsertion(input, container, variables) {
       notify('יש לבחור משתנה בשלמותו או למקם את הסמן מחוץ לסימון.',true);return;
     }
     references.set(label,variable.id);
-    if (input._bubbleRichEditor) {
-      input._bubbleRichEditor.focus();
-      document.execCommand('insertText', false, label);
-      input._bubbleRichSync();
-      return;
-    }
     input.setRangeText(label,start,end,'end');
     track();input.dispatchEvent(new Event('input',{bubbles:true}));input.focus();
   };
@@ -2216,7 +2036,7 @@ function editStep(step, assignedContextId) {
     {name:'bubble', label:'טקסט הבועית', value:String(step.bubble || '').replace(/\{\{var:([^}]+)\}\}/g, (_, id) => {
        const variable=(current.variables || []).find(v=>v.id===id);
        return variable ? '【'+variablePreviewValue(variable)+'】' : '{{var:'+id+'}}';
-     }), max:12000, multiline:true,
+     }), max:4000, multiline:true,
      help:'השינוי ישפיע על תוכן הבועית בלבד. רכיבי יעד וכללי התקדמות אינם משתנים.'},
     {name:'enabled', label:'מצב השלב', value: step.enabled ? 'true' : 'false',
      choices:[{value:'true',text:'פעיל'},{value:'false',text:'מושבת'}]}
