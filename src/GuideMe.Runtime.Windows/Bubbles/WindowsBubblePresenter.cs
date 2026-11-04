@@ -535,13 +535,18 @@ public sealed class WindowsBubblePresenter
         var bold = 0;
         var italic = 0;
         var underline = 0;
+        var spans = new Stack<(System.Windows.Media.Brush? Foreground, System.Windows.Media.Brush? Background)>();
+        System.Windows.Media.Brush? foreground = null;
+        System.Windows.Media.Brush? background = null;
+        var listStack = new Stack<(string Kind, int Index)>();
         foreach (var token in Regex.Split(content ?? string.Empty, @"(<[^>]*>)"))
         {
             if (token.Length == 0) continue;
-            var tag = Regex.Match(token, @"^<\s*(/?)\s*(strong|b|em|i|u|br)\s*/?\s*>$", RegexOptions.IgnoreCase);
+            var tag = Regex.Match(token, @"^<\s*(/?)\s*(strong|b|em|i|u|br|span|ul|ol|li)\b[^>]*>$", RegexOptions.IgnoreCase);
             if (tag.Success)
             {
-                var delta = tag.Groups[1].Value == "/" ? -1 : 1;
+                var closing = tag.Groups[1].Value == "/";
+                var delta = closing ? -1 : 1;
                 switch (tag.Groups[2].Value.ToLowerInvariant())
                 {
                     case "strong":
@@ -550,17 +555,60 @@ public sealed class WindowsBubblePresenter
                     case "i": italic = Math.Max(0, italic + delta); break;
                     case "u": underline = Math.Max(0, underline + delta); break;
                     case "br": block.Inlines.Add(new LineBreak()); break;
+                    case "span":
+                        if (closing)
+                        {
+                            if (spans.Count > 0) (foreground, background) = spans.Pop();
+                        }
+                        else
+                        {
+                            spans.Push((foreground, background));
+                            var style = Regex.Match(token, "style\\s*=\\s*[\"']([^\"']*)[\"']", RegexOptions.IgnoreCase);
+                            if (style.Success)
+                            {
+                                foreach (var declaration in style.Groups[1].Value.Split(';'))
+                                {
+                                    var pair = declaration.Split(':', 2);
+                                    if (pair.Length != 2) continue;
+                                    var color = pair[1].Trim();
+                                    if (!Regex.IsMatch(color, @"^#[0-9a-fA-F]{6}$")) continue;
+                                    var brush = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(color));
+                                    if (pair[0].Trim().Equals("color", StringComparison.OrdinalIgnoreCase)) foreground = brush;
+                                    if (pair[0].Trim().Equals("background-color", StringComparison.OrdinalIgnoreCase)) background = brush;
+                                }
+                            }
+                        }
+                        break;
+                    case "ul":
+                    case "ol":
+                        if (closing) { if (listStack.Count > 0) listStack.Pop(); }
+                        else listStack.Push((tag.Groups[2].Value.ToLowerInvariant(), 0));
+                        break;
+                    case "li":
+                        if (!closing)
+                        {
+                            if (block.Inlines.Count > 0) block.Inlines.Add(new LineBreak());
+                            if (listStack.Count > 0)
+                            {
+                                var item = listStack.Pop();
+                                item.Index++;
+                                listStack.Push(item);
+                                block.Inlines.Add(new Run(item.Kind == "ol" ? item.Index + ". " : "• "));
+                            }
+                        }
+                        break;
                 }
                 continue;
             }
-            // Ignore unsupported markup rather than executing or displaying it.
             if (token.StartsWith("<", StringComparison.Ordinal) && token.EndsWith(">", StringComparison.Ordinal))
                 continue;
             block.Inlines.Add(new Run(WebUtility.HtmlDecode(token))
             {
                 FontWeight = bold > 0 ? FontWeights.Bold : FontWeights.SemiBold,
                 FontStyle = italic > 0 ? FontStyles.Italic : FontStyles.Normal,
-                TextDecorations = underline > 0 ? TextDecorations.Underline : null
+                TextDecorations = underline > 0 ? TextDecorations.Underline : null,
+                Foreground = foreground,
+                Background = background
             });
         }
     }
