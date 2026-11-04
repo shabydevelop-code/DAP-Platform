@@ -586,11 +586,12 @@ public sealed class WindowsBubblePresenter
             var grid = new Grid
             {
                 FlowDirection = FlowDirection.RightToLeft,
-                HorizontalAlignment = HorizontalAlignment.Right,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
                 Margin = new Thickness(0, 2, 0, 2)
             };
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             Grid.SetColumn(marker, 0);
             var text = CreateText(listItem.ToString());
             text.MaxWidth = 330;
