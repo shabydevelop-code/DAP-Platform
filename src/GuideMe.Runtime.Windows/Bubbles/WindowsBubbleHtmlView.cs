@@ -22,7 +22,7 @@ internal static class WindowsBubbleHtmlView
             Width = 260,
             MaxWidth = 260,
             Background = Brushes.Transparent,
-            FlowDirection = FlowDirection.RightToLeft,
+            FlowDirection = FlowDirection.LeftToRight,
             HorizontalAlignment = HorizontalAlignment.Right,
             IsHitTestVisible = false,
             Focusable = false
@@ -36,7 +36,7 @@ internal static class WindowsBubbleHtmlView
         var safeContent = Sanitize(html ?? string.Empty);
         try
         {
-            view.Text = "<div dir=\"rtl\" style=\"direction:rtl;text-align:right;" +
+            view.Text = "<div style=\"text-align:right;" +
                         "font-family:Segoe UI,Arial;font-size:15px;line-height:1.45;" +
                         "font-weight:600;color:#1f2d3d;overflow-wrap:break-word;\">" +
                         safeContent + "</div>";
@@ -45,7 +45,7 @@ internal static class WindowsBubbleHtmlView
         {
             Console.Error.WriteLine($"[GuideMe Windows bubble HTML] Render error: {ex}");
             // Bad formatting must not make a learner step impossible to read.
-            view.Text = "<div dir=\"rtl\">" +
+            view.Text = "<div style=\"text-align:right\">" +
                         WebUtility.HtmlEncode(Regex.Replace(html ?? string.Empty, "<[^>]*>", string.Empty)) +
                         "</div>";
         }
@@ -59,6 +59,7 @@ internal static class WindowsBubbleHtmlView
             @"<\s*(script|style|iframe|object|embed|svg|math|template|form)\b[^>]*>[\s\S]*?<\s*/\s*\1\s*>",
             string.Empty, RegexOptions.IgnoreCase);
         var output = new StringBuilder();
+        var lists = new Stack<(string Kind, int Number)>();
         foreach (var part in Regex.Split(html, @"(<[^>]*>)"))
         {
             if (part.Length == 0) continue;
@@ -77,6 +78,34 @@ internal static class WindowsBubbleHtmlView
             if (name == "br")
             {
                 output.Append("<br>");
+                continue;
+            }
+            if (name is "ul" or "ol")
+            {
+                if (closing)
+                {
+                    if (lists.Count > 0) lists.Pop();
+                }
+                else lists.Push((name, 0));
+                continue;
+            }
+            if (name == "li")
+            {
+                if (closing) output.Append("</div>");
+                else
+                {
+                    var marker = "•";
+                    if (lists.Count > 0)
+                    {
+                        var list = lists.Pop();
+                        list.Number++;
+                        marker = list.Kind == "ol" ? list.Number.ToString(System.Globalization.CultureInfo.InvariantCulture) + "." : "•";
+                        lists.Push(list);
+                    }
+                    output.Append("<div style=\"text-align:right;margin:2px 0;\">")
+                          .Append("&#x200F;").Append(WebUtility.HtmlEncode(marker))
+                          .Append("&#x00A0;&#x00A0;");
+                }
                 continue;
             }
             if (closing)
@@ -107,10 +136,7 @@ internal static class WindowsBubbleHtmlView
                     : "<span style=\"" + safeStyle + "\">");
                 continue;
             }
-            if (name is "ul" or "ol")
-                output.Append('<').Append(name).Append(" dir=\"rtl\" style=\"direction:rtl;text-align:right;list-style-position:inside;padding:0;margin:4px 0;\">");
-            else
-                output.Append('<').Append(name).Append('>');
+            output.Append('<').Append(name).Append('>');
         }
         return output.ToString();
     }
