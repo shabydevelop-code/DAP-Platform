@@ -1402,344 +1402,17 @@ document.addEventListener('submit', event => {
 }, true);
 
 
-function bubbleFormattingHtml(value) {
-  const root = document.createElement('template');
-  root.innerHTML = String(value || '');
-  const safeColor = value => {
-    const v = String(value || '').trim();
-    if (/^#[0-9a-f]{6}$/i.test(v)) return v;
-    if (/^#[0-9a-f]{3}$/i.test(v))
-      return '#' + [...v.slice(1)].map(x => x + x).join('');
-    // Browsers serialize input[type=color] values as rgb(...) when assigned to
-    // span.style.color. Accept both legacy comma syntax and modern CSS syntax.
-    const rgb = /^rgba?\(\s*(\d{1,3})(?:\s*,\s*|\s+)(\d{1,3})(?:\s*,\s*|\s+)(\d{1,3})(?:\s*[,/]\s*(?:1(?:\.0+)?|0?\.\d+))?\s*\)$/i.exec(v);
-    return rgb && rgb.slice(1).every(x => Number(x) <= 255)
-      ? '#' + rgb.slice(1).map(x => Number(x).toString(16).padStart(2, '0')).join('')
-      : null;
-  };
-  function clean(node) {
-    if (node.nodeType === Node.TEXT_NODE) return document.createTextNode(node.textContent);
-    const fragment = document.createDocumentFragment();
-    if (node.nodeType !== Node.ELEMENT_NODE) return fragment;
-    const tag = node.tagName.toLowerCase();
-    const allowed = ['b','strong','i','em','u','br','span','ul','ol','li'];
-    const target = allowed.includes(tag) ? document.createElement(({b:'strong',i:'em'})[tag] || tag) : fragment;
-    // Preserve authored colors on any supported inline formatting element.
-    // Do not copy font-family or font-size: the bubble's default typography wins.
-    if (target.nodeType === Node.ELEMENT_NODE) {
-      const color = safeColor(node.style.color);
-      const background = safeColor(node.style.backgroundColor);
-      if (color) target.style.color = color;
-      if (background) target.style.backgroundColor = background;
-    }
-    if (tag === 'br') return target;
-    for (const child of [...node.childNodes]) target.append(clean(child));
-    return target;
-  }
+// Older guides may contain formatted HTML. Display and edit them as plain text.
+function plainBubbleText(value) {
+  const template = document.createElement('template');
+  template.innerHTML = String(value || '');
+  const raw = String(value || '');
+  if (!/<\\/?(?:span|strong|b|em|i|u|br|ul|ol|li)(?:\\s|>|\\/)/i.test(raw)) return raw;
   const output = document.createElement('div');
-  for (const child of [...root.content.childNodes]) output.append(clean(child));
-  return output.innerHTML;
-}
-function setupBubbleFormattingEditor() {
-  const input = $('field-bubble');
-  if (!input) return;
-  const field = input.closest('.field');
-  const toolbar = document.createElement('div');
-  toolbar.className = 'bubble-format-toolbar';
-  const editor = document.createElement('div');
-  editor.className = 'bubble-format-editor';
-  editor.contentEditable = 'true';
-  editor.dir = 'auto';
-  editor.setAttribute('role', 'textbox');
-  editor.setAttribute('aria-label', 'טקסט הבועית');
-  editor.setAttribute('aria-multiline', 'true');
-  editor.innerHTML = bubbleFormattingHtml(input.value);
-  const sync = () => {
-    // Preserve authored inline colors while serializing the live editor DOM.
-    // The HTML sanitizer is for untrusted display, not the authoring source.
-    input.value = editor.innerHTML;
-    input.dispatchEvent(new Event('input', {bubbles:true}));
-  };
-  const selectionRange = () => {
-    const selection = window.getSelection();
-    if (!selection || !selection.rangeCount || selection.isCollapsed) return null;
-    const range = selection.getRangeAt(0);
-    return editor.contains(range.commonAncestorContainer) ? range : null;
-  };
-  const buttons = new Map();
-  const formatAt = (node, tag) => {
-    for (let parent = node.parentNode; parent && parent !== editor; parent = parent.parentNode) {
-      if (parent.nodeType === Node.ELEMENT_NODE && parent.tagName.toLowerCase() === tag) return true;
-    }
-    return false;
-  };
-  const selectedTextNodes = () => {
-    const range = selectionRange();
-    if (!range) return [];
-    const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
-    const nodes = [];
-    while (walker.nextNode()) {
-      const node = walker.currentNode;
-      if (!node.textContent.length || !range.intersectsNode(node)) continue;
-      const start = range.startContainer === node ? range.startOffset : 0;
-      const end = range.endContainer === node ? range.endOffset : node.length;
-      if (start < end) nodes.push({node,start,end});
-    }
-    return nodes;
-  };
-  const updateButtons = () => {
-    const nodes = selectedTextNodes();
-    for (const [tag,button] of buttons) {
-      const active = nodes.length > 0 && nodes.every(({node}) => formatAt(node,tag));
-      button.classList.toggle('active',active);
-      button.setAttribute('aria-pressed',String(active));
-    }
-  };
-  const isolateText = ({node,start,end}) => {
-    if (end < node.length) node.splitText(end);
-    return start > 0 ? node.splitText(start) : node;
-  };
-  const removeTagFromNode = (node,tag) => {
-    let ancestor = node.parentNode;
-    while (ancestor && ancestor !== editor && ancestor.tagName?.toLowerCase() !== tag) ancestor = ancestor.parentNode;
-    if (!ancestor || ancestor === editor) return node;
-    let branch = node;
-    while (branch.parentNode !== ancestor) {
-      const parent = branch.parentNode;
-      const before = parent.cloneNode(false), after = parent.cloneNode(false);
-      while (parent.firstChild !== branch) before.append(parent.firstChild);
-      while (branch.nextSibling) after.append(branch.nextSibling);
-      const middle = parent.cloneNode(false);
-      middle.append(branch);
-      parent.replaceWith(...(before.childNodes.length ? [before] : []),middle,...(after.childNodes.length ? [after] : []));
-      branch = middle;
-    }
-    const before = ancestor.cloneNode(false), after = ancestor.cloneNode(false);
-    while (ancestor.firstChild !== branch) before.append(ancestor.firstChild);
-    while (branch.nextSibling) after.append(branch.nextSibling);
-    ancestor.replaceWith(...(before.childNodes.length ? [before] : []),branch,...(after.childNodes.length ? [after] : []));
-    return node;
-  };
-  const applyToggle = tag => {
-    const selected = selectedTextNodes();
-    if (!selected.length) return;
-    const remove = selected.every(({node}) => formatAt(node,tag));
-    // Work backwards so splitting text nodes cannot invalidate later offsets.
-    const isolated = selected.reverse().map(isolateText).reverse();
-    for (const node of isolated) {
-      if (remove) {
-        if (formatAt(node,tag)) removeTagFromNode(node,tag);
-      } else if (!formatAt(node,tag)) {
-        const wrapper = document.createElement(tag);
-        node.replaceWith(wrapper);
-        wrapper.append(node);
-      }
-    }
-    const range = document.createRange();
-    range.setStart(isolated[0],0);
-    range.setEnd(isolated[isolated.length-1],isolated[isolated.length-1].length);
-    const selection = window.getSelection();
-    selection.removeAllRanges();
-    selection.addRange(range);
-    sync();
-    updateButtons();
-  };
-  const clearSelectedFormatting = () => {
-    const selected = selectedTextNodes();
-    if (!selected.length) return;
-    const isolated = selected.reverse().map(isolateText).reverse();
-    for (const node of isolated) {
-      for (const tag of ['strong','em','u','span']) {
-        while (formatAt(node,tag)) removeTagFromNode(node,tag);
-      }
-    }
-    const range = document.createRange();
-    range.setStart(isolated[0],0);
-    range.setEnd(isolated[isolated.length-1],isolated[isolated.length-1].length);
-    const selection = window.getSelection();
-    selection.removeAllRanges();
-    selection.addRange(range);
-    sync();
-    updateButtons();
-  };
-  for (const [label, tag] of [['B','strong'],['I','em'],['U','u']]) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'btn secondary small';
-    button.textContent = label;
-    button.classList.add('bubble-format-action');
-    button.title = {strong:'מודגש',em:'נטוי',u:'קו תחתון'}[tag];
-    button.setAttribute('aria-pressed','false');
-    button.addEventListener('mousedown', event => event.preventDefault());
-    button.addEventListener('click', () => applyToggle(tag));
-    buttons.set(tag,button);
-    toolbar.append(button);
-  }
-  document.addEventListener('selectionchange', () => {
-    if (editor.isConnected) updateButtons();
-  });
-  // Keep a stable copy of the selected text before the native color picker takes focus.
-  let lastEditorRange = null;
-  const retainRange = () => {
-    const range = selectionRange();
-    if (range && range.toString().length) lastEditorRange = range.cloneRange();
-  };
-  editor.addEventListener('keyup', retainRange);
-  editor.addEventListener('mouseup', retainRange);
-  document.addEventListener('selectionchange', () => {
-    if (editor.isConnected) retainRange();
-  });
-  const applySpanStyle = (property, value, savedRange) => {
-    if (!savedRange || savedRange.collapsed || !editor.contains(savedRange.commonAncestorContainer)) return false;
-    // Work on the actual text nodes, not a fragment extracted from a potentially
-    // stale native-picker selection. This also preserves existing bold/list markup.
-    const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
-    const selected = [];
-    while (walker.nextNode()) {
-      const node = walker.currentNode;
-      if (!node.length || !savedRange.intersectsNode(node)) continue;
-      const start = savedRange.startContainer === node ? savedRange.startOffset : 0;
-      const end = savedRange.endContainer === node ? savedRange.endOffset : node.length;
-      if (start < end) selected.push({node,start,end});
-    }
-    if (!selected.length) return false;
-    const isolated = selected.reverse().map(isolateText).reverse();
-    for (const node of isolated) {
-      const span = document.createElement('span');
-      span.style[property] = value;
-      node.replaceWith(span);
-      span.append(node);
-    }
-    const range = document.createRange();
-    range.setStart(isolated[0], 0);
-    range.setEnd(isolated[isolated.length - 1], isolated[isolated.length - 1].length);
-    const selection = window.getSelection();
-    selection.removeAllRanges();
-    selection.addRange(range);
-    lastEditorRange = range.cloneRange();
-    sync();
-    updateButtons();
-    return true;
-  };
-  // Reflect the saved formatting at the caret/selection in the native color controls.
-  // The controls must not always revert to their creation-time defaults.
-  const colorControls = new Map();
-  const selectedInlineColor = property => {
-    const range = selectionRange();
-    if (!range) return null;
-    let node = range.startContainer;
-    if (node.nodeType !== Node.ELEMENT_NODE) node = node.parentElement;
-    while (node && node !== editor) {
-      if (node.nodeType === Node.ELEMENT_NODE && node.tagName === 'SPAN' && node.style[property]) {
-        const rgb = getComputedStyle(node)[property].match(/^rgba?\(\s*(\d+),\s*(\d+),\s*(\d+)/i);
-        if (rgb) return '#' + rgb.slice(1, 4).map(n => Number(n).toString(16).padStart(2, '0')).join('');
-        if (/^#[0-9a-f]{6}$/i.test(node.style[property])) return node.style[property];
-      }
-      node = node.parentElement;
-    }
-    return null;
-  };
-  const refreshColorControls = () => {
-    if (!editor.isConnected || !selectionRange()) return;
-    for (const [property, control] of colorControls) {
-      if (document.activeElement === control.input) continue;
-      control.input.value = selectedInlineColor(property) || control.initial;
-    }
-  };
-  editor.addEventListener('mouseup', refreshColorControls);
-  editor.addEventListener('keyup', refreshColorControls);
-  document.addEventListener('selectionchange', refreshColorControls);
-  for (const [label,property,initial] of [['צבע','color','#c62828'],['מרקר','backgroundColor','#fff176']]) {
-    const color = document.createElement('input');
-    color.type = 'color';
-    color.value = initial;
-    color.title = label;
-    color.className = 'bubble-format-color';
-    color.setAttribute('aria-label',label);
-    colorControls.set(property, {input:color, initial});
-    let pickerRange = null;
-    const capture = () => {
-      retainRange();
-      pickerRange = lastEditorRange?.cloneRange() || null;
-    };
-    color.addEventListener('pointerdown', capture, true);
-    color.addEventListener('mousedown', capture, true);
-    color.addEventListener('keydown', capture, true);
-    color.addEventListener('focus', () => {
-      if (!pickerRange) capture();
-    });
-    const applyColor = () => {
-      const range = pickerRange || lastEditorRange;
-      if (applySpanStyle(property, color.value, range))
-        pickerRange = lastEditorRange?.cloneRange() || null;
-    };
-    color.addEventListener('input', applyColor);
-    color.addEventListener('change', applyColor);
-    color.addEventListener('blur', () => { pickerRange = null; });
-    toolbar.append(color);
-  }
-  for (const [label,tag] of [['• רשימה','ul'],['1. רשימה','ol']]) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'btn secondary small';
-    button.innerHTML = tag === 'ul' ? '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h12M9 12h12M9 18h12"/><path d="M4 6h.01M4 12h.01M4 18h.01" stroke-width="3"/></svg>' : '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 6h11M10 12h11M10 18h11"/><path d="M3 5h2v4M3 9h4M3 14c0-2 4-2 4 0s-4 3-4 5h4"/></svg>';
-    button.classList.add('bubble-format-action');
-    button.title = label;
-    button.setAttribute('aria-label',label);
-    button.addEventListener('mousedown', event => event.preventDefault());
-    button.addEventListener('click', () => {
-      const range = selectionRange();
-      if (!range) return;
-      const text = range.toString();
-      if (!text.trim()) return;
-      const list = document.createElement(tag);
-      for (const line of text.split(/\r?\n/)) {
-        const item = document.createElement('li');
-        item.textContent = line;
-        list.append(item);
-      }
-      range.deleteContents();
-      range.insertNode(list);
-      const selection = window.getSelection();
-      selection.removeAllRanges();
-      sync();
-      editor.focus();
-    });
-    toolbar.append(button);
-  }
-  const clear = document.createElement('button');
-  clear.type = 'button';
-  clear.className = 'btn secondary small';
-  clear.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M12 6v12M7 18h10M3 3l18 18"/></svg>';
-  clear.classList.add('bubble-format-action');
-  clear.title = 'ניקוי עיצוב';
-  clear.setAttribute('aria-label','ניקוי עיצוב');
-  clear.addEventListener('mousedown',event => event.preventDefault());
-  clear.addEventListener('click', clearSelectedFormatting);
-  toolbar.append(clear);
-  editor.addEventListener('input', sync);
-  editor.addEventListener('paste', event => {
-    event.preventDefault();
-    const selection = window.getSelection();
-    if (!selection?.rangeCount) return;
-    const range = selection.getRangeAt(0);
-    if (!editor.contains(range.commonAncestorContainer)) return;
-    range.deleteContents();
-    const node = document.createTextNode(event.clipboardData.getData('text/plain'));
-    range.insertNode(node);
-    range.setStartAfter(node);
-    range.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(range);
-    sync();
-  });
-  input.style.display = 'none';
-  input.required = false;
-  input.tabIndex = -1;
-  field.insertBefore(toolbar, input);
-  field.insertBefore(editor, input);
-  input._formatEditor = editor;
-  input._formatSync = sync;
+  for (const node of [...template.content.childNodes]) output.append(node.cloneNode(true));
+  output.querySelectorAll('br').forEach(node => node.replaceWith(document.createTextNode('\\n')));
+  output.querySelectorAll('li').forEach(node => node.append(document.createTextNode('\\n')));
+  return output.textContent || '';
 }
 
 function modal(title, fields, submit, buttonText='שמירה') {
@@ -1763,14 +1436,11 @@ function modal(title, fields, submit, buttonText='שמירה') {
     e.preventDefault();
     $('dialog-notice')?.remove();
     if (!validateInstructorForm(form)) return;
-    // Flush the live rich-text DOM before serializing the form for the API.
-    $('field-bubble')?._formatSync?.();
     const values=Object.fromEntries(new FormData(form).entries());
     guarded(async()=>{try { await submit(values); $('editor-dialog').close(); }
       catch (error) { if (!(error instanceof InstructorFieldValidationError)) throw error; }
     });
   };
-  if (fields.some(field => field.name === 'bubble')) setupBubbleFormattingEditor();
   const baseline = new URLSearchParams(new FormData(form)).toString();
   const onChange = () => {
     if (new URLSearchParams(new FormData(form)).toString() !== baseline) markDirty();
@@ -2051,7 +1721,7 @@ function friendlyInstructionHtml(value) {
     const variable = (current?.variables || []).find(v => v.id === id);
     return variablePreviewValue(variable);
   });
-  return bubbleFormattingHtml(text);
+  return esc(text);
 }
 // The inspector and editor share one value extraction rule; the CSS selector
 // remains a private implementation detail.
@@ -2219,8 +1889,7 @@ async function reloadSelectedStep(guideId, stepId) {
 // Shared token insertion for inline expected-value fields.
 function variableEditorResult(input) {
   if (!input) return '';
-  // Always read the current rich-text DOM, including span color styles.
-  let value = input._formatEditor ? input._formatEditor.innerHTML : input.value;
+  let value = input.value;
   const references = input._variableReferences || new Map();
   for (const label of [...references.keys()].sort((a,b)=>b.length-a.length))
     value = value.split(label).join('{{var:' + references.get(label) + '}}');
@@ -2286,23 +1955,6 @@ function setupVariableInsertion(input, container, variables) {
       notify('יש לבחור משתנה בשלמותו או למקם את הסמן מחוץ לסימון.',true);return;
     }
     references.set(label,variable.id);
-    if (input._formatEditor) {
-      const editor = input._formatEditor;
-      const selection = window.getSelection();
-      editor.focus();
-      if (selection?.rangeCount && editor.contains(selection.getRangeAt(0).commonAncestorContainer)) {
-        const range = selection.getRangeAt(0);
-        range.deleteContents();
-        const node = document.createTextNode(label);
-        range.insertNode(node);
-        range.setStartAfter(node);
-        range.collapse(true);
-        selection.removeAllRanges();
-        selection.addRange(range);
-      } else editor.append(document.createTextNode(label));
-      input._formatSync();
-      return;
-    }
     input.setRangeText(label,start,end,'end');
     track();input.dispatchEvent(new Event('input',{bubbles:true}));input.focus();
   };
