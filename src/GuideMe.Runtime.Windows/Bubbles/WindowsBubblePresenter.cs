@@ -1,4 +1,3 @@
-using TheArtOfDev.HtmlRenderer.WPF;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -22,7 +21,7 @@ public sealed class WindowsBubblePresenter
     private Window? _highlightWindow;
     private Border? _highlightBorder;
     private Border? _bubble;
-    private HtmlLabel? _htmlContent;
+    private StackPanel? _htmlContent;
 
     private TextBlock? _progress;
     private Button? _manualConfirm;
