@@ -1602,11 +1602,14 @@ function setupBubbleFormattingEditor() {
       pickerRange = lastEditorRange?.cloneRange() || null;
     };
     color.addEventListener('pointerdown', capture);
+    color.addEventListener('mousedown', capture);
+    color.addEventListener('click', capture);
     color.addEventListener('focus', () => {
       if (!pickerRange) capture();
     });
     const applyColor = () => {
-      if (applySpanStyle(property, color.value, pickerRange || lastEditorRange))
+      const range = pickerRange || lastEditorRange;
+      if (applySpanStyle(property, color.value, range))
         pickerRange = lastEditorRange?.cloneRange() || null;
     };
     color.addEventListener('input', applyColor);
@@ -1698,6 +1701,8 @@ function modal(title, fields, submit, buttonText='שמירה') {
     e.preventDefault();
     $('dialog-notice')?.remove();
     if (!validateInstructorForm(form)) return;
+    // Flush the live rich-text DOM before serializing the form for the API.
+    $('field-bubble')?._formatSync?.();
     const values=Object.fromEntries(new FormData(form).entries());
     guarded(async()=>{try { await submit(values); $('editor-dialog').close(); }
       catch (error) { if (!(error instanceof InstructorFieldValidationError)) throw error; }
