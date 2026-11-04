@@ -1467,7 +1467,7 @@ function setupBubbleRichEditor() {
       let value = argument;
       if (command === 'createLink') {
         value = prompt('כתובת קישור (https://)') || '';
-        if (!/^https?:\\/\\//i.test(value) && !/^mailto:/i.test(value)) return;
+        if (!/^https?:\/\//i.test(value) && !/^mailto:/i.test(value)) return;
       }
       document.execCommand(command, false, value);
       sync();
