@@ -571,6 +571,39 @@
     stale?.remove();
   }
 
+
+  function renderBubbleRichContent(container, value) {
+    const source=document.createElement("template");
+    source.innerHTML=String(value||"");
+    const allowed=new Set(["B","STRONG","I","EM","U","P","DIV","BR","UL","OL","LI","H2","H3","A","SPAN"]);
+    function safe(node) {
+      if(node.nodeType===Node.TEXT_NODE)return document.createTextNode(node.textContent);
+      const fragment=document.createDocumentFragment();
+      if(node.nodeType!==Node.ELEMENT_NODE)return fragment;
+      if(!allowed.has(node.tagName)){
+        for(const child of [...node.childNodes])fragment.append(safe(child));
+        return fragment;
+      }
+      const element=document.createElement(node.tagName.toLowerCase());
+      if(node.tagName==="A"){
+        try{
+          const url=new URL(node.getAttribute("href")||"");
+          if(["https:","http:","mailto:"].includes(url.protocol)){
+            element.href=url.href;element.target="_blank";element.rel="noopener noreferrer";
+          }
+        }catch{}
+      }
+      if(node.tagName==="SPAN"){
+        const color=node.style.color;
+        if(/^#[0-9a-f]{6}$/i.test(color)||/^rgb\\(\\d{1,3}, \\d{1,3}, \\d{1,3}\\)$/.test(color))element.style.color=color;
+      }
+      for(const child of [...node.childNodes])element.append(safe(child));
+      return element;
+    }
+    container.replaceChildren();
+    for(const child of [...source.content.childNodes])container.append(safe(child));
+    for(const anchor of container.querySelectorAll("a"))anchor.style.cssText="color:#2563eb;text-decoration:underline;cursor:pointer";
+  }
   function showCenteredMessage(options){
     hideBubble();
     const bubble=document.createElement("div");
@@ -590,7 +623,7 @@
     bubble.appendChild(handle);
 
     const content=document.createElement("div");
-    content.textContent=options.content;
+    renderBubbleRichContent(content,options.content);
     Object.assign(content.style,{cursor:"default",whiteSpace:"pre-wrap",overflowWrap:"break-word",fontWeight:"600"});
     bubble.appendChild(content);
 
@@ -754,7 +787,7 @@
     bubble.appendChild(handle);
 
     const content=document.createElement("div");
-    content.textContent=step.bubble?.content||"";
+    renderBubbleRichContent(content,step.bubble?.content||"");
     Object.assign(content.style,{cursor:"default",whiteSpace:"pre-wrap",overflowWrap:"break-word",fontWeight:"600"});
     bubble.appendChild(content);
 
@@ -925,7 +958,7 @@
     el.style.outline=theme.targetHighlightWidth+"px solid "+theme.targetHighlightColor;el.style.outlineOffset="2px";el.style.boxShadow=theme.targetHighlightShadow;
     const b=root.createElement("div");b.id="guideMe-guide-bubble";b.dataset.guideMeStepId=step.id;b.dataset.placement=String(step.bubble?.placement||"Auto");b.__guideMeTarget=el;b.setAttribute("role","status");
     const handle=root.createElement("div");handle.dataset.guideMeDragHandle="1";handle.setAttribute("aria-label",presentation.dragText||"");handle.textContent="⠿";handle.title=presentation.dragText||"";Object.assign(handle.style,{display:"block",width:"fit-content",marginLeft:"auto",marginRight:"auto",textAlign:"center",fontSize:"18px",lineHeight:"14px",opacity:".72",marginBottom:"6px",cursor:"grab",touchAction:"none"});
-    const content=root.createElement("div");content.textContent=step.bubble?.content||"";Object.assign(content.style,{cursor:"default",whiteSpace:"pre-wrap",overflowWrap:"break-word",fontWeight:"600"});b.append(handle);
+    const content=root.createElement("div");renderBubbleRichContent(content,step.bubble?.content||"");Object.assign(content.style,{cursor:"default",whiteSpace:"pre-wrap",overflowWrap:"break-word",fontWeight:"600"});b.append(handle);
     if(presentation.automaticStepLabel){
       const badge=root.createElement("div");badge.dataset.guideMeAutomaticStep="true";badge.textContent=String(presentation.automaticStepLabel);Object.assign(badge.style,{display:"inline-block",fontSize:"12px",fontWeight:"700",padding:"2px 8px",marginBottom:"8px",border:"1px solid currentColor",borderRadius:"999px"});b.appendChild(badge);
     }
