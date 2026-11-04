@@ -34,10 +34,21 @@ internal static class WindowsBubbleHtmlView
     internal static void SetContent(HtmlLabel view, string? html)
     {
         var safeContent = Sanitize(html ?? string.Empty);
-        view.Text = "<div dir=\"rtl\" style=\"direction:rtl;text-align:right;" +
-                    "font-family:Segoe UI,Arial;font-size:15px;line-height:1.45;" +
-                    "font-weight:600;color:#1f2d3d;overflow-wrap:break-word;\">" +
-                    safeContent + "</div>";
+        try
+        {
+            view.Text = "<div dir=\"rtl\" style=\"direction:rtl;text-align:right;" +
+                        "font-family:Segoe UI,Arial;font-size:15px;line-height:1.45;" +
+                        "font-weight:600;color:#1f2d3d;overflow-wrap:break-word;\">" +
+                        safeContent + "</div>";
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[GuideMe Windows bubble HTML] Render error: {ex}");
+            // Bad formatting must not make a learner step impossible to read.
+            view.Text = "<div dir=\"rtl\">" +
+                        WebUtility.HtmlEncode(Regex.Replace(html ?? string.Empty, "<[^>]*>", string.Empty)) +
+                        "</div>";
+        }
     }
 
     private static string Sanitize(string html)
