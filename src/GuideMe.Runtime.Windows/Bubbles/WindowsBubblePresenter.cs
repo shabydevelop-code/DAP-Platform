@@ -1,3 +1,6 @@
+using System.Net;
+using System.Text.RegularExpressions;
+using System.Windows.Documents;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -84,7 +87,7 @@ public sealed class WindowsBubblePresenter
 
             _targetRect = rect;
             UpdateTargetHighlight(rect);
-            _content!.Text = step.Bubble.Content;
+            SetRichContent(_content!, step.Bubble.Content);
             _automaticBadgeText!.Text = automaticStepLabel ?? string.Empty;
             _automaticBadge!.Visibility = string.IsNullOrWhiteSpace(automaticStepLabel)
                 ? Visibility.Collapsed
@@ -208,7 +211,6 @@ public sealed class WindowsBubblePresenter
 
             var message = new TextBlock
             {
-                Text = content,
                 FontWeight = FontWeights.SemiBold,
                 TextWrapping = TextWrapping.Wrap,
                 FontSize = 15,
@@ -218,6 +220,8 @@ public sealed class WindowsBubblePresenter
                 TextAlignment = TextAlignment.Center,
                 FlowDirection = _texts.IsRightToLeft ? FlowDirection.RightToLeft : FlowDirection.LeftToRight
             };
+
+            SetRichContent(message, content);
 
             var actionButton = new Button
             {
@@ -523,6 +527,81 @@ public sealed class WindowsBubblePresenter
 
     [DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW")]
     private static extern IntPtr SetWindowLongPtr(IntPtr hwnd, int index, IntPtr newLong);
+
+
+    // Only formatting tags and safe hyperlinks are interpreted. All other markup is text-free
+    // structure; scripts, images, iframes and arbitrary attributes never enter the WPF tree.
+    private static void SetRichContent(TextBlock block, string? markup)
+    {
+        block.Inlines.Clear();
+        var value = markup ?? string.Empty;
+        var tokens = Regex.Split(value, @"(<[^>]*>)");
+        var bold = 0;
+        var italic = 0;
+        var underline = 0;
+        var link = (Uri?)null;
+        var color = (Brush?)null;
+        foreach (var token in tokens)
+        {
+            if (token.Length == 0) continue;
+            if (token.StartsWith("<", StringComparison.Ordinal))
+            {
+                var tag = Regex.Match(token, @"^<\\s*(/?)\\s*([a-zA-Z0-9]+)\\b", RegexOptions.CultureInvariant);
+                if (!tag.Success) continue;
+                var closing = tag.Groups[1].Value == "/";
+                switch (tag.Groups[2].Value.ToLowerInvariant())
+                {
+                    case "b":
+                    case "strong": bold = Math.Max(0, bold + (closing ? -1 : 1)); break;
+                    case "h2":
+                    case "h3": bold = Math.Max(0, bold + (closing ? -1 : 1)); if (closing) block.Inlines.Add(new LineBreak()); break;
+                    case "i":
+                    case "em": italic = Math.Max(0, italic + (closing ? -1 : 1)); break;
+                    case "u": underline = Math.Max(0, underline + (closing ? -1 : 1)); break;
+                    case "br": block.Inlines.Add(new LineBreak()); break;
+                    case "p":
+                    case "div":
+                    case "li": if (!closing && block.Inlines.Count > 0) block.Inlines.Add(new LineBreak()); if (!closing && tag.Groups[2].Value.Equals("li", StringComparison.OrdinalIgnoreCase)) block.Inlines.Add(new Run("• ")); break;
+                    case "a":
+                        if (closing) { link = null; break; }
+                        var href = Regex.Match(token, "href\\s*=\\s*[\"']([^\"']+)[\"']", RegexOptions.IgnoreCase);
+                        if (href.Success && Uri.TryCreate(WebUtility.HtmlDecode(href.Groups[1].Value), UriKind.Absolute, out var uri) &&
+                            (uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeMailto))
+                            link = uri;
+                        break;
+                    case "span":
+                        if (closing) { color = null; break; }
+                        var match = Regex.Match(token, @"color:\\s*(#[0-9a-fA-F]{6})", RegexOptions.IgnoreCase);
+                        if (match.Success)
+                        {
+                            try { color = (Brush)new BrushConverter().ConvertFromString(match.Groups[1].Value)!; }
+                            catch { color = null; }
+                        }
+                        break;
+                }
+                continue;
+            }
+            var run = new Run(WebUtility.HtmlDecode(token))
+            {
+                FontWeight = bold > 0 ? FontWeights.Bold : FontWeights.Normal,
+                FontStyle = italic > 0 ? FontStyles.Italic : FontStyles.Normal,
+                TextDecorations = underline > 0 ? TextDecorations.Underline : null,
+                Foreground = color ?? new SolidColorBrush(Color.FromRgb(31, 45, 61))
+            };
+            if (link is not null)
+            {
+                var hyperlink = new Hyperlink(run) { NavigateUri = link, Cursor = Cursors.Hand };
+                hyperlink.RequestNavigate += (_, e) =>
+                {
+                    try { Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true }); }
+                    catch (Exception ex) { Console.Error.WriteLine($"GuideMe link open failed: {ex.Message}"); }
+                    e.Handled = true;
+                };
+                block.Inlines.Add(hyperlink);
+            }
+            else block.Inlines.Add(run);
+        }
+    }
 
     private void EnsureWindow()
     {
