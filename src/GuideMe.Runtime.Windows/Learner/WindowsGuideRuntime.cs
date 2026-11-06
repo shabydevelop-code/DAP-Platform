@@ -141,7 +141,6 @@ public sealed class WindowsGuideRuntime
         var sharedEngine = new UnifiedGuideStepEngine();
         var clicked = GuideStepExecutionPolicy.IsClickValidationStep(step);
         var completionOnly = GuideStepExecutionPolicy.IsCompletionOnlyStep(step);
-        var completionOnlySawUnsatisfied = false;
         string? initialTextValue = null;
         var textTargetObservedFocused = 0;
         var textTargetChanged = 0;
@@ -230,13 +229,10 @@ public sealed class WindowsGuideRuntime
 
                 if (completionOnly)
                 {
-                    // A destination observation alone completes this step.
-                    // Require a false-to-true observation during the active step.
+                    // Destination state is sufficient even on the first observation.
                     var satisfied = AreCompletionConditionsSatisfied(
                         windowRoot, step, completionTargetsBeforeAction);
-                    if (!satisfied)
-                        completionOnlySawUnsatisfied = true;
-                    if (completionOnlySawUnsatisfied && satisfied)
+                    if (satisfied)
                     {
                         await _bubbles.HideAsync();
                         return GuideStepReconciliationResult.Completed;
