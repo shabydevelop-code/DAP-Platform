@@ -524,8 +524,8 @@ public sealed class WindowsBubblePresenter
     private static TextBlock CreateInstructionText(string? html) => new()
     {
         Text = ToPlainInstruction(html),
+        Width = 260,
         MaxWidth = 260,
-        HorizontalAlignment = HorizontalAlignment.Right,
         TextWrapping = TextWrapping.Wrap,
         TextAlignment = TextAlignment.Right,
         FlowDirection = FlowDirection.RightToLeft,
@@ -646,7 +646,12 @@ public sealed class WindowsBubblePresenter
             Margin = new Thickness(0, 0, 0, 6)
         };
 
-        var stack = new StackPanel();
+        var stack = new StackPanel
+        {
+            FlowDirection = _texts.IsRightToLeft
+                ? FlowDirection.RightToLeft
+                : FlowDirection.LeftToRight
+        };
         stack.Children.Add(dragHandle);
         stack.Children.Add(_automaticBadge);
         _instructionText = CreateInstructionText(string.Empty);
