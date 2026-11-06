@@ -781,6 +781,7 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
         var result = response.GetProperty("result");
         var status = result.GetProperty("status").GetString();
         var count = result.TryGetProperty("count", out var n) ? n.GetInt32() : 0;
+        TracePresentation(step, "bubble-command", $"visible={visible};step={stepNumber}/{totalSteps};status={status};count={count}", response);
         if (stepNumber == 1 && Environment.GetEnvironmentVariable("GUIDEME_DIAGNOSTICS") == "1")
             Console.Error.WriteLine($"[GuideMe first bubble diagnostic] step={step.Id}, context={step.ApplicationContextKey}, visible={visible}, status={status}, count={count}.");
         return new(status switch
