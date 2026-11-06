@@ -59,7 +59,7 @@ try {
     # Fail the publication if the obsolete editable checkbox is present in
     # the summary rather than exclusively in the explicit Edit form.
     if ($jsContent.Contains("renderOption('primary-target-any'") -or
-        $jsContent.Contains("$('primary-target-any')") -or
+        $jsContent.Contains('$(''primary-target-any'')') -or
         -not $jsContent.Contains("renderOption('edit-primary-target-any'") -or
         -not $jsContent.Contains('const targetValueDescription = anyValueTarget')) {
         throw 'Publish blocked: target summary must be read-only until Edit is pressed.'
