@@ -527,7 +527,8 @@ public sealed class WindowsBubblePresenter
         Width = 260,
         MaxWidth = 260,
         TextWrapping = TextWrapping.Wrap,
-        TextAlignment = TextAlignment.Right,
+        // WPF mirrors TextAlignment under RTL. Left is the physical right edge here.
+        TextAlignment = TextAlignment.Left,
         FlowDirection = FlowDirection.RightToLeft,
         FontSize = 15,
         FontWeight = FontWeights.SemiBold,
