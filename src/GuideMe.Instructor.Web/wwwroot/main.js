@@ -1084,7 +1084,8 @@ async function refreshPicker() {
       '<textarea id="captured-object-value" rows="2" readonly dir="auto" ' +
       'placeholder="לא נקלט ערך"></textarea></div>' : '') +
     (!pickingFor.completion && !pickingFor.variableSource && editableContent !== null ?
-      variableValueFieldMarkup('picked-content-value', 'זיהוי לפי תוכן') : '') +
+      variableValueFieldMarkup('picked-content-value', 'זיהוי לפי תוכן') +
+      (requestSession.runtime === 'Web' ? '<label><input type="checkbox" id="picked-content-any"> כל ערך</label>' : '') : '') +
     (pickingFor.completion ? '<label for="target-condition">חוק השלמה</label>' +
       '<select id="target-condition">' +
       '<option value="target-appeared">הרכיב מופיע במסך</option>' +
@@ -1105,6 +1106,8 @@ async function refreshPicker() {
     const input = $('picked-content-value');
     if (input) {
       initializeVariableField(input, $('picked-content-value-variables'), editableContent);
+      const any = $('picked-content-any');
+      if (any) any.onchange = () => { input.disabled = any.checked; $('picked-content-value-variables').style.display = any.checked ? 'none' : ''; };
     }
   }
   if (pickingFor.variableSource) {
@@ -1161,7 +1164,7 @@ async function refreshPicker() {
       requiredCaptureFields.push($('variable-extract-pattern'));
     if (pickedFor.completion && $('target-condition')?.value === 'value-contains')
       requiredCaptureFields.push($('completion-fixed-value'));
-    if (!pickedFor.completion && !pickedFor.variableSource)
+    if (!pickedFor.completion && !pickedFor.variableSource && !$('picked-content-any')?.checked)
       requiredCaptureFields.push($('picked-content-value'));
     for (const field of requiredCaptureFields) {
       if (field && !String(field.value || '').trim()) {
@@ -1199,14 +1202,15 @@ async function refreshPicker() {
         await adapter.saveCompletion(pickedFor, candidate);
       else {
         const contentInput = $('picked-content-value');
-        const contentValue = contentInput ? variableEditorResult(contentInput).trim() : null;
+        const anyContent = !!$('picked-content-any')?.checked;
+        const contentValue = contentInput && !anyContent ? variableEditorResult(contentInput).trim() : null;
         if (contentInput && contentValue.length > 400)
           rejectInstructorField(contentInput, 'תוכן זיהוי הרכיב ארוך מדי (עד 400 תווים).');
         await api('/guides/'+pickedFor.guideId+'/steps/'+encodeURIComponent(pickedFor.stepId)+'/primary-target',
           {method:'POST',body:JSON.stringify({
             condition:'',
             replacing:pickedFor.replacing,gridChoice:gridChoiceIndex,
-            contentValue,selectedTag:candidate.tag,processId:pickedFor.processId || null})});
+            contentValue,anyContent,selectedTag:candidate.tag,processId:pickedFor.processId || null})});
       }
       pickerEvent(pickedFor, 'saved');
       result.textContent = 'הרכיב נשמר בהצלחה.';
@@ -1783,6 +1787,9 @@ function locatorTextBinding(locator) {
   if (locator.Strategy === 'name')
     return {value:original, build:next=>next};
   if (locator.Strategy !== 'css') return null;
+  const anyCell = original.match(/:cell-any\((\d+)\)$/);
+  if (anyCell) return {value:'', any:true, build:next=>original.replace(/:cell-any\(\d+\)$/, ':cell-text(' + anyCell[1] + ',' + JSON.stringify(next) + ')'), buildAny:()=>original};
+  if (original.endsWith(':nonempty-text')) return {value:'', any:true, build:next=>original.replace(/:nonempty-text$/, ':exact-text(' + JSON.stringify(next) + ')'), buildAny:()=>original};
   const matchers = [...original.matchAll(/:(?:cell-text\(\s*\d+\s*,\s*|exact-text\(\s*)("(?:[^"\\]|\\.)*")\s*\)/g)];
   if (matchers.length === 1) {
     const match = matchers[0], quoted = match[1];
@@ -1790,7 +1797,7 @@ function locatorTextBinding(locator) {
     try { value = JSON.parse(quoted); } catch { return null; }
     const offset = match.index + match[0].indexOf(quoted);
     return {value, build:next=>original.slice(0, offset) + JSON.stringify(next) +
-      original.slice(offset + quoted.length)};
+      original.slice(offset + quoted.length), buildAny:()=>original.replace(match[0], match[0].startsWith(':cell-text') ? ':cell-any(' + (/\d+/.exec(match[0])?.[0] || '1') + ')' : ':nonempty-text')};
   }
   if (matchers.length || /:cell-text\(|:exact-text\(/.test(original)) return null;
   const attributes = [...original.matchAll(/\[(?:aria-label|placeholder|name|title|data-[\w-]+)\s*=\s*("(?:[^"\\]|\\.)*")\]/g)];
@@ -1816,6 +1823,7 @@ function editPrimaryTargetValue({kind, step, locators, binding:preparedBinding})
   if (!binding) return;
   const original = locator.Value;
   const rawValue = binding.value;
+  const supportsAny = !!binding.buildAny || !!binding.any;
   const buildTemplate = binding.build;
   const summary = $('primary-target-summary');
   const actions = $('bind-target-variable')?.closest('.target-action-buttons');
@@ -1831,6 +1839,16 @@ function editPrimaryTargetValue({kind, step, locators, binding:preparedBinding})
   input.rows = 1; input.maxLength = 400; input.dir = 'rtl';
   input.value = rawValue;
   edit.append(label,input);
+  const anyToggle = document.createElement('label');
+  if (supportsAny) {
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox'; checkbox.checked = !!binding.any;
+    anyToggle.append(checkbox, document.createTextNode(' כל ערך'));
+    edit.append(anyToggle);
+    const update = () => { input.disabled = checkbox.checked; variableControls.style.display = checkbox.checked ? 'none' : ''; };
+    checkbox.addEventListener('change', update);
+    queueMicrotask(update);
+  }
   const variableControls = document.createElement('div');
   edit.append(variableControls);
   initializeVariableField(input, variableControls, rawValue);
@@ -1856,9 +1874,10 @@ function editPrimaryTargetValue({kind, step, locators, binding:preparedBinding})
   cancel.onclick=restore;
   save.onclick=async()=>{
     try {
-      const value=variableEditorResult(input);
-      const template=buildTemplate(value);
-      if (!value.trim()) {
+      const anySelected = !!anyToggle.querySelector('input')?.checked;
+      const value=anySelected ? '' : variableEditorResult(input);
+      const template=anySelected ? binding.buildAny() : buildTemplate(value);
+      if (!anySelected && !value.trim()) {
         showInstructorFieldError(input, 'יש להזין ערך לזיהוי הרכיב.');
         return;
       }
