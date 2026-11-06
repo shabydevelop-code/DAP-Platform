@@ -756,14 +756,16 @@ WHERE GuideId=$guideId AND VariableId=$variableId";
             command.Parameters.RemoveAt("$variableId");
         }
         var convertToName = locatorStrategy == "name" && original.Strategy == "automation-id";
-        if (locatorStrategy is not null && !convertToName)
+        var enableAny = locatorStrategy == "name-nonempty" && original.Strategy == "name" && locatorValue == "*";
+        var disableAny = locatorStrategy == "name" && original.Strategy == "name-nonempty";
+        if (locatorStrategy is not null && !convertToName && !enableAny && !disableAny)
             throw new ArgumentException("שינוי אסטרטגיית הזיהוי אינו נתמך.");
         if (convertToName &&
             (controlType is not ("ControlType.Button" or "ControlType.Hyperlink" or
                 "ControlType.Text" or "ControlType.DataItem" or "ControlType.ListItem") ||
              string.IsNullOrWhiteSpace(displayName)))
             throw new ArgumentException("לא ניתן להגדיר זיהוי דינמי לרכיב זה.");
-        if (!convertToName && original.Strategy is not ("css" or "name"))
+        if (!convertToName && !disableAny && original.Strategy is not ("css" or "name"))
             throw new ArgumentException("מזהה טכני אינו ניתן לעריכת תוכן.");
         if (original.Strategy == "css")
         {
@@ -787,7 +789,7 @@ WHERE GuideId=$guideId AND VariableId=$variableId";
             if (!string.Equals(originalShape, updatedShape, StringComparison.Ordinal) && !appendedTextFilter && !semanticChange)
                 throw new ArgumentException("ניתן לערוך את ערך התוכן בלבד, לא את מבנה מזהה הרכיב.");
         }
-        locators[0] = original with { Strategy = convertToName ? "name" : original.Strategy, Value = locatorValue };
+        locators[0] = original with { Strategy = enableAny ? "name-nonempty" : disableAny || convertToName ? "name" : original.Strategy, Value = locatorValue };
         command.Parameters.AddWithValue("$elementId", elementId);
         command.Parameters.AddWithValue("$locators", JsonSerializer.Serialize(locators));
         command.CommandText = @"UPDATE Elements SET LocatorsJson=$locators
@@ -832,7 +834,7 @@ AND AnchorElementId IN (
         if (runtime is not ("Web" or "Windows") || locators.Count is < 1 or > 12 ||
             locators.Any(l => string.IsNullOrWhiteSpace(l.Value) || l.Value.Length > 400 ||
                 l.Value.Contains((char)0) || (runtime == "Web"
-                  ? l.Strategy != "css" : l.Strategy is not ("automation-id" or "name"))) ||
+                  ? l.Strategy != "css" : l.Strategy is not ("automation-id" or "name" or "name-nonempty"))) ||
             frames.Count > 12 || frames.Any(l => runtime != "Web" || l.Strategy != "css" ||
                 string.IsNullOrWhiteSpace(l.Value) || l.Value.Length > 400 || l.Value.Contains((char)0)))
             throw new ArgumentException("מזהי הרכיב אינם תקינים.");
