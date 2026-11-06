@@ -430,6 +430,9 @@ function renderSteps() {
       (context?.Runtime === 'Windows' && ['name-nonempty','automation-id-nonempty'].includes(webLocator?.Strategy));
     const windowsAnyEligible = context?.Runtime === 'Windows' &&
       ['name','automation-id','name-nonempty','automation-id-nonempty'].includes(webLocator?.Strategy);
+    // The same visual control is used for Web and Windows. Locator strategies remain runtime-specific.
+    const anyValueEligible = windowsAnyEligible ||
+      (context?.Runtime === 'Web' && webLocator?.Strategy === 'css' && !!editableTargetBinding?.buildAny);
     const targetValueDescription = anyValueTarget ? 'כל ערך' :
       editableTargetBinding?.value ? (editableTargetBinding.value.includes('{{var:') ? 'משתנה' : 'ערך קבוע') : null;
     selectedTargetPreviewValue = editableTargetBinding?.value || targetValue || null;
@@ -459,9 +462,9 @@ function renderSteps() {
       '<div id="primary-target-summary">' +
       (target ? '<p><strong>' + esc(friendlyName) + '</strong></p>' +
         '<p class="field-help">סוג רכיב: ' + esc(targetType) + '</p>' +
-        (targetValueDescription && !windowsAnyEligible ? '<p>זיהוי לפי תוכן: <strong class="target-business-value-preview">' +
+        (targetValueDescription && !anyValueEligible ? '<p>זיהוי לפי תוכן: <strong class="target-business-value-preview">' +
           esc(targetValueDescription) + '</strong></p>' : '') +
-        (windowsAnyEligible ? '<label class="gm-any-value-option"><input type="checkbox" id="primary-target-any"' +
+        (anyValueEligible ? '<label class="gm-any-value-option"><input type="checkbox" id="primary-target-any"' +
           (anyValueTarget ? ' checked' : '') + '><span>כל ערך</span></label>' : '') +
         (!anyValueTarget && editableTargetBinding?.value ? '<p>ערך איתור: <strong class="target-business-value-preview">' +
           friendlyInstructionHtml(editableTargetBinding.value) + '</strong></p>' : '') +
@@ -663,11 +666,18 @@ function renderSteps() {
     if (anyTargetToggle) anyTargetToggle.onchange = () => guarded(async () => {
       const selected = anyTargetToggle.checked;
       const locator = locators[0];
-      const nextStrategy = selected
+      const webTarget = context?.Runtime === 'Web';
+      const nextStrategy = webTarget ? 'css' : selected
         ? (locator.Strategy.startsWith('automation-id') ? 'automation-id-nonempty' : 'name-nonempty')
         : (locator.Strategy === 'automation-id-nonempty' ? 'automation-id' : 'name');
-      const nextValue = nextStrategy === 'name-nonempty' ? '*' :
-        nextStrategy === 'name' ? String(element?.DisplayName || '').trim() : locator.Value;
+      // Converting from "any" to an exact value must preserve the selector's
+      // structural identity on Web rather than replacing it with a label.
+      const exactWebValue = String(element?.DisplayName || '').trim();
+      const nextValue = webTarget
+        ? (selected ? editableTargetBinding.buildAny() :
+            exactWebValue ? editableTargetBinding.build(exactWebValue) : '')
+        : nextStrategy === 'name-nonempty' ? '*' :
+          nextStrategy === 'name' ? String(element?.DisplayName || '').trim() : locator.Value;
       if (!selected && !nextValue) {
         anyTargetToggle.checked = true;
         editPrimaryTargetValue({kind:'target', step, locators, binding:editableTargetBinding});
