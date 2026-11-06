@@ -318,12 +318,12 @@
           if (!value || value.length > 120 || /[\r\n]/.test(value)) return;
           const matches = rows.filter(other =>
             other.cells[index]?.textContent.replace(/\s+/g, ' ').trim() === value);
-          if (matches.length !== 1 || matches[0] !== row) return;
+          const unique = matches.length === 1 && matches[0] === row;
           const header = headers[index]?.textContent.replace(/\s+/g, ' ').trim().slice(0, 60) || 'עמודה ' + (index + 1);
           const rowSelector = tableSelector + ' tbody tr:cell-text(' + (index + 1) + ',' + JSON.stringify(value) + ')';
           if (rowSelector.length <= 400) {
-            if (target.closest('td,th') === cell) selectedGridChoice = gridChoices.length;
-            gridChoices.push({header, value, selector:rowSelector, actionSelector:actionSuffix ? rowSelector + actionSuffix : null});
+            if (unique && target.closest('td,th') === cell) selectedGridChoice = gridChoices.length;
+            gridChoices.push({header, value, unique, selector:rowSelector, actionSelector:actionSuffix ? rowSelector + actionSuffix : null});
           }
         });
       }
