@@ -1046,6 +1046,12 @@ async function refreshPicker() {
         .filter(({choice}) => capturedText && String(choice.value || '').trim() === capturedText)
     : [];
   const capturedChoice = matchingChoices.length === 1 ? matchingChoices[0] : null;
+  const rowActionChoices = requestSession.runtime === 'Web' && !requestSession.completion &&
+    !requestSession.variableSource
+    ? (candidate.gridChoices || []).map((choice,index)=>({choice,index}))
+        .filter(({choice})=>choice.actionSelector && choice.actionSelector.length <= 400)
+    : [];
+
   const contentMatch = requestSession.runtime === 'Web'
     ? [...(candidate.selector || '').matchAll(/:cell-text\(\s*\d+\s*,\s*("(?:[^"\\]|\\.)*")\s*\)/g)]
     : [];
@@ -1071,6 +1077,17 @@ async function refreshPicker() {
       'placeholder="לא נקלט ערך"></textarea></div>' : '') +
     (!pickingFor.completion && !pickingFor.variableSource && editableContent !== null ?
       variableValueFieldMarkup('picked-content-value', 'זיהוי לפי תוכן') : '') +
+    (rowActionChoices.length ?
+      '<div class="field"><label for="picked-row-mode">אופן זיהוי הרכיב</label>' +
+      '<select id="picked-row-mode"><option value="">זיהוי רגיל</option>' +
+      '<option value="row">זיהוי לפי ערך בעמודה באותה שורה</option></select></div>' +
+      '<div id="picked-row-fields" class="hidden">' +
+      '<div class="field"><label for="picked-row-column">עמודה לזיהוי השורה</label>' +
+      '<select id="picked-row-column">' +
+      rowActionChoices.map(({choice,index})=>'<option value="'+index+'">'+esc(choice.header)+'</option>').join('') +
+      '</select></div>' +
+      variableValueFieldMarkup('picked-row-value','ערך לזיהוי השורה') +
+      '</div>' : '') +
     (pickingFor.completion ? '<label for="target-condition">חוק השלמה</label>' +
       '<select id="target-condition">' +
       '<option value="target-appeared">הופיע</option>' +
@@ -1092,6 +1109,24 @@ async function refreshPicker() {
     if (input) {
       initializeVariableField(input, $('picked-content-value-variables'), editableContent);
     }
+  }
+  if (rowActionChoices.length) {
+    const mode = $('picked-row-mode');
+    const column = $('picked-row-column');
+    const rowInput = $('picked-row-value');
+    const updateRow = () => {
+      const rowMode = mode.value === 'row';
+      $('picked-row-fields').classList.toggle('hidden',!rowMode);
+      $('picked-content-value')?.closest('.field')?.classList.toggle('hidden',rowMode);
+      rowInput.required = rowMode;
+    };
+    column.addEventListener('change',()=>{
+      const choice = rowActionChoices.find(item=>item.index===Number(column.value));
+      if (choice) initializeVariableField(rowInput,$('picked-row-value-variables'),choice.choice.value);
+    });
+    mode.addEventListener('change',updateRow);
+    initializeVariableField(rowInput,$('picked-row-value-variables'),rowActionChoices[0].choice.value);
+    updateRow();
   }
   if (pickingFor.variableSource) {
     const extract = $('variable-extract-choice');
@@ -1147,8 +1182,9 @@ async function refreshPicker() {
       requiredCaptureFields.push($('variable-extract-pattern'));
     if (pickedFor.completion && $('target-condition')?.value === 'value-contains')
       requiredCaptureFields.push($('completion-fixed-value'));
-    if (!pickedFor.completion && !pickedFor.variableSource && $('picked-content-value'))
-      requiredCaptureFields.push($('picked-content-value'));
+    const useRowAction = $('picked-row-mode')?.value === 'row';
+    if (!pickedFor.completion && !pickedFor.variableSource)
+      requiredCaptureFields.push(useRowAction ? $('picked-row-value') : $('picked-content-value'));
     for (const field of requiredCaptureFields) {
       if (field && !String(field.value || '').trim()) {
         showInstructorFieldError(field, 'יש למלא שדה זה לפני השמירה.');
@@ -1169,8 +1205,9 @@ async function refreshPicker() {
     }
     result.textContent = '';
     try {
+      const useRowAction = $('picked-row-mode')?.value === 'row';
       const gridChoiceIndex = !pickedFor.completion && !pickedFor.variableSource
-        ? capturedChoice?.index ?? null : null;
+        ? useRowAction ? Number($('picked-row-column').value) : capturedChoice?.index ?? null : null;
       const adapter = targetAdapters[pickedFor.runtime];
       if (pickedFor.variableSource) {
         const mode = $('variable-extract-choice')?.value || 'full';
@@ -1184,14 +1221,14 @@ async function refreshPicker() {
       else if (pickedFor.completion)
         await adapter.saveCompletion(pickedFor, candidate);
       else {
-        const contentInput = $('picked-content-value');
+        const contentInput = useRowAction ? $('picked-row-value') : $('picked-content-value');
         const contentValue = contentInput ? variableEditorResult(contentInput).trim() : null;
         if (contentInput && contentValue.length > 400)
           rejectInstructorField(contentInput, 'תוכן זיהוי הרכיב ארוך מדי (עד 400 תווים).');
         await api('/guides/'+pickedFor.guideId+'/steps/'+encodeURIComponent(pickedFor.stepId)+'/primary-target',
           {method:'POST',body:JSON.stringify({
             condition:'',
-            replacing:pickedFor.replacing,gridChoice:gridChoiceIndex,
+            replacing:pickedFor.replacing,gridChoice:gridChoiceIndex,gridAction:useRowAction,
             contentValue,selectedTag:candidate.tag,processId:pickedFor.processId || null})});
       }
       pickerEvent(pickedFor, 'saved');
