@@ -18,6 +18,13 @@ public static class GuideStepExecutionPolicy
         return GuideStepPresentationKind.TargetAttached;
     }
 
+    public static bool IsCompletionOnlyStep(GuideStep step)
+    {
+        ArgumentNullException.ThrowIfNull(step);
+        return step.AdvanceMode == StepAdvanceMode.AutomaticOnValidation
+            && step.Validation is null && step.CompletionConditions is { Count: > 0 };
+    }
+
     public static bool IsAutomaticValidationStep(GuideStep step)
     {
         ArgumentNullException.ThrowIfNull(step);
@@ -67,6 +74,8 @@ public static class GuideStepExecutionPolicy
         bool textEditCommitted = false)
     {
         ArgumentNullException.ThrowIfNull(step);
+        if (IsCompletionOnlyStep(step))
+            return completionConditionsSatisfied;
         if (!IsAutomaticValidationStep(step))
             return false;
         if (!IsClickValidationStep(step)
