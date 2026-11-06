@@ -300,14 +300,6 @@
     const table = row?.closest('table');
     const gridChoices = [];
     let selectedGridChoice = null;
-    // The action is located relative to its row, never by a volatile element ID.
-    const actionCell = target.closest('td,th');
-    const actionColumn = actionCell && row && actionCell.parentElement === row
-      ? [...row.cells].indexOf(actionCell) + 1 : 0;
-    const actionTag = target.tagName.toLowerCase();
-    const actionSuffix = actionColumn && /^(button|a|input|select)$/.test(actionTag) &&
-      actionCell.querySelectorAll(actionTag).length === 1
-      ? ' > :is(td,th):nth-child(' + actionColumn + ') ' + actionTag : null;
     if (row && table && row.closest('tbody') && row.cells.length) {
       const tableSelector = selectorFor(table);
       if (tableSelector) {
@@ -318,12 +310,12 @@
           if (!value || value.length > 120 || /[\r\n]/.test(value)) return;
           const matches = rows.filter(other =>
             other.cells[index]?.textContent.replace(/\s+/g, ' ').trim() === value);
-          const unique = matches.length === 1 && matches[0] === row;
+          if (matches.length !== 1 || matches[0] !== row) return;
           const header = headers[index]?.textContent.replace(/\s+/g, ' ').trim().slice(0, 60) || 'עמודה ' + (index + 1);
           const rowSelector = tableSelector + ' tbody tr:cell-text(' + (index + 1) + ',' + JSON.stringify(value) + ')';
           if (rowSelector.length <= 400) {
-            if (unique && target.closest('td,th') === cell) selectedGridChoice = gridChoices.length;
-            gridChoices.push({header, value, unique, selector:rowSelector, actionSelector:actionSuffix ? rowSelector + actionSuffix : null});
+            if (target.closest('td,th') === cell) selectedGridChoice = gridChoices.length;
+            gridChoices.push({header, value, selector:rowSelector});
           }
         });
       }
