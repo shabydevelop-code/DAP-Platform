@@ -343,25 +343,20 @@ public sealed class WindowsTargetResolver
 
     private static IEnumerable<AutomationElement> Find(AutomationElement root, Locator locator)
     {
+        if (locator.Strategy.Trim().Equals("automation-id-nonempty", StringComparison.OrdinalIgnoreCase))
+        {
+            return root.FindAll(TreeScope.Descendants,
+                new PropertyCondition(AutomationElement.AutomationIdProperty, locator.Value))
+                .Cast<AutomationElement>()
+                .Where(HasNonemptyObservedValue).ToArray();
+        }
         if (locator.Strategy.Trim().Equals("name-nonempty", StringComparison.OrdinalIgnoreCase))
         {
-            // A changing Name is not a structural locator. Retain the captured
-            // ControlType and anchors; never choose an arbitrary first match.
             return root.FindAll(TreeScope.Descendants, Condition.TrueCondition)
                 .Cast<AutomationElement>()
-                .Where(element =>
-                {
-                    try
-                    {
-                        var value = element.TryGetCurrentPattern(ValuePattern.Pattern, out var pattern)
-                            ? ((ValuePattern)pattern).Current.Value
-                            : element.Current.Name;
-                        return !string.IsNullOrWhiteSpace(value);
-                    }
-                    catch (ElementNotAvailableException) { return false; }
-                    catch (System.Runtime.InteropServices.COMException) { return false; }
-                }).ToArray();
+                .Where(HasNonemptyObservedValue).ToArray();
         }
+
         if (locator.Strategy.Trim().Equals("name-regex", StringComparison.OrdinalIgnoreCase))
         {
             if (TryCreateNativeCondition(locator, out var exactCondition))
@@ -387,6 +382,19 @@ public sealed class WindowsTargetResolver
 
         var condition = CreateCondition(locator);
         return root.FindAll(TreeScope.Descendants, condition).Cast<AutomationElement>();
+    }
+
+    private static bool HasNonemptyObservedValue(AutomationElement element)
+    {
+        try
+        {
+            var value = element.TryGetCurrentPattern(ValuePattern.Pattern, out var pattern)
+                ? ((ValuePattern)pattern).Current.Value
+                : element.Current.Name;
+            return !string.IsNullOrWhiteSpace(value);
+        }
+        catch (ElementNotAvailableException) { return false; }
+        catch (System.Runtime.InteropServices.COMException) { return false; }
     }
 
     private static Condition CreateCondition(Locator locator)
