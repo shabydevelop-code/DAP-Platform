@@ -1694,7 +1694,7 @@ function variablePreviewValue(variable) {
 function friendlyInstructionText(value) {
   return String(value || '').replace(/\{\{var:([^}]+)\}\}/g, (_, id) => {
     const variable = (current?.variables || []).find(v => v.id === id);
-    return '[' + variablePreviewValue(variable) + ']';
+    return '[' + (variable?.name || 'משתנה לא קיים') + ']';
   });
 }
 function stepListInstructionHtml(value) {
@@ -1704,11 +1704,15 @@ function stepListInstructionHtml(value) {
     .join('');
 }
 function friendlyInstructionHtml(value) {
-  const text = String(value || '').replace(/\{\{var:([^}]+)\}\}/g, (_, id) => {
-    const variable = (current?.variables || []).find(v => v.id === id);
-    return variablePreviewValue(variable);
-  });
-  return esc(text);
+  // Authoring screens display the variable identity, not its sample/initial value.
+  // Escaping each segment independently prevents variable names from injecting HTML.
+  return String(value || '').split(/(\{\{var:[^{}]+\}\})/g).map(part => {
+    const match = /^\{\{var:([^{}]+)\}\}$/.exec(part);
+    if (!match) return esc(part);
+    const variable = (current?.variables || []).find(v => v.id === match[1]);
+    return '<span class="instruction-variable" title="משתנה בלומדה">' +
+      esc(variable?.name || 'משתנה לא קיים') + '</span>';
+  }).join('');
 }
 // The inspector and editor share one value extraction rule; the CSS selector
 // remains a private implementation detail.
