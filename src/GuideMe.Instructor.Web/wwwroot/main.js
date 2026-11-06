@@ -441,11 +441,9 @@ function renderSteps() {
         '<p class="field-help">סוג רכיב: ' + esc(targetType) + '</p>' +
         (gridAction ?
           '<p>אופן זיהוי: <strong>לפי ערך בעמודה באותה שורה</strong></p>' +
-          '<p>עמודה לזיהוי השורה: <strong>' + gridAction.column + '</strong></p>' +
           '<p>ערך לזיהוי השורה: <strong class="target-business-value-preview">' +
           friendlyInstructionHtml(gridAction.value) + '</strong></p>' +
-          '<p>רכיב פעולה: <strong>' + esc(gridAction.tag) +
-          '</strong> (עמודה ' + gridAction.actionColumn + ')</p>' :
+          '' :
           editableTargetBinding?.value ? '<p>ערך איתור: <strong class="target-business-value-preview">' +
           friendlyInstructionHtml(editableTargetBinding.value) + '</strong></p>' : '') +
         '' :
