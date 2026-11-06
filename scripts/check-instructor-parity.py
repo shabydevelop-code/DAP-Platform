@@ -56,6 +56,22 @@ require("name-nonempty" in sources and "automation-id-nonempty" in sources and
         "HasNonemptyObservedValue" in sources,
         "Windows Learner: Any value matching missing")
 
+# A matching strategy must also work when used as a Self/Ancestor/Sibling
+# anchor. The target-only Find() path is not enough: otherwise the learner
+# throws 'Unsupported Windows locator strategy' during anchor resolution.
+resolver_file = windows_runtime / "Targets/WindowsTargetResolver.cs"
+resolver = resolver_file.read_text(encoding="utf-8") if resolver_file.exists() else ""
+anchor_match_start = resolver.find("private static bool MatchesLocator(")
+anchor_match_end = resolver.find("private static bool MatchesCondition(", anchor_match_start)
+anchor_match = (resolver[anchor_match_start:anchor_match_end]
+                if anchor_match_start >= 0 and anchor_match_end > anchor_match_start else "")
+require("name-nonempty" in anchor_match and
+        "automation-id-nonempty" in anchor_match and
+        "HasNonemptyObservedValue(element)" in anchor_match and
+        anchor_match.find("name-nonempty") < anchor_match.find("CreateCondition(locator)") and
+        anchor_match.find("automation-id-nonempty") < anchor_match.find("CreateCondition(locator)"),
+        "Windows Learner: Any value anchor matching unsupported")
+
 if failures:
     print("Instructor parity gate FAILED:")
     for failure in failures:
