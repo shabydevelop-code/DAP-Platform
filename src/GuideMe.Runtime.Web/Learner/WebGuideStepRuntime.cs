@@ -78,7 +78,6 @@ public sealed class WebGuideStepRuntime
             : null;
         var automatic = GuideStepExecutionPolicy.IsAutomaticValidationStep(step);
         var completionOnly = GuideStepExecutionPolicy.IsCompletionOnlyStep(step);
-        var completionOnlySawUnsatisfied = false;
         var clicked = GuideStepExecutionPolicy.IsClickValidationStep(step);
         // Opt-in observation-only steps do not arm browser input listeners.
         // Existing Guides retain their original validation semantics.
@@ -118,12 +117,10 @@ public sealed class WebGuideStepRuntime
         {
             if (completionOnly)
             {
-                // No click is required: observe the destination condition directly.
-                // Never complete from a condition already true on step entry.
+                // A completion-only step is a destination-state predicate.
+                // The destination may already be ready on the first observation.
                 var satisfied = await CompletionReadyAsync(cancellationToken);
-                if (!satisfied)
-                    completionOnlySawUnsatisfied = true;
-                if (completionOnlySawUnsatisfied && satisfied)
+                if (satisfied)
                 {
                     await _browser.HideBubbleAsync(cancellationToken);
                     return GuideStepReconciliationResult.Completed;
