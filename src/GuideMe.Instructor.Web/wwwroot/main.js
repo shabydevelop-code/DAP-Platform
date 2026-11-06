@@ -423,7 +423,11 @@ function renderSteps() {
     const targetKind = /(?:^|[ >+~])h([1-6])(?=[:.#\\[ >+~]|$)/i.exec(locatorText);
     const targetType = targetClassification.label || (targetKind ? 'כותרת (H' + targetKind[1] + ')' :
       /(?:^|[ >+~])(?:td|th)(?=[:.#\\[ >+~]|$)/i.test(locatorText) ? 'תא בטבלה' :
+      /:cell-(?:text|any)\(/.test(locatorText) ? 'שורה בטבלה' :
       targetValue ? 'רכיב טקסט' : 'רכיב במסך');
+    const anyValueTarget = context?.Runtime === 'Web' && /:(?:cell-any\(\d+\)|nonempty-text)$/.test(locatorText);
+    const targetValueDescription = anyValueTarget ? 'כל ערך' :
+      editableTargetBinding?.value ? (editableTargetBinding.value.includes('{{var:') ? 'משתנה' : 'ערך קבוע') : null;
     selectedTargetPreviewValue = editableTargetBinding?.value || targetValue || null;
     selectedValidationExpectedValue = rule?.ExpectedValue || null;
     selectedCompletionDescription = completionRule?.Kind === 'value-contains'
@@ -451,7 +455,9 @@ function renderSteps() {
       '<div id="primary-target-summary">' +
       (target ? '<p><strong>' + esc(friendlyName) + '</strong></p>' +
         '<p class="field-help">סוג רכיב: ' + esc(targetType) + '</p>' +
-        (editableTargetBinding?.value ? '<p>ערך איתור: <strong class="target-business-value-preview">' +
+        (targetValueDescription ? '<p>זיהוי לפי תוכן: <strong class="target-business-value-preview">' +
+          esc(targetValueDescription) + '</strong></p>' : '') +
+        (!anyValueTarget && editableTargetBinding?.value ? '<p>ערך איתור: <strong class="target-business-value-preview">' +
           friendlyInstructionHtml(editableTargetBinding.value) + '</strong></p>' : '') +
         '' :
         '<p>עדיין לא נבחר רכיב לשלב הזה.</p>') +
