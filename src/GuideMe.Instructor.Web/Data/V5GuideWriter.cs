@@ -777,7 +777,14 @@ WHERE GuideId=$guideId AND VariableId=$variableId";
             var appendedTextFilter = !original.Value.Contains(":exact-text(", StringComparison.Ordinal) &&
                 !original.Value.Contains(":cell-text(", StringComparison.Ordinal) &&
                 string.Equals(updatedShape, originalShape + ":exact-text(\"\")", StringComparison.Ordinal);
-            if (!string.Equals(originalShape, updatedShape, StringComparison.Ordinal) && !appendedTextFilter)
+            var semanticChange = string.Equals(updatedShape, originalShape + ":nonempty-text", StringComparison.Ordinal) ||
+                string.Equals(originalShape, updatedShape + ":nonempty-text", StringComparison.Ordinal) ||
+                System.Text.RegularExpressions.Regex.IsMatch(originalShape, @":cell-text\(\d+,""""\)$") &&
+                string.Equals(System.Text.RegularExpressions.Regex.Replace(originalShape, @":cell-text\((\d+),""""\)$", ":cell-any($1)"), updatedShape, StringComparison.Ordinal) ||
+                System.Text.RegularExpressions.Regex.IsMatch(updatedShape, @":cell-text\(\d+,""""\)$") &&
+                string.Equals(System.Text.RegularExpressions.Regex.Replace(updatedShape, @":cell-text\((\d+),""""\)$", ":cell-any($1)"), originalShape, StringComparison.Ordinal) ||
+                string.Equals(originalShape + ":exact-text(\"\")", updatedShape, StringComparison.Ordinal) && original.Value.EndsWith(":nonempty-text", StringComparison.Ordinal);
+            if (!string.Equals(originalShape, updatedShape, StringComparison.Ordinal) && !appendedTextFilter && !semanticChange)
                 throw new ArgumentException("ניתן לערוך את ערך התוכן בלבד, לא את מבנה מזהה הרכיב.");
         }
         locators[0] = original with { Strategy = convertToName ? "name" : original.Strategy, Value = locatorValue };
