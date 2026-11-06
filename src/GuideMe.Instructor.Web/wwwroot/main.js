@@ -406,13 +406,12 @@ function renderSteps() {
        element?.DisplayName
         ? {value:element.DisplayName, build:next=>next, strategy:'name'}
         : null));
-    const gridAction = gridActionBinding(locators[0]);
     const targetValue = editableTargetBinding?.value || '';
     const targetKind = /(?:^|[ >+~])h([1-6])(?=[:.#\\[ >+~]|$)/i.exec(locatorText);
     const targetType = targetClassification.label || (targetKind ? 'כותרת (H' + targetKind[1] + ')' :
       /(?:^|[ >+~])(?:td|th)(?=[:.#\\[ >+~]|$)/i.test(locatorText) ? 'תא בטבלה' :
       targetValue ? 'רכיב טקסט' : 'רכיב במסך');
-    selectedTargetPreviewValue = gridAction?.value || editableTargetBinding?.value || targetValue || null;
+    selectedTargetPreviewValue = editableTargetBinding?.value || targetValue || null;
     selectedValidationExpectedValue = rule?.ExpectedValue || null;
     selectedCompletionDescription = completionRule?.Kind === 'value-contains'
       ? () => esc(completionElementName) + ' מכיל את הערך ' + friendlyInstructionHtml(completionRule.ExpectedValue || '') + '.'
@@ -439,12 +438,7 @@ function renderSteps() {
       '<div id="primary-target-summary">' +
       (target ? '<p><strong>' + esc(friendlyName) + '</strong></p>' +
         '<p class="field-help">סוג רכיב: ' + esc(targetType) + '</p>' +
-        (gridAction ?
-          '<p>אופן זיהוי: <strong>לפי ערך בעמודה באותה שורה</strong></p>' +
-          '<p>ערך לזיהוי השורה: <strong class="target-business-value-preview">' +
-          friendlyInstructionHtml(gridAction.value) + '</strong></p>' +
-          '' :
-          editableTargetBinding?.value ? '<p>ערך איתור: <strong class="target-business-value-preview">' +
+        (editableTargetBinding?.value ? '<p>ערך איתור: <strong class="target-business-value-preview">' +
           friendlyInstructionHtml(editableTargetBinding.value) + '</strong></p>' : '') +
         '' :
         '<p>עדיין לא נבחר רכיב לשלב הזה.</p>') +
@@ -453,7 +447,7 @@ function renderSteps() {
         (target ? '<div class="target-action-buttons">' +
           '<div class="target-action-primary">' +
           '<button class="btn secondary small" id="replace-web-target">בחירת רכיב אחר</button>' +
-          (editableTargetBinding || gridAction ? '<button class="btn secondary small" id="bind-target-variable">עריכה</button>' : '') +
+          (editableTargetBinding ? '<button class="btn secondary small" id="bind-target-variable">עריכה</button>' : '') +
           '<button class="btn danger small" id="remove-primary-target">הסרה</button>' +
           '</div>' +
 
@@ -1053,12 +1047,6 @@ async function refreshPicker() {
         .filter(({choice}) => choice.unique !== false && capturedText && String(choice.value || '').trim() === capturedText)
     : [];
   const capturedChoice = matchingChoices.length === 1 ? matchingChoices[0] : null;
-  const rowActionChoices = requestSession.runtime === 'Web' && !requestSession.completion &&
-    !requestSession.variableSource
-    ? (candidate.gridChoices || []).map((choice,index)=>({choice,index}))
-        .filter(({choice})=>choice.actionSelector && choice.actionSelector.length <= 400)
-    : [];
-
   const contentMatch = requestSession.runtime === 'Web'
     ? [...(candidate.selector || '').matchAll(/:cell-text\(\s*\d+\s*,\s*("(?:[^"\\]|\\.)*")\s*\)/g)]
     : [];
@@ -1084,17 +1072,6 @@ async function refreshPicker() {
       'placeholder="לא נקלט ערך"></textarea></div>' : '') +
     (!pickingFor.completion && !pickingFor.variableSource && editableContent !== null ?
       variableValueFieldMarkup('picked-content-value', 'זיהוי לפי תוכן') : '') +
-    (rowActionChoices.length ?
-      '<div class="field"><label for="picked-row-mode">אופן זיהוי הרכיב</label>' +
-      '<select id="picked-row-mode"><option value="">זיהוי רגיל</option>' +
-      '<option value="row">זיהוי לפי ערך בעמודה באותה שורה</option></select></div>' +
-      '<div id="picked-row-fields" class="hidden">' +
-      '<div class="field"><label for="picked-row-column">עמודה לזיהוי השורה</label>' +
-      '<select id="picked-row-column">' +
-      rowActionChoices.map(({choice,index})=>'<option value="'+index+'">'+esc(choice.header)+'</option>').join('') +
-      '</select></div>' +
-      variableValueFieldMarkup('picked-row-value','ערך לזיהוי השורה') +
-      '</div>' : '') +
     (pickingFor.completion ? '<label for="target-condition">חוק השלמה</label>' +
       '<select id="target-condition">' +
       '<option value="target-appeared">הופיע</option>' +
@@ -1116,24 +1093,6 @@ async function refreshPicker() {
     if (input) {
       initializeVariableField(input, $('picked-content-value-variables'), editableContent);
     }
-  }
-  if (rowActionChoices.length) {
-    const mode = $('picked-row-mode');
-    const column = $('picked-row-column');
-    const rowInput = $('picked-row-value');
-    const updateRow = () => {
-      const rowMode = mode.value === 'row';
-      $('picked-row-fields').classList.toggle('hidden',!rowMode);
-      $('picked-content-value')?.closest('.field')?.classList.toggle('hidden',rowMode);
-      rowInput.required = rowMode;
-    };
-    column.addEventListener('change',()=>{
-      const choice = rowActionChoices.find(item=>item.index===Number(column.value));
-      if (choice) initializeVariableField(rowInput,$('picked-row-value-variables'),choice.choice.value);
-    });
-    mode.addEventListener('change',updateRow);
-    initializeVariableField(rowInput,$('picked-row-value-variables'),rowActionChoices[0].choice.value);
-    updateRow();
   }
   if (pickingFor.variableSource) {
     const extract = $('variable-extract-choice');
@@ -1189,9 +1148,8 @@ async function refreshPicker() {
       requiredCaptureFields.push($('variable-extract-pattern'));
     if (pickedFor.completion && $('target-condition')?.value === 'value-contains')
       requiredCaptureFields.push($('completion-fixed-value'));
-    const useRowAction = $('picked-row-mode')?.value === 'row';
     if (!pickedFor.completion && !pickedFor.variableSource)
-      requiredCaptureFields.push(useRowAction ? $('picked-row-value') : $('picked-content-value'));
+      requiredCaptureFields.push($('picked-content-value'));
     for (const field of requiredCaptureFields) {
       if (field && !String(field.value || '').trim()) {
         showInstructorFieldError(field, 'יש למלא שדה זה לפני השמירה.');
@@ -1212,9 +1170,8 @@ async function refreshPicker() {
     }
     result.textContent = '';
     try {
-      const useRowAction = $('picked-row-mode')?.value === 'row';
       const gridChoiceIndex = !pickedFor.completion && !pickedFor.variableSource
-        ? useRowAction ? Number($('picked-row-column').value) : capturedChoice?.index ?? null : null;
+        ? capturedChoice?.index ?? null : null;
       const adapter = targetAdapters[pickedFor.runtime];
       if (pickedFor.variableSource) {
         const mode = $('variable-extract-choice')?.value || 'full';
@@ -1228,14 +1185,14 @@ async function refreshPicker() {
       else if (pickedFor.completion)
         await adapter.saveCompletion(pickedFor, candidate);
       else {
-        const contentInput = useRowAction ? $('picked-row-value') : $('picked-content-value');
+        const contentInput = $('picked-content-value');
         const contentValue = contentInput ? variableEditorResult(contentInput).trim() : null;
         if (contentInput && contentValue.length > 400)
           rejectInstructorField(contentInput, 'תוכן זיהוי הרכיב ארוך מדי (עד 400 תווים).');
         await api('/guides/'+pickedFor.guideId+'/steps/'+encodeURIComponent(pickedFor.stepId)+'/primary-target',
           {method:'POST',body:JSON.stringify({
             condition:'',
-            replacing:pickedFor.replacing,gridChoice:gridChoiceIndex,gridAction:useRowAction,
+            replacing:pickedFor.replacing,gridChoice:gridChoiceIndex,
             contentValue,selectedTag:candidate.tag,processId:pickedFor.processId || null})});
       }
       pickerEvent(pickedFor, 'saved');
@@ -1805,19 +1762,6 @@ function classifyTarget(runtime, element, locators) {
     : classifyWebTarget(element, locators);
 }
 
-function gridActionBinding(locator) {
-  if (locator?.Strategy !== 'css') return null;
-  const value = String(locator.Value || '');
-  const match = /:cell-text\((\d+),("(?:\\.|[^"\\])*")\)(\s*>\s*:is\(td,th\):nth-child\((\d+)\)\s+(button|a|input|select))$/.exec(value);
-  if (!match) return null;
-  let cellValue;
-  try { cellValue = JSON.parse(match[2]); } catch { return null; }
-  return {
-    column:Number(match[1]), actionColumn:Number(match[4]), tag:match[5], value:cellValue,
-    build:(column,next)=>value.slice(0,match.index) +
-      ':cell-text(' + column + ',' + JSON.stringify(next) + ')' + match[3]
-  };
-}
 function locatorTextBinding(locator) {
   if (!locator?.Value) return null;
   const original = locator.Value;
@@ -1849,57 +1793,11 @@ function locatorTextBinding(locator) {
   // A display label alone does not prove that the locator uses text for identification.
   return null;
 }
-function editGridActionTarget(step,grid,locator) {
-  const summary = $('primary-target-summary');
-  const actions = $('bind-target-variable')?.closest('.target-action-buttons');
-  if (!summary || !actions) return;
-  const previous = summary.innerHTML;
-  const previousDisplay = actions.style.display;
-  summary.innerHTML = '<div class="field"><label for="grid-edit-column">עמודה לזיהוי השורה (מספר עמודה)</label>' +
-    '<input id="grid-edit-column" type="number" min="1" max="100"></div>' +
-    variableValueFieldMarkup('grid-edit-value','ערך לזיהוי השורה') +
-    '<p class="field-help">רכיב הפעולה נשאר ' + esc(grid.tag) +
-    ' בעמודה ' + grid.actionColumn + '. לשינוי רכיב הפעולה יש לבחור רכיב אחר.</p>' +
-    '<div class="target-action-primary"><button class="btn primary small" id="grid-edit-save">שמירה</button>' +
-    '<button class="btn secondary small" id="grid-edit-cancel">ביטול</button></div>';
-  actions.style.display = 'none';
-  $('grid-edit-column').value = grid.column;
-  const valueInput = $('grid-edit-value');
-  initializeVariableField(valueInput,$('grid-edit-value-variables'),grid.value);
-  const restore = () => {summary.innerHTML=previous;actions.style.display=previousDisplay;};
-  $('grid-edit-cancel').onclick = restore;
-  $('grid-edit-save').onclick = async () => {
-    try {
-      const column = Number($('grid-edit-column').value);
-      if (!Number.isInteger(column) || column < 1 || column > 100)
-        return showInstructorFieldError($('grid-edit-column'),'יש להזין מספר עמודה בין 1 ל־100.');
-      const value = variableEditorResult(valueInput).trim();
-      if (!value) return showInstructorFieldError(valueInput,'יש להזין ערך לזיהוי השורה.');
-      const template = grid.build(column,value);
-      if (template.length > 400) return showInstructorFieldError(valueInput,'מזהה הרכיב ארוך מדי.');
-      if (template === locator.Value) return restore();
-      $('grid-edit-save').disabled = true;
-      await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+'/primary-target/variable',{
-        method:'POST',body:JSON.stringify({locatorValue:template})
-      });
-      await reloadSelectedStep(current.guide.id,step.id);
-      notify('זיהוי הרכיב עודכן.');
-    } catch(error) {
-      $('grid-edit-save').disabled = false;
-      notify('השמירה נכשלה: '+error.message,true);
-    }
-  };
-}
 function editPrimaryTargetValue({kind, step, locators, binding:preparedBinding}) {
   if (!current || kind !== 'target') return;
   const locator = (locators || [])[0];
   if (!locator?.Value) {
     notify('לא נמצא מזהה רכיב שניתן לערוך.', true); return;
-  }
-  const grid = gridActionBinding(locator);
-  if (grid) {
-    editGridActionTarget(step,grid,locator);
-    return;
   }
   const binding = preparedBinding || locatorTextBinding(locator);
   if (!binding) return;
