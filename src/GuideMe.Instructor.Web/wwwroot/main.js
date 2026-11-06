@@ -1204,7 +1204,7 @@ async function refreshPicker() {
         const contentInput = $('picked-content-value');
         const anyContent = !!$('picked-content-any')?.checked;
         const contentValue = contentInput && !anyContent ? variableEditorResult(contentInput).trim() : null;
-        if (contentInput && contentValue.length > 400)
+        if (contentInput && contentValue !== null && contentValue.length > 400)
           rejectInstructorField(contentInput, 'תוכן זיהוי הרכיב ארוך מדי (עד 400 תווים).');
         await api('/guides/'+pickedFor.guideId+'/steps/'+encodeURIComponent(pickedFor.stepId)+'/primary-target',
           {method:'POST',body:JSON.stringify({
