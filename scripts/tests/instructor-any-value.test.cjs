@@ -56,6 +56,8 @@ test('The same shared renderer is wired into card, capture, and editor', () => {
   assert.match(main,/GuideMeAnyValueUI\.buildUpdate\(/);
   assert.match(main,/GuideMeAnyValueUI\.isEligible\(/);
   assert.ok(!main.includes("windowsAnyEligible"), 'Runtime-specific card rendering returned');
+  assert.ok(!main.includes('gm-any-value-option'), 'Markup must be authored only in shared renderer');
+  assert.ok(!main.includes('<span>כל ערך</span>'), 'Duplicated checkbox labels are prohibited');
   assert.ok(html.indexOf('any-value-ui.js') < html.indexOf('main.js'));
 });
 test('Inputs are not allowed to inject arbitrary HTML into shared markup', () => {
