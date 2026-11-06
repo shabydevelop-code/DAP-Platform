@@ -417,7 +417,8 @@ function renderSteps() {
       webTextBinding ||
       (dynamicWindowsControl && webLocator?.Strategy === 'automation-id' &&
        element?.DisplayName
-        ? {value:element.DisplayName, build:next=>next, strategy:'name'}
+        ? {value:element.DisplayName, build:next=>next, strategy:'name',
+            buildAny:()=>webLocator.Value, anyStrategy:'automation-id-nonempty'}
         : null));
     const targetValue = editableTargetBinding?.value || '';
     const targetKind = /(?:^|[ >+~])h([1-6])(?=[:.#\\[ >+~]|$)/i.exec(locatorText);
