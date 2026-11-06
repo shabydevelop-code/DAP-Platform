@@ -173,9 +173,10 @@ internal sealed class InstructorCaptureBridge
                         throw new InvalidOperationException("לזיהוי רכיב זה נדרשת עמודה בעלת ערך ייחודי.");
                     chosenSelector = value;
                 }
-                displayName = choice.TryGetProperty("header", out var header) &&
-                    choice.TryGetProperty("value", out var cellValue)
-                    ? $"{header.GetString()}: {cellValue.GetString()}" : displayName;
+                if (!gridAction)
+                    displayName = choice.TryGetProperty("header", out var header) &&
+                        choice.TryGetProperty("value", out var cellValue)
+                        ? $"{header.GetString()}: {cellValue.GetString()}" : displayName;
             }
             return (chosenSelector, path, displayName);
         }
