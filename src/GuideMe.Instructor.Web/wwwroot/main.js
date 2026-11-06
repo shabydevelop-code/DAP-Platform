@@ -1043,7 +1043,7 @@ async function refreshPicker() {
   const matchingChoices = requestSession.runtime === 'Web' &&
     !['input','textarea','select'].includes((candidate.tag || '').toLowerCase())
     ? (candidate.gridChoices || []).map((choice, index) => ({choice,index}))
-        .filter(({choice}) => capturedText && String(choice.value || '').trim() === capturedText)
+        .filter(({choice}) => choice.unique !== false && capturedText && String(choice.value || '').trim() === capturedText)
     : [];
   const capturedChoice = matchingChoices.length === 1 ? matchingChoices[0] : null;
   const rowActionChoices = requestSession.runtime === 'Web' && !requestSession.completion &&
