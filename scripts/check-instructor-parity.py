@@ -1,44 +1,63 @@
 #!/usr/bin/env python3
-"""GuideMe Instructor cross-runtime regression gate.
+"""Static regression gate for GuideMe Instructor runtime parity.
 
-Fail closed until both runtimes explicitly implement Any value matching.
-This is a focused guard, not a substitute for integration tests.
+This is intentionally fail-closed: no runtime is declared supported until its
+capture, editing, persistence, and Learner matching paths are implemented.
+Behavioral tests must supplement this gate.
 """
 from pathlib import Path
+import re
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-UI = ROOT / "src/GuideMe.Instructor.Web/wwwroot/main.js"
-WEB = ROOT / "src/GuideMe.Learner.ChromeExtension/content-runtime.js"
-WIN = ROOT / "src/GuideMe.Learner.Windows"
+ui = (ROOT / "src/GuideMe.Instructor.Web/wwwroot/main.js").read_text(encoding="utf-8")
+server = (ROOT / "src/GuideMe.Instructor.Web/Program.cs").read_text(encoding="utf-8")
+web = (ROOT / "src/GuideMe.Learner.ChromeExtension/content-runtime.js").read_text(encoding="utf-8")
+failures = []
 
-def check(condition, message):
-    if not condition:
+def require(ok, message):
+    if not ok:
         failures.append(message)
 
-failures = []
-ui = UI.read_text(encoding="utf-8")
-web = WEB.read_text(encoding="utf-8")
-check("picked-content-any" in ui, "Capture UI: Any value option missing")
-check("buildAny" in ui, "Edit UI: Any value option missing")
-check(":cell-any(" in web and ":nonempty-text" in web, "Web Learner: Any value matching missing")
+# Match the actual selectors (the source contains regexes, not necessarily
+# a literal `:cell-any(` string).
+require("parseCellTextSelector" in web and "cell-any" in web and "nonempty-text" in web
+        and "matchesCellText" in web,
+        "Web Learner: Any value selector handling missing")
+require("picked-content-any" in ui and "buildAny" in ui,
+        "Instructor: Any value capture/edit controls missing")
 
-# A shared UI must not restrict the capture option to the Web runtime.
-capture = ui[ui.find("picked-content-any") - 2500:ui.find("picked-content-any") + 2500]
-check("runtime === 'Web'" not in capture and "Runtime === 'Web'" not in capture,
-      "Capture UI: Any value is gated to Web")
+# Inspect only the capture-option expression, not unrelated runtime-specific
+# code that happens to be within an arbitrary character window.
+capture_start = ui.find("(!pickingFor.completion && !pickingFor.variableSource && (editableContent")
+capture_end = ui.find("(pickingFor.completion ? '<label for=\"target-condition\"", capture_start)
+capture_option = ui[capture_start:capture_end] if capture_start >= 0 and capture_end >= 0 else ""
+require(bool(capture_option) and
+        "requestSession.runtime === 'Web' ?" not in capture_option and
+        "requestSession.runtime === 'Web' &&" not in capture_option,
+        "Capture UI: Any value option restricted to Web")
 
-# The Windows matching contract must be explicit and testable, not assumed
-# from a checkbox in the shared Instructor. This marker is deliberately absent
-# until a real Windows Learner implementation and its tests are added.
-windows_sources = "\n".join(p.read_text(encoding="utf-8", errors="replace")
-                            for p in WIN.rglob("*.cs")) if WIN.exists() else ""
-check("GuideMeAnyNonEmptyValue" in windows_sources,
-      "Windows Learner: nonempty-value matching contract not implemented")
+# Windows must implement a semantic nonempty matcher, not simply render a
+# checkbox. Check for a concrete persisted locator strategy and consumption.
+windows_save = server[server.find('else if (runtime == "Windows")', server.find('SavePrimaryTargetRequest request')):]
+windows_save = windows_save[:windows_save.find('else return Results.BadRequest')]
+require("request.AnyContent" in windows_save,
+        "Windows Instructor: Any value not persisted")
+require("anyValueTarget" in ui and "context?.Runtime === 'Web' &&" not in
+        ui[ui.find("const anyValueTarget"):ui.find("const targetValueDescription")],
+        "Inspector: Any value display restricted to Web")
+
+# The Windows runtime must actually consume the new matching semantics.
+# This explicit contract remains failing until a tested implementation exists.
+windows_runtime = ROOT / "src/GuideMe.Learner.Windows"
+sources = "\n".join(p.read_text(encoding="utf-8", errors="replace")
+                    for p in windows_runtime.rglob("*.cs")) if windows_runtime.exists() else ""
+require("nonempty-text" in sources or "any-nonempty" in sources,
+        "Windows Learner: Any value matching missing")
 
 if failures:
     print("Instructor parity gate FAILED:")
     for failure in failures:
         print(" - " + failure)
     sys.exit(1)
-print("Instructor parity static gate passed (runtime tests still required).")
+print("Instructor parity static gate passed; integration tests still required.")
