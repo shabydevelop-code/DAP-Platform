@@ -435,3 +435,7 @@ body .brand-heading strong span { font-size: 26px; }
 
 /* Variable references remain visibly distinct from sample values in guide authoring. */
 .instruction-variable { display:inline; padding:0 4px; border:1px solid #b8cbe9; border-radius:4px; background:#edf4ff; color:#225ba5; font-weight:650; white-space:nowrap; unicode-bidi:isolate; }
+
+/* Semantic value matching: compact RTL checkbox, not a full-width form input. */
+.picked-target-fields .gm-any-value-option, .gm-any-value-option{display:inline-flex!important;flex-direction:row!important;align-items:center!important;justify-content:flex-start!important;align-self:flex-start!important;width:auto!important;gap:7px!important;margin:3px 0!important;font-weight:500!important;line-height:1.4!important;cursor:pointer}
+.picked-target-fields .gm-any-value-option input[type="checkbox"], .gm-any-value-option input[type="checkbox"]{appearance:auto!important;display:inline-block!important;flex:0 0 16px!important;width:16px!important;height:16px!important;min-width:16px!important;min-height:16px!important;max-width:16px!important;max-height:16px!important;margin:0!important;padding:0!important;border:initial!important;vertical-align:middle!important;accent-color:#1d58bb}
