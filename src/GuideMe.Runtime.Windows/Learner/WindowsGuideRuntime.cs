@@ -140,8 +140,6 @@ public sealed class WindowsGuideRuntime
         var activeState = new GuideActiveStepState(step);
         var sharedEngine = new UnifiedGuideStepEngine();
         var clicked = GuideStepExecutionPolicy.IsClickValidationStep(step);
-        var targetDisappeared = GuideStepExecutionPolicy.IsTargetDisappearanceStep(step);
-        var targetWasResolved = false;
         string? initialTextValue = null;
         var textTargetObservedFocused = 0;
         var textTargetChanged = 0;
@@ -212,12 +210,6 @@ public sealed class WindowsGuideRuntime
 
         try
         {
-            bool IsDisappearedTargetStepComplete()
-                => targetDisappeared && targetWasResolved
-                    && sharedEngine.EvaluateCompletion(activeState, 
-                        true, AreCompletionConditionsSatisfied(windowRoot, step, completionTargetsBeforeAction))
-                        == GuideStepReconciliationResult.Completed;
-
             async Task<GuideStepReconciliationResult> ReconcileAsync(CancellationToken cancellationToken)
             {
                 // Keep learner overlays bound to the target application. When the
@@ -292,8 +284,6 @@ public sealed class WindowsGuideRuntime
                 {
                     ReportBubbleAvailable(false);
                     await _bubbles.HideAsync();
-                    if (IsDisappearedTargetStepComplete())
-                        return GuideStepReconciliationResult.Completed;
                     return await GuideActiveStepState.WaitAsync(
                         sharedEngine.ObserveReadiness(activeState, contextActive: true, targetAvailable: false, targetVisible: false), _pollInterval, cancellationToken);
                 }
@@ -306,8 +296,6 @@ public sealed class WindowsGuideRuntime
                         $"root='{GetActiveResolutionRoot(windowRoot).Current.Name}'");
                     ReportBubbleAvailable(false);
                     await _bubbles.HideAsync();
-                    if (IsDisappearedTargetStepComplete())
-                        return GuideStepReconciliationResult.Completed;
                     // Match Web: the shared step state invalidates presentation when
                     // the target disappears, rather than returning a raw wait reason.
                     return await GuideActiveStepState.WaitAsync(
@@ -329,13 +317,11 @@ public sealed class WindowsGuideRuntime
                 if (clicked)
                     Diagnose($"target-resolved clickObserved={clickCompleted.Task.IsCompleted}");
                 activeState.ObserveTarget(true);
-                targetWasResolved = true;
 
                 var isTextEditTarget = (target.Current.ControlType == ControlType.Edit ||
                     target.Current.ControlType == ControlType.Document)
                     && GuideStepExecutionPolicy.IsAutomaticValidationStep(step)
-                    && !clicked
-                    && !targetDisappeared;
+                    && !clicked;
 
                 // Document editors commonly have TextPattern but no ValuePattern.
                 // Treat leaving the document as the commit; do not advance while
@@ -734,12 +720,6 @@ public sealed class WindowsGuideRuntime
                     {
                         return GuideStepReconciliationResult.Completed;
                     }
-                }
-                else if (targetDisappeared)
-                {
-                    // Completion is detected on a later reconciliation pass when
-                    // the previously resolved target leaves the current UI tree.
-
                 }
                 else if (GuideStepExecutionPolicy.CanEvaluatePrimaryValidation(
                     step, isTextEditTarget, Volatile.Read(ref textTargetCommitted) == 1))
