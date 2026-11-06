@@ -107,9 +107,13 @@ public static class GuideV5ExecutionCompiler
             var policy = validation is null
                 ? StepAdvanceMode.Manual
                 : StepAdvanceMode.AutomaticOnValidation;
-            // A new step defaults to Center; selecting a target must not turn
-            // a manual information bubble into a centered, targetless step.
-            if (mainTarget is not null && placement == BubblePlacement.Center)
+            // Presentation follows the step's actual execution semantics.
+            // Older saved information steps can retain Auto after their primary
+            // target was removed; they still must run as centered manual bubbles.
+            if (mainTarget is null && policy == StepAdvanceMode.Manual &&
+                validation is null && context is null && completion.Length == 0)
+                placement = BubblePlacement.Center;
+            else if (mainTarget is not null && placement == BubblePlacement.Center)
                 placement = BubblePlacement.Auto;
             steps.Add(new GuideStep(s.StepId, s.Order, mainTarget,
                 new BubbleDefinition(s.BubbleContent, placement), validation, policy,
