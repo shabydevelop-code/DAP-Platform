@@ -1090,14 +1090,12 @@ WHERE GuideId=$guideId AND StepId=$stepId";
 JOIN ApplicationContexts c ON c.GuideId=s.GuideId AND c.ContextId=s.ApplicationContextId
 WHERE s.GuideId=$guideId AND s.StepId=$stepId AND c.Runtime=$runtime
 AND EXISTS (SELECT 1 FROM StepTargets t WHERE t.GuideId=s.GuideId
-AND t.StepId=s.StepId AND t.Purpose='Primary')
-AND EXISTS (SELECT 1 FROM StepRules r WHERE r.GuideId=s.GuideId
-AND r.StepId=s.StepId AND r.RuleType='PrimaryValidation')";
+AND t.StepId=s.StepId AND t.Purpose='Primary')";
         check.Parameters.AddWithValue("$guideId", guideId);
         check.Parameters.AddWithValue("$stepId", stepId);
         check.Parameters.AddWithValue("$runtime", runtime);
         if (Convert.ToInt64(check.ExecuteScalar()) != 1)
-            throw new InvalidOperationException("יש להגדיר קודם רכיב פעולה ותנאי ראשי.");
+            throw new InvalidOperationException("יש להגדיר קודם רכיב במסך.");
         check.CommandText = @"SELECT COUNT(*) FROM StepRules WHERE GuideId=$guideId
 AND StepId=$stepId AND RuleType='AdditionalCompletionCondition'";
         var existing = Convert.ToInt64(check.ExecuteScalar());
