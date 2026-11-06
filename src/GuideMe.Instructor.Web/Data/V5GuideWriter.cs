@@ -703,7 +703,15 @@ WHERE GuideId=$guideId AND StepOrder<0";
     internal sealed record TargetLocator(string Strategy, string Value);
     internal sealed record TargetAnchor(TargetLocator Locator, string Relation);
     internal static void SavePrimaryTargetLocatorTemplate(long guideId, string stepId,
-        string locatorValue, string? locatorStrategy = null)
+        string locatorValue, string? locatorStrategy = null) =>
+        SaveTargetLocatorTemplate(guideId, stepId, locatorValue, locatorStrategy, false);
+
+    internal static void SaveCompletionTargetLocatorTemplate(long guideId, string stepId,
+        string locatorValue, string? locatorStrategy = null) =>
+        SaveTargetLocatorTemplate(guideId, stepId, locatorValue, locatorStrategy, true);
+
+    private static void SaveTargetLocatorTemplate(long guideId, string stepId,
+        string locatorValue, string? locatorStrategy, bool completion)
     {
         if (string.IsNullOrWhiteSpace(locatorValue) || locatorValue.Length > 400 ||
             locatorValue.Contains((char)0))
@@ -722,7 +730,9 @@ WHERE GuideId=$guideId AND StepOrder<0";
         command.Parameters.AddWithValue("$stepId", stepId);
         command.CommandText = @"SELECT e.ElementId, e.LocatorsJson, e.ControlType, e.DisplayName FROM Elements e
 JOIN StepTargets t ON t.GuideId=e.GuideId AND t.ElementId=e.ElementId
-WHERE t.GuideId=$guideId AND t.StepId=$stepId AND t.Purpose='Primary'";
+WHERE t.GuideId=$guideId AND t.StepId=$stepId AND t.Purpose=$purpose AND t.UsageId=$usage";
+        command.Parameters.AddWithValue("$purpose", completion ? "Completion" : "Primary");
+        command.Parameters.AddWithValue("$usage", completion ? "completion" : "primary");
         string elementId, json;
         string? controlType, displayName;
         using (var reader = command.ExecuteReader())
