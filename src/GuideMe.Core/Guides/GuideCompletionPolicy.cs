@@ -4,7 +4,7 @@ namespace GuideMe.Core.Guides;
 public static class GuideCompletionPolicy
 {
     public static bool IsSupportedObservationKind(string kind) => kind.Trim().ToLowerInvariant() is
-        "target-exists" or "target-not-exists" or "target-appeared" or "target-vanished" or "target-enabled" or "value-equals" or "value-contains";
+        "target-exists" or "target-not-exists" or "target-appeared" or "target-enabled" or "value-equals" or "value-contains";
 
     public static bool IsSatisfied(StepCompletionCondition condition, bool resolved, bool ambiguous, bool enabled = false, string? value = null)
     {
@@ -12,7 +12,7 @@ public static class GuideCompletionPolicy
         return condition.Kind.Trim().ToLowerInvariant() switch
         {
             "target-exists" or "target-appeared" => resolved,
-            "target-not-exists" or "target-vanished" => !resolved && !ambiguous,
+            "target-not-exists" => !resolved && !ambiguous,
             "target-enabled" => resolved && enabled,
             "value-contains" => resolved && !string.IsNullOrEmpty(condition.ExpectedValue) &&
                 GuideValidationPolicy.NormalizeExpectedText(value)?.Contains(GuideValidationPolicy.NormalizeExpectedText(condition.ExpectedValue)!, StringComparison.Ordinal) == true,
