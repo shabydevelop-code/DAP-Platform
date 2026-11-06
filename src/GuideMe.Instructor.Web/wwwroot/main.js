@@ -633,7 +633,7 @@ function renderSteps() {
     if (addCompletion) addCompletion.onclick = () => guarded(() =>
       beginTargetPicker(context.Runtime, current.guide.id, step.id, contextId, false, true, context));
     const editCompletion = $('edit-completion');
-    if (editCompletion) editCompletion.onclick = () => editCompletionCondition(step, completionRule);
+    if (editCompletion) editCompletion.onclick = () => editCompletionCondition(step, completionRule, completionLocators);
     const replaceCompletion = $('replace-completion');
     if (replaceCompletion) replaceCompletion.onclick = () => guarded(() =>
       beginTargetPicker(context.Runtime, current.guide.id, step.id, contextId, true, true, context, null,
@@ -696,16 +696,21 @@ function validationLabel(kind) {
   return validationChoices.find(x=>x.value===kind)?.text ||
     'תנאי מתקדם שהוגדר במערכת';
 }
-function editCompletionCondition(step, rule) {
+function editCompletionCondition(step, rule, locators) {
   const card = $('edit-completion')?.closest('.completion-card');
   const details = card?.querySelector('.completion-details');
   const actions = card?.querySelector('.target-action-buttons');
   if (!card || !details || !actions) return;
   details.classList.add('hidden');
   actions.classList.add('hidden');
+  const locator = (locators || [])[0];
+  const binding = locatorTextBinding(locator);
   const editor = document.createElement('form');
   editor.className = 'completion-inline-editor';
   editor.innerHTML =
+    (binding ? '<div class="field"><label for="completion-edit-locator">ערך לזיהוי הרכיב</label>' +
+      '<textarea id="completion-edit-locator" maxlength="400" rows="1" dir="rtl"></textarea>' +
+      '<div id="completion-edit-locator-variables"></div></div>' : '') +
     '<div class="field"><label for="completion-edit-kind">חוק השלמה</label>' +
     '<select id="completion-edit-kind">' +
     '<option value="target-appeared">הרכיב מופיע במסך</option>' +
@@ -717,6 +722,11 @@ function editCompletionCondition(step, rule) {
     '<button class="btn secondary small" type="button" id="completion-edit-cancel">ביטול</button>' +
     '</div></div>';
   card.append(editor);
+  const locatorInput = $('completion-edit-locator');
+  if (locatorInput) {
+    locatorInput.value = binding.value;
+    initializeVariableField(locatorInput, $('completion-edit-locator-variables'), binding.value);
+  }
   const kind = $('completion-edit-kind');
   const value = $('completion-edit-expected');
   const valueGroup = $('completion-edit-value');
@@ -742,11 +752,18 @@ function editCompletionCondition(step, rule) {
     if (!validateInstructorForm(editor)) return;
     guarded(async () => {
       const expected = kind.value === 'value-contains' ? variableEditorResult(value).trim() : null;
+      const locatorValue = locatorInput ? variableEditorResult(locatorInput).trim() : null;
+      if (locatorInput && !locatorValue)
+        return showInstructorFieldError(locatorInput, 'יש להזין ערך לזיהוי הרכיב.');
       if (kind.value === 'value-contains' && !expected)
         return showInstructorFieldError(value, 'יש להזין ערך צפוי.');
       const buttons = [...editor.querySelectorAll('button')];
       buttons.forEach(b => b.disabled = true);
       try {
+        if (locatorInput && locatorValue !== locator.Value) {
+          await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+'/completion-target/variable',
+            {method:'POST',body:JSON.stringify({locatorValue})});
+        }
         await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+'/completion-target',
           {method:'PUT',body:JSON.stringify({kind:kind.value,expectedValue:expected})});
         await reloadSelectedStep(current.guide.id, step.id);
