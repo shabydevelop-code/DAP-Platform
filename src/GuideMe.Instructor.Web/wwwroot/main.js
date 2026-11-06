@@ -1813,10 +1813,10 @@ function editPrimaryTargetValue({kind, step, locators, binding:preparedBinding})
   const edit = document.createElement('div');
   edit.className = 'field';
   const label = document.createElement('label');
-  label.textContent = 'ערך לזיהוי הרכיב (לא חובה)';
+  label.textContent = 'ערך לזיהוי הרכיב';
   const input = document.createElement('textarea');
   input.rows = 1; input.maxLength = 400; input.dir = 'rtl';
-  input.value = '';
+  input.value = rawValue;
   edit.append(label,input);
   const variableControls = document.createElement('div');
   edit.append(variableControls);
@@ -1845,8 +1845,14 @@ function editPrimaryTargetValue({kind, step, locators, binding:preparedBinding})
     try {
       const value=variableEditorResult(input);
       const template=buildTemplate(value);
-      if (!template.trim()) showInstructorFieldError(input, 'יש להזין מזהה רכיב.');
-      if (template.length>400) showInstructorFieldError(input, 'מזהה הרכיב ארוך מדי.');
+      if (!value.trim()) {
+        showInstructorFieldError(input, 'יש להזין ערך לזיהוי הרכיב.');
+        return;
+      }
+      if (template.length>400) {
+        showInstructorFieldError(input, 'מזהה הרכיב ארוך מדי.');
+        return;
+      }
       if (locator.Strategy === 'css' && rawValue === original &&
           !template.includes('{{var:')) {
         try { document.querySelector(template); }
