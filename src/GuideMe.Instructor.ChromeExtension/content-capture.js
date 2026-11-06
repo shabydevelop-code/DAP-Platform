@@ -300,6 +300,14 @@
     const table = row?.closest('table');
     const gridChoices = [];
     let selectedGridChoice = null;
+    // The action is located relative to its row, never by a volatile element ID.
+    const actionCell = target.closest('td,th');
+    const actionColumn = actionCell && row && actionCell.parentElement === row
+      ? [...row.cells].indexOf(actionCell) + 1 : 0;
+    const actionTag = target.tagName.toLowerCase();
+    const actionSuffix = actionColumn && /^(button|a|input|select)$/.test(actionTag) &&
+      actionCell.querySelectorAll(actionTag).length === 1
+      ? ' > :is(td,th):nth-child(' + actionColumn + ') ' + actionTag : null;
     if (row && table && row.closest('tbody') && row.cells.length) {
       const tableSelector = selectorFor(table);
       if (tableSelector) {
@@ -315,7 +323,7 @@
           const rowSelector = tableSelector + ' tbody tr:cell-text(' + (index + 1) + ',' + JSON.stringify(value) + ')';
           if (rowSelector.length <= 400) {
             if (target.closest('td,th') === cell) selectedGridChoice = gridChoices.length;
-            gridChoices.push({header, value, selector:rowSelector});
+            gridChoices.push({header, value, selector:rowSelector, actionSelector:actionSuffix ? rowSelector + actionSuffix : null});
           }
         });
       }
