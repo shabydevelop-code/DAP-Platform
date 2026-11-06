@@ -343,6 +343,25 @@ public sealed class WindowsTargetResolver
 
     private static IEnumerable<AutomationElement> Find(AutomationElement root, Locator locator)
     {
+        if (locator.Strategy.Trim().Equals("name-nonempty", StringComparison.OrdinalIgnoreCase))
+        {
+            // A changing Name is not a structural locator. Retain the captured
+            // ControlType and anchors; never choose an arbitrary first match.
+            return root.FindAll(TreeScope.Descendants, Condition.TrueCondition)
+                .Cast<AutomationElement>()
+                .Where(element =>
+                {
+                    try
+                    {
+                        var value = element.TryGetCurrentPattern(ValuePattern.Pattern, out var pattern)
+                            ? ((ValuePattern)pattern).Current.Value
+                            : element.Current.Name;
+                        return !string.IsNullOrWhiteSpace(value);
+                    }
+                    catch (ElementNotAvailableException) { return false; }
+                    catch (System.Runtime.InteropServices.COMException) { return false; }
+                }).ToArray();
+        }
         if (locator.Strategy.Trim().Equals("name-regex", StringComparison.OrdinalIgnoreCase))
         {
             if (TryCreateNativeCondition(locator, out var exactCondition))
