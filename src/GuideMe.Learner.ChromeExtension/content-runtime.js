@@ -375,14 +375,13 @@
   // Semantic grid-row selector authored by Instructor. Match an exact cell
   // value, not the row index, so sorting and re-rendering remain safe.
   function parseCellTextSelector(selector) {
-    const pattern = /:cell-text\((\d+),("(?:\\.|[^"\\])*")\)(?=$|\s*>)/;
+    const pattern = /:cell-text\((\d+),("(?:\\.|[^"\\])*")\)$/;
     const match = String(selector || "").match(pattern);
     if (!match) return {selector, cell: null};
     const column = Number(match[1]);
     if (!Number.isSafeInteger(column) || column < 1 || column > 100)
       throw new Error("Invalid grid column");
     return {selector:selector.slice(0, match.index),
-      suffix:selector.slice(match.index + match[0].length),
       cell:{column, value:JSON.parse(match[2])}};
   }
   function matchesCellText(el, cell) {
@@ -394,18 +393,6 @@
 
   function queryExtendedCss(selector, root = document) {
     const parsed = parseCellTextSelector(selector);
-    if (parsed.cell && parsed.suffix) {
-      // Match the row first, then locate the action inside that exact row.
-      // A row's cell matcher must not be applied to its descendant button.
-      if (!/^\s*>\s*:is\(td,th\):nth-child\([1-9][0-9]*\)\s+(button|a|input|select)$/.test(parsed.suffix))
-        return [];
-      let rows;
-      try { rows = [...root.querySelectorAll(parsed.selector)]; }
-      catch (error) { if (error?.name === 'SyntaxError') return []; throw error; }
-      const matchedRows = rows.filter(row => matchesCellText(row,parsed.cell));
-      if (matchedRows.length !== 1) return [];
-      return [...matchedRows[0].querySelectorAll(':scope ' + parsed.suffix)];
-    }
     const source = String(parsed.selector || "");
     const textFilters = [];
     const exactFilters = [];
@@ -440,8 +427,6 @@
 
   function matchesExtendedCss(el, selector) {
     const parsed = parseCellTextSelector(selector);
-    if (parsed.cell && parsed.suffix)
-      return queryExtendedCss(selector,el.ownerDocument).includes(el);
     const source = String(parsed.selector || "");
     const textFilters = [];
     const exactFilters = [];
