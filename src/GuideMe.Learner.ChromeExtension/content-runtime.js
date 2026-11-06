@@ -375,6 +375,8 @@
   // Semantic grid-row selector authored by Instructor. Match an exact cell
   // value, not the row index, so sorting and re-rendering remain safe.
   function parseCellTextSelector(selector) {
+    const any = String(selector || "").match(/:cell-any\((\d+)\)$/);
+    if (any) return {selector:selector.slice(0, any.index), cell:{column:Number(any[1]), any:true}};
     const pattern = /:cell-text\((\d+),("(?:\\.|[^"\\])*")\)$/;
     const match = String(selector || "").match(pattern);
     if (!match) return {selector, cell: null};
@@ -388,7 +390,7 @@
     if (!cell) return true;
     if (!(el instanceof HTMLTableRowElement)) return false;
     const text = el.cells[cell.column - 1]?.textContent;
-    return text != null && normalize(text) === normalize(cell.value);
+    return text != null && (cell.any ? normalize(text).length > 0 : normalize(text) === normalize(cell.value));
   }
 
   function queryExtendedCss(selector, root = document) {
@@ -396,7 +398,8 @@
     const source = String(parsed.selector || "");
     const textFilters = [];
     const exactFilters = [];
-    const withoutExact = source.replace(/:exact-text\(("(?:\\.|[^"\\])*")\)/g,
+    const nonempty = source.includes(":nonempty-text");
+    const withoutExact = source.replace(/:nonempty-text/g, "").replace(/:exact-text\(("(?:\\.|[^"\\])*")\)/g,
       (_match, quoted) => {
         exactFilters.push(normalize(JSON.parse(quoted)));
         return "";
@@ -416,12 +419,12 @@
       // An invalid authored selector is an unresolved target, not a fatal guide error.
       return [];
     }
-    if (!textFilters.length && !exactFilters.length && !parsed.cell) return candidates;
+    if (!textFilters.length && !exactFilters.length && !parsed.cell && !nonempty) return candidates;
 
     return candidates.filter(el => {
       const text = normalize(el.textContent).toLowerCase();
       return matchesCellText(el, parsed.cell) && textFilters.every(wanted => text.includes(wanted)) &&
-        exactFilters.every(wanted => normalize(el.textContent) === wanted);
+        exactFilters.every(wanted => normalize(el.textContent) === wanted) && (!nonempty || normalize(el.textContent).length > 0);
     });
   }
 
@@ -430,7 +433,8 @@
     const source = String(parsed.selector || "");
     const textFilters = [];
     const exactFilters = [];
-    const withoutExact = source.replace(/:exact-text\(("(?:\\.|[^"\\])*")\)/g,
+    const nonempty = source.includes(":nonempty-text");
+    const withoutExact = source.replace(/:nonempty-text/g, "").replace(/:exact-text\(("(?:\\.|[^"\\])*")\)/g,
       (_match, quoted) => {
         exactFilters.push(normalize(JSON.parse(quoted)));
         return "";
@@ -450,11 +454,11 @@
         return false;
       }
     }
-    if (!textFilters.length && !exactFilters.length && !parsed.cell) return true;
+    if (!textFilters.length && !exactFilters.length && !parsed.cell && !nonempty) return true;
 
     const text = normalize(el.textContent).toLowerCase();
     return matchesCellText(el, parsed.cell) && textFilters.every(wanted => text.includes(wanted)) &&
-        exactFilters.every(wanted => normalize(el.textContent) === wanted);
+        exactFilters.every(wanted => normalize(el.textContent) === wanted) && (!nonempty || normalize(el.textContent).length > 0);
   }
 
   function createCandidates(locator) {
