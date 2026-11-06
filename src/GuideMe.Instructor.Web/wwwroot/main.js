@@ -393,7 +393,7 @@ function renderSteps() {
       : completionRule?.Kind === 'attribute-equals'
         ? 'המאפיין "' + esc(completionAttribute.name || 'הנבחר') +
           '" שווה ל־"' + esc(completionAttribute.value ?? '') + '"'
-      : 'נעלם מהמסך';
+      : 'תנאי השלמה';
     const locatorText = locators[0]?.Value || '';
     const friendlyName = element?.DisplayName || (locatorText === 'a' ? 'קישור' : locatorText);
     const dynamicWindowsControl = context?.Runtime === 'Windows' &&
