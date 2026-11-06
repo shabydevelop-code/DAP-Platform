@@ -428,8 +428,6 @@ function renderSteps() {
       targetValue ? 'רכיב טקסט' : 'רכיב במסך');
     const anyValueTarget = (context?.Runtime === 'Web' && /:(?:cell-any\(\d+\)|nonempty-text)$/.test(locatorText)) ||
       (context?.Runtime === 'Windows' && ['name-nonempty','automation-id-nonempty'].includes(webLocator?.Strategy));
-    const anyValueEligible = GuideMeAnyValueUI.isEligible(
-      context?.Runtime, webLocator, editableTargetBinding);
     const targetValueDescription = anyValueTarget ? 'כל ערך' :
       editableTargetBinding?.value ? (editableTargetBinding.value.includes('{{var:') ? 'משתנה' : 'ערך קבוע') : null;
     selectedTargetPreviewValue = editableTargetBinding?.value || targetValue || null;
@@ -459,9 +457,8 @@ function renderSteps() {
       '<div id="primary-target-summary">' +
       (target ? '<p><strong>' + esc(friendlyName) + '</strong></p>' +
         '<p class="field-help">סוג רכיב: ' + esc(targetType) + '</p>' +
-        (targetValueDescription && !anyValueEligible ? '<p>זיהוי לפי תוכן: <strong class="target-business-value-preview">' +
+        (targetValueDescription ? '<p>זיהוי לפי תוכן: <strong class="target-business-value-preview">' +
           esc(targetValueDescription) + '</strong></p>' : '') +
-        (anyValueEligible ? GuideMeAnyValueUI.renderOption('primary-target-any', anyValueTarget) : '') +
         (!anyValueTarget && editableTargetBinding?.value ? '<p>ערך איתור: <strong class="target-business-value-preview">' +
           friendlyInstructionHtml(editableTargetBinding.value) + '</strong></p>' : '') +
         '' :
@@ -657,29 +654,6 @@ function renderSteps() {
     const bindTarget = $('bind-target-variable');
     if (bindTarget) bindTarget.onclick = () => editPrimaryTargetValue({
       kind:'target', step, locators, binding:editableTargetBinding
-    });
-    const anyTargetToggle = $('primary-target-any');
-    if (anyTargetToggle) anyTargetToggle.onchange = () => guarded(async () => {
-      const selected = anyTargetToggle.checked;
-      const locator = locators[0];
-      const update = GuideMeAnyValueUI.buildUpdate(
-        context?.Runtime, locator, selected, element?.DisplayName, editableTargetBinding);
-      if (!update) {
-        anyTargetToggle.checked = true;
-        editPrimaryTargetValue({kind:'target', step, locators, binding:editableTargetBinding});
-        return;
-      }
-      anyTargetToggle.disabled = true;
-      try {
-        await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+'/primary-target/variable', {
-          method:'POST', body:JSON.stringify(update)
-        });
-        await reloadSelectedStep(current.guide.id, step.id);
-      } catch (error) {
-        anyTargetToggle.checked = !selected;
-        anyTargetToggle.disabled = false;
-        throw error;
-      }
     });
     const targetReplace = $('replace-web-target');
     if (targetReplace) targetReplace.onclick = () => guarded(() => startElementPicker(true));
