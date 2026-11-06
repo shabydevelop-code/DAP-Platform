@@ -530,7 +530,24 @@ public sealed class WindowsTargetResolver
 
     private static bool MatchesLocator(AutomationElement element, Locator locator)
     {
-        if (locator.Strategy.Trim().Equals("name-regex", StringComparison.OrdinalIgnoreCase))
+        var strategy = locator.Strategy.Trim();
+        if (strategy.Equals("name-nonempty", StringComparison.OrdinalIgnoreCase))
+            return HasNonemptyObservedValue(element);
+
+        if (strategy.Equals("automation-id-nonempty", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                // The automation ID is the stable identity; only its observed
+                // value/name is allowed to vary between Instructor and Learner.
+                return string.Equals(element.Current.AutomationId, locator.Value, StringComparison.Ordinal)
+                    && HasNonemptyObservedValue(element);
+            }
+            catch (ElementNotAvailableException) { return false; }
+            catch (System.Runtime.InteropServices.COMException) { return false; }
+        }
+
+        if (strategy.Equals("name-regex", StringComparison.OrdinalIgnoreCase))
             return Regex.IsMatch(element.Current.Name ?? string.Empty, locator.Value, RegexOptions.CultureInvariant);
 
         return MatchesCondition(element, CreateCondition(locator));
