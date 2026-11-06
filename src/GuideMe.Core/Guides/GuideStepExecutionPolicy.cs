@@ -46,14 +46,13 @@ public static class GuideStepExecutionPolicy
     public static bool CanAdvance(bool primaryValidationSatisfied, bool completionConditionsSatisfied)
         => primaryValidationSatisfied && completionConditionsSatisfied;
 
-    /// <summary>Shared post-action advancement rule for click events and
-    /// targets that disappeared after being observed. Platform adapters supply
+    /// <summary>Shared post-action advancement rule for click events. Platform adapters supply
     /// their own event/target observation and persisted completion evaluation.</summary>
     public static bool CanAdvanceAfterObservedAction(
         GuideStep step, bool actionObserved, bool completionConditionsSatisfied)
     {
         ArgumentNullException.ThrowIfNull(step);
-        return (IsClickValidationStep(step) || IsTargetDisappearanceStep(step))
+        return IsClickValidationStep(step)
             && CanAdvance(actionObserved, completionConditionsSatisfied);
     }
 
@@ -70,7 +69,7 @@ public static class GuideStepExecutionPolicy
         ArgumentNullException.ThrowIfNull(step);
         if (!IsAutomaticValidationStep(step))
             return false;
-        if (!IsClickValidationStep(step) && !IsTargetDisappearanceStep(step)
+        if (!IsClickValidationStep(step)
             && !CanEvaluatePrimaryValidation(step, isTextEditTarget, textEditCommitted))
             return false;
         return CanAdvance(primaryValidationSatisfied, completionConditionsSatisfied);
@@ -81,13 +80,6 @@ public static class GuideStepExecutionPolicy
         ArgumentNullException.ThrowIfNull(step);
         return IsAutomaticValidationStep(step)
             && string.Equals(step.Validation!.Kind, "clicked", StringComparison.OrdinalIgnoreCase);
-    }
-
-    public static bool IsTargetDisappearanceStep(GuideStep step)
-    {
-        ArgumentNullException.ThrowIfNull(step);
-        return IsAutomaticValidationStep(step)
-            && string.Equals(step.Validation!.Kind, "target-disappeared", StringComparison.OrdinalIgnoreCase);
     }
 
     public static bool IsCenteredInformationStep(GuideStep step)
