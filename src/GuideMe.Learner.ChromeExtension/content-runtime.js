@@ -402,8 +402,9 @@
       let rows;
       try { rows = [...root.querySelectorAll(parsed.selector)]; }
       catch (error) { if (error?.name === 'SyntaxError') return []; throw error; }
-      return rows.filter(row => matchesCellText(row,parsed.cell))
-        .flatMap(row => [...row.querySelectorAll(':scope ' + parsed.suffix)]);
+      const matchedRows = rows.filter(row => matchesCellText(row,parsed.cell));
+      if (matchedRows.length !== 1) return [];
+      return [...matchedRows[0].querySelectorAll(':scope ' + parsed.suffix)];
     }
     const source = String(parsed.selector || "");
     const textFilters = [];
