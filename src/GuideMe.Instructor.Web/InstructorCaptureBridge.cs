@@ -124,7 +124,7 @@ internal sealed class InstructorCaptureBridge
         _selectedTab is not null && _tabs.Any(t => t.TabId == _selectedTab) &&
         DateTimeOffset.UtcNow - _lastHeartbeat < TimeSpan.FromSeconds(10);
 
-    public (string Selector, string[] FramePath, string? DisplayName) GetApprovedTarget(long guideId, string contextId, int? gridChoice = null)
+    public (string Selector, string[] FramePath, string? DisplayName) GetApprovedTarget(long guideId, string contextId, int? gridChoice = null, bool gridAction = false)
     {
         lock (_gate)
         {
@@ -156,7 +156,18 @@ internal sealed class InstructorCaptureBridge
                     rowSelector.GetString() is not { Length: > 0 and <= 400 } value ||
                     !value.Contains(":cell-text(", StringComparison.Ordinal))
                     throw new InvalidOperationException("מזהה שורת גריד אינו תקין.");
-                chosenSelector = value;
+                if (gridAction)
+                {
+                    if (!choice.TryGetProperty("actionSelector", out var actionSelector) ||
+                        actionSelector.ValueKind != JsonValueKind.String ||
+                        actionSelector.GetString() is not { Length: > 0 and <= 400 } action ||
+                        !action.StartsWith(value + " > :is(td,th):nth-child(", StringComparison.Ordinal) ||
+                        !System.Text.RegularExpressions.Regex.IsMatch(action,
+                            @" > :is\(td,th\):nth-child\([1-9][0-9]*\) (button|a|input|select)$"))
+                        throw new InvalidOperationException("לא ניתן לזהות כפתור פעולה ייחודי בשורה.");
+                    chosenSelector = action;
+                }
+                else chosenSelector = value;
                 displayName = choice.TryGetProperty("header", out var header) &&
                     choice.TryGetProperty("value", out var cellValue)
                     ? $"{header.GetString()}: {cellValue.GetString()}" : displayName;
