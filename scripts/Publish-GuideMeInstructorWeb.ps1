@@ -43,8 +43,10 @@ try {
     # Guard against accidentally shipping the obsolete standalone recorder UI.
     $stagedHtml = Join-Path $staging 'wwwroot\index.html'
     $stagedJs = Join-Path $staging 'wwwroot\main.js'
+    $stagedAnyValue = Join-Path $staging 'wwwroot\any-value-ui.js'
     if (-not (Test-Path -LiteralPath $stagedHtml) -or
-        -not (Test-Path -LiteralPath $stagedJs)) {
+        -not (Test-Path -LiteralPath $stagedJs) -or
+        -not (Test-Path -LiteralPath $stagedAnyValue)) {
         throw 'Instructor Web UI files are missing from publish output.'
     }
     $htmlContent = [IO.File]::ReadAllText($stagedHtml)
@@ -53,6 +55,18 @@ try {
         $htmlContent.Contains('capture-pair') -or
         $jsContent.Contains("capture-pair")) {
         throw 'Publish blocked: obsolete global recording controls are still present in Web UI.'
+    }
+    # Fail the publication if the obsolete editable checkbox is present in
+    # the summary rather than exclusively in the explicit Edit form.
+    if ($jsContent.Contains("renderOption('primary-target-any'") -or
+        $jsContent.Contains("$('primary-target-any')") -or
+        -not $jsContent.Contains("renderOption('edit-primary-target-any'") -or
+        -not $jsContent.Contains('const targetValueDescription = anyValueTarget')) {
+        throw 'Publish blocked: target summary must be read-only until Edit is pressed.'
+    }
+    if (-not $htmlContent.Contains('any-value-ui.js') -or
+        -not $htmlContent.Contains('main.js?v=20261106-edit-only')) {
+        throw 'Publish blocked: expected edit-only Instructor UI version is missing.'
     }
 
     New-Item -ItemType Directory -Path $Destination -Force | Out-Null
@@ -76,7 +90,7 @@ try {
         Copy-Item -LiteralPath $file.FullName -Destination $targetPath -Force
     }
 
-    foreach ($asset in @('index.html', 'main.js', 'style.css')) {
+    foreach ($asset in @('index.html', 'main.js', 'any-value-ui.js', 'style.css')) {
         $from = Join-Path $staging "wwwroot\$asset"
         $to = Join-Path $Destination "wwwroot\$asset"
         if ((Get-FileHash -LiteralPath $from -Algorithm SHA256).Hash -ne
