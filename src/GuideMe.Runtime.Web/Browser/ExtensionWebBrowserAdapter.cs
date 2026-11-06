@@ -743,8 +743,15 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
                 && result.TryGetProperty("text", out var textProperty)
                 && textProperty.ValueKind == JsonValueKind.String)
                 value = textProperty.GetString();
-            // Preserve the Web adapter's previous handling of non-resolved targets.
-            if (!GuideCompletionPolicy.IsSatisfied(condition, observed, ambiguous: false, enabled, value))
+            // Evaluate the materialized condition (variable references are resolved
+            // by GuideVariableSession before the step reaches this adapter).
+            var satisfied = GuideCompletionPolicy.IsSatisfied(
+                condition, observed, ambiguous: false, enabled, value);
+            if (Environment.GetEnvironmentVariable("GUIDEME_DIAGNOSTICS") == "1")
+                TracePresentation(step, "completion-" + conditionIndex,
+                    $"kind={kind};resolved={resolved};satisfied={satisfied};expected={condition.ExpectedValue};actual={value}",
+                    response);
+            if (!satisfied)
                 allSatisfied = false;
         }
         return allSatisfied;
