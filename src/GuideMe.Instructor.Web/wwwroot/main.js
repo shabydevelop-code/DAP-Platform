@@ -1056,7 +1056,9 @@ async function refreshPicker() {
   const editableContent = capturedChoice ? String(capturedChoice.choice.value) :
     selectorText !== null ? selectorText :
     requestSession.runtime === 'Web' && !['input','textarea','select'].includes((candidate.tag || '').toLowerCase())
-      ? String(observedText?.value || '').trim() || null : null;
+      ? String(observedText?.value || '').trim() || null :
+    requestSession.runtime === 'Windows' && String(candidate.label || '').trim()
+      ? String(candidate.label).trim() : null;
   const capturedSample = requestSession.runtime === 'Windows'
     ? candidate.capturedValue
     : (candidate.variableSamples || []).find(sample => sample.property === 'value')?.value ??
