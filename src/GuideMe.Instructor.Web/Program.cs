@@ -246,7 +246,13 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/primary-target",
         // V5 compiles one primary locator; inspector candidates are alternatives, not a locator chain.
         locators = picked.Locators.Take(1)
             .Select(l => new V5GuideWriter.TargetLocator(l.Strategy, l.Value)).ToArray();
-        if (request.ContentValue is not null &&
+        if (request.AnyContent == true)
+        {
+            // Preserve captured type and structural anchors; ignore only the
+            // changing UIA Name. The runtime rejects ambiguous matches.
+            locators = new[] { new V5GuideWriter.TargetLocator("name-nonempty", "*") };
+        }
+        else if (request.ContentValue is not null &&
             !string.Equals(request.ContentValue, picked.Name, StringComparison.Ordinal))
         {
             if (request.ContentValue.Length > 400)
