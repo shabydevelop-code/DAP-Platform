@@ -685,7 +685,7 @@ function editCompletionCondition(step, rule) {
   const editor = document.createElement('form');
   editor.className = 'completion-inline-editor';
   editor.innerHTML =
-    '<div class="field"><label for="completion-edit-kind">השלב יושלם כאשר</label>' +
+    '<div class="field"><label for="completion-edit-kind">חוק השלמה</label>' +
     '<select id="completion-edit-kind">' +
     '<option value="target-appeared">הרכיב מופיע במסך</option>' +
     '<option value="value-contains">הרכיב מכיל ערך מסוים</option></select></div>' +
@@ -1072,8 +1072,8 @@ async function refreshPicker() {
       variableValueFieldMarkup('picked-content-value', 'זיהוי לפי תוכן') : '') +
     (pickingFor.completion ? '<label for="target-condition">חוק השלמה</label>' +
       '<select id="target-condition">' +
-      '<option value="target-appeared">הופיע</option>' +
-      '<option value="value-contains">השדה מכיל ערך מסוים</option>' +
+      '<option value="target-appeared">הרכיב מופיע במסך</option>' +
+      '<option value="value-contains">הרכיב מכיל ערך מסוים</option>' +
 '</select>' : '')+
     (pickingFor.completion ? '<div id="completion-fixed-value-fields" class="hidden">' +
       variableValueFieldMarkup('completion-fixed-value', 'ערך צפוי', 500) +
