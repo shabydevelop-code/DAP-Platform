@@ -304,6 +304,20 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/primary-target/variable",
     }
 });
 
+app.MapPost("/api/guides/{id:long}/steps/{stepId}/completion-target/variable",
+    (long id, string stepId, SavePrimaryTargetLocatorTemplateRequest request) =>
+{
+    try
+    {
+        V5GuideWriter.SaveCompletionTargetLocatorTemplate(id, stepId, request.LocatorValue, request.LocatorStrategy);
+        return Results.NoContent();
+    }
+    catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+    {
+        return Results.BadRequest(new { message = ex.Message });
+    }
+});
+
 app.MapPost("/api/windows/inspect", (WindowsInspectRequest request) =>
 {
     try { return Results.Ok(WindowsTargetInspector.Inspect(request.ProcessId, request.Focused)); }
