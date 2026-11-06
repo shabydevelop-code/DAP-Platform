@@ -408,9 +408,9 @@ function renderSteps() {
     const webTextBinding = context?.Runtime === 'Web' &&
       webLocator?.Strategy === 'css' && webDisplayName &&
       !/^[#.[>:+~]/.test(webDisplayName) &&
-      !/^[a-z][\\w-]*\\[[^\\]]+\\]/i.test(webDisplayName) &&
-      !/:has-text\\(|:exact-text\\(|:cell-text\\(/.test(webLocator.Value) &&
-      !/\\b(?:input|textarea|select)\\b/i.test(element?.ControlType || '')
+      !/^[a-z][\w-]*\[[^\]]+\]/i.test(webDisplayName) &&
+      !/:has-text\(|:exact-text\(|:cell-text\(/.test(webLocator.Value) &&
+      !/\b(?:input|textarea|select)\b/i.test(element?.ControlType || '')
         ? {value:webDisplayName, build:next=>webLocator.Value + ':exact-text(' + JSON.stringify(next) + ')'}
         : null;
     const editableTargetBinding = dataEntryTarget ? null : (locatorTextBinding(webLocator) ||
