@@ -140,6 +140,8 @@ public sealed class WindowsGuideRuntime
         var activeState = new GuideActiveStepState(step);
         var sharedEngine = new UnifiedGuideStepEngine();
         var clicked = GuideStepExecutionPolicy.IsClickValidationStep(step);
+        var completionOnly = GuideStepExecutionPolicy.IsCompletionOnlyStep(step);
+        var completionOnlySawUnsatisfied = false;
         string? initialTextValue = null;
         var textTargetObservedFocused = 0;
         var textTargetChanged = 0;
@@ -224,6 +226,21 @@ public sealed class WindowsGuideRuntime
                     await _bubbles.HideAsync();
                     return await GuideActiveStepState.WaitAsync(
                         GuideStepReconciliationResult.WaitingForContext, _pollInterval, cancellationToken);
+                }
+
+                if (completionOnly)
+                {
+                    // A destination observation alone completes this step.
+                    // Require a false-to-true observation during the active step.
+                    var satisfied = AreCompletionConditionsSatisfied(
+                        windowRoot, step, completionTargetsBeforeAction);
+                    if (!satisfied)
+                        completionOnlySawUnsatisfied = true;
+                    if (completionOnlySawUnsatisfied && satisfied)
+                    {
+                        await _bubbles.HideAsync();
+                        return GuideStepReconciliationResult.Completed;
+                    }
                 }
 
                 // Completion is evaluated before the source context. A valid learner
