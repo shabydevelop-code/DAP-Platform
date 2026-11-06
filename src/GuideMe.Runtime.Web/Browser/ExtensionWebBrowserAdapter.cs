@@ -700,10 +700,10 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
             }
             if (!GuideCompletionPolicy.IsSupportedObservationKind(kind))
                 throw new NotSupportedException($"Unsupported Web completion condition kind '{condition.Kind}'.");
-            // "Appeared"/"vanished" describe user-visible presence, not DOM
-            // membership. Preserve locator-based "exists"/"not-exists".
+            // "Appeared" describes user-visible presence, not DOM membership.
+            // Preserve locator-based "exists"/"not-exists".
             var observed = resolved;
-            if (kind is "target-appeared" or "target-vanished")
+            if (kind == "target-appeared")
             {
                 var visible = resolved && result.TryGetProperty("visible", out var visibleProperty)
                     && visibleProperty.ValueKind == JsonValueKind.True;
@@ -722,13 +722,10 @@ public sealed class ExtensionWebBrowserAdapter : IWebBrowserAdapter, IDisposable
                 var changed = token is not null &&
                     (state.DocumentToken != token || state.Revision != revision);
                 var sawHidden = state.SawHidden || !visible;
-                var transitioned = state.TransitionObserved ||
-                    (kind == "target-appeared"
-                        ? visible && (sawHidden || changed)
-                        : !visible && (state.InitialVisible || changed));
+                var transitioned = state.TransitionObserved || visible && (sawHidden || changed);
                 _completionTransitions[key] = (state.InitialVisible, sawHidden,
                     token ?? state.DocumentToken, revision, transitioned);
-                if (!transitioned || (kind == "target-appeared" ? !visible : visible))
+                if (!transitioned || !visible)
                 {
                     allSatisfied = false;
                     continue;
