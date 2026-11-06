@@ -479,7 +479,7 @@ function renderSteps() {
           '<button class="btn secondary small" id="edit-completion">עריכה</button>' +
           '<button class="btn danger small" id="remove-completion">הסרה</button>' +
           '</div></div>' :
-          '<p>' + (!target ? 'יש לבחור תחילה רכיב ראשי לשלב.' : !rule ? 'יש להגדיר תחילה תנאי התקדמות לשלב.' : 'בחר רכיב ובדוק הופעה, היעלמות או שינוי מאפיין בעקבות הפעולה.') + '</p>' +
+          '<p>' + (!target ? 'יש לבחור תחילה רכיב במסך.' : 'אפשר להגדיר תנאי השלמה גם ללא תנאי התקדמות ראשי.') + '</p>' +
           (target ? '<button class="btn secondary small" id="add-completion">בחירת רכיב לתנאי השלמה</button>' : '')) +
         '<div id="completion-pick-result" class="hidden" aria-live="polite"></div>' +
         '</section>' : '') +
