@@ -41,7 +41,7 @@ require(bool(capture_option) and
 # checkbox. Check for a concrete persisted locator strategy and consumption.
 windows_save = server[server.find('else if (runtime == "Windows")', server.find('SavePrimaryTargetRequest request')):]
 windows_save = windows_save[:windows_save.find('else return Results.BadRequest')]
-require("request.AnyContent" in windows_save,
+require("request.AnyContent" in windows_save and "name-nonempty" in windows_save,
         "Windows Instructor: Any value not persisted")
 require("anyValueTarget" in ui and "context?.Runtime === 'Web' &&" not in
         ui[ui.find("const anyValueTarget"):ui.find("const targetValueDescription")],
@@ -49,10 +49,11 @@ require("anyValueTarget" in ui and "context?.Runtime === 'Web' &&" not in
 
 # The Windows runtime must actually consume the new matching semantics.
 # This explicit contract remains failing until a tested implementation exists.
-windows_runtime = ROOT / "src/GuideMe.Learner.Windows"
+windows_runtime = ROOT / "src/GuideMe.Runtime.Windows"
 sources = "\n".join(p.read_text(encoding="utf-8", errors="replace")
                     for p in windows_runtime.rglob("*.cs")) if windows_runtime.exists() else ""
-require("nonempty-text" in sources or "any-nonempty" in sources,
+require("name-nonempty" in sources and "automation-id-nonempty" in sources and
+        "HasNonemptyObservedValue" in sources,
         "Windows Learner: Any value matching missing")
 
 if failures:
