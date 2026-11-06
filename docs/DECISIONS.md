@@ -95,3 +95,11 @@
 - A single persisted representation must have equivalent Web and Windows learner rendering; preserve variable placeholders and existing bubble positioning/advance behavior.
 - No automatic repair, migration, or decoding of previously corrupted bubble content is requested. Existing records must not be rewritten as part of the rich-text feature.
 - Do not ship the new editor until edit/save/reopen, links, colors, variables, and both learners have passed regression checks.
+
+## Instructor UI parity enforcement (2026-11-06)
+
+- A single Instructor component must produce identical control markup, hierarchy, wording, and state presentation for Web and Windows when the business action is the same. Runtime-specific selection is permitted only at the locator adapter / persistence boundary, not in a separately authored UI control.
+- The **כל ערך** control is implemented once in `src/GuideMe.Instructor.Web/wwwroot/any-value-ui.js`. Capture, primary-target summary, and edit mode consume the same renderer. Locator transitions use the same policy entry point and receive Runtime as data.
+- Regression tests in `scripts/tests/instructor-any-value.test.cjs` verify shared wiring and both runtime transition contracts. `scripts/check-instructor-parity.py` verifies additional cross-runtime support. The GitHub workflow `instructor-parity.yml` runs both checks on pushes to main and pull requests.
+- Automated source/contract tests do not replace a real browser screenshot comparison or Windows UIA integration test. They must not be described as proving pixel-level parity. Direct pushes to main cannot be prevented merely by running a workflow after the push; blocking requires repository branch rules and required checks.
+- When a new equivalent UI action is added, extend the shared rendering contract and its automated tests before declaring the work complete. Do not restore parallel HTML snippets under Web/Windows conditions.
