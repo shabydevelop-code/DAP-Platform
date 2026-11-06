@@ -184,7 +184,14 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/primary-target",
     {
         var target = capture.GetApprovedTarget(id, contextId, request.GridChoice);
         var selector = target.Selector;
-        if (request.ContentValue is not null)
+        if (request.AnyContent == true)
+        {
+            var cell = System.Text.RegularExpressions.Regex.Match(selector, @":cell-text\((\d+),""(?:[^""\\]|\\.)*""\)$");
+            selector = cell.Success
+                ? selector[..cell.Index] + ":cell-any(" + cell.Groups[1].Value + ")"
+                : selector + ":nonempty-text";
+        }
+        else if (request.ContentValue is not null)
         {
             if (string.IsNullOrWhiteSpace(request.ContentValue) || request.ContentValue.Length > 400)
                 return Results.BadRequest(new { message = "ערך הזיהוי חייב להכיל 1 עד 400 תווים." });
@@ -747,7 +754,7 @@ internal sealed record NewManualStep(string ContextId, string Bubble, string Pla
 
 internal sealed record WindowsInspectRequest(int ProcessId, bool Focused = false);
 internal sealed record SavePrimaryTargetRequest(string Condition, bool Replacing = false,
-    int? ProcessId = null, int? GridChoice = null, string? ContentValue = null,
+    int? ProcessId = null, int? GridChoice = null, string? ContentValue = null, bool? AnyContent = null,
     string? SelectedTag = null);
 internal sealed record PickStart(long GuideId, string ContextId);
 internal sealed record SaveCompletionTargetRequest(string Kind, int? StateAttributeIndex = null,
