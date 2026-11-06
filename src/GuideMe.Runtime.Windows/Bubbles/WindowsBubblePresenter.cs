@@ -524,8 +524,8 @@ public sealed class WindowsBubblePresenter
     private static TextBlock CreateInstructionText(string? html) => new()
     {
         Text = ToPlainInstruction(html),
-        Width = 260,
         MaxWidth = 260,
+        HorizontalAlignment = HorizontalAlignment.Right,
         TextWrapping = TextWrapping.Wrap,
         TextAlignment = TextAlignment.Right,
         FlowDirection = FlowDirection.RightToLeft,
