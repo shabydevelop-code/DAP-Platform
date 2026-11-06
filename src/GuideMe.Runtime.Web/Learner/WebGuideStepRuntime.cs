@@ -77,6 +77,8 @@ public sealed class WebGuideStepRuntime
             ? _browser.WaitForAttachedStepDismissalAsync(step, cancellationToken)
             : null;
         var automatic = GuideStepExecutionPolicy.IsAutomaticValidationStep(step);
+        var completionOnly = GuideStepExecutionPolicy.IsCompletionOnlyStep(step);
+        var completionOnlySawUnsatisfied = false;
         var clicked = GuideStepExecutionPolicy.IsClickValidationStep(step);
         // Opt-in observation-only steps do not arm browser input listeners.
         // Existing Guides retain their original validation semantics.
@@ -114,6 +116,20 @@ public sealed class WebGuideStepRuntime
 
         async Task<GuideStepReconciliationResult> ReconcileAsync(CancellationToken cancellationToken)
         {
+            if (completionOnly)
+            {
+                // No click is required: observe the destination condition directly.
+                // Never complete from a condition already true on step entry.
+                var satisfied = await CompletionReadyAsync(cancellationToken);
+                if (!satisfied)
+                    completionOnlySawUnsatisfied = true;
+                if (completionOnlySawUnsatisfied && satisfied)
+                {
+                    await _browser.HideBubbleAsync(cancellationToken);
+                    return GuideStepReconciliationResult.Completed;
+                }
+            }
+
             if (manualDismissal?.IsCompletedSuccessfully == true)
             {
                 await _browser.HideBubbleAsync(cancellationToken);
