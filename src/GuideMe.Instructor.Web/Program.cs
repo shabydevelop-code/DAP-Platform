@@ -182,7 +182,7 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/primary-target",
     IReadOnlyList<(V5GuideWriter.TargetLocator Locator, string Relation)>? anchors = null;
     if (runtime == "Web")
     {
-        var target = capture.GetApprovedTarget(id, contextId, request.GridChoice, request.GridAction);
+        var target = capture.GetApprovedTarget(id, contextId, request.GridChoice);
         var selector = target.Selector;
         if (request.ContentValue is not null)
         {
@@ -738,7 +738,7 @@ internal sealed record NewManualStep(string ContextId, string Bubble, string Pla
 
 internal sealed record WindowsInspectRequest(int ProcessId, bool Focused = false);
 internal sealed record SavePrimaryTargetRequest(string Condition, bool Replacing = false,
-    int? ProcessId = null, int? GridChoice = null, bool GridAction = false, string? ContentValue = null,
+    int? ProcessId = null, int? GridChoice = null, string? ContentValue = null,
     string? SelectedTag = null);
 internal sealed record PickStart(long GuideId, string ContextId);
 internal sealed record SaveCompletionTargetRequest(string Kind, int? StateAttributeIndex = null,
