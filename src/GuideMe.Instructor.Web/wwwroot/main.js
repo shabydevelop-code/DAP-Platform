@@ -428,11 +428,8 @@ function renderSteps() {
       targetValue ? 'רכיב טקסט' : 'רכיב במסך');
     const anyValueTarget = (context?.Runtime === 'Web' && /:(?:cell-any\(\d+\)|nonempty-text)$/.test(locatorText)) ||
       (context?.Runtime === 'Windows' && ['name-nonempty','automation-id-nonempty'].includes(webLocator?.Strategy));
-    const windowsAnyEligible = context?.Runtime === 'Windows' &&
-      ['name','automation-id','name-nonempty','automation-id-nonempty'].includes(webLocator?.Strategy);
-    // The same visual control is used for Web and Windows. Locator strategies remain runtime-specific.
-    const anyValueEligible = windowsAnyEligible ||
-      (context?.Runtime === 'Web' && webLocator?.Strategy === 'css' && !!editableTargetBinding?.buildAny);
+    const anyValueEligible = GuideMeAnyValueUI.isEligible(
+      context?.Runtime, webLocator, editableTargetBinding);
     const targetValueDescription = anyValueTarget ? 'כל ערך' :
       editableTargetBinding?.value ? (editableTargetBinding.value.includes('{{var:') ? 'משתנה' : 'ערך קבוע') : null;
     selectedTargetPreviewValue = editableTargetBinding?.value || targetValue || null;
@@ -464,8 +461,7 @@ function renderSteps() {
         '<p class="field-help">סוג רכיב: ' + esc(targetType) + '</p>' +
         (targetValueDescription && !anyValueEligible ? '<p>זיהוי לפי תוכן: <strong class="target-business-value-preview">' +
           esc(targetValueDescription) + '</strong></p>' : '') +
-        (anyValueEligible ? '<label class="gm-any-value-option"><input type="checkbox" id="primary-target-any"' +
-          (anyValueTarget ? ' checked' : '') + '><span>כל ערך</span></label>' : '') +
+        (anyValueEligible ? GuideMeAnyValueUI.renderOption('primary-target-any', anyValueTarget) : '') +
         (!anyValueTarget && editableTargetBinding?.value ? '<p>ערך איתור: <strong class="target-business-value-preview">' +
           friendlyInstructionHtml(editableTargetBinding.value) + '</strong></p>' : '') +
         '' :
@@ -666,19 +662,9 @@ function renderSteps() {
     if (anyTargetToggle) anyTargetToggle.onchange = () => guarded(async () => {
       const selected = anyTargetToggle.checked;
       const locator = locators[0];
-      const webTarget = context?.Runtime === 'Web';
-      const nextStrategy = webTarget ? 'css' : selected
-        ? (locator.Strategy.startsWith('automation-id') ? 'automation-id-nonempty' : 'name-nonempty')
-        : (locator.Strategy === 'automation-id-nonempty' ? 'automation-id' : 'name');
-      // Converting from "any" to an exact value must preserve the selector's
-      // structural identity on Web rather than replacing it with a label.
-      const exactWebValue = String(element?.DisplayName || '').trim();
-      const nextValue = webTarget
-        ? (selected ? editableTargetBinding.buildAny() :
-            exactWebValue ? editableTargetBinding.build(exactWebValue) : '')
-        : nextStrategy === 'name-nonempty' ? '*' :
-          nextStrategy === 'name' ? String(element?.DisplayName || '').trim() : locator.Value;
-      if (!selected && !nextValue) {
+      const update = GuideMeAnyValueUI.buildUpdate(
+        context?.Runtime, locator, selected, element?.DisplayName, editableTargetBinding);
+      if (!update) {
         anyTargetToggle.checked = true;
         editPrimaryTargetValue({kind:'target', step, locators, binding:editableTargetBinding});
         return;
@@ -686,7 +672,7 @@ function renderSteps() {
       anyTargetToggle.disabled = true;
       try {
         await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+'/primary-target/variable', {
-          method:'POST', body:JSON.stringify({locatorValue:nextValue,locatorStrategy:nextStrategy})
+          method:'POST', body:JSON.stringify(update)
         });
         await reloadSelectedStep(current.guide.id, step.id);
       } catch (error) {
@@ -1133,7 +1119,7 @@ async function refreshPicker() {
       'placeholder="לא נקלט ערך"></textarea></div>' : '') +
     (!pickingFor.completion && !pickingFor.variableSource ?
       variableValueFieldMarkup('picked-content-value', 'זיהוי לפי תוכן') +
-      '<label class="gm-any-value-option"><input type="checkbox" id="picked-content-any"><span>כל ערך</span></label>' : '') +
+      GuideMeAnyValueUI.renderOption('picked-content-any', false) : '') +
     (pickingFor.completion ? '<label for="target-condition">חוק השלמה</label>' +
       '<select id="target-condition">' +
       '<option value="target-appeared">הרכיב מופיע במסך</option>' +
@@ -1892,13 +1878,11 @@ function editPrimaryTargetValue({kind, step, locators, binding:preparedBinding})
   input.rows = 1; input.maxLength = 400; input.dir = 'rtl';
   input.value = rawValue;
   edit.append(label,input);
-  const anyToggle = document.createElement('label');
+  const anyToggle = document.createElement('div');
   if (supportsAny) {
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox'; checkbox.checked = !!binding.any;
-    anyToggle.className = 'gm-any-value-option';
-    anyToggle.append(checkbox, document.createTextNode('כל ערך'));
-    edit.append(anyToggle);
+    anyToggle.innerHTML = GuideMeAnyValueUI.renderOption('edit-primary-target-any', !!binding.any);
+    edit.append(...anyToggle.children);
+    const checkbox = edit.querySelector('#edit-primary-target-any');
     const update = () => { input.disabled = checkbox.checked; variableControls.style.display = checkbox.checked ? 'none' : ''; };
     checkbox.addEventListener('change', update);
     queueMicrotask(update);
@@ -1928,7 +1912,7 @@ function editPrimaryTargetValue({kind, step, locators, binding:preparedBinding})
   cancel.onclick=restore;
   save.onclick=async()=>{
     try {
-      const anySelected = !!anyToggle.querySelector('input')?.checked;
+      const anySelected = !!edit.querySelector('#edit-primary-target-any')?.checked;
       const value=anySelected ? '' : variableEditorResult(input);
       const template=anySelected ? binding.buildAny() : buildTemplate(value);
       const nextStrategy=anySelected ? (binding.anyStrategy || binding.strategy || null) :
