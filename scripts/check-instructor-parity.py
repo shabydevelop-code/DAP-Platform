@@ -43,7 +43,7 @@ windows_save = server[server.find('else if (runtime == "Windows")', server.find(
 windows_save = windows_save[:windows_save.find('else return Results.BadRequest')]
 require("request.AnyContent" in windows_save and "name-nonempty" in windows_save,
         "Windows Instructor: Any value not persisted")
-require("anyValueTarget" in ui and "context?.Runtime === 'Web' &&" not in
+require("anyValueTarget" in ui and "context?.Runtime === 'Windows'" in
         ui[ui.find("const anyValueTarget"):ui.find("const targetValueDescription")],
         "Inspector: Any value display restricted to Web")
 
