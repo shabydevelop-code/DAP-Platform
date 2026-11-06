@@ -239,12 +239,13 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/primary-target",
         // V5 compiles one primary locator; inspector candidates are alternatives, not a locator chain.
         locators = picked.Locators.Take(1)
             .Select(l => new V5GuideWriter.TargetLocator(l.Strategy, l.Value)).ToArray();
-        if (request.ContentValue is not null)
+        if (request.ContentValue is not null &&
+            !string.Equals(request.ContentValue, picked.Name, StringComparison.Ordinal))
         {
-            if (locators.Length != 1 || locators[0].Strategy != "name")
-                return Results.BadRequest(new { message = "הרכיב שנבחר אינו תומך בזיהוי לפי שם." });
             if (request.ContentValue.Length > 400)
                 return Results.BadRequest(new { message = "ערך האיתור ארוך מדי." });
+            // Preserve the captured technical locator unless the author explicitly
+            // replaces its display-name matcher with a value or variable.
             locators = new[] { new V5GuideWriter.TargetLocator("name", request.ContentValue) };
         }
         frames = Array.Empty<V5GuideWriter.TargetLocator>();
