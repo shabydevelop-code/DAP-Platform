@@ -783,7 +783,7 @@ WHERE GuideId=$guideId AND VariableId=$variableId";
                 string.Equals(System.Text.RegularExpressions.Regex.Replace(originalShape, @":cell-text\((\d+),""""\)$", ":cell-any($1)"), updatedShape, StringComparison.Ordinal) ||
                 System.Text.RegularExpressions.Regex.IsMatch(updatedShape, @":cell-text\(\d+,""""\)$") &&
                 string.Equals(System.Text.RegularExpressions.Regex.Replace(updatedShape, @":cell-text\((\d+),""""\)$", ":cell-any($1)"), originalShape, StringComparison.Ordinal) ||
-                string.Equals(originalShape + ":exact-text(\"\")", updatedShape, StringComparison.Ordinal) && original.Value.EndsWith(":nonempty-text", StringComparison.Ordinal);
+                string.Equals(originalShape.Replace(":nonempty-text", ":exact-text(\"\")", StringComparison.Ordinal), updatedShape, StringComparison.Ordinal);
             if (!string.Equals(originalShape, updatedShape, StringComparison.Ordinal) && !appendedTextFilter && !semanticChange)
                 throw new ArgumentException("ניתן לערוך את ערך התוכן בלבד, לא את מבנה מזהה הרכיב.");
         }
