@@ -426,7 +426,7 @@ function renderSteps() {
       /:cell-(?:text|any)\(/.test(locatorText) ? 'שורה בטבלה' :
       targetValue ? 'רכיב טקסט' : 'רכיב במסך');
     const anyValueTarget = (context?.Runtime === 'Web' && /:(?:cell-any\(\d+\)|nonempty-text)$/.test(locatorText)) ||
-      (context?.Runtime === 'Windows' && webLocator?.Strategy === 'name-nonempty');
+      (context?.Runtime === 'Windows' && ['name-nonempty','automation-id-nonempty'].includes(webLocator?.Strategy));
     const targetValueDescription = anyValueTarget ? 'כל ערך' :
       editableTargetBinding?.value ? (editableTargetBinding.value.includes('{{var:') ? 'משתנה' : 'ערך קבוע') : null;
     selectedTargetPreviewValue = editableTargetBinding?.value || targetValue || null;
@@ -1795,6 +1795,9 @@ function locatorTextBinding(locator) {
     return {value:original, build:next=>next, buildAny:()=>'*', anyStrategy:'name-nonempty'};
   if (locator.Strategy === 'name-nonempty')
     return {value:'', any:true, build:next=>next, buildAny:()=>'*', strategy:'name', anyStrategy:'name-nonempty'};
+  if (locator.Strategy === 'automation-id-nonempty')
+    return {value:original, any:true, build:next=>original, buildAny:()=>original,
+      strategy:'automation-id', anyStrategy:'automation-id-nonempty'};
   if (locator.Strategy !== 'css') return null;
   const anyCell = original.match(/:cell-any\((\d+)\)$/);
   if (anyCell) return {value:'', any:true, build:next=>original.replace(/:cell-any\(\d+\)$/, ':cell-text(' + anyCell[1] + ',' + JSON.stringify(next) + ')'), buildAny:()=>original};
@@ -1902,7 +1905,7 @@ function editPrimaryTargetValue({kind, step, locators, binding:preparedBinding})
         try { document.querySelector(template); }
         catch { showInstructorFieldError(input, 'מזהה CSS אינו תקין.'); }
       }
-      if (template === original) {
+      if (template === original && (!nextStrategy || nextStrategy === locator.Strategy)) {
         restore();
         return;
       }
