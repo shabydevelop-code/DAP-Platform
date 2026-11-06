@@ -401,8 +401,21 @@ function renderSteps() {
        'ControlType.ListItem'].includes(element?.ControlType);
     const targetClassification = classifyTarget(context?.Runtime, element, locators);
     const dataEntryTarget = targetClassification.dataEntry;
-    const editableTargetBinding = dataEntryTarget ? null : (locatorTextBinding(locators[0]) ||
-      (dynamicWindowsControl && locators[0]?.Strategy === 'automation-id' &&
+    // A captured Web control may have a stable CSS locator but dynamic visible text.
+    // Keep the CSS structure and attach an exact semantic text filter when edited.
+    const webDisplayName = String(element?.DisplayName || '').trim();
+    const webLocator = locators[0];
+    const webTextBinding = context?.Runtime === 'Web' &&
+      webLocator?.Strategy === 'css' && webDisplayName &&
+      !/^[#.[>:+~]/.test(webDisplayName) &&
+      !/^[a-z][\\w-]*\\[[^\\]]+\\]/i.test(webDisplayName) &&
+      !/:has-text\\(|:exact-text\\(|:cell-text\\(/.test(webLocator.Value) &&
+      !/\\b(?:input|textarea|select)\\b/i.test(element?.ControlType || '')
+        ? {value:webDisplayName, build:next=>webLocator.Value + ':exact-text(' + JSON.stringify(next) + ')'}
+        : null;
+    const editableTargetBinding = dataEntryTarget ? null : (locatorTextBinding(webLocator) ||
+      webTextBinding ||
+      (dynamicWindowsControl && webLocator?.Strategy === 'automation-id' &&
        element?.DisplayName
         ? {value:element.DisplayName, build:next=>next, strategy:'name'}
         : null));
