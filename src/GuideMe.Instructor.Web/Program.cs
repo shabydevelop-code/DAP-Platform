@@ -250,7 +250,9 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/primary-target",
         {
             // Preserve captured type and structural anchors; ignore only the
             // changing UIA Name. The runtime rejects ambiguous matches.
-            locators = new[] { new V5GuideWriter.TargetLocator("name-nonempty", "*") };
+            locators = locators[0].Strategy == "automation-id"
+                ? new[] { new V5GuideWriter.TargetLocator("automation-id-nonempty", locators[0].Value) }
+                : new[] { new V5GuideWriter.TargetLocator("name-nonempty", "*") };
         }
         else if (request.ContentValue is not null &&
             !string.Equals(request.ContentValue, picked.Name, StringComparison.Ordinal))
