@@ -409,9 +409,9 @@ function renderSteps() {
       webLocator?.Strategy === 'css' && webDisplayName &&
       !/^[#.[>:+~]/.test(webDisplayName) &&
       !/^[a-z][\w-]*\[[^\]]+\]/i.test(webDisplayName) &&
-      !/:has-text\(|:exact-text\(|:cell-text\(/.test(webLocator.Value) &&
+      !/:has-text\(|:exact-text\(|:cell-text\(|:cell-any\(|:nonempty-text/.test(webLocator.Value) &&
       !/\b(?:input|textarea|select)\b/i.test(element?.ControlType || '')
-        ? {value:webDisplayName, build:next=>webLocator.Value + ':exact-text(' + JSON.stringify(next) + ')'}
+        ? {value:webDisplayName, build:next=>webLocator.Value + ':exact-text(' + JSON.stringify(next) + ')', buildAny:()=>webLocator.Value + ':nonempty-text'}
         : null;
     const editableTargetBinding = dataEntryTarget ? null : (locatorTextBinding(webLocator) ||
       webTextBinding ||
@@ -1083,7 +1083,7 @@ async function refreshPicker() {
       '<div class="field"><label for="captured-object-value">הערך שנקלט</label>' +
       '<textarea id="captured-object-value" rows="2" readonly dir="auto" ' +
       'placeholder="לא נקלט ערך"></textarea></div>' : '') +
-    (!pickingFor.completion && !pickingFor.variableSource && editableContent !== null ?
+    (!pickingFor.completion && !pickingFor.variableSource && (editableContent !== null || requestSession.runtime === 'Web' && !['input','textarea','select'].includes(String(candidate.tag || '').toLowerCase())) ?
       variableValueFieldMarkup('picked-content-value', 'זיהוי לפי תוכן') +
       (requestSession.runtime === 'Web' ? '<label><input type="checkbox" id="picked-content-any"> כל ערך</label>' : '') : '') +
     (pickingFor.completion ? '<label for="target-condition">חוק השלמה</label>' +
@@ -1105,7 +1105,7 @@ async function refreshPicker() {
     if (capturedField) capturedField.value = String(capturedSample ?? '');
     const input = $('picked-content-value');
     if (input) {
-      initializeVariableField(input, $('picked-content-value-variables'), editableContent);
+      initializeVariableField(input, $('picked-content-value-variables'), editableContent || '');
       const any = $('picked-content-any');
       if (any) any.onchange = () => { input.disabled = any.checked; $('picked-content-value-variables').style.display = any.checked ? 'none' : ''; };
     }
