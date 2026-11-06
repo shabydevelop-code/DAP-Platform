@@ -835,7 +835,7 @@ AND AnchorElementId IN (
                  a.Locator.Strategy is not ("name" or "automation-id") ||
                  string.IsNullOrWhiteSpace(a.Locator.Value) || a.Locator.Value.Length > 400)))
             throw new ArgumentException("עוגני הרכיב אינם תקינים.");
-        if (!replacing && condition is not ("" or "clicked" or "target-disappeared" or "value-not-empty"))
+        if (!replacing && condition is not ("" or "clicked" or "value-not-empty"))
             throw new ArgumentException("תנאי ההתקדמות אינו נתמך.");
         using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
         {
@@ -1038,9 +1038,9 @@ WHERE GuideId=$guideId AND StepId=$stepId";
                  a.Locator.Strategy is not ("name" or "automation-id") ||
                  string.IsNullOrWhiteSpace(a.Locator.Value) || a.Locator.Value.Length > 400)))
             throw new ArgumentException("עוגני רכיב ההשלמה אינם תקינים.");
-        if (runtime == "Windows" && kind is not ("value-contains" or "target-appeared" or "target-vanished"))
+        if (runtime == "Windows" && kind is not ("value-contains" or "target-appeared"))
             throw new ArgumentException("תנאי זה עדיין אינו נתמך עבור Windows.");
-        if (kind is not ("target-appeared" or "target-vanished" or "attribute-equals" or "value-contains"))
+        if (kind is not ("target-appeared" or "attribute-equals" or "value-contains"))
             throw new ArgumentException("חוק השלמה לא נתמך.");
         if (kind == "value-contains" && (string.IsNullOrWhiteSpace(expectedValue) || expectedValue.Length > 500))
             throw new ArgumentException("יש להזין ערך צפוי לתנאי ההשלמה.");
@@ -1188,7 +1188,7 @@ VALUES ($guideId, $stepId, 'AdditionalCompletionCondition', 'completion', $kind,
 
     internal static void UpdateCompletionCondition(long guideId, string stepId, string kind, string? expectedValue)
     {
-        if (kind is not ("target-appeared" or "target-vanished" or "value-contains"))
+        if (kind is not ("target-appeared" or "value-contains"))
             throw new ArgumentException("חוק השלמה לא נתמך.");
         if (kind == "value-contains" && (string.IsNullOrWhiteSpace(expectedValue) || expectedValue.Length > 500))
             throw new ArgumentException("יש להזין ערך צפוי לתנאי ההשלמה.");
@@ -1260,7 +1260,7 @@ AND NOT EXISTS (SELECT 1 FROM ElementAnchors a
     internal static void UpdatePrimaryValidation(long guideId, string stepId,
         string kind, string? expectedValue)
     {
-        if (kind is not ("clicked" or "target-disappeared" or "value-not-empty" or "value-equals"))
+        if (kind is not ("clicked" or "value-not-empty" or "value-equals"))
             throw new ArgumentException("סוג תנאי ההתקדמות אינו נתמך.");
         if (kind == "value-equals" && string.IsNullOrWhiteSpace(expectedValue))
             throw new ArgumentException("יש להזין ערך צפוי.");
