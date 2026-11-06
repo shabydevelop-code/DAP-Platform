@@ -104,7 +104,7 @@ public static class GuideV5ExecutionCompiler
                             $"Variable action '{a.Id}' is missing its target usage.")) }
                     : a).ToArray()
                 : Array.Empty<GuideVariableAction>();
-            var policy = validation is null
+            var policy = validation is null && completion.Length == 0
                 ? StepAdvanceMode.Manual
                 : StepAdvanceMode.AutomaticOnValidation;
             // Presentation follows the step's actual execution semantics.
