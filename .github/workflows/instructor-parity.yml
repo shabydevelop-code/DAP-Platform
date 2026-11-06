@@ -1,6 +1,10 @@
 name: Instructor parity gate
 
 on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -11,5 +15,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Check shared Instructor capabilities
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check shared Instructor runtime capabilities
         run: python scripts/check-instructor-parity.py
+      - name: Test shared Instructor UI and locator transitions
+        run: node --test scripts/tests/instructor-any-value.test.cjs
