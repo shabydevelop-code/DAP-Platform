@@ -425,7 +425,8 @@ function renderSteps() {
       /(?:^|[ >+~])(?:td|th)(?=[:.#\\[ >+~]|$)/i.test(locatorText) ? 'תא בטבלה' :
       /:cell-(?:text|any)\(/.test(locatorText) ? 'שורה בטבלה' :
       targetValue ? 'רכיב טקסט' : 'רכיב במסך');
-    const anyValueTarget = context?.Runtime === 'Web' && /:(?:cell-any\(\d+\)|nonempty-text)$/.test(locatorText);
+    const anyValueTarget = (context?.Runtime === 'Web' && /:(?:cell-any\(\d+\)|nonempty-text)$/.test(locatorText)) ||
+      (context?.Runtime === 'Windows' && webLocator?.Strategy === 'name-nonempty');
     const targetValueDescription = anyValueTarget ? 'כל ערך' :
       editableTargetBinding?.value ? (editableTargetBinding.value.includes('{{var:') ? 'משתנה' : 'ערך קבוע') : null;
     selectedTargetPreviewValue = editableTargetBinding?.value || targetValue || null;
@@ -1091,7 +1092,7 @@ async function refreshPicker() {
       'placeholder="לא נקלט ערך"></textarea></div>' : '') +
     (!pickingFor.completion && !pickingFor.variableSource && (editableContent !== null || requestSession.runtime === 'Web' && !['input','textarea','select'].includes(String(candidate.tag || '').toLowerCase())) ?
       variableValueFieldMarkup('picked-content-value', 'זיהוי לפי תוכן') +
-      (requestSession.runtime === 'Web' ? '<label class="gm-any-value-option"><input type="checkbox" id="picked-content-any"><span>כל ערך</span></label>' : '') : '') +
+      '<label class="gm-any-value-option"><input type="checkbox" id="picked-content-any"><span>כל ערך</span></label>' : '') +
     (pickingFor.completion ? '<label for="target-condition">חוק השלמה</label>' +
       '<select id="target-condition">' +
       '<option value="target-appeared">הרכיב מופיע במסך</option>' +
@@ -1791,7 +1792,9 @@ function locatorTextBinding(locator) {
   // Windows UIA Name is the semantic value used to locate the control.
   // AutomationId is a technical identifier and must not be edited as text.
   if (locator.Strategy === 'name')
-    return {value:original, build:next=>next};
+    return {value:original, build:next=>next, buildAny:()=>'*', anyStrategy:'name-nonempty'};
+  if (locator.Strategy === 'name-nonempty')
+    return {value:'', any:true, build:next=>next, buildAny:()=>'*', strategy:'name', anyStrategy:'name-nonempty'};
   if (locator.Strategy !== 'css') return null;
   const anyCell = original.match(/:cell-any\((\d+)\)$/);
   if (anyCell) return {value:'', any:true, build:next=>original.replace(/:cell-any\(\d+\)$/, ':cell-text(' + anyCell[1] + ',' + JSON.stringify(next) + ')'), buildAny:()=>original};
@@ -1884,6 +1887,8 @@ function editPrimaryTargetValue({kind, step, locators, binding:preparedBinding})
       const anySelected = !!anyToggle.querySelector('input')?.checked;
       const value=anySelected ? '' : variableEditorResult(input);
       const template=anySelected ? binding.buildAny() : buildTemplate(value);
+      const nextStrategy=anySelected ? (binding.anyStrategy || binding.strategy || null) :
+        (locator.Strategy === 'name-nonempty' ? 'name' : binding.strategy || null);
       if (!anySelected && !value.trim()) {
         showInstructorFieldError(input, 'יש להזין ערך לזיהוי הרכיב.');
         return;
@@ -1903,7 +1908,7 @@ function editPrimaryTargetValue({kind, step, locators, binding:preparedBinding})
       }
       save.disabled=true;cancel.disabled=true;
       await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+'/primary-target/variable',{
-        method:'POST',body:JSON.stringify({locatorValue:template, locatorStrategy:binding.strategy || null})
+        method:'POST',body:JSON.stringify({locatorValue:template, locatorStrategy:nextStrategy})
       });
       await reloadSelectedStep(current.guide.id,step.id);
       notify('ערך הרכיב עודכן.');
