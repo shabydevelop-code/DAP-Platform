@@ -167,7 +167,12 @@ internal sealed class InstructorCaptureBridge
                         throw new InvalidOperationException("לא ניתן לזהות כפתור פעולה ייחודי בשורה.");
                     chosenSelector = action;
                 }
-                else chosenSelector = value;
+                else
+                {
+                    if (choice.TryGetProperty("unique", out var unique) && unique.ValueKind == JsonValueKind.False)
+                        throw new InvalidOperationException("לזיהוי רכיב זה נדרשת עמודה בעלת ערך ייחודי.");
+                    chosenSelector = value;
+                }
                 displayName = choice.TryGetProperty("header", out var header) &&
                     choice.TryGetProperty("value", out var cellValue)
                     ? $"{header.GetString()}: {cellValue.GetString()}" : displayName;
