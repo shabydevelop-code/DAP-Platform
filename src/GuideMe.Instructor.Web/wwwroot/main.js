@@ -428,6 +428,8 @@ function renderSteps() {
       targetValue ? 'רכיב טקסט' : 'רכיב במסך');
     const anyValueTarget = (context?.Runtime === 'Web' && /:(?:cell-any\(\d+\)|nonempty-text)$/.test(locatorText)) ||
       (context?.Runtime === 'Windows' && ['name-nonempty','automation-id-nonempty'].includes(webLocator?.Strategy));
+    const windowsAnyEligible = context?.Runtime === 'Windows' &&
+      ['name','automation-id','name-nonempty','automation-id-nonempty'].includes(webLocator?.Strategy);
     const targetValueDescription = anyValueTarget ? 'כל ערך' :
       editableTargetBinding?.value ? (editableTargetBinding.value.includes('{{var:') ? 'משתנה' : 'ערך קבוע') : null;
     selectedTargetPreviewValue = editableTargetBinding?.value || targetValue || null;
@@ -457,8 +459,10 @@ function renderSteps() {
       '<div id="primary-target-summary">' +
       (target ? '<p><strong>' + esc(friendlyName) + '</strong></p>' +
         '<p class="field-help">סוג רכיב: ' + esc(targetType) + '</p>' +
-        (targetValueDescription ? '<p>זיהוי לפי תוכן: <strong class="target-business-value-preview">' +
+        (targetValueDescription && !windowsAnyEligible ? '<p>זיהוי לפי תוכן: <strong class="target-business-value-preview">' +
           esc(targetValueDescription) + '</strong></p>' : '') +
+        (windowsAnyEligible ? '<label class="gm-any-value-option"><input type="checkbox" id="primary-target-any"' +
+          (anyValueTarget ? ' checked' : '') + '><span>כל ערך</span></label>' : '') +
         (!anyValueTarget && editableTargetBinding?.value ? '<p>ערך איתור: <strong class="target-business-value-preview">' +
           friendlyInstructionHtml(editableTargetBinding.value) + '</strong></p>' : '') +
         '' :
@@ -654,6 +658,32 @@ function renderSteps() {
     const bindTarget = $('bind-target-variable');
     if (bindTarget) bindTarget.onclick = () => editPrimaryTargetValue({
       kind:'target', step, locators, binding:editableTargetBinding
+    });
+    const anyTargetToggle = $('primary-target-any');
+    if (anyTargetToggle) anyTargetToggle.onchange = () => guarded(async () => {
+      const selected = anyTargetToggle.checked;
+      const locator = locators[0];
+      const nextStrategy = selected
+        ? (locator.Strategy.startsWith('automation-id') ? 'automation-id-nonempty' : 'name-nonempty')
+        : (locator.Strategy === 'automation-id-nonempty' ? 'automation-id' : 'name');
+      const nextValue = nextStrategy === 'name-nonempty' ? '*' :
+        nextStrategy === 'name' ? String(element?.DisplayName || '').trim() : locator.Value;
+      if (!selected && !nextValue) {
+        anyTargetToggle.checked = true;
+        editPrimaryTargetValue({kind:'target', step, locators, binding:editableTargetBinding});
+        return;
+      }
+      anyTargetToggle.disabled = true;
+      try {
+        await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+'/primary-target/variable', {
+          method:'POST', body:JSON.stringify({locatorValue:nextValue,locatorStrategy:nextStrategy})
+        });
+        await reloadSelectedStep(current.guide.id, step.id);
+      } catch (error) {
+        anyTargetToggle.checked = !selected;
+        anyTargetToggle.disabled = false;
+        throw error;
+      }
     });
     const targetReplace = $('replace-web-target');
     if (targetReplace) targetReplace.onclick = () => guarded(() => startElementPicker(true));
@@ -1091,7 +1121,7 @@ async function refreshPicker() {
       '<div class="field"><label for="captured-object-value">הערך שנקלט</label>' +
       '<textarea id="captured-object-value" rows="2" readonly dir="auto" ' +
       'placeholder="לא נקלט ערך"></textarea></div>' : '') +
-    (!pickingFor.completion && !pickingFor.variableSource && (editableContent !== null || !['input','textarea','select'].includes(String(candidate.tag || '').toLowerCase())) ?
+    (!pickingFor.completion && !pickingFor.variableSource ?
       variableValueFieldMarkup('picked-content-value', 'זיהוי לפי תוכן') +
       '<label class="gm-any-value-option"><input type="checkbox" id="picked-content-any"><span>כל ערך</span></label>' : '') +
     (pickingFor.completion ? '<label for="target-condition">חוק השלמה</label>' +
