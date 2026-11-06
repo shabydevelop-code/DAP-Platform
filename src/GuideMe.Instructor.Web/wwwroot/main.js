@@ -480,7 +480,7 @@ function renderSteps() {
           '<button class="btn danger small" id="remove-completion">הסרה</button>' +
           '</div></div>' :
           '<p>' + (!target ? 'יש לבחור תחילה רכיב ראשי לשלב.' : !rule ? 'יש להגדיר תחילה תנאי התקדמות לשלב.' : 'בחר רכיב ובדוק הופעה, היעלמות או שינוי מאפיין בעקבות הפעולה.') + '</p>' +
-          (target && rule ? '<button class="btn secondary small" id="add-completion">בחירת רכיב לתנאי השלמה</button>' : '')) +
+          (target ? '<button class="btn secondary small" id="add-completion">בחירת רכיב לתנאי השלמה</button>' : '')) +
         '<div id="completion-pick-result" class="hidden" aria-live="polite"></div>' +
         '</section>' : '') +
       '<section class="step-friendly-card completion-card" aria-labelledby="step-variables-title">' +
