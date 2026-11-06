@@ -1085,7 +1085,7 @@ async function refreshPicker() {
       'placeholder="לא נקלט ערך"></textarea></div>' : '') +
     (!pickingFor.completion && !pickingFor.variableSource && (editableContent !== null || requestSession.runtime === 'Web' && !['input','textarea','select'].includes(String(candidate.tag || '').toLowerCase())) ?
       variableValueFieldMarkup('picked-content-value', 'זיהוי לפי תוכן') +
-      (requestSession.runtime === 'Web' ? '<label><input type="checkbox" id="picked-content-any"> כל ערך</label>' : '') : '') +
+      (requestSession.runtime === 'Web' ? '<label class="gm-any-value-option"><input type="checkbox" id="picked-content-any"><span>כל ערך</span></label>' : '') : '') +
     (pickingFor.completion ? '<label for="target-condition">חוק השלמה</label>' +
       '<select id="target-condition">' +
       '<option value="target-appeared">הרכיב מופיע במסך</option>' +
@@ -1843,7 +1843,8 @@ function editPrimaryTargetValue({kind, step, locators, binding:preparedBinding})
   if (supportsAny) {
     const checkbox = document.createElement('input');
     checkbox.type = 'checkbox'; checkbox.checked = !!binding.any;
-    anyToggle.append(checkbox, document.createTextNode(' כל ערך'));
+    anyToggle.className = 'gm-any-value-option';
+    anyToggle.append(checkbox, document.createTextNode('כל ערך'));
     edit.append(anyToggle);
     const update = () => { input.disabled = checkbox.checked; variableControls.style.display = checkbox.checked ? 'none' : ''; };
     checkbox.addEventListener('change', update);
