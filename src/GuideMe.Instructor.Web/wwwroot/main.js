@@ -669,8 +669,7 @@ function parseJson(value, fallback) {
 const validationChoices = [
   {value:'clicked',text:'לחיצה על הרכיב'},
   {value:'value-not-empty',text:'הוזן ערך בשדה'},
-  {value:'value-equals',text:'השדה מכיל ערך מסוים'},
-  {value:'target-disappeared',text:'הרכיב נעלם מהמסך'}
+  {value:'value-equals',text:'השדה מכיל ערך מסוים'}
 ];
 function validationLabel(kind) {
   return validationChoices.find(x=>x.value===kind)?.text ||
@@ -689,7 +688,6 @@ function editCompletionCondition(step, rule) {
     '<div class="field"><label for="completion-edit-kind">השלב יושלם כאשר</label>' +
     '<select id="completion-edit-kind">' +
     '<option value="target-appeared">הרכיב מופיע במסך</option>' +
-    '<option value="target-vanished">הרכיב נעלם מהמסך</option>' +
     '<option value="value-contains">הרכיב מכיל ערך מסוים</option></select></div>' +
     '<div id="completion-edit-value">' +
     variableValueFieldMarkup('completion-edit-expected', 'ערך צפוי', 500) + '</div>' +
@@ -1076,7 +1074,7 @@ async function refreshPicker() {
       '<select id="target-condition">' +
       '<option value="target-appeared">הופיע</option>' +
       '<option value="value-contains">השדה מכיל ערך מסוים</option>' +
-      '<option value="target-vanished">נעלם</option>' + '</select>' : '')+
+'</select>' : '')+
     (pickingFor.completion ? '<div id="completion-fixed-value-fields" class="hidden">' +
       variableValueFieldMarkup('completion-fixed-value', 'ערך צפוי', 500) +
       '</div>' : '') +
