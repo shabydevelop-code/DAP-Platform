@@ -1091,7 +1091,7 @@ async function refreshPicker() {
       '<div class="field"><label for="captured-object-value">הערך שנקלט</label>' +
       '<textarea id="captured-object-value" rows="2" readonly dir="auto" ' +
       'placeholder="לא נקלט ערך"></textarea></div>' : '') +
-    (!pickingFor.completion && !pickingFor.variableSource && (editableContent !== null || requestSession.runtime === 'Web' && !['input','textarea','select'].includes(String(candidate.tag || '').toLowerCase())) ?
+    (!pickingFor.completion && !pickingFor.variableSource && (editableContent !== null || !['input','textarea','select'].includes(String(candidate.tag || '').toLowerCase())) ?
       variableValueFieldMarkup('picked-content-value', 'זיהוי לפי תוכן') +
       '<label class="gm-any-value-option"><input type="checkbox" id="picked-content-any"><span>כל ערך</span></label>' : '') +
     (pickingFor.completion ? '<label for="target-condition">חוק השלמה</label>' +
