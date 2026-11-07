@@ -94,7 +94,7 @@ public static class GuideV5ExecutionCompiler
                     v.OptionsJson is null ? null : JsonSerializer.Deserialize<Dictionary<string,string>>(v.OptionsJson));
             }
             var identity = s.Signals.Where(x => x.Role == "AdditionalCompletionCondition" && x.OptionsJson == "{\"identity\":true}")
-                .Select(x => new StepCompletionCondition("target-appeared",
+                .Select(x => new StepCompletionCondition("target-exists",
                     Target(s.StepId, x.TargetUsageId ?? throw new InvalidOperationException("Identity target missing.")))).ToArray();
             var completion = s.Signals.Where(x => x.Role == "AdditionalCompletionCondition" && x.OptionsJson != "{\"identity\":true}")
                 .Select(x => new StepCompletionCondition(x.Kind,
