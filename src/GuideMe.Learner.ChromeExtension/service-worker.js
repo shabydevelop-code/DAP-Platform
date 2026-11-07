@@ -32,11 +32,19 @@ function connect() {
     void chrome.runtime.lastError;
 
     if (port === connected) {
+      // The native process can exit without issuing an explicit hide command.
+      // Remove the Learner UI from every frame of the tabs used by this run.
+      const tabsToClean = [...new Set(productionContextTabs.values())];
       port = null;
       productionContextTabs.clear();
       activatedProductionSessions.clear();
       closedProductionContexts.clear();
       activeProductionRuntimeInstanceId = null;
+      for (const tabId of tabsToClean) {
+        void hideEveryFrame(tabId, "native-disconnect").catch(() => {
+          // The tab may have closed before cleanup.
+        });
+      }
     }
   });
 
