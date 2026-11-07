@@ -93,7 +93,10 @@ public static class GuideV5ExecutionCompiler
                 validation = new ValidationDefinition(v.Kind, v.ExpectedValue,
                     v.OptionsJson is null ? null : JsonSerializer.Deserialize<Dictionary<string,string>>(v.OptionsJson));
             }
-            var completion = s.Signals.Where(x => x.Role == "AdditionalCompletionCondition")
+            var identity = s.Signals.Where(x => x.Role == "AdditionalCompletionCondition" && x.OptionsJson == "{\"identity\":true}")
+                .Select(x => new StepCompletionCondition("target-appeared",
+                    Target(s.StepId, x.TargetUsageId ?? throw new InvalidOperationException("Identity target missing.")))).ToArray();
+            var completion = s.Signals.Where(x => x.Role == "AdditionalCompletionCondition" && x.OptionsJson != "{\"identity\":true}")
                 .Select(x => new StepCompletionCondition(x.Kind,
                     Target(s.StepId, x.TargetUsageId ?? throw new InvalidOperationException(
                         $"Completion signal '{x.SignalId}' has no target.")), x.ExpectedValue)).ToArray();
@@ -117,7 +120,7 @@ public static class GuideV5ExecutionCompiler
                 placement = BubblePlacement.Auto;
             steps.Add(new GuideStep(s.StepId, s.Order, mainTarget,
                 new BubbleDefinition(s.BubbleContent, placement), validation, policy,
-                context, completion, s.IsEnabled, s.ApplicationContextId, actions));
+                context, completion, s.IsEnabled, s.ApplicationContextId, actions, identity));
         }
 
         var contexts = data.ContextsAndCaptures.Contexts.Select(c =>
