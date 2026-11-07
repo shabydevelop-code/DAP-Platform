@@ -1936,9 +1936,9 @@ function screenElementPresentation(runtime, element, locators) {
 }
 function renderScreenElementDetails(item, isActionTarget, index) {
   const roleControl = isActionTarget
-    ? '<button type="button" class="screen-element-role active" aria-label="יעד פעולה נוכחי" title="יעד פעולה נוכחי" aria-pressed="true" disabled>◎</button>'
-    : '<button type="button" class="screen-element-role" data-identity-action="set-action" data-index="' + index +
-      '" aria-label="הגדר כיעד פעולה" title="הגדר כיעד פעולה" aria-pressed="false">◎</button>';
+    ? '<button type="button" class="btn secondary small screen-element-role active" aria-label="יעד פעולה נוכחי" disabled>יעד פעולה</button>'
+    : '<button type="button" class="btn secondary small screen-element-role" data-identity-action="set-action" data-index="' + index +
+      '" aria-label="הגדר כיעד פעולה">הגדר כיעד פעולה</button>';
   return roleControl +
     '<p class="target-name-line"><strong>' + esc(item.name) + '</strong></p>' +
     '<p class="field-help">סוג רכיב: ' + esc(item.type) + '</p>' +
