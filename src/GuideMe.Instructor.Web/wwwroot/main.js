@@ -1090,7 +1090,7 @@ async function refreshPicker() {
   }
   pickerEvent(requestSession, 'selected');
   const candidate = adapter.selected(state);
-  if ((!requestSession.completion || requestSession.completionEdit?.identity) && !requestSession.variableSource)
+  if (!requestSession.completion && !requestSession.variableSource)
     $('primary-target-summary')?.classList.add('hidden');
   if (box.dataset.pickedSelector === candidate.selector) return;
   if (requestSession.autoSaving) return;
