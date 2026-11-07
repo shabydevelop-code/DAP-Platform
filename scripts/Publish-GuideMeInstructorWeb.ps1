@@ -67,7 +67,7 @@ try {
         'shared element presentation model' = $jsContent.Contains('function screenElementPresentation(')
         'shared element details renderer' = $jsContent.Contains('function renderScreenElementDetails(')
         'primary element uses shared renderer' = $jsContent.Contains('renderScreenElementDetails(primaryPresentation, true)')
-        'identity element uses shared renderer' = $jsContent.Contains('renderScreenElementDetails(item, false)')
+        'identity element uses shared renderer' = $jsContent.Contains('renderScreenElementDetails(item, false, index)')
         'Any-value handled in shared presentation' = $jsContent.Contains('content:anyValue ?')
     }
     $failedTargetUiChecks = @($targetUiChecks.Keys | Where-Object { -not $targetUiChecks[$_] })
