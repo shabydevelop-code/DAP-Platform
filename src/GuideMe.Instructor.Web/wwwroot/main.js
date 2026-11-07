@@ -2124,9 +2124,7 @@ function editStep(step, assignedContextId) {
        const variable=(current.variables || []).find(v=>v.id===id);
        return variable ? '【'+variablePreviewValue(variable)+'】' : '{{var:'+id+'}}';
      }), max:4000, multiline:true,
-     help:'השינוי ישפיע על תוכן הבועית בלבד. רכיבי יעד וכללי התקדמות אינם משתנים.'},
-    {name:'enabled', label:'מצב השלב', value: step.enabled ? 'true' : 'false',
-     choices:[{value:'true',text:'פעיל'},{value:'false',text:'מושבת'}]}
+     help:'השינוי ישפיע על תוכן הבועית בלבד. רכיבי יעד וכללי התקדמות אינם משתנים.'}
   ], async values => {
     await api('/guides/' + guideId + '/steps/' + encodeURIComponent(stepId), {
       method:'PUT', body:JSON.stringify({bubble:variableEditorResult($('field-bubble')), enabled:step.enabled,
