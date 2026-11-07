@@ -370,7 +370,16 @@ function renderSteps() {
     const locators = parseJson(element?.LocatorsJson, []);
     const frames = parseJson(element?.FrameContextJson, []);
     const conditionText = rule ? validationLabel(rule.Kind) : 'לא הוגדר תנאי';
-    const completionRules = data.rules.filter(x => x.RuleType === 'AdditionalCompletionCondition');
+    const identityRules = data.rules.filter(x => x.RuleType === 'AdditionalCompletionCondition' &&
+      parseJson(x.OptionsJson, {})?.identity === true);
+    const completionRules = data.rules.filter(x => x.RuleType === 'AdditionalCompletionCondition' &&
+      parseJson(x.OptionsJson, {})?.identity !== true);
+    const identityItems = identityRules.map(rule => {
+      const target = data.targets.find(x => x.UsageId === rule.TargetUsageId);
+      const element = data.elements.find(x => x.ElementId === target?.ElementId);
+      return {rule, locators:parseJson(element?.LocatorsJson, []),
+        name:element?.DisplayName || 'הרכיב שנבחר'};
+    });
     const completionItems = completionRules.map(rule => {
       const target = data.targets.find(x => x.UsageId === rule.TargetUsageId);
       const element = data.elements.find(x => x.ElementId === target?.ElementId);
@@ -493,6 +502,19 @@ function renderSteps() {
         '</div>' : '') +
       '</section></div>' +
       ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') ?
+        '<section class="step-friendly-card completion-card"><h3>מזהי אימות נוספים</h3>' +
+        identityItems.map((item, index) =>
+          '<div class="completion-item"><div class="completion-details"><p><strong>' +
+          esc(item.name) + '</strong></p><span class="field-help">חייב להופיע במסך להצגת השלב</span></div>' +
+          '<div class="target-action-buttons"><div class="target-action-primary">' +
+          '<button class="btn secondary small" data-identity-action="replace" data-index="' + index + '">בחירת רכיב אחר</button>' +
+          '<button class="btn secondary small" data-identity-action="edit" data-index="' + index + '">עריכה</button>' +
+          '<button class="btn danger small" data-identity-action="remove" data-index="' + index + '">הסרה</button>' +
+          '</div></div></div>'
+        ).join('') +
+        (target ? '<button class="btn secondary small" id="add-identity">הוספת מזהה אימות</button>' :
+          '<p>יש לבחור תחילה רכיב במסך.</p>') +
+        '<div id="identity-pick-result" class="hidden" aria-live="polite"></div></section>' +
         '<section class="step-friendly-card completion-card"><h3>תנאי השלמה נוספים</h3>' +
         completionItems.map((item, index) =>
           '<div class="completion-item" data-completion-index="' + index + '">' +
@@ -668,6 +690,45 @@ function renderSteps() {
           {method:'POST', body:'{}'});
         notify('ה־Learner הופעל משלב ' + step.order + '. הבועית תוצג כשהרכיב המתאים יהיה זמין.', false, 'info');
       } finally { button.disabled = false; }
+    });
+    const addIdentity = $('add-identity');
+    if (addIdentity) addIdentity.onclick = () => guarded(() =>
+      beginTargetPicker(context.Runtime, current.guide.id, step.id, contextId,
+        false, true, context, null, {kind:'target-appeared', identity:true}));
+    document.querySelectorAll('[data-identity-action]').forEach(button => {
+      button.onclick = () => guarded(async () => {
+        const item = identityItems[Number(button.dataset.index)];
+        if (!item) return;
+        const id = item.rule.TargetUsageId;
+        const action = button.dataset.identityAction;
+        if (action === 'replace') {
+          return beginTargetPicker(context.Runtime, current.guide.id, step.id,
+            contextId, true, true, context, null,
+            {kind:'target-appeared', identity:true, completionId:id});
+        }
+        if (action === 'edit') {
+          const locator = item.locators[0];
+          if (!locator) throw new Error('לא נמצא מזהה רכיב לעריכה.');
+          return modal('עריכת מזהה אימות — שלב ' + step.order, [
+            {name:'locatorValue', label:'מזהה הרכיב', value:locator.Value, max:400, multiline:true}
+          ], async values => {
+            if (!values.locatorValue.trim()) throw new Error('יש להזין מזהה רכיב.');
+            await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+
+              '/completion-target/variable?completionId='+encodeURIComponent(id),
+              {method:'POST',body:JSON.stringify({
+                locatorValue:values.locatorValue.trim(), locatorStrategy:locator.Strategy})});
+            await reloadSelectedStep(current.guide.id, step.id);
+            notify('מזהה האימות עודכן.');
+          });
+        }
+        if (action === 'remove') {
+          if (!confirm('להסיר את מזהה האימות?')) return;
+          await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+
+            '/completion-target?completionId='+encodeURIComponent(id), {method:'DELETE'});
+          await reloadSelectedStep(current.guide.id, step.id);
+          notify('מזהה האימות הוסר.');
+        }
+      });
     });
     const addCompletion = $('add-completion');
     if (addCompletion) addCompletion.onclick = () => guarded(() =>
@@ -900,7 +961,7 @@ function pickerEvent(session, event, message = '') {
 }
 function syncPickerButtons() {
   const busy = !!pickingFor || pickerStarting;
-  for (const id of ['pick-element','replace-web-target','add-completion','pick-variable-source']) {
+  for (const id of ['pick-element','replace-web-target','add-completion','add-identity','pick-variable-source']) {
     const button = $(id);
     if (!button) continue;
     button.disabled = busy;
@@ -937,13 +998,13 @@ const targetAdapters = {
     selected(state) { return state.picked; },
     async saveCompletion(session, candidate) {
       return api('/guides/'+session.guideId+'/steps/'+encodeURIComponent(session.stepId)+'/completion-target',
-        {method:'POST',body:JSON.stringify({kind:$('target-condition').value,
+        {method:'POST',body:JSON.stringify({kind:session.completionEdit?.identity ? 'target-appeared' : $('target-condition').value,
           stateAttributeIndex:$('target-condition').value === 'attribute-equals' && (candidate.stateAttributes || []).length
             ? Number($('completion-state-choice').value) : null,
           selectedTag:candidate.tag,
           expectedValue:$('target-condition').value === 'value-contains'
             ? variableEditorResult($('completion-fixed-value')) : null,
-          replacing:session.replacing,completionId:session.completionEdit?.completionId})});
+          replacing:session.replacing,completionId:session.completionEdit?.completionId,identity:!!session.completionEdit?.identity})});
     }
   },
   Windows: {
@@ -980,7 +1041,7 @@ const targetAdapters = {
     async saveCompletion(session) {
       return api('/guides/'+session.guideId+'/steps/'+encodeURIComponent(session.stepId)+'/completion-target',
         {method:'POST',body:JSON.stringify({kind:$('target-condition').value,
-          expectedValue:$('target-condition').value === 'value-contains' ? variableEditorResult($('completion-fixed-value')) : null,processId:session.processId,replacing:session.replacing,completionId:session.completionEdit?.completionId})});
+          expectedValue:$('target-condition').value === 'value-contains' ? variableEditorResult($('completion-fixed-value')) : null,processId:session.processId,replacing:session.replacing,completionId:session.completionEdit?.completionId,identity:!!session.completionEdit?.identity})});
     },
   }
 };
@@ -1008,7 +1069,7 @@ function variableExtractionEditor(candidate, runtime) {
 }
 function pickerResultBox(session) {
   return $(session.variableSource ? 'variable-pick-result' :
-    session.completion ? 'completion-pick-result' : 'pick-result');
+    session.completionEdit?.identity ? 'identity-pick-result' : session.completion ? 'completion-pick-result' : 'pick-result');
 }
 async function beginTargetPicker(runtime, guideId, stepId, contextId, replacing=false, completion=false, context=null, variableSource=null, completionEdit=null) {
   const adapter = targetAdapters[runtime];
@@ -1139,12 +1200,12 @@ async function refreshPicker() {
     (!pickingFor.completion && !pickingFor.variableSource ?
       variableValueFieldMarkup('picked-content-value', 'זיהוי לפי תוכן') +
       GuideMeAnyValueUI.renderOption('picked-content-any', false) : '') +
-    (pickingFor.completion ? '<label for="target-condition">חוק השלמה</label>' +
+    (pickingFor.completion && !pickingFor.completionEdit?.identity ? '<label for="target-condition">חוק השלמה</label>' +
       '<select id="target-condition">' +
       '<option value="target-appeared">הרכיב מופיע במסך</option>' +
       '<option value="value-contains">הרכיב מכיל ערך מסוים</option>' +
 '</select>' : '')+
-    (pickingFor.completion ? '<div id="completion-fixed-value-fields" class="hidden">' +
+    (pickingFor.completion && !pickingFor.completionEdit?.identity ? '<div id="completion-fixed-value-fields" class="hidden">' +
       variableValueFieldMarkup('completion-fixed-value', 'ערך צפוי', 500) +
       '</div>' : '') +
     (pickingFor.variableSource ? variableExtractionEditor(candidate, requestSession.runtime) : '') +
@@ -1199,7 +1260,7 @@ async function refreshPicker() {
     box.prepend(warning);
     if ($('save-web-target')) $('save-web-target').disabled = true;
   }
-  if (pickingFor.completion) {
+  if (pickingFor.completion && !pickingFor.completionEdit?.identity) {
     const condition = $('target-condition');
     const updateFields = () => {
       $('completion-fixed-value-fields').classList.toggle('hidden', condition.value !== 'value-contains');
