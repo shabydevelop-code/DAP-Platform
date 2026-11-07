@@ -120,6 +120,17 @@ require(ui.count("function renderScreenElementDetails(") == 1 and
         "const targetValueDescription =" not in ui,
         "Instructor: duplicate role-specific element presentation is forbidden")
 
+# Prevent destructive removal of the action target while identity guards remain.
+require("if (identityItems.length > 0)" in ui and
+        "יש להגדיר תחילה רכיב אחר כיעד פעולה" in ui,
+        "Instructor: action-target removal must be blocked while identity guards exist")
+require("יש להגדיר תחילה רכיב אחר כיעד פעולה" in writer and
+        "internal static void RemovePrimaryTarget(" in writer,
+        "Persistence: action-target removal must protect identity guards")
+require("V5GuideWriter.RemovePrimaryTarget(id, stepId)" in server and
+        "return Results.Problem(ex.Message, statusCode: 409)" in server,
+        "API: blocked action-target removal must return conflict")
+
 if failures:
     print("Instructor parity gate FAILED:")
     for failure in failures:
