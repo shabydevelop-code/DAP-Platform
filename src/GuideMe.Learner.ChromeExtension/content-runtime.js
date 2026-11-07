@@ -424,7 +424,7 @@
     return candidates.filter(el => {
       const text = normalize(el.textContent).toLowerCase();
       return matchesCellText(el, parsed.cell) && textFilters.every(wanted => text.includes(wanted)) &&
-        exactFilters.every(wanted => normalize(el.textContent) === wanted) && (!nonempty || normalize(el.textContent).length > 0);
+        exactFilters.every(wanted => normalize(el.textContent) === wanted) && (!nonempty || el.matches('input, textarea, select') || normalize(el.textContent).length > 0);
     });
   }
 
@@ -458,7 +458,7 @@
 
     const text = normalize(el.textContent).toLowerCase();
     return matchesCellText(el, parsed.cell) && textFilters.every(wanted => text.includes(wanted)) &&
-        exactFilters.every(wanted => normalize(el.textContent) === wanted) && (!nonempty || normalize(el.textContent).length > 0);
+        exactFilters.every(wanted => normalize(el.textContent) === wanted) && (!nonempty || el.matches('input, textarea, select') || normalize(el.textContent).length > 0);
   }
 
   function createCandidates(locator) {
