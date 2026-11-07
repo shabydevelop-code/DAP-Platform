@@ -474,7 +474,7 @@ body .brand-heading strong span { font-size: 26px; }
 
 /* Labeled action-target button in the upper-left corner of every element card. */
 .screen-target-bubble { position: relative; }
-.screen-target-bubble .screen-element-role { position: absolute; z-index: 2; pointer-events: auto; top: 12px; left: 12px; width: auto; height: auto; padding: 6px 10px; margin: 0; white-space: nowrap; font: inherit; font-size: inherit; line-height: inherit; cursor: pointer; }
+.screen-target-bubble .screen-element-role { position: absolute; z-index: 2; pointer-events: auto; top: 12px; left: 12px; width: auto; height: auto; padding: 6px 10px; margin: 0; white-space: nowrap; cursor: pointer; }
 .screen-target-bubble .screen-element-role.active { background: #edf4ff; border-color: #2e5b93; color: #244b7d; opacity: 1; cursor: default; }
 .screen-target-bubble .screen-element-role:focus-visible { outline: 2px solid #2e5b93; outline-offset: 2px; }
 .screen-target-bubble .target-name-line { padding-left: 130px; min-height: 32px; align-items: center; }
