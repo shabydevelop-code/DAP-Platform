@@ -1128,9 +1128,12 @@ async function refreshPicker() {
     : /(?:#[\\w-]+|\\[(?:id|name|data-[\\w-]+)\\s*=)/.test(candidate.selector || '');
   const hasSemanticContentLocator = requestSession.runtime === 'Web' &&
     /:(?:exact-text|cell-text)\\(/.test(candidate.selector || '');
+  // Content matching is opt-in. Only prefill when the captured selector
+  // already contains an explicit semantic text matcher; otherwise a stable
+  // structural locator must not acquire a new text constraint.
   const initialContentValue = hasSemanticContentLocator
-    ? String(editableContent ?? '').trim()
-    : technicalLocator ? '' : String(editableContent ?? capturedSample ?? '').trim();
+    ? String(selectorText ?? editableContent ?? '').trim()
+    : '';
   box.innerHTML = '<div class="picked-target-fields" dir="rtl">' +
     '<p><strong>'+esc(candidate.label || candidate.tag || 'רכיב')+'</strong> <span class="picked-target-kind">('+esc(kindLabel)+')</span></p>'+
     (!pickingFor.completion && !pickingFor.variableSource ?
