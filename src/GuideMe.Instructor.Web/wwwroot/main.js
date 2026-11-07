@@ -750,6 +750,7 @@ function renderSteps() {
     const startButton = $('pick-element');
     if (startButton) startButton.onclick = () => guarded(() => startElementPicker());
     syncPickerButtons();
+    document.dispatchEvent(new CustomEvent('guideme:step-rendered', {detail:{stepId}}));
 
   })));
 }
@@ -2036,15 +2037,37 @@ async function editPrimaryTargetValue({kind, step, locators, binding:preparedBin
 // One insertion editor for every variable-aware field. Persistence is supplied
 // by the caller; cursor handling, token rendering and validation are shared.
 async function reloadSelectedStep(guideId, stepId) {
-  // Re-select only the current step. Reopening the guide triggers an
-  // automatic first-step selection followed by another selection, causing
-  // overlapping inspector requests and potentially stale target display.
   if (current?.guide?.id !== guideId)
     throw new Error('הלומדה הפעילה השתנתה. יש לפתוח מחדש את השלב.');
   const row = [...document.querySelectorAll('#step-list [data-step]')]
     .find(b => b.dataset.step === stepId);
   if (!row) throw new Error('לא נמצא השלב לרענון.');
+  const scrollPositions = [];
+  for (let node = document.getElementById('step-inspector'); node; node = node.parentElement) {
+    if (node.scrollTop || node.scrollLeft)
+      scrollPositions.push([node, node.scrollTop, node.scrollLeft]);
+  }
+  const windowY = window.scrollY, windowX = window.scrollX;
+  const rendered = new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      document.removeEventListener('guideme:step-rendered', onRender);
+      reject(new Error('רענון השלב לא הסתיים בזמן.'));
+    }, 10000);
+    function onRender(event) {
+      if (event.detail?.stepId !== stepId) return;
+      clearTimeout(timer);
+      document.removeEventListener('guideme:step-rendered', onRender);
+      resolve();
+    }
+    document.addEventListener('guideme:step-rendered', onRender);
+  });
   row.click();
+  await rendered;
+  await new Promise(resolve => requestAnimationFrame(resolve));
+  for (const [node, top, left] of scrollPositions) {
+    if (node.isConnected) { node.scrollTop = top; node.scrollLeft = left; }
+  }
+  window.scrollTo(windowX, windowY);
 }
 // Shared token insertion for inline expected-value fields.
 function variableEditorResult(input) {
