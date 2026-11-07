@@ -348,6 +348,30 @@ app.MapPost("/api/capture/stop", () => Results.Ok(new { events = capture.End() }
 app.MapPost("/api/target-picker/start", (PickStart request) =>
     Results.Ok(capture.StartPicking(request.GuideId, request.ContextId)));
 app.MapPost("/api/target-picker/cancel", () => Results.Ok(capture.CancelPicking()));
+// Shared captured-content semantics for additional screen identity targets.
+static string ApplyCapturedContentSelector(string selector, string? content, bool any)
+{
+    if (!any && content is null) return selector;
+    if (any)
+    {
+        var cell = System.Text.RegularExpressions.Regex.Match(selector,
+            @":cell-text\((\d+),""(?:[^""\\]|\\.)*""\)$");
+        return cell.Success ? selector[..cell.Index] + ":cell-any(" + cell.Groups[1].Value + ")"
+            : selector + ":nonempty-text";
+    }
+    if (string.IsNullOrWhiteSpace(content) || content.Length > 400)
+        throw new ArgumentException("ערך הזיהוי חייב להכיל 1 עד 400 תווים.");
+    var match = System.Text.RegularExpressions.Regex.Match(selector,
+        @":(?:cell-text\(\s*\d+\s*,\s*|exact-text\(\s*)(""(?:[^""\\]|\\.)*"")\s*\)");
+    if (match.Success)
+    {
+        var quoted = match.Groups[1];
+        return string.Concat(selector.AsSpan(0, quoted.Index),
+            JsonSerializer.Serialize(content), selector.AsSpan(quoted.Index + quoted.Length));
+    }
+    return selector + ":exact-text(" + JsonSerializer.Serialize(content) + ")";
+}
+
 app.MapPost("/api/guides/{id:long}/steps/{stepId}/completion-target",
     (long id, string stepId, SaveCompletionTargetRequest request) =>
 {
@@ -361,6 +385,8 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/completion-target",
         string.Equals(r["ContextId"].ToString(), contextId, StringComparison.Ordinal));
     if (context is null) return Results.BadRequest(new { message = "לא נמצא שיוך אפליקציה." });
     var runtime = context["Runtime"].ToString();
+    if (request.Identity && request.Kind != "target-appeared")
+        return Results.BadRequest(new { message = "מזהה אימות חייב להופיע במסך." });
     if (runtime == "Windows")
     {
         if (request.Kind is not ("value-contains" or "target-appeared") || request.ProcessId is not > 0)
@@ -376,12 +402,24 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/completion-target",
             string.Equals((value.GetString() ?? "").Replace(".exe", "", StringComparison.OrdinalIgnoreCase),
                 process.ProcessName, StringComparison.OrdinalIgnoreCase));
         if (!allowed) return Results.BadRequest(new { message = "הרכיב אינו שייך לאפליקציה שהוגדרה." });
+        var identityLocators = picked.Locators
+            .Take(request.Identity ? 1 : int.MaxValue)
+            .Select(l => new V5GuideWriter.TargetLocator(l.Strategy, l.Value)).ToArray();
+        if (request.Identity && identityLocators.Length > 0)
+        {
+            if (request.AnyContent == true)
+                identityLocators = new[] { identityLocators[0].Strategy == "automation-id"
+                    ? new V5GuideWriter.TargetLocator("automation-id-nonempty", identityLocators[0].Value)
+                    : new V5GuideWriter.TargetLocator("name-nonempty", "*") };
+            else if (request.ContentValue is not null &&
+                !string.Equals(request.ContentValue, picked.Name, StringComparison.Ordinal))
+                identityLocators = new[] { new V5GuideWriter.TargetLocator("name", request.ContentValue) };
+        }
         try
         {
             V5GuideWriter.SaveWebCompletionTarget(id, stepId, "", Array.Empty<string>(),
                 request.Kind, picked.Name, expectedValue: request.ExpectedValue,
-                runtime: "Windows", windowsLocators: picked.Locators
-                    .Select(l => new V5GuideWriter.TargetLocator(l.Strategy, l.Value)).ToArray(),
+                runtime: "Windows", windowsLocators: identityLocators,
                 windowsAnchors: picked.Anchors?.Select(a => new V5GuideWriter.TargetAnchor(
                     new V5GuideWriter.TargetLocator(a.Strategy, a.Value), a.Relation)).ToArray(),
                 replacing: request.Replacing, controlType: picked.ControlType, completionId: request.CompletionId, identity: request.Identity);
@@ -393,14 +431,21 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/completion-target",
     }
     if (runtime != "Web") return Results.BadRequest(new { message = "סביבת יעד לא נתמכת." });
     var selected = capture.GetApprovedTarget(id, contextId);
+    if (request.Identity && request.ContentValue is { Length: > 400 })
+        return Results.BadRequest(new { message = "ערך הזיהוי ארוך מדי." });
+    if (request.Identity && request.AnyContent == true && request.ContentValue is not null)
+        return Results.BadRequest(new { message = "יש לבחור ערך זיהוי או כל ערך." });
     try
     {
         var capturedState = request.Kind == "attribute-equals"
             ? capture.GetApprovedStateAttribute(id, row["ApplicationContextId"].ToString() ?? "",
                 request.StateAttributeIndex ?? -1)
             : ((string Name, string Value, string Selector)?)null;
+        var selector = capturedState?.Selector ?? selected.Selector;
+        if (request.Identity)
+            selector = ApplyCapturedContentSelector(selector, request.ContentValue, request.AnyContent == true);
         V5GuideWriter.SaveWebCompletionTarget(id, stepId,
-            capturedState?.Selector ?? selected.Selector,
+            selector,
             selected.FramePath, request.Kind, selected.DisplayName,
             capturedState?.Name, capturedState?.Value, request.VariableId, request.SelectedTag, request.ExpectedValue,
             replacing: request.Replacing, completionId: request.CompletionId, identity: request.Identity);
@@ -806,7 +851,8 @@ internal sealed record SavePrimaryTargetRequest(string Condition, bool Replacing
 internal sealed record PickStart(long GuideId, string ContextId);
 internal sealed record SaveCompletionTargetRequest(string Kind, int? StateAttributeIndex = null,
     string? VariableId = null, string? SelectedTag = null, string? ExpectedValue = null,
-    int? ProcessId = null, bool Replacing = false, string? CompletionId = null, bool Identity = false);
+    int? ProcessId = null, bool Replacing = false, string? CompletionId = null, bool Identity = false,
+    string? ContentValue = null, bool? AnyContent = null, int? GridChoice = null);
 
 internal sealed record EditWebValidation(string Kind, string? ExpectedValue);
 
