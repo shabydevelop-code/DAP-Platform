@@ -842,7 +842,7 @@ AND AnchorElementId IN (
         IReadOnlyList<TargetLocator> locators, IReadOnlyList<TargetLocator> frames,
         string? displayName, string condition, bool replacing,
         IReadOnlyList<(TargetLocator Locator, string Relation)>? anchors = null,
-        string? controlType = null, string? completionId = null)
+        string? controlType = null)
     {
         if (runtime is not ("Web" or "Windows") || locators.Count is < 1 or > 12 ||
             locators.Any(l => string.IsNullOrWhiteSpace(l.Value) || l.Value.Length > 400 ||
