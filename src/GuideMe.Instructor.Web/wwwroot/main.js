@@ -647,9 +647,22 @@ function renderSteps() {
         const id = item.rule.TargetUsageId;
         const action = button.dataset.identityAction;
         if (action === 'set-action') {
-          await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+'/action-target',
-            {method:'PUT',body:JSON.stringify({identityUsageId:id})});
-          await reloadSelectedStep(current.guide.id, step.id);
+          const guideId = current.guide.id;
+          const before = await api('/guides/'+guideId+'/step/'+encodeURIComponent(step.id));
+          const selectedElementId = before.targets.find(target => target.UsageId === id)?.ElementId;
+          if (!selectedElementId) throw new Error('לא נמצא הרכיב שנבחר כיעד פעולה.');
+          button.disabled = true;
+          try {
+            await api('/guides/'+guideId+'/steps/'+encodeURIComponent(step.id)+'/action-target',
+              {method:'PUT',body:JSON.stringify({identityUsageId:id})});
+            const after = await api('/guides/'+guideId+'/step/'+encodeURIComponent(step.id));
+            const primary = after.targets.find(target => target.UsageId === 'primary' && target.Purpose === 'Primary');
+            if (primary?.ElementId !== selectedElementId)
+              throw new Error('השרת לא עדכן את יעד הפעולה. יש לבדוק את נתוני השלב.');
+            await reloadSelectedStep(guideId, step.id);
+          } finally {
+            if (button.isConnected) button.disabled = false;
+          }
           notify('יעד הפעולה עודכן.');
           return;
         }
@@ -1957,7 +1970,7 @@ function renderScreenElementActions(isActionTarget, index) {
     button(isActionTarget ? 'remove-primary-target' : 'remove', 'הסרה', 'danger') +
     '</div></div>';
 }
-function editPrimaryTargetValue({kind, step, locators, binding:preparedBinding, identityUsageId = null}) {
+async function editPrimaryTargetValue({kind, step, locators, binding:preparedBinding, identityUsageId = null}) {
   if (!current || kind !== 'target') return;
   const locator = (locators || [])[0];
   if (!locator?.Value) {
@@ -1969,6 +1982,8 @@ function editPrimaryTargetValue({kind, step, locators, binding:preparedBinding, 
     notify('לרכיב זה אין ערך זיהוי טקסטואלי שניתן לערוך. ניתן לבחור רכיב אחר.', true);
     return;
   }
+  // Resolve variables from the guide, regardless of which element role is edited.
+  current.variables = await api('/guides/' + current.guide.id + '/variables');
   const supportsAny = !!binding.buildAny || !!binding.any;
   modal('עריכת רכיב במסך — שלב ' + step.order, [
     {name:'locatorValue', label:'ערך לזיהוי הרכיב', value:binding.value,
