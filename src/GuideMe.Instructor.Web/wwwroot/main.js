@@ -998,11 +998,11 @@ const targetAdapters = {
     selected(state) { return state.picked; },
     async saveCompletion(session, candidate) {
       return api('/guides/'+session.guideId+'/steps/'+encodeURIComponent(session.stepId)+'/completion-target',
-        {method:'POST',body:JSON.stringify({kind:session.completionEdit?.identity ? 'target-appeared' : $('target-condition').value,
-          stateAttributeIndex:$('target-condition').value === 'attribute-equals' && (candidate.stateAttributes || []).length
+        {method:'POST',body:JSON.stringify({kind:session.completionEdit?.identity ? 'target-appeared' : $('target-condition')?.value,
+          stateAttributeIndex:$('target-condition')?.value === 'attribute-equals' && (candidate.stateAttributes || []).length
             ? Number($('completion-state-choice').value) : null,
           selectedTag:candidate.tag,
-          expectedValue:$('target-condition').value === 'value-contains'
+          expectedValue:$('target-condition')?.value === 'value-contains'
             ? variableEditorResult($('completion-fixed-value')) : null,
           replacing:session.replacing,completionId:session.completionEdit?.completionId,identity:!!session.completionEdit?.identity})});
     }
@@ -1040,8 +1040,8 @@ const targetAdapters = {
     },
     async saveCompletion(session) {
       return api('/guides/'+session.guideId+'/steps/'+encodeURIComponent(session.stepId)+'/completion-target',
-        {method:'POST',body:JSON.stringify({kind:$('target-condition').value,
-          expectedValue:$('target-condition').value === 'value-contains' ? variableEditorResult($('completion-fixed-value')) : null,processId:session.processId,replacing:session.replacing,completionId:session.completionEdit?.completionId,identity:!!session.completionEdit?.identity})});
+        {method:'POST',body:JSON.stringify({kind:$('target-condition')?.value,
+          expectedValue:$('target-condition')?.value === 'value-contains' ? variableEditorResult($('completion-fixed-value')) : null,processId:session.processId,replacing:session.replacing,completionId:session.completionEdit?.completionId,identity:!!session.completionEdit?.identity})});
     },
   }
 };
