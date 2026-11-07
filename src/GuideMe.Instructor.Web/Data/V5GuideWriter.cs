@@ -1047,8 +1047,10 @@ WHERE GuideId=$guideId AND StepId=$stepId";
         string? variableId = null, string? selectedTag = null, string? expectedValue = null,
         string runtime = "Web", IReadOnlyList<TargetLocator>? windowsLocators = null,
         IReadOnlyList<TargetAnchor>? windowsAnchors = null, bool replacing = false,
-        string? controlType = null, string? completionId = null)
+        string? controlType = null, string? completionId = null, bool identity = false)
     {
+        if (identity && kind != "target-appeared")
+            throw new ArgumentException("מזהה אימות חייב להיות רכיב שמופיע במסך.");
         if (runtime is not ("Web" or "Windows"))
             throw new ArgumentException("סביבת יעד לא נתמכת.");
         if (runtime == "Windows" && (windowsLocators is null || windowsLocators.Count == 0 ||
@@ -1199,9 +1201,10 @@ VALUES ($guideId, $stepId, $usageId, $elementId, 'Completion')";
         command.Parameters.AddWithValue("$expected", kind == "attribute-equals"
             ? (object)JsonSerializer.Serialize(new { name = attributeName, value = attributeValue })
             : kind == "value-contains" ? expectedValue! : DBNull.Value);
+        command.Parameters.AddWithValue("$options", identity ? (object)@"{""identity"":true}" : DBNull.Value);
         command.CommandText = @"INSERT INTO StepRules
-(GuideId, StepId, RuleType, RuleId, Kind, TargetUsageId, ExpectedValue)
-VALUES ($guideId, $stepId, 'AdditionalCompletionCondition', $usageId, $kind, $usageId, $expected)";
+(GuideId, StepId, RuleType, RuleId, Kind, TargetUsageId, ExpectedValue, OptionsJson)
+VALUES ($guideId, $stepId, 'AdditionalCompletionCondition', $usageId, $kind, $usageId, $expected, $options)";
         command.ExecuteNonQuery();
         transaction.Commit();
     }
