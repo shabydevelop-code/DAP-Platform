@@ -1190,11 +1190,11 @@ VALUES ($guideId,$elementId,$anchorId,$relation,$order)";
                 insert.ExecuteNonQuery();
             }
         }
+        command.Parameters.AddWithValue("$usageId", usageId);
         command.CommandText = @"INSERT INTO StepTargets
 (GuideId, StepId, UsageId, ElementId, Purpose)
 VALUES ($guideId, $stepId, $usageId, $elementId, 'Completion')";
         command.ExecuteNonQuery();
-        command.Parameters.AddWithValue("$usageId", usageId);
         command.Parameters.AddWithValue("$kind", kind);
         command.Parameters.AddWithValue("$expected", kind == "attribute-equals"
             ? (object)JsonSerializer.Serialize(new { name = attributeName, value = attributeValue })
