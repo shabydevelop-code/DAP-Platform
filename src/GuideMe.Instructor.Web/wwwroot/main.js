@@ -26,41 +26,6 @@ let pendingChanges = false;
 let saveInFlight = 0;
 function markDirty() { pendingChanges = true; }
 function markClean() { pendingChanges = false; }
-// A visible Save/Cancel editor owns navigation until its transaction is resolved.
-function activeInspectorEditor() {
-  const inspector = $('step-inspector');
-  if (!inspector) return null;
-  const candidates = [...inspector.querySelectorAll('form, .completion-inline-editor')];
-  return candidates.find(form => {
-    if (form.classList.contains('hidden') || form.closest('.hidden')) return false;
-    const buttons = [...form.querySelectorAll('button')];
-    return buttons.some(b => /שמירה|שמור/.test(b.textContent || '') && b.type === 'submit') &&
-      buttons.some(b => /ביטול/.test(b.textContent || ''));
-  }) || null;
-}
-function preventUnfinishedInspectorNavigation(event) {
-  const editor = activeInspectorEditor();
-  if (!editor) return;
-  const target = event.target;
-  if (!(target instanceof Element)) return;
-  // All controls inside the active form remain usable, including Save and Cancel.
-  if (editor.contains(target)) return;
-  const navigation = target.closest('[data-step], .tab, #back, #new-step, #test-guide, #rename-guide, #delete-guide, #add-context, #duplicate-step, #delete-step, #test-from-step, #add-completion, [data-completion-action]');
-  if (!navigation) return;
-  event.preventDefault();
-  event.stopImmediatePropagation();
-  notify('יש לשמור או לבטל את העריכה לפני מעבר לפעולה אחרת.', true);
-}
-document.addEventListener('click', preventUnfinishedInspectorNavigation, true);
-document.addEventListener('keydown', event => {
-  if (event.key !== 'Enter' && event.key !== ' ') return;
-  const editor = activeInspectorEditor();
-  if (!editor || editor.contains(event.target)) return;
-  if (!event.target?.closest?.('[data-step], .tab')) return;
-  event.preventDefault();
-  event.stopImmediatePropagation();
-}, true);
-
 function confirmDiscard() {
   if (!pendingChanges) return true;
   if (!confirm('יש שינויים שלא נשמרו. לצאת בלי לשמור אותם?')) return false;
@@ -709,7 +674,7 @@ function renderSteps() {
         if (!item) return;
         const completionId = item.rule.TargetUsageId;
         if (button.dataset.completionAction === 'edit')
-          return editCompletionCondition(step, item.rule, item.locators, button);
+          return editCompletionCondition(step, item.rule, item.locators);
         if (button.dataset.completionAction === 'replace')
           return guarded(() => beginTargetPicker(context.Runtime, current.guide.id, step.id,
             contextId, true, true, context, null,
@@ -770,89 +735,52 @@ function validationLabel(kind) {
   return validationChoices.find(x=>x.value===kind)?.text ||
     'תנאי מתקדם שהוגדר במערכת';
 }
-function editCompletionCondition(step, rule, locators, button) {
-  const card = button?.closest('.completion-item');
-  const details = card?.querySelector('.completion-details');
-  const actions = card?.querySelector('.target-action-buttons');
-  if (!card || !details || !actions) return;
-  const completionSection = card.closest('.completion-card');
-  if (completionSection?.querySelector('.completion-inline-editor')) return;
-  const addCompletionButton = completionSection?.querySelector('#add-completion');
-  if (addCompletionButton) addCompletionButton.classList.add('hidden');
-  details.classList.add('hidden');
-  actions.classList.add('hidden');
+function editCompletionCondition(step, rule, locators) {
   const locator = (locators || [])[0];
   const binding = locatorTextBinding(locator);
-  const editor = document.createElement('form');
-  editor.className = 'completion-inline-editor';
-  editor.innerHTML =
-    (binding ? '<div class="field"><label for="completion-edit-locator">ערך לזיהוי הרכיב</label>' +
-      '<textarea id="completion-edit-locator" maxlength="400" rows="1" dir="rtl"></textarea>' +
-      '<div id="completion-edit-locator-variables"></div></div>' : '') +
-    '<div class="field"><label for="completion-edit-kind">חוק השלמה</label>' +
-    '<select id="completion-edit-kind">' +
-    '<option value="target-appeared">הרכיב מופיע במסך</option>' +
-    '<option value="value-contains">הרכיב מכיל ערך מסוים</option></select></div>' +
-    '<div id="completion-edit-value">' +
-    variableValueFieldMarkup('completion-edit-expected', 'ערך צפוי', 500) + '</div>' +
-    '<div class="target-action-buttons"><div class="target-action-primary">' +
-    '<button class="btn primary small" type="submit">שמירה</button>' +
-    '<button class="btn secondary small" type="button" id="completion-edit-cancel">ביטול</button>' +
-    '</div></div>';
-  card.append(editor);
-  const locatorInput = $('completion-edit-locator');
-  if (locatorInput) {
-    locatorInput.value = binding.value;
-    initializeVariableField(locatorInput, $('completion-edit-locator-variables'), binding.value);
-  }
-  const kind = $('completion-edit-kind');
-  const value = $('completion-edit-expected');
-  const valueGroup = $('completion-edit-value');
-  kind.value = rule.Kind;
-  initializeVariableField(value, $('completion-edit-expected-variables'), rule.ExpectedValue || '');
+  const fields = [];
+  if (binding) fields.push({
+    name:'locatorValue', label:'ערך לזיהוי הרכיב', value:binding.value,
+    max:400, multiline:true
+  });
+  fields.push({
+    name:'kind', label:'חוק השלמה', value:rule.Kind,
+    choices:[
+      {value:'target-appeared',text:'הרכיב מופיע במסך'},
+      {value:'value-contains',text:'הרכיב מכיל ערך מסוים'}
+    ]
+  });
+  fields.push({
+    name:'expectedValue', label:'ערך צפוי', value:rule.ExpectedValue || '',
+    max:500, multiline:true, optional:true
+  });
+  modal('עריכת תנאי השלמה — שלב ' + step.order, fields, async values => {
+    const expected = values.kind === 'value-contains' ? values.expectedValue.trim() : null;
+    if (values.kind === 'value-contains' && !expected)
+      rejectInstructorField($('field-expectedValue'), 'יש להזין ערך צפוי.');
+    if (binding) {
+      const locatorValue = values.locatorValue.trim();
+      if (!locatorValue)
+        rejectInstructorField($('field-locatorValue'), 'יש להזין ערך לזיהוי הרכיב.');
+      if (locatorValue !== binding.value) {
+        await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+
+          '/completion-target/variable?completionId='+encodeURIComponent(rule.TargetUsageId),
+          {method:'POST',body:JSON.stringify({locatorValue})});
+      }
+    }
+    await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+
+      '/completion-target?completionId='+encodeURIComponent(rule.TargetUsageId),
+      {method:'PUT',body:JSON.stringify({kind:values.kind,expectedValue:expected})});
+    await reloadSelectedStep(current.guide.id, step.id);
+    notify('תנאי ההשלמה עודכן.');
+  });
+  const kind = $('field-kind');
+  const expectedField = $('field-expectedValue')?.closest('.field');
   const refresh = () => {
-    const required = kind.value === 'value-contains';
-    valueGroup.classList.toggle('hidden', !required);
-    value.required = required;
-    if (!required) clearInstructorFieldError(value);
+    if (expectedField) expectedField.classList.toggle('hidden', kind.value !== 'value-contains');
   };
   kind.addEventListener('change', refresh);
   refresh();
-  const cancel = () => {
-    editor.remove();
-    details.classList.remove('hidden');
-    actions.classList.remove('hidden');
-    if (addCompletionButton) addCompletionButton.classList.remove('hidden');
-  };
-  $('completion-edit-cancel').onclick = cancel;
-  editor.noValidate = true;
-  editor.onsubmit = event => {
-    event.preventDefault();
-    if (!validateInstructorForm(editor)) return;
-    guarded(async () => {
-      const expected = kind.value === 'value-contains' ? variableEditorResult(value).trim() : null;
-      const locatorValue = locatorInput ? variableEditorResult(locatorInput).trim() : null;
-      if (locatorInput && !locatorValue)
-        return showInstructorFieldError(locatorInput, 'יש להזין ערך לזיהוי הרכיב.');
-      if (kind.value === 'value-contains' && !expected)
-        return showInstructorFieldError(value, 'יש להזין ערך צפוי.');
-      const buttons = [...editor.querySelectorAll('button')];
-      buttons.forEach(b => b.disabled = true);
-      try {
-        if (locatorInput && locatorValue !== locator.Value) {
-          await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+'/completion-target/variable?completionId='+encodeURIComponent(rule.TargetUsageId),
-            {method:'POST',body:JSON.stringify({locatorValue})});
-        }
-        await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+'/completion-target?completionId='+encodeURIComponent(rule.TargetUsageId),
-          {method:'PUT',body:JSON.stringify({kind:kind.value,expectedValue:expected})});
-        await reloadSelectedStep(current.guide.id, step.id);
-        notify('תנאי ההשלמה עודכן.');
-      } catch (error) {
-        buttons.forEach(b => b.disabled = false);
-        throw error;
-      }
-    });
-  };
 }
 function editValidation(step, rule) {
   const kind = validationChoices.some(x=>x.value===rule?.Kind) ? rule.Kind : 'clicked';
