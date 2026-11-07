@@ -462,10 +462,7 @@ function renderSteps() {
         (targetValueDescription ? '<p>זיהוי לפי תוכן: <strong class="target-business-value-preview">' +
           esc(targetValueDescription) + '</strong></p>' : '') +
         (!anyValueTarget && editableTargetBinding?.value ? '<p>ערך איתור: <strong class="target-business-value-preview">' +
-          friendlyInstructionHtml(editableTargetBinding.value) + '</strong></p>' :
-          rule?.ExpectedValue && rule.Kind === 'value-equals' ?
-          '<p>ערך צפוי בתנאי ההתקדמות: <strong class="target-business-value-preview">' +
-          friendlyInstructionHtml(rule.ExpectedValue) + '</strong></p>' : '') +
+          friendlyInstructionHtml(editableTargetBinding.value) + '</strong></p>' : '') +
         '' :
         '<p>עדיין לא נבחר רכיב לשלב הזה.</p>') +
       '</div>' +
@@ -698,9 +695,7 @@ function renderSteps() {
       if (editableTargetBinding) return editPrimaryTargetValue({
         kind:'target', step, locators, binding:editableTargetBinding
       });
-      // A stable technical locator has no editable text; edit its value rule instead.
-      if (rule) return editValidation(step, rule);
-      notify('לרכיב זה אין ערך איתור טקסטואלי לעריכה. ניתן להחליף את הרכיב.', true);
+      notify('לרכיב זה אין ערך זיהוי טקסטואלי שניתן לערוך. ניתן לבחור רכיב אחר.', true);
     };
     const targetReplace = $('replace-web-target');
     if (targetReplace) targetReplace.onclick = () => guarded(() => startElementPicker(true));
