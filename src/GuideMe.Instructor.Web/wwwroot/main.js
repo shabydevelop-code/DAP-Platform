@@ -403,6 +403,21 @@ function renderSteps() {
     const completionRule = completionRules[0];
     const completionElementName = completionItems[0]?.name || '';
     const primaryPresentation = screenElementPresentation(context?.Runtime, element, locators);
+    const screenElementOrderKey = current.guide.id + ':' + stepId;
+    const screenElements = [
+      ...(target ? [{elementId:target.ElementId, isActionTarget:true, presentation:primaryPresentation}] : []),
+      ...identityItems.map((item, index) => ({
+        elementId:data.targets.find(x => x.UsageId === item.rule.TargetUsageId)?.ElementId,
+        isActionTarget:false, presentation:item, index
+      }))
+    ];
+    const previousOrder = screenElementDisplayOrder.get(screenElementOrderKey) || [];
+    const elementOrder = [
+      ...previousOrder.filter(id => screenElements.some(item => item.elementId === id)),
+      ...screenElements.map(item => item.elementId).filter(id => !previousOrder.includes(id))
+    ];
+    screenElementDisplayOrder.set(screenElementOrderKey, elementOrder);
+    screenElements.sort((a,b) => elementOrder.indexOf(a.elementId) - elementOrder.indexOf(b.elementId));
     const editableTargetBinding = primaryPresentation.binding;
     selectedTargetPreviewValue = editableTargetBinding?.value || null;
     selectedValidationExpectedValue = rule?.ExpectedValue || null;
@@ -428,23 +443,23 @@ function renderSteps() {
        '<div class="context-actions"><button class="btn secondary small" id="edit-step">עריכת תוכן השלב</button></div></div></div>' +
        '<div class="step-friendly-grid">' +
       '<section class="step-friendly-card"><h3>רכיב במסך</h3>' +
-      '<div class="screen-target-bubble screen-target-primary">' +
-      '<div id="primary-target-summary">' +
-      (target ? renderScreenElementDetails(primaryPresentation, true) :
-        '<p>עדיין לא נבחר רכיב לשלב הזה.</p>') +
-      '</div>' +
-      ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') ?
-        (target ? renderScreenElementActions(true) :
-          '<button id="pick-element" class="btn primary">הפעלת ממפה רכיבים</button>') +
-        '<div id="pick-result" class="hidden" aria-live="polite"></div>' : '') +
+      '<div class="screen-element-list">' +
+      screenElements.map(item =>
+        '<div class="screen-target-bubble ' + (item.isActionTarget ? 'screen-target-primary' : 'screen-target-identity') + '">' +
+        '<div class="completion-details">' +
+        renderScreenElementDetails(item.presentation, item.isActionTarget, item.index) + '</div>' +
+        ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') ?
+          renderScreenElementActions(item.isActionTarget, item.index) : '') +
+        (item.isActionTarget ? '<div id="pick-result" class="hidden" aria-live="polite"></div>' : '') +
+        '</div>'
+      ).join('') +
+      (!target ? '<div class="screen-target-bubble screen-target-primary"><p>עדיין לא נבחר רכיב לשלב הזה.</p>' +
+        ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') ?
+          '<button id="pick-element" class="btn primary">הפעלת ממפה רכיבים</button>' : '') +
+        '</div>' : '') +
       '</div>' +
       ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') ?
         '<div class="identity-targets">' +
-        identityItems.map((item, index) =>
-          '<div class="screen-target-bubble screen-target-identity">' +
-          '<div class="completion-details">' + renderScreenElementDetails(item, false, index) + '</div>' +
-          renderScreenElementActions(false, index) + '</div>'
-        ).join('') +
         (target ? '<button class="btn secondary small" id="add-identity">הוספת מזהה אימות</button>' :
           '<p>יש לבחור תחילה רכיב במסך.</p>') +
         '<div id="identity-pick-result" class="screen-target-bubble screen-target-capture hidden" aria-live="polite"></div></div>' : '') +
@@ -647,23 +662,10 @@ function renderSteps() {
         const id = item.rule.TargetUsageId;
         const action = button.dataset.identityAction;
         if (action === 'set-action') {
-          notify('מעדכן יעד פעולה...', false, 'info');
           const guideId = current.guide.id;
-          const before = await api('/guides/'+guideId+'/step/'+encodeURIComponent(step.id));
-          const selectedElementId = before.targets.find(target => target.UsageId === id)?.ElementId;
-          if (!selectedElementId) throw new Error('לא נמצא הרכיב שנבחר כיעד פעולה.');
-          button.disabled = true;
-          try {
-            await api('/guides/'+guideId+'/steps/'+encodeURIComponent(step.id)+'/action-target',
-              {method:'PUT',body:JSON.stringify({identityUsageId:id})});
-            const after = await api('/guides/'+guideId+'/step/'+encodeURIComponent(step.id));
-            const primary = after.targets.find(target => target.UsageId === 'primary' && target.Purpose === 'Primary');
-            if (primary?.ElementId !== selectedElementId)
-              throw new Error('השרת לא עדכן את יעד הפעולה. יש לבדוק את נתוני השלב.');
-            await reloadSelectedStep(guideId, step.id);
-          } finally {
-            if (button.isConnected) button.disabled = false;
-          }
+          await api('/guides/'+guideId+'/steps/'+encodeURIComponent(step.id)+'/action-target',
+            {method:'PUT',body:JSON.stringify({identityUsageId:id})});
+          await reloadSelectedStep(guideId, step.id);
           notify('יעד הפעולה עודכן.');
           return;
         }
@@ -750,7 +752,6 @@ function renderSteps() {
     const startButton = $('pick-element');
     if (startButton) startButton.onclick = () => guarded(() => startElementPicker());
     syncPickerButtons();
-    document.dispatchEvent(new CustomEvent('guideme:step-rendered', {detail:{stepId}}));
 
   })));
 }
@@ -1949,6 +1950,7 @@ function screenElementPresentation(runtime, element, locators) {
     content:anyValue ? 'כל ערך' : binding?.value || null
   };
 }
+const screenElementDisplayOrder = new Map();
 function renderScreenElementDetails(item, isActionTarget, index) {
   const roleControl = isActionTarget
     ? '<button type="button" class="btn secondary small screen-element-role active" aria-label="יעד פעולה נוכחי" disabled>יעד פעולה</button>'
@@ -2037,37 +2039,9 @@ async function editPrimaryTargetValue({kind, step, locators, binding:preparedBin
 // One insertion editor for every variable-aware field. Persistence is supplied
 // by the caller; cursor handling, token rendering and validation are shared.
 async function reloadSelectedStep(guideId, stepId) {
-  if (current?.guide?.id !== guideId)
-    throw new Error('הלומדה הפעילה השתנתה. יש לפתוח מחדש את השלב.');
   const row = [...document.querySelectorAll('#step-list [data-step]')]
     .find(b => b.dataset.step === stepId);
-  if (!row) throw new Error('לא נמצא השלב לרענון.');
-  const scrollPositions = [];
-  for (let node = document.getElementById('step-inspector'); node; node = node.parentElement) {
-    if (node.scrollTop || node.scrollLeft)
-      scrollPositions.push([node, node.scrollTop, node.scrollLeft]);
-  }
-  const windowY = window.scrollY, windowX = window.scrollX;
-  const rendered = new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
-      document.removeEventListener('guideme:step-rendered', onRender);
-      reject(new Error('רענון השלב לא הסתיים בזמן.'));
-    }, 10000);
-    function onRender(event) {
-      if (event.detail?.stepId !== stepId) return;
-      clearTimeout(timer);
-      document.removeEventListener('guideme:step-rendered', onRender);
-      resolve();
-    }
-    document.addEventListener('guideme:step-rendered', onRender);
-  });
-  row.click();
-  await rendered;
-  await new Promise(resolve => requestAnimationFrame(resolve));
-  for (const [node, top, left] of scrollPositions) {
-    if (node.isConnected) { node.scrollTop = top; node.scrollLeft = left; }
-  }
-  window.scrollTo(windowX, windowY);
+  row?.click();
 }
 // Shared token insertion for inline expected-value fields.
 function variableEditorResult(input) {
