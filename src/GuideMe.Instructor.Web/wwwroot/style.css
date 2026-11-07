@@ -450,3 +450,12 @@ body .brand-heading strong span { font-size: 26px; }
 /* Separate identity verification controls from the primary target actions. */
 .identity-targets { margin-top: 14px; }
 .identity-targets #add-identity { margin: 0; }
+
+/* One screen-element section, with a distinct compact bubble per target. */
+.screen-target-bubble { border: 1px solid #dce6f2; border-radius: 10px; padding: 12px; background: #fff; }
+.screen-target-bubble + .screen-target-bubble { margin-top: 10px; }
+.screen-target-bubble .target-action-buttons { margin-top: 10px; }
+.identity-targets { margin-top: 10px; }
+.identity-targets .screen-target-identity { margin-top: 10px; }
+.identity-targets .screen-target-identity:first-child { margin-top: 0; }
+.identity-targets #add-identity { margin-top: 12px; }
