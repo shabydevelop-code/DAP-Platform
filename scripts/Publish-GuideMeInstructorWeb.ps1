@@ -61,7 +61,11 @@ try {
     if ($jsContent.Contains("renderOption('primary-target-any'") -or
         $jsContent.Contains('$(''primary-target-any'')') -or
         -not $jsContent.Contains("renderOption('edit-primary-target-any'") -or
-        -not $jsContent.Contains('const targetValueDescription = anyValueTarget')) {
+        -not $jsContent.Contains('function screenElementPresentation(') -or
+        -not $jsContent.Contains('function renderScreenElementDetails(') -or
+        -not $jsContent.Contains('renderScreenElementDetails(primaryPresentation, true)') -or
+        -not $jsContent.Contains('renderScreenElementDetails(item, false)') -or
+        -not $jsContent.Contains("content:anyValue ? 'כל ערך'")) {
         throw 'Publish blocked: target summary must be read-only until Edit is pressed.'
     }
     if (-not $htmlContent.Contains('any-value-ui.js') -or
