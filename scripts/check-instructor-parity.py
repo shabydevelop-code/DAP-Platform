@@ -151,8 +151,8 @@ require("ApplyCapturedContentSelector(selector, request.ContentValue, request.An
 
 # Action target selection is exclusive: only identity cards offer the switch;
 # the active target has a disabled, non-toggleable marker in the same corner.
-require('class="screen-element-role active"' in ui and
-        'aria-pressed="true" disabled' in ui and
+require('screen-element-role active" aria-label="יעד פעולה נוכחי" disabled' in ui and
+        '>יעד פעולה</button>' in ui and
         'data-identity-action="set-action"' in ui and
         'renderScreenElementDetails(item, false, index)' in ui and
         "button('set-action', 'הגדר כיעד פעולה')" not in ui,
