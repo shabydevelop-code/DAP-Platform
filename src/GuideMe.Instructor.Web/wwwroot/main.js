@@ -1827,7 +1827,7 @@ function locatorTextBinding(locator) {
     try { value = JSON.parse(quoted); } catch { return null; }
     const offset = match.index + match[0].indexOf(quoted);
     return {value, build:next=>original.slice(0, offset) + JSON.stringify(next) +
-      original.slice(offset + quoted.length), buildAny:()=>original.replace(match[0], match[0].startsWith(':cell-text') ? ':cell-any(' + (/\d+/.exec(match[0])?.[0] || '1') + ')' : ':nonempty-text')};
+      original.slice(offset + quoted.length), buildAny:()=>original.replace(match[0], match[0].startsWith(':cell-text') ? ':cell-any(' + (/\d+/.exec(match[0])?.[0] || '1') + ')' : '')};
   }
   if (matchers.length || /:cell-text\(|:exact-text\(/.test(original)) return null;
   const attributes = [...original.matchAll(/\[(?:aria-label|placeholder|name|title|data-[\w-]+)\s*=\s*("(?:[^"\\]|\\.)*")\]/g)];
