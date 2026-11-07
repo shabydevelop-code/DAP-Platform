@@ -377,8 +377,16 @@ function renderSteps() {
     const identityItems = identityRules.map(rule => {
       const target = data.targets.find(x => x.UsageId === rule.TargetUsageId);
       const element = data.elements.find(x => x.ElementId === target?.ElementId);
-      return {rule, locators:parseJson(element?.LocatorsJson, []),
-        name:element?.DisplayName || 'הרכיב שנבחר', type:element?.ControlType || ''};
+      const locators = parseJson(element?.LocatorsJson, []);
+      const locator = locators[0];
+      const selector = locator?.Value || '';
+      const classification = classifyTarget(context?.Runtime, element, locators);
+      const binding = locatorTextBinding(locator);
+      const anyValue = (context?.Runtime === 'Web' && /:(?:cell-any\(\d+\)|nonempty-text)$/.test(selector)) ||
+        (context?.Runtime === 'Windows' && ['name-nonempty','automation-id-nonempty'].includes(locator?.Strategy));
+      return {rule, locators, name:element?.DisplayName || 'הרכיב שנבחר',
+        type:classification.label || 'רכיב במסך',
+        content:anyValue ? 'כל ערך' : binding?.value || null};
     });
     const completionItems = completionRules.map(rule => {
       const target = data.targets.find(x => x.UsageId === rule.TargetUsageId);
@@ -471,9 +479,8 @@ function renderSteps() {
        '<div class="step-friendly-grid">' +
       '<section class="step-friendly-card"><h3>רכיב במסך</h3>' +
       '<div class="screen-target-bubble screen-target-primary">' +
-      (target ? '<div class="action-target-marker">יעד פעולה</div>' : '') +
       '<div id="primary-target-summary">' +
-      (target ? '<p><strong>' + esc(friendlyName) + '</strong></p>' +
+      (target ? '<p class="target-name-line"><strong>' + esc(friendlyName) + '</strong><span class="action-target-marker">יעד פעולה</span></p>' +
         '<p class="field-help">סוג רכיב: ' + esc(targetType) + '</p>' +
         (targetValueDescription ? '<p>זיהוי לפי תוכן: <strong class="target-business-value-preview">' +
           friendlyInstructionHtml(targetValueDescription) + '</strong></p>' : '') +
@@ -498,7 +505,9 @@ function renderSteps() {
         identityItems.map((item, index) =>
           '<div class="screen-target-bubble screen-target-identity"><div class="completion-details"><p><strong>' +
           esc(item.name) + '</strong></p>' +
-          (item.type ? '<p class="field-help">סוג רכיב: ' + esc(item.type) + '</p>' : '') + '</div>' +
+          (item.type ? '<p class="field-help">סוג רכיב: ' + esc(item.type) + '</p>' : '') +
+          (item.content ? '<p>זיהוי לפי תוכן: <strong class="target-business-value-preview">' +
+            friendlyInstructionHtml(item.content) + '</strong></p>' : '') + '</div>' +
           '<div class="target-action-buttons"><div class="target-action-primary">' +
           '<button class="btn secondary small" data-identity-action="set-action" data-index="' + index + '">הגדר כיעד פעולה</button>' +
           '<button class="btn secondary small" data-identity-action="replace" data-index="' + index + '">בחירת רכיב אחר</button>' +
