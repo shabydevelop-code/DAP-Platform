@@ -976,6 +976,47 @@ VALUES ($guideId,$elementId,$anchorId,$relation,$order)";
         transaction.Commit();
     }
 
+    // Change the action target without relying on capture order. The validation rule
+    // remains attached to the Primary usage; only the underlying elements swap.
+    internal static void SetActionTarget(long guideId, string stepId, string identityUsageId)
+    {
+        if (string.IsNullOrWhiteSpace(identityUsageId))
+            throw new ArgumentException("מזהה הרכיב חסר.");
+        using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = V5GuideReader.DatabasePath, Mode = SqliteOpenMode.ReadWrite,
+            Pooling = false, DefaultTimeout = 3
+        }.ToString());
+        connection.Open();
+        using var transaction = connection.BeginTransaction();
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.Parameters.AddWithValue("$guide", guideId);
+        command.Parameters.AddWithValue("$step", stepId);
+        command.Parameters.AddWithValue("$identity", identityUsageId);
+        command.CommandText = @"SELECT t.ElementId FROM StepTargets t
+WHERE t.GuideId=$guide AND t.StepId=$step AND t.UsageId='primary' AND t.Purpose='Primary'";
+        var primaryElement = command.ExecuteScalar()?.ToString()
+            ?? throw new InvalidOperationException("לא הוגדר רכיב יעד פעולה.");
+        command.CommandText = @"SELECT t.ElementId FROM StepTargets t
+JOIN StepRules r ON r.GuideId=t.GuideId AND r.StepId=t.StepId
+ AND r.TargetUsageId=t.UsageId AND r.RuleType='AdditionalCompletionCondition'
+WHERE t.GuideId=$guide AND t.StepId=$step AND t.UsageId=$identity
+AND t.Purpose='Completion' AND r.OptionsJson='{""identity"":true}'";
+        var identityElement = command.ExecuteScalar()?.ToString()
+            ?? throw new InvalidOperationException("הרכיב שנבחר אינו מזהה אימות.");
+        command.Parameters.AddWithValue("$primaryElement", primaryElement);
+        command.Parameters.AddWithValue("$identityElement", identityElement);
+        command.CommandText = @"UPDATE StepTargets
+SET ElementId=CASE WHEN UsageId='primary' THEN $identityElement ELSE $primaryElement END
+WHERE GuideId=$guide AND StepId=$step
+AND ((UsageId='primary' AND Purpose='Primary') OR
+     (UsageId=$identity AND Purpose='Completion'))";
+        if (command.ExecuteNonQuery() != 2)
+            throw new InvalidOperationException("לא ניתן להחליף את יעד הפעולה.");
+        transaction.Commit();
+    }
+
     // Remove the step's target-dependent configuration without deleting the step or shared elements.
     internal static void RemovePrimaryTarget(long guideId, string stepId)
     {
