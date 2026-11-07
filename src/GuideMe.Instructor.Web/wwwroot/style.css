@@ -467,3 +467,7 @@ body .brand-heading strong span { font-size: 26px; }
 /* Compact action target designation alongside the element name. */
 .target-name-line { display: flex; align-items: center; justify-content: flex-start; gap: 9px; flex-wrap: wrap; }
 .target-name-line .action-target-marker { display: inline-block; margin: 0; padding: 2px 8px; border: 1px solid #dce6f2; border-radius: 999px; background: #f4f7fc; color: #203d63; font-size: inherit; line-height: inherit; white-space: nowrap; }
+
+/* A captured identity target uses the same form as the first target, in its own card. */
+.identity-targets .screen-target-capture { margin-top: 10px; }
+.identity-targets .screen-target-capture.hidden { display: none; }
