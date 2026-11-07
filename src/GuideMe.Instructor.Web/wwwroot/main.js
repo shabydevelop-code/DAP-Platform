@@ -647,6 +647,7 @@ function renderSteps() {
         const id = item.rule.TargetUsageId;
         const action = button.dataset.identityAction;
         if (action === 'set-action') {
+          notify('מעדכן יעד פעולה...', false, 'info');
           const guideId = current.guide.id;
           const before = await api('/guides/'+guideId+'/step/'+encodeURIComponent(step.id));
           const selectedElementId = before.targets.find(target => target.UsageId === id)?.ElementId;
@@ -2023,7 +2024,10 @@ async function editPrimaryTargetValue({kind, step, locators, binding:preparedBin
     const refresh = () => {
       input.disabled = checkbox.checked;
       input.required = !checkbox.checked;
-      variableControls.classList.toggle('hidden', checkbox.checked);
+      variableControls.classList.remove('hidden');
+      variableControls.querySelectorAll('select,button').forEach(control => {
+        control.disabled = checkbox.checked;
+      });
     };
     checkbox.addEventListener('change', refresh);
     refresh();
