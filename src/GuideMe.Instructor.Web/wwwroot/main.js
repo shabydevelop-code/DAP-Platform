@@ -752,6 +752,7 @@ function renderSteps() {
     const startButton = $('pick-element');
     if (startButton) startButton.onclick = () => guarded(() => startElementPicker());
     syncPickerButtons();
+    document.dispatchEvent(new CustomEvent('guideme:step-rendered', {detail:{stepId}}));
 
   })));
 }
@@ -2041,7 +2042,25 @@ async function editPrimaryTargetValue({kind, step, locators, binding:preparedBin
 async function reloadSelectedStep(guideId, stepId) {
   const row = [...document.querySelectorAll('#step-list [data-step]')]
     .find(b => b.dataset.step === stepId);
-  row?.click();
+  if (!row) return;
+  const scrollPositions = [];
+  for (let node = document.getElementById('step-inspector'); node; node = node.parentElement)
+    scrollPositions.push([node, node.scrollTop, node.scrollLeft]);
+  const windowPosition = [window.scrollX, window.scrollY];
+  const rendered = new Promise(resolve => {
+    const onRender = event => {
+      if (event.detail?.stepId !== stepId) return;
+      document.removeEventListener('guideme:step-rendered', onRender);
+      resolve();
+    };
+    document.addEventListener('guideme:step-rendered', onRender);
+  });
+  row.click();
+  await rendered;
+  for (const [node, top, left] of scrollPositions) {
+    if (node.isConnected) { node.scrollTop = top; node.scrollLeft = left; }
+  }
+  window.scrollTo(...windowPosition);
 }
 // Shared token insertion for inline expected-value fields.
 function variableEditorResult(input) {
