@@ -455,7 +455,8 @@ function renderSteps() {
       ).join('') +
       (!target ? '<div class="screen-target-bubble screen-target-primary"><p>עדיין לא נבחר רכיב לשלב הזה.</p>' +
         ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') ?
-          '<button id="pick-element" class="btn primary">הפעלת ממפה רכיבים</button>' : '') +
+          '<button id="pick-element" class="btn primary">הפעלת ממפה רכיבים</button>' +
+          '<div id="pick-result" class="hidden" aria-live="polite"></div>' : '') +
         '</div>' : '') +
       '</div>' +
       ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') ?
