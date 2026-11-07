@@ -2036,10 +2036,15 @@ async function editPrimaryTargetValue({kind, step, locators, binding:preparedBin
 // One insertion editor for every variable-aware field. Persistence is supplied
 // by the caller; cursor handling, token rendering and validation are shared.
 async function reloadSelectedStep(guideId, stepId) {
-  await openGuide(guideId);
-  const row = [...document.querySelectorAll('[data-step]')]
+  // Re-select only the current step. Reopening the guide triggers an
+  // automatic first-step selection followed by another selection, causing
+  // overlapping inspector requests and potentially stale target display.
+  if (current?.guide?.id !== guideId)
+    throw new Error('הלומדה הפעילה השתנתה. יש לפתוח מחדש את השלב.');
+  const row = [...document.querySelectorAll('#step-list [data-step]')]
     .find(b => b.dataset.step === stepId);
-  row?.click();
+  if (!row) throw new Error('לא נמצא השלב לרענון.');
+  row.click();
 }
 // Shared token insertion for inline expected-value fields.
 function variableEditorResult(input) {
