@@ -378,7 +378,7 @@ function renderSteps() {
       const target = data.targets.find(x => x.UsageId === rule.TargetUsageId);
       const element = data.elements.find(x => x.ElementId === target?.ElementId);
       return {rule, locators:parseJson(element?.LocatorsJson, []),
-        name:element?.DisplayName || 'הרכיב שנבחר'};
+        name:element?.DisplayName || 'הרכיב שנבחר', type:element?.ControlType || ''};
     });
     const completionItems = completionRules.map(rule => {
       const target = data.targets.find(x => x.UsageId === rule.TargetUsageId);
@@ -497,7 +497,8 @@ function renderSteps() {
         '<div class="identity-targets">' +
         identityItems.map((item, index) =>
           '<div class="screen-target-bubble screen-target-identity"><div class="completion-details"><p><strong>' +
-          esc(item.name) + '</strong></p><span class="field-help">חייב להופיע במסך להצגת השלב</span></div>' +
+          esc(item.name) + '</strong></p>' +
+          (item.type ? '<p class="field-help">סוג רכיב: ' + esc(item.type) + '</p>' : '') + '</div>' +
           '<div class="target-action-buttons"><div class="target-action-primary">' +
           '<button class="btn secondary small" data-identity-action="set-action" data-index="' + index + '">הגדר כיעד פעולה</button>' +
           '<button class="btn secondary small" data-identity-action="replace" data-index="' + index + '">בחירת רכיב אחר</button>' +
