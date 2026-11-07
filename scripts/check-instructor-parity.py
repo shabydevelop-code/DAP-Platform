@@ -110,7 +110,7 @@ require("function screenElementPresentation(" in ui and
         "const primaryPresentation = screenElementPresentation(" in ui and
         "return {rule, ...screenElementPresentation(" in ui and
         "renderScreenElementDetails(primaryPresentation, true)" in ui and
-        "renderScreenElementDetails(item, false)" in ui and
+        "renderScreenElementDetails(item, false, index)" in ui and
         "renderScreenElementActions(true)" in ui and
         "renderScreenElementActions(false, index)" in ui,
         "Instructor: primary and identity screen elements must use the same renderer")
@@ -148,6 +148,15 @@ require("ApplyCapturedContentSelector(selector, request.ContentValue, request.An
         "string? ContentValue = null, bool? AnyContent = null" in server and
         'request.AnyContent == true' in server,
         "API: identity capture content and Any-value must persist for Web and Windows")
+
+# Action target selection is exclusive: only identity cards offer the switch;
+# the active target has a disabled, non-toggleable marker in the same corner.
+require('class="screen-element-role active"' in ui and
+        'aria-pressed="true" disabled' in ui and
+        'data-identity-action="set-action"' in ui and
+        'renderScreenElementDetails(item, false, index)' in ui and
+        "button('set-action', 'הגדר כיעד פעולה')" not in ui,
+        "Instructor: action-target selection must be exclusive corner control")
 
 if failures:
     print("Instructor parity gate FAILED:")
