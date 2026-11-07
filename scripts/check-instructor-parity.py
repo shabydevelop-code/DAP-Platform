@@ -111,8 +111,8 @@ require("function screenElementPresentation(" in ui and
         "return {rule, ...screenElementPresentation(" in ui and
         "renderScreenElementDetails(item.presentation, item.isActionTarget, item.index)" in ui and
         "renderScreenElementDetails(item.presentation, item.isActionTarget, item.index)" in ui and
-        "renderScreenElementActions(true)" in ui and
-        "renderScreenElementActions(false, index)" in ui,
+        "renderScreenElementActions(item.isActionTarget, item.index)" in ui and
+        "renderScreenElementActions(item.isActionTarget, item.index)" in ui,
         "Instructor: primary and identity screen elements must use the same renderer")
 require(ui.count("function renderScreenElementDetails(") == 1 and
         ui.count("function renderScreenElementActions(") == 1 and
