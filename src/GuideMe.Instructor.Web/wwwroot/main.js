@@ -1343,6 +1343,7 @@ async function refreshPicker() {
         .find(x => x.dataset.step === pickedFor.stepId);
       if (item) await item.click();
       notify(pickedFor.variableSource ? 'רכיב מקור המשתנה נשמר ללא שינוי רכיב הפעולה.'
+        : pickedFor.completionEdit?.identity ? (pickedFor.replacing ? 'מזהה האימות הוחלף.' : 'מזהה האימות נשמר.')
         : pickedFor.completion && pickedFor.replacing ? 'תנאי ההשלמה עודכן.'
         : pickedFor.replacing
         ? 'הרכיב הוחלף בהצלחה. יש להגדיר מחדש מתי ממשיכים לשלב הבא.'
