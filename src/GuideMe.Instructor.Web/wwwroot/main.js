@@ -1866,102 +1866,52 @@ function editPrimaryTargetValue({kind, step, locators, binding:preparedBinding})
   if (!current || kind !== 'target') return;
   const locator = (locators || [])[0];
   if (!locator?.Value) {
-    notify('לא נמצא מזהה רכיב שניתן לערוך.', true); return;
+    notify('לא נמצא מזהה רכיב שניתן לערוך.', true);
+    return;
   }
   const binding = preparedBinding || locatorTextBinding(locator);
   if (!binding) return;
-  const original = locator.Value;
-  const rawValue = binding.value;
   const supportsAny = !!binding.buildAny || !!binding.any;
-  const buildTemplate = binding.build;
-  const summary = $('primary-target-summary');
-  const actions = $('bind-target-variable')?.closest('.target-action-buttons');
-  if (!summary || !actions) return;
-  const originalHtml = summary.innerHTML;
-  const previousDisplay = actions.style.display;
-  const variables = current.variables || [];
-  const edit = document.createElement('div');
-  edit.className = 'field';
-  const label = document.createElement('label');
-  label.textContent = 'ערך לזיהוי הרכיב';
-  const input = document.createElement('textarea');
-  input.rows = 1; input.maxLength = 400; input.dir = 'rtl';
-  input.value = rawValue;
-  edit.append(label,input);
-  const anyToggle = document.createElement('div');
-  if (supportsAny) {
-    anyToggle.innerHTML = GuideMeAnyValueUI.renderOption('edit-primary-target-any', !!binding.any);
-    edit.append(...anyToggle.children);
-    const checkbox = edit.querySelector('#edit-primary-target-any');
-    const update = () => { label.style.display = checkbox.checked ? 'none' : ''; input.style.display = checkbox.checked ? 'none' : ''; input.disabled = checkbox.checked; variableControls.style.display = checkbox.checked ? 'none' : ''; };
-    checkbox.addEventListener('change', update);
-    queueMicrotask(update);
-  }
+  modal('עריכת רכיב במסך — שלב ' + step.order, [
+    {name:'locatorValue', label:'ערך לזיהוי הרכיב', value:binding.value,
+      multiline:true, max:400, optional:!!binding.any}
+  ], async values => {
+    const input = $('field-locatorValue');
+    const anySelected = !!$('edit-primary-target-any')?.checked;
+    const value = anySelected ? '' : variableEditorResult(input);
+    if (!anySelected && !value.trim())
+      rejectInstructorField(input, 'יש להזין ערך לזיהוי הרכיב.');
+    const template = anySelected ? binding.buildAny() : binding.build(value);
+    const nextStrategy = anySelected ? (binding.anyStrategy || binding.strategy || null) :
+      (locator.Strategy === 'name-nonempty' ? 'name' : binding.strategy || null);
+    if (template.length > 400)
+      rejectInstructorField(input, 'מזהה הרכיב ארוך מדי.');
+    if (template === locator.Value && (!nextStrategy || nextStrategy === locator.Strategy))
+      return;
+    await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+'/primary-target/variable', {
+      method:'POST', body:JSON.stringify({locatorValue:template, locatorStrategy:nextStrategy})
+    });
+    await reloadSelectedStep(current.guide.id, step.id);
+    notify('ערך הרכיב עודכן.');
+  });
+  const input = $('field-locatorValue');
+  const field = input.closest('.field');
   const variableControls = document.createElement('div');
-  edit.append(variableControls);
-  initializeVariableField(input, variableControls, rawValue);
-  const buttons = document.createElement('div');
-  buttons.className = 'target-action-primary';
-  buttons.style.display = 'flex';
-  buttons.style.flexDirection = 'row';
-  buttons.style.justifyContent = 'flex-start';
-  buttons.style.alignItems = 'center';
-  buttons.style.gap = '10px';
-  buttons.style.marginTop = '12px';
-  const save = document.createElement('button');
-  save.type='button'; save.className='btn primary small'; save.textContent='שמירה';
-  const cancel = document.createElement('button');
-  cancel.type='button'; cancel.className='btn secondary small'; cancel.textContent='ביטול';
-  save.style.width = 'auto'; save.style.flex = '0 0 auto';
-  cancel.style.width = 'auto'; cancel.style.flex = '0 0 auto';
-  buttons.append(save,cancel);
-  const restore = () => {
-    summary.innerHTML=originalHtml;
-    actions.style.display=previousDisplay;
-  };
-  cancel.onclick=restore;
-  save.onclick=async()=>{
-    try {
-      const anySelected = !!edit.querySelector('#edit-primary-target-any')?.checked;
-      const value=anySelected ? '' : variableEditorResult(input);
-      const template=anySelected ? binding.buildAny() : buildTemplate(value);
-      const nextStrategy=anySelected ? (binding.anyStrategy || binding.strategy || null) :
-        (locator.Strategy === 'name-nonempty' ? 'name' : binding.strategy || null);
-      if (!anySelected && !value.trim()) {
-        showInstructorFieldError(input, 'יש להזין ערך לזיהוי הרכיב.');
-        return;
-      }
-      if (template.length>400) {
-        showInstructorFieldError(input, 'מזהה הרכיב ארוך מדי.');
-        return;
-      }
-      if (locator.Strategy === 'css' && rawValue === original &&
-          !template.includes('{{var:')) {
-        try { document.querySelector(template); }
-        catch { showInstructorFieldError(input, 'מזהה CSS אינו תקין.'); }
-      }
-      if (template === original && (!nextStrategy || nextStrategy === locator.Strategy)) {
-        restore();
-        return;
-      }
-      save.disabled=true;cancel.disabled=true;
-      await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+'/primary-target/variable',{
-        method:'POST',body:JSON.stringify({locatorValue:template, locatorStrategy:nextStrategy})
-      });
-      await reloadSelectedStep(current.guide.id,step.id);
-      notify('ערך הרכיב עודכן.');
-    } catch(error) {
-      save.disabled=false;cancel.disabled=false;
-      notify('השמירה נכשלה: '+error.message,true);
-    }
-  };
-  // Keep the captured target identity visible while editing its value policy.
-  // Only the editable identification details are replaced by the form.
-  const identity = [...summary.children].filter(node =>
-    !node.textContent?.includes('זיהוי לפי תוכן:') &&
-    !node.textContent?.includes('ערך איתור:'));
-  summary.replaceChildren(...identity, edit, buttons);
-  actions.style.display='none';
+  field.append(variableControls);
+  initializeVariableField(input, variableControls, binding.value);
+  if (supportsAny) {
+    const option = document.createElement('div');
+    option.innerHTML = GuideMeAnyValueUI.renderOption('edit-primary-target-any', !!binding.any);
+    field.append(option);
+    const checkbox = $('edit-primary-target-any');
+    const refresh = () => {
+      input.disabled = checkbox.checked;
+      input.required = !checkbox.checked;
+      variableControls.classList.toggle('hidden', checkbox.checked);
+    };
+    checkbox.addEventListener('change', refresh);
+    refresh();
+  }
 }
 // One insertion editor for every variable-aware field. Persistence is supplied
 // by the caller; cursor handling, token rendering and validation are shared.
