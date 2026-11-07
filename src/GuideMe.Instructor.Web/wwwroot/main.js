@@ -462,7 +462,10 @@ function renderSteps() {
         (targetValueDescription ? '<p>זיהוי לפי תוכן: <strong class="target-business-value-preview">' +
           esc(targetValueDescription) + '</strong></p>' : '') +
         (!anyValueTarget && editableTargetBinding?.value ? '<p>ערך איתור: <strong class="target-business-value-preview">' +
-          friendlyInstructionHtml(editableTargetBinding.value) + '</strong></p>' : '') +
+          friendlyInstructionHtml(editableTargetBinding.value) + '</strong></p>' :
+          rule?.ExpectedValue && rule.Kind === 'value-equals' ?
+          '<p>ערך צפוי בתנאי ההתקדמות: <strong class="target-business-value-preview">' +
+          friendlyInstructionHtml(rule.ExpectedValue) + '</strong></p>' : '') +
         '' :
         '<p>עדיין לא נבחר רכיב לשלב הזה.</p>') +
       '</div>' +
@@ -470,7 +473,7 @@ function renderSteps() {
         (target ? '<div class="target-action-buttons">' +
           '<div class="target-action-primary">' +
           '<button class="btn secondary small" id="replace-web-target">בחירת רכיב אחר</button>' +
-          (editableTargetBinding ? '<button class="btn secondary small" id="bind-target-variable">עריכה</button>' : '') +
+          '<button class="btn secondary small" id="bind-target-variable">עריכה</button>' +
           '<button class="btn danger small" id="remove-primary-target">הסרה</button>' +
           '</div>' +
 
@@ -691,9 +694,14 @@ function renderSteps() {
     const startElementPicker = (replacing = false, completion = false) =>
       beginTargetPicker(context.Runtime, current.guide.id, step.id, contextId, replacing, completion, context);
     const bindTarget = $('bind-target-variable');
-    if (bindTarget) bindTarget.onclick = () => editPrimaryTargetValue({
-      kind:'target', step, locators, binding:editableTargetBinding
-    });
+    if (bindTarget) bindTarget.onclick = () => {
+      if (editableTargetBinding) return editPrimaryTargetValue({
+        kind:'target', step, locators, binding:editableTargetBinding
+      });
+      // A stable technical locator has no editable text; edit its value rule instead.
+      if (rule) return editValidation(step, rule);
+      notify('לרכיב זה אין ערך איתור טקסטואלי לעריכה. ניתן להחליף את הרכיב.', true);
+    };
     const targetReplace = $('replace-web-target');
     if (targetReplace) targetReplace.onclick = () => guarded(() => startElementPicker(true));
     const removePrimary = $('remove-primary-target');
