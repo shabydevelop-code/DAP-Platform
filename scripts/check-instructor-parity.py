@@ -72,6 +72,20 @@ require("name-nonempty" in anchor_match and
         anchor_match.find("automation-id-nonempty") < anchor_match.find("CreateCondition(locator)"),
         "Windows Learner: Any value anchor matching unsupported")
 
+# Identity qualifiers must be authored and enforced in both learner runtimes.
+compiler = (ROOT / "src/GuideMe.Data.Sqlite/Guides/GuideV5ExecutionCompiler.cs").read_text(encoding="utf-8")
+writer = (ROOT / "src/GuideMe.Instructor.Web/Data/V5GuideWriter.cs").read_text(encoding="utf-8")
+web_learner = (ROOT / "src/GuideMe.Runtime.Web/Learner/WebGuideStepRuntime.cs").read_text(encoding="utf-8")
+windows_learner = (ROOT / "src/GuideMe.Runtime.Windows/Learner/WindowsGuideRuntime.cs").read_text(encoding="utf-8")
+require("identityItems" in ui and "data-identity-action" in ui and "identity:!!session.completionEdit?.identity" in ui,
+        "Instructor: identity guard capture and editor missing")
+require("identity: request.Identity" in server and 'bool Identity = false' in server and
+        'OptionsJson' in writer and 'bool identity = false' in writer,
+        "Instructor: identity guard persistence missing")
+require("IdentityConditions" in compiler and "target-exists" in compiler and
+        "IdentityConditions" in web_learner and "IdentityConditions" in windows_learner,
+        "Learner: Web/Windows identity guard parity missing")
+
 if failures:
     print("Instructor parity gate FAILED:")
     for failure in failures:
