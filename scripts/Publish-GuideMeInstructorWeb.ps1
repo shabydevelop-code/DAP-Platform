@@ -58,15 +58,23 @@ try {
     }
     # Fail the publication if the obsolete editable checkbox is present in
     # the summary rather than exclusively in the explicit Edit form.
-    if ($jsContent.Contains("renderOption('primary-target-any'") -or
-        $jsContent.Contains('$(''primary-target-any'')') -or
-        -not $jsContent.Contains("renderOption('edit-primary-target-any'") -or
-        -not $jsContent.Contains('function screenElementPresentation(') -or
-        -not $jsContent.Contains('function renderScreenElementDetails(') -or
-        -not $jsContent.Contains('renderScreenElementDetails(primaryPresentation, true)') -or
-        -not $jsContent.Contains('renderScreenElementDetails(item, false)') -or
-        -not $jsContent.Contains("content:anyValue ? 'כל ערך'")) {
-        throw 'Publish blocked: target summary must be read-only until Edit is pressed.'
+    # Fail closed, but report the exact violated contract rather than one
+    # generic error that hides whether staged assets are stale.
+    $targetUiChecks = [ordered]@{
+        'obsolete summary Any-value checkbox' = -not $jsContent.Contains("renderOption('primary-target-any'")
+        'obsolete summary Any-value input' = -not $jsContent.Contains('$(''primary-target-any'')')
+        'edit-only Any-value control' = $jsContent.Contains("renderOption('edit-primary-target-any'")
+        'shared element presentation model' = $jsContent.Contains('function screenElementPresentation(')
+        'shared element details renderer' = $jsContent.Contains('function renderScreenElementDetails(')
+        'primary element uses shared renderer' = $jsContent.Contains('renderScreenElementDetails(primaryPresentation, true)')
+        'identity element uses shared renderer' = $jsContent.Contains('renderScreenElementDetails(item, false)')
+        'Any-value handled in shared presentation' = $jsContent.Contains('content:anyValue ?')
+    }
+    $failedTargetUiChecks = @($targetUiChecks.Keys | Where-Object { -not $targetUiChecks[$_] })
+    if ($failedTargetUiChecks.Count -gt 0) {
+        throw ("Publish blocked: target UI contract failed: " +
+            ($failedTargetUiChecks -join '; ') +
+            ". Staged file: $stagedJs")
     }
     if (-not $htmlContent.Contains('any-value-ui.js') -or
         -not $htmlContent.Contains('main.js?v=20261106-edit-only')) {
