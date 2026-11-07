@@ -274,6 +274,18 @@ public sealed class WindowsGuideRuntime
                         GuideStepReconciliationResult.WaitingForContext, _pollInterval, cancellationToken);
                 }
 
+                // Identity guards are source-screen qualifiers, not completion signals.
+                if (step.IdentityConditions is { Count: > 0 } &&
+                    !AreCompletionConditionsSatisfied(windowRoot,
+                        step with { CompletionConditions = step.IdentityConditions },
+                        new Dictionary<StepCompletionCondition, AutomationElement?>()))
+                {
+                    ReportBubbleAvailable(false);
+                    await _bubbles.HideAsync();
+                    return await GuideActiveStepState.WaitAsync(
+                        GuideStepReconciliationResult.WaitingForContext, _pollInterval, cancellationToken);
+                }
+
                 TargetResolution<AutomationElement> resolution = TargetResolution<AutomationElement>.NotFound();
 
                 resolutionAttempt++;
