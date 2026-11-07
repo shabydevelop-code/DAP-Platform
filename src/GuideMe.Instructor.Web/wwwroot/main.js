@@ -709,6 +709,8 @@ function renderSteps() {
         if (action === 'edit') {
           const locator = item.locators[0];
           if (!locator) throw new Error('לא נמצא מזהה רכיב לעריכה.');
+          if (!['css','name'].includes(locator.Strategy))
+            throw new Error('מזהה טכני זה אינו ניתן לעריכת תוכן. ניתן לבחור רכיב אחר.');
           return modal('עריכת מזהה אימות — שלב ' + step.order, [
             {name:'locatorValue', label:'מזהה הרכיב', value:locator.Value, max:400, multiline:true}
           ], async values => {
@@ -716,7 +718,7 @@ function renderSteps() {
             await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+
               '/completion-target/variable?completionId='+encodeURIComponent(id),
               {method:'POST',body:JSON.stringify({
-                locatorValue:values.locatorValue.trim(), locatorStrategy:locator.Strategy})});
+                locatorValue:values.locatorValue.trim()})});
             await reloadSelectedStep(current.guide.id, step.id);
             notify('מזהה האימות עודכן.');
           });
