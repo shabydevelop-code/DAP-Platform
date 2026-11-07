@@ -1948,11 +1948,13 @@ function renderScreenElementActions(isActionTarget, index) {
     (isActionTarget ? 'id="' + action + '"' : 'data-identity-action="' + action + '"' + attribute) +
     '>' + title + '</button>';
   return '<div class="target-action-buttons"><div class="target-action-primary">' +
-    (isActionTarget ? '' : button('set-action', 'הגדר כיעד פעולה')) +
     button(isActionTarget ? 'replace-web-target' : 'replace', 'בחירת רכיב אחר') +
     button(isActionTarget ? 'bind-target-variable' : 'edit', 'עריכה') +
     button(isActionTarget ? 'remove-primary-target' : 'remove', 'הסרה', 'danger') +
-    '</div></div>';
+    '</div>' +
+    (isActionTarget ? '' : '<div class="target-action-role">' +
+      button('set-action', 'הגדר כיעד פעולה') + '</div>') +
+    '</div>';
 }
 function editPrimaryTargetValue({kind, step, locators, binding:preparedBinding, identityUsageId = null}) {
   if (!current || kind !== 'target') return;
