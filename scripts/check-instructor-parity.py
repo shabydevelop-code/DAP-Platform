@@ -131,6 +131,24 @@ require("V5GuideWriter.RemovePrimaryTarget(id, stepId)" in server and
         "return Results.Problem(ex.Message, statusCode: 409)" in server,
         "API: blocked action-target removal must return conflict")
 
+# Primary and identity capture must share the entire authoring form, not
+# merely the picker transport. The role changes only the persistence route.
+require("(!pickingFor.completion || pickingFor.completionEdit?.identity) && !pickingFor.variableSource" in ui and
+        "variableValueFieldMarkup('picked-content-value', 'זיהוי לפי תוכן')" in ui and
+        "GuideMeAnyValueUI.renderOption('picked-content-any', false)" in ui and
+        "initializeVariableField(input, $('picked-content-value-variables'), initialContentValue)" in ui and
+        "session.completionEdit?.identity ? 'add-identity' : 'add-completion'" in ui and
+        "screen-target-capture hidden" in ui,
+        "Instructor: identity capture must reuse primary content, variable, Any-value fields and separate card")
+require("(identity ? '/completion-target' : '/primary-target')" in ui and
+        "contentValue,anyContent,selectedTag:candidate.tag" in ui and
+        "pickedFor.completion && !pickedFor.completionEdit?.identity" in ui,
+        "Instructor: identity capture must save content through its own role")
+require("ApplyCapturedContentSelector(selector, request.ContentValue, request.AnyContent == true)" in server and
+        "string? ContentValue = null, bool? AnyContent = null" in server and
+        'request.AnyContent == true' in server,
+        "API: identity capture content and Any-value must persist for Web and Windows")
+
 if failures:
     print("Instructor parity gate FAILED:")
     for failure in failures:
