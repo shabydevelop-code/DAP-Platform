@@ -26,6 +26,41 @@ let pendingChanges = false;
 let saveInFlight = 0;
 function markDirty() { pendingChanges = true; }
 function markClean() { pendingChanges = false; }
+// A visible Save/Cancel editor owns navigation until its transaction is resolved.
+function activeInspectorEditor() {
+  const inspector = $('step-inspector');
+  if (!inspector) return null;
+  const candidates = [...inspector.querySelectorAll('form, .completion-inline-editor')];
+  return candidates.find(form => {
+    if (form.classList.contains('hidden') || form.closest('.hidden')) return false;
+    const buttons = [...form.querySelectorAll('button')];
+    return buttons.some(b => /שמירה|שמור/.test(b.textContent || '') && b.type === 'submit') &&
+      buttons.some(b => /ביטול/.test(b.textContent || ''));
+  }) || null;
+}
+function preventUnfinishedInspectorNavigation(event) {
+  const editor = activeInspectorEditor();
+  if (!editor) return;
+  const target = event.target;
+  if (!(target instanceof Element)) return;
+  // All controls inside the active form remain usable, including Save and Cancel.
+  if (editor.contains(target)) return;
+  const navigation = target.closest('[data-step], .tab, #back, #new-step, #test-guide, #rename-guide, #delete-guide, #add-context, #duplicate-step, #delete-step, #test-from-step, #add-completion, [data-completion-action]');
+  if (!navigation) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  notify('יש לשמור או לבטל את העריכה לפני מעבר לפעולה אחרת.', true);
+}
+document.addEventListener('click', preventUnfinishedInspectorNavigation, true);
+document.addEventListener('keydown', event => {
+  if (event.key !== 'Enter' && event.key !== ' ') return;
+  const editor = activeInspectorEditor();
+  if (!editor || editor.contains(event.target)) return;
+  if (!event.target?.closest?.('[data-step], .tab')) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+}, true);
+
 function confirmDiscard() {
   if (!pendingChanges) return true;
   if (!confirm('יש שינויים שלא נשמרו. לצאת בלי לשמור אותם?')) return false;
