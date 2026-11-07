@@ -470,6 +470,7 @@ function renderSteps() {
        '<div class="context-actions"><button class="btn secondary small" id="edit-step">עריכת תוכן השלב</button></div></div></div>' +
        '<div class="step-friendly-grid">' +
       '<section class="step-friendly-card"><h3>רכיב במסך</h3>' +
+      '<div class="screen-target-bubble screen-target-primary">' +
       '<div id="primary-target-summary">' +
       (target ? '<p><strong>' + esc(friendlyName) + '</strong></p>' +
         '<p class="field-help">סוג רכיב: ' + esc(targetType) + '</p>' +
@@ -490,10 +491,11 @@ function renderSteps() {
           '</div>' :
           '<button id="pick-element" class="btn primary">הפעלת ממפה רכיבים</button>') +
         '<div id="pick-result" class="hidden" aria-live="polite"></div>' : '') +
+      '</div>' +
       ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') ?
         '<div class="identity-targets">' +
         identityItems.map((item, index) =>
-          '<div class="completion-item"><div class="completion-details"><p><strong>' +
+          '<div class="screen-target-bubble screen-target-identity"><div class="completion-details"><p><strong>' +
           esc(item.name) + '</strong></p><span class="field-help">חייב להופיע במסך להצגת השלב</span></div>' +
           '<div class="target-action-buttons"><div class="target-action-primary">' +
           '<button class="btn secondary small" data-identity-action="replace" data-index="' + index + '">בחירת רכיב אחר</button>' +
