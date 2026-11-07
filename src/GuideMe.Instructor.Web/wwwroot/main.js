@@ -1939,7 +1939,12 @@ function editPrimaryTargetValue({kind, step, locators, binding:preparedBinding})
       notify('השמירה נכשלה: '+error.message,true);
     }
   };
-  summary.replaceChildren(edit,buttons);
+  // Keep the captured target identity visible while editing its value policy.
+  // Only the editable identification details are replaced by the form.
+  const identity = [...summary.children].filter(node =>
+    !node.textContent?.includes('זיהוי לפי תוכן:') &&
+    !node.textContent?.includes('ערך איתור:'));
+  summary.replaceChildren(...identity, edit, buttons);
   actions.style.display='none';
 }
 // One insertion editor for every variable-aware field. Persistence is supplied
