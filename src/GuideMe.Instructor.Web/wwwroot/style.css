@@ -463,8 +463,6 @@ body .brand-heading strong span { font-size: 26px; }
 /* Action target is explicit; capture order does not determine its role. */
 .action-target-marker { font-size: inherit; font-weight: 700; color: #203d63; margin-bottom: 9px; }
 .screen-target-identity .target-action-primary { flex-wrap: nowrap; }
-.target-action-role { display: flex; justify-content: flex-start; margin-top: 10px; direction: rtl; }
-.target-action-role .btn { margin: 0; }
 
 /* Compact action target designation alongside the element name. */
 .target-name-line { display: flex; align-items: center; justify-content: flex-start; gap: 9px; flex-wrap: wrap; }
@@ -473,3 +471,10 @@ body .brand-heading strong span { font-size: 26px; }
 /* A captured identity target uses the same form as the first target, in its own card. */
 .identity-targets .screen-target-capture { margin-top: 10px; }
 .identity-targets .screen-target-capture.hidden { display: none; }
+
+/* Exclusive action-target selector: same position and dimensions on every card. */
+.screen-target-bubble { position: relative; }
+.screen-target-bubble .screen-element-role { position: absolute; top: 12px; left: 12px; width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #a7b6c9; border-radius: 8px; background: transparent; color: #64748b; font-size: 24px; line-height: 1; cursor: pointer; }
+.screen-target-bubble .screen-element-role.active { background: #edf4ff; border-color: #2e5b93; color: #244b7d; opacity: 1; cursor: default; }
+.screen-target-bubble .screen-element-role:focus-visible { outline: 2px solid #2e5b93; outline-offset: 2px; }
+.screen-target-bubble .target-name-line { padding-left: 44px; min-height: 32px; align-items: center; }
