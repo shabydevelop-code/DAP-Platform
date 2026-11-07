@@ -43,9 +43,10 @@ windows_save = server[server.find('else if (runtime == "Windows")', server.find(
 windows_save = windows_save[:windows_save.find('else return Results.BadRequest')]
 require("request.AnyContent" in windows_save and "name-nonempty" in windows_save,
         "Windows Instructor: Any value not persisted")
-require("anyValueTarget" in ui and "context?.Runtime === 'Windows'" in
-        ui[ui.find("const anyValueTarget"):ui.find("const targetValueDescription")],
-        "Inspector: Any value display restricted to Web")
+require("const anyValue = (runtime === 'Web'" in ui and
+        "'name-nonempty','automation-id-nonempty'" in ui and
+        "content:anyValue ? 'כל ערך'" in ui,
+        "Inspector: Any value display restricted to Web or Windows")
 
 # The Windows runtime must actually consume the new matching semantics.
 # This explicit contract remains failing until a tested implementation exists.
@@ -100,6 +101,24 @@ require("label:'מזהה הרכיב', value:locator.Value" not in ui and
 require("GuideMeAnyValueUI.renderOption('edit-primary-target-any'" in ui and
         "initializeVariableField(input, variableControls, binding.value)" in ui,
         "Instructor: shared target editor must preserve Any value and variables")
+
+# All screen elements use one presentation model and renderer, irrespective
+# of whether they currently act as an action target or an identity guard.
+require("function screenElementPresentation(" in ui and
+        "function renderScreenElementDetails(" in ui and
+        "function renderScreenElementActions(" in ui and
+        "const primaryPresentation = screenElementPresentation(" in ui and
+        "return {rule, ...screenElementPresentation(" in ui and
+        "renderScreenElementDetails(primaryPresentation, true)" in ui and
+        "renderScreenElementDetails(item, false)" in ui and
+        "renderScreenElementActions(true)" in ui and
+        "renderScreenElementActions(false, index)" in ui,
+        "Instructor: primary and identity screen elements must use the same renderer")
+require(ui.count("function renderScreenElementDetails(") == 1 and
+        ui.count("function renderScreenElementActions(") == 1 and
+        "const targetType =" not in ui and
+        "const targetValueDescription =" not in ui,
+        "Instructor: duplicate role-specific element presentation is forbidden")
 
 if failures:
     print("Instructor parity gate FAILED:")
