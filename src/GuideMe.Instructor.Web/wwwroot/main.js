@@ -710,6 +710,10 @@ function renderSteps() {
     if (targetReplace) targetReplace.onclick = () => guarded(() => startElementPicker(true));
     const removePrimary = $('remove-primary-target');
     if (removePrimary) removePrimary.onclick = () => guarded(async () => {
+      if (identityItems.length > 0) {
+        notify('לא ניתן להסיר את יעד הפעולה כאשר קיימים רכיבים נוספים. יש להגדיר תחילה רכיב אחר כיעד פעולה.', true);
+        return;
+      }
       if (!confirm('להסיר את הרכיב מהשלב? תנאי האימות ותנאי ההשלמה התלויים בו יוסרו גם הם.')) return;
       await api('/guides/' + current.guide.id + '/steps/' +
         encodeURIComponent(step.id) + '/primary-target', {method:'DELETE',body:'{}'});
