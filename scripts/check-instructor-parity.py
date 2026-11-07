@@ -86,6 +86,21 @@ require("actions, identity" in compiler and "target-exists" in compiler and
         "IdentityConditions" in web_learner and "IdentityConditions" in windows_learner,
         "Learner: Web/Windows identity guard parity missing")
 
+# Do not reintroduce a raw locator modal for identity guards. Both roles
+# must invoke the same semantic value editor and persist via role-specific APIs.
+require("function editableLocatorBinding(" in ui and
+        "identityUsageId:id" in ui and
+        "function editPrimaryTargetValue({kind, step, locators, binding:preparedBinding, identityUsageId = null})" in ui and
+        "'/completion-target/variable?completionId='" in ui and
+        "'/primary-target/variable'" in ui,
+        "Instructor: action/identity target semantic editor must be shared")
+require("label:'מזהה הרכיב', value:locator.Value" not in ui and
+        "modal('עריכת מזהה אימות" not in ui,
+        "Instructor: raw CSS locator editor must not return for identity guards")
+require("GuideMeAnyValueUI.renderOption('edit-primary-target-any'" in ui and
+        "initializeVariableField(input, variableControls, binding.value)" in ui,
+        "Instructor: shared target editor must preserve Any value and variables")
+
 if failures:
     print("Instructor parity gate FAILED:")
     for failure in failures:
