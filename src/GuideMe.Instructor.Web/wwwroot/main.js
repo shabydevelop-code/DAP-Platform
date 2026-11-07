@@ -1780,7 +1780,17 @@ function newStep() {
     await openGuide(guideId);
     const row=[...document.querySelectorAll('[data-step]')]
        .find(x=>x.dataset.step===created.stepId);
-    row?.click();
+    if (row) {
+      row.click();
+      // Scroll only the steps list; do not move the entire page.
+      const list = $('step-list');
+      const rowBounds = row.getBoundingClientRect();
+      const listBounds = list.getBoundingClientRect();
+      if (rowBounds.bottom > listBounds.bottom)
+        list.scrollTop += rowBounds.bottom - listBounds.bottom;
+      else if (rowBounds.top < listBounds.top)
+        list.scrollTop -= listBounds.top - rowBounds.top;
+    }
     notify('השלב נוצר. כרגע התקדמותו ידנית עד שיוגדרו רכיב יעד ותנאי התקדמות.');
   },'יצירת שלב');
   const input = $('field-bubble');
