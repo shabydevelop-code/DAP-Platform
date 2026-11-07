@@ -402,14 +402,9 @@ function renderSteps() {
     });
     const completionRule = completionRules[0];
     const completionElementName = completionItems[0]?.name || '';
-    const locatorText = locators[0]?.Value || '';
-    const friendlyName = element?.DisplayName || (locatorText === 'a' ? 'קישור' : locatorText);
     const primaryPresentation = screenElementPresentation(context?.Runtime, element, locators);
     const editableTargetBinding = primaryPresentation.binding;
-    const targetValue = editableTargetBinding?.value || '';
-    const targetType = primaryPresentation.type;
-    const targetValueDescription = primaryPresentation.content;
-    selectedTargetPreviewValue = editableTargetBinding?.value || targetValue || null;
+    selectedTargetPreviewValue = editableTargetBinding?.value || null;
     selectedValidationExpectedValue = rule?.ExpectedValue || null;
     selectedCompletionDescription = completionRule?.Kind === 'value-contains'
       ? () => esc(completionElementName) + ' מכיל את הערך ' + friendlyInstructionHtml(completionRule.ExpectedValue || '') + '.'
