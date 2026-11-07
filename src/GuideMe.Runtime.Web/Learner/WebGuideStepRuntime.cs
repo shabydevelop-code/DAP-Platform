@@ -198,6 +198,18 @@ public sealed class WebGuideStepRuntime
                 }
             }
 
+            // Identity guards qualify the source screen; they never complete the step.
+            // Check before presenting and hide stale UI when the source screen changes.
+            if (step.IdentityConditions is { Count: > 0 } &&
+                !await _browser.AreCompletionConditionsSatisfiedAsync(
+                    step with { CompletionConditions = step.IdentityConditions }, cancellationToken))
+            {
+                ReportBubbleAvailable(false);
+                await _browser.HideBubbleAsync(cancellationToken);
+                return await GuideActiveStepState.WaitAsync(
+                    GuideStepReconciliationResult.WaitingForContext, _reconcileInterval, cancellationToken);
+            }
+
             var contextActive = await _browser.IsContextActiveAsync(step, cancellationToken);
             if (diagnoseReference && !contextActive) ReferenceDiagnostic($"[GuideMe reference diagnostic] Step '{step.Id}' waiting for active context.");
             if (sharedEngine.ObserveContext(activeState, contextActive)
