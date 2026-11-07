@@ -384,7 +384,7 @@ function renderSteps() {
       const binding = locatorTextBinding(locator);
       const anyValue = (context?.Runtime === 'Web' && /:(?:cell-any\(\d+\)|nonempty-text)$/.test(selector)) ||
         (context?.Runtime === 'Windows' && ['name-nonempty','automation-id-nonempty'].includes(locator?.Strategy));
-      return {rule, locators, name:element?.DisplayName || 'הרכיב שנבחר',
+      return {rule, locators, element, name:element?.DisplayName || 'הרכיב שנבחר',
         type:classification.label || 'רכיב במסך',
         content:anyValue ? 'כל ערך' : binding?.value || null};
     });
@@ -729,20 +729,10 @@ function renderSteps() {
             {kind:'target-appeared', identity:true, completionId:id});
         }
         if (action === 'edit') {
-          const locator = item.locators[0];
-          if (!locator) throw new Error('לא נמצא מזהה רכיב לעריכה.');
-          if (!['css','name'].includes(locator.Strategy))
-            throw new Error('מזהה טכני זה אינו ניתן לעריכת תוכן. ניתן לבחור רכיב אחר.');
-          return modal('עריכת מזהה אימות — שלב ' + step.order, [
-            {name:'locatorValue', label:'מזהה הרכיב', value:locator.Value, max:400, multiline:true}
-          ], async values => {
-            if (!values.locatorValue.trim()) throw new Error('יש להזין מזהה רכיב.');
-            await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+
-              '/completion-target/variable?completionId='+encodeURIComponent(id),
-              {method:'POST',body:JSON.stringify({
-                locatorValue:values.locatorValue.trim()})});
-            await reloadSelectedStep(current.guide.id, step.id);
-            notify('מזהה האימות עודכן.');
+          return editPrimaryTargetValue({
+            kind:'target', step, locators:item.locators,
+            binding:editableLocatorBinding(context?.Runtime, item.element, item.locators),
+            identityUsageId:id
           });
         }
         if (action === 'remove') {
@@ -1970,7 +1960,24 @@ function locatorTextBinding(locator) {
   // A display label alone does not prove that the locator uses text for identification.
   return null;
 }
-function editPrimaryTargetValue({kind, step, locators, binding:preparedBinding}) {
+// Both the action target and identity guards use the same semantic editor.
+function editableLocatorBinding(runtime, element, locators) {
+  const locator = (locators || [])[0];
+  const binding = locatorTextBinding(locator);
+  if (binding) return binding;
+  if (runtime === 'Web' && locator?.Strategy === 'css' && locator.Value &&
+      !/:exact-text\(|:cell-text\(|:cell-any\(|:nonempty-text/.test(locator.Value))
+    return {value:'', build:next=>locator.Value + ':exact-text(' + JSON.stringify(next) + ')',
+      buildAny:()=>locator.Value + ':nonempty-text', strategy:'css'};
+  if (runtime === 'Windows' && locator?.Strategy === 'automation-id' &&
+      element?.DisplayName &&
+      ['ControlType.Button','ControlType.Hyperlink','ControlType.Text','ControlType.DataItem',
+       'ControlType.ListItem','ControlType.ComboBox'].includes(element.ControlType))
+    return {value:element.DisplayName, build:next=>next, strategy:'name',
+      buildAny:()=>locator.Value, anyStrategy:'automation-id-nonempty'};
+  return null;
+}
+function editPrimaryTargetValue({kind, step, locators, binding:preparedBinding, identityUsageId = null}) {
   if (!current || kind !== 'target') return;
   const locator = (locators || [])[0];
   if (!locator?.Value) {
@@ -1978,7 +1985,10 @@ function editPrimaryTargetValue({kind, step, locators, binding:preparedBinding})
     return;
   }
   const binding = preparedBinding || locatorTextBinding(locator);
-  if (!binding) return;
+  if (!binding) {
+    notify('לרכיב זה אין ערך זיהוי טקסטואלי שניתן לערוך. ניתן לבחור רכיב אחר.', true);
+    return;
+  }
   const supportsAny = !!binding.buildAny || !!binding.any;
   modal('עריכת רכיב במסך — שלב ' + step.order, [
     {name:'locatorValue', label:'ערך לזיהוי הרכיב', value:binding.value,
@@ -1996,7 +2006,10 @@ function editPrimaryTargetValue({kind, step, locators, binding:preparedBinding})
       rejectInstructorField(input, 'מזהה הרכיב ארוך מדי.');
     if (template === locator.Value && (!nextStrategy || nextStrategy === locator.Strategy))
       return;
-    await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+'/primary-target/variable', {
+    const path = identityUsageId
+      ? '/completion-target/variable?completionId='+encodeURIComponent(identityUsageId)
+      : '/primary-target/variable';
+    await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+path, {
       method:'POST', body:JSON.stringify({locatorValue:template, locatorStrategy:nextStrategy})
     });
     await reloadSelectedStep(current.guide.id, step.id);
