@@ -436,8 +436,15 @@ app.MapPut("/api/guides/{id:long}/steps/{stepId}/action-target",
 app.MapDelete("/api/guides/{id:long}/steps/{stepId}/primary-target",
     (long id, string stepId) =>
 {
-    V5GuideWriter.RemovePrimaryTarget(id, stepId);
-    return Results.NoContent();
+    try
+    {
+        V5GuideWriter.RemovePrimaryTarget(id, stepId);
+        return Results.NoContent();
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.Problem(ex.Message, statusCode: 409);
+    }
 });
 
 app.MapPut("/api/guides/{id:long}/steps/{stepId}/completion-target",
