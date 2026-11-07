@@ -305,11 +305,11 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/primary-target/variable",
 });
 
 app.MapPost("/api/guides/{id:long}/steps/{stepId}/completion-target/variable",
-    (long id, string stepId, SavePrimaryTargetLocatorTemplateRequest request) =>
+    (long id, string stepId, SavePrimaryTargetLocatorTemplateRequest request, string? completionId) =>
 {
     try
     {
-        V5GuideWriter.SaveCompletionTargetLocatorTemplate(id, stepId, request.LocatorValue, request.LocatorStrategy);
+        V5GuideWriter.SaveCompletionTargetLocatorTemplate(id, stepId, request.LocatorValue, request.LocatorStrategy, completionId ?? "completion");
         return Results.NoContent();
     }
     catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
