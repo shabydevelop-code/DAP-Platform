@@ -384,7 +384,7 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/completion-target",
                     .Select(l => new V5GuideWriter.TargetLocator(l.Strategy, l.Value)).ToArray(),
                 windowsAnchors: picked.Anchors?.Select(a => new V5GuideWriter.TargetAnchor(
                     new V5GuideWriter.TargetLocator(a.Strategy, a.Value), a.Relation)).ToArray(),
-                replacing: request.Replacing, controlType: picked.ControlType);
+                replacing: request.Replacing, controlType: picked.ControlType, completionId: request.CompletionId);
             windowsPicker.Stop();
             return Results.NoContent();
         }
@@ -403,7 +403,7 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/completion-target",
             capturedState?.Selector ?? selected.Selector,
             selected.FramePath, request.Kind, selected.DisplayName,
             capturedState?.Name, capturedState?.Value, request.VariableId, request.SelectedTag, request.ExpectedValue,
-            replacing: request.Replacing);
+            replacing: request.Replacing, completionId: request.CompletionId);
         capture.CancelPicking();
         return Results.NoContent();
     }
@@ -429,15 +429,15 @@ app.MapDelete("/api/guides/{id:long}/steps/{stepId}/primary-target",
 });
 
 app.MapPut("/api/guides/{id:long}/steps/{stepId}/completion-target",
-    (long id, string stepId, EditWebValidation request) =>
+    (long id, string stepId, EditWebValidation request, string? completionId) =>
 {
-    V5GuideWriter.UpdateCompletionCondition(id, stepId, request.Kind, request.ExpectedValue);
+    V5GuideWriter.UpdateCompletionCondition(id, stepId, request.Kind, request.ExpectedValue, completionId ?? "completion");
     return Results.NoContent();
 });
 app.MapDelete("/api/guides/{id:long}/steps/{stepId}/completion-target",
-    (long id, string stepId) =>
+    (long id, string stepId, string? completionId) =>
 {
-    V5GuideWriter.RemoveWebCompletionTarget(id, stepId);
+    V5GuideWriter.RemoveWebCompletionTarget(id, stepId, completionId ?? "completion");
     return Results.NoContent();
 });
 
@@ -787,7 +787,7 @@ internal sealed record SavePrimaryTargetRequest(string Condition, bool Replacing
 internal sealed record PickStart(long GuideId, string ContextId);
 internal sealed record SaveCompletionTargetRequest(string Kind, int? StateAttributeIndex = null,
     string? VariableId = null, string? SelectedTag = null, string? ExpectedValue = null,
-    int? ProcessId = null, bool Replacing = false);
+    int? ProcessId = null, bool Replacing = false, string? CompletionId = null);
 
 internal sealed record EditWebValidation(string Kind, string? ExpectedValue);
 
