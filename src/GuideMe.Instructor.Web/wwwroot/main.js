@@ -1720,7 +1720,7 @@ function newStep() {
   ],async v=>{
     const created=await api('/guides/' + guideId + '/steps', {
       method:'POST',body:JSON.stringify({contextId:v.contextId || defaultContext,
-        bubble:v.bubble,placement:"Center"})
+        bubble:variableEditorResult($('field-bubble')),placement:"Center"})
     });
     await openGuide(guideId);
     const row=[...document.querySelectorAll('[data-step]')]
@@ -1728,6 +1728,10 @@ function newStep() {
     row?.click();
     notify('השלב נוצר. כרגע התקדמותו ידנית עד שיוגדרו רכיב יעד ותנאי התקדמות.');
   },'יצירת שלב');
+  const input = $('field-bubble');
+  const container = document.createElement('div');
+  input?.closest('.field')?.append(container);
+  setupVariableInsertion(input, container, current.variables || []);
 }
 function editStepVariableAction(step, context) {
   if (!current?.variables?.length || !context) return;
