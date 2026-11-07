@@ -462,7 +462,9 @@ body .brand-heading strong span { font-size: 26px; }
 
 /* Action target is explicit; capture order does not determine its role. */
 .action-target-marker { font-size: inherit; font-weight: 700; color: #203d63; margin-bottom: 9px; }
-.screen-target-identity .target-action-primary { flex-wrap: wrap; }
+.screen-target-identity .target-action-primary { flex-wrap: nowrap; }
+.target-action-role { display: flex; justify-content: flex-start; margin-top: 10px; direction: rtl; }
+.target-action-role .btn { margin: 0; }
 
 /* Compact action target designation alongside the element name. */
 .target-name-line { display: flex; align-items: center; justify-content: flex-start; gap: 9px; flex-wrap: wrap; }
