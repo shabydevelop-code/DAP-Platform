@@ -1047,7 +1047,7 @@ WHERE GuideId=$guideId AND StepId=$stepId";
         string? variableId = null, string? selectedTag = null, string? expectedValue = null,
         string runtime = "Web", IReadOnlyList<TargetLocator>? windowsLocators = null,
         IReadOnlyList<TargetAnchor>? windowsAnchors = null, bool replacing = false,
-        string? controlType = null)
+        string? controlType = null, string? completionId = null)
     {
         if (runtime is not ("Web" or "Windows"))
             throw new ArgumentException("סביבת יעד לא נתמכת.");
