@@ -109,8 +109,8 @@ require("function screenElementPresentation(" in ui and
         "function renderScreenElementActions(" in ui and
         "const primaryPresentation = screenElementPresentation(" in ui and
         "return {rule, ...screenElementPresentation(" in ui and
-        "renderScreenElementDetails(item.presentation, item.isActionTarget, item.index)" in ui and
-        "renderScreenElementDetails(item.presentation, item.isActionTarget, item.index)" in ui and
+        "renderScreenElementDetails(item.presentation)" in ui and
+        "renderScreenElementDetails(item.presentation)" in ui and
         "renderScreenElementActions(item.isActionTarget, item.index)" in ui and
         "renderScreenElementActions(item.isActionTarget, item.index)" in ui,
         "Instructor: primary and identity screen elements must use the same renderer")
@@ -151,10 +151,12 @@ require("ApplyCapturedContentSelector(selector, request.ContentValue, request.An
 
 # Action target selection is exclusive: only identity cards offer the switch;
 # the active target has a disabled, non-toggleable marker in the same corner.
-require('screen-element-role active" aria-label="יעד פעולה נוכחי" disabled' in ui and
+require('screen-element-role active" aria-label="יעד פעולה נוכחי" aria-pressed="true" disabled' in ui and
         '>יעד פעולה</button>' in ui and
         'data-identity-action="set-action"' in ui and
-        'renderScreenElementDetails(item.presentation, item.isActionTarget, item.index)' in ui and
+        'renderScreenElementDetails(item.presentation)' in ui and
+        'aria-label="יעד פעולה" aria-pressed="false">יעד פעולה</button>' in ui and
+        'renderScreenElementActions(item.isActionTarget, item.index)' in ui and
         "button('set-action', 'הגדר כיעד פעולה')" not in ui,
         "Instructor: action-target selection must be exclusive corner control")
 
