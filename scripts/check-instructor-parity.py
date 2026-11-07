@@ -109,8 +109,8 @@ require("function screenElementPresentation(" in ui and
         "function renderScreenElementActions(" in ui and
         "const primaryPresentation = screenElementPresentation(" in ui and
         "return {rule, ...screenElementPresentation(" in ui and
-        "renderScreenElementDetails(primaryPresentation, true)" in ui and
-        "renderScreenElementDetails(item, false, index)" in ui and
+        "renderScreenElementDetails(item.presentation, item.isActionTarget, item.index)" in ui and
+        "renderScreenElementDetails(item.presentation, item.isActionTarget, item.index)" in ui and
         "renderScreenElementActions(true)" in ui and
         "renderScreenElementActions(false, index)" in ui,
         "Instructor: primary and identity screen elements must use the same renderer")
@@ -154,7 +154,7 @@ require("ApplyCapturedContentSelector(selector, request.ContentValue, request.An
 require('screen-element-role active" aria-label="יעד פעולה נוכחי" disabled' in ui and
         '>יעד פעולה</button>' in ui and
         'data-identity-action="set-action"' in ui and
-        'renderScreenElementDetails(item, false, index)' in ui and
+        'renderScreenElementDetails(item.presentation, item.isActionTarget, item.index)' in ui and
         "button('set-action', 'הגדר כיעד פעולה')" not in ui,
         "Instructor: action-target selection must be exclusive corner control")
 
