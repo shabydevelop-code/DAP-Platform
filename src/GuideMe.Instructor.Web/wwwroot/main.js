@@ -413,7 +413,10 @@ function renderSteps() {
       !/\b(?:input|textarea|select)\b/i.test(element?.ControlType || '')
         ? {value:webDisplayName, build:next=>webLocator.Value + ':exact-text(' + JSON.stringify(next) + ')', buildAny:()=>webLocator.Value + ':nonempty-text'}
         : null;
-    const editableTargetBinding = dataEntryTarget ? null : (locatorTextBinding(webLocator) ||
+    const anyValueTargetLocator = locator => locator?.Strategy === 'name-nonempty' ||
+      locator?.Strategy === 'automation-id-nonempty' ||
+      (locator?.Strategy === 'css' && /:(?:cell-any\(\d+\)|nonempty-text)$/.test(locator.Value || ''));
+    const editableTargetBinding = (dataEntryTarget && !anyValueTargetLocator(webLocator)) ? null : (locatorTextBinding(webLocator) ||
       webTextBinding ||
       (dynamicWindowsControl && webLocator?.Strategy === 'automation-id' &&
        element?.DisplayName
