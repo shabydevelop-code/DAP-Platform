@@ -1216,8 +1216,6 @@ async function refreshPicker() {
       requiredCaptureFields.push($('variable-extract-pattern'));
     if (pickedFor.completion && $('target-condition')?.value === 'value-contains')
       requiredCaptureFields.push($('completion-fixed-value'));
-    if (!pickedFor.completion && !pickedFor.variableSource && !$('picked-content-any')?.checked)
-      requiredCaptureFields.push($('picked-content-value'));
     for (const field of requiredCaptureFields) {
       if (field && !String(field.value || '').trim()) {
         showInstructorFieldError(field, 'יש למלא שדה זה לפני השמירה.');
@@ -1255,7 +1253,9 @@ async function refreshPicker() {
       else {
         const contentInput = $('picked-content-value');
         const anyContent = !!$('picked-content-any')?.checked;
-        const contentValue = contentInput && !anyContent ? variableEditorResult(contentInput).trim() : null;
+        // Empty content means structural identification only; no semantic text constraint.
+        const enteredContent = contentInput && !anyContent ? variableEditorResult(contentInput).trim() : '';
+        const contentValue = enteredContent || null;
         if (contentInput && contentValue !== null && contentValue.length > 400)
           rejectInstructorField(contentInput, 'תוכן זיהוי הרכיב ארוך מדי (עד 400 תווים).');
         await api('/guides/'+pickedFor.guideId+'/steps/'+encodeURIComponent(pickedFor.stepId)+'/primary-target',
