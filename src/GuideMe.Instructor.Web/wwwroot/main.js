@@ -447,7 +447,7 @@ function renderSteps() {
       screenElements.map(item =>
         '<div class="screen-target-bubble ' + (item.isActionTarget ? 'screen-target-primary' : 'screen-target-identity') + '">' +
         '<div class="completion-details">' +
-        renderScreenElementDetails(item.presentation, item.isActionTarget, item.index) + '</div>' +
+        renderScreenElementDetails(item.presentation) + '</div>' +
         ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') ?
           renderScreenElementActions(item.isActionTarget, item.index) : '') +
         (item.isActionTarget ? '<div id="pick-result" class="hidden" aria-live="polite"></div>' : '') +
@@ -1952,13 +1952,8 @@ function screenElementPresentation(runtime, element, locators) {
   };
 }
 const screenElementDisplayOrder = new Map();
-function renderScreenElementDetails(item, isActionTarget, index) {
-  const roleControl = isActionTarget
-    ? '<button type="button" class="btn secondary small screen-element-role active" aria-label="יעד פעולה נוכחי" disabled>יעד פעולה</button>'
-    : '<button type="button" class="btn secondary small screen-element-role" data-identity-action="set-action" data-index="' + index +
-      '" aria-label="הגדר כיעד פעולה">הגדר כיעד פעולה</button>';
-  return roleControl +
-    '<p class="target-name-line"><strong>' + esc(item.name) + '</strong></p>' +
+function renderScreenElementDetails(item) {
+  return '<p class="target-name-line"><strong>' + esc(item.name) + '</strong></p>' +
     '<p class="field-help">סוג רכיב: ' + esc(item.type) + '</p>' +
     (item.content ? '<p>זיהוי לפי תוכן: <strong class="target-business-value-preview">' +
       friendlyInstructionHtml(item.content) + '</strong></p>' : '');
@@ -1966,14 +1961,18 @@ function renderScreenElementDetails(item, isActionTarget, index) {
 function renderScreenElementActions(isActionTarget, index) {
   const attribute = isActionTarget ? '' : ' data-index="' + index + '"';
   const button = (action, title, css = 'secondary') =>
-    '<button class="btn ' + css + ' small" ' +
+    '<button type="button" class="btn ' + css + ' small" ' +
     (isActionTarget ? 'id="' + action + '"' : 'data-identity-action="' + action + '"' + attribute) +
     '>' + title + '</button>';
+  const roleButton = isActionTarget
+    ? '<button type="button" class="btn secondary small screen-element-role active" aria-label="יעד פעולה נוכחי" aria-pressed="true" disabled>יעד פעולה</button>'
+    : '<button type="button" class="btn secondary small screen-element-role" data-identity-action="set-action" data-index="' + index +
+      '" aria-label="יעד פעולה" aria-pressed="false">יעד פעולה</button>';
   return '<div class="target-action-buttons"><div class="target-action-primary">' +
     button(isActionTarget ? 'replace-web-target' : 'replace', 'בחירת רכיב אחר') +
     button(isActionTarget ? 'bind-target-variable' : 'edit', 'עריכה') +
     button(isActionTarget ? 'remove-primary-target' : 'remove', 'הסרה', 'danger') +
-    '</div></div>';
+    roleButton + '</div></div>';
 }
 async function editPrimaryTargetValue({kind, step, locators, binding:preparedBinding, identityUsageId = null}) {
   if (!current || kind !== 'target') return;
