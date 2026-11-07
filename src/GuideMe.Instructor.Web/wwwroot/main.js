@@ -436,7 +436,7 @@ function renderSteps() {
     const anyValueTarget = (context?.Runtime === 'Web' && /:(?:cell-any\(\d+\)|nonempty-text)$/.test(locatorText)) ||
       (context?.Runtime === 'Windows' && ['name-nonempty','automation-id-nonempty'].includes(webLocator?.Strategy));
     const targetValueDescription = anyValueTarget ? 'כל ערך' :
-      editableTargetBinding?.value ? (editableTargetBinding.value.includes('{{var:') ? 'משתנה' : 'ערך קבוע') : null;
+      editableTargetBinding?.value ? editableTargetBinding.value : null;
     selectedTargetPreviewValue = editableTargetBinding?.value || targetValue || null;
     selectedValidationExpectedValue = rule?.ExpectedValue || null;
     selectedCompletionDescription = completionRule?.Kind === 'value-contains'
@@ -465,9 +465,8 @@ function renderSteps() {
       (target ? '<p><strong>' + esc(friendlyName) + '</strong></p>' +
         '<p class="field-help">סוג רכיב: ' + esc(targetType) + '</p>' +
         (targetValueDescription ? '<p>זיהוי לפי תוכן: <strong class="target-business-value-preview">' +
-          esc(targetValueDescription) + '</strong></p>' : '') +
-        (!anyValueTarget && editableTargetBinding?.value ? '<p>ערך איתור: <strong class="target-business-value-preview">' +
-          friendlyInstructionHtml(editableTargetBinding.value) + '</strong></p>' : '') +
+          friendlyInstructionHtml(targetValueDescription) + '</strong></p>' : '') +
+
         '' :
         '<p>עדיין לא נבחר רכיב לשלב הזה.</p>') +
       '</div>' +
@@ -1861,7 +1860,8 @@ function locatorTextBinding(locator) {
       original.slice(offset + quoted.length), buildAny:()=>original.replace(match[0], match[0].startsWith(':cell-text') ? ':cell-any(' + (/\d+/.exec(match[0])?.[0] || '1') + ')' : '')};
   }
   if (matchers.length || /:cell-text\(|:exact-text\(/.test(original)) return null;
-  const attributes = [...original.matchAll(/\[(?:aria-label|placeholder|name|title|data-[\w-]+)\s*=\s*("(?:[^"\\]|\\.)*")\]/g)];
+  // name and data-* attributes identify the element technically; they are not visible content.
+  const attributes = [...original.matchAll(/\[(?:aria-label|placeholder|title)\s*=\s*("(?:[^"\\]|\\.)*")\]/g)];
   if (attributes.length === 1) {
     const match = attributes[0], quoted = match[1];
     try {
