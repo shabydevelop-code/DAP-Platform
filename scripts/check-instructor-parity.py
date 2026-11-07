@@ -82,7 +82,7 @@ require("identityItems" in ui and "data-identity-action" in ui and "identity:!!s
 require("identity: request.Identity" in server and 'bool Identity = false' in server and
         'OptionsJson' in writer and 'bool identity = false' in writer,
         "Instructor: identity guard persistence missing")
-require("IdentityConditions" in compiler and "target-exists" in compiler and
+require("actions, identity" in compiler and "target-exists" in compiler and
         "IdentityConditions" in web_learner and "IdentityConditions" in windows_learner,
         "Learner: Web/Windows identity guard parity missing")
 
