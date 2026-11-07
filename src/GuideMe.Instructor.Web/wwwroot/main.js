@@ -370,30 +370,29 @@ function renderSteps() {
     const locators = parseJson(element?.LocatorsJson, []);
     const frames = parseJson(element?.FrameContextJson, []);
     const conditionText = rule ? validationLabel(rule.Kind) : 'לא הוגדר תנאי';
-    const completionRule = data.rules.find(x => x.RuleType === 'AdditionalCompletionCondition');
-    const completionTarget = data.targets.find(x => x.UsageId === completionRule?.TargetUsageId);
-    const completionElement = data.elements.find(x => x.ElementId === completionTarget?.ElementId);
-    const completionLocators = parseJson(completionElement?.LocatorsJson, []);
-    const completionSelector = completionLocators[0]?.Value || '';
-    const completionClassification = classifyTarget(context?.Runtime, completionElement, completionLocators);
-    const completionType = completionClassification.label ||
-      (/^h[1-6](?=:|$)/i.test(completionSelector) ? 'כותרת במסך' : null);
-    const completionDisplayName = (completionElement?.DisplayName || '').trim();
-    const completionElementName = completionDisplayName &&
-      !/^[#.[>:+~]/.test(completionDisplayName) &&
-      !/^[a-z][\\w-]*\\[[^\\]]+\\]/i.test(completionDisplayName)
-      ? completionDisplayName
-      : /^h[1-6](?=:|$)/i.test(completionSelector) ? 'כותרת במסך'
-      : 'הרכיב שנבחר';
-    const completionAttribute = completionRule?.Kind === 'attribute-equals'
-      ? parseJson(completionRule.ExpectedValue, {}) : {};
-    const completionDescription = completionRule?.Kind === 'value-contains'
-      ? 'מכיל את הערך ' + friendlyInstructionHtml(completionRule.ExpectedValue || '')
-      : completionRule?.Kind === 'target-appeared' ? 'מופיע במסך'
-      : completionRule?.Kind === 'attribute-equals'
-        ? 'המאפיין "' + esc(completionAttribute.name || 'הנבחר') +
-          '" שווה ל־"' + esc(completionAttribute.value ?? '') + '"'
-      : 'תנאי השלמה';
+    const completionRules = data.rules.filter(x => x.RuleType === 'AdditionalCompletionCondition');
+    const completionItems = completionRules.map(rule => {
+      const target = data.targets.find(x => x.UsageId === rule.TargetUsageId);
+      const element = data.elements.find(x => x.ElementId === target?.ElementId);
+      const locators = parseJson(element?.LocatorsJson, []);
+      const selector = locators[0]?.Value || '';
+      const classification = classifyTarget(context?.Runtime, element, locators);
+      const type = classification.label || (/^h[1-6](?=:|$)/i.test(selector) ? 'כותרת במסך' : null);
+      const displayName = (element?.DisplayName || '').trim();
+      const name = displayName && !/^[#.[>:+~]/.test(displayName) &&
+        !/^[a-z][\\w-]*\\[[^\\]]+\\]/i.test(displayName) ? displayName :
+        /^h[1-6](?=:|$)/i.test(selector) ? 'כותרת במסך' : 'הרכיב שנבחר';
+      const attribute = rule.Kind === 'attribute-equals' ? parseJson(rule.ExpectedValue, {}) : {};
+      const description = rule.Kind === 'value-contains'
+        ? 'מכיל את הערך ' + friendlyInstructionHtml(rule.ExpectedValue || '')
+        : rule.Kind === 'target-appeared' ? 'מופיע במסך'
+        : rule.Kind === 'attribute-equals'
+          ? 'המאפיין "' + esc(attribute.name || 'הנבחר') + '" שווה ל־"' + esc(attribute.value ?? '') + '"'
+          : 'תנאי השלמה';
+      return {rule, locators, name, type, description};
+    });
+    const completionRule = completionRules[0];
+    const completionElementName = completionItems[0]?.name || '';
     const locatorText = locators[0]?.Value || '';
     const friendlyName = element?.DisplayName || (locatorText === 'a' ? 'קישור' : locatorText);
     const dynamicWindowsControl = context?.Runtime === 'Windows' &&
@@ -490,21 +489,22 @@ function renderSteps() {
         '</div>' : '') +
       '</section></div>' +
       ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') ?
-        '<section class="step-friendly-card completion-card"><h3>תנאי השלמה נוסף</h3>' +
-        (completionRule ? '<div class="completion-details">' +
-          '<div class="completion-target-summary"><p><strong>' +
-          esc(completionElementName) + '</strong>' +
-          (completionType ? ' <span class="field-help">(' + esc(completionType) + ')</span>' : '') +
-          '</p></div>' +
-          '<div class="completion-detail"><span class="completion-detail-label">תנאי:</span>' +
-          '<strong class="completion-description-preview">' + completionDescription + '</strong></div>' +
-          '</div><div class="target-action-buttons"><div class="target-action-primary">' +
-          '<button class="btn secondary small" id="replace-completion">בחירת רכיב אחר</button>' +
-          '<button class="btn secondary small" id="edit-completion">עריכה</button>' +
-          '<button class="btn danger small" id="remove-completion">הסרה</button>' +
-          '</div></div>' :
-          '<p>' + (!target ? 'יש לבחור תחילה רכיב במסך.' : 'אפשר להגדיר תנאי השלמה גם ללא תנאי התקדמות ראשי.') + '</p>' +
-          (target ? '<button class="btn secondary small" id="add-completion">בחירת רכיב לתנאי השלמה</button>' : '')) +
+        '<section class="step-friendly-card completion-card"><h3>תנאי השלמה נוספים</h3>' +
+        completionItems.map((item, index) =>
+          '<div class="completion-item" data-completion-index="' + index + '">' +
+          '<div class="completion-details"><div class="completion-target-summary"><p><strong>' +
+          esc(item.name) + '</strong>' +
+          (item.type ? ' <span class="field-help">(' + esc(item.type) + ')</span>' : '') +
+          '</p></div><div class="completion-detail"><span class="completion-detail-label">תנאי:</span>' +
+          '<strong class="completion-description-preview">' + item.description + '</strong></div></div>' +
+          '<div class="target-action-buttons"><div class="target-action-primary">' +
+          '<button class="btn secondary small" data-completion-action="replace" data-index="' + index + '">בחירת רכיב אחר</button>' +
+          '<button class="btn secondary small" data-completion-action="edit" data-index="' + index + '">עדכון</button>' +
+          '<button class="btn danger small" data-completion-action="remove" data-index="' + index + '">הסרה</button>' +
+          '</div></div></div>'
+        ).join('') +
+        (!target ? '<p>יש לבחור תחילה רכיב במסך.</p>' :
+          '<button class="btn secondary small" id="add-completion">הוספת תנאי השלמה</button>') +
         '<div id="completion-pick-result" class="hidden" aria-live="polite"></div>' +
         '</section>' : '') +
       '<section class="step-friendly-card completion-card" aria-labelledby="step-variables-title">' +
@@ -668,22 +668,25 @@ function renderSteps() {
     const addCompletion = $('add-completion');
     if (addCompletion) addCompletion.onclick = () => guarded(() =>
       beginTargetPicker(context.Runtime, current.guide.id, step.id, contextId, false, true, context));
-    const editCompletion = $('edit-completion');
-    if (editCompletion) editCompletion.onclick = () => editCompletionCondition(step, completionRule, completionLocators);
-    const replaceCompletion = $('replace-completion');
-    if (replaceCompletion) replaceCompletion.onclick = () => guarded(() =>
-      beginTargetPicker(context.Runtime, current.guide.id, step.id, contextId, true, true, context, null,
-        {kind:completionRule.Kind, expectedValue:completionRule.ExpectedValue || ''}));
-    const removeCompletion = $('remove-completion');
-    if (removeCompletion) removeCompletion.onclick = () => guarded(async () => {
-      if (!confirm('להסיר את תנאי ההשלמה הנוסף?')) return;
-      await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+'/completion-target',
-        {method:'DELETE',body:'{}'});
-      const guideId=current.guide.id;
-      await openGuide(guideId);
-      const item=[...document.querySelectorAll('[data-step]')].find(x=>x.dataset.step===step.id);
-      if(item) item.click();
-      notify('תנאי ההשלמה הוסר.');
+    document.querySelectorAll('[data-completion-action]').forEach(button => {
+      button.onclick = () => {
+        const item = completionItems[Number(button.dataset.index)];
+        if (!item) return;
+        const completionId = item.rule.TargetUsageId;
+        if (button.dataset.completionAction === 'edit')
+          return editCompletionCondition(step, item.rule, item.locators, button);
+        if (button.dataset.completionAction === 'replace')
+          return guarded(() => beginTargetPicker(context.Runtime, current.guide.id, step.id,
+            contextId, true, true, context, null,
+            {kind:item.rule.Kind, expectedValue:item.rule.ExpectedValue || '', completionId}));
+        if (button.dataset.completionAction === 'remove') return guarded(async () => {
+          if (!confirm('להסיר את תנאי ההשלמה?')) return;
+          await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+
+            '/completion-target?completionId='+encodeURIComponent(completionId), {method:'DELETE'});
+          await reloadSelectedStep(current.guide.id, step.id);
+          notify('תנאי ההשלמה הוסר.');
+        });
+      };
     });
     const startElementPicker = (replacing = false, completion = false) =>
       beginTargetPicker(context.Runtime, current.guide.id, step.id, contextId, replacing, completion, context);
@@ -732,8 +735,8 @@ function validationLabel(kind) {
   return validationChoices.find(x=>x.value===kind)?.text ||
     'תנאי מתקדם שהוגדר במערכת';
 }
-function editCompletionCondition(step, rule, locators) {
-  const card = $('edit-completion')?.closest('.completion-card');
+function editCompletionCondition(step, rule, locators, button) {
+  const card = button?.closest('.completion-item');
   const details = card?.querySelector('.completion-details');
   const actions = card?.querySelector('.target-action-buttons');
   if (!card || !details || !actions) return;
@@ -797,10 +800,10 @@ function editCompletionCondition(step, rule, locators) {
       buttons.forEach(b => b.disabled = true);
       try {
         if (locatorInput && locatorValue !== locator.Value) {
-          await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+'/completion-target/variable',
+          await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+'/completion-target/variable?completionId='+encodeURIComponent(rule.TargetUsageId),
             {method:'POST',body:JSON.stringify({locatorValue})});
         }
-        await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+'/completion-target',
+        await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+'/completion-target?completionId='+encodeURIComponent(rule.TargetUsageId),
           {method:'PUT',body:JSON.stringify({kind:kind.value,expectedValue:expected})});
         await reloadSelectedStep(current.guide.id, step.id);
         notify('תנאי ההשלמה עודכן.');
@@ -965,7 +968,7 @@ const targetAdapters = {
           selectedTag:candidate.tag,
           expectedValue:$('target-condition').value === 'value-contains'
             ? variableEditorResult($('completion-fixed-value')) : null,
-          replacing:session.replacing})});
+          replacing:session.replacing,completionId:session.completionEdit?.completionId})});
     }
   },
   Windows: {
