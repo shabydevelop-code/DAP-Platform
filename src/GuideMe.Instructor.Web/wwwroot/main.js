@@ -415,13 +415,18 @@ function renderSteps() {
     const anyValueTargetLocator = locator => locator?.Strategy === 'name-nonempty' ||
       locator?.Strategy === 'automation-id-nonempty' ||
       (locator?.Strategy === 'css' && /:(?:cell-any\(\d+\)|nonempty-text)$/.test(locator.Value || ''));
-    const editableTargetBinding = (dataEntryTarget && !anyValueTargetLocator(webLocator)) ? null : (locatorTextBinding(webLocator) ||
+    const editableTargetBinding = locatorTextBinding(webLocator) ||
       webTextBinding ||
-      (dynamicWindowsControl && webLocator?.Strategy === 'automation-id' &&
-       element?.DisplayName
+      (context?.Runtime === 'Web' && webLocator?.Strategy === 'css' && webLocator.Value &&
+       !/:exact-text\(|:cell-text\(|:cell-any\(|:nonempty-text/.test(webLocator.Value)
+        ? {value:'', build:next=>webLocator.Value + ':exact-text(' + JSON.stringify(next) + ')',
+            buildAny:()=>webLocator.Value + ':nonempty-text', strategy:'css'}
+        : null) ||
+      ((dynamicWindowsControl || element?.ControlType === 'ControlType.ComboBox') &&
+       webLocator?.Strategy === 'automation-id' && element?.DisplayName
         ? {value:element.DisplayName, build:next=>next, strategy:'name',
             buildAny:()=>webLocator.Value, anyStrategy:'automation-id-nonempty'}
-        : null));
+        : null);
     const targetValue = editableTargetBinding?.value || '';
     const targetKind = /(?:^|[ >+~])h([1-6])(?=[:.#\\[ >+~]|$)/i.exec(locatorText);
     const targetType = targetClassification.label || (targetKind ? 'כותרת (H' + targetKind[1] + ')' :
