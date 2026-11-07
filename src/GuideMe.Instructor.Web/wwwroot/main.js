@@ -1118,8 +1118,19 @@ async function refreshPicker() {
       (candidate.variableSamples || []).find(sample => sample.property === 'text')?.value ??
       (!['input','textarea','select'].includes((candidate.tag || '').toLowerCase())
         ? candidate.label : null);
-  const initialContentValue = String(editableContent ?? '').trim() ||
-    String(capturedSample ?? '').trim();
+  // A stable technical locator is sufficient: never impose the captured label
+  // as an extra content constraint. Preserve text only when the locator itself
+  // already depends on text (or has no technical identity).
+  const locatorStrategy = requestSession.runtime === 'Windows'
+    ? candidate.locators?.[0]?.strategy : 'css';
+  const technicalLocator = requestSession.runtime === 'Windows'
+    ? ['automation-id', 'automation-id-nonempty'].includes(locatorStrategy)
+    : /(?:#[\\w-]+|\\[(?:id|name|data-[\\w-]+)\\s*=)/.test(candidate.selector || '');
+  const hasSemanticContentLocator = requestSession.runtime === 'Web' &&
+    /:(?:exact-text|cell-text)\\(/.test(candidate.selector || '');
+  const initialContentValue = hasSemanticContentLocator
+    ? String(editableContent ?? '').trim()
+    : technicalLocator ? '' : String(editableContent ?? capturedSample ?? '').trim();
   box.innerHTML = '<div class="picked-target-fields" dir="rtl">' +
     '<p><strong>'+esc(candidate.label || candidate.tag || 'רכיב')+'</strong> <span class="picked-target-kind">('+esc(kindLabel)+')</span></p>'+
     (!pickingFor.completion && !pickingFor.variableSource ?
