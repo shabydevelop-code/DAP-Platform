@@ -1135,7 +1135,15 @@ async function refreshPicker() {
     if (input) {
       initializeVariableField(input, $('picked-content-value-variables'), editableContent || '');
       const any = $('picked-content-any');
-      if (any) any.onchange = () => { input.disabled = any.checked; $('picked-content-value-variables').style.display = any.checked ? 'none' : ''; };
+      if (any) {
+        const updateAny = () => {
+          input.closest('.field')?.classList.toggle('hidden', any.checked);
+          input.disabled = any.checked;
+          $('picked-content-value-variables').style.display = any.checked ? 'none' : '';
+        };
+        any.addEventListener('change', updateAny);
+        updateAny();
+      }
     }
   }
   if (pickingFor.variableSource) {
@@ -1877,7 +1885,7 @@ function editPrimaryTargetValue({kind, step, locators, binding:preparedBinding})
     anyToggle.innerHTML = GuideMeAnyValueUI.renderOption('edit-primary-target-any', !!binding.any);
     edit.append(...anyToggle.children);
     const checkbox = edit.querySelector('#edit-primary-target-any');
-    const update = () => { input.disabled = checkbox.checked; variableControls.style.display = checkbox.checked ? 'none' : ''; };
+    const update = () => { label.style.display = checkbox.checked ? 'none' : ''; input.style.display = checkbox.checked ? 'none' : ''; input.disabled = checkbox.checked; variableControls.style.display = checkbox.checked ? 'none' : ''; };
     checkbox.addEventListener('change', update);
     queueMicrotask(update);
   }
