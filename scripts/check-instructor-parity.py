@@ -30,7 +30,7 @@ require("picked-content-any" in ui and "buildAny" in ui,
 # Inspect only the capture-option expression, not unrelated runtime-specific
 # code that happens to be within an arbitrary character window.
 capture_start = ui.find("(!pickingFor.completion && !pickingFor.variableSource ?")
-capture_end = ui.find("(pickingFor.completion ? '<label for=\"target-condition\"", capture_start)
+capture_end = ui.find("(pickingFor.completion && !pickingFor.completionEdit?.identity ? '<label for=\"target-condition\"", capture_start)
 capture_option = ui[capture_start:capture_end] if capture_start >= 0 and capture_end >= 0 else ""
 require(bool(capture_option) and
         "requestSession.runtime === 'Web' ?" not in capture_option and
