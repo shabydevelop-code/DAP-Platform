@@ -453,7 +453,7 @@ function renderSteps() {
         (item.isActionTarget ? '<div id="pick-result" class="hidden" aria-live="polite"></div>' : '') +
         '</div>'
       ).join('') +
-      (!target ? '<div class="screen-target-bubble screen-target-primary"><p>עדיין לא נבחר רכיב לשלב הזה.</p>' +
+      (!target ? '<div class="screen-target-bubble screen-target-primary"><p id="empty-primary-target-message">עדיין לא נבחר רכיב לשלב הזה.</p>' +
         ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') ?
           '<button id="pick-element" class="btn primary">הפעלת ממפה רכיבים</button>' +
           '<div id="pick-result" class="hidden" aria-live="polite"></div>' : '') +
@@ -910,6 +910,9 @@ function pickerEvent(session, event, message = '') {
       $('primary-target-summary')?.classList.remove('hidden');
   }
   if (!session.completion && !session.variableSource) {
+    const emptyMessage = $('empty-primary-target-message');
+    if (emptyMessage)
+      emptyMessage.classList.toggle('hidden', event === 'selected');
     const pickButton = $('pick-element');
     if (pickButton) pickButton.classList.toggle('hidden', event === 'selected');
   }
