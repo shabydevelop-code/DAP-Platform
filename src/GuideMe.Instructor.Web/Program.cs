@@ -618,6 +618,12 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/variable-source",
 
 app.MapGet("/api/guides/{id:long}/steps/{stepId}/variables", (long id, string stepId) =>
     Results.Ok(V5VariableCatalog.ListActions(id, stepId)));
+app.MapPut("/api/guides/{id:long}/steps/{stepId}/variables/{actionId}",
+    (long id, string stepId, string actionId, UpdateVariableActionRequest body) =>
+{
+    V5VariableCatalog.UpdateAction(id, stepId, actionId, body.VariableId, body.Pattern);
+    return Results.NoContent();
+});
 app.MapDelete("/api/guides/{id:long}/steps/{stepId}/variables/{actionId}",
     (long id, string stepId, string actionId) =>
 {
@@ -796,3 +802,5 @@ internal sealed record IdentifiedActionRequest(string VariableId);
 internal sealed record SavePrimaryTargetLocatorTemplateRequest(string LocatorValue, string? LocatorStrategy = null);
 
 internal sealed record ReorderStepsRequest(List<string> StepIds);
+
+record UpdateVariableActionRequest(string VariableId, string? Pattern);
