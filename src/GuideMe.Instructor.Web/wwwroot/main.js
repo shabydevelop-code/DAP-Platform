@@ -1121,13 +1121,9 @@ async function refreshPicker() {
   // A stable technical locator is sufficient: never impose the captured label
   // as an extra content constraint. Preserve text only when the locator itself
   // already depends on text (or has no technical identity).
-  const locatorStrategy = requestSession.runtime === 'Windows'
-    ? candidate.locators?.[0]?.strategy : 'css';
-  const technicalLocator = requestSession.runtime === 'Windows'
-    ? ['automation-id', 'automation-id-nonempty'].includes(locatorStrategy)
-    : /(?:#[\\w-]+|\\[(?:id|name|data-[\\w-]+)\\s*=)/.test(candidate.selector || '');
   const hasSemanticContentLocator = requestSession.runtime === 'Web' &&
-    /:(?:exact-text|cell-text)\\(/.test(candidate.selector || '');
+    (String(candidate.selector || '').includes(':exact-text(') ||
+     String(candidate.selector || '').includes(':cell-text('));
   // Content matching is opt-in. Only prefill when the captured selector
   // already contains an explicit semantic text matcher; otherwise a stable
   // structural locator must not acquire a new text constraint.
