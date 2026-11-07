@@ -447,7 +447,7 @@ function renderSteps() {
         ).join('') +
         (target ? '<button class="btn secondary small" id="add-identity">הוספת מזהה אימות</button>' :
           '<p>יש לבחור תחילה רכיב במסך.</p>') +
-        '<div id="identity-pick-result" class="hidden" aria-live="polite"></div></div>' : '') +
+        '<div id="identity-pick-result" class="screen-target-bubble screen-target-capture hidden" aria-live="polite"></div></div>' : '') +
       '</section>' +
       '<section class="step-friendly-card"><h3>מתי ממשיכים לשלב הבא?</h3>' +
       '<p>' + esc(!target ? 'יוגדר לאחר בחירת הרכיב.' : conditionText) + '</p>' +
@@ -898,7 +898,7 @@ function pickerEvent(session, event, message = '') {
   // Once a completion target has been picked, the disabled pick button
   // serves no purpose. Restore it if picking is cancelled or fails.
   if (session.completion) {
-    const pickButton = $('add-completion');
+    const pickButton = $(session.completionEdit?.identity ? 'add-identity' : 'add-completion');
     if (pickButton) pickButton.classList.toggle('hidden', event === 'selected');
   }
   syncPickerButtons();
@@ -914,6 +914,7 @@ function syncPickerButtons() {
     if (!button) continue;
     button.disabled = busy;
     if (id === 'replace-web-target') button.classList.toggle('hidden', busy);
+    if (id === 'add-identity') button.classList.toggle('hidden', busy);
   }
 }
 // Target lifecycle is shared. Only runtime-specific discovery and transport
@@ -1089,7 +1090,7 @@ async function refreshPicker() {
   }
   pickerEvent(requestSession, 'selected');
   const candidate = adapter.selected(state);
-  if (!requestSession.completion && !requestSession.variableSource)
+  if ((!requestSession.completion || requestSession.completionEdit?.identity) && !requestSession.variableSource)
     $('primary-target-summary')?.classList.add('hidden');
   if (box.dataset.pickedSelector === candidate.selector) return;
   if (requestSession.autoSaving) return;
@@ -1141,11 +1142,11 @@ async function refreshPicker() {
     : '';
   box.innerHTML = '<div class="picked-target-fields" dir="rtl">' +
     '<p><strong>'+esc(candidate.label || candidate.tag || 'רכיב')+'</strong> <span class="picked-target-kind">('+esc(kindLabel)+')</span></p>'+
-    (!pickingFor.completion && !pickingFor.variableSource ?
+    ((!pickingFor.completion || pickingFor.completionEdit?.identity) && !pickingFor.variableSource ?
       '<div class="field"><label for="captured-object-value">הערך שנקלט</label>' +
       '<textarea id="captured-object-value" rows="2" readonly dir="auto" ' +
       'placeholder="לא נקלט ערך"></textarea></div>' : '') +
-    (!pickingFor.completion && !pickingFor.variableSource ?
+    ((!pickingFor.completion || pickingFor.completionEdit?.identity) && !pickingFor.variableSource ?
       variableValueFieldMarkup('picked-content-value', 'זיהוי לפי תוכן') +
       GuideMeAnyValueUI.renderOption('picked-content-any', false) : '') +
     (pickingFor.completion && !pickingFor.completionEdit?.identity ? '<label for="target-condition">חוק השלמה</label>' +
@@ -1162,7 +1163,7 @@ async function refreshPicker() {
     '<button id="save-web-target" class="btn primary small">שמירה</button>' +
     '<button id="cancel-web-target" class="btn secondary small">ביטול</button>' +
     '</div>';
-  if (!pickingFor.completion && !pickingFor.variableSource) {
+  if ((!pickingFor.completion || pickingFor.completionEdit?.identity) && !pickingFor.variableSource) {
     const capturedField = $('captured-object-value');
     if (capturedField) capturedField.value = String(capturedSample ?? '');
     const input = $('picked-content-value');
@@ -1232,7 +1233,7 @@ async function refreshPicker() {
     const requiredCaptureFields = [];
     if (pickedFor.variableSource && $('variable-extract-choice')?.value === 'custom')
       requiredCaptureFields.push($('variable-extract-pattern'));
-    if (pickedFor.completion && $('target-condition')?.value === 'value-contains')
+    if (pickedFor.completion && !pickedFor.completionEdit?.identity && $('target-condition')?.value === 'value-contains')
       requiredCaptureFields.push($('completion-fixed-value'));
     for (const field of requiredCaptureFields) {
       if (field && !String(field.value || '').trim()) {
@@ -1254,7 +1255,7 @@ async function refreshPicker() {
     }
     result.textContent = '';
     try {
-      const gridChoiceIndex = !pickedFor.completion && !pickedFor.variableSource
+      const gridChoiceIndex = (!pickedFor.completion || pickedFor.completionEdit?.identity) && !pickedFor.variableSource
         ? capturedChoice?.index ?? null : null;
       const adapter = targetAdapters[pickedFor.runtime];
       if (pickedFor.variableSource) {
@@ -1266,7 +1267,7 @@ async function refreshPicker() {
             ...pickedFor.variableSource,pattern,
             processId:pickedFor.processId || null,gridChoice:gridChoiceIndex})});
       }
-      else if (pickedFor.completion)
+      else if (pickedFor.completion && !pickedFor.completionEdit?.identity)
         await adapter.saveCompletion(pickedFor, candidate);
       else {
         const contentInput = $('picked-content-value');
@@ -1276,9 +1277,11 @@ async function refreshPicker() {
         const contentValue = enteredContent || null;
         if (contentInput && contentValue !== null && contentValue.length > 400)
           rejectInstructorField(contentInput, 'תוכן זיהוי הרכיב ארוך מדי (עד 400 תווים).');
-        await api('/guides/'+pickedFor.guideId+'/steps/'+encodeURIComponent(pickedFor.stepId)+'/primary-target',
+        const identity = !!pickedFor.completionEdit?.identity;
+        await api('/guides/'+pickedFor.guideId+'/steps/'+encodeURIComponent(pickedFor.stepId)+
+          (identity ? '/completion-target' : '/primary-target'),
           {method:'POST',body:JSON.stringify({
-            condition:'',
+            ...(identity ? {kind:'target-appeared',identity:true,completionId:pickedFor.completionEdit?.completionId} : {condition:''}),
             replacing:pickedFor.replacing,gridChoice:gridChoiceIndex,
             contentValue,anyContent,selectedTag:candidate.tag,processId:pickedFor.processId || null})});
       }
