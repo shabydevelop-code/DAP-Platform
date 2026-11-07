@@ -1005,7 +1005,7 @@ const targetAdapters = {
     async saveCompletion(session) {
       return api('/guides/'+session.guideId+'/steps/'+encodeURIComponent(session.stepId)+'/completion-target',
         {method:'POST',body:JSON.stringify({kind:$('target-condition').value,
-          expectedValue:$('target-condition').value === 'value-contains' ? variableEditorResult($('completion-fixed-value')) : null,processId:session.processId,replacing:session.replacing})});
+          expectedValue:$('target-condition').value === 'value-contains' ? variableEditorResult($('completion-fixed-value')) : null,processId:session.processId,replacing:session.replacing,completionId:session.completionEdit?.completionId})});
     },
   }
 };
