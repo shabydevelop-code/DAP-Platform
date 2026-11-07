@@ -66,8 +66,8 @@ try {
         'edit-only Any-value control' = $jsContent.Contains("renderOption('edit-primary-target-any'")
         'shared element presentation model' = $jsContent.Contains('function screenElementPresentation(')
         'shared element details renderer' = $jsContent.Contains('function renderScreenElementDetails(')
-        'primary element uses shared renderer' = $jsContent.Contains('renderScreenElementDetails(primaryPresentation, true)')
-        'identity element uses shared renderer' = $jsContent.Contains('renderScreenElementDetails(item, false, index)')
+        'primary element uses shared renderer' = $jsContent.Contains('renderScreenElementDetails(item.presentation, item.isActionTarget, item.index)')
+        'identity element uses shared renderer' = $jsContent.Contains('renderScreenElementDetails(item.presentation, item.isActionTarget, item.index)')
         'Any-value handled in shared presentation' = $jsContent.Contains('content:anyValue ?')
     }
     $failedTargetUiChecks = @($targetUiChecks.Keys | Where-Object { -not $targetUiChecks[$_] })
