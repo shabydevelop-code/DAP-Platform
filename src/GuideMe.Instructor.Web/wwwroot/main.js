@@ -471,6 +471,7 @@ function renderSteps() {
        '<div class="step-friendly-grid">' +
       '<section class="step-friendly-card"><h3>רכיב במסך</h3>' +
       '<div class="screen-target-bubble screen-target-primary">' +
+      (target ? '<div class="action-target-marker">יעד פעולה</div>' : '') +
       '<div id="primary-target-summary">' +
       (target ? '<p><strong>' + esc(friendlyName) + '</strong></p>' +
         '<p class="field-help">סוג רכיב: ' + esc(targetType) + '</p>' +
@@ -498,6 +499,7 @@ function renderSteps() {
           '<div class="screen-target-bubble screen-target-identity"><div class="completion-details"><p><strong>' +
           esc(item.name) + '</strong></p><span class="field-help">חייב להופיע במסך להצגת השלב</span></div>' +
           '<div class="target-action-buttons"><div class="target-action-primary">' +
+          '<button class="btn secondary small" data-identity-action="set-action" data-index="' + index + '">הגדר כיעד פעולה</button>' +
           '<button class="btn secondary small" data-identity-action="replace" data-index="' + index + '">בחירת רכיב אחר</button>' +
           '<button class="btn secondary small" data-identity-action="edit" data-index="' + index + '">עריכה</button>' +
           '<button class="btn danger small" data-identity-action="remove" data-index="' + index + '">הסרה</button>' +
@@ -704,6 +706,13 @@ function renderSteps() {
         if (!item) return;
         const id = item.rule.TargetUsageId;
         const action = button.dataset.identityAction;
+        if (action === 'set-action') {
+          await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+'/action-target',
+            {method:'PUT',body:JSON.stringify({identityUsageId:id})});
+          await reloadSelectedStep(current.guide.id, step.id);
+          notify('יעד הפעולה עודכן.');
+          return;
+        }
         if (action === 'replace') {
           return beginTargetPicker(context.Runtime, current.guide.id, step.id,
             contextId, true, true, context, null,
