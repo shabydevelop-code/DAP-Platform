@@ -477,3 +477,47 @@ body .brand-heading strong span { font-size: 26px; }
 .screen-target-bubble .screen-element-role { flex: 0 0 auto; white-space: nowrap; }
 .screen-target-bubble .screen-element-role.active { background: #edf4ff; border-color: #2e5b93; color: #244b7d; opacity: 1; cursor: default; }
 .screen-target-bubble .screen-element-role:focus-visible { outline: 2px solid #2e5b93; outline-offset: 2px; }
+
+/* Shared capture confirmation layout for Web and Windows. Typography comes from global rules. */
+#pick-result:not(.hidden), #identity-pick-result:not(.hidden), #completion-pick-result:not(.hidden) {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+#pick-result .picked-target-fields,
+#identity-pick-result .picked-target-fields,
+#completion-pick-result .picked-target-fields {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+}
+#pick-result .picked-target-fields > .field,
+#identity-pick-result .picked-target-fields > .field,
+#completion-pick-result .picked-target-fields > .field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+}
+#pick-result .picked-target-fields label,
+#identity-pick-result .picked-target-fields label,
+#completion-pick-result .picked-target-fields label {
+  margin: 0;
+}
+#pick-result .picked-target-fields textarea,
+#identity-pick-result .picked-target-fields textarea,
+#completion-pick-result .picked-target-fields textarea {
+  margin: 0;
+  width: 100%;
+}
+#pick-result .picked-target-fields .gm-any-value-option,
+#identity-pick-result .picked-target-fields .gm-any-value-option,
+#completion-pick-result .picked-target-fields .gm-any-value-option {
+  margin: 0 !important;
+}
+#pick-result .target-actions,
+#identity-pick-result .target-actions,
+#completion-pick-result .target-actions {
+  margin-top: 0;
+}
