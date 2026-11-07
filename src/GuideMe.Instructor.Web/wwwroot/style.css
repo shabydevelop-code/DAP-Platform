@@ -459,3 +459,7 @@ body .brand-heading strong span { font-size: 26px; }
 .identity-targets .screen-target-identity { margin-top: 10px; }
 .identity-targets .screen-target-identity:first-child { margin-top: 0; }
 .identity-targets #add-identity { margin-top: 12px; }
+
+/* Action target is explicit; capture order does not determine its role. */
+.action-target-marker { font-size: 12px; font-weight: 700; color: #203d63; margin-bottom: 9px; }
+.screen-target-identity .target-action-primary { flex-wrap: wrap; }
