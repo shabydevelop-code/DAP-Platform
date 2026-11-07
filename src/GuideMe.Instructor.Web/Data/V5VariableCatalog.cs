@@ -244,6 +244,34 @@ internal static class V5VariableCatalog
         tx.Commit();
     }
 
+    internal static void UpdateAction(long guideId, string stepId, string actionId,
+        string variableId, string? pattern)
+    {
+        if (pattern is { Length: > 300 })
+            throw new ArgumentException("כלל חילוץ ארוך מדי.");
+        if (!string.IsNullOrEmpty(pattern))
+        {
+            try { _ = new Regex(pattern, RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(250)); }
+            catch (ArgumentException) { throw new ArgumentException("כלל החילוץ אינו תקין."); }
+        }
+        using var connection = Open();
+        EnsureSchema(connection);
+        using var cmd = connection.CreateCommand();
+        cmd.Parameters.AddWithValue("$guide", guideId);
+        cmd.Parameters.AddWithValue("$step", stepId);
+        cmd.Parameters.AddWithValue("$action", actionId);
+        cmd.Parameters.AddWithValue("$variable", variableId);
+        cmd.Parameters.AddWithValue("$pattern", (object?)pattern ?? DBNull.Value);
+        cmd.CommandText = @"UPDATE StepVariableActions
+            SET VariableId=$variable, Pattern=$pattern
+            WHERE GuideId=$guide AND StepId=$step AND ActionId=$action
+              AND ActionKind='ReadFromTarget'
+              AND EXISTS (SELECT 1 FROM GuideVariables v
+                WHERE v.GuideId=$guide AND v.VariableId=$variable)";
+        if (cmd.ExecuteNonQuery() != 1)
+            throw new InvalidOperationException("פעולת המשתנה או המשתנה שנבחר לא נמצאו.");
+    }
+
     internal static void DeleteAction(long guideId, string stepId, string actionId)
     {
         using var connection = Open();
