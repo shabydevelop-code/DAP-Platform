@@ -740,6 +740,10 @@ function editCompletionCondition(step, rule, locators, button) {
   const details = card?.querySelector('.completion-details');
   const actions = card?.querySelector('.target-action-buttons');
   if (!card || !details || !actions) return;
+  const completionSection = card.closest('.completion-card');
+  if (completionSection?.querySelector('.completion-inline-editor')) return;
+  const addCompletionButton = completionSection?.querySelector('#add-completion');
+  if (addCompletionButton) addCompletionButton.classList.add('hidden');
   details.classList.add('hidden');
   actions.classList.add('hidden');
   const locator = (locators || [])[0];
@@ -783,6 +787,7 @@ function editCompletionCondition(step, rule, locators, button) {
     editor.remove();
     details.classList.remove('hidden');
     actions.classList.remove('hidden');
+    if (addCompletionButton) addCompletionButton.classList.remove('hidden');
   };
   $('completion-edit-cancel').onclick = cancel;
   editor.noValidate = true;
