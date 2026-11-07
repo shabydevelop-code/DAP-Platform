@@ -19,7 +19,8 @@ public sealed record GuideStep(
     IReadOnlyList<StepCompletionCondition>? CompletionConditions = null,
     bool IsEnabled = true,
     string? ApplicationContextKey = null,
-    IReadOnlyList<GuideVariableAction>? VariableActions = null);
+    IReadOnlyList<GuideVariableAction>? VariableActions = null,
+    IReadOnlyList<StepCompletionCondition>? IdentityConditions = null);
 
 /// <summary>Optional capture schedule. Null preserves existing runtime behavior.</summary>
 public enum StepCaptureTiming
