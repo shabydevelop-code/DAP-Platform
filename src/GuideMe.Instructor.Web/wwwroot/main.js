@@ -532,12 +532,45 @@ function renderSteps() {
         return '<div class="guide-variable-row"><div><strong>' + esc(variable?.name || action.variableId) +
           '</strong>' + description +
           '</div><span class="context-actions">' +
+          '<button class="btn secondary small" data-edit-variable-action="' + esc(action.id) + '">עריכה</button>' +
           '<button class="btn danger small" data-remove-variable-action="' + esc(action.id) + '">הסרה</button></span></div>';
       }).join('') : '<p>לא הוגדרו פעולות משתנים לשלב.</p>') +
       '<button class="btn secondary small" id="add-variable-action"' +
       ((current.variables || []).length ? '' : ' disabled') + '>הוספת פעולה למשתנה</button>' +
       '<div id="variable-pick-result" class="hidden" aria-live="polite"></div></section>';
     $('add-variable-action').onclick = () => editStepVariableAction(step, context);
+    document.querySelectorAll('[data-edit-variable-action]').forEach(button =>
+      button.onclick = () => {
+        const action = variableActions.find(item => item.id === button.dataset.editVariableAction);
+        if (!action) return;
+        const choices = (current.variables || []).map(v => ({value:v.id,text:v.name}));
+        const patternMode = !action.pattern ? 'full' :
+          action.pattern === '([0-9]+)' ? 'number' : 'custom';
+        modal('עריכת פעולת משתנה', [
+          {name:'variableId',label:'משתנה לעדכון',value:action.variableId,choices},
+          {name:'extraction',label:'אופן חילוץ הערך',value:patternMode,
+           choices:[{value:'full',text:'הערך המלא'},{value:'number',text:'מספר בלבד'},
+             {value:'custom',text:'חילוץ מותאם אישית'}]},
+          {name:'pattern',label:'ביטוי לחילוץ מותאם אישית',value:patternMode === 'custom' ? action.pattern : '',
+           max:300}
+        ], async values => {
+          const pattern = values.extraction === 'number' ? '([0-9]+)' :
+            values.extraction === 'custom' ? values.pattern : null;
+          if (values.extraction === 'custom' && !pattern?.trim())
+            throw new Error('יש להזין ביטוי לחילוץ.');
+          await api('/guides/' + current.guide.id + '/steps/' + encodeURIComponent(step.id) +
+            '/variables/' + encodeURIComponent(action.id), {
+              method:'PUT',body:JSON.stringify({variableId:values.variableId,pattern})
+            });
+          await reloadSelectedStep(current.guide.id,step.id);
+          notify('פעולת המשתנה עודכנה.');
+        }, 'שמירה');
+        const extraction = $('field-extraction');
+        const custom = $('field-pattern')?.closest('.field');
+        const update = () => custom?.classList.toggle('hidden', extraction?.value !== 'custom');
+        extraction?.addEventListener('change',update);
+        update();
+      });
     document.querySelectorAll('[data-remove-variable-action]').forEach(button =>
       button.onclick = () => guarded(async () => {
         if (!confirm('להסיר את פעולת המשתנה?')) return;
