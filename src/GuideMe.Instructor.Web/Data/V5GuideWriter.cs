@@ -791,7 +791,8 @@ WHERE GuideId=$guideId AND VariableId=$variableId";
             var appendedTextFilter = !original.Value.Contains(":exact-text(", StringComparison.Ordinal) &&
                 !original.Value.Contains(":cell-text(", StringComparison.Ordinal) &&
                 string.Equals(updatedShape, originalShape + ":exact-text(\"\")", StringComparison.Ordinal);
-            var semanticChange = string.Equals(updatedShape, originalShape + ":nonempty-text", StringComparison.Ordinal) ||
+            var semanticChange = string.Equals(originalShape, updatedShape + ":exact-text(\"\")", StringComparison.Ordinal) ||
+                string.Equals(updatedShape, originalShape + ":nonempty-text", StringComparison.Ordinal) ||
                 string.Equals(originalShape, updatedShape + ":nonempty-text", StringComparison.Ordinal) ||
                 System.Text.RegularExpressions.Regex.IsMatch(originalShape, @":cell-text\(\d+,""""\)$") &&
                 string.Equals(System.Text.RegularExpressions.Regex.Replace(originalShape, @":cell-text\((\d+),""""\)$", ":cell-any($1)"), updatedShape, StringComparison.Ordinal) ||
