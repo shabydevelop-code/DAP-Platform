@@ -446,3 +446,7 @@ body .brand-heading strong span { font-size: 26px; }
 .completion-item .target-action-buttons { margin-top: 6px; }
 .completion-item .target-action-primary { display: flex; flex-wrap: nowrap; gap: 8px; }
 .completion-card #add-completion { margin-top: 12px; }
+
+/* Separate identity verification controls from the primary target actions. */
+.identity-targets { margin-top: 14px; }
+.identity-targets #add-identity { margin: 0; }
