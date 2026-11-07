@@ -842,7 +842,7 @@ AND AnchorElementId IN (
         IReadOnlyList<TargetLocator> locators, IReadOnlyList<TargetLocator> frames,
         string? displayName, string condition, bool replacing,
         IReadOnlyList<(TargetLocator Locator, string Relation)>? anchors = null,
-        string? controlType = null)
+        string? controlType = null, string? completionId = null)
     {
         if (runtime is not ("Web" or "Windows") || locators.Count is < 1 or > 12 ||
             locators.Any(l => string.IsNullOrWhiteSpace(l.Value) || l.Value.Length > 400 ||
@@ -1121,26 +1121,25 @@ AND t.StepId=s.StepId AND t.Purpose='Primary')";
         check.CommandText = @"SELECT COUNT(*) FROM StepRules WHERE GuideId=$guideId
 AND StepId=$stepId AND RuleType='AdditionalCompletionCondition'";
         var existing = Convert.ToInt64(check.ExecuteScalar());
-        if (replacing ? existing != 1 : existing != 0)
-            throw new InvalidOperationException(replacing
-                ? "לא נמצא תנאי השלמה קיים לעריכה."
-                : "כבר קיים תנאי השלמה נוסף.");
+        var usageId = replacing ? completionId ?? "completion" : "completion-" + Guid.NewGuid().ToString("N");
         if (replacing)
         {
+            check.Parameters.AddWithValue("$usageId", usageId);
             check.CommandText = @"SELECT ElementId FROM StepTargets WHERE GuideId=$guideId
-AND StepId=$stepId AND UsageId='completion' AND Purpose='Completion'";
+AND StepId=$stepId AND UsageId=$usageId AND Purpose='Completion'";
             var oldElementId = check.ExecuteScalar()?.ToString()
-                ?? throw new InvalidOperationException("רכיב ההשלמה הקיים חסר.");
+                ?? throw new InvalidOperationException("לא נמצא תנאי השלמה קיים לעריכה.");
             check.Parameters.AddWithValue("$oldElementId", oldElementId);
             check.CommandText = @"DELETE FROM StepRules WHERE GuideId=$guideId
-AND StepId=$stepId AND RuleType='AdditionalCompletionCondition'";
+AND StepId=$stepId AND RuleType='AdditionalCompletionCondition' AND TargetUsageId=$usageId";
             check.ExecuteNonQuery();
             check.CommandText = @"DELETE FROM StepTargets WHERE GuideId=$guideId
-AND StepId=$stepId AND UsageId='completion' AND Purpose='Completion'";
+AND StepId=$stepId AND UsageId=$usageId AND Purpose='Completion'";
             check.ExecuteNonQuery();
             check.CommandText = @"DELETE FROM ElementAnchors WHERE GuideId=$guideId AND ElementId=$oldElementId";
             check.ExecuteNonQuery();
-            check.CommandText = @"DELETE FROM Elements WHERE GuideId=$guideId AND ElementId=$oldElementId";
+            check.CommandText = @"DELETE FROM Elements WHERE GuideId=$guideId AND ElementId=$oldElementId
+AND NOT EXISTS (SELECT 1 FROM StepTargets WHERE GuideId=$guideId AND ElementId=$oldElementId)";
             check.ExecuteNonQuery();
             check.CommandText = @"DELETE FROM Elements WHERE GuideId=$guideId
 AND NOT EXISTS (SELECT 1 FROM StepTargets t WHERE t.GuideId=Elements.GuideId AND t.ElementId=Elements.ElementId)
@@ -1193,20 +1192,21 @@ VALUES ($guideId,$elementId,$anchorId,$relation,$order)";
         }
         command.CommandText = @"INSERT INTO StepTargets
 (GuideId, StepId, UsageId, ElementId, Purpose)
-VALUES ($guideId, $stepId, 'completion', $elementId, 'Completion')";
+VALUES ($guideId, $stepId, $usageId, $elementId, 'Completion')";
         command.ExecuteNonQuery();
+        command.Parameters.AddWithValue("$usageId", usageId);
         command.Parameters.AddWithValue("$kind", kind);
         command.Parameters.AddWithValue("$expected", kind == "attribute-equals"
             ? (object)JsonSerializer.Serialize(new { name = attributeName, value = attributeValue })
             : kind == "value-contains" ? expectedValue! : DBNull.Value);
         command.CommandText = @"INSERT INTO StepRules
 (GuideId, StepId, RuleType, RuleId, Kind, TargetUsageId, ExpectedValue)
-VALUES ($guideId, $stepId, 'AdditionalCompletionCondition', 'completion', $kind, 'completion', $expected)";
+VALUES ($guideId, $stepId, 'AdditionalCompletionCondition', $usageId, $kind, $usageId, $expected)";
         command.ExecuteNonQuery();
         transaction.Commit();
     }
 
-    internal static void UpdateCompletionCondition(long guideId, string stepId, string kind, string? expectedValue)
+    internal static void UpdateCompletionCondition(long guideId, string stepId, string kind, string? expectedValue, string completionId = "completion")
     {
         if (kind is not ("target-appeared" or "value-contains"))
             throw new ArgumentException("חוק השלמה לא נתמך.");
@@ -1223,19 +1223,20 @@ VALUES ($guideId, $stepId, 'AdditionalCompletionCondition', 'completion', $kind,
         command.Transaction = transaction;
         command.Parameters.AddWithValue("$guideId", guideId);
         command.Parameters.AddWithValue("$stepId", stepId);
+        command.Parameters.AddWithValue("$usageId", completionId);
         command.Parameters.AddWithValue("$kind", kind);
         command.Parameters.AddWithValue("$expected", kind == "value-contains" ? expectedValue! : DBNull.Value);
         command.CommandText = @"UPDATE StepRules SET Kind=$kind, ExpectedValue=$expected
 WHERE GuideId=$guideId AND StepId=$stepId AND RuleType='AdditionalCompletionCondition'
-AND TargetUsageId='completion' AND EXISTS
+AND TargetUsageId=$usageId AND EXISTS
 (SELECT 1 FROM StepTargets t WHERE t.GuideId=$guideId AND t.StepId=$stepId
-AND t.UsageId='completion' AND t.Purpose='Completion')";
+AND t.UsageId=$usageId AND t.Purpose='Completion')";
         if (command.ExecuteNonQuery() != 1)
             throw new InvalidOperationException("לא נמצא תנאי השלמה נוסף לעריכה.");
         transaction.Commit();
     }
 
-    internal static void RemoveWebCompletionTarget(long guideId, string stepId)
+    internal static void RemoveWebCompletionTarget(long guideId, string stepId, string completionId = "completion")
     {
         using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
         {
@@ -1248,15 +1249,16 @@ AND t.UsageId='completion' AND t.Purpose='Completion')";
         command.Transaction = transaction;
         command.Parameters.AddWithValue("$guideId", guideId);
         command.Parameters.AddWithValue("$stepId", stepId);
+        command.Parameters.AddWithValue("$usageId", completionId);
         command.CommandText = @"SELECT ElementId FROM StepTargets WHERE GuideId=$guideId
-AND StepId=$stepId AND UsageId='completion' AND Purpose='Completion'";
+AND StepId=$stepId AND UsageId=$usageId AND Purpose='Completion'";
         var elementId = command.ExecuteScalar()?.ToString();
         if (elementId is null) throw new InvalidOperationException("לא נמצא תנאי השלמה נוסף.");
         command.CommandText = @"DELETE FROM StepRules WHERE GuideId=$guideId
-AND StepId=$stepId AND RuleType='AdditionalCompletionCondition' AND TargetUsageId='completion'";
+AND StepId=$stepId AND RuleType='AdditionalCompletionCondition' AND TargetUsageId=$usageId";
         command.ExecuteNonQuery();
         command.CommandText = @"DELETE FROM StepTargets WHERE GuideId=$guideId
-AND StepId=$stepId AND UsageId='completion' AND Purpose='Completion'";
+AND StepId=$stepId AND UsageId=$usageId AND Purpose='Completion'";
         command.ExecuteNonQuery();
         command.Parameters.AddWithValue("$elementId", elementId);
         // Completion targets may own Windows UIA anchors. Remove their links
