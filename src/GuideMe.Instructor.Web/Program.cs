@@ -421,6 +421,18 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/completion-target",
         return Results.Problem("שמירת תנאי ההשלמה נכשלה במסד הנתונים. בדוק את הודעת השגיאה בחלון ה־Instructor.", statusCode: 500);
     }
 });
+app.MapPut("/api/guides/{id:long}/steps/{stepId}/action-target",
+    (long id, string stepId, SetActionTargetRequest request) =>
+{
+    try
+    {
+        V5GuideWriter.SetActionTarget(id, stepId, request.IdentityUsageId);
+        return Results.NoContent();
+    }
+    catch (ArgumentException ex) { return Results.Problem(ex.Message, statusCode: 400); }
+    catch (InvalidOperationException ex) { return Results.Problem(ex.Message, statusCode: 409); }
+});
+
 app.MapDelete("/api/guides/{id:long}/steps/{stepId}/primary-target",
     (long id, string stepId) =>
 {
@@ -804,3 +816,5 @@ internal sealed record SavePrimaryTargetLocatorTemplateRequest(string LocatorVal
 internal sealed record ReorderStepsRequest(List<string> StepIds);
 
 record UpdateVariableActionRequest(string VariableId, string? Pattern);
+
+record SetActionTargetRequest(string IdentityUsageId);
