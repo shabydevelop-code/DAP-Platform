@@ -461,9 +461,9 @@ body .brand-heading strong span { font-size: 26px; }
 .identity-targets #add-identity { margin-top: 12px; }
 
 /* Action target is explicit; capture order does not determine its role. */
-.action-target-marker { font-size: 12px; font-weight: 700; color: #203d63; margin-bottom: 9px; }
+.action-target-marker { font-size: inherit; font-weight: 700; color: #203d63; margin-bottom: 9px; }
 .screen-target-identity .target-action-primary { flex-wrap: wrap; }
 
 /* Compact action target designation alongside the element name. */
 .target-name-line { display: flex; align-items: center; justify-content: flex-start; gap: 9px; flex-wrap: wrap; }
-.target-name-line .action-target-marker { display: inline-block; margin: 0; padding: 2px 8px; border: 1px solid #dce6f2; border-radius: 999px; background: #f4f7fc; color: #203d63; font-size: 11px; line-height: 1.5; white-space: nowrap; }
+.target-name-line .action-target-marker { display: inline-block; margin: 0; padding: 2px 8px; border: 1px solid #dce6f2; border-radius: 999px; background: #f4f7fc; color: #203d63; font-size: inherit; line-height: inherit; white-space: nowrap; }
