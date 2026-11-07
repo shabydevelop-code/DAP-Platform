@@ -442,7 +442,7 @@ function renderSteps() {
         '<div class="identity-targets">' +
         identityItems.map((item, index) =>
           '<div class="screen-target-bubble screen-target-identity">' +
-          '<div class="completion-details">' + renderScreenElementDetails(item, false) + '</div>' +
+          '<div class="completion-details">' + renderScreenElementDetails(item, false, index) + '</div>' +
           renderScreenElementActions(false, index) + '</div>'
         ).join('') +
         (target ? '<button class="btn secondary small" id="add-identity">הוספת מזהה אימות</button>' :
@@ -1934,9 +1934,13 @@ function screenElementPresentation(runtime, element, locators) {
     content:anyValue ? 'כל ערך' : binding?.value || null
   };
 }
-function renderScreenElementDetails(item, isActionTarget) {
-  return '<p class="target-name-line"><strong>' + esc(item.name) + '</strong>' +
-    (isActionTarget ? '<span class="action-target-marker">יעד פעולה</span>' : '') + '</p>' +
+function renderScreenElementDetails(item, isActionTarget, index) {
+  const roleControl = isActionTarget
+    ? '<button type="button" class="screen-element-role active" aria-label="יעד פעולה נוכחי" title="יעד פעולה נוכחי" aria-pressed="true" disabled>◎</button>'
+    : '<button type="button" class="screen-element-role" data-identity-action="set-action" data-index="' + index +
+      '" aria-label="הגדר כיעד פעולה" title="הגדר כיעד פעולה" aria-pressed="false">◎</button>';
+  return roleControl +
+    '<p class="target-name-line"><strong>' + esc(item.name) + '</strong></p>' +
     '<p class="field-help">סוג רכיב: ' + esc(item.type) + '</p>' +
     (item.content ? '<p>זיהוי לפי תוכן: <strong class="target-business-value-preview">' +
       friendlyInstructionHtml(item.content) + '</strong></p>' : '');
@@ -1951,10 +1955,7 @@ function renderScreenElementActions(isActionTarget, index) {
     button(isActionTarget ? 'replace-web-target' : 'replace', 'בחירת רכיב אחר') +
     button(isActionTarget ? 'bind-target-variable' : 'edit', 'עריכה') +
     button(isActionTarget ? 'remove-primary-target' : 'remove', 'הסרה', 'danger') +
-    '</div>' +
-    (isActionTarget ? '' : '<div class="target-action-role">' +
-      button('set-action', 'הגדר כיעד פעולה') + '</div>') +
-    '</div>';
+    '</div></div>';
 }
 function editPrimaryTargetValue({kind, step, locators, binding:preparedBinding, identityUsageId = null}) {
   if (!current || kind !== 'target') return;
