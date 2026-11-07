@@ -1042,6 +1042,16 @@ WHERE GuideId=$guideId AND StepId=$stepId AND Purpose='Primary'";
         if (Convert.ToInt64(command.ExecuteScalar()) == 0)
             throw new InvalidOperationException("לא נמצא רכיב להסרה.");
 
+        // Preserve other screen elements: select another action target first.
+        command.CommandText = @"SELECT COUNT(*) FROM StepTargets t
+JOIN StepRules r ON r.GuideId=t.GuideId AND r.StepId=t.StepId
+ AND r.TargetUsageId=t.UsageId AND r.RuleType='AdditionalCompletionCondition'
+WHERE t.GuideId=$guideId AND t.StepId=$stepId
+AND t.Purpose='Completion' AND r.OptionsJson='{""identity"":true}'";
+        if (Convert.ToInt64(command.ExecuteScalar()) > 0)
+            throw new InvalidOperationException(
+                "לא ניתן להסיר את יעד הפעולה כאשר קיימים רכיבים נוספים. יש להגדיר תחילה רכיב אחר כיעד פעולה.");
+
         command.CommandText = @"CREATE TEMP TABLE _RemovedTargetElements (ElementId TEXT PRIMARY KEY)";
         command.ExecuteNonQuery();
         command.CommandText = @"INSERT INTO _RemovedTargetElements (ElementId)
