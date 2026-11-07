@@ -491,7 +491,7 @@ function renderSteps() {
           '<button id="pick-element" class="btn primary">הפעלת ממפה רכיבים</button>') +
         '<div id="pick-result" class="hidden" aria-live="polite"></div>' : '') +
       ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') ?
-        '<div class="identity-targets"><h4>מזהי אימות נוספים</h4>' +
+        '<div class="identity-targets">' +
         identityItems.map((item, index) =>
           '<div class="completion-item"><div class="completion-details"><p><strong>' +
           esc(item.name) + '</strong></p><span class="field-help">חייב להופיע במסך להצגת השלב</span></div>' +
