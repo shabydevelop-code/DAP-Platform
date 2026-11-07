@@ -490,6 +490,20 @@ function renderSteps() {
           '</div>' :
           '<button id="pick-element" class="btn primary">הפעלת ממפה רכיבים</button>') +
         '<div id="pick-result" class="hidden" aria-live="polite"></div>' : '') +
+      ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') ?
+        '<div class="identity-targets"><h4>מזהי אימות נוספים</h4>' +
+        identityItems.map((item, index) =>
+          '<div class="completion-item"><div class="completion-details"><p><strong>' +
+          esc(item.name) + '</strong></p><span class="field-help">חייב להופיע במסך להצגת השלב</span></div>' +
+          '<div class="target-action-buttons"><div class="target-action-primary">' +
+          '<button class="btn secondary small" data-identity-action="replace" data-index="' + index + '">בחירת רכיב אחר</button>' +
+          '<button class="btn secondary small" data-identity-action="edit" data-index="' + index + '">עריכה</button>' +
+          '<button class="btn danger small" data-identity-action="remove" data-index="' + index + '">הסרה</button>' +
+          '</div></div></div>'
+        ).join('') +
+        (target ? '<button class="btn secondary small" id="add-identity">הוספת מזהה אימות</button>' :
+          '<p>יש לבחור תחילה רכיב במסך.</p>') +
+        '<div id="identity-pick-result" class="hidden" aria-live="polite"></div></div>' : '') +
       '</section>' +
       '<section class="step-friendly-card"><h3>מתי ממשיכים לשלב הבא?</h3>' +
       '<p>' + esc(!target ? 'יוגדר לאחר בחירת הרכיב.' : conditionText) + '</p>' +
@@ -502,19 +516,6 @@ function renderSteps() {
         '</div>' : '') +
       '</section></div>' +
       ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') ?
-        '<section class="step-friendly-card completion-card"><h3>מזהי אימות נוספים</h3>' +
-        identityItems.map((item, index) =>
-          '<div class="completion-item"><div class="completion-details"><p><strong>' +
-          esc(item.name) + '</strong></p><span class="field-help">חייב להופיע במסך להצגת השלב</span></div>' +
-          '<div class="target-action-buttons"><div class="target-action-primary">' +
-          '<button class="btn secondary small" data-identity-action="replace" data-index="' + index + '">בחירת רכיב אחר</button>' +
-          '<button class="btn secondary small" data-identity-action="edit" data-index="' + index + '">עריכה</button>' +
-          '<button class="btn danger small" data-identity-action="remove" data-index="' + index + '">הסרה</button>' +
-          '</div></div></div>'
-        ).join('') +
-        (target ? '<button class="btn secondary small" id="add-identity">הוספת מזהה אימות</button>' :
-          '<p>יש לבחור תחילה רכיב במסך.</p>') +
-        '<div id="identity-pick-result" class="hidden" aria-live="polite"></div></section>' +
         '<section class="step-friendly-card completion-card"><h3>תנאי השלמה נוספים</h3>' +
         completionItems.map((item, index) =>
           '<div class="completion-item" data-completion-index="' + index + '">' +
