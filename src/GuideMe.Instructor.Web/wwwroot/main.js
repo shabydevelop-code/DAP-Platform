@@ -378,15 +378,7 @@ function renderSteps() {
       const target = data.targets.find(x => x.UsageId === rule.TargetUsageId);
       const element = data.elements.find(x => x.ElementId === target?.ElementId);
       const locators = parseJson(element?.LocatorsJson, []);
-      const locator = locators[0];
-      const selector = locator?.Value || '';
-      const classification = classifyTarget(context?.Runtime, element, locators);
-      const binding = locatorTextBinding(locator);
-      const anyValue = (context?.Runtime === 'Web' && /:(?:cell-any\(\d+\)|nonempty-text)$/.test(selector)) ||
-        (context?.Runtime === 'Windows' && ['name-nonempty','automation-id-nonempty'].includes(locator?.Strategy));
-      return {rule, locators, element, name:element?.DisplayName || 'הרכיב שנבחר',
-        type:classification.label || 'רכיב במסך',
-        content:anyValue ? 'כל ערך' : binding?.value || null};
+      return {rule, ...screenElementPresentation(context?.Runtime, element, locators)};
     });
     const completionItems = completionRules.map(rule => {
       const target = data.targets.find(x => x.UsageId === rule.TargetUsageId);
@@ -412,48 +404,11 @@ function renderSteps() {
     const completionElementName = completionItems[0]?.name || '';
     const locatorText = locators[0]?.Value || '';
     const friendlyName = element?.DisplayName || (locatorText === 'a' ? 'קישור' : locatorText);
-    const dynamicWindowsControl = context?.Runtime === 'Windows' &&
-      ['ControlType.Button','ControlType.Hyperlink','ControlType.Text','ControlType.DataItem',
-       'ControlType.ListItem'].includes(element?.ControlType);
-    const targetClassification = classifyTarget(context?.Runtime, element, locators);
-    const dataEntryTarget = targetClassification.dataEntry;
-    // A captured Web control may have a stable CSS locator but dynamic visible text.
-    // Keep the CSS structure and attach an exact semantic text filter when edited.
-    const webDisplayName = String(element?.DisplayName || '').trim();
-    const webLocator = locators[0];
-    const webTextBinding = context?.Runtime === 'Web' &&
-      webLocator?.Strategy === 'css' && webDisplayName &&
-      !/^[#.[>:+~]/.test(webDisplayName) &&
-      !/^[a-z][\w-]*\[[^\]]+\]/i.test(webDisplayName) &&
-      !/:has-text\(|:exact-text\(|:cell-text\(|:cell-any\(|:nonempty-text/.test(webLocator.Value) &&
-      !/\b(?:input|textarea|select)\b/i.test(element?.ControlType || '')
-        ? {value:webDisplayName, build:next=>webLocator.Value + ':exact-text(' + JSON.stringify(next) + ')', buildAny:()=>webLocator.Value + ':nonempty-text'}
-        : null;
-    const anyValueTargetLocator = locator => locator?.Strategy === 'name-nonempty' ||
-      locator?.Strategy === 'automation-id-nonempty' ||
-      (locator?.Strategy === 'css' && /:(?:cell-any\(\d+\)|nonempty-text)$/.test(locator.Value || ''));
-    const editableTargetBinding = locatorTextBinding(webLocator) ||
-      webTextBinding ||
-      (context?.Runtime === 'Web' && webLocator?.Strategy === 'css' && webLocator.Value &&
-       !/:exact-text\(|:cell-text\(|:cell-any\(|:nonempty-text/.test(webLocator.Value)
-        ? {value:'', build:next=>webLocator.Value + ':exact-text(' + JSON.stringify(next) + ')',
-            buildAny:()=>webLocator.Value + ':nonempty-text', strategy:'css'}
-        : null) ||
-      ((dynamicWindowsControl || element?.ControlType === 'ControlType.ComboBox') &&
-       webLocator?.Strategy === 'automation-id' && element?.DisplayName
-        ? {value:element.DisplayName, build:next=>next, strategy:'name',
-            buildAny:()=>webLocator.Value, anyStrategy:'automation-id-nonempty'}
-        : null);
+    const primaryPresentation = screenElementPresentation(context?.Runtime, element, locators);
+    const editableTargetBinding = primaryPresentation.binding;
     const targetValue = editableTargetBinding?.value || '';
-    const targetKind = /(?:^|[ >+~])h([1-6])(?=[:.#\\[ >+~]|$)/i.exec(locatorText);
-    const targetType = targetClassification.label || (targetKind ? 'כותרת (H' + targetKind[1] + ')' :
-      /(?:^|[ >+~])(?:td|th)(?=[:.#\\[ >+~]|$)/i.test(locatorText) ? 'תא בטבלה' :
-      /:cell-(?:text|any)\(/.test(locatorText) ? 'שורה בטבלה' :
-      targetValue ? 'רכיב טקסט' : 'רכיב במסך');
-    const anyValueTarget = (context?.Runtime === 'Web' && /:(?:cell-any\(\d+\)|nonempty-text)$/.test(locatorText)) ||
-      (context?.Runtime === 'Windows' && ['name-nonempty','automation-id-nonempty'].includes(webLocator?.Strategy));
-    const targetValueDescription = anyValueTarget ? 'כל ערך' :
-      editableTargetBinding?.value ? editableTargetBinding.value : null;
+    const targetType = primaryPresentation.type;
+    const targetValueDescription = primaryPresentation.content;
     selectedTargetPreviewValue = editableTargetBinding?.value || targetValue || null;
     selectedValidationExpectedValue = rule?.ExpectedValue || null;
     selectedCompletionDescription = completionRule?.Kind === 'value-contains'
@@ -480,40 +435,20 @@ function renderSteps() {
       '<section class="step-friendly-card"><h3>רכיב במסך</h3>' +
       '<div class="screen-target-bubble screen-target-primary">' +
       '<div id="primary-target-summary">' +
-      (target ? '<p class="target-name-line"><strong>' + esc(friendlyName) + '</strong><span class="action-target-marker">יעד פעולה</span></p>' +
-        '<p class="field-help">סוג רכיב: ' + esc(targetType) + '</p>' +
-        (targetValueDescription ? '<p>זיהוי לפי תוכן: <strong class="target-business-value-preview">' +
-          friendlyInstructionHtml(targetValueDescription) + '</strong></p>' : '') +
-
-        '' :
+      (target ? renderScreenElementDetails(primaryPresentation, true) :
         '<p>עדיין לא נבחר רכיב לשלב הזה.</p>') +
       '</div>' +
       ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') ?
-        (target ? '<div class="target-action-buttons">' +
-          '<div class="target-action-primary">' +
-          '<button class="btn secondary small" id="replace-web-target">בחירת רכיב אחר</button>' +
-          '<button class="btn secondary small" id="bind-target-variable">עריכה</button>' +
-          '<button class="btn danger small" id="remove-primary-target">הסרה</button>' +
-          '</div>' +
-
-          '</div>' :
+        (target ? renderScreenElementActions(true) :
           '<button id="pick-element" class="btn primary">הפעלת ממפה רכיבים</button>') +
         '<div id="pick-result" class="hidden" aria-live="polite"></div>' : '') +
       '</div>' +
       ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') ?
         '<div class="identity-targets">' +
         identityItems.map((item, index) =>
-          '<div class="screen-target-bubble screen-target-identity"><div class="completion-details"><p><strong>' +
-          esc(item.name) + '</strong></p>' +
-          (item.type ? '<p class="field-help">סוג רכיב: ' + esc(item.type) + '</p>' : '') +
-          (item.content ? '<p>זיהוי לפי תוכן: <strong class="target-business-value-preview">' +
-            friendlyInstructionHtml(item.content) + '</strong></p>' : '') + '</div>' +
-          '<div class="target-action-buttons"><div class="target-action-primary">' +
-          '<button class="btn secondary small" data-identity-action="set-action" data-index="' + index + '">הגדר כיעד פעולה</button>' +
-          '<button class="btn secondary small" data-identity-action="replace" data-index="' + index + '">בחירת רכיב אחר</button>' +
-          '<button class="btn secondary small" data-identity-action="edit" data-index="' + index + '">עריכה</button>' +
-          '<button class="btn danger small" data-identity-action="remove" data-index="' + index + '">הסרה</button>' +
-          '</div></div></div>'
+          '<div class="screen-target-bubble screen-target-identity">' +
+          '<div class="completion-details">' + renderScreenElementDetails(item, false) + '</div>' +
+          renderScreenElementActions(false, index) + '</div>'
         ).join('') +
         (target ? '<button class="btn secondary small" id="add-identity">הוספת מזהה אימות</button>' :
           '<p>יש לבחור תחילה רכיב במסך.</p>') +
@@ -1976,6 +1911,46 @@ function editableLocatorBinding(runtime, element, locators) {
     return {value:element.DisplayName, build:next=>next, strategy:'name',
       buildAny:()=>locator.Value, anyStrategy:'automation-id-nonempty'};
   return null;
+}
+// A single presentation model for action targets and identity qualifiers.
+// Role affects only the badge and the available role-switch action.
+function screenElementPresentation(runtime, element, locators) {
+  const locator = (locators || [])[0];
+  const selector = String(locator?.Value || '');
+  const classification = classifyTarget(runtime, element, locators);
+  const binding = editableLocatorBinding(runtime, element, locators);
+  const heading = /(?:^|[ >+~])h([1-6])(?=[:.#\[\s>+~]|$)/i.exec(selector);
+  const anyValue = (runtime === 'Web' && /:(?:cell-any\(\d+\)|nonempty-text)$/.test(selector)) ||
+    (runtime === 'Windows' && ['name-nonempty','automation-id-nonempty'].includes(locator?.Strategy));
+  return {
+    element, locators, binding,
+    name:element?.DisplayName || (selector === 'a' ? 'קישור' : selector || 'הרכיב שנבחר'),
+    type:classification.label || (heading ? 'כותרת (H' + heading[1] + ')' :
+      /(?:^|[ >+~])(?:td|th)(?=[:.#\[\s>+~]|$)/i.test(selector) ? 'תא בטבלה' :
+      /:cell-(?:text|any)\(/.test(selector) ? 'שורה בטבלה' :
+      binding?.value ? 'רכיב טקסט' : 'רכיב במסך'),
+    content:anyValue ? 'כל ערך' : binding?.value || null
+  };
+}
+function renderScreenElementDetails(item, isActionTarget) {
+  return '<p class="target-name-line"><strong>' + esc(item.name) + '</strong>' +
+    (isActionTarget ? '<span class="action-target-marker">יעד פעולה</span>' : '') + '</p>' +
+    '<p class="field-help">סוג רכיב: ' + esc(item.type) + '</p>' +
+    (item.content ? '<p>זיהוי לפי תוכן: <strong class="target-business-value-preview">' +
+      friendlyInstructionHtml(item.content) + '</strong></p>' : '');
+}
+function renderScreenElementActions(isActionTarget, index) {
+  const attribute = isActionTarget ? '' : ' data-index="' + index + '"';
+  const button = (action, title, css = 'secondary') =>
+    '<button class="btn ' + css + ' small" ' +
+    (isActionTarget ? 'id="' + action + '"' : 'data-identity-action="' + action + '"' + attribute) +
+    '>' + title + '</button>';
+  return '<div class="target-action-buttons"><div class="target-action-primary">' +
+    (isActionTarget ? '' : button('set-action', 'הגדר כיעד פעולה')) +
+    button(isActionTarget ? 'replace-web-target' : 'replace', 'בחירת רכיב אחר') +
+    button(isActionTarget ? 'bind-target-variable' : 'edit', 'עריכה') +
+    button(isActionTarget ? 'remove-primary-target' : 'remove', 'הסרה', 'danger') +
+    '</div></div>';
 }
 function editPrimaryTargetValue({kind, step, locators, binding:preparedBinding, identityUsageId = null}) {
   if (!current || kind !== 'target') return;
