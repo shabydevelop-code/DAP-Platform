@@ -1112,11 +1112,15 @@ async function refreshPicker() {
       ? String(observedText?.value || '').trim() || null :
     requestSession.runtime === 'Windows' && String(candidate.label || '').trim()
       ? String(candidate.label).trim() : null;
+  // The captured value is the control's actual content, not its label/name.
   const capturedSample = requestSession.runtime === 'Windows'
     ? candidate.capturedValue
     : (candidate.variableSamples || []).find(sample => sample.property === 'value')?.value ??
       (candidate.variableSamples || []).find(sample => sample.property === 'text')?.value ??
-      candidate.label;
+      (!['input','textarea','select'].includes((candidate.tag || '').toLowerCase())
+        ? candidate.label : null);
+  const initialContentValue = String(editableContent ?? '').trim() ||
+    String(capturedSample ?? '').trim();
   box.innerHTML = '<div class="picked-target-fields" dir="rtl">' +
     '<p><strong>'+esc(candidate.label || candidate.tag || 'רכיב')+'</strong> <span class="picked-target-kind">('+esc(kindLabel)+')</span></p>'+
     (!pickingFor.completion && !pickingFor.variableSource ?
@@ -1145,7 +1149,7 @@ async function refreshPicker() {
     if (capturedField) capturedField.value = String(capturedSample ?? '');
     const input = $('picked-content-value');
     if (input) {
-      initializeVariableField(input, $('picked-content-value-variables'), editableContent || '');
+      initializeVariableField(input, $('picked-content-value-variables'), initialContentValue);
       const any = $('picked-content-any');
       if (any) {
         const updateAny = () => {
