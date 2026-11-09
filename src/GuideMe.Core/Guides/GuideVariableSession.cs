@@ -159,6 +159,13 @@ public sealed class GuideVariableSession
                     ExpectedValue = condition.ExpectedValue is null
                         ? null : Resolve(condition.ExpectedValue)
                 }).ToArray(),
+            IdentityConditions = step.IdentityConditions?.Select(condition =>
+                condition with
+                {
+                    Target = Expand(condition.Target),
+                    ExpectedValue = condition.ExpectedValue is null
+                        ? null : Resolve(condition.ExpectedValue)
+                }).ToArray(),
             VariableActions = step.VariableActions?.Select(action =>
                 action.SourceTarget is null ? action :
                 action with { SourceTarget = Expand(action.SourceTarget) }).ToArray()
