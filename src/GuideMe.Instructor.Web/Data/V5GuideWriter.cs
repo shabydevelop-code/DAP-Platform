@@ -1072,8 +1072,8 @@ VALUES ($guideId,$elementId,$anchorId,$relation,$order)";
         transaction.Commit();
     }
 
-    // Change the action target without relying on capture order. The validation rule
-    // remains attached to the Primary usage; only the underlying elements swap.
+    // Change the action target without relying on capture order.
+    // Primary validation belongs to the former action target and must be cleared.
     internal static void SetActionTarget(long guideId, string stepId, string identityUsageId)
     {
         if (string.IsNullOrWhiteSpace(identityUsageId))
@@ -1117,6 +1117,12 @@ AND ((UsageId='primary' AND Purpose='Primary') OR
      (UsageId=$identity AND Purpose='Completion'))";
         if (command.ExecuteNonQuery() != 2)
             throw new InvalidOperationException("לא ניתן להחליף את יעד הפעולה.");
+        // Never carry a validation configured for the previous action control
+        // onto a different action target. Independent completion and identity
+        // conditions remain untouched.
+        command.CommandText = @"DELETE FROM StepRules
+WHERE GuideId=$guide AND StepId=$step AND RuleType='PrimaryValidation'";
+        command.ExecuteNonQuery();
         transaction.Commit();
     }
 
