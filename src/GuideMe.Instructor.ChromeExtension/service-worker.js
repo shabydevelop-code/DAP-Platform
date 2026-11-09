@@ -111,7 +111,17 @@ async function sync() {
           func:() => globalThis.__guideMeCaptureInstalled === true &&
             globalThis.__guideMePickerActive === true
         });
-        if (!checks.length || checks.some(frame => frame.result !== true))
+        // allFrames may omit a child document while its iframe is loading.
+        // Compare against the live frame elements, not only the frames that
+        // happened to respond: otherwise an unarmed header iframe goes unnoticed.
+        const top = await chrome.scripting.executeScript({
+          target:{tabId:pickTabId,frameIds:[0]},
+          func:() => document.querySelectorAll('iframe,frame').length + 1
+        });
+        const expectedFrames = top[0]?.result ?? 1;
+        if (checks.length < expectedFrames ||
+            !checks.some(frame => frame.frameId === 0 && frame.result === true) ||
+            checks.some(frame => frame.result !== true))
           pickerArmedSession = null;
       } catch {
         // A page may be in the middle of navigation; retry on next sync.
