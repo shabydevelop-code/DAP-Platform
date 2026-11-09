@@ -404,21 +404,17 @@ function renderSteps() {
     const completionRule = completionRules[0];
     const completionElementName = completionItems[0]?.name || '';
     const primaryPresentation = screenElementPresentation(context?.Runtime, element, locators);
-    const screenElementOrderKey = current.guide.id + ':' + stepId;
+    // The persisted capture sequence is independent of which element is the action target.
     const screenElements = [
-      ...(target ? [{elementId:target.ElementId, isActionTarget:true, presentation:primaryPresentation}] : []),
-      ...identityItems.map((item, index) => ({
-        elementId:data.targets.find(x => x.UsageId === item.rule.TargetUsageId)?.ElementId,
-        isActionTarget:false, presentation:item, index, usageId:item.rule.TargetUsageId
-      }))
+      ...(target ? [{elementId:target.ElementId, isActionTarget:true, presentation:primaryPresentation,
+        displayOrder:Number(target.DisplayOrder || 0)}] : []),
+      ...identityItems.map((item, index) => {
+        const usage = data.targets.find(x => x.UsageId === item.rule.TargetUsageId);
+        return {elementId:usage?.ElementId, isActionTarget:false, presentation:item,
+          index, usageId:item.rule.TargetUsageId, displayOrder:Number(usage?.DisplayOrder || 0)};
+      })
     ];
-    const previousOrder = screenElementDisplayOrder.get(screenElementOrderKey) || [];
-    const elementOrder = [
-      ...previousOrder.filter(id => screenElements.some(item => item.elementId === id)),
-      ...screenElements.map(item => item.elementId).filter(id => !previousOrder.includes(id))
-    ];
-    screenElementDisplayOrder.set(screenElementOrderKey, elementOrder);
-    screenElements.sort((a,b) => elementOrder.indexOf(a.elementId) - elementOrder.indexOf(b.elementId));
+    screenElements.sort((a,b) => a.displayOrder - b.displayOrder);
     const editableTargetBinding = primaryPresentation.binding;
     selectedTargetPreviewValue = editableTargetBinding?.value || null;
     selectedValidationExpectedValue = rule?.ExpectedValue || null;
