@@ -692,7 +692,7 @@ function renderSteps() {
         if (action === 'remove') {
           if (!confirm('להסיר את מזהה האימות?')) return;
           await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+
-            '/completion-target?completionId='+encodeURIComponent(id), {method:'DELETE'});
+            '/completion-target?completionId='+encodeURIComponent(id), {method:'DELETE',body:'{}'});
           await reloadSelectedStep(current.guide.id, step.id);
           notify('מזהה האימות הוסר.');
         }
@@ -715,7 +715,7 @@ function renderSteps() {
         if (button.dataset.completionAction === 'remove') return guarded(async () => {
           if (!confirm('להסיר את תנאי ההשלמה?')) return;
           await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+
-            '/completion-target?completionId='+encodeURIComponent(completionId), {method:'DELETE'});
+            '/completion-target?completionId='+encodeURIComponent(completionId), {method:'DELETE',body:'{}'});
           await reloadSelectedStep(current.guide.id, step.id);
           notify('תנאי ההשלמה הוסר.');
         });
