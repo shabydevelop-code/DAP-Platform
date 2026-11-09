@@ -907,6 +907,28 @@ AND AnchorElementId IN (
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandTimeout = 3;
+        void ExecutePrimaryWrite(string operation)
+        {
+            try
+            {
+                command.ExecuteNonQuery();
+            }
+            catch (SqliteException ex)
+            {
+                var required = System.Text.RegularExpressions.Regex.Matches(
+                    command.CommandText, @"\$[A-Za-z][A-Za-z0-9_]*")
+                    .Select(match => match.Value)
+                    .Distinct(StringComparer.Ordinal)
+                    .ToArray();
+                var missing = required.Where(name =>
+                    !command.Parameters.Contains(name) ||
+                    command.Parameters[name].Value is null).ToArray();
+                throw new InvalidOperationException(
+                    $"שמירת רכיב נכשלה בפעולה '{operation}'. " +
+                    $"פרמטרים חסרים: {(missing.Length == 0 ? "לא נמצאו" : string.Join(", ", missing))}. " +
+                    $"שגיאת SQLite: {ex.Message}", ex);
+            }
+        }
         command.Parameters.AddWithValue("$guideId", guideId);
         command.Parameters.AddWithValue("$stepId", stepId);
         command.Parameters.AddWithValue("$runtime", runtime);
@@ -944,12 +966,12 @@ WHERE GuideId=$guideId AND StepId=$stepId";
             // Keep independent additional completion conditions untouched.
             command.CommandText = @"DELETE FROM StepRules
 WHERE GuideId=$guideId AND StepId=$stepId AND RuleType='PrimaryValidation'";
-            command.ExecuteNonQuery();
+            ExecutePrimaryWrite("פעולה 2");
             // Replacing the action invalidates its previously captured identifier.
             // Never keep an anchor bound to an unrelated newly selected control.
             command.CommandText = @"DELETE FROM ElementAnchors
                 WHERE GuideId=$guideId AND ElementId=$elementId";
-            command.ExecuteNonQuery();
+            ExecutePrimaryWrite("פעולה 3");
             command.CommandText = @"UPDATE Elements SET LocatorsJson=$locators,
 FrameContextJson=$frame, DisplayName=$displayName, ControlType=$controlType
 WHERE GuideId=$guideId AND ElementId=$elementId AND Runtime=$runtime";
@@ -961,22 +983,22 @@ WHERE GuideId=$guideId AND ElementId=$elementId AND Runtime=$runtime";
             command.CommandText = @"INSERT INTO Elements
 (GuideId, ElementId, Runtime, LocatorsJson, FrameContextJson, DisplayName, ControlType)
 VALUES ($guideId, $elementId, $runtime, $locators, $frame, $displayName, $controlType)";
-            command.ExecuteNonQuery();
+            ExecutePrimaryWrite("פעולה 4");
             command.CommandText = @"INSERT INTO StepTargets
 (GuideId, StepId, UsageId, ElementId, Purpose)
 VALUES ($guideId, $stepId, 'primary', $elementId, 'Primary')";
-            command.ExecuteNonQuery();
+            ExecutePrimaryWrite("פעולה 5");
             if (!string.IsNullOrEmpty(condition))
             {
                 command.Parameters.AddWithValue("$condition", condition);
                 command.CommandText = @"INSERT INTO StepRules
 (GuideId, StepId, RuleType, RuleId, Kind, TargetUsageId)
 VALUES ($guideId, $stepId, 'PrimaryValidation', 'primary', $condition, 'primary')";
-                command.ExecuteNonQuery();
+                ExecutePrimaryWrite("פעולה 6");
             }
             command.CommandText = @"UPDATE Steps SET BubblePlacement='Auto'
 WHERE GuideId=$guideId AND StepId=$stepId AND BubblePlacement='Center'";
-            command.ExecuteNonQuery();
+            ExecutePrimaryWrite("פעולה 7");
         }
         if (anchors is not null)
         {
