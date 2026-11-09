@@ -200,9 +200,17 @@ public sealed class WebGuideStepRuntime
 
             // Identity guards qualify the source screen; they never complete the step.
             // Check before presenting and hide stale UI when the source screen changes.
-            if (step.IdentityConditions is { Count: > 0 } &&
+            // Identity checks describe the current screen, not a state change.
+            // A persisted target-appeared identity must match immediately when
+            // its element is already present; transition tracking is reserved
+            // for actual post-action completion conditions.
+            var identityChecks = step.IdentityConditions?.Select(condition =>
+                string.Equals(condition.Kind, "target-appeared", StringComparison.OrdinalIgnoreCase)
+                    ? condition with { Kind = "exists" }
+                    : condition).ToArray();
+            if (identityChecks is { Length: > 0 } &&
                 !await _browser.AreCompletionConditionsSatisfiedAsync(
-                    step with { CompletionConditions = step.IdentityConditions }, cancellationToken))
+                    step with { CompletionConditions = identityChecks }, cancellationToken))
             {
                 ReportBubbleAvailable(false);
                 await _browser.HideBubbleAsync(cancellationToken);
