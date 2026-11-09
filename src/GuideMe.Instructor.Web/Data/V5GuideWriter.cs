@@ -907,11 +907,36 @@ AND AnchorElementId IN (
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandTimeout = 3;
+        // Validate named SQL parameters at the execution boundary, so a failed
+        // save identifies the precise statement rather than returning an empty
+        // "Must add values for the following parameters" message.
+        void VerifyParameters(string operation)
+        {
+            var missing = System.Text.RegularExpressions.Regex.Matches(
+                    command.CommandText, @"(?<![\w])\$[A-Za-z_][A-Za-z_0-9]*")
+                .Select(match => match.Value)
+                .Distinct(StringComparer.Ordinal)
+                .Where(name => !command.Parameters.Contains(name))
+                .ToArray();
+            if (missing.Length > 0)
+                throw new InvalidOperationException(
+                    $"Primary target save ({operation}): missing SQL parameters: {string.Join(", ", missing)}");
+        }
+        object? ExecuteScalar(string operation)
+        {
+            VerifyParameters(operation);
+            return command.ExecuteScalar();
+        }
+        int ExecuteNonQuery(string operation)
+        {
+            VerifyParameters(operation);
+            return command.ExecuteNonQuery();
+        }
         void ExecutePrimaryWrite(string operation)
         {
             try
             {
-                command.ExecuteNonQuery();
+                ExecuteNonQuery("write");
             }
             catch (SqliteException ex)
             {
@@ -935,22 +960,22 @@ AND AnchorElementId IN (
         command.CommandText = @"SELECT COUNT(*) FROM Steps s JOIN ApplicationContexts c
 ON c.GuideId=s.GuideId AND c.ContextId=s.ApplicationContextId
 WHERE s.GuideId=$guideId AND s.StepId=$stepId AND c.Runtime=$runtime";
-        if (Convert.ToInt64(command.ExecuteScalar()) != 1)
+        if (Convert.ToInt64(ExecuteScalar("read")) != 1)
             throw new InvalidOperationException("השלב אינו משויך לאפליקציה בסביבת היעד שנבחרה.");
         command.CommandText = @"SELECT ElementId FROM StepTargets
 WHERE GuideId=$guideId AND StepId=$stepId AND Purpose='Primary'";
-        var existingId = command.ExecuteScalar()?.ToString();
+        var existingId = ExecuteScalar("read")?.ToString();
         if (replacing && string.IsNullOrEmpty(existingId))
             throw new InvalidOperationException("לא נמצא רכיב ראשי להחלפה.");
         if (!replacing)
         {
             command.CommandText = @"SELECT COUNT(*) FROM StepTargets
 WHERE GuideId=$guideId AND StepId=$stepId AND Purpose='Primary'";
-            if (Convert.ToInt64(command.ExecuteScalar()) != 0)
+            if (Convert.ToInt64(ExecuteScalar("read")) != 0)
                 throw new InvalidOperationException("כבר קיים רכיב יעד בשלב.");
             command.CommandText = @"SELECT COUNT(*) FROM StepRules
 WHERE GuideId=$guideId AND StepId=$stepId";
-            if (Convert.ToInt64(command.ExecuteScalar()) != 0)
+            if (Convert.ToInt64(ExecuteScalar("read")) != 0)
                 throw new InvalidOperationException("כבר קיימים כללי התקדמות בשלב.");
         }
         var elementId = replacing ? existingId! : "element-" + Guid.NewGuid().ToString("N");
@@ -975,7 +1000,7 @@ WHERE GuideId=$guideId AND StepId=$stepId AND RuleType='PrimaryValidation'";
             command.CommandText = @"UPDATE Elements SET LocatorsJson=$locators,
 FrameContextJson=$frame, DisplayName=$displayName, ControlType=$controlType
 WHERE GuideId=$guideId AND ElementId=$elementId AND Runtime=$runtime";
-            if (command.ExecuteNonQuery() != 1)
+            if (ExecuteNonQuery("write") != 1)
                 throw new InvalidOperationException("עדכון הרכיב נכשל.");
         }
         else
