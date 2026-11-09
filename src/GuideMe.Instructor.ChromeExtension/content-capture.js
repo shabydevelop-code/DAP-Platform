@@ -182,11 +182,18 @@
         priority: target.style.getPropertyPriority(property)
       };
     }
-    // A two-tone black/yellow halo stays visible on blue, white and dark UIs.
+    // Keep the highlight inside the viewport of the owning document. A header
+    // filling a short iframe otherwise clips its outside outline entirely.
     // Preserve and restore the target's original inline styling on cancel.
-    target.style.setProperty('box-shadow', '0 0 0 2px #111827', 'important');
-    target.style.setProperty('outline', '3px solid #ffdf00', 'important');
-    target.style.setProperty('outline-offset', '2px', 'important');
+    const bounds = target.getBoundingClientRect();
+    const clippedAtEdge = bounds.top < 5 || bounds.left < 5 ||
+      bounds.bottom > document.documentElement.clientHeight - 5 ||
+      bounds.right > document.documentElement.clientWidth - 5;
+    target.style.setProperty('box-shadow', clippedAtEdge
+      ? 'inset 0 0 0 3px #ffdf00, inset 0 0 0 5px #111827'
+      : '0 0 0 2px #111827', 'important');
+    target.style.setProperty('outline', clippedAtEdge ? 'none' : '3px solid #ffdf00', 'important');
+    target.style.setProperty('outline-offset', clippedAtEdge ? '0px' : '2px', 'important');
   }
 
   // Relay a selected element through its parent frames. The parent determines
