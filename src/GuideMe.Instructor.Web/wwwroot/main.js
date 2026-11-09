@@ -1979,7 +1979,6 @@ function screenElementPresentation(runtime, element, locators) {
     content:anyValue ? 'כל ערך' : binding?.value || null
   };
 }
-const screenElementDisplayOrder = new Map();
 function renderScreenElementDetails(item) {
   return '<p class="target-name-line"><strong>' + esc(item.name) + '</strong></p>' +
     '<p class="field-help">סוג רכיב: ' + esc(item.type) + '</p>' +
