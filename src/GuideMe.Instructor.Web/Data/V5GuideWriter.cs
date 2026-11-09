@@ -1329,7 +1329,10 @@ VALUES ($guideId, $elementId, $runtime, $locators, $frame, $name, $controlType)"
         command.Parameters.AddWithValue("$frame", framePath.Count == 0 ? DBNull.Value :
             JsonSerializer.Serialize(framePath.Select(p => new { Strategy="css", Value=p })));
         command.Parameters.AddWithValue("$name", (object?)CleanDisplayName(displayName) ?? DBNull.Value);
-        command.Parameters.AddWithValue("$controlType", (object?)controlType ?? DBNull.Value);
+        // Web capture supplies the HTML tag as selectedTag; controlType is the
+        // Windows UIA type. Persist the correct source for each runtime.
+        var capturedType = runtime == "Web" ? selectedTag : controlType;
+        command.Parameters.AddWithValue("$controlType", (object?)capturedType ?? DBNull.Value);
         ValidateSqlParameters(command, "insert element");
         ValidateSqlParameters(command, "write element or completion rule");
         command.ExecuteNonQuery();
