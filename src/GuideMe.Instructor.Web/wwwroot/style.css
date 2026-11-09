@@ -460,6 +460,21 @@ body .brand-heading strong span { font-size: 26px; }
 .identity-targets .screen-target-identity:first-child { margin-top: 0; }
 .identity-targets #add-identity { margin-top: 12px; }
 
+/* Highlight the active action target without changing shared button typography or sizing. */
+.target-action-primary .btn.screen-element-role.active,
+.target-action-primary .btn.screen-element-role.active:disabled {
+  background: #195bc1;
+  border-color: #12488f;
+  color: #fff;
+  opacity: 1;
+  -webkit-text-fill-color: #fff;
+  box-shadow: none;
+}
+.target-action-primary .btn.screen-element-role:not(.active) {
+  background: #fff;
+  color: #203d63;
+}
+
 /* Action target is explicit; capture order does not determine its role. */
 .action-target-marker { font-size: inherit; font-weight: 700; color: #203d63; margin-bottom: 9px; }
 .screen-target-identity .target-action-primary { flex-wrap: nowrap; }
