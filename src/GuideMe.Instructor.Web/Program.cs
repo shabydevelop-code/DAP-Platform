@@ -21,6 +21,8 @@ if (instanceMutex is null)
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.UseKestrel(options => options.Listen(IPAddress.Loopback, 53922));
 var app = builder.Build();
+// Upgrade existing V5 databases before any Instructor read or write.
+V5GuideWriter.EnsureCompletionRuleOrder();
 
 app.UseWebSockets();
 // Translate authoring validation failures to actionable client errors, not HTTP 500.
