@@ -619,9 +619,15 @@ function renderSteps() {
           encodeURIComponent(step.id) + '/duplicate', {method:'POST', body:'{}'});
         await loadGuides();
         await openGuide(guideId);
+        // A cloned step is appended to the end; clear any filter hiding it.
+        $('step-search').value = '';
+        renderSteps();
         const row = [...document.querySelectorAll('[data-step]')]
           .find(item => item.dataset.step === result.stepId);
-        if (row) row.click();
+        if (!row) throw new Error('השלב המשוכפל לא נמצא ברשימת השלבים.');
+        row.click();
+        // Selecting the step does not scroll the independently scrolling list.
+        row.scrollIntoView({block:'nearest', inline:'nearest', behavior:'instant'});
         notify('השלב שוכפל ונפתח לעריכה.');
       } finally { if (button.isConnected) button.disabled = false; }
     });
