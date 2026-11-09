@@ -253,7 +253,10 @@
     if (!pickActive) return;
     const hovered = document.querySelectorAll(':hover');
     const element = hovered.length ? hovered[hovered.length - 1] : null;
-    if (!(element instanceof Element)) return;
+    if (!(element instanceof Element)) {
+      clearHighlight();
+      return;
+    }
     // The child iframe owns its own highlight. Never paint its entire viewport.
     // Frames and document roots are not selectable. Semantic containers such as
     // HEADER/MAIN may themselves be actionable (e.g. a header with role="link").
@@ -263,7 +266,12 @@
       clearHighlight();
       return;
     }
-    const target = element.closest('button,a,input,select,textarea,[role="button"],[role="textbox"],[role="link"]') || element;
+    // Text-bearing descendants can be selected independently from an
+    // interactive parent (e.g. STRONG inside a clickable HEADER). Keep the
+    // normal control grouping for buttons, inputs and links.
+    const target = element.matches('strong,span,h1,h2,h3,h4,h5,h6,p,label')
+      ? element
+      : element.closest('button,a,input,select,textarea,[role="button"],[role="textbox"],[role="link"]') || element;
     if (target !== highlighted) showHighlight(target);
   }
   function pickHover(event) {
