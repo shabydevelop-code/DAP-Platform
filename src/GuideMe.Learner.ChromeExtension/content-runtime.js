@@ -603,7 +603,7 @@
       const progress=document.createElement("div");
       progress.textContent=options.progressText;
       Object.assign(progress.style,{
-        marginTop:"8px",fontSize:"11px",opacity:".82",fontWeight:"400",cursor:"default"
+        marginTop:"8px",fontSize:theme.fontSize+"px",opacity:".82",fontWeight:"400",cursor:"default"
       });
       bubble.appendChild(progress);
     }
