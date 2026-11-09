@@ -8,6 +8,37 @@ namespace GuideMe.Instructor.Web.Data;
 // Explicitly scoped writer: creates only a Guides row; no schema changes or step data.
 internal static class V5GuideWriter
 {
+    internal static void EnsureCompletionRuleOrder()
+    {
+        if (!File.Exists(V5GuideReader.DatabasePath))
+            return;
+        using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = V5GuideReader.DatabasePath, Mode = SqliteOpenMode.ReadWrite,
+            Pooling = false, DefaultTimeout = 3
+        }.ToString());
+        connection.Open();
+        using var transaction = connection.BeginTransaction();
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = "SELECT COUNT(*) FROM pragma_table_info('StepRules') WHERE name='RuleOrder'";
+        if (Convert.ToInt64(command.ExecuteScalar()) == 0)
+        {
+            command.CommandText = "ALTER TABLE StepRules ADD COLUMN RuleOrder INTEGER";
+            command.ExecuteNonQuery();
+        }
+        // Preserve any existing positions; use physical insertion order only for legacy rows.
+        command.CommandText = @"UPDATE StepRules SET RuleOrder = (
+            SELECT COUNT(*) FROM StepRules AS previous
+            WHERE previous.GuideId = StepRules.GuideId
+              AND previous.StepId = StepRules.StepId
+              AND previous.RuleType = 'AdditionalCompletionCondition'
+              AND previous.rowid <= StepRules.rowid)
+            WHERE RuleType = 'AdditionalCompletionCondition' AND RuleOrder IS NULL";
+        command.ExecuteNonQuery();
+        transaction.Commit();
+    }
+
     // A bare host:port (e.g. localhost:5200) must not be interpreted as a URI scheme.
     private static string NormalizeWebAuthority(string value)
     {
@@ -1175,6 +1206,19 @@ AND t.StepId=s.StepId AND t.Purpose='Primary')";
 AND StepId=$stepId AND RuleType='AdditionalCompletionCondition'";
         var existing = Convert.ToInt64(check.ExecuteScalar());
         var usageId = replacing ? completionId ?? "completion" : "completion-" + Guid.NewGuid().ToString("N");
+        check.CommandText = @"SELECT COALESCE(MAX(RuleOrder), 0) + 1 FROM StepRules
+WHERE GuideId=$guideId AND StepId=$stepId AND RuleType='AdditionalCompletionCondition'";
+        var nextOrder = Convert.ToInt64(check.ExecuteScalar());
+        long existingOrder = nextOrder;
+        if (replacing)
+        {
+            check.Parameters.AddWithValue("$usageId", usageId);
+            check.CommandText = @"SELECT RuleOrder FROM StepRules WHERE GuideId=$guideId
+AND StepId=$stepId AND RuleType='AdditionalCompletionCondition' AND TargetUsageId=$usageId";
+            var savedOrder = check.ExecuteScalar();
+            if (savedOrder is not null && savedOrder != DBNull.Value)
+                existingOrder = Convert.ToInt64(savedOrder);
+        }
         if (replacing)
         {
             check.Parameters.AddWithValue("$usageId", usageId);
@@ -1253,9 +1297,10 @@ VALUES ($guideId, $stepId, $usageId, $elementId, 'Completion')";
             ? (object)JsonSerializer.Serialize(new { name = attributeName, value = attributeValue })
             : kind == "value-contains" ? expectedValue! : DBNull.Value);
         command.Parameters.AddWithValue("$options", identity ? (object)@"{""identity"":true}" : DBNull.Value);
+        command.Parameters.AddWithValue("$ruleOrder", replacing ? existingOrder : nextOrder);
         command.CommandText = @"INSERT INTO StepRules
-(GuideId, StepId, RuleType, RuleId, Kind, TargetUsageId, ExpectedValue, OptionsJson)
-VALUES ($guideId, $stepId, 'AdditionalCompletionCondition', $usageId, $kind, $usageId, $expected, $options)";
+(GuideId, StepId, RuleType, RuleId, Kind, TargetUsageId, ExpectedValue, OptionsJson, RuleOrder)
+VALUES ($guideId, $stepId, 'AdditionalCompletionCondition', $usageId, $kind, $usageId, $expected, $options, $ruleOrder)";
         command.ExecuteNonQuery();
         transaction.Commit();
     }
