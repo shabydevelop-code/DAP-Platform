@@ -1239,6 +1239,29 @@ WHERE GuideId=$guideId AND StepId=$stepId";
         using var transaction = connection.BeginTransaction();
         using var check = connection.CreateCommand();
         check.Transaction = transaction;
+        void ValidateSqlParameters(SqliteCommand sql, string stage)
+        {
+            var names = System.Text.RegularExpressions.Regex.Matches(
+                    sql.CommandText, @"\$[A-Za-z_][A-Za-z_0-9]*")
+                .Select(match => match.Value)
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+            var missing = names.Where(name =>
+                !sql.Parameters.Contains(name) || sql.Parameters[name].Value is null).ToArray();
+            if (missing.Length > 0)
+                throw new InvalidOperationException(
+                    $"Completion target save ({stage}): missing SQL parameters: {string.Join(", ", missing)}");
+        }
+        object? ReadCheck(string stage)
+        {
+            ValidateSqlParameters(check, stage);
+            return check.ExecuteScalar();
+        }
+        int WriteCheck(string stage)
+        {
+            ValidateSqlParameters(check, stage);
+            return check.ExecuteNonQuery();
+        }
         check.CommandText = @"SELECT COUNT(*) FROM Steps s
 JOIN ApplicationContexts c ON c.GuideId=s.GuideId AND c.ContextId=s.ApplicationContextId
 WHERE s.GuideId=$guideId AND s.StepId=$stepId AND c.Runtime=$runtime
@@ -1247,49 +1270,48 @@ AND t.StepId=s.StepId AND t.Purpose='Primary')";
         check.Parameters.AddWithValue("$guideId", guideId);
         check.Parameters.AddWithValue("$stepId", stepId);
         check.Parameters.AddWithValue("$runtime", runtime);
-        if (Convert.ToInt64(check.ExecuteScalar()) != 1)
+        if (Convert.ToInt64(ReadCheck("lookup")) != 1)
             throw new InvalidOperationException("יש להגדיר קודם רכיב במסך.");
         check.CommandText = @"SELECT COUNT(*) FROM StepRules WHERE GuideId=$guideId
 AND StepId=$stepId AND RuleType='AdditionalCompletionCondition'";
-        var existing = Convert.ToInt64(check.ExecuteScalar());
+        var existing = Convert.ToInt64(ReadCheck("lookup"));
         var usageId = replacing ? completionId ?? "completion" : "completion-" + Guid.NewGuid().ToString("N");
         check.CommandText = @"SELECT COALESCE(MAX(RuleOrder), 0) + 1 FROM StepRules
 WHERE GuideId=$guideId AND StepId=$stepId AND RuleType='AdditionalCompletionCondition'";
-        var nextOrder = Convert.ToInt64(check.ExecuteScalar());
+        var nextOrder = Convert.ToInt64(ReadCheck("lookup"));
         long existingOrder = nextOrder;
         if (replacing)
         {
             check.Parameters.AddWithValue("$usageId", usageId);
             check.CommandText = @"SELECT RuleOrder FROM StepRules WHERE GuideId=$guideId
 AND StepId=$stepId AND RuleType='AdditionalCompletionCondition' AND TargetUsageId=$usageId";
-            var savedOrder = check.ExecuteScalar();
+            var savedOrder = ReadCheck("lookup");
             if (savedOrder is not null && savedOrder != DBNull.Value)
                 existingOrder = Convert.ToInt64(savedOrder);
         }
         if (replacing)
         {
-            check.Parameters.AddWithValue("$usageId", usageId);
             check.CommandText = @"SELECT ElementId FROM StepTargets WHERE GuideId=$guideId
 AND StepId=$stepId AND UsageId=$usageId AND Purpose='Completion'";
-            var oldElementId = check.ExecuteScalar()?.ToString()
+            var oldElementId = ReadCheck("lookup")?.ToString()
                 ?? throw new InvalidOperationException("לא נמצא תנאי השלמה קיים לעריכה.");
             check.Parameters.AddWithValue("$oldElementId", oldElementId);
             check.CommandText = @"DELETE FROM StepRules WHERE GuideId=$guideId
 AND StepId=$stepId AND RuleType='AdditionalCompletionCondition' AND TargetUsageId=$usageId";
-            check.ExecuteNonQuery();
+            WriteCheck("replacement");
             check.CommandText = @"DELETE FROM StepTargets WHERE GuideId=$guideId
 AND StepId=$stepId AND UsageId=$usageId AND Purpose='Completion'";
-            check.ExecuteNonQuery();
+            WriteCheck("replacement");
             check.CommandText = @"DELETE FROM ElementAnchors WHERE GuideId=$guideId AND ElementId=$oldElementId";
-            check.ExecuteNonQuery();
+            WriteCheck("replacement");
             check.CommandText = @"DELETE FROM Elements WHERE GuideId=$guideId AND ElementId=$oldElementId
 AND NOT EXISTS (SELECT 1 FROM StepTargets WHERE GuideId=$guideId AND ElementId=$oldElementId)";
-            check.ExecuteNonQuery();
+            WriteCheck("replacement");
             check.CommandText = @"DELETE FROM Elements WHERE GuideId=$guideId
 AND NOT EXISTS (SELECT 1 FROM StepTargets t WHERE t.GuideId=Elements.GuideId AND t.ElementId=Elements.ElementId)
 AND NOT EXISTS (SELECT 1 FROM ElementAnchors a WHERE a.GuideId=Elements.GuideId
 AND (a.ElementId=Elements.ElementId OR a.AnchorElementId=Elements.ElementId))";
-            check.ExecuteNonQuery();
+            WriteCheck("replacement");
         }
 
         var elementId = "element-" + Guid.NewGuid().ToString("N");
@@ -1308,6 +1330,8 @@ VALUES ($guideId, $elementId, $runtime, $locators, $frame, $name, $controlType)"
             JsonSerializer.Serialize(framePath.Select(p => new { Strategy="css", Value=p })));
         command.Parameters.AddWithValue("$name", (object?)CleanDisplayName(displayName) ?? DBNull.Value);
         command.Parameters.AddWithValue("$controlType", (object?)controlType ?? DBNull.Value);
+        ValidateSqlParameters(command, "insert element");
+        ValidateSqlParameters(command, "write element or completion rule");
         command.ExecuteNonQuery();
         if (windowsAnchors is { Count: > 0 })
         {
@@ -1338,6 +1362,7 @@ VALUES ($guideId,$elementId,$anchorId,$relation,$order)";
         command.CommandText = @"INSERT INTO StepTargets
 (GuideId, StepId, UsageId, ElementId, Purpose)
 VALUES ($guideId, $stepId, $usageId, $elementId, 'Completion')";
+        ValidateSqlParameters(command, "write element or completion rule");
         command.ExecuteNonQuery();
         command.Parameters.AddWithValue("$kind", kind);
         command.Parameters.AddWithValue("$expected", kind == "attribute-equals"
@@ -1348,6 +1373,7 @@ VALUES ($guideId, $stepId, $usageId, $elementId, 'Completion')";
         command.CommandText = @"INSERT INTO StepRules
 (GuideId, StepId, RuleType, RuleId, Kind, TargetUsageId, ExpectedValue, OptionsJson, RuleOrder)
 VALUES ($guideId, $stepId, 'AdditionalCompletionCondition', $usageId, $kind, $usageId, $expected, $options, $ruleOrder)";
+        ValidateSqlParameters(command, "write element or completion rule");
         command.ExecuteNonQuery();
         transaction.Commit();
     }
