@@ -222,8 +222,8 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/primary-target",
         locators = new[] { new V5GuideWriter.TargetLocator("css", selector) };
         frames = target.FramePath.Select(f => new V5GuideWriter.TargetLocator("css", f)).ToArray();
         displayName = target.DisplayName;
-        controlType = request.SelectedTag is "button" or "input" or "textarea" or "select" or "a"
-            ? request.SelectedTag : null;
+        controlType = target.Tag is "button" or "input" or "textarea" or "select" or "a"
+            ? target.Tag : null;
     }
     else if (runtime == "Windows")
     {
@@ -449,7 +449,7 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/completion-target",
         V5GuideWriter.SaveWebCompletionTarget(id, stepId,
             selector,
             selected.FramePath, request.Kind, selected.DisplayName,
-            capturedState?.Name, capturedState?.Value, request.VariableId, request.SelectedTag, request.ExpectedValue,
+            capturedState?.Name, capturedState?.Value, request.VariableId, selected.Tag, request.ExpectedValue,
             replacing: request.Replacing, completionId: request.CompletionId, identity: request.Identity);
         capture.CancelPicking();
         return Results.NoContent();
