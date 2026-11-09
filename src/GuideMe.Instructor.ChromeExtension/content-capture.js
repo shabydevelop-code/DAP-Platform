@@ -248,7 +248,11 @@
     const element = hovered.length ? hovered[hovered.length - 1] : null;
     if (!(element instanceof Element)) return;
     // The child iframe owns its own highlight. Never paint its entire viewport.
-    if (['HTML','BODY','IFRAME','FRAME','HEADER','MAIN'].includes(element.tagName)) {
+    // Frames and document roots are not selectable. Semantic containers such as
+    // HEADER/MAIN may themselves be actionable (e.g. a header with role="link").
+    if (['HTML','BODY','IFRAME','FRAME'].includes(element.tagName) ||
+        (['HEADER','MAIN'].includes(element.tagName) &&
+         !element.matches('[role="link"],[role="button"],a,button,[tabindex]'))) {
       clearHighlight();
       return;
     }
