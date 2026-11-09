@@ -373,7 +373,8 @@ function renderSteps() {
     const identityRules = data.rules.filter(x => x.RuleType === 'AdditionalCompletionCondition' &&
       parseJson(x.OptionsJson, {})?.identity === true);
     const completionRules = data.rules.filter(x => x.RuleType === 'AdditionalCompletionCondition' &&
-      parseJson(x.OptionsJson, {})?.identity !== true);
+      parseJson(x.OptionsJson, {})?.identity !== true)
+      .sort((a, b) => (Number(a.RuleOrder) || 0) - (Number(b.RuleOrder) || 0));
     const identityItems = identityRules.map(rule => {
       const target = data.targets.find(x => x.UsageId === rule.TargetUsageId);
       const element = data.elements.find(x => x.ElementId === target?.ElementId);
