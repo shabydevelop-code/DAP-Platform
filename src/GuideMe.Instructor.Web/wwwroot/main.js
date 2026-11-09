@@ -379,7 +379,7 @@ function renderSteps() {
       const target = data.targets.find(x => x.UsageId === rule.TargetUsageId);
       const element = data.elements.find(x => x.ElementId === target?.ElementId);
       const locators = parseJson(element?.LocatorsJson, []);
-      return {rule, ...screenElementPresentation(context?.Runtime, element, locators)};
+      return {rule, element, locators, ...screenElementPresentation(context?.Runtime, element, locators)};
     });
     const completionItems = completionRules.map(rule => {
       const target = data.targets.find(x => x.UsageId === rule.TargetUsageId);
@@ -409,7 +409,7 @@ function renderSteps() {
       ...(target ? [{elementId:target.ElementId, isActionTarget:true, presentation:primaryPresentation}] : []),
       ...identityItems.map((item, index) => ({
         elementId:data.targets.find(x => x.UsageId === item.rule.TargetUsageId)?.ElementId,
-        isActionTarget:false, presentation:item, index
+        isActionTarget:false, presentation:item, index, usageId:item.rule.TargetUsageId
       }))
     ];
     const previousOrder = screenElementDisplayOrder.get(screenElementOrderKey) || [];
@@ -446,7 +446,8 @@ function renderSteps() {
       '<section class="step-friendly-card"><h3>רכיב במסך</h3>' +
       '<div class="screen-element-list">' +
       screenElements.map(item =>
-        '<div class="screen-target-bubble ' + (item.isActionTarget ? 'screen-target-primary' : 'screen-target-identity') + '">' +
+        '<div class="screen-target-bubble ' + (item.isActionTarget ? 'screen-target-primary' : 'screen-target-identity') + '"' +
+         (item.usageId ? ' data-identity-usage="' + esc(item.usageId) + '"' : '') + '>' +
         '<div class="completion-details">' +
         renderScreenElementDetails(item.presentation) + '</div>' +
         ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') ?
@@ -1062,6 +1063,16 @@ async function beginTargetPicker(runtime, guideId, stepId, contextId, replacing=
     pickerStarting = false;
     syncPickerButtons();
     throw new Error('אזור אישור הרכיב חסר בממשק.');
+  }
+  if (session.completionEdit?.identity && session.completionEdit?.completionId) {
+    const card = [...document.querySelectorAll('[data-identity-usage]')]
+      .find(node => node.dataset.identityUsage === session.completionEdit.completionId);
+    if (!card) {
+      pickerStarting = false;
+      syncPickerButtons();
+      throw new Error('כרטיס הרכיב שנבחר להחלפה אינו זמין.');
+    }
+    card.appendChild(box);
   }
   box.dataset.pickedSelector = '';
   box.classList.remove('hidden');
