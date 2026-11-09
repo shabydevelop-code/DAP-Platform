@@ -613,7 +613,7 @@
     button.textContent=options.actionText;
     button.dataset[options.actionDataKey]="1";
     Object.assign(button.style,{
-      marginTop:"12px",padding:"6px 18px",cursor:"pointer",
+      display:"block",margin:"12px auto 0",padding:"6px 18px",cursor:"pointer",
       font:"inherit",borderRadius:"6px",
       border:theme.borderWidth+"px solid "+theme.borderColor,
       background:theme.textColor,color:theme.backgroundColor
