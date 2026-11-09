@@ -124,7 +124,7 @@ internal sealed class InstructorCaptureBridge
         _selectedTab is not null && _tabs.Any(t => t.TabId == _selectedTab) &&
         DateTimeOffset.UtcNow - _lastHeartbeat < TimeSpan.FromSeconds(10);
 
-    public (string Selector, string[] FramePath, string? DisplayName) GetApprovedTarget(long guideId, string contextId, int? gridChoice = null)
+    public (string Selector, string[] FramePath, string? DisplayName, string? Tag) GetApprovedTarget(long guideId, string contextId, int? gridChoice = null)
     {
         lock (_gate)
         {
@@ -161,7 +161,10 @@ internal sealed class InstructorCaptureBridge
                     choice.TryGetProperty("value", out var cellValue)
                     ? $"{header.GetString()}: {cellValue.GetString()}" : displayName;
             }
-            return (chosenSelector, path, displayName);
+            var tag = _pickedElement.Value.TryGetProperty("tag", out var capturedTag) &&
+                capturedTag.ValueKind == JsonValueKind.String
+                ? capturedTag.GetString()?.ToLowerInvariant() : null;
+            return (chosenSelector, path, displayName, tag);
         }
     }
 
