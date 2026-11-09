@@ -27,6 +27,23 @@ internal static class V5GuideWriter
             command.CommandText = "ALTER TABLE StepRules ADD COLUMN RuleOrder INTEGER";
             command.ExecuteNonQuery();
         }
+        // One-time ordering of existing targets by their original element insertion.
+        // Thereafter the order belongs to the screen element, not to its role.
+        command.CommandText = "SELECT COUNT(*) FROM pragma_table_info('StepTargets') WHERE name='DisplayOrder'";
+        if (Convert.ToInt64(command.ExecuteScalar()) == 0)
+        {
+            command.CommandText = "ALTER TABLE StepTargets ADD COLUMN DisplayOrder INTEGER";
+            command.ExecuteNonQuery();
+        }
+        command.CommandText = @"UPDATE StepTargets SET DisplayOrder = (
+            SELECT COUNT(*) FROM StepTargets earlier
+            JOIN Elements eEarlier ON eEarlier.GuideId=earlier.GuideId AND eEarlier.ElementId=earlier.ElementId
+            JOIN Elements eCurrent ON eCurrent.GuideId=StepTargets.GuideId AND eCurrent.ElementId=StepTargets.ElementId
+            WHERE earlier.GuideId=StepTargets.GuideId AND earlier.StepId=StepTargets.StepId
+              AND (eEarlier.rowid < eCurrent.rowid OR
+                   (eEarlier.rowid = eCurrent.rowid AND earlier.rowid <= StepTargets.rowid)))
+            WHERE DisplayOrder IS NULL";
+        command.ExecuteNonQuery();
         // Preserve any existing positions; use physical insertion order only for legacy rows.
         command.CommandText = @"UPDATE StepRules SET RuleOrder = (
             SELECT COUNT(*) FROM StepRules AS previous
@@ -1010,8 +1027,9 @@ WHERE GuideId=$guideId AND ElementId=$elementId AND Runtime=$runtime";
 VALUES ($guideId, $elementId, $runtime, $locators, $frame, $displayName, $controlType)";
             ExecutePrimaryWrite("פעולה 4");
             command.CommandText = @"INSERT INTO StepTargets
-(GuideId, StepId, UsageId, ElementId, Purpose)
-VALUES ($guideId, $stepId, 'primary', $elementId, 'Primary')";
+(GuideId, StepId, UsageId, ElementId, Purpose, DisplayOrder)
+VALUES ($guideId, $stepId, 'primary', $elementId, 'Primary',
+ (SELECT COALESCE(MAX(DisplayOrder),0)+1 FROM StepTargets WHERE GuideId=$guideId AND StepId=$stepId))";
             ExecutePrimaryWrite("פעולה 5");
             if (!string.IsNullOrEmpty(condition))
             {
@@ -1083,10 +1101,17 @@ WHERE t.GuideId=$guide AND t.StepId=$step AND t.UsageId=$identity
 AND t.Purpose='Completion' AND r.OptionsJson='{""identity"":true}'";
         var identityElement = command.ExecuteScalar()?.ToString()
             ?? throw new InvalidOperationException("הרכיב שנבחר אינו מזהה אימות.");
+        command.CommandText = @"SELECT DisplayOrder FROM StepTargets WHERE GuideId=$guide AND StepId=$step AND UsageId='primary'";
+        var primaryOrder = Convert.ToInt64(command.ExecuteScalar());
+        command.CommandText = @"SELECT DisplayOrder FROM StepTargets WHERE GuideId=$guide AND StepId=$step AND UsageId=$identity";
+        var identityOrder = Convert.ToInt64(command.ExecuteScalar());
+        command.Parameters.AddWithValue("$primaryOrder", primaryOrder);
+        command.Parameters.AddWithValue("$identityOrder", identityOrder);
         command.Parameters.AddWithValue("$primaryElement", primaryElement);
         command.Parameters.AddWithValue("$identityElement", identityElement);
         command.CommandText = @"UPDATE StepTargets
-SET ElementId=CASE WHEN UsageId='primary' THEN $identityElement ELSE $primaryElement END
+SET ElementId=CASE WHEN UsageId='primary' THEN $identityElement ELSE $primaryElement END,
+    DisplayOrder=CASE WHEN UsageId='primary' THEN $identityOrder ELSE $primaryOrder END
 WHERE GuideId=$guide AND StepId=$step
 AND ((UsageId='primary' AND Purpose='Primary') OR
      (UsageId=$identity AND Purpose='Completion'))";
@@ -1280,6 +1305,14 @@ AND StepId=$stepId AND RuleType='AdditionalCompletionCondition'";
 WHERE GuideId=$guideId AND StepId=$stepId AND RuleType='AdditionalCompletionCondition'";
         var nextOrder = Convert.ToInt64(ReadCheck("lookup"));
         long existingOrder = nextOrder;
+        long existingDisplayOrder = 0;
+        if (replacing)
+        {
+            check.Parameters.AddWithValue("$usageId", usageId);
+            check.CommandText = @"SELECT DisplayOrder FROM StepTargets
+WHERE GuideId=$guideId AND StepId=$stepId AND UsageId=$usageId AND Purpose='Completion'";
+            existingDisplayOrder = Convert.ToInt64(ReadCheck("lookup"));
+        }
         if (replacing)
         {
             check.Parameters.AddWithValue("$usageId", usageId);
@@ -1362,9 +1395,13 @@ VALUES ($guideId,$elementId,$anchorId,$relation,$order)";
             }
         }
         command.Parameters.AddWithValue("$usageId", usageId);
+        command.Parameters.AddWithValue("$displayOrder", existingDisplayOrder);
         command.CommandText = @"INSERT INTO StepTargets
-(GuideId, StepId, UsageId, ElementId, Purpose)
-VALUES ($guideId, $stepId, $usageId, $elementId, 'Completion')";
+(GuideId, StepId, UsageId, ElementId, Purpose, DisplayOrder)
+VALUES ($guideId, $stepId, $usageId, $elementId, 'Completion',
+ CASE WHEN $replacingOrder=1 THEN $displayOrder ELSE
+ (SELECT COALESCE(MAX(DisplayOrder),0)+1 FROM StepTargets WHERE GuideId=$guideId AND StepId=$stepId) END)";
+        command.Parameters.AddWithValue("$replacingOrder", replacing ? 1 : 0);
         ValidateSqlParameters(command, "write element or completion rule");
         command.ExecuteNonQuery();
         command.Parameters.AddWithValue("$kind", kind);
