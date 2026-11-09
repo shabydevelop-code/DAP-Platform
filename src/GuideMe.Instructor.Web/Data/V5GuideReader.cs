@@ -113,6 +113,8 @@ FROM Steps WHERE GuideId=$guideId ORDER BY StepOrder";
         }
         if (ruleType is not null)
             sql += " AND RuleType=$ruleType";
+        if (table == "StepRules")
+            sql += " ORDER BY CASE WHEN RuleType='AdditionalCompletionCondition' THEN 1 ELSE 0 END, RuleOrder, rowid";
         command.CommandText = sql;
         command.Parameters.AddWithValue("$guideId", guideId);
         if (ruleType is not null)
