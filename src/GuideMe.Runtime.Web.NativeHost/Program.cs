@@ -255,10 +255,7 @@ sealed class NativeHostLog : IDisposable
 
     public NativeHostLog()
     {
-        var directory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "GuideMe",
-            "Logs");
+        var directory = Path.Combine(@"C:\GuideMe", "Logs");
         Directory.CreateDirectory(directory);
         var path = Path.Combine(directory, "native-host.log");
         _writer = new StreamWriter(
