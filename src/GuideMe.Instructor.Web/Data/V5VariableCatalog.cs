@@ -57,7 +57,7 @@ internal static class V5VariableCatalog
         using var connection = Open();
         EnsureSchema(connection);
         using var command = connection.CreateCommand();
-        command.CommandText = "SELECT v.VariableId,v.DisplayName,v.InitialValue,
+        command.CommandText = @"SELECT v.VariableId,v.DisplayName,v.InitialValue,
  EXISTS(SELECT 1 FROM StepVariableActions a WHERE a.GuideId=v.GuideId AND a.VariableId=v.VariableId)
  OR EXISTS(SELECT 1 FROM Elements e WHERE e.GuideId=v.GuideId AND
  (instr(COALESCE(e.LocatorsJson,''), '{{var:' || v.VariableId || '}}')>0 OR instr(COALESCE(e.FrameContextJson,''), '{{var:' || v.VariableId || '}}')>0))
