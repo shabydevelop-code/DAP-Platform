@@ -97,6 +97,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         for (const node of record.addedNodes) {
           if (node.nodeType === Node.ELEMENT_NODE && !node.matches(authoredContentSelector))
             translateInstructor(node);
+          else if (node.nodeType === Node.TEXT_NODE && node.parentElement && !node.parentElement.closest(authoredContentSelector))
+            translateInstructor(node.parentElement);
         }
       }
     }
