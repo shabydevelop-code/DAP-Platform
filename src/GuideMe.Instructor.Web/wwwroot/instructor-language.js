@@ -132,6 +132,7 @@ Object.assign(instructorLabels, {
 const reverseInstructorLabels = Object.fromEntries(
   Object.entries(instructorLabels).map(([he, en]) => [en, he]));
 const originalText = new WeakMap();
+const translatedText = new WeakMap();
 const authoredContentSelector = "[contenteditable],textarea,input,#detail-name,.step-summary-rich,.step-body,.variable-name,.variable-value,.guide-name,.guide-identity,.validation-expected-preview";
 const originalAttributes = new WeakMap();
 let instructorLanguage = "he";
@@ -140,24 +141,32 @@ function translateInstructor(root = document) {
   let node;
   while ((node = walker.nextNode())) {
     if (node.parentElement?.closest("script,style," + authoredContentSelector)) continue;
-    const source = originalText.get(node) ?? node.nodeValue;
-    if (!originalText.has(node)) originalText.set(node, source);
+    // When the app reuses a text node, do not restore a stale translation.
+    const previousTranslation = translatedText.get(node);
+    if (!originalText.has(node) || (previousTranslation !== undefined && node.nodeValue !== previousTranslation))
+      originalText.set(node, node.nodeValue);
+    const source = originalText.get(node);
     const trimmed = source.trim();
     if (!instructorLabels[trimmed] && !reverseInstructorLabels[trimmed]) continue;
     const translation = instructorLanguage === "en"
       ? (instructorLabels[trimmed] ?? trimmed)
       : (reverseInstructorLabels[trimmed] ?? trimmed);
     const next = source.replace(trimmed, translation);
+    translatedText.set(node, next);
     if (node.nodeValue !== next) node.nodeValue = next;
   }
-  for (const element of root.querySelectorAll("[placeholder],[aria-label],[title]")) {
+  const elements = root.querySelectorAll ? Array.from(root.querySelectorAll("[placeholder],[aria-label],[title]")) : [];
+  if (root.nodeType === Node.ELEMENT_NODE && root.matches("[placeholder],[aria-label],[title]")) elements.unshift(root);
+  for (const element of elements) {
     for (const attr of ["placeholder", "aria-label", "title"]) {
       if (!element.hasAttribute(attr)) continue;
       let originals = originalAttributes.get(element);
       if (!originals) { originals = {}; originalAttributes.set(element, originals); }
-      if (!(attr in originals)) originals[attr] = element.getAttribute(attr);
+      if (!(attr in originals) || (originals[attr + "Translated"] !== undefined && element.getAttribute(attr) !== originals[attr + "Translated"]))
+        originals[attr] = element.getAttribute(attr);
       const source = originals[attr];
       const next = instructorLanguage === "en" ? (instructorLabels[source] ?? source) : source;
+      originals[attr + "Translated"] = next;
       if (element.getAttribute(attr) !== next) element.setAttribute(attr, next);
     }
   }
@@ -181,6 +190,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         const node = record.target;
         if (node.parentElement && !node.parentElement.closest(authoredContentSelector))
           translateInstructor(node.parentElement);
+      } else if (record.type === "attributes") {
+        if (!record.target.closest(authoredContentSelector)) translateInstructor(record.target);
       } else {
         for (const node of record.addedNodes) {
           if (node.nodeType === Node.ELEMENT_NODE && !node.matches(authoredContentSelector))
@@ -189,7 +200,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     }
   });
-  observer.observe(document.body, { subtree: true, childList: true, characterData: true });
+  observer.observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ["placeholder", "aria-label", "title"] });
   select.addEventListener("change", async () => {
     const next = select.value;
     try {
