@@ -30,7 +30,9 @@ missing = []
 for source in sources:
     for number, line in enumerate(source.read_text(encoding="utf-8").splitlines(), 1):
         for match in quoted.finditer(line):
-            candidate = match.group(2).replace(r"\'", "'").replace(r'\"', '"').strip()
+            # Preserve leading/trailing spaces: they are significant for
+            # translated fragments concatenated with dynamic values.
+            candidate = match.group(2).replace(r"\'", "'").replace(r'\"', '"').replace(r'\n', '\n')
             if not hebrew.search(candidate) or candidate in dictionary_keys:
                 continue
             if len(candidate) > 240 or candidate.startswith(("/", "<")) or "<" in candidate or ">" in candidate:
