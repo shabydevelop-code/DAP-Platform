@@ -375,7 +375,7 @@
   // Semantic grid-row selector authored by Instructor. Match an exact cell
   // value, not the row index, so sorting and re-rendering remain safe.
   function parseCellTextSelector(selector) {
-    const actionMatch = String(selector || "").match(/:row-target\(("(?:\\\\.|[^"\\\\])*")\)$/);
+    const actionMatch = String(selector || "").match(/:row-target\(("(?:\\.|[^"\\])*")\)$/);
     const actionSelector = actionMatch ? JSON.parse(actionMatch[1]) : null;
     selector = actionMatch ? selector.slice(0, actionMatch.index) : selector;
     const targetMatch = String(selector || "").match(/:cell-target\((\d+)\)$/);
