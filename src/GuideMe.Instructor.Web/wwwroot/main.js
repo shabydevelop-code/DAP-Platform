@@ -1450,7 +1450,7 @@ function editGuideVariable(variable = null) {
   const guideId = current.guide.id;
   modal(variable ? 'עריכת משתנה' : 'הוספת משתנה', [
     {name:'name',label:'שם המשתנה',value:variable?.name || '',max:80,
-     help:'השם מוצג לעורך; מזהה המשתנה נוצר אוטומטית.'},
+     readonly:!!variable?.isUsed, help:variable?.isUsed ? 'לא ניתן לשנות שם של משתנה שנמצא בשימוש בלומדה.' : 'השם מוצג לעורך; מזהה המשתנה נוצר אוטומטית.'},
     {name:'initialValue',label:'ערך התחלתי (לא חובה)',value:variable?.initialValue || '',
      max:1000,optional:true}
   ], async values => {
@@ -1540,7 +1540,7 @@ function modal(title, fields, submit, buttonText='שמירה') {
     const requiredAttr=f.optional?'':' required';
     const field=f.choices?'<select id="field-'+f.name+'" name="'+f.name+'"'+helpAttr+requiredAttr+'>'+f.choices.map(v=>'<option value="'+esc(v.value)+'" '+(v.value===f.value?'selected':'')+'>'+esc(v.text)+'</option>').join('')+'</select>'
     :f.multiline?'<textarea id="field-'+f.name+'" name="'+f.name+'"'+helpAttr+requiredAttr+' maxlength="'+(f.max||4000)+'" rows="3">'+esc(f.value||'')+'</textarea>'
-    :'<input id="field-'+f.name+'" name="'+f.name+'"'+helpAttr+' value="'+esc(f.value||'')+'" maxlength="'+(f.max||256)+'" '+(f.optional?'':'required')+'>';
+    :'<input id="field-'+f.name+'" name="'+f.name+'"'+helpAttr+' value="'+esc(f.value||'')+'" maxlength="'+(f.max||256)+'" '+(f.readonly?'readonly ':'')+(f.optional?'':'required')+'>';
     return '<div class="field">'+label+field+(f.help?'<div class="field-help" id="'+helpId+'">'+esc(f.help)+'</div>':'')+'</div>';
   }).join('')+'</div>';
   $('submit-dialog').textContent=buttonText;
