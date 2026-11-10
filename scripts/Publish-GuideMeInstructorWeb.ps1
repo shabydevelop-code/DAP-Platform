@@ -11,6 +11,23 @@ if (-not (Test-Path -LiteralPath $instructorLanguagePath)) {
     New-Item -ItemType Directory -Path $languageDir -Force | Out-Null
     [IO.File]::WriteAllText($instructorLanguagePath, "{`"language`":`"he`"}", [Text.UTF8Encoding]::new($false))
 }
+# Publish external Instructor translation catalogs, separate from Learner language preference.
+$catalogSource = Join-Path $PSScriptRoot '..\src\GuideMe.Instructor.Web\Localization'
+foreach ($language in @('he', 'en')) {
+    $catalog = Join-Path $catalogSource "$language.json"
+    if (-not (Test-Path -LiteralPath $catalog)) {
+        throw "Missing Instructor localization catalog: $catalog"
+    }
+    $parsed = Get-Content -LiteralPath $catalog -Raw -Encoding UTF8 | ConvertFrom-Json
+    if ($null -eq $parsed) { throw "Invalid Instructor localization catalog: $catalog" }
+    $destinationCatalog = Join-Path $languageDir "$language.json"
+    Copy-Item -LiteralPath $catalog -Destination $destinationCatalog -Force
+    if ((Get-FileHash -LiteralPath $catalog -Algorithm SHA256).Hash -ne
+        (Get-FileHash -LiteralPath $destinationCatalog -Algorithm SHA256).Hash) {
+        throw "Instructor localization catalog sync failed: $language"
+    }
+}
+Write-Host 'PASS: Instructor he.json/en.json catalogs published to C:\GuideMe\Localization.'
 $root = Split-Path -Parent $PSScriptRoot
 $project = Join-Path $root 'src\GuideMe.Instructor.Web\GuideMe.Instructor.Web.csproj'
 $source = Join-Path $root 'src\GuideMe.Instructor.ChromeExtension'
