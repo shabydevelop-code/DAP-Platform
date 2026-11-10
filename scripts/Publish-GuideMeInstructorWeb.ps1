@@ -130,7 +130,7 @@ try { $hash = $sha256.ComputeHash($keyBytes) } finally { $sha256.Dispose() }
 $extensionId = -join ($hash | Select-Object -First 16 | ForEach-Object {
     [char]([int][char]'a' + ($_ -shr 4)), [char]([int][char]'a' + ($_ -band 15))
 })
-$manifestDir = Join-Path $env:LOCALAPPDATA 'GuideMe\NativeMessaging'
+$manifestDir = Join-Path 'C:\GuideMe' 'NativeMessaging'
 New-Item -ItemType Directory -Path $manifestDir -Force | Out-Null
 $hostManifestPath = Join-Path $manifestDir 'com.guideme.instructor.json'
 $hostManifest = [ordered]@{
