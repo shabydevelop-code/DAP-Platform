@@ -7,7 +7,7 @@ namespace GuideMe.Instructor.Web.Data;
 /// <summary>Guide-level variable definitions. Values belong to Learner sessions.</summary>
 internal static class V5VariableCatalog
 {
-    internal sealed record Variable(string Id, string Name, string? InitialValue);
+    internal sealed record Variable(string Id, string Name, string? InitialValue, bool IsUsed);
     private static SqliteConnection Open()
     {
         var connection = new SqliteConnection(new SqliteConnectionStringBuilder
@@ -57,13 +57,19 @@ internal static class V5VariableCatalog
         using var connection = Open();
         EnsureSchema(connection);
         using var command = connection.CreateCommand();
-        command.CommandText = "SELECT VariableId,DisplayName,InitialValue FROM GuideVariables WHERE GuideId=$guide ORDER BY rowid";
+        command.CommandText = "SELECT v.VariableId,v.DisplayName,v.InitialValue,
+ EXISTS(SELECT 1 FROM StepVariableActions a WHERE a.GuideId=v.GuideId AND a.VariableId=v.VariableId)
+ OR EXISTS(SELECT 1 FROM Elements e WHERE e.GuideId=v.GuideId AND
+ (instr(COALESCE(e.LocatorsJson,''), '{{var:' || v.VariableId || '}}')>0 OR instr(COALESCE(e.FrameContextJson,''), '{{var:' || v.VariableId || '}}')>0))
+ OR EXISTS(SELECT 1 FROM Steps s WHERE s.GuideId=v.GuideId AND instr(COALESCE(s.BubbleText,''), '{{var:' || v.VariableId || '}}')>0)
+ OR EXISTS(SELECT 1 FROM StepRules r WHERE r.GuideId=v.GuideId AND instr(COALESCE(r.ExpectedValue,''), '{{var:' || v.VariableId || '}}')>0)
+ FROM GuideVariables v WHERE v.GuideId=$guide ORDER BY v.rowid";
         command.Parameters.AddWithValue("$guide", guideId);
         using var reader = command.ExecuteReader();
         var result = new List<Variable>();
         while (reader.Read())
             result.Add(new Variable(reader.GetString(0), reader.GetString(1),
-                reader.IsDBNull(2) ? null : reader.GetString(2)));
+                reader.IsDBNull(2) ? null : reader.GetString(2), reader.GetBoolean(3)));
         return result;
     }
 
@@ -87,7 +93,7 @@ internal static class V5VariableCatalog
         try { command.ExecuteNonQuery(); }
         catch (SqliteException e) when (e.SqliteErrorCode == 19)
         { throw new InvalidOperationException("הלומדה אינה קיימת או ששם המשתנה כבר בשימוש.", e); }
-        return new Variable(id, name, initialValue);
+        return new Variable(id, name, initialValue, false);
     }
 
     internal static void Update(long guideId, string variableId, string name, string? initialValue)
@@ -98,6 +104,14 @@ internal static class V5VariableCatalog
         using var connection = Open();
         EnsureSchema(connection);
         using var command = connection.CreateCommand();
+        command.CommandText = "SELECT DisplayName FROM GuideVariables WHERE GuideId=$guide AND VariableId=$id";
+        command.Parameters.AddWithValue("$guide", guideId);
+        command.Parameters.AddWithValue("$id", variableId);
+        var existingName = command.ExecuteScalar() as string
+            ?? throw new InvalidOperationException("המשתנה לא נמצא.");
+        if (!string.Equals(existingName, name, StringComparison.Ordinal)
+            && List(guideId).Any(v => v.Id == variableId && v.IsUsed))
+            throw new InvalidOperationException("לא ניתן לשנות שם משתנה שנמצא בשימוש בלומדה.");
         command.CommandText = @"UPDATE GuideVariables SET DisplayName=$name,InitialValue=$value
             WHERE GuideId=$guide AND VariableId=$id";
         command.Parameters.AddWithValue("$guide", guideId);
