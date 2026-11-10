@@ -136,6 +136,30 @@ app.Map("/window-session", async context =>
     }
 });
 
+// Instructor language is independent of the Learner's language.json.
+var instructorLocalizationDirectory = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "Localization"));
+Directory.CreateDirectory(instructorLocalizationDirectory);
+var instructorLanguagePath = Path.Combine(instructorLocalizationDirectory, "instructor.language.json");
+string ReadInstructorLanguage()
+{
+    if (!File.Exists(instructorLanguagePath)) return "he";
+    using var document = JsonDocument.Parse(File.ReadAllText(instructorLanguagePath));
+    var language = document.RootElement.GetProperty("language").GetString();
+    return language is "he" or "en"
+        ? language
+        : throw new InvalidOperationException("Instructor language must be 'he' or 'en'.");
+}
+app.MapGet("/api/instructor/language", () => Results.Ok(new { language = ReadInstructorLanguage() }));
+app.MapPut("/api/instructor/language", (InstructorLanguageRequest request) =>
+{
+    if (request.Language is not ("he" or "en"))
+        return Results.BadRequest(new { message = "Language must be 'he' or 'en'." });
+    var temp = instructorLanguagePath + ".tmp";
+    File.WriteAllText(temp, JsonSerializer.Serialize(new { language = request.Language }));
+    File.Move(temp, instructorLanguagePath, true);
+    return Results.Ok(new { language = request.Language });
+});
+
 app.MapGet("/api/discovery", () => Results.Ok(new
 {
     webConnected = capture.IsConnected,
@@ -871,3 +895,5 @@ internal sealed record ReorderStepsRequest(List<string> StepIds);
 record UpdateVariableActionRequest(string VariableId, string? Pattern);
 
 record SetActionTargetRequest(string IdentityUsageId);
+
+internal sealed record InstructorLanguageRequest(string Language);
