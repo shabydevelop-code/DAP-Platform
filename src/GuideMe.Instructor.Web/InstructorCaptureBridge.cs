@@ -157,6 +157,11 @@ internal sealed class InstructorCaptureBridge
                     !value.Contains(":cell-text(", StringComparison.Ordinal))
                     throw new InvalidOperationException("מזהה שורת גריד אינו תקין.");
                 chosenSelector = value;
+                // The row is a stable identity; the selected cell remains the actual target.
+                if (choice.TryGetProperty("targetColumn", out var targetColumn) &&
+                    targetColumn.ValueKind == JsonValueKind.Number &&
+                    targetColumn.TryGetInt32(out var column) && column is >= 1 and <= 100)
+                    chosenSelector += $":cell-target({column})";
                 displayName = choice.TryGetProperty("header", out var header) &&
                     choice.TryGetProperty("value", out var cellValue)
                     ? $"{header.GetString()}: {cellValue.GetString()}" : displayName;
