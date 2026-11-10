@@ -61,7 +61,7 @@ internal static class V5VariableCatalog
  EXISTS(SELECT 1 FROM StepVariableActions a WHERE a.GuideId=v.GuideId AND a.VariableId=v.VariableId)
  OR EXISTS(SELECT 1 FROM Elements e WHERE e.GuideId=v.GuideId AND
  (instr(COALESCE(e.LocatorsJson,''), '{{var:' || v.VariableId || '}}')>0 OR instr(COALESCE(e.FrameContextJson,''), '{{var:' || v.VariableId || '}}')>0))
- OR EXISTS(SELECT 1 FROM Steps s WHERE s.GuideId=v.GuideId AND instr(COALESCE(s.BubbleText,''), '{{var:' || v.VariableId || '}}')>0)
+ OR EXISTS(SELECT 1 FROM Steps s WHERE s.GuideId=v.GuideId AND instr(COALESCE(s.BubbleContent,''), '{{var:' || v.VariableId || '}}')>0)
  OR EXISTS(SELECT 1 FROM StepRules r WHERE r.GuideId=v.GuideId AND instr(COALESCE(r.ExpectedValue,''), '{{var:' || v.VariableId || '}}')>0)
  FROM GuideVariables v WHERE v.GuideId=$guide ORDER BY v.rowid";
         command.Parameters.AddWithValue("$guide", guideId);
