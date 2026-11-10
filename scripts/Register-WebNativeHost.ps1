@@ -14,7 +14,7 @@ if ($ExtensionId -notmatch '^[a-p]{32}$') {
     throw "Invalid Chrome extension ID."
 }
 
-$manifestDir = Join-Path $env:LOCALAPPDATA "GuideMe\NativeMessaging"
+$manifestDir = Join-Path $package "NativeMessaging"
 New-Item -ItemType Directory -Path $manifestDir -Force | Out-Null
 $manifestPath = Join-Path $manifestDir "com.guideme.web_runtime.json"
 $manifest = [ordered]@{
