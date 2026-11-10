@@ -101,8 +101,8 @@ try {
             ". Staged file: $stagedJs")
     }
     if (-not $htmlContent.Contains('any-value-ui.js') -or
-        -not $htmlContent.Contains('main.js?v=20261106-edit-only')) {
-        throw 'Publish blocked: expected edit-only Instructor UI version is missing.'
+        -not $htmlContent.Contains('main.js?v=20261110-inspector')) {
+        throw 'Publish blocked: expected Instructor UI script version is missing.'
     }
 
     New-Item -ItemType Directory -Path $Destination -Force | Out-Null
