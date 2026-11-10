@@ -104,9 +104,15 @@ if ([string]::Equals($destinationCanonical, $activeCanonical,
     [StringComparison]::OrdinalIgnoreCase)) {
     $manifestPath = Join-Path $Destination 'NativeMessaging\com.guideme.web_runtime.json'
     if ([string]::IsNullOrWhiteSpace($ExtensionId)) {
-        if (Test-Path -LiteralPath $manifestPath -PathType Leaf) {
+        $legacyManifestPath = Join-Path $env:LOCALAPPDATA 'GuideMe\NativeMessaging\com.guideme.web_runtime.json'
+        $sourceManifestPath = if (Test-Path -LiteralPath $manifestPath -PathType Leaf) {
+            $manifestPath
+        } else {
+            $legacyManifestPath
+        }
+        if (Test-Path -LiteralPath $sourceManifestPath -PathType Leaf) {
             try {
-                $existing = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+                $existing = Get-Content -LiteralPath $sourceManifestPath -Raw | ConvertFrom-Json
                 $origins = @($existing.allowed_origins)
                 if ($existing.name -eq 'com.guideme.web_runtime' -and
                     $origins.Count -eq 1 -and
