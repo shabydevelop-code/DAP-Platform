@@ -417,6 +417,19 @@ Object.assign(instructorLabels, {
   "מה להציג ללומד?": "What should the learner see?",
   "טקסט הבועית": "Bubble text"
 });
+Object.assign(instructorLabels, {
+  "שלב ": "Step ",
+  " מכיל את הערך": " contains the value",
+  " נמחק. סדר השלבים עודכן.": " deleted. Step order updated.",
+  "נמצאו כמה לשוניות מתאימות. הקלד את מספר הלשונית:\n": "Multiple matching tabs found. Enter the tab number:\n",
+  "לא ניתן להפעיל את ממפה הרכיבים:": "Unable to start the element picker:",
+  "יישמר לדוגמה:": "Example saved value:",
+  "השמירה נכשלה:": "Save failed:",
+  "ערך התחלתי:": "Initial value:",
+  "פעולה בלתי הפיכה: הלומדה וכל שלביה, רכיביה וכללי ההתקדמות שלה יימחקו. שם לאישור:": "This cannot be undone: the guide and all its steps, elements and progression rules will be deleted. Name to confirm:",
+  "תוסף ה־Learner לא הצליח לתקשר עם Native Host:": "The Learner extension could not communicate with Native Host:",
+  "עריכת שלב ": "Edit step "
+});
 const reverseInstructorLabels = Object.fromEntries(
   Object.entries(instructorLabels).map(([he, en]) => [en, he]));
 const originalText = new WeakMap();
