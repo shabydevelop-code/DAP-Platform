@@ -319,27 +319,6 @@
         selector = tableSelector + ' tbody tr:cell-text(' + column + ',' +
           JSON.stringify(value) + '):cell-target(' + column + ')';
     }
-    // Bind a repeated row action to its row's unique business key, not a generated button ID.
-    if (target.matches('button, a, [role="button"]')) {
-      const actionRow = target.closest('tbody tr');
-      const actionTable = actionRow?.closest('table');
-      const tableSelector = actionTable && selectorFor(actionTable);
-      if (actionRow && tableSelector) {
-        const rows = [...actionTable.querySelectorAll('tbody tr')];
-        const actionSelector = target.tagName.toLowerCase() +
-          (target.classList.length ? '.' + CSS.escape([...target.classList][0]) : '');
-        if (actionRow.querySelectorAll(actionSelector).length === 1) {
-          for (let index = 0; index < actionRow.cells.length; index++) {
-            const value = actionRow.cells[index].textContent.replace(/\s+/g, ' ').trim();
-            if (!value || value.length > 120) continue;
-            if (rows.filter(row => row.cells[index]?.textContent.replace(/\s+/g, ' ').trim() === value).length !== 1) continue;
-            selector = tableSelector + ' tbody tr:cell-text(' + (index + 1) + ',' +
-              JSON.stringify(value) + '):row-target(' + JSON.stringify(actionSelector) + ')';
-            break;
-          }
-        }
-      }
-    }
     if (!selector) {
       try { chrome.runtime.sendMessage({type:"guideme-instructor-pick-error",reason:"לא ניתן ליצור מזהה CSS ייחודי לרכיב המסומן."}).catch(()=>{}); } catch {}
       return;
