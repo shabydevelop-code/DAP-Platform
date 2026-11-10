@@ -334,7 +334,9 @@
           const rowSelector = tableSelector + ' tbody tr:cell-text(' + (index + 1) + ',' + JSON.stringify(value) + ')';
           if (rowSelector.length <= 400) {
             if (target.closest('td,th') === cell) selectedGridChoice = gridChoices.length;
-            gridChoices.push({header, value, selector:rowSelector});
+            gridChoices.push({header, value, selector:rowSelector,
+              // Preserve the selected cell, rather than turning its row identity into the action target.
+              targetColumn: target.closest('td,th') === cell ? index + 1 : null});
           }
         });
       }
