@@ -7,7 +7,7 @@ $project = Join-Path $PSScriptRoot "GuideMe.Runtime.Web.NativeHost.csproj"
 dotnet build $project -c $Configuration
 $exe = Join-Path $PSScriptRoot "bin\$Configuration\net8.0\GuideMe.NativeHost.exe"
 if (!(Test-Path $exe)) { throw "Native host executable was not produced: $exe" }
-$manifestDir = Join-Path $env:LOCALAPPDATA "GuideMe\NativeMessaging"
+$manifestDir = Join-Path "C:\GuideMe" "NativeMessaging"
 New-Item -ItemType Directory -Force -Path $manifestDir | Out-Null
 $manifestPath = Join-Path $manifestDir "com.guideme.web_runtime.json"
 $manifest = @{
