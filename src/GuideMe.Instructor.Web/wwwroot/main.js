@@ -793,7 +793,8 @@ function editCompletionCondition(step, rule, locators) {
     max:500, multiline:true, optional:true
   });
   modal('עריכת תנאי השלמה — שלב ' + step.order, fields, async values => {
-    const expected = values.kind === 'value-contains' ? values.expectedValue.trim() : null;
+    const expected = values.kind === 'value-contains'
+      ? variableEditorResult($('field-expectedValue')).trim() : null;
     if (values.kind === 'value-contains' && !expected)
       rejectInstructorField($('field-expectedValue'), 'יש להזין ערך צפוי.');
     if (binding) {
@@ -813,7 +814,13 @@ function editCompletionCondition(step, rule, locators) {
     notify('תנאי ההשלמה עודכן.');
   });
   const kind = $('field-kind');
-  const expectedField = $('field-expectedValue')?.closest('.field');
+  const expectedInput = $('field-expectedValue');
+  const expectedField = expectedInput?.closest('.field');
+  if (expectedInput && expectedField) {
+    const variableControls = document.createElement('div');
+    expectedField.append(variableControls);
+    initializeVariableField(expectedInput, variableControls, rule.ExpectedValue || '');
+  }
   const refresh = () => {
     if (expectedField) expectedField.classList.toggle('hidden', kind.value !== 'value-contains');
   };
