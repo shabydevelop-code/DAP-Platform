@@ -563,3 +563,41 @@ html[dir="ltr"] .step-friendly-card h3,
 html[dir="ltr"] .screen-target-bubble > h3,
 html[dir="ltr"] .completion-card h3 { text-align: left; }
 html[dir="ltr"] .screen-target-bubble .target-name-line { justify-content: flex-start; }
+
+/* LTR target card: keep controls within their own card, without changing global fonts. */
+html[dir="ltr"] .screen-target-bubble,
+html[dir="ltr"] .screen-target-identity {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+html[dir="ltr"] .screen-target-bubble .target-name-line,
+html[dir="ltr"] .screen-target-identity .target-name-line {
+  direction: ltr;
+  text-align: left;
+  justify-content: flex-start;
+}
+html[dir="ltr"] .target-name-line strong {
+  direction: auto;
+  unicode-bidi: isolate;
+  text-align: start;
+}
+html[dir="ltr"] .screen-target-bubble .target-action-buttons,
+html[dir="ltr"] .screen-target-identity .target-action-buttons {
+  direction: ltr;
+  width: 100%;
+  min-width: 0;
+}
+html[dir="ltr"] .screen-target-bubble .target-action-primary,
+html[dir="ltr"] .screen-target-identity .target-action-primary {
+  direction: ltr;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  width: 100%;
+  min-width: 0;
+}
+html[dir="ltr"] .screen-target-bubble .target-action-primary .btn,
+html[dir="ltr"] .screen-target-identity .target-action-primary .btn {
+  max-width: 100%;
+  box-sizing: border-box;
+}
