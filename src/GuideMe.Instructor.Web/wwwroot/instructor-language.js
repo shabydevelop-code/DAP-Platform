@@ -55,12 +55,22 @@ function translateInstructor(root = document) {
   document.documentElement.lang = instructorLanguage;
   document.documentElement.dir = instructorLanguage === "he" ? "rtl" : "ltr";
 }
+// All Instructor API requests require the session token issued with this page.
+function fetchInstructorLocalization(path) {
+  const token = document.querySelector('meta[name="guideme-session"]')?.content;
+  if (!token || token === "__SESSION_TOKEN__")
+    throw new Error("Instructor session token is unavailable");
+  return fetch(path, {
+    headers: { "X-GuideMe-Session": token },
+    cache: "no-store"
+  });
+}
 document.addEventListener("DOMContentLoaded", async () => {
   try {
-    const catalogResponse = await fetch("/api/instructor/localization/en", { cache: "no-store" });
+    const catalogResponse = await fetchInstructorLocalization("/api/instructor/localization/en");
     if (!catalogResponse.ok) throw new Error("Failed to load Instructor translations");
     const englishCatalog = await catalogResponse.json();
-    const hebrewResponse = await fetch("/api/instructor/localization/he", { cache: "no-store" });
+    const hebrewResponse = await fetchInstructorLocalization("/api/instructor/localization/he");
     if (!hebrewResponse.ok) throw new Error("Failed to load Hebrew Instructor translations");
     const hebrewCatalog = await hebrewResponse.json();
     for (const [key, value] of Object.entries(englishCatalog)) {
@@ -68,7 +78,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         instructorLabels[hebrewCatalog[key]] = value;
     }
     reverseInstructorLabels = Object.fromEntries(Object.entries(instructorLabels).map(([he, en]) => [en, he]));
-    const response = await fetch("/api/instructor/language");
+    const response = await fetchInstructorLocalization("/api/instructor/language");
     if (!response.ok) throw new Error("Failed to load language");
     instructorLanguage = (await response.json()).language;
   } catch (error) { console.error("Instructor language:", error); }
