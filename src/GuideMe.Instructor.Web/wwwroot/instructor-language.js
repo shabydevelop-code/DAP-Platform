@@ -334,6 +334,16 @@ Object.assign(instructorLabels, {
   "תוסף לא מחובר": "Extension disconnected",
   "התוסף אינו זמין": "Extension unavailable"
 });
+// Translate complete UI messages and their fixed prefixes while preserving variable values.
+window.instructorT = function (message) {
+  const source = String(message ?? "");
+  if (instructorLanguage !== "en") return source;
+  if (instructorLabels[source]) return instructorLabels[source];
+  const prefix = Object.keys(instructorLabels)
+    .filter(key => key.length >= 5 && source.startsWith(key))
+    .sort((a, b) => b.length - a.length)[0];
+  return prefix ? instructorLabels[prefix] + source.slice(prefix.length) : source;
+};
 const reverseInstructorLabels = Object.fromEntries(
   Object.entries(instructorLabels).map(([he, en]) => [en, he]));
 const originalText = new WeakMap();
