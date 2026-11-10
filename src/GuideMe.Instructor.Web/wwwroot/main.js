@@ -1650,16 +1650,16 @@ function applicationChoices(apps, selectedValues = []) {
 }
 async function newGuide() {
   const { discovery, apps } = await discoverApplications();
-  $('dialog-title').textContent = 'יצירת לומדה חדשה';
-  $('submit-dialog').textContent = 'יצירת לומדה';
+  $('dialog-title').textContent = uiMessage('יצירת לומדה חדשה');
+  $('submit-dialog').textContent = uiMessage('יצירת לומדה');
   $('dialog-fields').innerHTML =
-    '<div class="fields"><div class="field"><label for="guide-new-name">שם הלומדה</label>' +
+    '<div class="fields"><div class="field"><label for="guide-new-name">' + esc(uiMessage('שם הלומדה')) + '</label>' +
     '<input id="guide-new-name" name="name" maxlength="256" required autocomplete="off"></div>' +
-    '<div class="field"><label>אפליקציות משתתפות</label>' +
-    '<p>בחר אפליקציה אחת או יותר מבין האפליקציות הפתוחות. הזיהוי יישמר אוטומטית.</p>' +
+    '<div class="field"><label>' + esc(uiMessage('אפליקציות משתתפות')) + '</label>' +
+    '<p>' + esc(uiMessage('בחר אפליקציה אחת או יותר מבין האפליקציות הפתוחות. הזיהוי יישמר אוטומטית.')) + '</p>' +
     applicationChoices(apps) +
-    '<button type="button" class="btn secondary small" id="refresh-applications">רענון אפליקציות</button>' +
-    (!discovery.webConnected ? '<p>תוסף Instructor אינו מחובר — רשימת אתרי Web אינה זמינה.</p>' : '') +
+    '<button type="button" class="btn secondary small" id="refresh-applications">' + esc(uiMessage('רענון אפליקציות')) + '</button>' +
+    (!discovery.webConnected ? '<p>' + esc(uiMessage('תוסף Instructor אינו מחובר — רשימת אתרי Web אינה זמינה.')) + '</p>' : '') +
     '</div></div>';
   $('editor-form').noValidate = true;
   $('refresh-applications').onclick = () => guarded(newGuide);
