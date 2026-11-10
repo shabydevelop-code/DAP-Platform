@@ -186,9 +186,9 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/primary-target",
         var selector = target.Selector;
         if (request.AnyContent == true)
         {
-            var cell = System.Text.RegularExpressions.Regex.Match(selector, @":cell-text\((\d+),""(?:[^""\\]|\\.)*""\)$");
+            var cell = System.Text.RegularExpressions.Regex.Match(selector, @":cell-text\((\d+),""(?:[^""\\]|\\.)*""\)(?=:cell-target\(\d+\)$|$)");
             selector = cell.Success
-                ? selector[..cell.Index] + ":cell-any(" + cell.Groups[1].Value + ")"
+                ? selector[..cell.Index] + ":cell-any(" + cell.Groups[1].Value + ")" + selector[(cell.Index + cell.Length)..]
                 : selector + ":nonempty-text";
         }
         else if (request.ContentValue is not null)
