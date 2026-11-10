@@ -375,16 +375,21 @@
   // Semantic grid-row selector authored by Instructor. Match an exact cell
   // value, not the row index, so sorting and re-rendering remain safe.
   function parseCellTextSelector(selector) {
+    const targetMatch = String(selector || "").match(/:cell-target\((\d+)\)$/);
+    const targetColumn = targetMatch ? Number(targetMatch[1]) : null;
+    if (targetColumn !== null && (!Number.isSafeInteger(targetColumn) || targetColumn < 1 || targetColumn > 100))
+      throw new Error("Invalid target grid column");
+    selector = targetMatch ? selector.slice(0, targetMatch.index) : selector;
     const any = String(selector || "").match(/:cell-any\((\d+)\)$/);
-    if (any) return {selector:selector.slice(0, any.index), cell:{column:Number(any[1]), any:true}};
+    if (any) return {selector:selector.slice(0, any.index), cell:{column:Number(any[1]), any:true}, targetColumn};
     const pattern = /:cell-text\((\d+),("(?:\\.|[^"\\])*")\)$/;
     const match = String(selector || "").match(pattern);
-    if (!match) return {selector, cell: null};
+    if (!match) return {selector, cell: null, targetColumn};
     const column = Number(match[1]);
     if (!Number.isSafeInteger(column) || column < 1 || column > 100)
       throw new Error("Invalid grid column");
     return {selector:selector.slice(0, match.index),
-      cell:{column, value:JSON.parse(match[2])}};
+      cell:{column, value:JSON.parse(match[2])}, targetColumn};
   }
   function matchesCellText(el, cell) {
     if (!cell) return true;
@@ -421,11 +426,14 @@
     }
     if (!textFilters.length && !exactFilters.length && !parsed.cell && !nonempty) return candidates;
 
-    return candidates.filter(el => {
+    const matched = candidates.filter(el => {
       const text = normalize(el.textContent).toLowerCase();
       return matchesCellText(el, parsed.cell) && textFilters.every(wanted => text.includes(wanted)) &&
         exactFilters.every(wanted => normalize(el.textContent) === wanted) && (!nonempty || el.matches('input, textarea, select') || normalize(el.textContent).length > 0);
     });
+    return parsed.targetColumn === null ? matched :
+      matched.map(row => row instanceof HTMLTableRowElement ? row.cells[parsed.targetColumn - 1] : null)
+        .filter(Boolean);
   }
 
   function matchesExtendedCss(el, selector) {
@@ -456,6 +464,11 @@
     }
     if (!textFilters.length && !exactFilters.length && !parsed.cell && !nonempty) return true;
 
+    if (parsed.targetColumn !== null) {
+      const row = el.closest('tr');
+      return row instanceof HTMLTableRowElement && row.cells[parsed.targetColumn - 1] === el &&
+        queryExtendedCss(selector, row.parentElement || document).includes(el);
+    }
     const text = normalize(el.textContent).toLowerCase();
     return matchesCellText(el, parsed.cell) && textFilters.every(wanted => text.includes(wanted)) &&
         exactFilters.every(wanted => normalize(el.textContent) === wanted) && (!nonempty || el.matches('input, textarea, select') || normalize(el.textContent).length > 0);
