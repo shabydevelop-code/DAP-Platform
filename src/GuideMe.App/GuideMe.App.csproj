@@ -19,7 +19,7 @@
     <ProjectReference Include="../GuideMe.Runtime.Windows/GuideMe.Runtime.Windows.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Localization\*.json">
+    <Content Include="Localization\*.json" Exclude="Localization\instructor.language.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
