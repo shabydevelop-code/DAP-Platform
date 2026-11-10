@@ -137,7 +137,7 @@ app.Map("/window-session", async context =>
 });
 
 // Instructor language is independent of the Learner's language.json.
-var instructorLocalizationDirectory = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "Localization"));
+var instructorLocalizationDirectory = Path.Combine(@"C:\GuideMe", "Localization");
 Directory.CreateDirectory(instructorLocalizationDirectory);
 var instructorLanguagePath = Path.Combine(instructorLocalizationDirectory, "instructor.language.json");
 string ReadInstructorLanguage()
