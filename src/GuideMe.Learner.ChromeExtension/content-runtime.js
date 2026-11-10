@@ -375,19 +375,16 @@
   // Semantic grid-row selector authored by Instructor. Match an exact cell
   // value, not the row index, so sorting and re-rendering remain safe.
   function parseCellTextSelector(selector) {
-    const actionMatch = String(selector || "").match(/:row-target\(("(?:\\.|[^"\\])*")\)$/);
-    const actionSelector = actionMatch ? JSON.parse(actionMatch[1]) : null;
-    selector = actionMatch ? selector.slice(0, actionMatch.index) : selector;
     const targetMatch = String(selector || "").match(/:cell-target\((\d+)\)$/);
     const targetColumn = targetMatch ? Number(targetMatch[1]) : null;
     if (targetColumn !== null && (!Number.isSafeInteger(targetColumn) || targetColumn < 1 || targetColumn > 100))
       throw new Error("Invalid target grid column");
     selector = targetMatch ? selector.slice(0, targetMatch.index) : selector;
     const any = String(selector || "").match(/:cell-any\((\d+)\)$/);
-    if (any) return {selector:selector.slice(0, any.index), cell:{column:Number(any[1]), any:true}, targetColumn, actionSelector};
+    if (any) return {selector:selector.slice(0, any.index), cell:{column:Number(any[1]), any:true}, targetColumn};
     const pattern = /:cell-text\((\d+),("(?:\\.|[^"\\])*")\)$/;
     const match = String(selector || "").match(pattern);
-    if (!match) return {selector, cell: null, targetColumn, actionSelector};
+    if (!match) return {selector, cell: null, targetColumn};
     const column = Number(match[1]);
     if (!Number.isSafeInteger(column) || column < 1 || column > 100)
       throw new Error("Invalid grid column");
@@ -434,14 +431,6 @@
       return matchesCellText(el, parsed.cell) && textFilters.every(wanted => text.includes(wanted)) &&
         exactFilters.every(wanted => normalize(el.textContent) === wanted) && (!nonempty || el.matches('input, textarea, select') || normalize(el.textContent).length > 0);
     });
-    if (parsed.actionSelector !== null)
-      return matched.flatMap(row => {
-        if (!(row instanceof HTMLTableRowElement)) return [];
-        try {
-          const actions = [...row.querySelectorAll(parsed.actionSelector)];
-          return actions.length === 1 ? actions : [];
-        } catch { return []; }
-      });
     return parsed.targetColumn === null ? matched :
       matched.map(row => row instanceof HTMLTableRowElement ? row.cells[parsed.targetColumn - 1] : null)
         .filter(Boolean);
@@ -475,11 +464,6 @@
     }
     if (!textFilters.length && !exactFilters.length && !parsed.cell && !nonempty) return true;
 
-    if (parsed.actionSelector !== null) {
-      const row = el.closest('tr');
-      return row instanceof HTMLTableRowElement &&
-        queryExtendedCss(selector, row.parentElement || document).includes(el);
-    }
     if (parsed.targetColumn !== null) {
       const row = el.closest('tr');
       return row instanceof HTMLTableRowElement && row.cells[parsed.targetColumn - 1] === el &&
