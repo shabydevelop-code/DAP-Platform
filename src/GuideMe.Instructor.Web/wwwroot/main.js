@@ -480,7 +480,7 @@ function renderSteps() {
         '<section class="step-friendly-card completion-card"><h3>תנאי השלמה נוספים</h3>' +
         completionItems.map((item, index) =>
           '<div class="completion-item" data-completion-index="' + index + '">' +
-          '<div class="completion-details"><div class="completion-target-summary"><p><strong>' +
+          '<div class="completion-details"><div class="completion-target-summary"><p><strong class="captured-object-value">' +
           esc(item.name) + '</strong>' +
           (item.type ? ' <span class="field-help">(' + esc(item.type) + ')</span>' : '') +
           '</p></div><div class="completion-detail"><span class="completion-detail-label">תנאי:</span>' +
@@ -2023,7 +2023,7 @@ function screenElementPresentation(runtime, element, locators) {
 }
 function renderScreenElementDetails(item) {
   return '<p class="target-name-line"><strong>' + esc(item.name) + '</strong></p>' +
-    '<p class="field-help">' + esc(uiMessage('סוג רכיב: ')) + esc(item.type) + '</p>' +
+    '<p class="field-help">' + esc(uiMessage('סוג רכיב: ')) + esc(uiMessage(item.type)) + '</p>' +
     (item.content ? '<p>' + esc(uiMessage('זיהוי לפי תוכן: ')) + '<strong class="target-business-value-preview">' +
       friendlyInstructionHtml(item.content) + '</strong></p>' : '');
 }
