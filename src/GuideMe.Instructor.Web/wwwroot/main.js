@@ -235,7 +235,7 @@ function renderSteps() {
   const steps = (current?.steps || []).filter(s => String(s.order).includes(search) || s.id.toLowerCase().includes(search) || (s.bubble || '').toLowerCase().includes(search));
   requestAnimationFrame(syncStepListHeight);
   $('step-list').innerHTML = steps.length ? steps.map(s =>
-    '<div class="step-row' + (s.enabled ? '' : ' step-disabled') + '" role="button" tabindex="0" aria-pressed="false" aria-label="' + esc('שלב ' + s.order + ': ' + friendlyInstructionText(s.bubble || 'שלב ' + s.order) + (s.enabled ? '' : ', מושבת')) + '" data-step="' + esc(s.id) + '"><span class="step-drag-handle" draggable="true" role="img" aria-label="גרירת שלב לשינוי סדר" title="גרור לשינוי סדר">⠿</span><span class="step-num">' + s.order + '</span><span class="step-body"><strong>' +
+    '<div class="step-row' + (s.enabled ? '' : ' step-disabled') + '" role="button" tabindex="0" aria-pressed="false" aria-label="' + esc('שלב ' + s.order + ': ' + friendlyInstructionText(s.bubble || 'שלב ' + s.order) + (s.enabled ? '' : uiMessage(', מושבת'))) + '" data-step="' + esc(s.id) + '"><span class="step-drag-handle" draggable="true" role="img" aria-label="גרירת שלב לשינוי סדר" title="גרור לשינוי סדר">⠿</span><span class="step-num">' + s.order + '</span><span class="step-body"><strong>' +
     stepListInstructionHtml(s.bubble || 'שלב ' + s.order) + '</strong></span>' + (s.enabled ? '' : '<span class="step-disabled-badge">מושבת</span>') + '</div>').join('')
     : '<div class="empty">אין שלבים להצגה</div>';
   const tip = document.getElementById('step-name-tooltip') || (() => {
@@ -594,7 +594,7 @@ function renderSteps() {
           row.classList.toggle('step-disabled', !enabled);
           row.setAttribute('aria-label', 'שלב ' + step.order + ': ' +
             friendlyInstructionText(step.bubble || 'שלב ' + step.order) +
-            (enabled ? '' : ', מושבת'));
+            (enabled ? '' : uiMessage(', מושבת')));
           row.querySelector('.step-disabled-badge')?.remove();
           if (!enabled) {
             const badge = document.createElement('span');
@@ -637,7 +637,7 @@ function renderSteps() {
       const stepId = step.id;
       if (!confirm('למחוק את שלב ' + step.order + '?\n' +
         (step.bubble || 'ללא הנחיה') +
-        '\n\nהשלב, הרכיבים וכללי ההתקדמות הייחודיים לו יימחקו לצמיתות.')) return;
+        uiMessage('\n\nהשלב, הרכיבים וכללי ההתקדמות הייחודיים לו יימחקו לצמיתות.'))) return;
       const button = $('delete-step');
       button.disabled = true;
       try {
@@ -1075,8 +1075,8 @@ function variableExtractionEditor(candidate, runtime) {
     '<select id="variable-target-id" required>' + variableChoices + '</select></div>' +
     '<div class="field"><label for="variable-extract-choice">ערך לקליטה</label>' +
     '<select id="variable-extract-choice" data-sample="' + esc(sample) + '">' +
-    '<option value="full">' + esc(sample ? sample + ' — הערך המלא' : 'הערך המלא בזמן ההרצה') + '</option>' +
-    (number ? '<option value="number">' + esc(number + ' — המספר מתוך הערך') + '</option>' : '') +
+    '<option value="full">' + esc(sample ? sample + uiMessage(' — הערך המלא') : 'הערך המלא בזמן ההרצה') + '</option>' +
+    (number ? '<option value="number">' + esc(number + uiMessage(' — המספר מתוך הערך')) + '</option>' : '') +
     '<option value="custom">חילוץ מותאם אישית</option></select>' +
     '<p id="variable-extract-preview" aria-live="polite"></p></div>' +
     '<div class="field hidden"><label for="variable-extract-pattern">ביטוי לחילוץ (Regex)</label>' +
@@ -1424,7 +1424,7 @@ function renderContexts() {
       '<span class="chip ' + (c.Runtime === 'Windows' ? 'win' : '') + '">' +
       esc(c.Runtime) + '</span><div class="context-meta">' + esc(target) +
       '</div></div><div class="context-actions"><button class="btn danger small" data-context-delete="' + i + '"' +
-      (used ? ' disabled title="האפליקציה משויכת לשלבים בלומדה"' : '') +
+      (used ? ' disabled title="' + esc(uiMessage('האפליקציה משויכת לשלבים בלומדה')) + '"' : '') +
       '>הסר</button></div></div>';
   }).join('') : '<div class="empty">טרם נוספו אפליקציות ללומדה.</div>';
   document.querySelectorAll('[data-context-delete]').forEach(b =>
@@ -1471,7 +1471,7 @@ function refreshStepVariablePreviews() {
     const label = row.querySelector('.step-body strong');
     if (label) label.innerHTML = stepListInstructionHtml(step.bubble || 'שלב ' + step.order);
     row.setAttribute('aria-label', 'שלב ' + step.order + ': ' + preview +
-      (step.enabled ? '' : ', מושבת'));
+      (step.enabled ? '' : uiMessage(', מושבת')));
   });
   // The inspector uses the same current variables; update its instruction
   // without recreating the step editor or discarding the active selection.
@@ -1680,7 +1680,7 @@ async function newGuide() {
       $('editor-dialog').close();
       await loadGuides();
       await openGuide(guide.id);
-      notify('הלומדה נוצרה עם ' + applications.length + ' אפליקציות.');
+      notify(uiMessage('הלומדה נוצרה עם ') + applications.length + uiMessage(' אפליקציות.'));
     });
   };
   if (!$('editor-dialog').open) $('editor-dialog').showModal();
