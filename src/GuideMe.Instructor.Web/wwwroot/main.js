@@ -484,7 +484,7 @@ function renderSteps() {
           '<strong class="completion-description-preview">' + item.description + '</strong></div></div>' +
           '<div class="target-action-buttons"><div class="target-action-primary">' +
           '<button class="btn secondary small" data-completion-action="replace" data-index="' + index + '">בחירת רכיב אחר</button>' +
-          '<button class="btn secondary small" data-completion-action="edit" data-index="' + index + '">עדכון</button>' +
+          '<button class="btn secondary small" data-completion-action="edit" data-index="' + index + '">עריכה</button>' +
           '<button class="btn danger small" data-completion-action="remove" data-index="' + index + '">הסרה</button>' +
           '</div></div></div>'
         ).join('') +
@@ -902,6 +902,33 @@ function editValidation(step, rule) {
 
 let pickingFor = null;
 let pickerStarting = false;
+// One modal confirmation surface for captured targets in both runtimes.
+let targetConfirmation = null;
+function closeTargetConfirmation() {
+  if (!targetConfirmation) return;
+  const {dialog, box, placeholder} = targetConfirmation;
+  if (placeholder.parentNode) placeholder.replaceWith(box);
+  if (dialog.open) dialog.close();
+  dialog.remove();
+  targetConfirmation = null;
+}
+function openTargetConfirmation(box) {
+  if (targetConfirmation?.box === box) return;
+  closeTargetConfirmation();
+  const placeholder = document.createComment('target-confirmation-origin');
+  box.before(placeholder);
+  const dialog = document.createElement('dialog');
+  dialog.className = 'target-confirmation-dialog';
+  dialog.setAttribute('aria-label', 'אישור רכיב במסך');
+  dialog.dir = 'rtl';
+  dialog.style.cssText = 'width:min(620px,calc(100vw - 32px));max-height:calc(100vh - 32px);overflow:auto;border:1px solid #ccd6e5;border-radius:12px;padding:20px;background:#fff;color:inherit;';
+  dialog.addEventListener('cancel', event => event.preventDefault());
+  dialog.append(box);
+  document.body.append(dialog);
+  targetConfirmation = {dialog,box,placeholder};
+  dialog.showModal();
+}
+
 // All runtimes share the same authoring lifecycle. Adapters only handle native capture.
 function pickerEvent(session, event, message = '') {
   if (event === 'started') {
@@ -913,6 +940,7 @@ function pickerEvent(session, event, message = '') {
     if (event === 'cancelled' || event === 'failed')
       $('primary-target-summary')?.classList.remove('hidden');
   }
+  if (event === 'cancelled' || event === 'failed' || event === 'saved') closeTargetConfirmation();
   if (!session.completion && !session.variableSource) {
     const emptyMessage = $('empty-primary-target-message');
     if (emptyMessage)
@@ -1342,6 +1370,7 @@ async function refreshPicker() {
       if (cancelButton) cancelButton.disabled = false;
     }
   };
+  openTargetConfirmation(box);
   $('save-web-target').onclick = savePickedTarget;
   if ($('cancel-web-target')) $('cancel-web-target').onclick = () => guarded(async () => {
     const cancelled = pickingFor;
