@@ -3,6 +3,16 @@
 // Guide-authored text and captured values are never translated.
 const instructorLabels = {};
 let reverseInstructorLabels = {};
+// Translate fixed UI messages and prefixes without altering appended guide values.
+window.instructorT = function (message) {
+  const source = String(message ?? "");
+  if (instructorLanguage !== "en") return source;
+  if (instructorLabels[source]) return instructorLabels[source];
+  const prefix = Object.keys(instructorLabels)
+    .filter(key => key.length >= 5 && source.startsWith(key))
+    .sort((a, b) => b.length - a.length)[0];
+  return prefix ? instructorLabels[prefix] + source.slice(prefix.length) : source;
+};
 const originalText = new WeakMap();
 const translatedText = new WeakMap();
 const authoredContentSelector = "[contenteditable],textarea,input,#detail-name,.step-summary-rich,.step-body,.variable-name,.variable-value,.guide-name,.guide-identity,.validation-expected-preview,#guides-table tbody td:not(:has(button)),.context-name,.variable-initial-value,.captured-object-value";
