@@ -344,6 +344,53 @@ window.instructorT = function (message) {
     .sort((a, b) => b.length - a.length)[0];
   return prefix ? instructorLabels[prefix] + source.slice(prefix.length) : source;
 };
+Object.assign(instructorLabels, {
+  "לחיצה על הרכיב": "Click the element",
+  "הוזן ערך בשדה": "Field has a value",
+  "השדה מכיל ערך מסוים": "Field contains a specific value",
+  "מכיל את הערך": "Contains the value",
+  "מופיע במסך": "Appears on screen",
+  "המאפיין \"": "Attribute \"",
+  "הנבחר": "selected",
+  "\" שווה ל־\"": "\" equals \"",
+  "הערך המלא": "Full value",
+  "מספר בלבד": "Number only",
+  "חילוץ מותאם אישית": "Custom extraction",
+  "למחוק את שלב ": "Delete step ",
+  "נמחק. סדר השלבים עודכן.": "deleted. Step order updated.",
+  "ה־Learner הופעל משלב ": "Learner started at step ",
+  ". הבועית תוצג כשהרכיב המתאים יהיה זמין.": ". The bubble will appear when the target element is available.",
+  "הרכיב מופיע במסך": "Element appears on screen",
+  "הרכיב מכיל ערך מסוים": "Element contains a specific value",
+  "עריכת תנאי השלמה — שלב ": "Edit completion condition — Step ",
+  "עריכת תנאי התקדמות — שלב ": "Edit progression condition — Step ",
+  "עריכת רכיב במסך — שלב ": "Edit screen element — Step ",
+  "זיהוי לפי תוכן": "Identify by content",
+  "יישמר לדוגמה:": "Example saved value:",
+  "השמירה נכשלה:": "Save failed:",
+  "ערך התחלתי:": "Initial value:",
+  "למחוק את המשתנה \"": "Delete variable \"",
+  "הלומדה נוצרה עם ": "Guide created with ",
+  " אפליקציות.": " applications.",
+  "הלומדה \"": "Guide \"",
+  "\" נמחקה.": "\" deleted.",
+  "תוסף ה־Learner לא הצליח לתקשר עם Native Host:": "The Learner extension could not communicate with Native Host:",
+  "לא התקבל אישור מתוסף ה־Learner. ודא שהתוסף GuideMe פעיל ב־Chrome ורענן את חלון ה־Instructor (Ctrl+R) לאחר עדכון התוסף.": "No response from the Learner extension. Ensure GuideMe is enabled in Chrome and refresh Instructor (Ctrl+R) after updating the extension.",
+  "בחירת רכיב אחר": "Select another element",
+  "עריכה": "Edit",
+  "הסרה": "Remove",
+  "תוסף מחובר": "Extension connected",
+  "ערך צפוי": "Expected value",
+  "שדה טקסט רב־שורות": "Multiline text field",
+  "שדה קלט": "Input field",
+  "רשימת בחירה": "Dropdown",
+  "יצירת שלב": "Create step",
+  "יצירת לומדה": "Create guide",
+  "הוספת אפליקציה": "Add application",
+  "שלב": "Step",
+  "מושבת": "Disabled",
+  "כותרת (H": "Heading (H"
+});
 const reverseInstructorLabels = Object.fromEntries(
   Object.entries(instructorLabels).map(([he, en]) => [en, he]));
 const originalText = new WeakMap();
