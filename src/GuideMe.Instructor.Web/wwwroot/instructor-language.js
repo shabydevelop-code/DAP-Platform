@@ -50,7 +50,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   try {
     const catalogResponse = await fetch("/api/instructor/localization/en", { cache: "no-store" });
     if (!catalogResponse.ok) throw new Error("Failed to load Instructor translations");
-    Object.assign(instructorLabels, await catalogResponse.json());
+    const englishCatalog = await catalogResponse.json();
+    const hebrewResponse = await fetch("/api/instructor/localization/he", { cache: "no-store" });
+    if (!hebrewResponse.ok) throw new Error("Failed to load Hebrew Instructor translations");
+    const hebrewCatalog = await hebrewResponse.json();
+    for (const [key, value] of Object.entries(englishCatalog)) {
+      if (Object.prototype.hasOwnProperty.call(hebrewCatalog, key))
+        instructorLabels[hebrewCatalog[key]] = value;
+    }
     reverseInstructorLabels = Object.fromEntries(Object.entries(instructorLabels).map(([he, en]) => [en, he]));
     const response = await fetch("/api/instructor/language");
     if (!response.ok) throw new Error("Failed to load language");
