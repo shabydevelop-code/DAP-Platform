@@ -149,6 +149,16 @@ string ReadInstructorLanguage()
         ? language
         : throw new InvalidOperationException("Instructor language must be 'he' or 'en'.");
 }
+// Serve Instructor catalogs from the deployed shared Localization directory.
+app.MapGet("/api/instructor/localization/{language}", (string language) =>
+{
+    if (language is not ("he" or "en"))
+        return Results.BadRequest(new { message = "Unsupported localization language." });
+    var path = Path.Combine(instructorLocalizationDirectory, language + ".json");
+    if (!File.Exists(path))
+        return Results.NotFound(new { message = "Instructor localization catalog not installed." });
+    return Results.File(path, "application/json");
+});
 app.MapGet("/api/instructor/language", () => Results.Ok(new { language = ReadInstructorLanguage() }));
 app.MapPut("/api/instructor/language", (InstructorLanguageRequest request) =>
 {
