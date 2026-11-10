@@ -57,6 +57,26 @@ class VisibleText(HTMLParser):
             if name in ("placeholder", "aria-label", "title") and value and hebrew.search(value) and value not in dictionary_keys:
                 missing.append(("index.html", self.getpos()[0], value))
 VisibleText().feed((web / "index.html").read_text(encoding="utf-8"))
+# Verify runtime-generated labels are explicitly localized. Presence in a catalog
+# alone does not ensure that concatenated headings and metadata get translated.
+main_source = (web / "main.js").read_text(encoding="utf-8")
+dynamic_contracts = [
+    ("step heading", "esc(uiMessage('שלב '))"),
+    ("edit element heading", "uiMessage('עריכת רכיב במסך — שלב ')"),
+    ("edit step heading", "uiMessage('עריכת שלב ')"),
+    ("element type label", "uiMessage('סוג רכיב: ')"),
+    ("content matching label", "uiMessage('זיהוי לפי תוכן: ')"),
+    ("modal field labels", "esc(uiMessage(f.label))"),
+    ("modal option labels", "esc(uiMessage(v.text))"),
+]
+for description, expression in dynamic_contracts:
+    if expression not in main_source:
+        catalog_errors.append("Missing dynamic localization hook: " + description)
+for key in ("שלב ", "עריכת רכיב במסך — שלב ", "עריכת שלב ",
+            "סוג רכיב: ", "זיהוי לפי תוכן: "):
+    if key not in english or key not in hebrew_catalog:
+        catalog_errors.append("Missing dynamic localization catalog key: " + key)
+
 print(f"Instructor localization audit: {len(dictionary_keys)} dictionary entries, "
       f"{len(missing)} untranslated source literals/candidates, {len(catalog_errors)} catalog errors")
 for file, line, candidate in missing:
