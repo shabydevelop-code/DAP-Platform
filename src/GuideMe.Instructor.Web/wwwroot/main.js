@@ -1059,7 +1059,11 @@ function variableExtractionEditor(candidate, runtime) {
     pickingFor.variableSource.property = selected?.property || (runtime === 'Windows' ? 'name' : 'text');
   }
   const number = sample.match(/[0-9]+/)?.[0];
-  return '<div class="field"><label for="variable-extract-choice">ערך לקליטה</label>' +
+  const variableChoices = (current?.variables || []).map(variable =>
+    '<option value="' + esc(variable.id) + '">' + esc(variable.name) + '</option>').join('');
+  return '<div class="field"><label for="variable-target-id">משתנה לעדכון</label>' +
+    '<select id="variable-target-id" required>' + variableChoices + '</select></div>' +
+    '<div class="field"><label for="variable-extract-choice">ערך לקליטה</label>' +
     '<select id="variable-extract-choice" data-sample="' + esc(sample) + '">' +
     '<option value="full">' + esc(sample ? sample + ' — הערך המלא' : 'הערך המלא בזמן ההרצה') + '</option>' +
     (number ? '<option value="number">' + esc(number + ' — המספר מתוך הערך') + '</option>' : '') +
@@ -1322,12 +1326,15 @@ async function refreshPicker() {
         ? capturedChoice?.index ?? null : null;
       const adapter = targetAdapters[pickedFor.runtime];
       if (pickedFor.variableSource) {
+        const variableId = $('variable-target-id')?.value;
+        if (!variableId || !(current?.variables || []).some(variable => variable.id === variableId))
+          throw new Error('יש לבחור משתנה לעדכון.');
         const mode = $('variable-extract-choice')?.value || 'full';
         const pattern = mode === 'number' ? '([0-9]+)' :
           mode === 'custom' ? $('variable-extract-pattern')?.value : null;
         await api('/guides/'+pickedFor.guideId+'/steps/'+encodeURIComponent(pickedFor.stepId)+'/variable-source',
           {method:'POST',body:JSON.stringify({
-            ...pickedFor.variableSource,pattern,
+            ...pickedFor.variableSource,variableId,pattern,
             processId:pickedFor.processId || null,gridChoice:gridChoiceIndex})});
       }
       else if (pickedFor.completion && !pickedFor.completionEdit?.identity)
@@ -1849,12 +1856,8 @@ function editStepVariableAction(step, context) {
   if (!current?.variables?.length || !context) return;
   const guideId = current.guide.id, stepId = step.id;
   const choices = current.variables.map(v => ({value:v.id,text:v.name}));
-  modal('הוספת פעולה למשתנה — שלב ' + step.order, [
-    {name:'variableId',label:'משתנה לעדכון',value:choices[0].value,choices}
-  ], async values => {
-    await beginTargetPicker(context.Runtime, guideId, stepId, context.ContextId,
-      false, false, context, {variableId:values.variableId});
-  },'המשך');
+  void guarded(() => beginTargetPicker(context.Runtime, guideId, stepId, context.ContextId,
+    false, false, context, {variableId:choices[0].value}));
 }
 // Render variable references as friendly, non-editable labels in Instructor previews.
 function variablePreviewValue(variable) {
