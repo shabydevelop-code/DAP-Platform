@@ -15,7 +15,7 @@ window.instructorT = function (message) {
 };
 const originalText = new WeakMap();
 const translatedText = new WeakMap();
-const authoredContentSelector = "[contenteditable],textarea,input,#detail-name,.step-summary-rich,.step-body,.variable-name,.variable-value,.guide-name,.guide-identity,.validation-expected-preview,#guides-table tbody td:not(:has(button)),.context-name,.variable-initial-value,.captured-object-value";
+const authoredContentSelector = "[contenteditable],textarea,input,#detail-name,.step-summary-rich,.step-body,.variable-name,.variable-value,.guide-name,.guide-identity,.validation-expected-preview,#guides-table tbody td:not(:has(button)),.context-name,.variable-initial-value,.captured-object-value,.target-name-line strong,.completion-target-summary strong";
 const originalAttributes = new WeakMap();
 let instructorLanguage = "he";
 function translateInstructor(root = document) {
