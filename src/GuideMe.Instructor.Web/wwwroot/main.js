@@ -427,7 +427,7 @@ function renderSteps() {
     const appText = context ? appLabel(context) : 'לא משויך';
 
     $('step-inspector').innerHTML =
-      '<div class="step-editor-head"><div><h2>שלב ' + step.order + '</h2></div>' +
+      '<div class="step-editor-head"><div><h2>' + esc(uiMessage('שלב ')) + step.order + '</h2></div>' +
       '<div class="step-editor-actions">' +
       '<button type="button" id="step-enabled-button" class="btn small step-state-button ' +
        (step.enabled ? 'is-enabled' : 'is-disabled') +
@@ -795,7 +795,7 @@ function editCompletionCondition(step, rule, locators) {
     name:'expectedValue', label:'ערך צפוי', value:rule.ExpectedValue || '',
     max:500, multiline:true, optional:true
   });
-  modal('עריכת תנאי השלמה — שלב ' + step.order, fields, async values => {
+  modal(uiMessage('עריכת תנאי השלמה — שלב ') + step.order, fields, async values => {
     const expected = values.kind === 'value-contains'
       ? variableEditorResult($('field-expectedValue')).trim() : null;
     if (values.kind === 'value-contains' && !expected)
@@ -840,7 +840,7 @@ function editValidation(step, rule) {
     references.set(label, id);
     return label;
   });
-  modal('עריכת תנאי התקדמות — שלב ' + step.order, [
+  modal(uiMessage('עריכת תנאי התקדמות — שלב ') + step.order, [
     {name:'kind',label:'מתי המערכת תעבור לשלב הבא?',value:kind,choices:validationChoices},
     {name:'expectedValue',label:'ערך צפוי',value:display,max:500,multiline:true,optional:true,
       help:'אפשר לשלב טקסט ומשתנים בערך הצפוי.'}
@@ -1577,19 +1577,19 @@ document.addEventListener('submit', event => {
 
 function modal(title, fields, submit, buttonText='שמירה') {
   modalReturnFocus = document.activeElement;
-  $('dialog-title').textContent=title;
+  $('dialog-title').textContent=uiMessage(title);
   $('dialog-notice')?.remove();
   $('dialog-fields').innerHTML='<div class="fields">' + fields.map(f=>{
-    const label='<label for="field-'+f.name+'">'+esc(f.label)+'</label>';
+    const label='<label for="field-'+f.name+'">'+esc(uiMessage(f.label))+'</label>';
     const helpId='help-'+f.name;
     const helpAttr=f.help?' aria-describedby="'+helpId+'"':'';
     const requiredAttr=f.optional?'':' required';
-    const field=f.choices?'<select id="field-'+f.name+'" name="'+f.name+'"'+helpAttr+requiredAttr+'>'+f.choices.map(v=>'<option value="'+esc(v.value)+'" '+(v.value===f.value?'selected':'')+'>'+esc(v.text)+'</option>').join('')+'</select>'
+    const field=f.choices?'<select id="field-'+f.name+'" name="'+f.name+'"'+helpAttr+requiredAttr+'>'+f.choices.map(v=>'<option value="'+esc(v.value)+'" '+(v.value===f.value?'selected':'')+'>'+esc(uiMessage(v.text))+'</option>').join('')+'</select>'
     :f.multiline?'<textarea id="field-'+f.name+'" name="'+f.name+'"'+helpAttr+requiredAttr+' maxlength="'+(f.max||4000)+'" rows="3">'+esc(f.value||'')+'</textarea>'
     :'<input id="field-'+f.name+'" name="'+f.name+'"'+helpAttr+' value="'+esc(f.value||'')+'" maxlength="'+(f.max||256)+'" '+(f.readonly?'readonly ':'')+(f.optional?'':'required')+'>';
-    return '<div class="field">'+label+field+(f.help?'<div class="field-help" id="'+helpId+'">'+esc(f.help)+'</div>':'')+'</div>';
+    return '<div class="field">'+label+field+(f.help?'<div class="field-help" id="'+helpId+'">'+esc(uiMessage(f.help))+'</div>':'')+'</div>';
   }).join('')+'</div>';
-  $('submit-dialog').textContent=buttonText;
+  $('submit-dialog').textContent=uiMessage(buttonText);
   const form=$('editor-form');
   form.noValidate = true;
   form.onsubmit=e=>{
@@ -2023,8 +2023,8 @@ function screenElementPresentation(runtime, element, locators) {
 }
 function renderScreenElementDetails(item) {
   return '<p class="target-name-line"><strong>' + esc(item.name) + '</strong></p>' +
-    '<p class="field-help">סוג רכיב: ' + esc(item.type) + '</p>' +
-    (item.content ? '<p>זיהוי לפי תוכן: <strong class="target-business-value-preview">' +
+    '<p class="field-help">' + esc(uiMessage('סוג רכיב: ')) + esc(item.type) + '</p>' +
+    (item.content ? '<p>' + esc(uiMessage('זיהוי לפי תוכן: ')) + '<strong class="target-business-value-preview">' +
       friendlyInstructionHtml(item.content) + '</strong></p>' : '');
 }
 function renderScreenElementActions(isActionTarget, index) {
@@ -2058,7 +2058,7 @@ async function editPrimaryTargetValue({kind, step, locators, binding:preparedBin
   // Resolve variables from the guide, regardless of which element role is edited.
   current.variables = await api('/guides/' + current.guide.id + '/variables');
   const supportsAny = !!binding.buildAny || !!binding.any;
-  modal('עריכת רכיב במסך — שלב ' + step.order, [
+  modal(uiMessage('עריכת רכיב במסך — שלב ') + step.order, [
     {name:'locatorValue', label:'ערך לזיהוי הרכיב', value:binding.value,
       multiline:true, max:400, optional:!!binding.any}
   ], async values => {
@@ -2280,7 +2280,7 @@ function editStep(step, assignedContextId) {
   const contexts = current.contexts;
   const selectedContext = contexts.some(c => c.ContextId === assignedContextId)
     ? assignedContextId : contexts[0]?.ContextId;
-  modal('עריכת שלב ' + step.order, [
+  modal(uiMessage('עריכת שלב ') + step.order, [
     {name:'contextId',label:'אפליקציית יעד',value:selectedContext,
      choices:contexts.map(c => ({value:c.ContextId,text:appLabel(c)}))},
     {name:'bubble', label:'טקסט הבועית', value:String(step.bubble || '').replace(/\{\{var:([^}]+)\}\}/g, (_, id) => {
