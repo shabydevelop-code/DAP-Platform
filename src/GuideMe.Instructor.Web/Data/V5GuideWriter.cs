@@ -1273,7 +1273,8 @@ WHERE GuideId=$guideId AND StepId=$stepId AND UsageId=$usageId AND Purpose='Comp
         }
         if (replacing)
         {
-            check.Parameters.AddWithValue("$usageId", usageId);
+            // $usageId was already bound for the preceding StepTargets lookup.
+            // Adding it twice leaves SQLite with an unbound duplicate parameter.
             check.CommandText = @"SELECT RuleOrder FROM StepRules WHERE GuideId=$guideId
 AND StepId=$stepId AND RuleType='AdditionalCompletionCondition' AND TargetUsageId=$usageId";
             var savedOrder = ReadCheck("lookup");
