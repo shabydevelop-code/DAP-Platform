@@ -399,5 +399,7 @@
   "בחר אפליקציה אחת או יותר מבין האפליקציות הפתוחות. הזיהוי יישמר אוטומטית.": "Select one or more open applications. Their identification will be saved automatically.",
   "רענון אפליקציות": "Refresh applications",
   "תוסף Instructor אינו מחובר — רשימת אתרי Web אינה זמינה.": "Instructor extension is disconnected — the list of Web sites is unavailable.",
-  "לא אותרו אפליקציות. פתח אתר ב־Chrome או תוכנת Windows ולאחר מכן לחץ רענון.": "No applications found. Open a site in Chrome or a Windows application, then refresh."
+  "לא אותרו אפליקציות. פתח אתר ב־Chrome או תוכנת Windows ולאחר מכן לחץ רענון.": "No applications found. Open a site in Chrome or a Windows application, then refresh.",
+  "סוג רכיב: ": "Element type: ",
+  "זיהוי לפי תוכן: ": "Identified by content: "
 }
