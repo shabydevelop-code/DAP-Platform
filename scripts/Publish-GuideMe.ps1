@@ -102,7 +102,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $Destination 'GuideMe.exe') -PathTyp
 # on first installation / after a missing manifest.
 if ([string]::Equals($destinationCanonical, $activeCanonical,
     [StringComparison]::OrdinalIgnoreCase)) {
-    $manifestPath = Join-Path $env:LOCALAPPDATA 'GuideMe\NativeMessaging\com.guideme.web_runtime.json'
+    $manifestPath = Join-Path $Destination 'NativeMessaging\com.guideme.web_runtime.json'
     if ([string]::IsNullOrWhiteSpace($ExtensionId)) {
         if (Test-Path -LiteralPath $manifestPath -PathType Leaf) {
             try {
