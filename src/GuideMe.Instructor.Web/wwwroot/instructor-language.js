@@ -391,6 +391,20 @@ Object.assign(instructorLabels, {
   "מושבת": "Disabled",
   "כותרת (H": "Heading (H"
 });
+Object.assign(instructorLabels, {
+  "שגיאה בתקשורת עם השרת המקומי (": "Local server communication error (",
+  "נמצאו כמה לשוניות מתאימות. הקלד את מספר הלשונית:\\n": "Multiple matching tabs found. Enter the tab number:\n",
+  "לא ניתן להפעיל את ממפה הרכיבים:": "Unable to start element picker:",
+  "האפליקציה משויכת לשלבים בלומדה": "The application is assigned to guide steps",
+  "למחוק את שלב": "Delete step",
+  "ה־Learner הופעל משלב": "Learner started at step",
+  "עריכת תנאי השלמה — שלב": "Edit completion condition — Step",
+  "עריכת תנאי התקדמות — שלב": "Edit progression condition — Step",
+  "עריכת רכיב במסך — שלב": "Edit screen element — Step",
+  "הלומדה נוצרה עם": "Guide created with",
+  "הלומדה \"": "Guide \"",
+  "ממפה פעיל: העבר עכבר מעל רכיב ולחץ Ctrl+Shift+Space לבחירה (Esc לביטול).": "Picker active: hover over an element and press Ctrl+Shift+Space to select (Esc to cancel)."
+});
 const reverseInstructorLabels = Object.fromEntries(
   Object.entries(instructorLabels).map(([he, en]) => [en, he]));
 const originalText = new WeakMap();
