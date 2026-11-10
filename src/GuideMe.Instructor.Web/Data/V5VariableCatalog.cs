@@ -114,6 +114,7 @@ internal static class V5VariableCatalog
             throw new InvalidOperationException("לא ניתן לשנות שם משתנה שנמצא בשימוש בלומדה.");
         command.CommandText = @"UPDATE GuideVariables SET DisplayName=$name,InitialValue=$value
             WHERE GuideId=$guide AND VariableId=$id";
+        command.Parameters.Clear();
         command.Parameters.AddWithValue("$guide", guideId);
         command.Parameters.AddWithValue("$id", variableId);
         command.Parameters.AddWithValue("$name", name);
