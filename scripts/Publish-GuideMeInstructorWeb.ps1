@@ -4,6 +4,13 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+# Keep the Instructor preference independent of Learner and preserve it on republish.
+$languageDir = Join-Path 'C:\GuideMe' 'Localization'
+$instructorLanguagePath = Join-Path $languageDir 'instructor.language.json'
+if (-not (Test-Path -LiteralPath $instructorLanguagePath)) {
+    New-Item -ItemType Directory -Path $languageDir -Force | Out-Null
+    [IO.File]::WriteAllText($instructorLanguagePath, "{`"language`":`"he`"}", [Text.UTF8Encoding]::new($false))
+}
 $root = Split-Path -Parent $PSScriptRoot
 $project = Join-Path $root 'src\GuideMe.Instructor.Web\GuideMe.Instructor.Web.csproj'
 $source = Join-Path $root 'src\GuideMe.Instructor.ChromeExtension'
