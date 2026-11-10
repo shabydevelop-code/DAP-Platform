@@ -550,3 +550,16 @@ html[dir="ltr"] #editor-dialog .field,
 html[dir="ltr"] #editor-dialog .field-help { direction: ltr; text-align: left; }
 html[dir="ltr"] #editor-dialog .field label { text-align: left; }
 html[dir="ltr"] #editor-dialog .dialog-actions { direction: ltr; }
+
+/* Instructor locale direction applies to chrome, not captured business values. */
+html[dir="ltr"] .step-editor-head,
+html[dir="ltr"] .step-friendly-card,
+html[dir="ltr"] .screen-target-bubble,
+html[dir="ltr"] .completion-card,
+html[dir="ltr"] .guide-variables-section,
+html[dir="ltr"] .field-help { direction: ltr; text-align: left; }
+html[dir="ltr"] .step-editor-head h2,
+html[dir="ltr"] .step-friendly-card h3,
+html[dir="ltr"] .screen-target-bubble > h3,
+html[dir="ltr"] .completion-card h3 { text-align: left; }
+html[dir="ltr"] .screen-target-bubble .target-name-line { justify-content: flex-start; }
