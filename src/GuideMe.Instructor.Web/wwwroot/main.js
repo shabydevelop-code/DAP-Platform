@@ -1,6 +1,9 @@
 "use strict";
 const token = document.querySelector('meta[name="guideme-session"]').content;
 const $ = id => document.getElementById(id);
+const uiMessage = message => window.instructorT ? window.instructorT(message) : String(message);
+const confirm = message => window.confirm(uiMessage(message));
+const prompt = (message, initialValue) => window.prompt(uiMessage(message), initialValue);
  // Keep one live session per open Instructor page. The server terminates
  // after the last window closes; reloads are tolerated by a short grace period.
  let windowSocket;
@@ -59,7 +62,7 @@ async function api(path, options = {}) {
   if (!response.ok) {
     let body = await response.text();
     try { const err = JSON.parse(body); body = err.message || err.detail || err.title || body; } catch {}
-    throw new Error(body || 'שגיאה בתקשורת עם השרת המקומי (' + response.status + ')');
+    throw new Error(uiMessage(body || 'שגיאה בתקשורת עם השרת המקומי (' + response.status + ')'));
   }
   return response.status === 204 ? null : response.json();
 }
@@ -83,7 +86,7 @@ function notify(message, error = false, kind = "success") {
       const fields = $('dialog-fields');
       fields?.parentNode?.insertBefore(inline, fields);
     }
-    inline.textContent = String(message);
+    inline.textContent = uiMessage(message);
     inline.hidden = false;
     return;
   }
@@ -99,7 +102,7 @@ function notify(message, error = false, kind = "success") {
   el.append(symbol);
   const text = document.createElement('span');
   text.className = 'notice-text';
-  text.textContent = message;
+  text.textContent = uiMessage(message);
   el.append(text);
   el.setAttribute('role', error || type === 'warning' ? 'alert' : 'status');
   if (error || type === 'warning') {
