@@ -303,7 +303,22 @@
     inspectHoveredElement();
     if (!highlighted || !highlighted.isConnected) return;
     const target = highlighted;
-    const selector = selectorFor(target);
+    let selector = selectorFor(target);
+    // A cell's nth-of-type position is not its identity: rows can be sorted.
+    // Capture a unique semantic row identity and retain the selected column.
+    const pickedCell = target.closest('td,th');
+    const pickedRow = pickedCell?.closest('tbody tr');
+    const pickedTable = pickedRow?.closest('table');
+    if (pickedCell && pickedRow && pickedTable && target === pickedCell) {
+      const tableSelector = selectorFor(pickedTable);
+      const rows = [...pickedTable.querySelectorAll('tbody tr')];
+      const column = [...pickedRow.cells].indexOf(pickedCell) + 1;
+      const value = pickedCell.textContent.replace(/\s+/g, ' ').trim();
+      if (tableSelector && column > 0 && value && value.length <= 120 &&
+          rows.filter(row => row.cells[column - 1]?.textContent.replace(/\s+/g, ' ').trim() === value).length === 1)
+        selector = tableSelector + ' tbody tr:cell-text(' + column + ',' +
+          JSON.stringify(value) + '):cell-target(' + column + ')';
+    }
     if (!selector) {
       try { chrome.runtime.sendMessage({type:"guideme-instructor-pick-error",reason:"לא ניתן ליצור מזהה CSS ייחודי לרכיב המסומן."}).catch(()=>{}); } catch {}
       return;
