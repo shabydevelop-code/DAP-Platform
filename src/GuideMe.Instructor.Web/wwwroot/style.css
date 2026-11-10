@@ -537,9 +537,7 @@ body .brand-heading strong span { font-size: 26px; }
   margin-top: 0;
 }
 
-/* Instructor language follows the selected document direction, without changing global typography. */
-#instructor-language{font:inherit;min-width:92px;padding:6px 9px;border:1px solid #d6e1ed;border-radius:7px;background:#fff;color:inherit}
-#instructor-language-label{font:inherit;white-space:nowrap}
+
 html[dir="ltr"] .topbar,html[dir="ltr"] .panel,html[dir="ltr"] .inspector,html[dir="ltr"] dialog{text-align:left}
 html[dir="ltr"] .nav-item{text-align:left}
 html[dir="ltr"] .shell{direction:ltr}
