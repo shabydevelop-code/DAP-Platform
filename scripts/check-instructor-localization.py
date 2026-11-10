@@ -7,24 +7,33 @@ Run with --strict to fail if a UI candidate is missing from the dictionary.
 from pathlib import Path
 import re
 import sys
+import json
 
 root = Path(__file__).resolve().parents[1]
 web = root / "src/GuideMe.Instructor.Web/wwwroot"
 dictionary = (web / "instructor-language.js").read_text(encoding="utf-8")
 sources = [web / name for name in ("main.js", "any-value-ui.js")]
 hebrew = re.compile(r"[\u0590-\u05ff]")
-dictionary_keys = set(re.findall(r'^\s*"([^"]*[\u0590-\u05ff][^"]*)"\s*:', dictionary, re.M))
+dictionary_keys = set()
+for match in re.finditer(r'^\s*("(?:\\.|[^"\\])*")\s*:', dictionary, re.M):
+    try:
+        key = json.loads(match.group(1))
+        if hebrew.search(key):
+            dictionary_keys.add(key)
+    except json.JSONDecodeError:
+        pass
 # This is a source-level audit; values built through concatenation require manual review.
-quoted = re.compile(r"""(['"])([^\r\n]*?[\u0590-\u05ff][^\r\n]*?)\1""")
+# Match one JavaScript string token at a time, honoring escaped quotes.
+# The previous regex crossed adjacent literals and reported code fragments.
+quoted = re.compile(r"""(['"])((?:\\.|(?!\1)[^\\\r\n])*)\1""")
 missing = []
 for source in sources:
     for number, line in enumerate(source.read_text(encoding="utf-8").splitlines(), 1):
         for match in quoted.finditer(line):
-            candidate = match.group(2).strip()
-            if not candidate or candidate in dictionary_keys:
+            candidate = match.group(2).replace(r"\'", "'").replace(r'\"', '"').strip()
+            if not hebrew.search(candidate) or candidate in dictionary_keys:
                 continue
-            # Ignore regexes and HTML attribute fragments; review them separately.
-            if len(candidate) > 240 or candidate.startswith(("/", "<")) or "<" in candidate or ">" in candidate or "aria-" in candidate or "label:" in candidate:
+            if len(candidate) > 240 or candidate.startswith(("/", "<")) or "<" in candidate or ">" in candidate:
                 continue
             missing.append((source.name, number, candidate))
 # HTML is parsed separately: the previous quoted-string regex incorrectly
