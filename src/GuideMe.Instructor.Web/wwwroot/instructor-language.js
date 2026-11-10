@@ -132,13 +132,14 @@ Object.assign(instructorLabels, {
 const reverseInstructorLabels = Object.fromEntries(
   Object.entries(instructorLabels).map(([he, en]) => [en, he]));
 const originalText = new WeakMap();
+const authoredContentSelector = "[contenteditable],textarea,input,#detail-name,.step-summary-rich,.step-body,.variable-name,.variable-value,.guide-name,.guide-identity,.validation-expected-preview";
 const originalAttributes = new WeakMap();
 let instructorLanguage = "he";
 function translateInstructor(root = document) {
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   let node;
   while ((node = walker.nextNode())) {
-    if (node.parentElement?.closest("script,style,textarea,[contenteditable],#guides-table,#step-list,#step-inspector,#contexts-list,#guide-variables-list,#dialog-fields,#notice")) continue;
+    if (node.parentElement?.closest("script,style," + authoredContentSelector)) continue;
     const source = originalText.get(node) ?? node.nodeValue;
     if (!originalText.has(node)) originalText.set(node, source);
     const trimmed = source.trim();
@@ -146,16 +147,18 @@ function translateInstructor(root = document) {
     const translation = instructorLanguage === "en"
       ? (instructorLabels[trimmed] ?? trimmed)
       : (reverseInstructorLabels[trimmed] ?? trimmed);
-    node.nodeValue = source.replace(trimmed, translation);
+    const next = source.replace(trimmed, translation);
+    if (node.nodeValue !== next) node.nodeValue = next;
   }
-  for (const element of root.querySelectorAll("[placeholder],[aria-label]")) {
-    for (const attr of ["placeholder", "aria-label"]) {
+  for (const element of root.querySelectorAll("[placeholder],[aria-label],[title]")) {
+    for (const attr of ["placeholder", "aria-label", "title"]) {
       if (!element.hasAttribute(attr)) continue;
       let originals = originalAttributes.get(element);
       if (!originals) { originals = {}; originalAttributes.set(element, originals); }
       if (!(attr in originals)) originals[attr] = element.getAttribute(attr);
       const source = originals[attr];
-      element.setAttribute(attr, instructorLanguage === "en" ? (instructorLabels[source] ?? source) : source);
+      const next = instructorLanguage === "en" ? (instructorLabels[source] ?? source) : source;
+      if (element.getAttribute(attr) !== next) element.setAttribute(attr, next);
     }
   }
   document.documentElement.lang = instructorLanguage;
@@ -170,6 +173,23 @@ document.addEventListener("DOMContentLoaded", async () => {
   } catch (error) { console.error("Instructor language:", error); }
   select.value = instructorLanguage;
   translateInstructor();
+  // Dynamic Inspector and dialogs are rendered after initial page load.
+  // Observe inserted UI while excluding editable and authored guide content.
+  const observer = new MutationObserver(records => {
+    for (const record of records) {
+      if (record.type === "characterData") {
+        const node = record.target;
+        if (node.parentElement && !node.parentElement.closest(authoredContentSelector))
+          translateInstructor(node.parentElement);
+      } else {
+        for (const node of record.addedNodes) {
+          if (node.nodeType === Node.ELEMENT_NODE && !node.matches(authoredContentSelector))
+            translateInstructor(node);
+        }
+      }
+    }
+  });
+  observer.observe(document.body, { subtree: true, childList: true, characterData: true });
   select.addEventListener("change", async () => {
     const next = select.value;
     try {
