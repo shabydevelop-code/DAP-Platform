@@ -8,54 +8,6 @@ namespace GuideMe.Instructor.Web.Data;
 // Explicitly scoped writer: creates only a Guides row; no schema changes or step data.
 internal static class V5GuideWriter
 {
-    internal static void EnsureCompletionRuleOrder()
-    {
-        if (!File.Exists(V5GuideReader.DatabasePath))
-            return;
-        using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
-        {
-            DataSource = V5GuideReader.DatabasePath, Mode = SqliteOpenMode.ReadWrite,
-            Pooling = false, DefaultTimeout = 3
-        }.ToString());
-        connection.Open();
-        using var transaction = connection.BeginTransaction();
-        using var command = connection.CreateCommand();
-        command.Transaction = transaction;
-        command.CommandText = "SELECT COUNT(*) FROM pragma_table_info('StepRules') WHERE name='RuleOrder'";
-        if (Convert.ToInt64(command.ExecuteScalar()) == 0)
-        {
-            command.CommandText = "ALTER TABLE StepRules ADD COLUMN RuleOrder INTEGER";
-            command.ExecuteNonQuery();
-        }
-        // One-time ordering of existing targets by their original element insertion.
-        // Thereafter the order belongs to the screen element, not to its role.
-        command.CommandText = "SELECT COUNT(*) FROM pragma_table_info('StepTargets') WHERE name='DisplayOrder'";
-        if (Convert.ToInt64(command.ExecuteScalar()) == 0)
-        {
-            command.CommandText = "ALTER TABLE StepTargets ADD COLUMN DisplayOrder INTEGER";
-            command.ExecuteNonQuery();
-        }
-        command.CommandText = @"UPDATE StepTargets SET DisplayOrder = (
-            SELECT COUNT(*) FROM StepTargets earlier
-            JOIN Elements eEarlier ON eEarlier.GuideId=earlier.GuideId AND eEarlier.ElementId=earlier.ElementId
-            JOIN Elements eCurrent ON eCurrent.GuideId=StepTargets.GuideId AND eCurrent.ElementId=StepTargets.ElementId
-            WHERE earlier.GuideId=StepTargets.GuideId AND earlier.StepId=StepTargets.StepId
-              AND (eEarlier.rowid < eCurrent.rowid OR
-                   (eEarlier.rowid = eCurrent.rowid AND earlier.rowid <= StepTargets.rowid)))
-            WHERE DisplayOrder IS NULL";
-        command.ExecuteNonQuery();
-        // Preserve any existing positions; use physical insertion order only for legacy rows.
-        command.CommandText = @"UPDATE StepRules SET RuleOrder = (
-            SELECT COUNT(*) FROM StepRules AS previous
-            WHERE previous.GuideId = StepRules.GuideId
-              AND previous.StepId = StepRules.StepId
-              AND previous.RuleType = 'AdditionalCompletionCondition'
-              AND previous.rowid <= StepRules.rowid)
-            WHERE RuleType = 'AdditionalCompletionCondition' AND RuleOrder IS NULL";
-        command.ExecuteNonQuery();
-        transaction.Commit();
-    }
-
     // A bare host:port (e.g. localhost:5200) must not be interpreted as a URI scheme.
     private static string NormalizeWebAuthority(string value)
     {
