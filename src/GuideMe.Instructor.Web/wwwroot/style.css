@@ -542,3 +542,11 @@ html[dir="ltr"] .topbar,html[dir="ltr"] .panel,html[dir="ltr"] .inspector,html[d
 html[dir="ltr"] .nav-item{text-align:left}
 html[dir="ltr"] .shell{direction:ltr}
 html[dir="ltr"] input,html[dir="ltr"] textarea,html[dir="ltr"] select{direction:inherit}
+
+/* English Instructor dialogs follow LTR alignment, independent of authored application titles. */
+html[dir="ltr"] #editor-dialog,
+html[dir="ltr"] #editor-dialog .fields,
+html[dir="ltr"] #editor-dialog .field,
+html[dir="ltr"] #editor-dialog .field-help { direction: ltr; text-align: left; }
+html[dir="ltr"] #editor-dialog .field label { text-align: left; }
+html[dir="ltr"] #editor-dialog .dialog-actions { direction: ltr; }
