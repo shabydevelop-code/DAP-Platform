@@ -459,7 +459,7 @@ function renderSteps() {
       '</div>' +
       ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') ?
         '<div class="identity-targets">' +
-        (target ? '<button class="btn secondary small" id="add-identity">הוספת מזהה אימות</button>' :
+        (target ? '<button class="btn secondary small" id="add-identity">הוספת רכיב במסך</button>' :
           '<p>יש לבחור תחילה רכיב במסך.</p>') +
         '<div id="identity-pick-result" class="screen-target-bubble screen-target-capture hidden" aria-live="polite"></div></div>' : '') +
       '</section>' +
