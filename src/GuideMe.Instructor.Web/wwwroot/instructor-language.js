@@ -56,7 +56,6 @@ function translateInstructor(root = document) {
   document.documentElement.dir = instructorLanguage === "he" ? "rtl" : "ltr";
 }
 document.addEventListener("DOMContentLoaded", async () => {
-  const select = document.getElementById("instructor-language");
   try {
     const catalogResponse = await fetch("/api/instructor/localization/en", { cache: "no-store" });
     if (!catalogResponse.ok) throw new Error("Failed to load Instructor translations");
@@ -73,7 +72,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!response.ok) throw new Error("Failed to load language");
     instructorLanguage = (await response.json()).language;
   } catch (error) { console.error("Instructor language:", error); }
-  select.value = instructorLanguage;
   translateInstructor();
   // Dynamic Inspector and dialogs are rendered after initial page load.
   // Observe inserted UI while excluding editable and authored guide content.
@@ -94,20 +92,5 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   });
   observer.observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ["placeholder", "aria-label", "title"] });
-  select.addEventListener("change", async () => {
-    const next = select.value;
-    try {
-      const response = await fetch("/api/instructor/language", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ language: next })
-      });
-      if (!response.ok) throw new Error("Failed to save language");
-      instructorLanguage = next;
-      translateInstructor();
-    } catch (error) {
-      select.value = instructorLanguage;
-      console.error("Instructor language:", error);
-    }
-  });
+
 });
