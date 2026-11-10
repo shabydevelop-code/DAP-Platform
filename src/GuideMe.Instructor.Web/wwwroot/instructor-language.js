@@ -405,6 +405,18 @@ Object.assign(instructorLabels, {
   "הלומדה \"": "Guide \"",
   "ממפה פעיל: העבר עכבר מעל רכיב ולחץ Ctrl+Shift+Space לבחירה (Esc לביטול).": "Picker active: hover over an element and press Ctrl+Shift+Space to select (Esc to cancel)."
 });
+Object.assign(instructorLabels, {
+  "סגירת הודעה": "Close notification",
+  ", מושבת": ", disabled",
+  "\n\nהשלב, הרכיבים וכללי ההתקדמות הייחודיים לו יימחקו לצמיתות.": "\n\nThe step, its elements, and its progression rules will be permanently deleted.",
+  " — הערך המלא": " — full value",
+  " — המספר מתוך הערך": " — number extracted from value",
+  "האפליקציה משויכת לשלבים בלומדה": "The application is assigned to guide steps",
+  " אפליקציות.": " applications.",
+  "הקלד את שם הלומדה לאישור מחיקה": "Enter the guide name to confirm deletion",
+  "מה להציג ללומד?": "What should the learner see?",
+  "טקסט הבועית": "Bubble text"
+});
 const reverseInstructorLabels = Object.fromEntries(
   Object.entries(instructorLabels).map(([he, en]) => [en, he]));
 const originalText = new WeakMap();
