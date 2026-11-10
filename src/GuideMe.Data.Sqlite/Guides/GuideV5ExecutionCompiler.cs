@@ -48,7 +48,20 @@ public static class GuideV5ExecutionCompiler
                 if (!Enum.TryParse<AnchorRelation>(relation.Relation, out var kind))
                     throw new InvalidOperationException($"Invalid relation '{relation.Relation}'.");
                 var l = anchor.Locators[0];
-                return new Anchor(new Locator(l.Strategy, l.Value), kind);
+                // A captured ancestor can have the same changing name as its child
+                // (for example a grid row and its case-number text). When the
+                // primary locator is replaced with a variable, keep that matching
+                // ancestor bound to the same value instead of the captured number.
+                var primary = element.Locators[0];
+                var value = runtime == TargetRuntime.Windows
+                    && string.Equals(primary.Strategy, "name", StringComparison.OrdinalIgnoreCase)
+                    && primary.Value.StartsWith("{{var:", StringComparison.Ordinal)
+                    && primary.Value.EndsWith("}}", StringComparison.Ordinal)
+                    && string.Equals(l.Strategy, "name", StringComparison.OrdinalIgnoreCase)
+                    && !string.IsNullOrEmpty(element.DisplayName)
+                    && string.Equals(l.Value, element.DisplayName, StringComparison.Ordinal)
+                    ? primary.Value : l.Value;
+                return new Anchor(new Locator(l.Strategy, value), kind);
             }).ToArray();
             FrameContext? frame = null;
             if (element.FrameContextJson is not null)
