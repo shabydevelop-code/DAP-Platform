@@ -2313,10 +2313,10 @@ function editStep(step, assignedContextId) {
 async function refreshExtensionStatus() {
   try {
     const state = await api('/capture/status');
-    $('capture-status').textContent = state.connected ? 'תוסף מחובר' : 'תוסף לא מחובר';
+    $('capture-status').textContent = uiMessage(state.connected ? 'תוסף מחובר' : 'תוסף לא מחובר');
     $('capture-status').classList.toggle('disconnected', !state.connected);
   } catch {
-    $('capture-status').textContent = 'התוסף אינו זמין';
+    $('capture-status').textContent = uiMessage('התוסף אינו זמין');
     $('capture-status').classList.add('disconnected');
   }
 }
