@@ -157,8 +157,29 @@ public partial class MainWindow : Window
     }
     async Task ShowLead(int? id,int sid)
     {
-        var fresh=id==null;var x=fresh?new Lead(0,sid,"אתר אינטרנט","","חדש","","",""):await api.GetLeadAsync(id!.Value);if(x==null)return;var s=await api.GetSiteAsync(sid);if(s==null)return;var customer=await api.GetCustomerAsync(s.CustomerId);if(customer==null)return;Crumbs(("פורטל לקוחות",()=>ShowSearch()),(customer.Name,()=>ShowCustomer(s.CustomerId)),(s.Name,()=>ShowSite(sid,"leads")),(fresh?"ליד חדש":"ליד "+id,null));var v=V();v.Children.Add(new TextBlock{Text="ליד",FontSize=14,FontWeight=FontWeights.SemiBold});v.Children.Add(new TextBlock{Text=fresh?"ליד חדש":"ליד "+id,FontSize=24});var src=C("LeadSource",["","אתר אינטרנט","הפניה","קמפיין","טלפון"],x.Source); var contact=T("LeadContactName",x.ContactName); var st=C("LeadStatus",["","חדש","בתהליך","נסגר בהצלחה","נסגר ללא עסקה"],x.Status); var notes=T("LeadNotes",x.Notes); var service=C("LeadSelectedService",["","חבילת שירות","שדרוג מערכת","הדרכה","תמיכה מורחבת"],x.SelectedService); var lost=C("LeadLostReason",["","מחיר","נדחה למועד אחר","בחר ספק אחר","לא רלוונטי"],x.LostReason);F(v,"מקור *",src);F(v,"איש קשר *",contact);F(v,"סטטוס *",st);F(v,"הערות",notes);if(x.Status=="נסגר בהצלחה")F(v,"שירות שנבחר *",service);if(x.Status=="נסגר ללא עסקה")F(v,"סיבת אי-סגירה *",lost);
-        st.SelectionChanged+=async(_,_)=>{if(!fresh&&st.SelectedItem is string q)await Safe(async()=>{var change=await api.LeadStatusChangedAsync(id!.Value,q);service.SelectedItem=change.SelectedService;lost.SelectedItem=change.LostReason;if(change.Status=="נסגר בהצלחה"){if(service.Parent is null)F(v,"שירות שנבחר *",service);}else if(service.Parent is Panel serviceParent)serviceParent.Children.Remove(service);if(change.Status=="נסגר ללא עסקה"){if(lost.Parent is null)F(v,"סיבת אי-סגירה *",lost);}else if(lost.Parent is Panel lostParent)lostParent.Children.Remove(lost);});};
+        var fresh=id==null;var x=fresh?new Lead(0,sid,"אתר אינטרנט","","חדש","","",""):await api.GetLeadAsync(id!.Value);if(x==null)return;var s=await api.GetSiteAsync(sid);if(s==null)return;var customer=await api.GetCustomerAsync(s.CustomerId);if(customer==null)return;Crumbs(("פורטל לקוחות",()=>ShowSearch()),(customer.Name,()=>ShowCustomer(s.CustomerId)),(s.Name,()=>ShowSite(sid,"leads")),(fresh?"ליד חדש":"ליד "+id,null));var v=V();v.Children.Add(new TextBlock{Text="ליד",FontSize=14,FontWeight=FontWeights.SemiBold});v.Children.Add(new TextBlock{Text=fresh?"ליד חדש":"ליד "+id,FontSize=24});var src=C("LeadSource",["","אתר אינטרנט","הפניה","קמפיין","טלפון"],x.Source); var contact=T("LeadContactName",x.ContactName); var st=C("LeadStatus",["","חדש","בתהליך","נסגר בהצלחה","נסגר ללא עסקה"],x.Status); var notes=T("LeadNotes",x.Notes); var service=C("LeadSelectedService",["","חבילת שירות","שדרוג מערכת","הדרכה","תמיכה מורחבת"],x.SelectedService); var lost=C("LeadLostReason",["","מחיר","נדחה למועד אחר","בחר ספק אחר","לא רלוונטי"],x.LostReason);F(v,"מקור *",src);F(v,"איש קשר *",contact);F(v,"סטטוס *",st);F(v,"הערות",notes);
+        // Create conditional field rows only once. Removing the inner ComboBox leaves
+        // its label/row in the visual tree and duplicates them on every status change.
+        F(v,"שירות שנבחר *",service);
+        F(v,"סיבת אי-סגירה *",lost);
+        var serviceRow=(UIElement)((FrameworkElement)service.Parent).Parent;
+        var lostRow=(UIElement)((FrameworkElement)lost.Parent).Parent;
+        void UpdateLeadConditionalFields(string status)
+        {
+            serviceRow.Visibility=status=="נסגר בהצלחה" ? Visibility.Visible : Visibility.Collapsed;
+            lostRow.Visibility=status=="נסגר ללא עסקה" ? Visibility.Visible : Visibility.Collapsed;
+        }
+        UpdateLeadConditionalFields(x.Status);
+        st.SelectionChanged+=async(_,_)=>{
+            if(st.SelectedItem is not string q)return;
+            if(fresh){UpdateLeadConditionalFields(q);return;}
+            await Safe(async()=>{
+                var change=await api.LeadStatusChangedAsync(id!.Value,q);
+                service.SelectedItem=change.SelectedService;
+                lost.SelectedItem=change.LostReason;
+                UpdateLeadConditionalFields(change.Status);
+            });
+        };
         var saveLead=B("שמור","SaveLeadButton",async(_,_)=>await Safe(async()=>{var input=new LeadInput(src.SelectedItem?.ToString()??"",contact.Text,st.SelectedItem?.ToString()??"",notes.Text,service.SelectedItem?.ToString()??"",lost.SelectedItem?.ToString()??"");if(fresh){var y=await api.CreateLeadAsync(sid,input);await ShowLead(y.Id,sid);}else{await api.SaveLeadAsync(id!.Value,input);await ShowLead(id,sid);}}));
         if(!fresh) A(v,saveLead,B("מחק ליד","DeleteLeadButton",async(_,_)=>await Safe(async()=>{if(MessageBox.Show("למחוק את הליד?","אישור מחיקה",MessageBoxButton.YesNo)==MessageBoxResult.Yes){await api.DeleteLeadAsync(id!.Value);await ShowSite(sid,"leads");}})));
         else A(v,saveLead);
