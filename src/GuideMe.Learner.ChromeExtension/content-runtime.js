@@ -247,7 +247,7 @@
           sendResponse({ok:true,result:{status:result.status,count:result.count,value:null}});
           return;
         }
-        const value = "value" in result.element ? String(result.element.value ?? "") : "";
+        const value = selectedControlValue(result.element);
         sendResponse({ok:true,result:{status:"resolved",count:1,value}});
         return;
       }
