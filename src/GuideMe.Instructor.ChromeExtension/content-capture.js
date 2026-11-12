@@ -116,6 +116,21 @@
       const selector = tag + '[' + CSS.escape(name) + '="' + CSS.escape(value) + '"]';
       if (unique(selector)) return selector;
     }
+    // Prefer a semantic label over framework-generated control attributes.
+    // The Learner resolves this association at runtime, so a regenerated
+    // input ID does not invalidate the locator.
+    if (element.matches('input,select,textarea')) {
+      const labels = [...(element.labels || [])];
+      const labelText = label => (label.textContent || '').replace(/\\s+/g, ' ').trim();
+      for (const label of labels) {
+        const value = labelText(label);
+        if (!value || value.length > 120) continue;
+        const matches = [...document.querySelectorAll('input,select,textarea')]
+          .filter(control => [...(control.labels || [])].some(other => labelText(other) === value));
+        if (matches.length === 1 && matches[0] === element)
+          return tag + ':associated-label(' + JSON.stringify(value) + ')';
+      }
+    }
     // Prefer an identifying class over DOM structure when it is unique.
     for (const selector of simple(element)) {
       if (unique(selector)) return selector;
