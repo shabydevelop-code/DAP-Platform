@@ -425,7 +425,7 @@
     const exactFilters = [];
     const nonempty = source.includes(":nonempty-text");
     const labelFilters = [];
-    const withoutLabels = source.replace(/:associated-label\\(("(?:\\\\.|[^"\\\\])*")\\)/g,
+    const withoutLabels = source.replace(/:associated-label\(("(?:\\.|[^"\\])*")\)/g,
       (_match, quoted) => {
         labelFilters.push(normalize(JSON.parse(quoted)));
         return "";
@@ -470,7 +470,7 @@
     const exactFilters = [];
     const nonempty = source.includes(":nonempty-text");
     const labelFilters = [];
-    const withoutLabels = source.replace(/:associated-label\\(("(?:\\\\.|[^"\\\\])*")\\)/g,
+    const withoutLabels = source.replace(/:associated-label\(("(?:\\.|[^"\\])*")\)/g,
       (_match, quoted) => {
         labelFilters.push(normalize(JSON.parse(quoted)));
         return "";
