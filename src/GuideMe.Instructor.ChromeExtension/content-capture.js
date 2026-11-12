@@ -6,7 +6,6 @@
   let active = true;
   let pickActive = false;
   let highlighted = null;
-  let previousOutline = null;
   let hoverPoll = null;
   let pickerNonce = null;
   const pendingTimers = new Set();
@@ -175,46 +174,50 @@
     return null;
   }
 
-  // Outline is painted by the browser on the actual element's border box.
-  // Unlike a separate positioned overlay it cannot drift when a frame scrolls,
-  // has borders, or applies zoom/transforms. Outline does not affect layout.
+  // A single non-interactive overlay per document avoids modifying application
+  // styles. In particular, repeatedly injected pickers must never leave
+  // outlines on Salesforce modal ancestors or nested controls.
+  let highlightOverlay = null;
   function clearHighlight() {
-    if (highlighted && previousOutline) {
-      for (const property of ['outline', 'outline-offset', 'box-shadow']) {
-        const old = previousOutline[property];
-        if (old.value)
-          highlighted.style.setProperty(property, old.value, old.priority);
-        else
-          highlighted.style.removeProperty(property);
-      }
-    }
     highlighted = null;
-    previousOutline = null;
+    if (highlightOverlay) {
+      highlightOverlay.remove();
+      highlightOverlay = null;
+    }
   }
 
   function showHighlight(target) {
-    if (target === highlighted) return;
+    if (target === highlighted && highlightOverlay?.isConnected) {
+      positionHighlight();
+      return;
+    }
     clearHighlight();
     highlighted = target;
-    previousOutline = {};
-    for (const property of ['outline', 'outline-offset', 'box-shadow']) {
-      previousOutline[property] = {
-        value: target.style.getPropertyValue(property),
-        priority: target.style.getPropertyPriority(property)
-      };
-    }
-    // Keep the highlight inside the viewport of the owning document. A header
-    // filling a short iframe otherwise clips its outside outline entirely.
-    // Preserve and restore the target's original inline styling on cancel.
-    const bounds = target.getBoundingClientRect();
-    const clippedAtEdge = bounds.top < 5 || bounds.left < 5 ||
-      bounds.bottom > document.documentElement.clientHeight - 5 ||
-      bounds.right > document.documentElement.clientWidth - 5;
-    target.style.setProperty('box-shadow', clippedAtEdge
-      ? 'inset 0 0 0 3px #ffdf00, inset 0 0 0 5px #111827'
-      : '0 0 0 2px #111827', 'important');
-    target.style.setProperty('outline', clippedAtEdge ? 'none' : '3px solid #ffdf00', 'important');
-    target.style.setProperty('outline-offset', clippedAtEdge ? '0px' : '2px', 'important');
+    highlightOverlay = document.createElement('div');
+    highlightOverlay.setAttribute('data-guideme-picker-overlay', '');
+    highlightOverlay.style.cssText =
+      'position:fixed!important;pointer-events:none!important;z-index:2147483647!important;' +
+      'box-sizing:border-box!important;border:3px solid #ffdf00!important;' +
+      'box-shadow:inset 0 0 0 2px #111827!important;border-radius:3px!important;' +
+      'margin:0!important;padding:0!important;display:block!important;';
+    document.documentElement.appendChild(highlightOverlay);
+    positionHighlight();
+  }
+
+  function positionHighlight() {
+    if (!highlighted || !highlightOverlay) return;
+    const rect = highlighted.getBoundingClientRect();
+    const viewportWidth = document.documentElement.clientWidth;
+    const viewportHeight = document.documentElement.clientHeight;
+    const left = Math.max(0, rect.left);
+    const top = Math.max(0, rect.top);
+    const right = Math.min(viewportWidth, rect.right);
+    const bottom = Math.min(viewportHeight, rect.bottom);
+    highlightOverlay.style.left = left + 'px';
+    highlightOverlay.style.top = top + 'px';
+    highlightOverlay.style.width = Math.max(0, right - left) + 'px';
+    highlightOverlay.style.height = Math.max(0, bottom - top) + 'px';
+    highlightOverlay.style.visibility = right > left && bottom > top ? 'visible' : 'hidden';
   }
 
   // Relay a selected element through its parent frames. The parent determines
@@ -294,6 +297,7 @@
       ? element
       : element.closest('button,a,input,select,textarea,[role="button"],[role="textbox"],[role="link"]') || element;
     if (target !== highlighted) showHighlight(target);
+    else positionHighlight();
   }
   function pickHover(event) {
     if (!pickActive || !event.isTrusted) return;
