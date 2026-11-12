@@ -785,10 +785,10 @@ function validationLabel(kind) {
 }
 function editCompletionCondition(step, rule, locators) {
   const locator = (locators || [])[0];
-  const binding = locatorTextBinding(locator);
+  const binding = editableLocatorBinding(current?.selectedContext?.Runtime || (locator?.Strategy === 'css' ? 'Web' : 'Windows'), null, locators);
   const fields = [];
   if (binding) fields.push({
-    name:'locatorValue', label:locator?.Strategy === 'css' && /:exact-text\(/.test(locator.Value || '') ? 'זיהוי לפי תוכן' : 'ערך לזיהוי הרכיב', value:binding.value,
+    name:'locatorValue', label:locator?.Strategy === 'css' ? 'זיהוי לפי תוכן' : 'ערך לזיהוי הרכיב', value:binding.value,
     max:400, multiline:true
   });
   fields.push({
@@ -809,12 +809,12 @@ function editCompletionCondition(step, rule, locators) {
       rejectInstructorField($('field-expectedValue'), 'יש להזין ערך צפוי.');
     if (binding) {
       const locatorValue = variableEditorResult($('field-locatorValue')).trim();
-      if (!locatorValue && binding.value)
+      if (!locatorValue && locator?.Strategy !== 'css')
         rejectInstructorField($('field-locatorValue'), 'יש להזין ערך לזיהוי הרכיב.');
       if (locatorValue !== binding.value) {
         await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+
           '/completion-target/variable?completionId='+encodeURIComponent(rule.TargetUsageId),
-          {method:'POST',body:JSON.stringify({locatorValue})});
+          {method:'POST',body:JSON.stringify({locatorValue:binding.build(locatorValue)})});
       }
     }
     await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+
