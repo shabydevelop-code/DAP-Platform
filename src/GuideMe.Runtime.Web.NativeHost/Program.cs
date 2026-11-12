@@ -166,7 +166,14 @@ sealed class GuideMePipeBridge
                     if (string.IsNullOrWhiteSpace(line)) continue;
 
                     using var document = JsonDocument.Parse(line);
-                    await _nativeOutput.SendAsync(document.RootElement.Clone(), cancellationToken);
+                    var message = document.RootElement;
+                    if (message.TryGetProperty("type", out var messageType) &&
+                        messageType.ValueKind == JsonValueKind.String &&
+                        messageType.GetString() is "adapterCommand" or "adapterResponse")
+                    {
+                        _log.Write("runtime-message", line);
+                    }
+                    await _nativeOutput.SendAsync(message.Clone(), cancellationToken);
                 }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -216,6 +223,13 @@ sealed class GuideMePipeBridge
             response = request.Response
         }, _json) + "\n";
         var bytes = Encoding.UTF8.GetBytes(line);
+        if (request.Type == "adapterEvent" &&
+            request.Payload is { } payload &&
+            payload.TryGetProperty("type", out var eventType) &&
+            eventType.GetString() == "validation-commit")
+        {
+            _log.Write("validation-commit-forwarded", line.TrimEnd());
+        }
 
         await _writeGate.WaitAsync(cancellationToken);
         try
