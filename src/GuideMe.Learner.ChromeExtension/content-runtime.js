@@ -1273,7 +1273,10 @@
     if (!root) return requestAnimationFrame(start);
     structuralObserver.observe(root, {
       subtree: true,
-      childList: true
+      childList: true,
+      // A framework can reuse a mounted heading and update only its text.
+      // Such changes must re-evaluate exact-text completion targets.
+      characterData: true
     });
   };
 
