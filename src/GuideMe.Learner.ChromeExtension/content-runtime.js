@@ -987,6 +987,10 @@
     const place=()=>{if(drag)return;if(!el.isConnected){b.style.visibility="hidden";diagnosePlacement("target-disconnected");return}const r=el.getBoundingClientRect();const targetVisible=(()=>{
       if(!(r.width>0&&r.height>0&&r.bottom>0&&r.right>0&&r.top<innerHeight&&r.left<innerWidth))return false;
       for(let parent=el.parentElement;parent;parent=parent.parentElement){
+        // BODY/HTML overflow is applied to the document viewport, not to their
+        // potentially zero-height layout boxes (common in modal SPA shells).
+        // The viewport bounds have already been checked above.
+        if(parent===document.body||parent===document.documentElement)continue;
         const style=getComputedStyle(parent);
         const clipX=/(auto|scroll|hidden|clip)/.test(style.overflowX);
         const clipY=/(auto|scroll|hidden|clip)/.test(style.overflowY);
