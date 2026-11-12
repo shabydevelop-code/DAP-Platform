@@ -2078,7 +2078,10 @@ async function editPrimaryTargetValue({kind, step, locators, binding:preparedBin
       ? '/completion-target/variable?completionId='+encodeURIComponent(identityUsageId)
       : '/primary-target/variable';
     await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+path, {
-      method:'POST', body:JSON.stringify({locatorValue:template, locatorStrategy:nextStrategy})
+      // Only request a strategy transition when the strategy actually changes.
+      // The server rejects unnecessary strategy-change requests.
+      method:'POST', body:JSON.stringify({locatorValue:template,
+        locatorStrategy:nextStrategy && nextStrategy !== locator.Strategy ? nextStrategy : null})
     });
     await reloadSelectedStep(current.guide.id, step.id);
     notify('ערך הרכיב עודכן.');
