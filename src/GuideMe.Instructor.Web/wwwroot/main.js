@@ -1205,18 +1205,18 @@ async function refreshPicker() {
       (candidate.variableSamples || []).find(sample => sample.property === 'text')?.value ??
       (!['input','textarea','select'].includes((candidate.tag || '').toLowerCase())
         ? candidate.label : null);
-  // A stable technical locator is sufficient: never impose the captured label
-  // as an extra content constraint. Preserve text only when the locator itself
-  // already depends on text (or has no technical identity).
-  const hasSemanticContentLocator = requestSession.runtime === 'Web' &&
+  // The picker already captured visible text. Reuse it in the semantic
+  // content editor instead of making the instructor type it a second time.
+  // Form controls keep structural identification; their current values are
+  // mutable user input, not stable identity.
+  const isTextElement = requestSession.runtime === 'Web' &&
+    !['input','textarea','select'].includes((candidate.tag || '').toLowerCase());
+  const hasSemanticContentLocator = isTextElement &&
     (String(candidate.selector || '').includes(':exact-text(') ||
      String(candidate.selector || '').includes(':cell-text('));
-  // Content matching is opt-in. Only prefill when the captured selector
-  // already contains an explicit semantic text matcher; otherwise a stable
-  // structural locator must not acquire a new text constraint.
-  const initialContentValue = hasSemanticContentLocator
+  const initialContentValue = isTextElement
     ? String(selectorText ?? editableContent ?? '').trim()
-    : '';
+    : hasSemanticContentLocator ? String(selectorText ?? '').trim() : '';
   box.innerHTML = '<div class="picked-target-fields" dir="rtl">' +
     '<p><strong>'+esc(candidate.label || candidate.tag || 'רכיב')+'</strong> <span class="picked-target-kind">('+esc(kindLabel)+')</span></p>'+
     ((!pickingFor.completion || pickingFor.completionEdit?.identity) && !pickingFor.variableSource ?
