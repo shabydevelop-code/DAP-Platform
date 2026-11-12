@@ -91,7 +91,7 @@
       const selector = '#' + CSS.escape(element.id);
       if (unique(selector)) return selector;
     }
-    for (const attr of ['data-testid', 'data-test', 'data-qa', 'name', 'aria-label', 'title', 'placeholder']) {
+    for (const attr of ['data-testid', 'data-test', 'data-qa', 'icon-name', 'name', 'aria-label', 'title', 'placeholder']) {
       const value = element.getAttribute(attr);
       if (!stable(value)) continue;
       const selector = tag + '[' + attr + '="' + CSS.escape(value) + '"]';
@@ -293,9 +293,12 @@
     // Text-bearing descendants can be selected independently from an
     // interactive parent (e.g. STRONG inside a clickable HEADER). Keep the
     // normal control grouping for buttons, inputs and links.
-    const target = element.matches('strong,span,h1,h2,h3,h4,h5,h6,p,label')
+    // SVG descendants in Lightning icons belong to the icon's own visual
+    // bounds, not an unrelated layout ancestor. Keep ordinary controls intact.
+    const lightningIcon = element.closest('lightning-icon[icon-name]');
+    const target = lightningIcon || (element.matches('strong,span,h1,h2,h3,h4,h5,h6,p,label')
       ? element
-      : element.closest('button,a,input,select,textarea,[role="button"],[role="textbox"],[role="link"]') || element;
+      : element.closest('button,a,input,select,textarea,[role="button"],[role="textbox"],[role="link"]') || element);
     if (target !== highlighted) showHighlight(target);
     else positionHighlight();
   }
