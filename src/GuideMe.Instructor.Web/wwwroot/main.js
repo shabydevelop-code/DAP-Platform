@@ -1195,7 +1195,7 @@ async function refreshPicker() {
   const editableContent = capturedChoice ? String(capturedChoice.choice.value) :
     selectorText !== null ? selectorText :
     requestSession.runtime === 'Web' && !['input','textarea','select'].includes((candidate.tag || '').toLowerCase())
-      ? String(observedText?.value || '').trim() || null :
+      ? String(observedText?.value || candidate.label || '').trim() || null :
     requestSession.runtime === 'Windows' && String(candidate.label || '').trim()
       ? String(candidate.label).trim() : null;
   // The captured value is the control's actual content, not its label/name.
