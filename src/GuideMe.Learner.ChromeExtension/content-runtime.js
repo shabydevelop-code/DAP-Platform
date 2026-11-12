@@ -128,6 +128,8 @@
           return;
         }
         const el = result.element;
+        if ((el.getAttribute("role") || "").toLowerCase() === "combobox")
+          console.info("[GuideMe validation diagnostic] inspectTarget", {tag:el.tagName, name:el.getAttribute("name"), value:selectedControlValue(el), dataValue:el.getAttribute("data-value")});
         const completionChange = completionRevision(command.target);
         // Observation visibility is distinct from locator resolution. An element
         // can exist in the DOM while hidden by CSS, an ancestor, or a closed
@@ -1114,6 +1116,8 @@
 
     element.__guideMeValidationArmId = normalizedArmId;
     validationState = {step,element,armId:normalizedArmId};
+    if ((element.getAttribute("role") || "").toLowerCase() === "combobox")
+      console.info("[GuideMe validation diagnostic] armed", {stepId:step?.id, kind, armId:normalizedArmId, tag:element.tagName, nativeValue:element.value, dataValue:element.getAttribute("data-value")});
 
     if (kind === "clicked") {
       if (element.__guideMeValidationClickHandler)
@@ -1192,6 +1196,7 @@
         // Blur confirms an existing value too; .NET validation still gates advancement.
         state.changed = false;
         const currentArmId = element.__guideMeValidationArmId;
+        console.info("[GuideMe validation diagnostic] commit", {stepId:step.id, kind, browserEvent:event?.type||eventName, value:selectedControlValue(element)});
         void emitAdapterEvent(
           "validation-commit",
           step,
@@ -1211,6 +1216,8 @@
         ((element.getAttribute("role") || "").toLowerCase() === "combobox" ||
          popup === "listbox" || (popup === "true" &&
            element.matches("button,a,[role='button']")));
+      if ((element.getAttribute("role") || "").toLowerCase() === "combobox")
+        console.info("[GuideMe validation diagnostic] selection observer", {stepId:step.id, enabled:customSelect, hasNativeValue:"value" in element, dataValue:element.getAttribute("data-value")});
       if (customSelect) {
         let previousValue = selectedControlValue(element);
         const observer = new MutationObserver(() => {
@@ -1218,6 +1225,7 @@
           const next = selectedControlValue(element);
           if (next === previousValue) return;
           previousValue = next;
+          console.info("[GuideMe validation diagnostic] selection changed", {stepId:step.id, value:next});
           void emitAdapterEvent("validation-commit", step,
             element.__guideMeValidationArmId,
             {kind,browserEvent:"selection-change"}).catch(()=>{});
