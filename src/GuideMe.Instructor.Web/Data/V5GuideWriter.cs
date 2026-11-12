@@ -809,7 +809,7 @@ WHERE GuideId=$guideId AND VariableId=$variableId";
 WHERE GuideId=$guideId AND ElementId=$elementId
 AND NOT EXISTS (SELECT 1 FROM StepTargets t
 WHERE t.GuideId=$guideId AND t.ElementId=$elementId
-AND (t.StepId<>$stepId OR t.Purpose<>'Primary'))";
+AND NOT (t.StepId=$stepId AND t.UsageId=$usage AND t.Purpose=$purpose))";
         if (command.ExecuteNonQuery() != 1)
             throw new InvalidOperationException("הרכיב משותף לשלבים נוספים ולא ניתן לשנות אותו כאן.");
         // A captured Windows row can have a redundant ancestor whose name is
