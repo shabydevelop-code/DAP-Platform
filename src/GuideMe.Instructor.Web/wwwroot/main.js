@@ -1966,8 +1966,10 @@ function locatorTextBinding(locator) {
     let value;
     try { value = JSON.parse(quoted); } catch { return null; }
     const offset = match.index + match[0].indexOf(quoted);
-    return {value, build:next=>original.slice(0, offset) + JSON.stringify(next) +
-      original.slice(offset + quoted.length), buildAny:()=>original.replace(match[0], match[0].startsWith(':cell-text') ? ':cell-any(' + (/\d+/.exec(match[0])?.[0] || '1') + ')' : '')};
+    return {value, build:next=>next === '' && match[0].startsWith(':exact-text')
+      ? original.replace(match[0], '')
+      : original.slice(0, offset) + JSON.stringify(next) + original.slice(offset + quoted.length),
+      buildAny:()=>original.replace(match[0], match[0].startsWith(':cell-text') ? ':cell-any(' + (/\d+/.exec(match[0])?.[0] || '1') + ')' : '')};
   }
   if (matchers.length || /:cell-text\(|:exact-text\(/.test(original)) return null;
   // name and data-* attributes identify the element technically; they are not visible content.
@@ -2061,7 +2063,7 @@ async function editPrimaryTargetValue({kind, step, locators, binding:preparedBin
   const supportsAny = !!binding.buildAny || !!binding.any;
   modal(uiMessage('עריכת רכיב במסך — שלב ') + step.order, [
     {name:'locatorValue', label:'ערך לזיהוי הרכיב', value:binding.value,
-      multiline:true, max:400, optional:!!binding.any || binding.value === ''}
+      multiline:true, max:400, optional:!!binding.any || binding.value === '' || (locator.Strategy === 'css' && /:exact-text\(/.test(locator.Value))}
   ], async values => {
     const input = $('field-locatorValue');
     const anySelected = !!$('edit-primary-target-any')?.checked;
@@ -2069,7 +2071,7 @@ async function editPrimaryTargetValue({kind, step, locators, binding:preparedBin
     // A technical locator can be captured without a semantic text filter.
     // Saving it unchanged must not require inventing a text value.
     if (!anySelected && !value.trim() && binding.value === '') return;
-    if (!anySelected && !value.trim())
+    if (!anySelected && !value.trim() && !(locator.Strategy === 'css' && /:exact-text\(/.test(locator.Value)))
       rejectInstructorField(input, 'יש להזין ערך לזיהוי הרכיב.');
     const template = anySelected ? binding.buildAny() : binding.build(value);
     const nextStrategy = anySelected ? (binding.anyStrategy || binding.strategy || null) :
