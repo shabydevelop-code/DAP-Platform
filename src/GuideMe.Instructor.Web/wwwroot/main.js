@@ -973,12 +973,11 @@ function pickerEvent(session, event, message = '') {
 }
 function syncPickerButtons() {
   const busy = !!pickingFor || pickerStarting;
-  for (const id of ['pick-element','replace-web-target','add-completion','add-identity','pick-variable-source']) {
-    const button = $(id);
-    if (!button) continue;
+  // Keep every card's actions visible while the picker is active. Only
+  // disable conflicting capture actions; never alter another card's layout.
+  for (const button of document.querySelectorAll(
+    '#pick-element, #replace-web-target, #add-completion, #add-identity, #pick-variable-source, [data-identity-action="replace"]')) {
     button.disabled = busy;
-    if (id === 'replace-web-target') button.classList.toggle('hidden', busy);
-    if (id === 'add-identity') button.classList.toggle('hidden', busy);
   }
 }
 // Target lifecycle is shared. Only runtime-specific discovery and transport
