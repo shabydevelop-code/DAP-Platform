@@ -2061,11 +2061,14 @@ async function editPrimaryTargetValue({kind, step, locators, binding:preparedBin
   const supportsAny = !!binding.buildAny || !!binding.any;
   modal(uiMessage('עריכת רכיב במסך — שלב ') + step.order, [
     {name:'locatorValue', label:'ערך לזיהוי הרכיב', value:binding.value,
-      multiline:true, max:400, optional:!!binding.any}
+      multiline:true, max:400, optional:!!binding.any || binding.value === ''}
   ], async values => {
     const input = $('field-locatorValue');
     const anySelected = !!$('edit-primary-target-any')?.checked;
     const value = anySelected ? '' : variableEditorResult(input);
+    // A technical locator can be captured without a semantic text filter.
+    // Saving it unchanged must not require inventing a text value.
+    if (!anySelected && !value.trim() && binding.value === '') return;
     if (!anySelected && !value.trim())
       rejectInstructorField(input, 'יש להזין ערך לזיהוי הרכיב.');
     const template = anySelected ? binding.buildAny() : binding.build(value);
