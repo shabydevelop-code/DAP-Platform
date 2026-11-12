@@ -414,13 +414,24 @@
     return text != null && (cell.any ? normalize(text).length > 0 : normalize(text) === normalize(cell.value));
   }
 
+  function associatedLabelText(el, wanted) {
+    return el.matches('input,select,textarea') &&
+      [...(el.labels || [])].some(label => normalize(label.textContent) === wanted);
+  }
   function queryExtendedCss(selector, root = document) {
     const parsed = parseCellTextSelector(selector);
     const source = String(parsed.selector || "");
     const textFilters = [];
     const exactFilters = [];
     const nonempty = source.includes(":nonempty-text");
-    const withoutExact = source.replace(/:nonempty-text/g, "").replace(/:exact-text\(("(?:\\.|[^"\\])*")\)/g,
+    const labelFilters = [];
+    const withoutLabels = source.replace(/:associated-label\\(("(?:\\\\.|[^"\\\\])*")\\)/g,
+      (_match, quoted) => {
+        labelFilters.push(normalize(JSON.parse(quoted)));
+        return "";
+      });
+
+    const withoutExact = withoutLabels.replace(/:nonempty-text/g, "").replace(/:exact-text\(("(?:\\.|[^"\\])*")\)/g,
       (_match, quoted) => {
         exactFilters.push(normalize(JSON.parse(quoted)));
         return "";
@@ -440,11 +451,11 @@
       // An invalid authored selector is an unresolved target, not a fatal guide error.
       return [];
     }
-    if (!textFilters.length && !exactFilters.length && !parsed.cell && !nonempty) return candidates;
+    if (!textFilters.length && !exactFilters.length && !labelFilters.length && !parsed.cell && !nonempty) return candidates;
 
     const matched = candidates.filter(el => {
       const text = normalize(el.textContent).toLowerCase();
-      return matchesCellText(el, parsed.cell) && textFilters.every(wanted => text.includes(wanted)) &&
+      return matchesCellText(el, parsed.cell) && labelFilters.every(wanted => associatedLabelText(el, wanted)) && textFilters.every(wanted => text.includes(wanted)) &&
         exactFilters.every(wanted => normalize(el.textContent) === wanted) && (!nonempty || el.matches('input, textarea, select') || normalize(el.textContent).length > 0);
     });
     return parsed.targetColumn === null ? matched :
@@ -458,7 +469,14 @@
     const textFilters = [];
     const exactFilters = [];
     const nonempty = source.includes(":nonempty-text");
-    const withoutExact = source.replace(/:nonempty-text/g, "").replace(/:exact-text\(("(?:\\.|[^"\\])*")\)/g,
+    const labelFilters = [];
+    const withoutLabels = source.replace(/:associated-label\\(("(?:\\\\.|[^"\\\\])*")\\)/g,
+      (_match, quoted) => {
+        labelFilters.push(normalize(JSON.parse(quoted)));
+        return "";
+      });
+
+    const withoutExact = withoutLabels.replace(/:nonempty-text/g, "").replace(/:exact-text\(("(?:\\.|[^"\\])*")\)/g,
       (_match, quoted) => {
         exactFilters.push(normalize(JSON.parse(quoted)));
         return "";
@@ -478,7 +496,7 @@
         return false;
       }
     }
-    if (!textFilters.length && !exactFilters.length && !parsed.cell && !nonempty) return true;
+    if (!textFilters.length && !exactFilters.length && !labelFilters.length && !parsed.cell && !nonempty) return true;
 
     if (parsed.targetColumn !== null) {
       const row = el.closest('tr');
@@ -486,7 +504,7 @@
         queryExtendedCss(selector, row.parentElement || document).includes(el);
     }
     const text = normalize(el.textContent).toLowerCase();
-    return matchesCellText(el, parsed.cell) && textFilters.every(wanted => text.includes(wanted)) &&
+    return matchesCellText(el, parsed.cell) && labelFilters.every(wanted => associatedLabelText(el, wanted)) && textFilters.every(wanted => text.includes(wanted)) &&
         exactFilters.every(wanted => normalize(el.textContent) === wanted) && (!nonempty || el.matches('input, textarea, select') || normalize(el.textContent).length > 0);
   }
 
