@@ -402,7 +402,11 @@ function renderSteps() {
         : rule.Kind === 'attribute-equals'
           ? 'המאפיין "' + esc(attribute.name || 'הנבחר') + '" שווה ל־"' + esc(attribute.value ?? '') + '"'
           : 'תנאי השלמה';
-      return {rule, locators, name, type, description};
+      const contentBinding = locators.map(locator => {
+        if (locator.Strategy !== 'css' || !/:exact-text\\(/.test(locator.Value || '')) return null;
+        return locatorTextBinding(locator);
+      }).find(binding => binding && !binding.any);
+      return {rule, locators, name, type, description, contentValue:contentBinding?.value ?? null};
     });
     const completionRule = completionRules[0];
     const completionElementName = completionItems[0]?.name || '';
@@ -483,7 +487,9 @@ function renderSteps() {
           '<div class="completion-details"><div class="completion-target-summary"><p><strong class="captured-object-value">' +
           esc(item.name) + '</strong>' +
           (item.type ? ' <span class="field-help">(' + esc(item.type) + ')</span>' : '') +
-          '</p></div><div class="completion-detail"><span class="completion-detail-label">תנאי:</span>' +
+          '</p></div>' +
+          (item.contentValue !== null ? '<div class="completion-detail"><span class="completion-detail-label">זיהוי לפי תוכן:</span> ' + esc(item.contentValue) + '</div>' : '') +
+          '<div class="completion-detail"><span class="completion-detail-label">תנאי:</span>' +
           '<strong class="completion-description-preview">' + item.description + '</strong></div></div>' +
           '<div class="target-action-buttons"><div class="target-action-primary">' +
           '<button class="btn secondary small" data-completion-action="replace" data-index="' + index + '">בחירת רכיב אחר</button>' +
@@ -782,7 +788,7 @@ function editCompletionCondition(step, rule, locators) {
   const binding = locatorTextBinding(locator);
   const fields = [];
   if (binding) fields.push({
-    name:'locatorValue', label:'ערך לזיהוי הרכיב', value:binding.value,
+    name:'locatorValue', label:locator?.Strategy === 'css' && /:exact-text\\(/.test(locator.Value || '') ? 'זיהוי לפי תוכן' : 'ערך לזיהוי הרכיב', value:binding.value,
     max:400, multiline:true
   });
   fields.push({
