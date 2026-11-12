@@ -290,15 +290,9 @@
     // Text-bearing descendants can be selected independently from an
     // interactive parent (e.g. STRONG inside a clickable HEADER). Keep the
     // normal control grouping for buttons, inputs and links.
-    // SVG icons and nested markup belong to their actionable control.
-    // Shadow-root descendants cannot be addressed by document CSS selectors;
-    // promote to their host so the captured locator remains resolvable.
-    const actionable = 'button,a,input,select,textarea,[role="button"],[role="textbox"],[role="link"]';
-    let target = element.closest(actionable) || element;
-    while (target.getRootNode() instanceof ShadowRoot) {
-      const host = target.getRootNode().host;
-      target = host.closest(actionable) || host;
-    }
+    const target = element.matches('strong,span,h1,h2,h3,h4,h5,h6,p,label')
+      ? element
+      : element.closest('button,a,input,select,textarea,[role="button"],[role="textbox"],[role="link"]') || element;
     if (target !== highlighted) showHighlight(target);
   }
   function pickHover(event) {
