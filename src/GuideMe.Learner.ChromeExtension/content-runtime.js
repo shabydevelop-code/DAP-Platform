@@ -357,9 +357,13 @@
   }
 
   function selectedControlValue(el) {
-    if ("value" in el) return String(el.value ?? "");
     const role = (el.getAttribute("role") || "").toLowerCase();
     const popup = (el.getAttribute("aria-haspopup") || "").toLowerCase();
+    if (role === "combobox" || popup === "listbox") {
+      const selected = el.getAttribute("data-value");
+      if (selected !== null) return selected;
+    }
+    if ("value" in el) return String(el.value ?? "");
     if (role === "combobox" || popup === "listbox" ||
         (popup === "true" && el.matches("button,a,[role='button']")))
       return (el.innerText || el.textContent || "").replace(/\s+/g, " ").trim();
@@ -1219,7 +1223,7 @@
             {kind,browserEvent:"selection-change"}).catch(()=>{});
         });
         observer.observe(element, {subtree:true,childList:true,characterData:true,
-          attributes:true,attributeFilter:["aria-valuetext","aria-label","title"]});
+          attributes:true,attributeFilter:["data-value","aria-valuetext","aria-label","title"]});
         element.__guideMeSelectionObserver = observer;
       }
     }
