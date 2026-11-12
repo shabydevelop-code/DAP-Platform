@@ -145,7 +145,7 @@
         })();
         sendResponse({ok:true,result:{
           status:"resolved",count:1,visible,...completionChange,
-          value:"value" in el ? String(el.value ?? "") : "",
+          value:selectedControlValue(el),
           enabled:!(el.disabled === true || el.getAttribute("aria-disabled") === "true"),
           text:el.textContent ?? "",
           attributeValue:typeof command.attributeName === "string"
@@ -354,6 +354,16 @@
       }
     }
     return result;
+  }
+
+  function selectedControlValue(el) {
+    if ("value" in el) return String(el.value ?? "");
+    const role = (el.getAttribute("role") || "").toLowerCase();
+    const popup = (el.getAttribute("aria-haspopup") || "").toLowerCase();
+    if (role === "combobox" || popup === "listbox" ||
+        (popup === "true" && el.matches("button,a,[role='button']")))
+      return (el.innerText || el.textContent || "").replace(/\s+/g, " ").trim();
+    return "";
   }
 
   function implicitRole(el) {
@@ -589,6 +599,14 @@
   }
 
 
+  function raiseBubbleToTopLayer(bubble) {
+    if (typeof bubble.showPopover !== "function") return;
+    bubble.setAttribute("popover", "manual");
+    bubble.style.setProperty("inset", "auto", "important");
+    bubble.style.setProperty("margin", "0", "important");
+    try { bubble.showPopover(); } catch { /* fixed positioning remains available */ }
+  }
+
   function showCenteredMessage(options){
     hideBubble();
     const bubble=document.createElement("div");
@@ -694,6 +712,7 @@
     },{once:true});
 
     document.body.appendChild(bubble);
+    raiseBubbleToTopLayer(bubble);
     button.focus({preventScroll:true});
     return bubble;
   }
@@ -798,6 +817,7 @@
       touchAction:"none",userSelect:"none"
     });
     document.body.appendChild(bubble);
+    raiseBubbleToTopLayer(bubble);
     if(presentation.visible===false)
       bubble.style.setProperty("display","none","important");
 
@@ -951,6 +971,7 @@
     if(stepNumber&&totalSteps){const p=root.createElement("div");p.textContent=presentation.progressText||"";Object.assign(p.style,{fontSize:theme.fontSize+"px",opacity:".78",marginTop:"8px",fontWeight:"400",cursor:"default"});b.appendChild(p);}
     appendManualTargetConfirm(b,step,presentation);
     Object.assign(b.style,{position:"fixed",zIndex:"2147483646",maxWidth:theme.maxWidth+"px",padding:theme.padding,background:theme.backgroundColor,color:theme.textColor,border:theme.borderWidth+"px solid "+theme.borderColor,borderRadius:theme.borderRadius+"px",boxShadow:theme.boxShadow,fontFamily:theme.fontFamily,fontSize:theme.fontSize+"px",lineHeight:String(theme.lineHeight),direction:presentation.direction||"rtl",visibility:"hidden",touchAction:"none",userSelect:"none"});b.style.setProperty("cursor","default","important");if(presentation.visible===false)b.style.setProperty("display","none","important");root.body.appendChild(b);
+    raiseBubbleToTopLayer(b);
     let manual=false,drag=null;const margin=8;
     const clamp=(x,y)=>{const q=b.getBoundingClientRect();return{x:Math.max(margin,Math.min(x,innerWidth-q.width-margin)),y:Math.max(margin,Math.min(y,innerHeight-q.height-margin))}};
     const place=()=>{if(drag)return;if(!el.isConnected){b.style.visibility="hidden";return}const r=el.getBoundingClientRect();const targetVisible=(()=>{
@@ -1156,6 +1177,28 @@
       element.__guideMeValidationCommitHandler = commit;
       element.__guideMeValidationCommitEvent = eventName;
       element.addEventListener(eventName, commit, {capture:true});
+      // A custom listbox can update its caption without firing native change.
+      element.__guideMeSelectionObserver?.disconnect();
+      const popup = (element.getAttribute("aria-haspopup") || "").toLowerCase();
+      const customSelect = !("value" in element) &&
+        ((element.getAttribute("role") || "").toLowerCase() === "combobox" ||
+         popup === "listbox" || (popup === "true" &&
+           element.matches("button,a,[role='button']")));
+      if (customSelect) {
+        let previousValue = selectedControlValue(element);
+        const observer = new MutationObserver(() => {
+          if (!element.isConnected || validationState?.element !== element) return;
+          const next = selectedControlValue(element);
+          if (next === previousValue) return;
+          previousValue = next;
+          void emitAdapterEvent("validation-commit", step,
+            element.__guideMeValidationArmId,
+            {kind,browserEvent:"selection-change"}).catch(()=>{});
+        });
+        observer.observe(element, {subtree:true,childList:true,characterData:true,
+          attributes:true,attributeFilter:["aria-valuetext","aria-label","title"]});
+        element.__guideMeSelectionObserver = observer;
+      }
     }
   }
 
