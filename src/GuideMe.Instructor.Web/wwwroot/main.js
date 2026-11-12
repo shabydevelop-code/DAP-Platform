@@ -1008,7 +1008,7 @@ const targetAdapters = {
     async status() { return api('/capture/status'); },
     async cancel() { return api('/target-picker/cancel', {method:'POST',body:'{}'}); },
     selected(state) { return state.picked; },
-    async saveCompletion(session, candidate) {
+    async saveCompletion(session, candidate, content = {}) {
       return api('/guides/'+session.guideId+'/steps/'+encodeURIComponent(session.stepId)+'/completion-target',
         {method:'POST',body:JSON.stringify({kind:session.completionEdit?.identity ? 'target-appeared' : $('target-condition')?.value,
           stateAttributeIndex:$('target-condition')?.value === 'attribute-equals' && (candidate.stateAttributes || []).length
@@ -1016,7 +1016,7 @@ const targetAdapters = {
           selectedTag:candidate.tag,
           expectedValue:$('target-condition')?.value === 'value-contains'
             ? variableEditorResult($('completion-fixed-value')) : null,
-          replacing:session.replacing,completionId:session.completionEdit?.completionId,identity:!!session.completionEdit?.identity})});
+          replacing:session.replacing,completionId:session.completionEdit?.completionId,identity:!!session.completionEdit?.identity,...content})});
     }
   },
   Windows: {
@@ -1053,7 +1053,7 @@ const targetAdapters = {
     async saveCompletion(session) {
       return api('/guides/'+session.guideId+'/steps/'+encodeURIComponent(session.stepId)+'/completion-target',
         {method:'POST',body:JSON.stringify({kind:$('target-condition')?.value,
-          expectedValue:$('target-condition')?.value === 'value-contains' ? variableEditorResult($('completion-fixed-value')) : null,processId:session.processId,replacing:session.replacing,completionId:session.completionEdit?.completionId,identity:!!session.completionEdit?.identity})});
+          expectedValue:$('target-condition')?.value === 'value-contains' ? variableEditorResult($('completion-fixed-value')) : null,processId:session.processId,replacing:session.replacing,completionId:session.completionEdit?.completionId,identity:!!session.completionEdit?.identity,...content})});
     },
   }
 };
@@ -1219,11 +1219,11 @@ async function refreshPicker() {
     : hasSemanticContentLocator ? String(selectorText ?? '').trim() : '';
   box.innerHTML = '<div class="picked-target-fields" dir="rtl">' +
     '<p><strong>'+esc(candidate.label || candidate.tag || 'רכיב')+'</strong> <span class="picked-target-kind">('+esc(kindLabel)+')</span></p>'+
-    ((!pickingFor.completion || pickingFor.completionEdit?.identity) && !pickingFor.variableSource ?
+    (!pickingFor.variableSource ?
       '<div class="field"><label for="captured-object-value">הערך שנקלט</label>' +
       '<textarea id="captured-object-value" rows="2" readonly dir="auto" ' +
       'placeholder="לא נקלט ערך"></textarea></div>' : '') +
-    ((!pickingFor.completion || pickingFor.completionEdit?.identity) && !pickingFor.variableSource ?
+    (!pickingFor.variableSource ?
       variableValueFieldMarkup('picked-content-value', 'זיהוי לפי תוכן') +
       GuideMeAnyValueUI.renderOption('picked-content-any', false) : '') +
     (pickingFor.completion && !pickingFor.completionEdit?.identity ? '<label for="target-condition">חוק השלמה</label>' +
@@ -1240,7 +1240,7 @@ async function refreshPicker() {
     '<button id="save-web-target" class="btn primary small">שמירה</button>' +
     '<button id="cancel-web-target" class="btn secondary small">ביטול</button>' +
     '</div>';
-  if ((!pickingFor.completion || pickingFor.completionEdit?.identity) && !pickingFor.variableSource) {
+  if (!pickingFor.variableSource) {
     const capturedField = $('captured-object-value');
     if (capturedField) capturedField.value = String(capturedSample ?? '');
     const input = $('picked-content-value');
@@ -1347,8 +1347,15 @@ async function refreshPicker() {
             ...pickedFor.variableSource,variableId,pattern,
             processId:pickedFor.processId || null,gridChoice:gridChoiceIndex})});
       }
-      else if (pickedFor.completion && !pickedFor.completionEdit?.identity)
-        await adapter.saveCompletion(pickedFor, candidate);
+      else if (pickedFor.completion && !pickedFor.completionEdit?.identity) {
+        const contentInput = $('picked-content-value');
+        const anyContent = !!$('picked-content-any')?.checked;
+        const enteredContent = contentInput && !anyContent ? variableEditorResult(contentInput).trim() : '';
+        const contentValue = enteredContent || null;
+        if (contentValue && contentValue.length > 400)
+          rejectInstructorField(contentInput, 'תוכן זיהוי הרכיב ארוך מדי (עד 400 תווים).');
+        await adapter.saveCompletion(pickedFor, candidate, {contentValue, anyContent});
+      }
       else {
         const contentInput = $('picked-content-value');
         const anyContent = !!$('picked-content-any')?.checked;
