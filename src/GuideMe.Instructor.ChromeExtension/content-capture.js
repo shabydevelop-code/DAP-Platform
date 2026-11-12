@@ -152,7 +152,27 @@
       if (parts.length > 1 && unique(candidate)) return candidate;
     }
     const selector = parts.join(' > ');
-    return parts.length > 1 && unique(selector) ? selector : null;
+    if (parts.length > 1 && unique(selector)) return selector;
+    // Deeply nested controls (notably Salesforce Lightning) may have no
+    // stable attributes or IDs within the seven-level semantic search.
+    // Fall back to a complete structural path only when it is unique.
+    const fullPath = [];
+    for (let current = element; current && current !== document.documentElement;
+         current = current.parentElement) {
+      let segment = current.tagName.toLowerCase();
+      const parent = current.parentElement;
+      if (parent) {
+        const siblings = [...parent.children].filter(child => child.tagName === current.tagName);
+        if (siblings.length > 1)
+          segment += ':nth-of-type(' + (siblings.indexOf(current) + 1) + ')';
+      }
+      fullPath.unshift(segment);
+    }
+    if (fullPath.length && fullPath.length < 60) {
+      const candidate = 'html > ' + fullPath.join(' > ');
+      if (unique(candidate)) return candidate;
+    }
+    return null;
   }
 
   // Outline is painted by the browser on the actual element's border box.
@@ -270,9 +290,15 @@
     // Text-bearing descendants can be selected independently from an
     // interactive parent (e.g. STRONG inside a clickable HEADER). Keep the
     // normal control grouping for buttons, inputs and links.
-    const target = element.matches('strong,span,h1,h2,h3,h4,h5,h6,p,label')
-      ? element
-      : element.closest('button,a,input,select,textarea,[role="button"],[role="textbox"],[role="link"]') || element;
+    // SVG icons and nested markup belong to their actionable control.
+    // Shadow-root descendants cannot be addressed by document CSS selectors;
+    // promote to their host so the captured locator remains resolvable.
+    const actionable = 'button,a,input,select,textarea,[role="button"],[role="textbox"],[role="link"]';
+    let target = element.closest(actionable) || element;
+    while (target.getRootNode() instanceof ShadowRoot) {
+      const host = target.getRootNode().host;
+      target = host.closest(actionable) || host;
+    }
     if (target !== highlighted) showHighlight(target);
   }
   function pickHover(event) {
