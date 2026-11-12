@@ -53,9 +53,12 @@
       try { return document.querySelector(selector) === element &&
         document.querySelectorAll(selector).length === 1; } catch { return false; }
     };
+    // One stability policy for IDs, semantic attributes, classes and ancestor paths.
+    const generatedId = value => /(?:^|[-_])(?:button|input|element|dropdown|combobox)[-_]?\\d+$/i.test(value) ||
+      /[-_]\\d{2,}$/.test(value) || /(?:^|[_:-])\\d+(?=[:;_-]|$)/.test(value) || /[:;]/.test(value);
     const stable = value => typeof value === 'string' && value.length > 0 &&
-      value.length <= 120 && !/^[a-f0-9]{16,}$/i.test(value);
-    const generatedId = value => /(?:^|[-_])(?:button|input|element|dropdown|combobox)[-_]?\d+$/i.test(value) || /[-_]\d{2,}$/.test(value) || /(?:^|[_:-])\d+(?=[:;_-]|$)/.test(value) || /[:;]/.test(value);
+      value.length <= 120 && !/^[a-f0-9]{16,}$/i.test(value) && !generatedId(value);
+    const internalAttribute = name => /^(?:lwc-|data-(?:aura|react|vue|ng|v-|svelte|astro|next)(?:-|$))/i.test(name);
     const classNames = node => [...node.classList].filter(name =>
       stable(name) && !/^(active|hover|focus|selected|disabled|loading|open|hidden|ng-|css-|jsx-|sc-)/i.test(name)
       && !/[0-9a-f]{8,}/i.test(name)).slice(0, 3);
@@ -93,7 +96,7 @@
     }
     for (const attr of ['data-testid', 'data-test', 'data-qa', 'name', 'aria-label', 'title', 'placeholder']) {
       const value = element.getAttribute(attr);
-      if (!stable(value)) continue;
+      if (!stable(value) || internalAttribute(attr)) continue;
       const selector = tag + '[' + attr + '="' + CSS.escape(value) + '"]';
       if (unique(selector)) return selector;
     }
@@ -101,7 +104,7 @@
     // Values (such as status, priority, etc.) always come from the live DOM.
     // Exclude framework/internal and transient state attributes.
     const dataAttributes = [...element.attributes]
-      .filter(({name, value}) => name.startsWith('data-') &&
+      .filter(({name, value}) => name.startsWith('data-') && !internalAttribute(name) &&
         !/^data-(?:aura(?:-|$)|react|vue|ng|v-|svelte|astro|next|state|active|selected|open|loading|disabled|index|position|row-index|col-index|timestamp|nonce|session|token|id)$/i.test(name) &&
         stable(value) && !/^\\d+$/.test(value) &&
         !/^(?:true|false|yes|no)$/i.test(value))
@@ -133,7 +136,7 @@
     let node = element;
     for (let depth = 0; node && node.nodeType === 1 && depth < 7; depth++, node = node.parentElement) {
       let part = node.tagName.toLowerCase();
-      if (node.id && stable(node.id) && !generatedId(node.id)) {
+      if (node.id && stable(node.id)) {
         part += '#' + CSS.escape(node.id);
         parts.unshift(part);
         const candidate = parts.join(' > ');
