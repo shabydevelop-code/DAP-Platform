@@ -802,8 +802,8 @@ function editCompletionCondition(step, rule, locators) {
     if (values.kind === 'value-contains' && !expected)
       rejectInstructorField($('field-expectedValue'), 'יש להזין ערך צפוי.');
     if (binding) {
-      const locatorValue = values.locatorValue.trim();
-      if (!locatorValue)
+      const locatorValue = variableEditorResult($('field-locatorValue')).trim();
+      if (!locatorValue && binding.value)
         rejectInstructorField($('field-locatorValue'), 'יש להזין ערך לזיהוי הרכיב.');
       if (locatorValue !== binding.value) {
         await api('/guides/'+current.guide.id+'/steps/'+encodeURIComponent(step.id)+
@@ -817,6 +817,12 @@ function editCompletionCondition(step, rule, locators) {
     await reloadSelectedStep(current.guide.id, step.id);
     notify('תנאי ההשלמה עודכן.');
   });
+  if (binding) {
+    const locatorInput = $('field-locatorValue');
+    const locatorControls = document.createElement('div');
+    locatorInput.closest('.field').append(locatorControls);
+    initializeVariableField(locatorInput, locatorControls, binding.value);
+  }
   const kind = $('field-kind');
   const expectedInput = $('field-expectedValue');
   const expectedField = expectedInput?.closest('.field');
@@ -2184,7 +2190,14 @@ function initializeVariableField(input, controls, template = '') {
   }
 }
 function setupVariableInsertion(input, container, variables) {
-  if (!input || !container || !variables.length) return;
+  if (!input || !container) return;
+  if (!variables.length) {
+    const hint = document.createElement('p');
+    hint.className = 'field-help';
+    hint.textContent = 'כדי להוסיף משתנה, יש ליצור תחילה משתנה בלומדה.';
+    container.append(hint);
+    return;
+  }
   const references = new Map();
   input._variableReferences = references;
   const select = document.createElement('select');
