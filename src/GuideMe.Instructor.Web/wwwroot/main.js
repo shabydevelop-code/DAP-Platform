@@ -450,7 +450,7 @@ function renderSteps() {
         '<div class="completion-details">' +
         renderScreenElementDetails(item.presentation) + '</div>' +
         ((context?.Runtime === 'Web' || context?.Runtime === 'Windows') ?
-          renderScreenElementActions(item.isActionTarget, item.index) : '') +
+          renderScreenElementActions(item.isActionTarget, item.usageId) : '') +
         (item.isActionTarget ? '<div id="pick-result" class="hidden" aria-live="polite"></div>' : '') +
         '</div>'
       ).join('') +
@@ -665,7 +665,8 @@ function renderSteps() {
         false, true, context, null, {kind:'target-appeared', identity:true}));
     document.querySelectorAll('[data-identity-action]').forEach(button => {
       button.onclick = () => guarded(async () => {
-        const item = identityItems[Number(button.dataset.index)];
+        const item = identityItems.find(entry =>
+          entry.rule.TargetUsageId === button.dataset.identityUsageId);
         if (!item) return;
         const id = item.rule.TargetUsageId;
         const action = button.dataset.identityAction;
@@ -2027,15 +2028,16 @@ function renderScreenElementDetails(item) {
     (item.content ? '<p>' + esc(uiMessage('זיהוי לפי תוכן: ')) + '<strong class="target-business-value-preview">' +
       friendlyInstructionHtml(item.content) + '</strong></p>' : '');
 }
-function renderScreenElementActions(isActionTarget, index) {
-  const attribute = isActionTarget ? '' : ' data-index="' + index + '"';
+function renderScreenElementActions(isActionTarget, usageId) {
+  // Persisted usage IDs identify cards; display order is presentation only.
+  const attribute = isActionTarget ? '' : ' data-identity-usage-id="' + esc(usageId) + '"';
   const button = (action, title, css = 'secondary') =>
     '<button type="button" class="btn ' + css + ' small" ' +
     (isActionTarget ? 'id="' + action + '"' : 'data-identity-action="' + action + '"' + attribute) +
     '>' + title + '</button>';
   const roleButton = isActionTarget
     ? '<button type="button" class="btn secondary small screen-element-role active" aria-label="יעד פעולה נוכחי" aria-pressed="true" disabled>יעד פעולה</button>'
-    : '<button type="button" class="btn secondary small screen-element-role" data-identity-action="set-action" data-index="' + index +
+    : '<button type="button" class="btn secondary small screen-element-role" data-identity-action="set-action" data-identity-usage-id="' + esc(usageId) +
       '" aria-label="יעד פעולה" aria-pressed="false">יעד פעולה</button>';
   return '<div class="target-action-buttons"><div class="target-action-primary">' +
     button(isActionTarget ? 'replace-web-target' : 'replace', 'בחירת רכיב אחר') +
