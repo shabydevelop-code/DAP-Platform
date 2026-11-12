@@ -1212,10 +1212,10 @@
       // A custom listbox can update its caption without firing native change.
       element.__guideMeSelectionObserver?.disconnect();
       const popup = (element.getAttribute("aria-haspopup") || "").toLowerCase();
-      const customSelect = !("value" in element) &&
-        ((element.getAttribute("role") || "").toLowerCase() === "combobox" ||
-         popup === "listbox" || (popup === "true" &&
-           element.matches("button,a,[role='button']")));
+      const customSelect =
+        (element.getAttribute("role") || "").toLowerCase() === "combobox" ||
+        popup === "listbox" || (popup === "true" &&
+          element.matches("button,a,[role='button']"));
       if ((element.getAttribute("role") || "").toLowerCase() === "combobox")
         console.info("[GuideMe validation diagnostic] selection observer", {stepId:step.id, enabled:customSelect, hasNativeValue:"value" in element, dataValue:element.getAttribute("data-value")});
       if (customSelect) {
