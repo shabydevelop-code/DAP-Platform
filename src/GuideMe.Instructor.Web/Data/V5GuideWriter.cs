@@ -803,15 +803,54 @@ WHERE GuideId=$guideId AND VariableId=$variableId";
                 throw new ArgumentException("ניתן לערוך את ערך התוכן בלבד, לא את מבנה מזהה הרכיב.");
         }
         locators[0] = original with { Strategy = enableAny ? "name-nonempty" : enableIdAny ? "automation-id-nonempty" : disableIdAny ? "automation-id" : disableAny || convertToName ? "name" : original.Strategy, Value = locatorValue };
+        // Element definitions may be reused by multiple steps or usages.
+        // Copy on write: only the requested usage receives the edited locator.
+        // Keep the original element and every other reference unchanged.
         command.Parameters.AddWithValue("$elementId", elementId);
         command.Parameters.AddWithValue("$locators", JsonSerializer.Serialize(locators));
-        command.CommandText = @"UPDATE Elements SET LocatorsJson=$locators
+        command.CommandText = @"SELECT COUNT(*) FROM StepTargets
 WHERE GuideId=$guideId AND ElementId=$elementId
-AND NOT EXISTS (SELECT 1 FROM StepTargets t
-WHERE t.GuideId=$guideId AND t.ElementId=$elementId
-AND (t.StepId<>$stepId OR t.Purpose<>'Primary'))";
-        if (command.ExecuteNonQuery() != 1)
-            throw new InvalidOperationException("הרכיב משותף לשלבים נוספים ולא ניתן לשנות אותו כאן.");
+AND NOT (StepId=$stepId AND UsageId=$usage AND Purpose=$purpose)";
+        var shared = Convert.ToInt64(command.ExecuteScalar()) > 0;
+        if (shared)
+        {
+            var newElementId = "element-" + Guid.NewGuid().ToString("N");
+            using (var clone = connection.CreateCommand())
+            {
+                clone.Transaction = transaction;
+                clone.CommandText = @"INSERT INTO Elements
+(GuideId,ElementId,Runtime,LocatorsJson,FrameContextJson,DisplayName,ControlType)
+SELECT GuideId,$newElement,Runtime,$locators,FrameContextJson,DisplayName,ControlType
+FROM Elements WHERE GuideId=$guideId AND ElementId=$elementId";
+                clone.Parameters.AddWithValue("$newElement", newElementId);
+                clone.Parameters.AddWithValue("$locators", JsonSerializer.Serialize(locators));
+                clone.Parameters.AddWithValue("$guideId", guideId);
+                clone.Parameters.AddWithValue("$elementId", elementId);
+                if (clone.ExecuteNonQuery() != 1)
+                    throw new InvalidOperationException("לא ניתן ליצור עותק נפרד של הרכיב.");
+                clone.CommandText = @"INSERT INTO ElementAnchors
+(GuideId,ElementId,AnchorElementId,Relation,AnchorOrder)
+SELECT GuideId,$newElement,AnchorElementId,Relation,AnchorOrder
+FROM ElementAnchors WHERE GuideId=$guideId AND ElementId=$elementId";
+                clone.ExecuteNonQuery();
+                clone.CommandText = @"UPDATE StepTargets SET ElementId=$newElement
+WHERE GuideId=$guideId AND StepId=$stepId AND UsageId=$usage AND Purpose=$purpose AND ElementId=$elementId";
+                clone.Parameters.AddWithValue("$stepId", stepId);
+                clone.Parameters.AddWithValue("$usage", completion ? completionId : "primary");
+                clone.Parameters.AddWithValue("$purpose", completion ? "Completion" : "Primary");
+                if (clone.ExecuteNonQuery() != 1)
+                    throw new InvalidOperationException("לא ניתן לשייך את הרכיב המעודכן לשלב.");
+            }
+            elementId = newElementId;
+            command.Parameters["$elementId"].Value = elementId;
+        }
+        else
+        {
+            command.CommandText = @"UPDATE Elements SET LocatorsJson=$locators
+WHERE GuideId=$guideId AND ElementId=$elementId";
+            if (command.ExecuteNonQuery() != 1)
+                throw new InvalidOperationException("לא ניתן לעדכן את מזהה הרכיב.");
+        }
         // A captured Windows row can have a redundant ancestor whose name is
         // the same number as the original cell. When the primary locator becomes
         // variable-driven, that literal anchor would pin resolution to the old row.
