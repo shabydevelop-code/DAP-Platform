@@ -1123,43 +1123,17 @@
       if (element.__guideMeValidationClickHandler)
         element.removeEventListener("click", element.__guideMeValidationClickHandler, true);
 
-      const clickHandler = event => {
-        // Do not mutate GuideMe presentation synchronously in capture phase.
-        // Application click handlers must observe the untouched DOM and own
-        // their normal navigation/action. The .NET Runtime hides the bubble
-        // only after validation/completion has been accepted.
+      const clickHandler = () => {
+        // Observe the user's click without intercepting application behavior.
+        // The application owns navigation, form submission, and JavaScript actions.
+        // GuideMe only reports the validation event asynchronously.
         const currentArmId = element.__guideMeValidationArmId;
-        const tag = element.tagName?.toLowerCase();
-        const type = (element.getAttribute?.("type") || "").toLowerCase();
-        const form = element.form;
-        const defersDefault =
-          event.cancelable &&
-          ((tag === "a" && !!element.getAttribute("href")) ||
-           (tag === "button" && form && (!type || type === "submit")) ||
-           (tag === "input" && form && (type === "submit" || type === "image")));
-
-        const report = () => emitAdapterEvent(
+        void emitAdapterEvent(
           "validation-commit",
           step,
           currentArmId,
           {kind:"clicked",browserEvent:"click"}
-        );
-
-        if (!defersDefault) {
-          void report().catch(()=>{});
-          return;
-        }
-
-        event.preventDefault();
-        void report().then(() => {
-          if (!element.isConnected) return;
-          if (tag === "a") {
-            const href = element.getAttribute("href");
-            if (href) location.href = href;
-            return;
-          }
-          if (form) form.requestSubmit(element);
-        }).catch(()=>{});
+        ).catch(()=>{});
       };
 
       element.__guideMeValidationClickHandler = clickHandler;
