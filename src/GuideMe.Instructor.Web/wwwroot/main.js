@@ -2104,7 +2104,8 @@ async function editPrimaryTargetValue({kind, step, locators, binding:preparedBin
     const checkbox = $('edit-primary-target-any');
     const refresh = () => {
       input.disabled = checkbox.checked;
-      input.required = !checkbox.checked;
+      input.required = !checkbox.checked && !(binding.value === '' ||
+        (locator.Strategy === 'css' && /:exact-text\(/.test(locator.Value)));
       variableControls.classList.remove('hidden');
       variableControls.querySelectorAll('select,button').forEach(control => {
         control.disabled = checkbox.checked;
