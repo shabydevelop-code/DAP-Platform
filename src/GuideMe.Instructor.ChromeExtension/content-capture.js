@@ -56,6 +56,7 @@
     };
     const stable = value => typeof value === 'string' && value.length > 0 &&
       value.length <= 120 && !/^[a-f0-9]{16,}$/i.test(value);
+    const generatedId = value => /(?:^|[-_])(?:button|input|element|dropdown|combobox)[-_]?\d+$/i.test(value) || /[-_]\d{2,}$/.test(value);
     const classNames = node => [...node.classList].filter(name =>
       stable(name) && !/^(active|hover|focus|selected|disabled|loading|open|hidden|ng-|css-|jsx-|sc-)/i.test(name)
       && !/[0-9a-f]{8,}/i.test(name)).slice(0, 3);
@@ -87,7 +88,7 @@
         if (parts.length > 1 && unique(parts.join(' > '))) return parts.join(' > ');
       }
     }
-    if (stable(element.id)) {
+    if (stable(element.id) && !generatedId(element.id)) {
       const selector = '#' + CSS.escape(element.id);
       if (unique(selector)) return selector;
     }
