@@ -403,7 +403,7 @@ function renderSteps() {
           ? 'המאפיין "' + esc(attribute.name || 'הנבחר') + '" שווה ל־"' + esc(attribute.value ?? '') + '"'
           : 'תנאי השלמה';
       const contentBinding = locators.map(locator => {
-        if (locator.Strategy !== 'css' || !/:exact-text\\(/.test(locator.Value || '')) return null;
+        if (locator.Strategy !== 'css' || !/:exact-text\(/.test(locator.Value || '')) return null;
         return locatorTextBinding(locator);
       }).find(binding => binding && !binding.any);
       return {rule, locators, name, type, description, contentValue:contentBinding?.value ?? null};
@@ -788,7 +788,7 @@ function editCompletionCondition(step, rule, locators) {
   const binding = locatorTextBinding(locator);
   const fields = [];
   if (binding) fields.push({
-    name:'locatorValue', label:locator?.Strategy === 'css' && /:exact-text\\(/.test(locator.Value || '') ? 'זיהוי לפי תוכן' : 'ערך לזיהוי הרכיב', value:binding.value,
+    name:'locatorValue', label:locator?.Strategy === 'css' && /:exact-text\(/.test(locator.Value || '') ? 'זיהוי לפי תוכן' : 'ערך לזיהוי הרכיב', value:binding.value,
     max:400, multiline:true
   });
   fields.push({
