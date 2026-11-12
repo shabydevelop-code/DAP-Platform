@@ -476,8 +476,9 @@ app.MapPost("/api/guides/{id:long}/steps/{stepId}/completion-target",
                 request.StateAttributeIndex ?? -1)
             : ((string Name, string Value, string Selector)?)null;
         var selector = capturedState?.Selector ?? selected.Selector;
-        if (request.Identity)
-            selector = ApplyCapturedContentSelector(selector, request.ContentValue, request.AnyContent == true);
+        // Apply captured semantic identification to completion targets as well as
+        // identity targets; otherwise the Instructor silently discards the field.
+        selector = ApplyCapturedContentSelector(selector, request.ContentValue, request.AnyContent == true);
         V5GuideWriter.SaveWebCompletionTarget(id, stepId,
             selector,
             selected.FramePath, request.Kind, selected.DisplayName,
