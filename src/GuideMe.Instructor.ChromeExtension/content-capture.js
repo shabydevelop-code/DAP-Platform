@@ -91,7 +91,7 @@
       const selector = '#' + CSS.escape(element.id);
       if (unique(selector)) return selector;
     }
-    for (const attr of ['data-testid', 'data-test', 'data-qa', 'name', 'aria-label', 'placeholder']) {
+    for (const attr of ['data-testid', 'data-test', 'data-qa', 'name', 'aria-label', 'title', 'placeholder']) {
       const value = element.getAttribute(attr);
       if (!stable(value)) continue;
       const selector = tag + '[' + attr + '="' + CSS.escape(value) + '"]';
@@ -102,7 +102,7 @@
     // Exclude framework/internal and transient state attributes.
     const dataAttributes = [...element.attributes]
       .filter(({name, value}) => name.startsWith('data-') &&
-        !/^data-(?:react|vue|ng|v-|svelte|astro|next|state|active|selected|open|loading|disabled|index|position|row-index|col-index|timestamp|nonce|session|token|id)$/i.test(name) &&
+        !/^data-(?:aura(?:-|$)|react|vue|ng|v-|svelte|astro|next|state|active|selected|open|loading|disabled|index|position|row-index|col-index|timestamp|nonce|session|token|id)$/i.test(name) &&
         stable(value) && !/^\\d+$/.test(value) &&
         !/^(?:true|false|yes|no)$/i.test(value))
       .sort((a, b) => {
