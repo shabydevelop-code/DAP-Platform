@@ -1226,9 +1226,18 @@
           if (next === previousValue) return;
           previousValue = next;
           console.info("[GuideMe validation diagnostic] selection changed", {stepId:step.id, value:next});
+          const eventArmId = element.__guideMeValidationArmId;
+          console.info("[GuideMe validation diagnostic] sending selection commit",
+            {stepId:step.id, armId:eventArmId, kind, value:next});
           void emitAdapterEvent("validation-commit", step,
-            element.__guideMeValidationArmId,
-            {kind,browserEvent:"selection-change"}).catch(()=>{});
+            eventArmId,
+            {kind,browserEvent:"selection-change"}).then(response => {
+              console.info("[GuideMe validation diagnostic] selection commit response",
+                {stepId:step.id, armId:eventArmId, response});
+            }).catch(error => {
+              console.warn("[GuideMe validation diagnostic] selection commit failed",
+                {stepId:step.id, armId:eventArmId, error:String(error)});
+            });
         });
         observer.observe(element, {subtree:true,childList:true,characterData:true,
           attributes:true,attributeFilter:["data-value","aria-valuetext","aria-label","title"]});
