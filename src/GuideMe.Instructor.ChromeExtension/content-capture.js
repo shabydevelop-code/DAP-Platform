@@ -100,6 +100,29 @@
       const selector = tag + '[' + attr + '="' + CSS.escape(value) + '"]';
       if (unique(selector)) return selector;
     }
+    // Resolve accessible names via both native labels and ARIA ID references.
+    // Store the human-readable name, never the generated referenced IDs.
+    const accessibleLabel = control => {
+      const values = [];
+      const refs = (control.getAttribute('aria-labelledby') || '').trim().split(/\s+/).filter(Boolean);
+      for (const id of refs) {
+        const node = document.getElementById(id);
+        if (node) values.push(node.textContent || '');
+      }
+      const aria = values.join(' ').replace(/\s+/g, ' ').trim();
+      if (aria) return aria;
+      const native = [...(control.labels || [])].map(label => label.textContent || '').join(' ').replace(/\s+/g, ' ').trim();
+      return native || (control.getAttribute('aria-label') || '').trim();
+    };
+    if (element.matches('input,select,textarea')) {
+      const value = accessibleLabel(element);
+      if (value && value.length <= 120) {
+        const matches = [...document.querySelectorAll('input,select,textarea')]
+          .filter(control => control.tagName === element.tagName && accessibleLabel(control) === value);
+        if (matches.length === 1 && matches[0] === element)
+          return tag + ':associated-label(' + JSON.stringify(value) + ')';
+      }
+    }
     // Prefer unique, meaningful data-* attributes discovered on the target.
     // Values (such as status, priority, etc.) always come from the live DOM.
     // Exclude framework/internal and transient state attributes.
@@ -115,21 +138,6 @@
     for (const {name, value} of dataAttributes) {
       const selector = tag + '[' + CSS.escape(name) + '="' + CSS.escape(value) + '"]';
       if (unique(selector)) return selector;
-    }
-    // Prefer a semantic label over framework-generated control attributes.
-    // The Learner resolves this association at runtime, so a regenerated
-    // input ID does not invalidate the locator.
-    if (element.matches('input,select,textarea')) {
-      const labels = [...(element.labels || [])];
-      const labelText = label => (label.textContent || '').replace(/\\s+/g, ' ').trim();
-      for (const label of labels) {
-        const value = labelText(label);
-        if (!value || value.length > 120) continue;
-        const matches = [...document.querySelectorAll('input,select,textarea')]
-          .filter(control => [...(control.labels || [])].some(other => labelText(other) === value));
-        if (matches.length === 1 && matches[0] === element)
-          return tag + ':associated-label(' + JSON.stringify(value) + ')';
-      }
     }
     // Prefer an identifying class over DOM structure when it is unique.
     for (const selector of simple(element)) {
