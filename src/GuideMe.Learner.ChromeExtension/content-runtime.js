@@ -415,8 +415,14 @@
   }
 
   function associatedLabelText(el, wanted) {
-    return el.matches('input,select,textarea') &&
-      [...(el.labels || [])].some(label => normalize(label.textContent) === wanted);
+    if (!el.matches('input,select,textarea')) return false;
+    const refs = (el.getAttribute('aria-labelledby') || '').trim().split(/\s+/).filter(Boolean);
+    const aria = refs.map(id => document.getElementById(id)?.textContent || '')
+      .join(' ').replace(/\s+/g, ' ').trim();
+    const native = [...(el.labels || [])].map(label => label.textContent || '')
+      .join(' ').replace(/\s+/g, ' ').trim();
+    const name = aria || native || (el.getAttribute('aria-label') || '').trim();
+    return normalize(name) === wanted;
   }
   function queryExtendedCss(selector, root = document) {
     const parsed = parseCellTextSelector(selector);
