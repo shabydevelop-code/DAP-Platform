@@ -360,32 +360,9 @@
 
   function businessFieldValue(el) {
     if (!el?.hasAttribute?.("data-target-selection-name")) return null;
-    // Lightning renders output through slots and nested open shadow roots.
-    // Read only the displayed value, never the field label or Edit button.
-    const textOf = node => {
-      if (!node) return "";
-      if (node.nodeType === Node.TEXT_NODE) return node.textContent || "";
-      if (node.nodeType !== Node.ELEMENT_NODE) return "";
-      if (node.matches('button,[role="button"],input,textarea')) return "";
-      if (node.tagName === "SLOT") {
-        const assigned = node.assignedNodes?.({flatten:true}) || [];
-        if (assigned.length) return [...assigned].map(textOf).join(" ");
-      }
-      const root = node.shadowRoot || node;
-      return [...root.childNodes].map(textOf).join(" ");
-    };
-    const visit = root => {
-      const value = root.querySelector?.('.test-id__field-value, [slot="outputField"], [data-output-element-id]');
-      if (value) return textOf(value).replace(/\\s+/g, " ").trim();
-      for (const node of root.querySelectorAll?.('*') || []) {
-        if (node.shadowRoot) {
-          const nested = visit(node.shadowRoot);
-          if (nested !== null) return nested;
-        }
-      }
-      return null;
-    };
-    return visit(el);
+    const value = el.querySelector(".test-id__field-value, [slot='outputField'], [data-output-element-id]");
+    if (!value) return null;
+    return (value.innerText || value.textContent || "").replace(/\\s+/g, " ").trim();
   }
 
   function selectedControlValue(el) {
@@ -1198,7 +1175,6 @@
         validationState?.armId === normalizedArmId)
       return;
 
-    if (validationState?.businessPoll) clearInterval(validationState.businessPoll);
     element.__guideMeValidationArmId = normalizedArmId;
     validationState = {step,element,armId:normalizedArmId};
     if ((element.getAttribute("role") || "").toLowerCase() === "combobox")
@@ -1228,37 +1204,25 @@
 
     if (!kind) return;
 
-    // A business field's displayed value is authoritative only after editing
-    // has completed. Poll because Lightning can replace shadow-root children
-    // without mutating the original root or retaining the original field node.
+    // Read-only business fields may be edited in a separate shadow-root input.
+    // Observe the displayed value, not the transient editor, and commit only
+    // after the field's value actually changes.
     if (element.hasAttribute("data-target-selection-name") && kind !== "clicked") {
-      if (validationState?.businessPoll) clearInterval(validationState.businessPoll);
-      const selector = '[data-target-selection-name="' +
-        CSS.escape(element.getAttribute("data-target-selection-name")) + '"]';
-      const currentField = () => queryIncludingOpenShadow(document, selector)[0] || null;
-      const baseline = businessFieldValue(element);
-      let last = baseline;
-      let committed = false;
-      const poll = () => {
-        if (validationState?.step?.id !== step.id ||
-            validationState?.armId !== normalizedArmId) {
-          clearInterval(timer);
-          return;
-        }
-        const field = currentField();
-        if (!field) return;
-        const value = businessFieldValue(field);
-        if (value === null || !value || value === baseline || committed) return;
-        // Ignore transient changes while the edit control is still present.
-        if (field.querySelector('input:not([type="hidden"]),textarea')) return;
-        if (value !== last) { last = value; return; }
-        committed = true;
-        clearInterval(timer);
-        void emitAdapterEvent("validation-commit", step, normalizedArmId,
+      element.__guideMeBusinessValueObserver?.disconnect();
+      let previous = businessFieldValue(element);
+      const scope = element.getRootNode();
+      const observer = new MutationObserver(() => {
+        const current = businessFieldValue(element);
+        if (current === null || previous === null) { previous = current; return; }
+        if (current === previous) return;
+        previous = current;
+        const currentArmId = element.__guideMeValidationArmId;
+        void emitAdapterEvent("validation-commit", step, currentArmId,
           {kind, browserEvent:"business-field-value-change"}).catch(()=>{});
-      };
-      const timer = setInterval(poll, 200);
-      validationState.businessPoll = timer;
+      });
+      observer.observe(scope, {subtree:true,childList:true,characterData:true,attributes:true,
+        attributeFilter:["value","title","class"]});
+      element.__guideMeBusinessValueObserver = observer;
       return;
     }
 
