@@ -476,28 +476,20 @@
     }
     if (!textFilters.length && !exactFilters.length && !labelFilters.length && !parsed.cell && !nonempty) return candidates;
 
-    // Legacy captures may attach volatile exact text to a stable business
-    // field. Prefer the precise child when it matches; if it does not, use
-    // the uniquely identified business field itself as the bubble anchor.
-    if (!candidates.length && root === document &&
-        /^\\[data-target-selection-name=/.test(nativeSelector) && exactFilters.length) {
-      const businessSelector = nativeSelector.match(/^\\[data-target-selection-name=(?:"(?:\\\\.|[^"\\\\])*"|'(?:\\\\.|[^'\\\\])*')\\]/)?.[0];
-      if (businessSelector) {
-        const fields = queryIncludingOpenShadow(root, businessSelector);
-        if (fields.length === 1) return fields;
-      }
-    }
     const matched = candidates.filter(el => {
       const text = normalize(el.textContent).toLowerCase();
       return matchesCellText(el, parsed.cell) && labelFilters.every(wanted => associatedLabelText(el, wanted)) && textFilters.every(wanted => text.includes(wanted)) &&
         exactFilters.every(wanted => normalize(el.textContent) === wanted) && (!nonempty || el.matches('input, textarea, select') || normalize(el.textContent).length > 0);
     });
     if (!matched.length && root === document && exactFilters.length &&
-        /^\\[data-target-selection-name=/.test(nativeSelector)) {
-      const businessSelector = nativeSelector.match(/^\\[data-target-selection-name=(?:"(?:\\\\.|[^"\\\\])*"|'(?:\\\\.|[^'\\\\])*')\\]/)?.[0];
-      if (businessSelector) {
-        const fields = queryIncludingOpenShadow(root, businessSelector);
-        if (fields.length === 1) return fields;
+        nativeSelector.startsWith('[data-target-selection-name=')) {
+      const closing = nativeSelector.indexOf(']');
+      if (closing > 0) {
+        const businessSelector = nativeSelector.slice(0, closing + 1);
+        try {
+          const fields = queryIncludingOpenShadow(root, businessSelector);
+          if (fields.length === 1) return fields;
+        } catch { /* malformed selector: preserve unresolved result */ }
       }
     }
     return parsed.targetColumn === null ? matched :
