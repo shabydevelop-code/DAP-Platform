@@ -348,24 +348,12 @@
       return false;
     }
   }
-  let lastPointer = null;
   function inspectHoveredElement() {
     if (!pickActive) return;
-    let element = null;
-    if (lastPointer) {
-      let root = document;
-      for (let depth = 0; depth < 20; depth++) {
-        const next = root.elementFromPoint(lastPointer.x, lastPointer.y);
-        if (!next || next === element) break;
-        element = next;
-        if (!next.shadowRoot) break;
-        root = next.shadowRoot;
-      }
-    }
-    if (!element) {
-      const hovered = document.querySelectorAll(':hover');
-      element = hovered.length ? hovered[hovered.length - 1] : null;
-    }
+    // Use the existing hover-based picker; pointer hit testing can target
+    // the picker overlay instead of the underlying application element.
+    const hovered = document.querySelectorAll(':hover');
+    const element = hovered.length ? hovered[hovered.length - 1] : null;
     if (!(element instanceof Element)) {
       clearHighlight();
       return;
@@ -384,7 +372,6 @@
   }
   function pickHover(event) {
     if (!pickActive || !event.isTrusted) return;
-    lastPointer = {x:event.clientX,y:event.clientY};
     inspectHoveredElement();
   }
   function pickKey(event) {
