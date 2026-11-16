@@ -1215,6 +1215,12 @@
         const current = businessFieldValue(element);
         if (current === null || previous === null) { previous = current; return; }
         if (current === previous) return;
+        // Salesforce switches the field to edit mode before a value is saved.
+        // That DOM transition is not a committed field-value change.
+        const form = element.querySelector(".slds-form-element");
+        if (form && !form.classList.contains("is-stacked-not-editing")) return;
+        if (element.querySelector('input:not([type="hidden"]),textarea')) return;
+        if (!current.trim()) return;
         previous = current;
         const currentArmId = element.__guideMeValidationArmId;
         void emitAdapterEvent("validation-commit", step, currentArmId,
