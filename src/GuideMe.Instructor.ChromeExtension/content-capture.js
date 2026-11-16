@@ -97,7 +97,7 @@
     // The business identity is stable even when the displayed value is empty.
     const action = element.closest('button,a,input,select,textarea,[role="button"],[role="textbox"]');
     if (!action) {
-      for (let node = element; node; node = node.parentElement) {
+      for (let node = element; node; node = node.parentElement || node.getRootNode()?.host) {
         const anchor = businessAnchor(node);
         if (anchor) return anchor;
       }
@@ -348,36 +348,34 @@
       return false;
     }
   }
+  let lastPointer = null;
   function inspectHoveredElement() {
     if (!pickActive) return;
-    // :hover on the document stops at shadow hosts. Follow the hovered
-    // chain through open shadow roots to select the actual label/value.
-    let scope = document;
     let element = null;
-    for (let depth = 0; depth < 20; depth++) {
-      const hovered = scope.querySelectorAll(':hover');
-      const next = hovered.length ? hovered[hovered.length - 1] : null;
-      if (!next) break;
-      element = next;
-      if (!next.shadowRoot) break;
-      scope = next.shadowRoot;
+    if (lastPointer) {
+      let root = document;
+      for (let depth = 0; depth < 20; depth++) {
+        const next = root.elementFromPoint(lastPointer.x, lastPointer.y);
+        if (!next || next === element) break;
+        element = next;
+        if (!next.shadowRoot) break;
+        root = next.shadowRoot;
+      }
+    }
+    if (!element) {
+      const hovered = document.querySelectorAll(':hover');
+      element = hovered.length ? hovered[hovered.length - 1] : null;
     }
     if (!(element instanceof Element)) {
       clearHighlight();
       return;
     }
-    // The child iframe owns its own highlight. Never paint its entire viewport.
-    // Frames and document roots are not selectable. Semantic containers such as
-    // HEADER/MAIN may themselves be actionable (e.g. a header with role="link").
     if (['HTML','BODY','IFRAME','FRAME'].includes(element.tagName) ||
         (['HEADER','MAIN'].includes(element.tagName) &&
          !element.matches('[role="link"],[role="button"],a,button,[tabindex]'))) {
       clearHighlight();
       return;
     }
-    // Text-bearing descendants can be selected independently from an
-    // interactive parent (e.g. STRONG inside a clickable HEADER). Keep the
-    // normal control grouping for buttons, inputs and links.
     const target = element.matches('strong,span,h1,h2,h3,h4,h5,h6,p,label')
       ? element
       : element.closest('button,a,input,select,textarea,[role="button"],[role="textbox"],[role="link"]') || element;
@@ -386,6 +384,7 @@
   }
   function pickHover(event) {
     if (!pickActive || !event.isTrusted) return;
+    lastPointer = {x:event.clientX,y:event.clientY};
     inspectHoveredElement();
   }
   function pickKey(event) {
