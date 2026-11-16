@@ -47,11 +47,22 @@
     }
   }
 
+  function queryAcrossOpenShadow(selector) {
+    const results = [];
+    const visit = root => {
+      results.push(...root.querySelectorAll(selector));
+      for (const node of root.querySelectorAll('*'))
+        if (node.shadowRoot) visit(node.shadowRoot);
+    };
+    visit(document);
+    return results;
+  }
+
   function selectorFor(element) {
     const tag = element.tagName.toLowerCase();
     const unique = selector => {
-      try { return document.querySelector(selector) === element &&
-        document.querySelectorAll(selector).length === 1; } catch { return false; }
+      try { const matches = queryAcrossOpenShadow(selector);
+        return matches.length === 1 && matches[0] === element; } catch { return false; }
     };
     // One stability policy for IDs, semantic attributes, classes and ancestor paths.
     const generatedId = value => /(?:^|[-_])(?:button|input|element|dropdown|combobox)[-_]?\\d+$/i.test(value) ||
@@ -79,9 +90,18 @@
       const value = node?.getAttribute?.(businessAttribute);
       if (!value || value.length > 200 || !/^[a-z][\w:.-]*$/i.test(value)) return null;
       const selector = '[' + businessAttribute + '="' + CSS.escape(value) + '"]';
-      try { return document.querySelectorAll(selector).length === 1 ? selector : null; }
+      try { return queryAcrossOpenShadow(selector).length === 1 ? selector : null; }
       catch { return null; }
     };
+    // Labels and read-only values identify their containing business field.
+    // The business identity is stable even when the displayed value is empty.
+    const action = element.closest('button,a,input,select,textarea,[role="button"],[role="textbox"]');
+    if (!action) {
+      for (let node = element; node; node = node.parentElement) {
+        const anchor = businessAnchor(node);
+        if (anchor) return anchor;
+      }
+    }
     const ownBusiness = businessAnchor(element);
     if (ownBusiness && unique(ownBusiness)) return ownBusiness;
     for (let parent = element.parentElement, depth = 0; parent && depth < 7;
@@ -330,8 +350,18 @@
   }
   function inspectHoveredElement() {
     if (!pickActive) return;
-    const hovered = document.querySelectorAll(':hover');
-    const element = hovered.length ? hovered[hovered.length - 1] : null;
+    // :hover on the document stops at shadow hosts. Follow the hovered
+    // chain through open shadow roots to select the actual label/value.
+    let scope = document;
+    let element = null;
+    for (let depth = 0; depth < 20; depth++) {
+      const hovered = scope.querySelectorAll(':hover');
+      const next = hovered.length ? hovered[hovered.length - 1] : null;
+      if (!next) break;
+      element = next;
+      if (!next.shadowRoot) break;
+      scope = next.shadowRoot;
+    }
     if (!(element instanceof Element)) {
       clearHighlight();
       return;
