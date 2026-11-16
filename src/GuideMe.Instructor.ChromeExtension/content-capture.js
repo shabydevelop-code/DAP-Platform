@@ -102,6 +102,23 @@
         if (anchor) return anchor;
       }
     }
+    // When an open shadow host is highlighted, the field identity may live
+    // below it rather than on the host or any of its ancestors. Accept only
+    // a single business field within that host; never guess among siblings.
+    if (!action && element.shadowRoot) {
+      const fields = [];
+      const collect = root => {
+        for (const node of root.querySelectorAll('*')) {
+          if (node.hasAttribute(businessAttribute)) fields.push(node);
+          if (node.shadowRoot) collect(node.shadowRoot);
+        }
+      };
+      collect(element.shadowRoot);
+      if (fields.length === 1) {
+        const anchor = businessAnchor(fields[0]);
+        if (anchor) return anchor;
+      }
+    }
     const ownBusiness = businessAnchor(element);
     if (ownBusiness && unique(ownBusiness)) return ownBusiness;
     for (let parent = element.parentElement, depth = 0; parent && depth < 7;
