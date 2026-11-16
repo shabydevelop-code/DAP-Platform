@@ -424,6 +424,23 @@
     const name = aria || native || (el.getAttribute('aria-label') || '').trim();
     return normalize(name) === wanted;
   }
+  // Query the ordinary DOM and every reachable open shadow root.
+  // Native CSS selectors cannot cross a shadow boundary.
+  function queryIncludingOpenShadow(root, selector) {
+    const found = [];
+    const visited = new Set();
+    function visit(scope) {
+      if (!scope || visited.has(scope)) return;
+      visited.add(scope);
+      found.push(...scope.querySelectorAll(selector));
+      for (const node of scope.querySelectorAll('*')) {
+        if (node.shadowRoot) visit(node.shadowRoot);
+      }
+    }
+    visit(root);
+    return [...new Set(found)];
+  }
+
   function queryExtendedCss(selector, root = document) {
     const parsed = parseCellTextSelector(selector);
     const source = String(parsed.selector || "");
@@ -451,7 +468,7 @@
 
     let candidates;
     try {
-      candidates = [...root.querySelectorAll(nativeSelector || "*")];
+      candidates = queryIncludingOpenShadow(root, nativeSelector || "*");
     } catch (error) {
       if (error?.name !== "SyntaxError") throw error;
       // An invalid authored selector is an unresolved target, not a fatal guide error.
@@ -459,11 +476,30 @@
     }
     if (!textFilters.length && !exactFilters.length && !labelFilters.length && !parsed.cell && !nonempty) return candidates;
 
+    // Legacy captures may attach volatile exact text to a stable business
+    // field. Prefer the precise child when it matches; if it does not, use
+    // the uniquely identified business field itself as the bubble anchor.
+    if (!candidates.length && root === document &&
+        /^\\[data-target-selection-name=/.test(nativeSelector) && exactFilters.length) {
+      const businessSelector = nativeSelector.match(/^\\[data-target-selection-name=(?:"(?:\\\\.|[^"\\\\])*"|'(?:\\\\.|[^'\\\\])*')\\]/)?.[0];
+      if (businessSelector) {
+        const fields = queryIncludingOpenShadow(root, businessSelector);
+        if (fields.length === 1) return fields;
+      }
+    }
     const matched = candidates.filter(el => {
       const text = normalize(el.textContent).toLowerCase();
       return matchesCellText(el, parsed.cell) && labelFilters.every(wanted => associatedLabelText(el, wanted)) && textFilters.every(wanted => text.includes(wanted)) &&
         exactFilters.every(wanted => normalize(el.textContent) === wanted) && (!nonempty || el.matches('input, textarea, select') || normalize(el.textContent).length > 0);
     });
+    if (!matched.length && root === document && exactFilters.length &&
+        /^\\[data-target-selection-name=/.test(nativeSelector)) {
+      const businessSelector = nativeSelector.match(/^\\[data-target-selection-name=(?:"(?:\\\\.|[^"\\\\])*"|'(?:\\\\.|[^'\\\\])*')\\]/)?.[0];
+      if (businessSelector) {
+        const fields = queryIncludingOpenShadow(root, businessSelector);
+        if (fields.length === 1) return fields;
+      }
+    }
     return parsed.targetColumn === null ? matched :
       matched.map(row => row instanceof HTMLTableRowElement ? row.cells[parsed.targetColumn - 1] : null)
         .filter(Boolean);
