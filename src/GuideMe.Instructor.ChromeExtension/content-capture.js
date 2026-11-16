@@ -70,6 +70,35 @@
       // attributes/classes or a scoped path instead.
       return names.map(name => base + '.' + CSS.escape(name));
     };
+    // Prefer a stable business-field identity exposed by the host application.
+    // This is an ordinary DOM attribute, not a Salesforce API dependency.
+    // For a child control (such as Edit), scope its existing semantic selector
+    // to the business field; never replace the selected child with its parent.
+    const businessAttribute = 'data-target-selection-name';
+    const businessAnchor = node => {
+      const value = node?.getAttribute?.(businessAttribute);
+      if (!value || value.length > 200 || !/^[a-z][\w:.-]*$/i.test(value)) return null;
+      const selector = '[' + businessAttribute + '="' + CSS.escape(value) + '"]';
+      try { return document.querySelectorAll(selector).length === 1 ? selector : null; }
+      catch { return null; }
+    };
+    const ownBusiness = businessAnchor(element);
+    if (ownBusiness && unique(ownBusiness)) return ownBusiness;
+    for (let parent = element.parentElement, depth = 0; parent && depth < 7;
+         parent = parent.parentElement, depth++) {
+      const anchor = businessAnchor(parent);
+      if (!anchor) continue;
+      const options = [];
+      for (const attr of ['data-testid', 'data-test', 'data-qa', 'name', 'aria-label', 'title']) {
+        const value = element.getAttribute(attr);
+        if (stable(value)) options.push(tag + '[' + attr + '="' + CSS.escape(value) + '"]');
+      }
+      for (const className of classNames(element)) options.push(tag + '.' + CSS.escape(className));
+      for (const suffix of options) {
+        const selector = anchor + ' ' + suffix;
+        if (unique(selector)) return selector;
+      }
+    }
     // Generated record IDs are unique only until the next render. Use a
     // structural selector with a semantic class so identified-action binding
     // can discard the row position but retain the selected action type.
