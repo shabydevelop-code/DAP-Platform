@@ -358,7 +358,16 @@
     return result;
   }
 
+  function businessFieldValue(el) {
+    if (!el?.hasAttribute?.("data-target-selection-name")) return null;
+    const value = el.querySelector(".test-id__field-value, [slot='outputField'], [data-output-element-id]");
+    if (!value) return null;
+    return (value.innerText || value.textContent || "").replace(/\\s+/g, " ").trim();
+  }
+
   function selectedControlValue(el) {
+    const businessValue = businessFieldValue(el);
+    if (businessValue !== null) return businessValue;
     const role = (el.getAttribute("role") || "").toLowerCase();
     const popup = (el.getAttribute("aria-haspopup") || "").toLowerCase();
     if (role === "combobox" || popup === "listbox") {
@@ -1194,6 +1203,28 @@
     }
 
     if (!kind) return;
+
+    // Read-only business fields may be edited in a separate shadow-root input.
+    // Observe the displayed value, not the transient editor, and commit only
+    // after the field's value actually changes.
+    if (element.hasAttribute("data-target-selection-name") && kind !== "clicked") {
+      element.__guideMeBusinessValueObserver?.disconnect();
+      let previous = businessFieldValue(element);
+      const scope = element.getRootNode();
+      const observer = new MutationObserver(() => {
+        const current = businessFieldValue(element);
+        if (current === null || previous === null) { previous = current; return; }
+        if (current === previous) return;
+        previous = current;
+        const currentArmId = element.__guideMeValidationArmId;
+        void emitAdapterEvent("validation-commit", step, currentArmId,
+          {kind, browserEvent:"business-field-value-change"}).catch(()=>{});
+      });
+      observer.observe(scope, {subtree:true,childList:true,characterData:true,attributes:true,
+        attributeFilter:["value","title","class"]});
+      element.__guideMeBusinessValueObserver = observer;
+      return;
+    }
 
     if (element.__guideMeValidationStepId !== step.id) {
       if (element.__guideMeValidationCommitHandler)
